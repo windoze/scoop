@@ -59,11 +59,9 @@ fn local_default_descriptors_preserve_unused_owner_arguments_through_each_expans
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
-                parameters
-                    .bind_default_declarations(&table, &[], &mut meter())
-                    .unwrap();
+                parameters.bind_default_declarations(&table, &[]).unwrap();
             });
         });
     }

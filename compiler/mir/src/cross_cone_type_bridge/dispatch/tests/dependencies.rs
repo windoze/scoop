@@ -44,24 +44,16 @@ impl Tables {
                     .into_iter()
                     .map(|owner| fixture.record(owner))
                     .collect(),
-                &mut meter(),
             )
             .unwrap(),
         }
     }
     fn types(&self) -> MirTypeBridgeTypeIndexV1<'_> {
-        MirTypeBridgeTypeIndexV1::try_new(
-            &[&self.local_types, &self.dependency_types],
-            &mut meter(),
-        )
-        .unwrap()
+        MirTypeBridgeTypeIndexV1::try_new(&[&self.local_types, &self.dependency_types]).unwrap()
     }
     fn callables(&self) -> MirTypeBridgeCallableIndexV1<'_> {
-        MirTypeBridgeCallableIndexV1::try_new(
-            &[&self.local_callables, &self.dependency_callables],
-            &mut meter(),
-        )
-        .unwrap()
+        MirTypeBridgeCallableIndexV1::try_new(&[&self.local_callables, &self.dependency_callables])
+            .unwrap()
     }
 }
 
@@ -78,7 +70,6 @@ fn foreign_base_and_interface_schemas_are_borrowed_without_copying_exports() {
         },
         vec![fixture.record(DERIVED)],
         &[&tables.dependency_schemas],
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(fixture.source[BASE].key().origin(), ConeIdentity::CORE);
@@ -91,21 +82,19 @@ fn foreign_base_and_interface_schemas_are_borrowed_without_copying_exports() {
     assert!(tables.local_types.get(fixture.exact(BASE)).is_none());
     assert!(tables.local_callables.get(fixture.target(0)).is_none());
     let schema_view =
-        MirTypeBridgeSchemaIndexV1::try_new(&[&local, &tables.dependency_schemas], &mut meter())
-            .unwrap();
+        MirTypeBridgeSchemaIndexV1::try_new(&[&local, &tables.dependency_schemas]).unwrap();
     assert!(std::ptr::eq(
         schema_view.get(fixture.exact(BASE)).unwrap(),
         tables.dependency_schemas.get(fixture.exact(BASE)).unwrap()
     ));
     let decoded: DecodedCanonicalMirDispatchSchemasV1 =
-        decode_canonical(&encode(&local).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&local).unwrap()).unwrap();
     let round_trip = decoded
         .validate_with_dependencies(
             &mut fixture.graph,
             &types,
             &callables,
             &[&tables.dependency_schemas],
-            &mut meter(),
         )
         .unwrap();
     assert_eq!(round_trip, local);
@@ -117,18 +106,10 @@ fn local_callable_reader_uses_imported_exact_types_but_keeps_its_own_table() {
     let mut fixture = Fixture::with_dependency_cone(true);
     let tables = Tables::new(&fixture);
     let types = tables.types();
-    let decoded: DecodedCanonicalMirCallableBindingsV1 = decode_canonical(
-        &encode(&tables.local_callables).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedCanonicalMirCallableBindingsV1 =
+        decode_canonical(&encode(&tables.local_callables).unwrap()).unwrap();
     let table = decoded
-        .validate(
-            &mut fixture.graph,
-            &fixture.foundation,
-            &types,
-            &mut meter(),
-        )
+        .validate(&mut fixture.graph, &fixture.foundation, &types)
         .unwrap();
     assert_eq!(table, tables.local_callables);
     assert_eq!(table.entries().len(), 2);
@@ -149,7 +130,6 @@ fn missing_dependency_schema_and_missing_dependency_types_fail_closed() {
                 callables: &callables
             },
             vec![record.clone()],
-            &mut meter(),
         ),
         Err(MirDispatchSchemaError::MissingSchema { .. })
     ));
@@ -162,7 +142,6 @@ fn missing_dependency_schema_and_missing_dependency_types_fail_closed() {
             },
             vec![record],
             &[&tables.dependency_schemas],
-            &mut meter(),
         ),
         Err(MirDispatchSchemaError::MissingType { .. })
     ));
@@ -184,7 +163,6 @@ fn imported_base_still_requires_the_full_local_vtable_prefix() {
             },
             vec![record],
             &[&tables.dependency_schemas],
-            &mut meter(),
         ),
         Err(MirDispatchSchemaError::BasePrefix { .. })
     ));
@@ -196,10 +174,10 @@ fn repeated_dependency_authority_is_not_silently_merged() {
     let tables = Tables::new(&fixture);
     let (types, callables) = (tables.types(), tables.callables());
     assert!(matches!(
-        MirTypeBridgeCallableIndexV1::try_new(
-            &[&tables.dependency_callables, &tables.dependency_callables],
-            &mut meter(),
-        ),
+        MirTypeBridgeCallableIndexV1::try_new(&[
+            &tables.dependency_callables,
+            &tables.dependency_callables
+        ],),
         Err(MirTypeBridgeLookupError::DuplicateCallable { .. })
     ));
     assert!(matches!(
@@ -211,7 +189,6 @@ fn repeated_dependency_authority_is_not_silently_merged() {
             },
             vec![fixture.record(DERIVED)],
             &[&tables.dependency_schemas, &tables.dependency_schemas],
-            &mut meter(),
         ),
         Err(MirDispatchSchemaError::Lookup(
             MirTypeBridgeLookupError::DuplicateSchema { .. }

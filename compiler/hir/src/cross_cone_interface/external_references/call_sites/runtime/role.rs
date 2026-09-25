@@ -10,11 +10,9 @@ impl HirDependencyCallSiteV1 {
         target: ExternalHirTargetV1,
         owner: PersistentTypeId,
         roles: &CoreCompilerProtocolSurfaceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), HirRuntimeConstructorError> {
         use HirRuntimeConstructorError as Error;
-        let path = WirePath::root();
-        meter.charge_work(1, &path)?;
+
         if !matches!(self.reason(), HirDependencyCallReasonV1::CastFailure { .. }) {
             return Err(Error::CallShape);
         }
@@ -37,10 +35,7 @@ impl HirDependencyCallSiteV1 {
             Vec::new(),
             SignatureTypeKey::Nominal(owner),
         );
-        meter.charge_work(
-            scoop_wire::encoded_length(&signature).map_err(|_| Error::RoleSignature)?,
-            &path,
-        )?;
+
         if roles.class_cast_exception_type() != owner || selected.signature() != &signature {
             return Err(Error::RoleSignature);
         }

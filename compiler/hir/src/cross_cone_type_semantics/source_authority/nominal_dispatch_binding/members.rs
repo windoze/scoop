@@ -3,15 +3,9 @@ use super::*;
 pub(super) type Members = BTreeMap<SourceNominalId, BTreeSet<ProtectedDeclarationRefV1>>;
 pub(super) fn collect(
     bound: &BoundNominalDispatchSourcesV1<'_, '_, '_, '_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<Members, Error> {
     let sources = bound.parameters.members();
-    let path = WirePath::root();
-    let count = sources.callables().records().len() as u64
-        + sources.properties().records().len() as u64
-        + sources.nominals.table().records().len() as u64;
-    meter.charge_work(count, &path)?;
-    meter.charge_nodes(count, &path)?;
+
     let mut members = BTreeMap::new();
     for source in sources.callables().records() {
         if source.declaration_access().declared_visibility() == DeclaredVisibilityV1::Protected {
@@ -21,7 +15,6 @@ pub(super) fn collect(
                 &mut members,
                 source.payload().owner(),
                 ProtectedDeclarationRefV1::Callable(reference),
-                meter,
             )?;
         }
     }
@@ -31,12 +24,10 @@ pub(super) fn collect(
                 &mut members,
                 source.owner(),
                 ProtectedDeclarationRefV1::Property(source.declaration()),
-                meter,
             )?;
         }
     }
     for nominal in sources.nominals.table().records() {
-        query(sources.nominals.table().records().len(), meter)?;
         let access = sources
             .nominals
             .foundation
@@ -53,7 +44,6 @@ pub(super) fn collect(
                 &mut members,
                 owner,
                 ProtectedDeclarationRefV1::NestedNominal(nominal.owner()),
-                meter,
             )?;
         }
     }
@@ -63,22 +53,12 @@ fn insert(
     members: &mut Members,
     owner: SourceNominalId,
     declaration: ProtectedDeclarationRefV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    let path = WirePath::root();
-    query(members.len(), meter)?;
-    let length = members.len();
     let members = match members.entry(owner) {
         std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
-        std::collections::btree_map::Entry::Vacant(entry) => {
-            meter.check_table_entries(length as u64 + 1, &path)?;
-            meter.charge_collection_slots(1, &path)?;
-            entry.insert(BTreeSet::new())
-        }
+        std::collections::btree_map::Entry::Vacant(entry) => entry.insert(BTreeSet::new()),
     };
-    query(members.len(), meter)?;
-    meter.check_table_entries(members.len() as u64 + 1, &path)?;
-    meter.charge_collection_slots(1, &path)?;
+
     if !members.insert(declaration) {
         return Err(Error::ProtectedOwner);
     }

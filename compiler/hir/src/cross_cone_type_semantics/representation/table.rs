@@ -1,15 +1,13 @@
 use std::fmt;
 
 use scoop_identity::PersistentTypeId;
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::{
     DecodedNominalRepresentationSupportV1, NominalRepresentationResolutionError,
     NominalRepresentationResolver, NominalRepresentationSupportV1,
 };
 use crate::cross_cone_type_semantics::wire;
-
-mod metered;
 
 /// Canonical storage, not a substitute for source/facts/inheritance closure
 /// validation. The section validator supplies that authority before selection.
@@ -52,10 +50,30 @@ impl DecodedCanonicalNominalRepresentationSupportV1 {
     pub fn resolve<R: NominalRepresentationResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalNominalRepresentationSupportV1, NominalRepresentationTableResolutionError<E>>
     {
-        self.resolve_metered(resolver, meter, &WirePath::root())
+        use NominalRepresentationTableResolutionError as Error;
+        let mut records = Vec::new();
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
+            .map_err(Error::Resource)?;
+        for (index, decoded) in self.records.into_iter().enumerate() {
+            let record = decoded
+                .resolve(resolver)
+                .map_err(|source| Error::Record { index, source })?;
+            if records
+                .last()
+                .is_some_and(|previous: &NominalRepresentationSupportV1| {
+                    previous.owner() >= record.owner()
+                })
+            {
+                return Err(Error::Order(NominalRepresentationTableOrderError {
+                    index,
+                    owner: record.owner(),
+                }));
+            }
+            records.push(record);
+        }
+        Ok(CanonicalNominalRepresentationSupportV1 { records })
     }
 }
 
@@ -65,7 +83,7 @@ impl WireEncode for DecodedCanonicalNominalRepresentationSupportV1 {
     }
 }
 impl WireDecode for DecodedCanonicalNominalRepresentationSupportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedNominalRepresentationSupportV1::decode(decoder))
             .map(|records| Self { records })

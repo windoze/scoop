@@ -4,7 +4,6 @@ pub(super) fn lower(
     input: LayoutAbiExportInputV1<'_>,
     layouts: &lir::CanonicalExactLayoutExportsV1,
     diagnostics: &impl scoop_identity::ExactTypeDiagnosticGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactDescriptorExportsV1, Error> {
     let registrations = input
         .registration
@@ -15,14 +14,14 @@ pub(super) fn lower(
     if registrations.len() != actual.len() {
         return Err(Error::DescriptorSet);
     }
-    let mut records = reserve(registrations.len(), meter)?;
+    let mut records = reserve(registrations.len())?;
     for registration in registrations {
         let exact = registration.exact_type();
-        search(input.bridge.types().records().len(), meter)?;
+
         if input.bridge.types().get(exact).is_none() {
             continue;
         }
-        meter.charge_work(actual.len() as u64, &WirePath::root())?;
+
         let physical = actual
             .iter()
             .find(|(_, descriptor)| descriptor.identity.exact_type() == exact)
@@ -42,13 +41,11 @@ pub(super) fn lower(
             registration,
             diagnostics,
             input.lir.foundation(),
-            meter,
         )?);
     }
     Ok(lir::CanonicalExactDescriptorExportsV1::try_new(
         input.lir.module().meta.target_profile,
         input.lir.foundation(),
         records,
-        meter,
     )?)
 }

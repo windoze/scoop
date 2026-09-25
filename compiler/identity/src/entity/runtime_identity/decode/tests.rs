@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedImmortalObjectKey, DecodedLayoutKey, DecodedScanKey, DecodedStaticStorageKey,
@@ -90,9 +90,7 @@ fn every_layout_and_scan_role_round_trips_and_resolves() {
         RepresentationRole::NativeFunctionPointer,
     ] {
         let key = LayoutKey::darwin_aarch64(exact_type(), representation);
-        let decoded =
-            decode_canonical::<DecodedLayoutKey>(&encode(&key).unwrap(), DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedLayoutKey>(&encode(&key).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
     }
 
@@ -102,9 +100,7 @@ fn every_layout_and_scan_role_round_trips_and_resolves() {
         ScanRole::ArrayElement,
     ] {
         let key = ScanKey::new(layout_id(), role);
-        let decoded =
-            decode_canonical::<DecodedScanKey>(&encode(&key).unwrap(), DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedScanKey>(&encode(&key).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
     }
 }
@@ -117,9 +113,7 @@ fn layout_resolution_rejects_an_unregistered_target_profile() {
             .unwrap(),
         representation: RepresentationRole::ManagedValue,
     };
-    let decoded =
-        decode_canonical::<DecodedLayoutKey>(&encode(&raw).unwrap(), DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedLayoutKey>(&encode(&raw).unwrap()).unwrap();
 
     assert!(matches!(
         decoded.resolve(&mut Resolver),
@@ -144,11 +138,8 @@ fn every_structurally_valid_static_storage_shape_round_trips() {
     ];
 
     for value in values {
-        let decoded = decode_canonical::<DecodedStaticStorageKey>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedStaticStorageKey>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), value);
     }
 }
@@ -159,11 +150,8 @@ fn static_storage_resolution_rechecks_the_owner_role_matrix() {
         owner: DefinitionOwner::Callable(CallableOwner::Function(function())),
         role: StorageRole::PropertyBacking,
     };
-    let decoded = decode_canonical::<DecodedStaticStorageKey>(
-        &encode(&invalid_owner).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedStaticStorageKey>(&encode(&invalid_owner).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(StaticStorageResolutionError::InvalidOwnerRole(
@@ -175,11 +163,8 @@ fn static_storage_resolution_rechecks_the_owner_role_matrix() {
         owner: DefinitionOwner::InitializationUnit(initialization_unit_id()),
         role: StorageRole::PropertyDelegate,
     };
-    let decoded = decode_canonical::<DecodedStaticStorageKey>(
-        &encode(&wrong_unit).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedStaticStorageKey>(&encode(&wrong_unit).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(StaticStorageResolutionError::Shape(
@@ -201,11 +186,8 @@ fn every_immortal_object_owner_round_trips_and_resolves() {
 
     for owner in owners {
         let value = ImmortalObjectKey::string_constant(owner, string_path());
-        let decoded = decode_canonical::<DecodedImmortalObjectKey>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedImmortalObjectKey>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), value);
     }
 }
@@ -219,7 +201,7 @@ fn runtime_identity_roles_reject_unknown_tags() {
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
-    let error = decode_canonical::<T>(bytes, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<T>(bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag });
 }
 

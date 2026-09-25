@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, Encoder, WireEncode};
+use scoop_wire::{Encoder, WireEncode};
 
 /// Publisher-side local indices. This view carries no source or use authority.
 pub struct IndexedCrossConeTypeSemanticsSectionV1<'a> {
@@ -10,11 +10,10 @@ pub struct IndexedCrossConeTypeSemanticsSectionV1<'a> {
 impl CrossConeTypeSemanticsSectionV1 {
     pub fn index_for_wire(
         &self,
-        meter: &mut BudgetMeter,
     ) -> Result<IndexedCrossConeTypeSemanticsSectionV1<'_>, TypeSemanticsSectionIndexError> {
         let sources = self
             .protected_source_interfaces
-            .index_templates(self.protected_defaults.keys(), meter)
+            .index_templates(self.protected_defaults.keys())
             .map_err(TypeSemanticsSectionIndexError::Source)?;
         let defaults = self
             .protected_defaults

@@ -1,5 +1,5 @@
 use scoop_identity::{DecodedPersistentId, PersistentId};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::*;
 use crate::{
@@ -11,19 +11,14 @@ impl DecodedExactDescriptorExportV1 {
     pub fn validate_against(
         self,
         expected: &ExactDescriptorExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ExactDescriptorExportV1, ExactDescriptorWireError> {
-        meter.charge_work(2, &WirePath::root())?;
-        self.semantic.validate_against(expected, meter)?;
-        if !self
-            .definition
-            .matches_definition(expected.definition(), meter)?
-        {
+        self.semantic.validate_against(expected)?;
+        if !self.definition.matches_definition(expected.definition())? {
             return Err(ExactDescriptorWireError::Definition);
         }
         if !self
             .registration
-            .matches_registration(expected.registration(), meter)?
+            .matches_registration(expected.registration())?
         {
             return Err(ExactDescriptorWireError::Registration);
         }
@@ -35,9 +30,7 @@ impl DecodedExactDescriptorSemanticProjectionV1 {
     pub fn validate_against(
         self,
         expected: &ExactDescriptorExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactDescriptorWireError> {
-        meter.charge_work(8, &WirePath::root())?;
         verify(self.exact, expected.exact())?;
         verify(
             self.value_layout,
@@ -47,13 +40,13 @@ impl DecodedExactDescriptorSemanticProjectionV1 {
             self.instance_layout,
             expected.instance_layout().identity().layout(),
         )?;
-        self.shape.validate_against(expected.shape(), meter)?;
-        let object_scan = self.object_scan.validate_metered(meter)?;
+        self.shape.validate_against(expected.shape())?;
+        let object_scan = self.object_scan.validate()?;
         if object_scan.as_ref_scan() != expected.object_scan() {
             return Err(ExactDescriptorWireError::ObjectScan);
         }
-        self.ancestry.validate_against(expected.ancestry(), meter)?;
-        self.dispatch.validate_against(expected.dispatch(), meter)?;
+        self.ancestry.validate_against(expected.ancestry())?;
+        self.dispatch.validate_against(expected.dispatch())?;
         if self.diagnostic_name != expected.diagnostic_name().as_str() {
             return Err(ExactDescriptorWireError::DiagnosticName);
         }
@@ -65,12 +58,7 @@ impl DecodedAncestry {
     fn validate_against(
         self,
         expected: &ExactDescriptorAncestryV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactDescriptorWireError> {
-        meter.charge_work(
-            (self.interfaces.len() as u64).saturating_add(1),
-            &WirePath::root(),
-        )?;
         if !optional_ref_matches(self.parent, expected.parent())
             || self.interfaces.len() != expected.interfaces().len()
             || !self
@@ -89,12 +77,7 @@ impl DecodedDispatch {
     fn validate_against(
         self,
         expected: &ExactDescriptorDispatchV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactDescriptorWireError> {
-        meter.charge_work(
-            (self.itables.len() as u64).saturating_add(1),
-            &WirePath::root(),
-        )?;
         verify(self.vtable, expected.vtable())?;
         if self.itables.len() != expected.itables().len() {
             return Err(ExactDescriptorWireError::Dispatch);
@@ -113,9 +96,7 @@ impl DecodedCanonicalExactDescriptorExportsV1 {
     pub fn validate_against(
         self,
         expected: &CanonicalExactDescriptorExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalExactDescriptorExportsV1, ExactDescriptorTableError> {
-        meter.charge_work(self.records.len() as u64, &WirePath::root())?;
         if self.records.len() != expected.records().len() {
             return Err(ExactDescriptorTableError::Count);
         }
@@ -123,7 +104,7 @@ impl DecodedCanonicalExactDescriptorExportsV1 {
             self.records.into_iter().zip(expected.records()).enumerate()
         {
             actual
-                .validate_against(expected, meter)
+                .validate_against(expected)
                 .map_err(|source| ExactDescriptorTableError::Record { index, source })?;
         }
         Ok(expected.clone())
@@ -203,7 +184,7 @@ pub enum ExactDescriptorWireError {
     Definition,
     Registration,
     Shape(crate::TypeInstanceShapeWireError),
-    Scan(crate::MeteredScanValidationError),
+    Scan(crate::RefScanValidationError),
     Resource(WireError),
 }
 
@@ -213,8 +194,8 @@ impl From<crate::TypeInstanceShapeWireError> for ExactDescriptorWireError {
     }
 }
 
-impl From<crate::MeteredScanValidationError> for ExactDescriptorWireError {
-    fn from(error: crate::MeteredScanValidationError) -> Self {
+impl From<crate::RefScanValidationError> for ExactDescriptorWireError {
+    fn from(error: crate::RefScanValidationError) -> Self {
         Self::Scan(error)
     }
 }

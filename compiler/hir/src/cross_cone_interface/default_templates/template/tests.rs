@@ -2,7 +2,7 @@ use scoop_identity::{
     CallableTemplateOrigin, SignatureTypeKey, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::super::body::expression_test_support::{Fixture, ResolutionError, Resolver};
 use super::*;
@@ -21,8 +21,7 @@ fn template_has_exact_indexed_wire_and_round_trips() {
     assert_eq!(bytes[0], 0xac);
     assert_eq!(bytes[1], 0x01);
 
-    let decoded: DecodedExportDefaultTemplateV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultTemplateV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), expected);
 }
@@ -127,8 +126,7 @@ fn reader_replays_template_record_invariants() {
         result: &declared,
     })
     .unwrap();
-    let decoded: DecodedExportDefaultTemplateV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultTemplateV1 = decode_canonical(&bytes).unwrap();
 
     assert!(matches!(
         decoded.resolve(&mut fixture.resolver()),
@@ -145,16 +143,14 @@ fn reader_replays_template_record_invariants() {
 fn reader_preserves_outer_resolution_context() {
     let fixture = Fixture::new();
     let bytes = encode(&template_with_parameter(&fixture).index_locals().unwrap()).unwrap();
-    let decoded: DecodedExportDefaultTemplateV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultTemplateV1 = decode_canonical(&bytes).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver()).unwrap(),
         template_with_parameter(&fixture)
     );
 
-    let decoded: DecodedExportDefaultTemplateV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultTemplateV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut Resolver::rejecting()),
         Err(ExportDefaultTemplateResolutionError::Key(ResolutionError))
@@ -163,9 +159,7 @@ fn reader_preserves_outer_resolution_context() {
 
 #[test]
 fn decoder_requires_the_exact_twelve_field_product() {
-    let error =
-        decode_canonical::<DecodedExportDefaultTemplateV1>(&[0xa0], DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedExportDefaultTemplateV1>(&[0xa0]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

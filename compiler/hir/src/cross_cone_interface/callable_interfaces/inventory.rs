@@ -3,27 +3,20 @@ use crate::{
     NestedSourceMemberRefV1, NominalSourceShapeV1, PublicDeclarationOwnerV1,
 };
 use scoop_identity::CallableTemplateOrigin;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 use std::collections::BTreeMap;
 
 impl CanonicalNominalInterfacesV1 {
     pub fn declared_source_callables(
         &self,
-        meter: &mut BudgetMeter,
     ) -> Result<
         BTreeMap<CallableTemplateOrigin, PublicDeclarationOwnerV1>,
         CallableDeclarationInventoryError,
     > {
         let mut required = BTreeMap::new();
-        let path = WirePath::root().field(3);
+
         for nominal in self.all_records() {
-            meter.charge_work(
-                1 + nominal.declaration_details().members().values().len() as u64,
-                &path,
-            )?;
             let mut add = |declaration| -> Result<(), CallableDeclarationInventoryError> {
-                meter.charge_collection_slots(1, &path)?;
-                meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
                 if let Some(previous) = required.insert(
                     declaration,
                     PublicDeclarationOwnerV1::Nominal(nominal.declaration()),
@@ -66,20 +59,16 @@ impl CanonicalCallableInterfacesV1 {
     pub(crate) fn required_declarations(
         nominals: &CanonicalNominalInterfacesV1,
         properties: &CanonicalPropertyInterfacesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<
         BTreeMap<CallableTemplateOrigin, PublicDeclarationOwnerV1>,
         CallableDeclarationInventoryError,
     > {
-        let mut required = nominals.declared_source_callables(meter)?;
-        let path = WirePath::root().field(3);
+        let mut required = nominals.declared_source_callables()?;
+
         for property in properties.all_declarations() {
             for accessor in
                 std::iter::once(property.accessors().getter()).chain(property.accessors().setter())
             {
-                meter.check_table_entries(required.len() as u64 + 1, &path)?;
-                meter.charge_collection_slots(1, &path)?;
-                meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
                 let declaration = CallableTemplateOrigin::Accessor(accessor);
                 if let Some(first) = required.insert(declaration, property.owner()) {
                     return Err(CallableDeclarationInventoryError::DuplicateRelation {
@@ -98,9 +87,8 @@ impl CanonicalCallableInterfacesV1 {
         &self,
         nominals: &CanonicalNominalInterfacesV1,
         properties: &CanonicalPropertyInterfacesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), CallableDeclarationInventoryError> {
-        self.validate_inventory(nominals, properties, true, meter)
+        self.validate_inventory(nominals, properties, true)
     }
 
     /// Checks member ownership and accessor relationships. Top-level support
@@ -109,9 +97,8 @@ impl CanonicalCallableInterfacesV1 {
         &self,
         nominals: &CanonicalNominalInterfacesV1,
         properties: &CanonicalPropertyInterfacesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), CallableDeclarationInventoryError> {
-        self.validate_inventory(nominals, properties, false, meter)
+        self.validate_inventory(nominals, properties, false)
     }
 
     fn validate_inventory(
@@ -119,15 +106,10 @@ impl CanonicalCallableInterfacesV1 {
         nominals: &CanonicalNominalInterfacesV1,
         properties: &CanonicalPropertyInterfacesV1,
         exact_members: bool,
-        meter: &mut BudgetMeter,
     ) -> Result<(), CallableDeclarationInventoryError> {
-        let required = Self::required_declarations(nominals, properties, meter)?;
-        let path = WirePath::root().field(3);
+        let required = Self::required_declarations(nominals, properties)?;
+
         for (declaration, owner) in &required {
-            meter.charge_work(
-                u64::from(self.declaration_count().max(1).ilog2()) + 1,
-                &path,
-            )?;
             let record = self
                 .declaration(*declaration)
                 .ok_or(CallableDeclarationInventoryError::Missing(*declaration))?;
@@ -140,7 +122,6 @@ impl CanonicalCallableInterfacesV1 {
             }
         }
         for record in self.support_records() {
-            meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
             if !required.contains_key(&record.declaration())
                 && (exact_members
                     || !matches!(

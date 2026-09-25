@@ -5,8 +5,7 @@ use scoop_identity::{
     DecodedPersistentId, PersistentIdMismatch,
 };
 use scoop_wire::{
-    BudgetMeter, Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError,
-    WireErrorKind, WirePath,
+    Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
 };
 
 use super::super::{
@@ -27,21 +26,12 @@ pub struct DecodedConeRecord {
 }
 
 impl DecodedConeRecord {
-    pub fn validate(
-        self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<ConeRecord, ConeRecordValidationError> {
+    pub fn validate(self) -> Result<ConeRecord, ConeRecordValidationError> {
         let coordinate = self
             .coordinate
             .validate()
             .map_err(ConeRecordValidationError::Coordinate)?;
-        let stream_length = coordinate
-            .identity_hash_stream_length()
-            .map_err(ConeRecordValidationError::Hash)?;
-        meter
-            .charge_sha256(stream_length, path)
-            .map_err(ConeRecordValidationError::Resource)?;
+
         let expected = coordinate
             .identity()
             .map_err(ConeRecordValidationError::Hash)?;
@@ -78,7 +68,7 @@ impl WireEncode for DecodedConeRecord {
 }
 
 impl WireDecode for DecodedConeRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             coordinate: decoder.field(1, DecodedConeCoordinate::decode)?,
@@ -130,21 +120,12 @@ pub struct DecodedDependencyRecord {
 }
 
 impl DecodedDependencyRecord {
-    pub fn validate(
-        self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<DependencyRecord, DependencyRecordValidationError> {
+    pub fn validate(self) -> Result<DependencyRecord, DependencyRecordValidationError> {
         let coordinate = self
             .coordinate
             .validate()
             .map_err(DependencyRecordValidationError::Coordinate)?;
-        let stream_length = coordinate
-            .identity_hash_stream_length()
-            .map_err(DependencyRecordValidationError::Hash)?;
-        meter
-            .charge_sha256(stream_length, path)
-            .map_err(DependencyRecordValidationError::Resource)?;
+
         let expected = coordinate
             .identity()
             .map_err(DependencyRecordValidationError::Hash)?;
@@ -178,7 +159,7 @@ impl WireEncode for DecodedDependencyRecord {
 }
 
 impl WireDecode for DecodedDependencyRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             coordinate: decoder.field(1, DecodedConeCoordinate::decode)?,
@@ -237,7 +218,7 @@ impl WireEncode for DecodedFingerprintAvailability {
 }
 
 impl WireDecode for DecodedFingerprintAvailability {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -347,7 +328,7 @@ impl WireEncode for DecodedSemanticFingerprintRecord {
 }
 
 impl WireDecode for DecodedSemanticFingerprintRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             hir: decoder.field(1, Digest256::decode)?,
@@ -420,21 +401,17 @@ impl WireEncode for DecodedManifestSection {
 }
 
 impl WireDecode for DecodedManifestSection {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             capability: decoder.field(1, DecodedCapabilityId::decode)?,
             required_for: decoder.field(2, Decoder::u32)?,
-            payload: decoder.field(3, Decoder::owned_carrier_bytes)?,
+            payload: decoder.field(3, Decoder::owned_bytes)?,
         })
     }
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -445,7 +422,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

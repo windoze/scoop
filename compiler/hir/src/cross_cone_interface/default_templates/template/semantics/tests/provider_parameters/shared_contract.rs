@@ -3,13 +3,12 @@ use crate::{
     DefaultTemplateContractViewV1, DefaultTemplateDeclarationContractError as ContractError,
     DefaultTemplateDeclarationContractV1, DefaultTemplateProviderParameterV1,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 fn validate(
     template: &ExportDefaultTemplateV1,
     callable: &CallableInterfaceRecordV1,
     authority: &Authority,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ContractError<AuthorityError>> {
     let provider = DefaultTemplateDeclarationContractV1::new(
         template.definition_root().declaration(),
@@ -43,7 +42,6 @@ fn validate(
         &publisher,
         &provider,
         &mut shapes,
-        meter,
         &WirePath::root(),
     )
 }
@@ -53,19 +51,19 @@ fn shared_contract_preserves_raw_parameters_when_distinct_binders_collapse() {
     let mut fixture = Fixture::new();
     let (callable, _, authority) = publishing(&mut fixture, vec![binder(0, 0); 2]);
     let template = collapsed(&fixture);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    validate(&template, &callable, &authority, &mut meter).unwrap();
+
+    validate(&template, &callable, &authority).unwrap();
     let mut result = template.clone();
     result.result = binder(0, 0);
     assert!(matches!(
-        validate(&result, &callable, &authority, &mut meter),
+        validate(&result, &callable, &authority),
         Err(ContractError::ResultType)
     ));
     let prefix = fixture.with_parameter_local(template, binder(1, 0), false);
     assert!(matches!(
-        validate(&prefix, &callable, &authority, &mut meter),
+        validate(&prefix, &callable, &authority),
         Err(ContractError::Prefix(
-            crate::MeteredTemplateValueParameterSemanticValidationError::LocalType { position: 0 }
+            crate::TemplateValueParameterSemanticValidationError::LocalType { position: 0, .. }
         ))
     ));
 }
@@ -76,62 +74,19 @@ fn shared_contract_checks_the_complete_parameter_tail_and_the_selected_position(
     let (callable, _, mut authority) =
         publishing(&mut fixture, vec![binder(0, 0), binder(0, 0), binder(0, 1)]);
     let template = collapsed(&fixture);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     assert!(matches!(
-        validate(&template, &callable, &authority, &mut meter),
+        validate(&template, &callable, &authority),
         Err(ContractError::ParameterArity)
     ));
     authority.provider_parameters = source_shapes(vec![binder(0, 0), binder(1, 0), binder(0, 0)]);
     assert!(matches!(
-        validate(&template, &callable, &authority, &mut meter),
+        validate(&template, &callable, &authority),
         Err(ContractError::ParameterType { index: 2 })
     ));
     authority.provider_position = 0;
     assert!(matches!(
-        validate(&template, &callable, &authority, &mut meter),
+        validate(&template, &callable, &authority),
         Err(ContractError::ParameterPosition)
     ));
-}
-
-#[test]
-fn shared_contract_uses_the_same_remaining_resource_budget() {
-    let mut fixture = Fixture::new();
-    let (callable, _, authority) = publishing(&mut fixture, vec![binder(0, 0); 2]);
-    let template = collapsed(&fixture);
-    let mut measured = BudgetMeter::new(DecodeLimits::default());
-    validate(&template, &callable, &authority, &mut measured).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units * 2 - 1,
-        ..DecodeLimits::default()
-    });
-    validate(&template, &callable, &authority, &mut shared).unwrap();
-    assert!(validate(&template, &callable, &authority, &mut shared).is_err());
-    for limits in [
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(
-            validate(
-                &template,
-                &callable,
-                &authority,
-                &mut BudgetMeter::new(limits)
-            )
-            .is_err()
-        );
-    }
 }

@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{DecodedGeneratedNominalKey, GeneratedNominalResolutionError};
 use crate::{
@@ -101,11 +101,8 @@ fn all_generated_nominal_shapes_round_trip_and_resolve() {
     ];
 
     for key in keys {
-        let decoded = decode_canonical::<DecodedGeneratedNominalKey>(
-            &encode(&key).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedGeneratedNominalKey>(&encode(&key).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
     }
 }
@@ -118,7 +115,7 @@ fn generated_nominal_record_resolves_before_recomputing_identity() {
     let record = CborIdentityRecord::<PersistentTypeId, _>::from_key(key).unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentTypeId, DecodedGeneratedNominalKey>,
-    >(&encode(&record).unwrap(), DecodeLimits::default())
+    >(&encode(&record).unwrap())
     .unwrap();
 
     assert_eq!(
@@ -135,11 +132,8 @@ fn generated_nominal_resolution_rejects_invalid_adapter_target() {
             target: ExactCallableSignature::new(Effect::Ordinary, Some(exact), vec![], exact),
         },
     };
-    let decoded = decode_canonical::<DecodedGeneratedNominalKey>(
-        &encode(&invalid).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedGeneratedNominalKey>(&encode(&invalid).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver),
@@ -151,12 +145,9 @@ fn generated_nominal_resolution_rejects_invalid_adapter_target() {
 
 #[test]
 fn generated_nominal_decoder_rejects_unknown_tags() {
-    let outer =
-        decode_canonical::<DecodedGeneratedNominalKey>(b"\xa1\x00\x09", DecodeLimits::default())
-            .unwrap_err();
+    let outer = decode_canonical::<DecodedGeneratedNominalKey>(b"\xa1\x00\x09").unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 
-    let role =
-        decode_canonical::<ClosureEnvironmentRole>(b"\x04", DecodeLimits::default()).unwrap_err();
+    let role = decode_canonical::<ClosureEnvironmentRole>(b"\x04").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 4 });
 }

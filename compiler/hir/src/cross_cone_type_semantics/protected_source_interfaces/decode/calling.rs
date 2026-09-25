@@ -20,42 +20,29 @@ impl DecodedProtectedParameterCallingV1 {
         self,
         resolver: &mut R,
         keys: &ProtectedDefaultKeyIndexV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedParameterCallingV1, ProtectedSourceResolutionError<E>> {
         use ProtectedSourceResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         Ok(match self {
             Self::Required => ProtectedParameterCallingV1::Required,
             Self::Default { template_index } => ProtectedParameterCallingV1::Default {
                 template: keys.key(template_index).map_err(Error::Build)?,
             },
-            Self::VarargEmpty { element_type } => {
-                element_type
-                    .charge_resolution(meter)
-                    .map_err(Error::Resource)?;
-                ProtectedParameterCallingV1::VarargEmpty {
-                    element_type: element_type.resolve(resolver).map_err(Error::Foundation)?,
-                }
-            }
+            Self::VarargEmpty { element_type } => ProtectedParameterCallingV1::VarargEmpty {
+                element_type: element_type.resolve(resolver).map_err(Error::Foundation)?,
+            },
             Self::VarargDefault {
                 element_type,
                 template_index,
-            } => {
-                element_type
-                    .charge_resolution(meter)
-                    .map_err(Error::Resource)?;
-                ProtectedParameterCallingV1::VarargDefault {
-                    element_type: element_type.resolve(resolver).map_err(Error::Foundation)?,
-                    template: keys.key(template_index).map_err(Error::Build)?,
-                }
-            }
+            } => ProtectedParameterCallingV1::VarargDefault {
+                element_type: element_type.resolve(resolver).map_err(Error::Foundation)?,
+                template: keys.key(template_index).map_err(Error::Build)?,
+            },
         })
     }
 }
 impl WireDecode for DecodedProtectedParameterCallingV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {

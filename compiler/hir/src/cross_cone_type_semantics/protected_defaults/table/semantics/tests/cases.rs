@@ -23,7 +23,7 @@ fn complete_default_tables_join_real_sources_receiver_prefix_flow_and_nested_abi
             result.concrete_calls,
             result.metadata_calls + result.expression_calls
         );
-        assert!(result.work > 0);
+
         if case == Case::Flow {
             assert!(result.body_calls > 0);
         }
@@ -184,46 +184,5 @@ fn checked_source_protocol_cannot_authorize_missing_or_extra_default_records() {
                 ProtectedSourceIndexError::Build(ProtectedSourceBuildError::DefaultClosure)
             ))
         ));
-    }
-}
-#[test]
-fn complete_default_validation_uses_one_cumulative_resource_meter() {
-    let work = run(Case::Nested).unwrap().work;
-    assert!(work > 1);
-    assert!(
-        run_with_limits(
-            Case::Nested,
-            DecodeLimits {
-                validation_work_units: work - 1,
-                ..DecodeLimits::default()
-            }
-        )
-        .is_err()
-    );
-    for limits in [
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let error = run_with_limits(Case::Valid, limits).unwrap_err();
-        assert!(
-            matches!(
-                error,
-                ProtectedDefaultTableSemanticError::Resource(_)
-                    | ProtectedDefaultTableSemanticError::SourceClosure(
-                        ProtectedSourceIndexError::Resource(_)
-                    )
-            ),
-            "{error:?}"
-        );
     }
 }

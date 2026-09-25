@@ -13,7 +13,6 @@ pub(super) fn validate(
     dependencies: &[CheckedSharedTypeFoundationV1<'_>],
     context: &Context<'_>,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let shared = provider.metadata.public.default_templates();
     for (index, template) in provider
@@ -25,18 +24,17 @@ pub(super) fn validate(
     {
         let key = template.key();
         let path = WirePath::root().field(6).index(index as u64);
-        meter.charge_nodes(1, &path)?;
-        contracts::lookup(shared.records().len(), meter)?;
+
         let expected = shared
             .get(ExportDefaultTemplateKeyV1::new(
                 key.owner(),
                 key.parameter_position(),
             ))
             .ok_or(Error::DefaultContract(key))?;
-        if !template.matches_shared_template(expected, meter, &path)? {
+        if !template.matches_shared_template(expected, &path)? {
             return Err(Error::DefaultContract(key));
         }
-        references::inventory(template.references(), expected.references(), key, meter)?;
+        references::inventory(template.references(), expected.references(), key)?;
         let witnesses = witnesses::Witnesses::new(
             provider.metadata,
             dependencies,
@@ -44,7 +42,6 @@ pub(super) fn validate(
             graph,
             key,
             expected,
-            meter,
         )?;
         template
             .references()
@@ -59,7 +56,6 @@ pub(super) fn validate(
                     shared: expected.references(),
                     witnesses,
                 },
-                meter,
                 &path,
             )
             .map_err(|error| Error::DefaultBody(Box::new(error)))?;
@@ -73,7 +69,6 @@ pub(super) fn validate(
                 metadata: provider.metadata,
                 dependencies,
             },
-            meter,
             &WirePath::root(),
         )
         .map_err(|error| Error::DefinitionSources(Box::new(error)))
@@ -83,9 +78,7 @@ fn metadata<'a>(
     current: SharedTypeMetadataV1<'a>,
     dependencies: &[CheckedSharedTypeFoundationV1<'a>],
     provider: ConeIdentity,
-    meter: &mut BudgetMeter,
 ) -> Result<SharedTypeMetadataV1<'a>, Error> {
-    meter.charge_work(dependencies.len() as u64 + 1, &WirePath::root())?;
     if current.provider == provider {
         return Ok(current);
     }

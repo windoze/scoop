@@ -16,7 +16,7 @@ impl WireEncode for MirTypeCLayoutPolicyV1 {
     }
 }
 impl WireDecode for MirTypeCLayoutPolicyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -51,7 +51,7 @@ fn alignment(
         },
     )
 }
-fn decode_alignment(decoder: &mut Decoder<'_, '_>) -> Result<MirCLayoutValue, WireError> {
+fn decode_alignment(decoder: &mut Decoder<'_>) -> Result<MirCLayoutValue, WireError> {
     decoder.expect_map(1)?;
     match decoder.field(0, Decoder::unsigned)? {
         1 => Ok(MirCLayoutValue::Natural),
@@ -88,7 +88,7 @@ impl WireEncode for MirParamFreeIntrinsicV1 {
     }
 }
 impl WireDecode for MirParamFreeIntrinsicV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         let kind = decoder.field(0, Decoder::unsigned)?;
         fields(decoder, count, if kind == 2 { 3 } else { 1 })?;
@@ -129,7 +129,7 @@ impl WireEncode for MirClassKindV1 {
     }
 }
 impl WireDecode for MirClassKindV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::Final),

@@ -6,7 +6,7 @@ mod extensions;
 mod members;
 mod negative;
 mod receivers;
-mod resources;
+
 mod signatures;
 mod snapshot;
 mod support;
@@ -34,9 +34,7 @@ fn shared_call_signatures_derive_demand_for_core_and_ordinary_providers() {
         let mut expected = signature_uses(provider.provider(), &[owner]);
         expected.push(member_call(provider.provider(), owner, member));
         assert_eq!(actual, selected(expected));
-        consumer
-            .validate(&actual, &dependencies, &mut meter())
-            .unwrap();
+        consumer.validate(&actual, &dependencies).unwrap();
         snapshot(&format!("call-signature-{name}"), &actual);
     }
 }
@@ -64,17 +62,12 @@ fn shared_call_signatures_preserve_unit_arguments_and_close_owner_ancestry_once(
         member_call(provider.provider(), value, method),
     ]);
     assert_eq!(actual, selected(expected));
-    consumer
-        .validate(&actual, &dependencies, &mut meter())
-        .unwrap();
-    let decoded: DecodedCanonicalSelectedExternalTypeUsesV1 = scoop_wire::decode_canonical(
-        &scoop_wire::encode(&actual).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    consumer.validate(&actual, &dependencies).unwrap();
+    let decoded: DecodedCanonicalSelectedExternalTypeUsesV1 =
+        scoop_wire::decode_canonical(&scoop_wire::encode(&actual).unwrap()).unwrap();
     assert_eq!(
         decoded
-            .resolve(&mut consumer.identities, &mut meter(), &WirePath::root())
+            .resolve(&mut consumer.identities, &WirePath::root())
             .unwrap(),
         actual
     );
@@ -104,8 +97,7 @@ fn shared_call_signatures_follow_actual_top_level_and_extension_calls() {
     assert!(matches!(
         consumer.validate(
             &selected(vec![signature(provider.provider(), owner)]),
-            &dependencies,
-            &mut meter()
+            &dependencies
         ),
         Err(Error::TypeUseInventory)
     ));

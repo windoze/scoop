@@ -7,7 +7,6 @@ pub(in crate::production::type_semantics) struct Required {
 }
 pub(in crate::production::type_semantics) fn collect<'a>(
     nodes: impl Iterator<Item = &'a NominalSourceContractV1>,
-    meter: &mut BudgetMeter,
 ) -> Result<Required, Error> {
     let mut required = Required {
         constructors: BTreeSet::new(),
@@ -15,24 +14,21 @@ pub(in crate::production::type_semantics) fn collect<'a>(
         properties: BTreeSet::new(),
     };
     for node in nodes {
-        meter.charge_nodes(1, &WirePath::root()).map_err(resource)?;
         for id in node.constructors().values() {
-            resources::insert(&mut required.constructors, *id, meter)?;
+            resources::insert(&mut required.constructors, *id)?;
         }
         for member in node.members().values() {
             match member {
                 NestedSourceMemberRefV1::Function(id) => resources::insert(
                     &mut required.callables,
                     CallableTemplateOrigin::Function(*id),
-                    meter,
                 )?,
                 NestedSourceMemberRefV1::GenericFunction(id) => resources::insert(
                     &mut required.callables,
                     CallableTemplateOrigin::GenericFunction(*id),
-                    meter,
                 )?,
                 NestedSourceMemberRefV1::Property(id) => {
-                    resources::insert(&mut required.properties, *id, meter)?
+                    resources::insert(&mut required.properties, *id)?
                 }
             }
         }
@@ -41,7 +37,6 @@ pub(in crate::production::type_semantics) fn collect<'a>(
                 resources::insert(
                     &mut required.callables,
                     CallableTemplateOrigin::VariantConstructor(variant.variant()),
-                    meter,
                 )?;
             }
         }
@@ -51,24 +46,19 @@ pub(in crate::production::type_semantics) fn collect<'a>(
 impl Required {
     pub(in crate::production::type_semantics) fn properties(
         &self,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalPersistentIdsV1<PersistentPropertyId>, Error> {
-        resources::canonical(self.properties.len(), meter)?;
         CanonicalPersistentIdsV1::try_new(self.properties.iter().copied().collect())
             .map_err(invalid)
     }
     pub(in crate::production::type_semantics) fn accessors(
         &mut self,
         properties: &[NominalSupportPropertyInterfaceV1],
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
         for property in properties {
-            meter.charge_nodes(1, &WirePath::root()).map_err(resource)?;
             if let NominalSupportPropertyPayloadV1::Runtime { interface } = property.payload() {
                 resources::insert(
                     &mut self.callables,
                     CallableTemplateOrigin::Accessor(interface.getter()),
-                    meter,
                 )?;
                 if let ProtectedPropertyMutabilityV1::ReadWrite { setter, .. } =
                     interface.mutability()
@@ -76,7 +66,6 @@ impl Required {
                     resources::insert(
                         &mut self.callables,
                         CallableTemplateOrigin::Accessor(*setter),
-                        meter,
                     )?;
                 }
             }
@@ -85,19 +74,14 @@ impl Required {
     }
     pub(in crate::production::type_semantics) fn protocols(
         &self,
-        meter: &mut BudgetMeter,
     ) -> Result<BTreeSet<CallableTemplateOrigin>, Error> {
         let mut required = BTreeSet::new();
         for id in &self.constructors {
-            resources::insert(
-                &mut required,
-                CallableTemplateOrigin::Constructor(*id),
-                meter,
-            )?;
+            resources::insert(&mut required, CallableTemplateOrigin::Constructor(*id))?;
         }
         for owner in &self.callables {
             if !matches!(owner, CallableTemplateOrigin::Accessor(_)) {
-                resources::insert(&mut required, *owner, meter)?;
+                resources::insert(&mut required, *owner)?;
             }
         }
         Ok(required)

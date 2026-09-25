@@ -43,7 +43,7 @@ fn nominal_variant_parameter_projection_rejects_missing_and_inconsistent_sources
                 hir::ExportHirOutput::try_new(module, export.output_kind().clone()).unwrap();
             assert!(
                 matches!(
-                    Table::from_export_hir(&forged, &required, &mut meter()),
+                    Table::from_export_hir(&forged, &required),
                     Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
                 ),
                 "{corruption}"
@@ -68,9 +68,9 @@ fn nominal_parameter_sources_reject_accessors_and_top_level_functions() {
             .0;
         let top = declaration(export, hir::ExportParameterOwner::Function(function)).unwrap();
         for id in [accessor, top] {
-            assert!(Table::from_export_hir(export, &BTreeSet::from([id]), &mut meter()).is_err());
+            assert!(Table::from_export_hir(export, &BTreeSet::from([id])).is_err());
         }
-        assert!(Record::try_new(accessor, vec![], &mut meter()).is_err());
+        assert!(Record::try_new(accessor, vec![]).is_err());
     });
 }
 
@@ -96,7 +96,7 @@ fn nominal_parameter_protocols_cannot_claim_duplicate_names_or_multiple_varargs(
             })
             .collect();
         for parameters in [duplicate, varargs] {
-            assert!(Record::try_new(record.owner(), parameters, &mut meter()).is_err());
+            assert!(Record::try_new(record.owner(), parameters).is_err());
         }
     });
 }

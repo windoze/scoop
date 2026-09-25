@@ -36,10 +36,8 @@ fn replay_section(
     fixture: &Fixture,
     bytes: &[u8],
     definitions: &StrongTypeReferenceDefinitionsV2,
-    meter: &mut BudgetMeter,
 ) -> Result<ReplayedStrongProductionSectionV2, SectionError> {
-    let decoded: DecodedStrongProductionSectionV2 =
-        decode_canonical(bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongProductionSectionV2 = decode_canonical(bytes).unwrap();
     decoded.replay(
         ConeCoordinate::reserved_single_file(),
         &[],
@@ -50,13 +48,7 @@ fn replay_section(
         &[],
         None,
         definitions,
-        &StrongInitializationDefinitionCatalogV2::new(
-            ConeIdentity::SINGLE_FILE,
-            &[],
-            &mut super::meter(),
-        )
-        .unwrap(),
-        meter,
+        &StrongInitializationDefinitionCatalogV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap(),
     )
 }
 
@@ -66,11 +58,10 @@ fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
     assert_eq!(bytes[0], 0xaa);
-    let shared: crate::DecodedStrongProductionSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let shared: crate::DecodedStrongProductionSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
-    let replayed = replay_section(&fixture, &bytes, &definitions, &mut meter()).unwrap();
+    let replayed = replay_section(&fixture, &bytes, &definitions).unwrap();
     assert_eq!(replayed.external_bridges(), original.external_bridges());
     assert_eq!(
         replayed.canonical_definitions(),
@@ -110,10 +101,9 @@ fn ten_field_section_rejects_missing_foreign_definitions_and_changed_definition_
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
-    let empty = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[], &mut meter())
-        .unwrap();
+    let empty = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap();
     assert!(matches!(
-        replay_section(&fixture, &bytes, &empty, &mut meter()),
+        replay_section(&fixture, &bytes, &empty),
         Err(SectionError::Registrations(Error::TypeReference(_)))
     ));
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
@@ -125,28 +115,8 @@ fn ten_field_section_rejects_missing_foreign_definitions_and_changed_definition_
         .unwrap();
     altered[position] ^= 1;
     assert!(matches!(
-        replay_section(&fixture, &altered, &definitions, &mut meter()),
+        replay_section(&fixture, &altered, &definitions),
         Err(SectionError::SectionMismatch)
-    ));
-}
-
-#[test]
-fn ten_field_section_replay_uses_one_cumulative_budget() {
-    let fixture = complete_fixture();
-    let bytes = encode(&section(&fixture)).unwrap();
-    let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
-    let mut baseline = meter();
-    replay_section(&fixture, &bytes, &definitions, &mut baseline).unwrap();
-    let usage = baseline.usage();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: usage.logical_heap_bytes,
-        validation_work_units: usage.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay_section(&fixture, &bytes, &definitions, &mut shared).unwrap();
-    assert!(matches!(
-        replay_section(&fixture, &bytes, &definitions, &mut shared),
-        Err(SectionError::Resource(_))
     ));
 }
 
@@ -159,7 +129,7 @@ fn ten_field_section_rejects_a_valid_digest_graph_missing_a_registration_input()
     );
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
     assert!(matches!(
-        replay_section(&fixture, &bytes, &definitions, &mut meter()),
+        replay_section(&fixture, &bytes, &definitions),
         Err(SectionError::DigestMismatch)
     ));
 }
@@ -169,10 +139,10 @@ fn final_layout_join_keeps_dependency_checks_for_unexported_local_types() {
     let fixture = complete_fixture();
     let bytes = encode(&section(&fixture)).unwrap();
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
-    let replayed = replay_section(&fixture, &bytes, &definitions, &mut meter()).unwrap();
+    let replayed = replay_section(&fixture, &bytes, &definitions).unwrap();
     let layout = empty_layout_section();
     assert!(matches!(
-        replayed.validate_layout_abi(&layout, &mut meter()),
+        replayed.validate_layout_abi(&layout),
         Err(crate::StrongProductionLayoutJoinError::MissingSelectedDescriptor { provider, .. })
             if provider == ConeIdentity::CORE
     ));
@@ -202,7 +172,7 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
     let expected = production.registration_production().types().clone();
     assert!(!expected.registrations().is_empty());
     let joined = production
-        .validate_layout_abi(&empty_layout_section(), &mut meter())
+        .validate_layout_abi(&empty_layout_section())
         .unwrap();
     assert_eq!(joined.type_registrations(), &expected);
     assert!(joined.descriptors().records().is_empty());
@@ -212,11 +182,7 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
 struct EmptyLayoutSource;
 
 impl crate::LayoutAbiSectionSourceAuthorityV1<()> for EmptyLayoutSource {
-    fn validate_local_exports(
-        &self,
-        _: &crate::LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, _: &crate::LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         Ok(())
     }
 
@@ -227,7 +193,6 @@ impl crate::LayoutAbiSectionSourceAuthorityV1<()> for EmptyLayoutSource {
     fn validate_physical_imports(
         &self,
         imports: &[crate::ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
     ) -> Result<(), ()> {
         imports.is_empty().then_some(()).ok_or(())
     }
@@ -243,14 +208,12 @@ fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
         crate::LirTargetProfile::DARWIN_AARCH64,
         &foundation,
         Vec::new(),
-        &mut meter(),
     )
     .unwrap();
     let descriptors = crate::CanonicalExactDescriptorExportsV1::try_new(
         crate::LirTargetProfile::DARWIN_AARCH64,
         &foundation,
         Vec::new(),
-        &mut meter(),
     )
     .unwrap();
     let exports = crate::LayoutAbiExportConstituentsV1::try_new(
@@ -260,14 +223,12 @@ fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
             crate::LirTargetProfile::DARWIN_AARCH64,
             &foundation,
             Vec::new(),
-            &mut meter(),
         )
         .unwrap(),
         crate::CanonicalExactCallableAbiExportsV1::try_new(
             crate::LirTargetProfile::DARWIN_AARCH64,
             &foundation,
             Vec::new(),
-            &mut meter(),
         )
         .unwrap(),
         crate::CanonicalParamFreeShapeSupportExportsV1::from_sources(
@@ -275,17 +236,10 @@ fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
             &layouts,
             &descriptors,
             &foundation,
-            &mut meter(),
         )
         .unwrap(),
     )
     .unwrap();
-    crate::CrossConeLayoutAbiSectionV1::try_new(
-        exports,
-        &[],
-        Vec::new(),
-        &EmptyLayoutSource,
-        &mut meter(),
-    )
-    .unwrap()
+    crate::CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &EmptyLayoutSource)
+        .unwrap()
 }

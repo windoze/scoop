@@ -1,6 +1,6 @@
 use super::*;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn validate_class(
         &mut self,
         source: &mir::ParamFreeMirTypeExportV1,
@@ -40,8 +40,7 @@ impl Projection<'_, '_> {
                 if fields.len() < base_fields.len() {
                     return Err(ExactLayoutLoweringError::SourceBase(exact));
                 }
-                self.meter
-                    .charge_work(base_fields.len() as u64, &WirePath::root())?;
+
                 for (field, base) in fields.iter().zip(base_fields) {
                     if self.exact_of(&field.ty)? != self.exact_of(&base.ty)? {
                         return Err(ExactLayoutLoweringError::SourceBase(exact));
@@ -54,8 +53,7 @@ impl Projection<'_, '_> {
         if fields.len() - base_count != expected.len() {
             return Err(ExactLayoutLoweringError::SourceFields(exact));
         }
-        self.meter
-            .charge_work(expected.len() as u64, &WirePath::root())?;
+
         for (field, actual) in expected.iter().zip(&fields[base_count..]) {
             if field.value != self.exact_of(&actual.ty)? {
                 return Err(ExactLayoutLoweringError::SourceFields(exact));
@@ -76,15 +74,11 @@ impl Projection<'_, '_> {
         else {
             return Err(ExactLayoutLoweringError::SourceObject(source.exact()));
         };
-        self.meter.charge_work(
-            source.base_and_interfaces().interfaces.len() as u64,
-            &WirePath::root(),
-        )?;
+
         if source.base_and_interfaces() != record.base_and_interfaces() {
             return Err(ExactLayoutLoweringError::SourceObject(source.exact()));
         }
-        self.meter
-            .charge_work(self.module.objects.len() as u64, &WirePath::root())?;
+
         let mut objects = self
             .module
             .objects

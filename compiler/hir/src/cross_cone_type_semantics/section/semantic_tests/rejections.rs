@@ -69,7 +69,6 @@ fn terminal_provider_set_and_public_token_must_match_the_independent_owner() {
             &mut fixture.source.clone(),
             &mut DefaultAuthority::new(&fixture),
             &Uses::default(),
-            &mut meter(),
             &path(),
         )
         .unwrap_err();

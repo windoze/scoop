@@ -1,7 +1,7 @@
 //! Actual Link symbol uses replayed from the shared artifact and object closure.
 
 use scoop_lir as lir;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::ReplayedLayoutLinkObjectContentsV1;
 use crate::link_object::*;
@@ -11,7 +11,6 @@ mod coverage;
 mod errors;
 mod finalization;
 mod requirements;
-mod resources;
 mod verification;
 pub use errors::LayoutLinkSymbolUseError;
 pub(crate) use verification::{ReplayInputs, replay};

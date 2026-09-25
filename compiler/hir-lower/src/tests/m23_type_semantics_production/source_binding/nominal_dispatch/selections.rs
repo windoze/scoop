@@ -6,8 +6,8 @@ use scoop_identity::{CallableTemplateOrigin, DispatchRole};
 fn dispatch_join_requires_selected_targets_to_own_the_same_source_slot() {
     with_sources(SOURCE, |fixture, sources, dispatch, core| {
         let foundation = fixture.bind().unwrap();
-        let original = dispatch.bind(&foundation, &mut meter()).unwrap();
-        let original_slots = original.bind_slot_sources(&mut meter()).unwrap();
+        let original = dispatch.bind(&foundation).unwrap();
+        let original_slots = original.bind_slot_sources().unwrap();
         let (selection, replacement) = dispatch
             .selections
             .records()
@@ -72,14 +72,13 @@ fn dispatch_join_requires_selected_targets_to_own_the_same_source_slot() {
                     }
                 })
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
-        let bound = forged.bind(&foundation, &mut meter()).unwrap();
-        let slots = bound.bind_slot_sources(&mut meter()).unwrap();
+        let bound = forged.bind(&foundation).unwrap();
+        let slots = bound.bind_slot_sources().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-            assert!(matches!(parameters.bind_dispatch_sources(&slots, &mut meter()),
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+            assert!(matches!(parameters.bind_dispatch_sources(&slots),
                 Err(Error::Callable { declaration, field: "selected slot relation" }) if declaration == replacement));
         });
     });

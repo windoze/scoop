@@ -1,11 +1,9 @@
 use scoop_identity::{ConeIdentity, SemanticIdentityImportError};
-use scoop_wire::{ResourceKind, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use crate::{ArchiveReadError, MemberStableKey, SlibMember, SlibMemberRole, SlibReadError};
 
-use super::{
-    SlibDiagnostic, SlibErrorCode, SlibPrimaryOrigin, SlibResourceFailure, SlibResourceKind,
-};
+use super::{SlibDiagnostic, SlibErrorCode, SlibPrimaryOrigin};
 
 #[test]
 fn stable_error_code_spellings_are_closed_and_golden() {
@@ -25,8 +23,7 @@ fn stable_error_code_spellings_are_closed_and_golden() {
         (WireUnknownTag, "SLIB_WIRE_UNKNOWN_TAG"),
         (WireInvalidLength, "SLIB_WIRE_INVALID_LENGTH"),
         (WireIntegerOutOfRange, "SLIB_WIRE_INTEGER_OUT_OF_RANGE"),
-        (LimitExceeded, "SLIB_LIMIT_EXCEEDED"),
-        (LimitAllocation, "SLIB_LIMIT_ALLOCATION"),
+        (Allocation, "SLIB_ALLOCATION"),
         (DirectoryMismatch, "SLIB_DIRECTORY_MISMATCH"),
         (
             DirectoryNonCanonicalOrder,
@@ -58,34 +55,6 @@ fn stable_error_code_spellings_are_closed_and_golden() {
         assert_eq!(code.as_str(), spelling);
         assert_eq!(code.to_string(), spelling);
     }
-}
-
-#[test]
-fn logical_limit_diagnostic_retains_path_offset_and_observation() {
-    let path = WirePath::root().field(7).index(3);
-    let error = WireError::new(
-        WireErrorKind::LimitExceeded {
-            resource: ResourceKind::OwnedBytes,
-            limit: 10,
-            observed: 11,
-        },
-        path.clone(),
-        Some(42),
-    );
-
-    let diagnostic = error.diagnostic();
-    assert_eq!(diagnostic.code(), SlibErrorCode::LimitExceeded);
-    assert_eq!(diagnostic.path(), &path);
-    assert_eq!(diagnostic.byte_offset(), Some(42));
-    assert_eq!(diagnostic.primary_origin(), None);
-    assert_eq!(
-        diagnostic.resource(),
-        Some(SlibResourceFailure::Limit {
-            resource: SlibResourceKind::Decode(ResourceKind::OwnedBytes),
-            limit: 10,
-            observed: 11,
-        })
-    );
 }
 
 #[test]

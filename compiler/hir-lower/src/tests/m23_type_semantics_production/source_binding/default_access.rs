@@ -12,7 +12,7 @@ mod foundation;
 mod inventory;
 mod keys;
 mod object_initializers;
-mod resources;
+
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/access-binding.scoop"
@@ -33,14 +33,11 @@ fn with_sources(
     with_hir_source(source, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let required = required(output.output().export.module());
-        let table =
-            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let table = Table::from_export_hir(&output.output().export, &required).unwrap();
         let bytes = encode(&table).unwrap();
         let decoded: hir::DecodedCanonicalDefaultSourceAccessDeclarationsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let table = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&bytes).unwrap();
+        let table = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(encode(&table).unwrap(), bytes);
         run(output, &fixture, &required, &table);
     });
@@ -64,7 +61,6 @@ fn replacing(table: &Table, record: Record) -> Table {
                 }
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -87,16 +83,13 @@ fn default_access_binding_restores_all_declaration_roles_and_outside_root_source
         with_sources(source, |_, fixture, required, table| {
             let foundation = fixture.bind().unwrap();
             let bound = foundation
-                .bind_default_access_declarations(table, required, &mut meter())
+                .bind_default_access_declarations(table, required)
                 .unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
             assert!(std::ptr::eq(bound.table(), table));
             for record in table.records() {
-                assert_eq!(
-                    bound.declaration(record.subject(), &mut meter()).unwrap(),
-                    record
-                );
-                let key = bound.source_key(record.subject(), &mut meter()).unwrap();
+                assert_eq!(bound.declaration(record.subject()).unwrap(), record);
+                let key = bound.source_key(record.subject()).unwrap();
                 assert_eq!(key.origin(), bound.provider());
                 let expected = expected_key(&fixture.identities, record.subject());
                 assert_eq!(key, expected.as_ref());
@@ -110,10 +103,10 @@ fn default_access_binding_restores_all_declaration_roles_and_outside_root_source
                         .any(|r| matches!(r.subject(), Subject::Type(_)))
                 );
             }
-            let empty = Table::try_new(vec![], &mut meter()).unwrap();
+            let empty = Table::try_new(vec![]).unwrap();
             assert!(
                 foundation
-                    .bind_default_access_declarations(&empty, &BTreeSet::new(), &mut meter())
+                    .bind_default_access_declarations(&empty, &BTreeSet::new())
                     .unwrap()
                     .table()
                     .records()

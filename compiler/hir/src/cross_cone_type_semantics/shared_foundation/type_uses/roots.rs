@@ -1,17 +1,17 @@
 use super::*;
 
 impl Graph<'_> {
-    pub(super) fn roots(&mut self, meter: &mut BudgetMeter) -> Result<(), Error> {
+    pub(super) fn roots(&mut self) -> Result<(), Error> {
         let path = WirePath::root().field(8);
         let mut providers = Vec::new();
-        meter.try_reserve_collection_slots(&mut providers, self.providers.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut providers, self.providers.len(), &path)?;
         providers.extend(
             self.providers
                 .keys()
                 .copied()
                 .filter(|provider| *provider != self.current.provider),
         );
-        self.calls(meter)?;
+        self.calls()?;
         self.current
             .public
             .external_references()
@@ -19,20 +19,18 @@ impl Graph<'_> {
                 self.current.provider,
                 self.current.identities,
                 &providers,
-                meter,
             )
             .map_err(|error| Error::TypeUseRelations(Box::new(error)))?;
         for (_, owner) in self
             .current
             .public
             .external_references()
-            .materialized_shape_dependencies(self.current.provider, self.current.identities, meter)
+            .materialized_shape_dependencies(self.current.provider, self.current.identities)
             .map_err(|error| Error::TypeUseRelations(Box::new(error)))?
         {
-            self.select(owner, Kind::ShapeSupport, meter)?;
+            self.select(owner, Kind::ShapeSupport)?;
         }
         for reference in self.current.public.external_references().records() {
-            meter.charge_work(1, &path)?;
             if reference.type_sites().is_empty() {
                 continue;
             }
@@ -59,17 +57,17 @@ impl Graph<'_> {
                         Kind::Representation
                     }
                 };
-                self.select(owner, kind, meter)?;
+                self.select(owner, kind)?;
             }
         }
         let sources = self.providers[&self.current.provider]
             .materialization
             .sources();
         let mut roots = Vec::new();
-        meter.try_reserve_collection_slots(&mut roots, sources.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut roots, sources.len(), &path)?;
         roots.extend_from_slice(sources);
         for owner in roots {
-            self.select(owner, Kind::Representation, meter)?;
+            self.select(owner, Kind::Representation)?;
         }
         Ok(())
     }

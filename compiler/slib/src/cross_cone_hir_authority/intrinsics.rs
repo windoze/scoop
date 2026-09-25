@@ -8,32 +8,26 @@ use scoop_identity::{
     CallableTemplateOrigin, ConeIdentity, IdentityReferenceError, SourceDeclarationKey,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 pub(crate) fn validate_intrinsic_declarations<'a>(
     interface: &CrossConeHirInterfaceSectionV1,
     identities: &ValidatedIdentityGraph,
     providers: impl IntoIterator<Item = (ConeIdentity, &'a CoreBootstrapInterfaceSectionV1)> + Clone,
-    meter: &mut BudgetMeter,
 ) -> Result<(), CrossConeIntrinsicDeclarationError> {
     let path = WirePath::root();
     let callables = interface.callable_interfaces();
-    meter
-        .charge_work(callables.declaration_count() as u64, &path)
-        .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
+
     let mut intrinsics = Vec::new();
     for callable in callables.all_declarations() {
         let CallableImplementationV1::Intrinsic(kind) = callable.effects().implementation() else {
             continue;
         };
-        meter
-            .charge_work(1 + intrinsics.len() as u64, &path)
-            .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
+
         if intrinsics.iter().any(|(seen, _)| *seen == kind) {
             return Err(CrossConeIntrinsicDeclarationError::DuplicateKind(kind));
         }
-        meter
-            .try_reserve_collection_slots(&mut intrinsics, 1, &path)
+        scoop_wire::allocation::try_reserve(&mut intrinsics, 1, &path)
             .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
         intrinsics.push((kind, callable));
     }
@@ -41,9 +35,6 @@ pub(crate) fn validate_intrinsic_declarations<'a>(
         return Ok(());
     }
     for (_, callable) in intrinsics {
-        meter
-            .charge_work(1, &path)
-            .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
         let source = match callable.declaration() {
             CallableTemplateOrigin::Function(id) => {
                 identities.canonical_key::<_, SourceDeclarationKey>(id)
@@ -61,9 +52,6 @@ pub(crate) fn validate_intrinsic_declarations<'a>(
         let provider = source.origin();
         let mut selected = None;
         for (identity, section) in providers.clone() {
-            meter
-                .charge_work(1, &path)
-                .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
             if identity == provider && selected.replace(section).is_some() {
                 return Err(CrossConeIntrinsicDeclarationError::DuplicateProvider(
                     provider,

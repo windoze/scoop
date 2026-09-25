@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeIdentity, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     ExternalHirBindingWitnessRole, ExternalHirBindingWitnessUse,
@@ -80,16 +80,16 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
         &mut self,
         signature: &SignatureTypeKey,
         role: ExternalHirReferenceRoleV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExternalHirReferenceProductionError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        let mut walker = SignatureNominalWalker::new(signature, meter, path)
+        let mut walker = SignatureNominalWalker::new(signature, path)
             .map_err(ExternalHirReferenceProductionError::Resource)?;
         while let Some(declaration) = walker
-            .next(meter, path)
+            .next(path)
             .map_err(ExternalHirReferenceProductionError::Resource)?
         {
             self.observe(ExternalHirTargetV1::from(declaration), role)?;
@@ -172,7 +172,6 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
     pub(super) fn add_call_sites<E>(
         &mut self,
         output: &'authority crate::DependencyHirOutput,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExternalHirReferenceProductionError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
@@ -181,36 +180,22 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
         let role = ExternalHirReferenceRoleV1::ConcreteSelectedUse;
         let path = WirePath::root();
         for call in output
-            .committed_dependency_call_occurrences(meter)
+            .committed_dependency_call_occurrences()
             .map_err(Error::CallOccurrences)?
         {
             let target = ExternalHirTargetV1::Callable(call.callable().interface().declaration());
-            let projected = super::calls::project(output, call, meter)?;
+            let projected = super::calls::project(output, call)?;
             let pending = self
                 .observe_pending(target, role)?
                 .ok_or(Error::CurrentWitnessTarget { target, role })?;
             for source in call.binding().sources() {
-                meter
-                    .charge_owned_bytes(
-                        (std::mem::size_of::<DependencyBindingWitnessV1>()
-                            + std::mem::size_of_val(source.witness().route().hops()))
-                            as u64,
-                        &path,
-                    )
-                    .map_err(Error::Resource)?;
                 pending
                     .witnesses
                     .insert(source.witness().dependency().clone());
             }
             pending.witnessed_roles.insert(role);
-            meter
-                .charge_owned_bytes(
-                    std::mem::size_of::<super::calls::PendingCallSite<'_>>() as u64,
-                    &path,
-                )
-                .map_err(Error::Resource)?;
-            meter
-                .try_reserve_collection_slots(&mut pending.call_sites, 1, &path)
+
+            scoop_wire::allocation::try_reserve(&mut pending.call_sites, 1, &path)
                 .map_err(Error::Resource)?;
             pending.call_sites.push(projected);
         }

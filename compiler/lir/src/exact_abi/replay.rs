@@ -10,12 +10,10 @@ pub(super) fn callable(
     protocol: ExactCallableProtocolV1,
     layouts: CallableAbiLayoutInputsV1<'_>,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<ExactCallableAbiExportV1, ExactCallableAbiError> {
-    let (signature, layouts) =
-        self::signature(target_profile, signature, protocol, layouts, meter)?;
+    let (signature, layouts) = self::signature(target_profile, signature, protocol, layouts)?;
     let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
-    meter.charge_work(foundation.callable_bodies().len() as u64, &WirePath::root())?;
+
     if !foundation
         .callable_bodies()
         .iter()
@@ -26,14 +24,10 @@ pub(super) fn callable(
     let physical = StrongShapeDefinitionRefV1::from_foundation(
         ExternalStrongShapeSubjectV1::Callable(target),
         foundation,
-        meter,
     )?;
     let definition = StrongShapeDefinitionV1::from_callable_definition(target, physical)?
         .ok_or(ExactCallableAbiError::DefinitionSubject)?;
-    meter.charge_owned_bytes(
-        std::mem::size_of::<CallableAbiBodyV1>() as u64,
-        &WirePath::root(),
-    )?;
+
     Ok(ExactCallableAbiExportV1(Arc::new(CallableAbiBodyV1 {
         target,
         target_profile,
@@ -50,7 +44,6 @@ pub(super) fn signature(
     signature: ExactCallableSignature,
     protocol: ExactCallableProtocolV1,
     layouts: CallableAbiLayoutInputsV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<
     (
         CanonicalScoopAbiFunctionSignature,
@@ -59,7 +52,7 @@ pub(super) fn signature(
     ExactCallableAbiError,
 > {
     let path = WirePath::root();
-    meter.charge_work(layouts.parameters.len() as u64 + 2, &path)?;
+
     if layouts.parameters.len() != signature.parameters().len() {
         return Err(ExactCallableAbiError::ParameterCount);
     }
@@ -71,7 +64,7 @@ pub(super) fn signature(
         _ => return Err(ExactCallableAbiError::Receiver),
     };
     let mut parameters = Vec::new();
-    meter.try_reserve_collection_slots(&mut parameters, layouts.parameters.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut parameters, layouts.parameters.len(), &path)?;
     for (layout, exact) in layouts.parameters.iter().zip(signature.parameters()) {
         parameters.push(value(layout, target_profile, *exact)?);
     }
@@ -81,7 +74,7 @@ pub(super) fn signature(
         .len()
         .checked_add(usize::from(receiver.value().is_some()))
         .ok_or(ExactCallableAbiError::CountOverflow)?;
-    meter.try_reserve_collection_slots(&mut arguments, argument_count, &path)?;
+    scoop_wire::allocation::try_reserve(&mut arguments, argument_count, &path)?;
     for value in receiver
         .value()
         .into_iter()

@@ -10,7 +10,7 @@ use crate::{
     TemplateLocalRecordV1,
 };
 use scoop_identity::{PersistentExactTypeId, PersistentPropertyId};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 /// Actual typed source locations; the authority must join these to independent
 /// foundation/provider records, rather than trusting the supplied origin.
@@ -74,7 +74,7 @@ pub trait TypeDefinitionSourceSemanticAuthority<E> {
         &mut self,
         source_use: TypeDefinitionSourceUseV1<'_>,
         source: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), E>;
 }

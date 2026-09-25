@@ -158,11 +158,5 @@ fn recursive_nested_runtime_setter_and_const_each_replay_all_typed_uses() {
     assert_eq!(fixture.expected.len(), 10);
     let declared = fixture.declared();
     assert!(declared.sources().len() < fixture.expected.len());
-    assert_eq!(
-        fixture
-            .validate(&declared, DecodeLimits::default())
-            .unwrap()
-            .0,
-        10
-    );
+    assert_eq!(fixture.validate(&declared).unwrap(), 10);
 }

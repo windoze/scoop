@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, encode};
+use scoop_wire::{Encoder, WireEncode, encode};
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
@@ -62,10 +62,6 @@ fn foundation(
     OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
 }
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn layout_binding_preserves_the_complete_physical_definition_and_legacy_wire() {
     let exact = exact("Value");
@@ -76,14 +72,9 @@ fn layout_binding_preserves_the_complete_physical_definition_and_legacy_wire() {
         RepresentationRole::NativeFunctionPointer,
     ] {
         let foundation = foundation(exact.id(), role, true);
-        let bound = ExactLayoutIdentityV1::from_foundation(
-            TARGET,
-            exact.clone(),
-            role,
-            &foundation,
-            &mut meter(),
-        )
-        .unwrap();
+        let bound =
+            ExactLayoutIdentityV1::from_foundation(TARGET, exact.clone(), role, &foundation)
+                .unwrap();
         assert_eq!(bound.exact(), exact.id());
         assert_eq!(bound.exact_key(), exact.key());
         assert_eq!(bound.layout_key().representation(), role);
@@ -136,7 +127,7 @@ fn identity_binding_rejects_foreign_exact_role_and_missing_physical_definition()
         (exact.clone(), RepresentationRole::ManagedObject),
     ] {
         assert!(matches!(
-            ExactLayoutIdentityV1::from_foundation(TARGET, record, role, &full, &mut meter()),
+            ExactLayoutIdentityV1::from_foundation(TARGET, record, role, &full),
             Err(ExactLayoutIdentityError::MissingLayout(_))
         ));
     }
@@ -147,30 +138,9 @@ fn identity_binding_rejects_foreign_exact_role_and_missing_physical_definition()
             exact,
             RepresentationRole::ManagedValue,
             &absent,
-            &mut meter(),
         ),
         Err(ExactLayoutIdentityError::Definition(
             StrongShapeDefinitionError::MissingDefinition(_)
         ))
-    ));
-}
-
-#[test]
-fn layout_lookup_charges_shared_work_before_searching() {
-    let exact = exact("Value");
-    let full = foundation(exact.id(), RepresentationRole::ManagedValue, true);
-    let limits = DecodeLimits {
-        validation_work_units: 1,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        ExactLayoutIdentityV1::from_foundation(
-            TARGET,
-            exact,
-            RepresentationRole::ManagedValue,
-            &full,
-            &mut BudgetMeter::new(limits),
-        ),
-        Err(ExactLayoutIdentityError::Resource(_))
     ));
 }

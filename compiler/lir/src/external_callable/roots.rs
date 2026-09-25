@@ -35,7 +35,7 @@ impl WireEncode for ExternalCallableRootPlan {
 }
 
 impl WireDecode for ExternalCallableRootPlan {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ManagedStatepoint),
             2 => Ok(Self::NoGc),

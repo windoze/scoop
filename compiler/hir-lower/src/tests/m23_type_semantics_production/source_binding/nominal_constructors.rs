@@ -29,11 +29,9 @@ fn complete_constructor_sources_bind_from_bytes_with_generic_and_restricted_owne
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let nominals = foundation
-                .bind_nominal_sources(&sources.nominals, &mut meter())
-                .unwrap();
+            let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
             let bound = nominals
-                .bind_constructor_sources(&sources.constructors, &mut meter())
+                .bind_constructor_sources(&sources.constructors)
                 .unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
             assert_eq!(bound.table(), &sources.constructors);
@@ -60,53 +58,4 @@ fn complete_constructor_sources_bind_from_bytes_with_generic_and_restricted_owne
             }
         });
     }
-}
-
-#[test]
-fn complete_constructor_binding_obeys_the_shared_budget() {
-    with_source(SOURCE, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let sources = Sources::from_output(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(
-                matches!(
-                    nominals.bind_constructor_sources(
-                        &sources.constructors,
-                        &mut BudgetMeter::new(limits)
-                    ),
-                    Err(Error::Resource(_))
-                ),
-                "{limits:?}"
-            );
-        }
-    });
 }

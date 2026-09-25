@@ -30,11 +30,9 @@ fn default_provider_slots_replay_original_declaration_roles_and_reference_free_b
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let mut snapshot = String::new();
             for (name, position) in [
                 ("ProviderSlotInterface.abstractValue", 0),
@@ -45,9 +43,7 @@ fn default_provider_slots_replay_original_declaration_roles_and_reference_free_b
                 ("ProviderSlotBase.direct", 0),
                 ("ProviderSlotBase.generic", 1),
             ] {
-                let contract = bound
-                    .declaration(key(output, name, position), &mut meter())
-                    .unwrap();
+                let contract = bound.declaration(key(output, name, position)).unwrap();
                 match contract.provider_dispatch() {
                     Dispatch::Direct => {
                         assert!(contract.provider_slot_domain().is_none());
@@ -107,11 +103,9 @@ fn default_provider_slots_keep_original_roots_through_override_and_generic_quali
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             for (base, child) in [
                 (
                     "ProviderSlotParent.inherited",
@@ -119,12 +113,8 @@ fn default_provider_slots_keep_original_roots_through_override_and_generic_quali
                 ),
                 ("ProviderSlotRoot.chosen", "ProviderSlotImpl.chosen"),
             ] {
-                let base = bound
-                    .declaration(key(output, base, 0), &mut meter())
-                    .unwrap();
-                let child = bound
-                    .declaration(key(output, child, 0), &mut meter())
-                    .unwrap();
+                let base = bound.declaration(key(output, base, 0)).unwrap();
+                let child = bound.declaration(key(output, child, 0)).unwrap();
                 assert_ne!(base.key().owner(), child.key().owner());
                 assert!(matches!(base.provider_dispatch(), Dispatch::RootSlot(_)));
                 assert_eq!(base.provider_dispatch(), child.provider_dispatch());
@@ -134,9 +124,7 @@ fn default_provider_slots_keep_original_roots_through_override_and_generic_quali
                 ("ProviderSlotGeneric.own", 1),
                 ("ProviderSlotGeneric.Static.nested", 0),
             ] {
-                let contract = bound
-                    .declaration(key(output, name, position), &mut meter())
-                    .unwrap();
+                let contract = bound.declaration(key(output, name, position)).unwrap();
                 assert!(matches!(
                     contract.provider_dispatch(),
                     Dispatch::RootSlot(_)

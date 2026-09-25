@@ -4,7 +4,7 @@ use crate::{
     CheckedNominalInheritanceGraphV1, CheckedNominalInheritanceInterfacesV1,
     CheckedProtectedDeclarationSourcesV1, NominalSupportCallableSemanticAuthority,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod collect;
 mod errors;
@@ -61,12 +61,11 @@ impl<'a> CheckedProtectedSourceInterfaceV1<'a> {
         self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'s mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<crate::ProtectedDefaultOwnerSourceV1<'s>, ProtectedSourceClosureError<E>>
     where
         'a: 's,
     {
-        self.source.validate(graph, authority, meter)
+        self.source.validate(graph, authority)
     }
 }
 impl CanonicalProtectedCallableSourceInterfacesV1 {
@@ -79,20 +78,14 @@ impl CanonicalProtectedCallableSourceInterfacesV1 {
         keys: &ProtectedDefaultKeyIndexV1,
         source_authority: &mut S,
         protocol_authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedSourceInterfacesV1<'a>, ProtectedSourceClosureError<E>>
     where
         S: NominalSupportCallableSemanticAuthority<E>,
         A: ProtectedSourceProtocolSemanticAuthority<E>,
     {
         use ProtectedSourceClosureError as Error;
-        let sources = collect::sources(protected.table(), inheritance.table(), meter)?;
-        meter
-            .charge_work(
-                (sources.len() as u64 + self.records().len() as u64).saturating_mul(64),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+        let sources = collect::sources(protected.table(), inheritance.table())?;
+
         if !sources.iter().map(source::Source::owner).eq(self
             .records()
             .iter()
@@ -100,23 +93,20 @@ impl CanonicalProtectedCallableSourceInterfacesV1 {
         {
             return Err(Error::OwnerInventory);
         }
-        self.validate_default_closure(keys, meter)
+        self.validate_default_closure(keys)
             .map_err(Error::DefaultClosure)?;
         let mut entries = Vec::new();
-        meter
-            .check_table_entries(sources.len() as u64, &WirePath::root())
-            .map_err(Error::Resource)?;
-        meter
-            .try_reserve_collection_slots(&mut entries, sources.len(), &WirePath::root())
+
+        scoop_wire::allocation::try_reserve(&mut entries, sources.len(), &WirePath::root())
             .map_err(Error::Resource)?;
         for (source, record) in sources.into_iter().zip(self.records()) {
-            let owner = source.validate(graph, source_authority, meter)?;
+            let owner = source.validate(graph, source_authority)?;
             let protocol = match owner {
                 crate::ProtectedDefaultOwnerSourceV1::Protected(owner) => {
-                    record.validate_protected(owner, protocol_authority, meter)
+                    record.validate_protected(owner, protocol_authority)
                 }
                 crate::ProtectedDefaultOwnerSourceV1::NominalSupport(owner) => {
-                    record.validate_nominal_support(owner, protocol_authority, meter)
+                    record.validate_nominal_support(owner, protocol_authority)
                 }
             }
             .map_err(|error| Error::Protocol {

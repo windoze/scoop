@@ -26,9 +26,7 @@ pub(super) fn check(
     );
     let provider = lower(sysroot, target, &root, vec![], &[core]);
     let checked = provider.check(&[core]).unwrap();
-    checked
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
-        .unwrap();
+    checked.with_inheritance_graph(&[core], |_| ()).unwrap();
     let records = checked.section().protected_source_interfaces().records();
     let mut missing = records.to_vec();
     missing.remove(index(checked, "none"));
@@ -123,8 +121,8 @@ fn reject(
         source.selected().clone(),
     );
     candidate
-        .validate_shared_foundation(checked.metadata(), &[core], &mut meter())
+        .validate_shared_foundation(checked.metadata(), &[core])
         .unwrap()
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
+        .with_inheritance_graph(&[core], |_| ())
         .expect_err("source parameters must match the complete shared declarations")
 }

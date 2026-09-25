@@ -18,10 +18,9 @@ impl<I: PersistentId> DecodedStrongShapeDefinitionV1<I> {
     pub(crate) fn matches_definition(
         self,
         expected: StrongShapeDefinitionV1<I>,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<bool, WireError> {
         let path = scoop_wire::WirePath::root();
-        meter.charge_work(3, &path)?;
+
         if self.semantic_id.verify(expected.semantic_id()).is_err()
             || self
                 .definition_plan
@@ -32,9 +31,8 @@ impl<I: PersistentId> DecodedStrongShapeDefinitionV1<I> {
         }
         // The frozen symbol-request product has no standalone refinement API.
         // Compare its complete canonical fields, never merely their digest.
-        let actual = scoop_wire::encode_canonical_temporary_with_meter(&self.symbol, meter, &path)?;
-        let expected =
-            scoop_wire::encode_canonical_temporary_with_meter(&expected.symbol(), meter, &path)?;
+        let actual = scoop_wire::encode_canonical_temporary(&self.symbol, &path)?;
+        let expected = scoop_wire::encode_canonical_temporary(&expected.symbol(), &path)?;
         Ok(actual == expected)
     }
 }
@@ -43,10 +41,9 @@ impl<I: PersistentId> DecodedStrongShapeRegistrationV1<I> {
     pub(crate) fn matches_registration(
         self,
         expected: StrongShapeRegistrationV1<I>,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<bool, WireError> {
         let path = scoop_wire::WirePath::root();
-        meter.charge_work(4, &path)?;
+
         if self.semantic_id.verify(expected.semantic_id()).is_err()
             || self
                 .definition_plan
@@ -59,9 +56,8 @@ impl<I: PersistentId> DecodedStrongShapeRegistrationV1<I> {
         {
             return Ok(false);
         }
-        let actual = scoop_wire::encode_canonical_temporary_with_meter(&self.symbol, meter, &path)?;
-        let expected =
-            scoop_wire::encode_canonical_temporary_with_meter(&expected.symbol(), meter, &path)?;
+        let actual = scoop_wire::encode_canonical_temporary(&self.symbol, &path)?;
+        let expected = scoop_wire::encode_canonical_temporary(&expected.symbol(), &path)?;
         Ok(actual == expected)
     }
 }

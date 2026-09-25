@@ -19,11 +19,11 @@ use scoop_mir::{
 
 use super::MirBridgeValidatedCrossConeHirFrontSections;
 use crate::{
-    CompileCommitError, CrossConeSemanticsStrongProfile, NativeBoundaryCompileError,
-    ValidatedCompileArtifact, ValidatedGraphArtifact,
+    CrossConeSemanticsStrongProfile, NativeBoundaryCompileError, ValidatedCompileArtifact,
+    ValidatedGraphArtifact,
     compile_decode::{
-        NativeBoundaryFoundationView, charge_identity_import, replay_canonical_scoop_abi,
-        semantic_identity_import, validate_shared_native_boundary_parts,
+        NativeBoundaryFoundationView, replay_canonical_scoop_abi, semantic_identity_import,
+        validate_shared_native_boundary_parts,
     },
     strong_compile_decode::{
         OdrFreeStrongFoundationSet, StrongProfileLirProductionError, StrongProfileSemanticFront,
@@ -174,12 +174,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
             &self.mir_cross_cone_bridge,
             &self.lir_cross_cone_bridge,
             expectations,
-            self.graph.envelope.meter_mut(),
         )
-    }
-
-    pub(crate) fn charge_identity_import(&mut self) -> Result<(), CompileCommitError> {
-        charge_identity_import(&mut self.graph, &self.identities)
     }
 
     pub(crate) fn semantic_identity_import(&self) -> SemanticIdentityImport<'_> {
@@ -228,7 +223,7 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<LirBridgeValidatedCrossConeHirFrontSections<'input>, CrossConeLirFrontValidationError>
     {
         let Self {
-            mut graph,
+            graph,
             mut identities,
             foundations,
             hir_core_production,
@@ -247,7 +242,6 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
             foundations.hir.as_canonical(),
             hir_interface.nominal_interfaces(),
             hir_interface.callable_interfaces(),
-            graph.envelope.meter_mut(),
         )
         .and_then(|roots| roots.source_declarations(foundations.hir.as_canonical()))
         .map_err(StrongProfileLirProductionError::ShapeSources)

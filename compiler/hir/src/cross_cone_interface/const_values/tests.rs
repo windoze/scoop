@@ -1,6 +1,4 @@
-use scoop_wire::{
-    DecodeLimits, Encoder, ResourceKind, WireEncode, WireErrorKind, decode_canonical, encode,
-};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -48,8 +46,7 @@ fn every_integer_variant_has_fixed_wire_and_roundtrips_raw_bits() {
     for (value, expected) in cases {
         assert_eq!(encode(&value).unwrap(), expected);
         assert_eq!(
-            decode_canonical::<CanonicalIntegerConstantV1>(&expected, DecodeLimits::default())
-                .unwrap(),
+            decode_canonical::<CanonicalIntegerConstantV1>(&expected).unwrap(),
             value
         );
         assert_eq!(value.kind(), HirIntegerConstant::from(value).kind());
@@ -70,9 +67,7 @@ fn integer_decoder_rejects_every_narrow_payload_overflow() {
 
     for (tag, raw_bits) in cases {
         let encoded = encode(&UncheckedInteger { tag, raw_bits }).unwrap();
-        let error =
-            decode_canonical::<CanonicalIntegerConstantV1>(&encoded, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<CanonicalIntegerConstantV1>(&encoded).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::IntegerOutOfRange);
         assert_eq!(error.path().to_string(), "$.1");
     }
@@ -80,18 +75,12 @@ fn integer_decoder_rejects_every_narrow_payload_overflow() {
 
 #[test]
 fn integer_decoder_rejects_unknown_tags_and_wrong_sum_shape() {
-    let unknown = decode_canonical::<CanonicalIntegerConstantV1>(
-        &[0xa2, 0x00, 0x09, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown = decode_canonical::<CanonicalIntegerConstantV1>(&[0xa2, 0x00, 0x09, 0x01, 0x00])
+        .unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 
-    let wrong_shape = decode_canonical::<CanonicalIntegerConstantV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let wrong_shape =
+        decode_canonical::<CanonicalIntegerConstantV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         wrong_shape.kind(),
         &WireErrorKind::InvalidLength {
@@ -108,12 +97,10 @@ fn boolean_wire_is_an_explicit_unsigned_enumeration() {
     assert!(!CanonicalBooleanV1::False.value());
     assert!(CanonicalBooleanV1::True.value());
 
-    let native_boolean =
-        decode_canonical::<CanonicalBooleanV1>(&[0xf5], DecodeLimits::default()).unwrap_err();
+    let native_boolean = decode_canonical::<CanonicalBooleanV1>(&[0xf5]).unwrap_err();
     assert_eq!(native_boolean.kind(), &WireErrorKind::UnexpectedEnd);
 
-    let unknown =
-        decode_canonical::<CanonicalBooleanV1>(&[0x03], DecodeLimits::default()).unwrap_err();
+    let unknown = decode_canonical::<CanonicalBooleanV1>(&[0x03]).unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 
@@ -137,7 +124,7 @@ fn const_value_variants_have_fixed_wire_and_roundtrip() {
     for (value, expected) in cases {
         assert_eq!(encode(&value).unwrap(), expected);
         assert_eq!(
-            decode_canonical::<CanonicalConstValueV1>(&expected, DecodeLimits::default()).unwrap(),
+            decode_canonical::<CanonicalConstValueV1>(&expected).unwrap(),
             value
         );
     }
@@ -145,16 +132,11 @@ fn const_value_variants_have_fixed_wire_and_roundtrip() {
 
 #[test]
 fn const_value_decoder_rejects_unknown_tags_wrong_shape_and_native_boolean() {
-    let unknown = decode_canonical::<CanonicalConstValueV1>(
-        &[0xa2, 0x00, 0x04, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown =
+        decode_canonical::<CanonicalConstValueV1>(&[0xa2, 0x00, 0x04, 0x01, 0x00]).unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 4 });
 
-    let wrong_shape =
-        decode_canonical::<CanonicalConstValueV1>(&[0xa1, 0x00, 0x01], DecodeLimits::default())
-            .unwrap_err();
+    let wrong_shape = decode_canonical::<CanonicalConstValueV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         wrong_shape.kind(),
         &WireErrorKind::InvalidLength {
@@ -163,64 +145,10 @@ fn const_value_decoder_rejects_unknown_tags_wrong_shape_and_native_boolean() {
         }
     );
 
-    let native_boolean = decode_canonical::<CanonicalConstValueV1>(
-        &[0xa2, 0x00, 0x02, 0x01, 0xf5],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let native_boolean =
+        decode_canonical::<CanonicalConstValueV1>(&[0xa2, 0x00, 0x02, 0x01, 0xf5]).unwrap_err();
     assert_eq!(native_boolean.kind(), &WireErrorKind::UnexpectedEnd);
     assert_eq!(native_boolean.path().to_string(), "$.1");
-}
-
-#[test]
-fn string_values_preserve_utf8_identity_and_obey_both_byte_budgets() {
-    let composed = CanonicalConstValueV1::String("é\0".to_owned());
-    let decomposed = CanonicalConstValueV1::String("e\u{301}\0".to_owned());
-    assert_ne!(composed, decomposed);
-    for value in [&composed, &decomposed] {
-        let encoded = encode(value).unwrap();
-        assert_eq!(
-            decode_canonical::<CanonicalConstValueV1>(&encoded, DecodeLimits::default()).unwrap(),
-            *value
-        );
-    }
-
-    let encoded = encode(&CanonicalConstValueV1::String("four".to_owned())).unwrap();
-    let semantic_error = decode_canonical::<CanonicalConstValueV1>(
-        &encoded,
-        DecodeLimits {
-            semantic_leaf_bytes: 3,
-            ..DecodeLimits::default()
-        },
-    )
-    .unwrap_err();
-    assert_eq!(
-        semantic_error.kind(),
-        &WireErrorKind::LimitExceeded {
-            resource: ResourceKind::SemanticLeafBytes,
-            limit: 3,
-            observed: 4,
-        }
-    );
-    assert_eq!(semantic_error.path().to_string(), "$.1");
-
-    let owned_error = decode_canonical::<CanonicalConstValueV1>(
-        &encoded,
-        DecodeLimits {
-            owned_bytes: 3,
-            ..DecodeLimits::default()
-        },
-    )
-    .unwrap_err();
-    assert_eq!(
-        owned_error.kind(),
-        &WireErrorKind::LimitExceeded {
-            resource: ResourceKind::OwnedBytes,
-            limit: 3,
-            observed: 4,
-        }
-    );
-    assert_eq!(owned_error.path().to_string(), "$.1");
 }
 
 #[test]

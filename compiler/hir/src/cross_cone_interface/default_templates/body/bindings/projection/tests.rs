@@ -4,7 +4,7 @@ use scoop_identity::{
     PersistentFieldId, PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::super::test_support::{binder, hex};
 use super::*;
@@ -14,15 +14,14 @@ fn projection_variants_have_fixed_wire_and_round_trip() {
     let tuple = DefaultBindingProjectionV1::tuple_index(42);
     assert_eq!(hex(&encode(&tuple).unwrap()), "a2000101182a");
     let decoded: DecodedDefaultBindingProjectionV1 =
-        decode_canonical(&encode(&tuple).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&tuple).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver::rejecting()), Ok(tuple));
 
     let fixture = Fixture::new();
     let structure = DefaultBindingProjectionV1::struct_field(fixture.field, binder(0));
     let bytes = encode(&structure).unwrap();
     assert_eq!(bytes[2], 2);
-    let decoded: DecodedDefaultBindingProjectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultBindingProjectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(structure));
 }
 
@@ -35,11 +34,8 @@ fn projection_constructor_and_reader_reject_non_struct_fields() {
         Err(DefaultBindingProjectionBuildError::ExpectedStructField)
     );
 
-    let decoded: DecodedDefaultBindingProjectionV1 = decode_canonical(
-        &[0xa2, 0x00, 0x02, 0x01, 0xa2, 0x00, 0x02, 0x01, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultBindingProjectionV1 =
+        decode_canonical(&[0xa2, 0x00, 0x02, 0x01, 0xa2, 0x00, 0x02, 0x01, 0x01]).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver::rejecting()),
         Err(DefaultBindingProjectionResolutionError::Shape(
@@ -50,18 +46,13 @@ fn projection_constructor_and_reader_reject_non_struct_fields() {
 
 #[test]
 fn projection_decoder_rejects_unknown_tags_and_non_exact_maps() {
-    let error = decode_canonical::<DecodedDefaultBindingProjectionV1>(
-        &[0xa2, 0x00, 0x03, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultBindingProjectionV1>(&[0xa2, 0x00, 0x03, 0x01, 0x00])
+            .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error = decode_canonical::<DecodedDefaultBindingProjectionV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultBindingProjectionV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

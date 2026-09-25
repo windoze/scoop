@@ -48,7 +48,7 @@ impl WireEncode for DecodedCanonicalIdentifier {
 }
 
 impl WireDecode for DecodedCanonicalIdentifier {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.owned_text().map(Self)
     }
 }
@@ -154,7 +154,7 @@ impl WireEncode for DecodedPackagePath {
 }
 
 impl WireDecode for DecodedPackagePath {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| decoder.owned_text())
             .map(Self)
@@ -163,7 +163,7 @@ impl WireDecode for DecodedPackagePath {
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::{CanonicalIdentifier, CanonicalIdentifierError, DecodedPackagePath, PackagePath};
 
@@ -191,7 +191,7 @@ mod tests {
         let bytes = encode(&path).unwrap();
         assert_eq!(bytes, b"\x82\x63org\x67example");
         assert_eq!(
-            decode_canonical::<DecodedPackagePath>(&bytes, DecodeLimits::default())
+            decode_canonical::<DecodedPackagePath>(&bytes)
                 .unwrap()
                 .validate()
                 .unwrap(),
@@ -201,9 +201,7 @@ mod tests {
 
     #[test]
     fn decoded_package_path_rejects_invalid_segments() {
-        let decoded =
-            decode_canonical::<DecodedPackagePath>(b"\x81\x69not-valid", DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedPackagePath>(b"\x81\x69not-valid").unwrap();
         assert_eq!(
             decoded.validate(),
             Err(CanonicalIdentifierError::InvalidContinuation)

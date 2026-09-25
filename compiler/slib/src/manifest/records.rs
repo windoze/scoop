@@ -1,9 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{CapabilityId, CapabilityIdError, ConeCoordinate, ConeIdentity};
-use scoop_wire::{
-    BudgetMeter, CanonicalHashStream, Encoder, HashError, WireEncode, WireError, encoded_length,
-};
+use scoop_wire::{CanonicalHashStream, Encoder, HashError, WireEncode, WireError};
 
 use super::{
     ArtifactFingerprint, CodeFingerprint, FingerprintAvailability, HirFingerprint, LirFingerprint,
@@ -15,7 +13,6 @@ const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
 const INITIAL_SCHEMA: u64 = 1;
 const ARTIFACT_FINGERPRINT_DOMAIN: &[u8] = b"scoop-artifact-v1";
 const MAX_PRODUCER_BYTES: usize = 255;
-pub(super) const MAX_MEMBERS: usize = 65_536;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProducerRecord {
@@ -539,46 +536,30 @@ impl BootstrapManifest {
             .collect::<Vec<_>>();
         member_records.sort_unstable_by_key(SlibMemberRecord::id);
         sections.sort_unstable_by(|left, right| left.capability.cmp(&right.capability));
-        if member_records.len() > MAX_MEMBERS {
-            return Err(BootstrapManifestError::TooManyMembers {
-                actual: member_records.len(),
-            });
-        }
+
         reject_duplicate_dependencies(&direct_dependencies)?;
         reject_duplicate_members(&member_records)?;
         require_foundation_metadata(&member_records)?;
         reject_duplicate_sections(&sections)?;
-        Self::build(
-            CanonicalManifestRecords {
-                producer,
-                compatibility,
-                cone,
-                direct_dependencies,
-                members: member_records,
-                semantic_fingerprints,
-                sections,
-            },
-            None,
-        )
+        Self::build(CanonicalManifestRecords {
+            producer,
+            compatibility,
+            cone,
+            direct_dependencies,
+            members: member_records,
+            semantic_fingerprints,
+            sections,
+        })
     }
 
     pub(super) fn from_canonical_records(
         records: CanonicalManifestRecords,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, BootstrapManifestError> {
-        if records.members.len() > MAX_MEMBERS {
-            return Err(BootstrapManifestError::TooManyMembers {
-                actual: records.members.len(),
-            });
-        }
         require_foundation_metadata(&records.members)?;
-        Self::build(records, Some(meter))
+        Self::build(records)
     }
 
-    fn build(
-        records: CanonicalManifestRecords,
-        meter: Option<&mut BudgetMeter>,
-    ) -> Result<Self, BootstrapManifestError> {
+    fn build(records: CanonicalManifestRecords) -> Result<Self, BootstrapManifestError> {
         let input = ArtifactManifestInput {
             producer: &records.producer,
             compatibility: &records.compatibility,
@@ -588,7 +569,7 @@ impl BootstrapManifest {
             semantic_fingerprints: &records.semantic_fingerprints,
             sections: &records.sections,
         };
-        let artifact_fingerprint = calculate_artifact_fingerprint(&input, &records.members, meter)?;
+        let artifact_fingerprint = calculate_artifact_fingerprint(&input, &records.members)?;
         Ok(Self {
             producer: records.producer,
             compatibility: records.compatibility,
@@ -652,7 +633,7 @@ impl WireEncode for BootstrapManifest {
 pub enum BootstrapManifestError {
     DuplicateDependency { identity: ConeIdentity },
     DuplicateMember { id: SlibMemberId },
-    TooManyMembers { actual: usize },
+
     MissingMetadata { kind: MetadataKind },
     DuplicateSection { capability: CapabilityId },
     Hash(HashError),
@@ -666,9 +647,7 @@ impl fmt::Display for BootstrapManifestError {
                 write!(formatter, "duplicate direct dependency {identity}")
             }
             Self::DuplicateMember { id } => write!(formatter, "duplicate member {id}"),
-            Self::TooManyMembers { actual } => {
-                write!(formatter, "manifest exceeds 65536 members: found {actual}")
-            }
+
             Self::MissingMetadata { kind } => write!(formatter, "missing {kind} metadata member"),
             Self::DuplicateSection { capability } => write!(
                 formatter,
@@ -757,28 +736,7 @@ fn encode_array_field<T: WireEncode>(
 fn calculate_artifact_fingerprint(
     input: &ArtifactManifestInput<'_>,
     members: &[SlibMemberRecord],
-    meter: Option<&mut BudgetMeter>,
 ) -> Result<ArtifactFingerprint, BootstrapManifestError> {
-    if let Some(meter) = meter {
-        meter
-            .charge_sha256(
-                artifact_fingerprint_hash_stream_length(input, members.len())
-                    .map_err(BootstrapManifestError::Hash)?,
-                &Default::default(),
-            )
-            .map_err(BootstrapManifestError::Resource)?;
-        for member in members {
-            meter
-                .charge_sha256(
-                    member
-                        .fingerprint_hash_stream_length()
-                        .map_err(BootstrapManifestError::Hash)?,
-                    &Default::default(),
-                )
-                .map_err(BootstrapManifestError::Resource)?;
-        }
-    }
-
     let mut stream = CanonicalHashStream::new();
     stream
         .update_byte_span(ARTIFACT_FINGERPRINT_DOMAIN)
@@ -795,25 +753,6 @@ fn calculate_artifact_fingerprint(
     Ok(ArtifactFingerprint::from_array(
         *stream.finalize().as_array(),
     ))
-}
-
-fn artifact_fingerprint_hash_stream_length(
-    input: &ArtifactManifestInput<'_>,
-    member_count: usize,
-) -> Result<u64, HashError> {
-    let domain_length =
-        u64::try_from(ARTIFACT_FINGERPRINT_DOMAIN.len()).map_err(|_| HashError::LengthOverflow)?;
-    let input_length = encoded_length(input).map_err(|_| HashError::CborEncoding)?;
-    let member_count = u64::try_from(member_count).map_err(|_| HashError::LengthOverflow)?;
-    let member_spans = member_count
-        .checked_mul(40)
-        .ok_or(HashError::LengthOverflow)?;
-    8_u64
-        .checked_add(domain_length)
-        .and_then(|length| length.checked_add(8))
-        .and_then(|length| length.checked_add(input_length))
-        .and_then(|length| length.checked_add(member_spans))
-        .ok_or(HashError::LengthOverflow)
 }
 
 fn reject_duplicate_dependencies(

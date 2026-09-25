@@ -1,6 +1,6 @@
 use super::*;
 
-impl<'a> Traversal<'a, '_> {
+impl<'a> Traversal<'a> {
     pub(super) fn statement(&mut self, statement: &'a Statement) -> Result<(), StructureError> {
         match &statement.kind {
             StatementKind::Expr(value) | StatementKind::Throw(value) => {

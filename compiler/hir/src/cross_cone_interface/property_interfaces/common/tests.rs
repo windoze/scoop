@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentPropertyAccessorId, PersistentPropertyId, PropertyAccessorKey, PropertyOwner,
     SourceDeclarationKey, SourceDeclarationSite,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -32,11 +32,10 @@ fn property_leaf_enums_have_fixed_wire() {
     assert_eq!(encode(&PropertyPublicAccessV1::PublicSlot).unwrap(), [2]);
 
     assert_eq!(
-        decode_canonical::<PropertyRepresentationV1>(&[2], DecodeLimits::default()).unwrap(),
+        decode_canonical::<PropertyRepresentationV1>(&[2]).unwrap(),
         PropertyRepresentationV1::RuntimeAccessor
     );
-    let error =
-        decode_canonical::<PropertyPublicAccessV1>(&[3], DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<PropertyPublicAccessV1>(&[3]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 
@@ -78,7 +77,7 @@ fn decoded_capability_resolves_each_typed_accessor() {
     )
     .unwrap();
     let decoded: DecodedPropertyCapabilityV1 =
-        decode_canonical(&encode(&expected).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&expected).unwrap()).unwrap();
     let mut resolver = AccessorResolver { getter, setter };
 
     assert_eq!(decoded.resolve(&mut resolver).unwrap(), expected);
@@ -93,8 +92,7 @@ fn capability_rejects_duplicate_accessors_and_bad_sum_lengths() {
     );
 
     let duplicate_wire = capability_wire(2, getter, Some((getter, 2)));
-    let decoded: DecodedPropertyCapabilityV1 =
-        decode_canonical(&duplicate_wire, DecodeLimits::default()).unwrap();
+    let decoded: DecodedPropertyCapabilityV1 = decode_canonical(&duplicate_wire).unwrap();
     let mut resolver = AccessorResolver {
         getter,
         setter: getter,
@@ -106,10 +104,11 @@ fn capability_rejects_duplicate_accessors_and_bad_sum_lengths() {
         ))
     );
 
-    let error = decode_canonical::<DecodedPropertyCapabilityV1>(
-        &capability_wire(1, getter, Some((getter, 1))),
-        DecodeLimits::default(),
-    )
+    let error = decode_canonical::<DecodedPropertyCapabilityV1>(&capability_wire(
+        1,
+        getter,
+        Some((getter, 1)),
+    ))
     .unwrap_err();
     assert_eq!(
         error.kind(),
@@ -119,11 +118,7 @@ fn capability_rejects_duplicate_accessors_and_bad_sum_lengths() {
         }
     );
 
-    let error = decode_canonical::<DecodedPropertyCapabilityV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedPropertyCapabilityV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 
@@ -132,8 +127,7 @@ fn decoded_capability_reports_getter_and_setter_resolution_failures() {
     let (getter, setter) = accessors();
     let mut read_only_wire = capability_wire(1, getter, None);
     read_only_wire[6] ^= 0xff;
-    let decoded: DecodedPropertyCapabilityV1 =
-        decode_canonical(&read_only_wire, DecodeLimits::default()).unwrap();
+    let decoded: DecodedPropertyCapabilityV1 = decode_canonical(&read_only_wire).unwrap();
     let mut resolver = AccessorResolver { getter, setter };
     assert_eq!(
         decoded.resolve(&mut resolver),
@@ -142,8 +136,7 @@ fn decoded_capability_reports_getter_and_setter_resolution_failures() {
 
     let mut read_write_wire = capability_wire(2, getter, Some((setter, 2)));
     read_write_wire[41] ^= 0xff;
-    let decoded: DecodedPropertyCapabilityV1 =
-        decode_canonical(&read_write_wire, DecodeLimits::default()).unwrap();
+    let decoded: DecodedPropertyCapabilityV1 = decode_canonical(&read_write_wire).unwrap();
     assert_eq!(
         decoded.resolve(&mut resolver),
         Err(PropertyCapabilityResolutionError::Setter(UnknownAccessor))

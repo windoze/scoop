@@ -27,9 +27,9 @@ fn hidden_constructors_never_become_foreign_source_entries() {
             Err(InheritanceInterfaceBuildError::ConstructorAccess)
         ));
         let decoded: DecodedInheritanceConstructorInterfaceV1 =
-            decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&source).unwrap()).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture, &mut meter()),
+            decoded.resolve(&mut fixture),
             Err(InheritanceInterfaceResolutionError::Build(
                 InheritanceInterfaceBuildError::ConstructorAccess
             ))
@@ -53,9 +53,9 @@ fn constructor_reference_cannot_be_duplicated_in_the_member_field() {
         .unwrap()
     });
     let decoded: DecodedCanonicalNominalInheritanceInterfacesV1 =
-        decode_canonical(&encode(&bundle.table).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&bundle.table).unwrap()).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut bundle.fixture, &mut meter()),
+        decoded.resolve(&mut bundle.fixture),
         Err(InheritanceInterfaceResolutionError::Build(
             InheritanceInterfaceBuildError::ConstructorInMembers
         ))
@@ -93,9 +93,9 @@ fn constructor_table_reader_refuses_duplicate_and_reversed_identity_order() {
     };
     for entries in [[base, base], reversed] {
         let decoded: DecodedCanonicalInheritanceConstructorsV1 =
-            decode_canonical(&encode(&Entries(entries)).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&Entries(entries)).unwrap()).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut bundle.fixture, &mut meter()),
+            decoded.resolve(&mut bundle.fixture),
             Err(InheritanceInterfaceResolutionError::Build(
                 InheritanceInterfaceBuildError::ConstructorOrder
             ))

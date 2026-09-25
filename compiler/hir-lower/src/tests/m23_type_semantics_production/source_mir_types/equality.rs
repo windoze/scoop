@@ -7,10 +7,6 @@ use scoop_mir_lower::{SourceMirEqualityProductionError as Error, lower_derived_e
 mod assertions;
 mod rejections;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-mir-equality-production");
@@ -24,16 +20,14 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
         let (directory, source) = fixture(name);
         let (bytes, dump) = with_production(&source, |output, input, _, graph, types| {
             let boolean = dependencies::boolean(input, graph);
-            let index =
-                MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean], &mut meter()).unwrap();
+            let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean]).unwrap();
             let bindings =
-                lower_derived_equality_bindings(output, input, types, graph, &index, &mut meter())
-                    .unwrap();
+                lower_derived_equality_bindings(output, input, types, graph, &index).unwrap();
             assertions::actual(input, &bindings);
             let restored: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
             assert_eq!(
                 restored
-                    .validate(graph, input.foundation(), &index, &mut meter())
+                    .validate(graph, input.foundation(), &index)
                     .unwrap(),
                 bindings
             );
@@ -62,17 +56,9 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
             &format!("private struct Unrelated() {{}}\n{source}"),
             |output, input, _, graph, types| {
                 let boolean = dependencies::boolean(input, graph);
-                let index =
-                    MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean], &mut meter()).unwrap();
-                let bindings = lower_derived_equality_bindings(
-                    output,
-                    input,
-                    types,
-                    graph,
-                    &index,
-                    &mut meter(),
-                )
-                .unwrap();
+                let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean]).unwrap();
+                let bindings =
+                    lower_derived_equality_bindings(output, input, types, graph, &index).unwrap();
                 assert_eq!(encode(&bindings).unwrap(), bytes);
             },
         );
@@ -93,7 +79,7 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
 }
 
 #[test]
-fn actual_derived_equality_bindings_require_types_actual_roots_and_shared_budget() {
+fn actual_derived_equality_bindings_require_types_and_actual_roots() {
     let (_, source) = fixture("standalone");
     with_production(&source, |output, input, _, graph, types| {
         rejections::check(output, input, graph, types);

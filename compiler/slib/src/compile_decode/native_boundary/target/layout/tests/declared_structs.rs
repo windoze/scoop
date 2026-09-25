@@ -112,10 +112,9 @@ impl Fixture {
             .collect();
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
-        let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
         let mut normalizer = NativeBoundaryNormalizer::new(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-            &mut meter,
             &self.exact_types,
             &callable_applications,
             &initialization_units,
@@ -236,7 +235,7 @@ fn mixed_handle_scalar_and_unit_parameters_preserve_the_complete_scoop_abi() {
             ));
             let bytes = scoop_wire::encode(&signature).unwrap();
             let decoded: scoop_identity::DecodedCanonicalScoopAbiFunctionSignature =
-                scoop_wire::decode_canonical(&bytes, scoop_wire::DecodeLimits::default()).unwrap();
+                scoop_wire::decode_canonical(&bytes).unwrap();
             let mut resolver = Fixture::new(
                 ConeIdentity::CORE,
                 name,

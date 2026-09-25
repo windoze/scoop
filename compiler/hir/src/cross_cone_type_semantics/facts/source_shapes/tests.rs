@@ -8,7 +8,7 @@ use scoop_identity::{
     DefinitionOwnerChain, EnumVariantIdentityKey, ExactTypeKey, PackagePath, PersistentIdResolver,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 fn unit() -> PersistentExactTypeId {
     PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
@@ -42,10 +42,6 @@ fn variant(name: &str) -> PersistentEnumVariantId {
         &EnumVariantIdentityKey::source(&owner, CanonicalIdentifier::new(name).unwrap()).unwrap(),
     )
     .unwrap()
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 #[derive(Default)]
@@ -82,15 +78,9 @@ impl PersistentIdResolver<PersistentEnumVariantId> for Resolver {
 
 fn round_trip(shape: ExactTypeFactShapeV1, expected: Vec<u8>) {
     assert_eq!(encode(&shape).unwrap(), expected);
-    let decoded: DecodedExactTypeFactShapeV1 =
-        decode_canonical(&expected, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExactTypeFactShapeV1 = decode_canonical(&expected).unwrap();
     assert_eq!(encode(&decoded).unwrap(), expected);
-    assert_eq!(
-        decoded
-            .resolve(&mut Resolver::default(), &mut meter())
-            .unwrap(),
-        shape
-    );
+    assert_eq!(decoded.resolve(&mut Resolver::default()).unwrap(), shape);
 }
 
 #[test]
@@ -170,25 +160,19 @@ fn shape_tables_sort_only_the_exact_keys_and_preserve_source_sequences() {
         },
     ];
     variants.sort_unstable_by_key(|item| std::cmp::Reverse(item.variant));
-    let table = CanonicalExactTypeFactShapesV1::try_new(
-        vec![
-            ExactTypeFactShapeRecordV1::new(
-                any(),
-                ExactTypeFactShapeV1::Enum {
-                    variants: variants.clone(),
-                },
-            ),
-            ExactTypeFactShapeRecordV1::new(unit(), ExactTypeFactShapeV1::Unit),
-        ],
-        &mut meter(),
-    )
+    let table = CanonicalExactTypeFactShapesV1::try_new(vec![
+        ExactTypeFactShapeRecordV1::new(
+            any(),
+            ExactTypeFactShapeV1::Enum {
+                variants: variants.clone(),
+            },
+        ),
+        ExactTypeFactShapeRecordV1::new(unit(), ExactTypeFactShapeV1::Unit),
+    ])
     .unwrap();
     let bytes = encode(&table).unwrap();
-    let decoded: DecodedCanonicalExactTypeFactShapesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let resolved = decoded
-        .resolve(&mut Resolver::default(), &mut meter())
-        .unwrap();
+    let decoded: DecodedCanonicalExactTypeFactShapesV1 = decode_canonical(&bytes).unwrap();
+    let resolved = decoded.resolve(&mut Resolver::default()).unwrap();
     assert_eq!(resolved, table);
     assert_eq!(
         resolved.get(any()),
@@ -209,10 +193,9 @@ fn shape_tables_sort_only_the_exact_keys_and_preserve_source_sequences() {
         encode(&reversed[1]).unwrap(),
     ]
     .concat();
-    let decoded: DecodedCanonicalExactTypeFactShapesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalExactTypeFactShapesV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut Resolver::default(), &mut meter()),
+        decoded.resolve(&mut Resolver::default()),
         Err(TypeFactShapeSourceError::NonCanonicalOrder(_))
     ));
 }
@@ -226,14 +209,13 @@ fn duplicate_records_variants_and_empty_tuples_are_rejected() {
         encode(&record).unwrap(),
     ]
     .concat();
-    let decoded: DecodedCanonicalExactTypeFactShapesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalExactTypeFactShapesV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut Resolver::default(), &mut meter()),
+        decoded.resolve(&mut Resolver::default()),
         Err(TypeFactShapeSourceError::NonCanonicalOrder(_))
     ));
     assert!(matches!(
-        CanonicalExactTypeFactShapesV1::try_new(vec![record.clone(), record], &mut meter()),
+        CanonicalExactTypeFactShapesV1::try_new(vec![record.clone(), record]),
         Err(TypeFactShapeSourceError::NonCanonicalOrder(_))
     ));
     let variant = ExactEnumVariantFactsV1 {
@@ -248,19 +230,15 @@ fn duplicate_records_variants_and_empty_tuples_are_rejected() {
         },
     ] {
         assert!(
-            CanonicalExactTypeFactShapesV1::try_new(
-                vec![ExactTypeFactShapeRecordV1::new(unit(), shape.clone())],
-                &mut meter()
-            )
+            CanonicalExactTypeFactShapesV1::try_new(vec![ExactTypeFactShapeRecordV1::new(
+                unit(),
+                shape.clone()
+            )])
             .is_err()
         );
         let decoded: DecodedExactTypeFactShapeV1 =
-            decode_canonical(&encode(&shape).unwrap(), DecodeLimits::default()).unwrap();
-        assert!(
-            decoded
-                .resolve(&mut Resolver::default(), &mut meter())
-                .is_err()
-        );
+            decode_canonical(&encode(&shape).unwrap()).unwrap();
+        assert!(decoded.resolve(&mut Resolver::default()).is_err());
     }
 }
 
@@ -273,10 +251,7 @@ fn closed_wire_products_reject_unknown_tags_extra_fields_and_wrong_id_widths() {
         vec![0xa2, 0, 7, 1, 0x81, 0x41, 1],
         vec![0xa2, 0, 8, 1, 0x81, 0xa0],
     ] {
-        assert!(
-            decode_canonical::<DecodedExactTypeFactShapeV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedExactTypeFactShapeV1>(&bytes).is_err());
     }
 }
 
@@ -296,47 +271,11 @@ fn unknown_field_and_variant_identities_cannot_become_source_evidence() {
         },
     ] {
         let decoded: DecodedExactTypeFactShapeV1 =
-            decode_canonical(&encode(&shape).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&shape).unwrap()).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut Resolver::default(), &mut meter()),
+            decoded.resolve(&mut Resolver::default()),
             Err(TypeFactShapeSourceError::Reference(_))
         ));
-    }
-}
-
-#[test]
-fn resolution_checks_shared_budget_before_allocating_or_querying_refs() {
-    let shape = ExactTypeFactShapeV1::OrdinaryStruct {
-        fields: vec![unit(), any()],
-    };
-    let decoded: DecodedExactTypeFactShapeV1 =
-        decode_canonical(&encode(&shape).unwrap(), DecodeLimits::default()).unwrap();
-    for limits in [
-        DecodeLimits {
-            semantic_table_entries: 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let mut resolver = Resolver::default();
-        assert!(matches!(
-            decoded
-                .clone()
-                .resolve(&mut resolver, &mut BudgetMeter::new(limits)),
-            Err(TypeFactShapeSourceError::Resource(_))
-        ));
-        assert_eq!(resolver.queries, 0);
     }
 }
 
@@ -352,21 +291,14 @@ impl ExactTypeFactsSemanticAuthority<&'static str> for Source {
 
 #[test]
 fn byte_restored_source_shapes_reject_a_forged_zst_conclusion() {
-    let source = CanonicalExactTypeFactShapesV1::try_new(
-        vec![ExactTypeFactShapeRecordV1::new(
-            unit(),
-            ExactTypeFactShapeV1::Unit,
-        )],
-        &mut meter(),
-    )
+    let source = CanonicalExactTypeFactShapesV1::try_new(vec![ExactTypeFactShapeRecordV1::new(
+        unit(),
+        ExactTypeFactShapeV1::Unit,
+    )])
     .unwrap();
     let decoded: DecodedCanonicalExactTypeFactShapesV1 =
-        decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
-    let source = Source(
-        decoded
-            .resolve(&mut Resolver::default(), &mut meter())
-            .unwrap(),
-    );
+        decode_canonical(&encode(&source).unwrap()).unwrap();
+    let source = Source(decoded.resolve(&mut Resolver::default()).unwrap());
     for (zst, accepted) in [(ZstStatus::ZeroSized, true), (ZstStatus::NonZero, false)] {
         let candidate = CanonicalExactTypeFactsV1::try_new(vec![
             ExactTypeFactsV1::try_new(
@@ -377,9 +309,6 @@ fn byte_restored_source_shapes_reject_a_forged_zst_conclusion() {
             .unwrap(),
         ])
         .unwrap();
-        assert_eq!(
-            candidate.validate_semantics(&source, &mut meter()).is_ok(),
-            accepted
-        );
+        assert_eq!(candidate.validate_semantics(&source).is_ok(), accepted);
     }
 }

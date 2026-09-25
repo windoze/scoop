@@ -8,8 +8,6 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use crate::{CheckedRefScanV1, NonEmptyRefScan, RefScan, RefScanValidationError};
 
 mod decode;
-mod validation;
-pub use validation::MeteredScanValidationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedRefScanV1(RawScan);
@@ -64,7 +62,7 @@ impl DecodedRefScanV1 {
 }
 
 impl WireDecode for DecodedRefScanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode::decode(decoder)
     }
 }
@@ -167,7 +165,7 @@ fn encode_array_prefix(
     encoder.field(4)
 }
 
-fn require_length(decoder: &Decoder<'_, '_>, actual: u64, expected: u64) -> Result<(), WireError> {
+fn require_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -178,6 +176,6 @@ fn require_length(decoder: &Decoder<'_, '_>, actual: u64, expected: u64) -> Resu
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

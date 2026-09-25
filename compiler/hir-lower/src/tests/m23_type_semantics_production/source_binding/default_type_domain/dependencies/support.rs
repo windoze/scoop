@@ -20,7 +20,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifacts
     let mut artifacts =
         ["type-current", "type-first", "type-second"].map(|name| artifact(core, name));
     let decode = |value: &hir::CanonicalHirFoundation| -> hir::DecodedHirFoundation {
-        decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+        decode_canonical(&encode(value).unwrap()).unwrap()
     };
     let core_decoded = decode(core.source_foundation.as_canonical());
     let decoded = artifacts
@@ -49,11 +49,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifacts
         let mut identities = pending.finish().unwrap();
         artifact.foundation = hir::OdrFreeHirFoundation::from_validated(
             decoded
-                .validate_with_dependency_sources(
-                    &artifact.coordinate,
-                    &mut identities,
-                    &mut meter(),
-                )
+                .validate_with_dependency_sources(&artifact.coordinate, &mut identities)
                 .unwrap(),
         )
         .unwrap();
@@ -64,11 +60,11 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifacts
     let mut identities = combined.finish().unwrap();
     for artifact in &mut artifacts {
         let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 =
-            decode_canonical(&encode(&artifact.source).unwrap(), DecodeLimits::default()).unwrap();
-        artifact.source = decoded.resolve(&mut identities, &mut meter()).unwrap();
+            decode_canonical(&encode(&artifact.source).unwrap()).unwrap();
+        artifact.source = decoded.resolve(&mut identities).unwrap();
         let decoded: hir::DecodedCanonicalDefaultSourceAccessDeclarationsV1 =
-            decode_canonical(&encode(&artifact.table).unwrap(), DecodeLimits::default()).unwrap();
-        artifact.table = decoded.resolve(&mut identities, &mut meter()).unwrap();
+            decode_canonical(&encode(&artifact.table).unwrap()).unwrap();
+        artifact.table = decoded.resolve(&mut identities).unwrap();
     }
     (artifacts, identities)
 }
@@ -117,7 +113,6 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         &output,
         hir::ExportParameterOwner::Function(pick),
         1,
-        &mut meter(),
     )
     .unwrap();
     let ty = template.result().clone();
@@ -125,20 +120,18 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         panic!("private source nominal")
     };
     let mut required = BTreeSet::from([Subject::Type(id)]);
-    let source =
-        hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(&output, &mut meter())
-            .unwrap()
-            .source_transcript(&mut meter())
-            .unwrap();
+    let source = hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(&output)
+        .unwrap()
+        .source_transcript()
+        .unwrap();
     let foundation = hir::OdrFreeHirFoundation::try_new(
         hir::CanonicalHirFoundation::from_type_semantics_output(&output).unwrap(),
     )
     .unwrap();
-    let defaults =
-        hir::NominalDefaultSourceProductionV1::from_dependency_hir(&output, &mut meter())
-            .unwrap()
-            .templates()
-            .clone();
+    let defaults = hir::NominalDefaultSourceProductionV1::from_dependency_hir(&output)
+        .unwrap()
+        .templates()
+        .clone();
     let mut fixture = Fixture {
         source: source.clone(),
         foundation: foundation.clone(),
@@ -149,13 +142,13 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         &mut fixture,
     );
     let bound = source
-        .bind_to_foundation(&foundation, &fixture.identities, &mut meter())
+        .bind_to_foundation(&foundation, &fixture.identities)
         .unwrap();
     required
         .extend(super::super::super::default_value_domain::support::required(&bound, &defaults));
     required
         .extend(super::super::super::default_callable_domain::support::required(&bound, &defaults));
-    let table = Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+    let table = Table::from_export_hir(&output.output().export, &required).unwrap();
     Artifact {
         coordinate,
         source,

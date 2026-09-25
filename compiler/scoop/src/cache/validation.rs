@@ -9,7 +9,6 @@ use scoop_protocol::{DiagnosticOriginV1, ProtocolConeIdentity, StructuredDiagnos
 use scoop_slib::{
     ArtifactFingerprint, ArtifactSnapshot, ConeRecord, ConeRecordError, DependencyRecord,
 };
-use scoop_wire::DecodeLimits;
 
 use super::{CacheReceiptBodyV1, ConeCompileCacheKeyV1, RawCompileCacheEntryV1};
 use crate::artifact::{
@@ -60,7 +59,7 @@ pub(crate) fn validate_cache_entry(
     entry: RawCompileCacheEntryV1,
     completed: &[&CompletedNode],
     compiler: PairedCompilerFingerprintV1,
-    limits: DecodeLimits,
+
     target: ValidatedLirTargetSelection,
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedCacheHitV1, CacheCompletionError> {
@@ -102,13 +101,7 @@ pub(crate) fn validate_cache_entry(
         entry.artifact().shared_bytes(),
     ));
     let artifact = plan
-        .validate_completed_artifact(
-            identity,
-            artifact_snapshot,
-            &artifacts,
-            limits,
-            c_bridge_profile,
-        )
+        .validate_completed_artifact(identity, artifact_snapshot, &artifacts, c_bridge_profile)
         .map_err(|source| CacheCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Arc::clone(&artifact));
     let closures = plan

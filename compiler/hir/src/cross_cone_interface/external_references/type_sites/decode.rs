@@ -3,7 +3,7 @@ use scoop_identity::{
     DecodedPropertyOwner, PersistentExtensionPropertyId, PersistentIdResolver,
     PersistentPropertyId,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::*;
 use crate::HirDependencyCallSiteResolver;
@@ -80,24 +80,9 @@ impl DecodedHirDependencyTypeSiteV1 {
     pub fn resolve<R: HirDependencyTypeSiteResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<HirDependencyTypeSiteV1, HirDependencyTypeSiteResolutionError<E>> {
         use HirDependencyTypeSiteResolutionError as Error;
-        let bytes = scoop_wire::encoded_length(&self).map_err(|_| {
-            WireError::new(
-                scoop_wire::WireErrorKind::IntegerOutOfRange,
-                path.clone(),
-                None,
-            )
-        })?;
-        meter.charge_owned_bytes(bytes, path)?;
-        meter.charge_work(bytes, path)?;
-        meter.charge_nodes(2, path)?;
-        if matches!(&self, Self::Expression { .. }) {
-            meter
-                .charge_owned_bytes(std::mem::size_of::<HirExpressionTypeSiteV1>() as u64, path)?;
-        }
+
         Ok(match self {
             Self::Expression {
                 root,
@@ -162,7 +147,7 @@ impl DecodedHirDependencyTypeSiteV1 {
 }
 
 impl WireDecode for DecodedHirDependencyTypeSiteV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -171,11 +156,6 @@ impl WireDecode for DecodedHirDependencyTypeSiteV1 {
                     root: decoder.field(1, DecodedCallableMaterialization::decode)?,
                     expression_index: decoder.field(2, Decoder::u32)?,
                     origin: decoder.field(3, |decoder| {
-                        let path = decoder.path().clone();
-                        decoder.meter().charge_owned_bytes(
-                            std::mem::size_of::<DecodedConcreteExpressionOrigin>() as u64,
-                            &path,
-                        )?;
                         DecodedConcreteExpressionOrigin::decode(decoder).map(Box::new)
                     })?,
                     role: decoder.field(4, HirExpressionTypeRoleV1::decode)?,

@@ -1,7 +1,6 @@
 use crate::{
     BinderListValidationError, CallableSourceEffectsBuildError,
-    DeclarationAccessSourceResolutionError, MeteredInterfaceResolutionError,
-    SourceParameterListValidationError,
+    DeclarationAccessSourceResolutionError, SourceParameterListValidationError,
 };
 use scoop_wire::WireError;
 use std::fmt;
@@ -63,8 +62,8 @@ pub enum ProtectedCallableInterfaceResolutionError<E> {
     Resource(WireError),
     Identity(E),
     Effects(CallableSourceEffectsBuildError),
-    Binders(MeteredInterfaceResolutionError<BinderListValidationError<E>>),
-    Parameters(MeteredInterfaceResolutionError<SourceParameterListValidationError<E>>),
+    Binders(BinderListValidationError<E>),
+    Parameters(SourceParameterListValidationError<E>),
     Source(DeclarationAccessSourceResolutionError<E>),
     Interface(ProtectedCallableInterfaceBuildError),
 }

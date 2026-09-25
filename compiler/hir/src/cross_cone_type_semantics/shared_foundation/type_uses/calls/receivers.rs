@@ -8,20 +8,15 @@ impl Graph<'_> {
     pub(super) fn source_receiver(
         &mut self,
         receiver: SourceCallReceiver<PersistentExactTypeId>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
         let SourceCallReceiver::Receiver { static_type } = receiver else {
             return Ok(());
         };
-        let nominals = crate::collect_type_site_nominals(
-            static_type,
-            |exact| {
-                self.current
-                    .identities
-                    .canonical_key::<_, ExactTypeKey>(exact)
-            },
-            meter,
-        )
+        let nominals = crate::collect_type_site_nominals(static_type, |exact| {
+            self.current
+                .identities
+                .canonical_key::<_, ExactTypeKey>(exact)
+        })
         .map_err(|error| match error {
             crate::HirTypeSiteExactError::Resource(error) => Error::Resource(error),
             crate::HirTypeSiteExactError::Identity(error) => Error::Identity(error),
@@ -30,7 +25,7 @@ impl Graph<'_> {
             let SourceNominalId::Concrete(owner) = owner else {
                 return Err(Error::NonConcreteSignature);
             };
-            self.select(owner, Kind::Signature, meter)?;
+            self.select(owner, Kind::Signature)?;
         }
         Ok(())
     }
@@ -40,7 +35,7 @@ impl Graph<'_> {
         source: &crate::CallableDeclarationRecordV1,
         metadata: SharedTypeMetadataV1<'_>,
         call: &crate::HirDependencyCallSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Error> {
         if source.owner() != crate::PublicDeclarationOwnerV1::Extension {
@@ -49,7 +44,7 @@ impl Graph<'_> {
         let signature = source
             .receiver()
             .ok_or(Error::CallableContract(source.declaration()))?;
-        let expected = metadata.signature_exact_type(signature, meter)?;
+        let expected = metadata.signature_exact_type(signature)?;
         let invalid = || Error::CallReceiver {
             position: Box::new(call.position()),
             receiver: call.receiver(),
@@ -58,7 +53,7 @@ impl Graph<'_> {
         let SourceCallReceiver::Receiver { static_type } = call.receiver() else {
             return Err(invalid());
         };
-        if self.receiver_is_subtype(static_type, expected, meter, path)? {
+        if self.receiver_is_subtype(static_type, expected, path)? {
             Ok(())
         } else {
             Err(invalid())

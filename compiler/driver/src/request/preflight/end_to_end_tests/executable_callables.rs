@@ -48,7 +48,7 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
         vec![provider.artifact().path().to_path_buf()],
         vec![],
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap();
     let dependency_bytes = [&core, &provider, &facade]
         .map(|artifact| std::fs::read(artifact.artifact().path()).unwrap());
@@ -76,9 +76,7 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
             )
         };
         validation::check_machine_input(request(), selected);
-        let published = request()
-            .build_and_publish(DecodeLimits::default())
-            .unwrap();
+        let published = request().build_and_publish().unwrap();
         let bytes = std::fs::read(published.artifact().path()).unwrap();
         let identity = ConeCoordinate::new("dev.example", case, "0.1.0")
             .unwrap()
@@ -97,7 +95,6 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
             direct,
             dependency_bytes.iter().map(Vec::as_slice).collect(),
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

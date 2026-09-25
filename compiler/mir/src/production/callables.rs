@@ -67,7 +67,7 @@ impl WireEncode for DecodedStrongCallableBridgeV1 {
 }
 
 impl WireDecode for DecodedStrongCallableBridgeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             implementation: decoder.field(1, DecodedCallableOwner::decode)?,
@@ -247,7 +247,7 @@ impl WireEncode for DecodedStrongCallableBridgeSurfaceV1 {
 }
 
 impl WireDecode for DecodedStrongCallableBridgeSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedStrongCallableBridgeV1::decode(decoder))
             .map(|bridges| Self { bridges })
@@ -282,7 +282,7 @@ fn encode_callable_role(
         crate::CallableRole::InitializationCycle => 2,
     })
 }
-fn decode_callable_role(decoder: &mut Decoder<'_, '_>) -> Result<crate::CallableRole, WireError> {
+fn decode_callable_role(decoder: &mut Decoder<'_>) -> Result<crate::CallableRole, WireError> {
     match decoder.unsigned()? {
         1 => Ok(crate::CallableRole::Ordinary),
         2 => Ok(crate::CallableRole::InitializationCycle),

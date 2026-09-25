@@ -14,7 +14,7 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, SpecializationKey,
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     CallableSignatureRecord, CallableSignatureResolver, CallableSignatureSubject,
@@ -128,9 +128,7 @@ fn callable_signature_records_roundtrip_strong_and_odr_subjects() {
 
     for record in [strong, odr] {
         let bytes = encode(&record).unwrap();
-        let decoded =
-            decode_canonical::<DecodedCallableSignatureRecord>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedCallableSignatureRecord>(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), record);
     }
@@ -152,9 +150,7 @@ fn callback_application_record_roundtrips_all_fields() {
         CallbackMode::OneShot,
     );
     let bytes = encode(&record).unwrap();
-    let decoded =
-        decode_canonical::<DecodedCallbackApplicationRecord>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedCallbackApplicationRecord>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), record);
 }
@@ -188,11 +184,8 @@ fn unknown_subject_and_storage_tags_are_rejected() {
         .unwrap()
         + 2;
     bytes[subject_tag] = 3;
-    assert!(
-        decode_canonical::<DecodedCallableSignatureRecord>(&bytes, DecodeLimits::default())
-            .is_err()
-    );
-    assert!(decode_canonical::<ForeignCallbackStorageAbi>(&[2], DecodeLimits::default()).is_err());
+    assert!(decode_canonical::<DecodedCallableSignatureRecord>(&bytes).is_err());
+    assert!(decode_canonical::<ForeignCallbackStorageAbi>(&[2]).is_err());
 }
 
 #[test]
@@ -202,11 +195,8 @@ fn odr_subject_must_resolve_through_callable_refinement() {
         CallableSignatureSubject::odr(fixture.callable_member),
         ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), fixture.exact),
     );
-    let decoded = decode_canonical::<DecodedCallableSignatureRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCallableSignatureRecord>(&encode(&record).unwrap()).unwrap();
     let mut resolver = fixture.resolver();
     resolver.callable_member = None;
     assert!(decoded.resolve(&mut resolver).is_err());

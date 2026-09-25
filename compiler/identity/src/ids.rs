@@ -213,7 +213,7 @@ impl<I: PersistentId> RuntimeEncode for DecodedPersistentId<I> {
 }
 
 impl<I: PersistentId> WireDecode for DecodedPersistentId<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let value = decoder.bytes()?;
         let bytes = <&[u8; 32]>::try_from(value).map_err(|_| {
             WireError::new(
@@ -282,7 +282,7 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::{ConeIdentity, DecodedPersistentId};
 
@@ -290,11 +290,7 @@ mod tests {
     fn raw_id_decode_stays_typed_until_verified() {
         let expected = ConeIdentity::SINGLE_FILE;
         let encoded = encode(&expected).unwrap();
-        let decoded = decode_canonical::<DecodedPersistentId<ConeIdentity>>(
-            &encoded,
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded = decode_canonical::<DecodedPersistentId<ConeIdentity>>(&encoded).unwrap();
 
         assert_eq!(decoded.as_array(), expected.as_array());
         assert_eq!(decoded.verify(expected), Ok(expected));
@@ -302,11 +298,7 @@ mod tests {
 
     #[test]
     fn id_decoder_rejects_the_wrong_width() {
-        let error = decode_canonical::<DecodedPersistentId<ConeIdentity>>(
-            b"\x42\0\0",
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error = decode_canonical::<DecodedPersistentId<ConeIdentity>>(b"\x42\0\0").unwrap_err();
         assert_eq!(
             error.kind(),
             &scoop_wire::WireErrorKind::InvalidLength {

@@ -1,5 +1,5 @@
 use scoop_identity::{ConeIdentity, ObjectDefinitionPlanId, PersistentSymbolRequest};
-use scoop_wire::{BudgetMeter, Encoder, WireEncode};
+use scoop_wire::{Encoder, WireEncode};
 
 use super::wire::{EncodeResult, field};
 use super::{ShapeLinkContractV1, ShapeLinkError, ShapeLinkProviderV1, ShapeLinkSupportLookupV1};
@@ -26,9 +26,8 @@ impl<'a> ExternalShapeLinkImportV1<'a> {
         consumer: ConeIdentity,
         consumer_definitions: &StrongObjectSymbolSurfaceV1,
         support: &dyn ShapeLinkSupportLookupV1<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ShapeLinkError> {
-        provider.import(subject, consumer, consumer_definitions, support, meter)
+        provider.import(subject, consumer, consumer_definitions, support)
     }
     pub const fn provider(&self) -> ConeIdentity {
         self.provider

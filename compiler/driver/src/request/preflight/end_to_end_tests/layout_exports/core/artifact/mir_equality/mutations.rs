@@ -17,7 +17,7 @@ pub(super) fn check(replay: &Replay<'_>) {
                 .collect(),
         );
         assert!(matches!(
-            replay.validate(&remaining, &mut meter()),
+            replay.validate(&remaining),
             Err(Error::MissingCallable(id)) if id == callable
         ));
         let strong = mir::StrongCallableBridgeSurfaceV1::try_new(
@@ -35,8 +35,7 @@ pub(super) fn check(replay: &Replay<'_>) {
                 replay.source,
                 &[],
                 &strong,
-                replay.section.callables(),
-                &mut meter()
+                replay.section.callables()
             ),
             Err(Error::UnexpectedCallable(id)) if id == callable
         ));
@@ -57,7 +56,6 @@ pub(super) fn check(replay: &Replay<'_>) {
                 ..metadata
             },
             &[],
-            &mut meter(),
         )
         .unwrap();
     assert!(matches!(
@@ -65,8 +63,7 @@ pub(super) fn check(replay: &Replay<'_>) {
             missing,
             &[],
             replay.strong,
-            replay.section.callables(),
-            &mut meter()
+            replay.section.callables()
         ),
         Err(Error::MissingSource(_))
     ));
@@ -112,7 +109,7 @@ fn gc_effect(
             .collect(),
     );
     assert!(matches!(
-        replay.validate(&changed, &mut meter()),
+        replay.validate(&changed),
         Err(Error::Signature(id)) if id == callable
     ));
 }

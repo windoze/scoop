@@ -3,7 +3,6 @@
 use std::fmt;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey};
-use scoop_wire::BudgetMeter;
 
 use crate::{
     CallableAbiRecordV1, CallableAbiValidationError, EntryProductionSourceV1, Module,
@@ -47,10 +46,9 @@ impl PendingStrongProductionSectionV2 {
     pub fn validate_layout_abi(
         self,
         layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<crate::ValidatedStrongProductionSectionV2, crate::StrongProductionLayoutJoinError>
     {
-        self.section.validate_layout_abi(layout_abi, meter)
+        self.section.validate_layout_abi(layout_abi)
     }
 }
 
@@ -138,7 +136,6 @@ impl SingleConeStrongLirOutput {
         entry_source: EntryProductionSourceV1,
         selected: &crate::StrongProductionDependencySelectionV2<'_>,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
-        meter: &mut BudgetMeter,
     ) -> Result<PendingStrongProductionSectionV2, StrongProductionWriterError> {
         let external_bridges = StrongExternalLirBridgeSurfaceV1::from_module(&self.module)
             .map_err(StrongProductionWriterError::ExternalBridges)?;
@@ -147,7 +144,6 @@ impl SingleConeStrongLirOutput {
             &self.foundation,
             &entry_source,
             selected,
-            meter,
         )
         .map_err(StrongProductionWriterError::Digests)?;
         let registrations = crate::StrongRegistrationProductionSurfaceV2::from_module(
@@ -156,7 +152,6 @@ impl SingleConeStrongLirOutput {
             &digests,
             selected,
             external_initialization_uses,
-            meter,
         )
         .map_err(StrongProductionWriterError::Registrations)?;
         StrongProductionSectionV2::new(

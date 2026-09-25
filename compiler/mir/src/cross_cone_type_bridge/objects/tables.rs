@@ -7,9 +7,7 @@ pub struct CanonicalMirObjectValuesV1 {
 impl CanonicalMirObjectValuesV1 {
     pub fn try_new(
         mut records: Vec<ParamFreeMirObjectValueV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirObjectBridgeError> {
-        sort_budget(records.len(), meter)?;
         records.sort_unstable_by_key(ParamFreeMirObjectValueV1::value);
         if let Some(pair) = records
             .windows(2)
@@ -41,11 +39,10 @@ impl DecodedCanonicalMirObjectValuesV1 {
         graph: &mut ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
         callables: &dyn MirTypeBridgeCallableLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirObjectValuesV1, MirObjectBridgeError> {
-        let mut records: Vec<ParamFreeMirObjectValueV1> = reserve(self.records.len(), meter)?;
+        let mut records: Vec<ParamFreeMirObjectValueV1> = reserve(self.records.len())?;
         for (index, decoded) in self.records.into_iter().enumerate() {
-            let record = decoded.validate(graph, types, callables, meter)?;
+            let record = decoded.validate(graph, types, callables)?;
             if records
                 .last()
                 .is_some_and(|previous| previous.value() >= record.value())
@@ -65,9 +62,7 @@ pub struct CanonicalMirExternalInitializationUsesV1 {
 impl CanonicalMirExternalInitializationUsesV1 {
     pub fn try_new(
         mut records: Vec<SelectedExternalInitializationUseV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirObjectBridgeError> {
-        sort_budget(records.len(), meter)?;
         records.sort_unstable();
         if records.windows(2).any(|pair| pair[0] == pair[1]) {
             return Err(MirObjectBridgeError::DuplicateInitializationUse);
@@ -87,11 +82,10 @@ impl DecodedCanonicalMirExternalInitializationUsesV1 {
         self,
         consumer: ConeIdentity,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirExternalInitializationUsesV1, MirObjectBridgeError> {
-        let mut records = reserve(self.records.len(), meter)?;
+        let mut records = reserve(self.records.len())?;
         for (index, decoded) in self.records.into_iter().enumerate() {
-            let record = decoded.validate(consumer, graph, meter)?;
+            let record = decoded.validate(consumer, graph)?;
             if records.last().is_some_and(|previous| *previous >= record) {
                 return Err(MirObjectBridgeError::NonCanonicalInitializationUseOrder { index });
             }
@@ -112,29 +106,21 @@ encode_table!(
     DecodedCanonicalMirExternalInitializationUsesV1
 );
 impl WireDecode for DecodedCanonicalMirObjectValuesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedParamFreeMirObjectValueV1::decode(decoder))
             .map(|records| Self { records })
     }
 }
 impl WireDecode for DecodedCanonicalMirExternalInitializationUsesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedSelectedExternalInitializationUseV1::decode(decoder))
             .map(|records| Self { records })
     }
 }
-fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, WireError> {
-    meter.check_table_entries(count as u64, &WirePath::root())?;
+fn reserve<T>(count: usize) -> Result<Vec<T>, WireError> {
     let mut records = Vec::new();
-    meter.try_reserve_collection_slots(&mut records, count, &WirePath::root())?;
+    scoop_wire::allocation::try_reserve(&mut records, count, &WirePath::root())?;
     Ok(records)
-}
-fn sort_budget(count: usize, meter: &mut BudgetMeter) -> Result<(), WireError> {
-    meter.check_table_entries(count as u64, &WirePath::root())?;
-    for _ in 0..usize::BITS - count.max(1).saturating_sub(1).leading_zeros() {
-        meter.charge_work(count as u64, &WirePath::root())?;
-    }
-    Ok(())
 }

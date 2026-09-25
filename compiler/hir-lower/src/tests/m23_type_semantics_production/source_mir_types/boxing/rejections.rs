@@ -41,26 +41,12 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-            input,
-            types,
-            graph,
-            types,
-            &changed,
-            &mut meter()
-        ),
+        CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, &changed),
         Err(Error::TargetMismatch(_))
     ));
     let empty = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
     assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-            input,
-            types,
-            graph,
-            types,
-            &empty,
-            &mut meter()
-        ),
+        CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, &empty),
         Err(Error::MissingTargetBinding(_))
     ));
     assert!(matches!(
@@ -69,61 +55,13 @@ pub(super) fn check(
             types,
             graph,
             &CanonicalParamFreeMirTypeExportsV1::default(),
-            source,
-            &mut meter()
+            source
         ),
         Err(Error::Bridge(
             scoop_mir::MirCallableBridgeError::MissingType { .. }
         ))
     ));
-    let mut measured = meter();
-    CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-        input,
-        types,
-        graph,
-        types,
-        source,
-        &mut measured,
-    )
-    .unwrap();
-    let usage = measured.usage();
-    assert!(usage.owned_bytes > 0 && usage.validation_work_units > 0);
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: usage.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-        input,
-        types,
-        graph,
-        types,
-        source,
-        &mut shared,
-    )
-    .unwrap();
-    assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-            input,
-            types,
-            graph,
-            types,
-            source,
-            &mut shared
-        ),
-        Err(Error::Resource(_))
-    ));
-    assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-            input,
-            types,
-            graph,
-            types,
-            source,
-            &mut BudgetMeter::new(DecodeLimits {
-                owned_bytes: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(Error::Resource(_))
-    ));
+
+    CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, source)
+        .unwrap();
 }

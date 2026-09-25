@@ -1,16 +1,12 @@
 use super::*;
-use scoop_wire::BudgetMeter;
 
-pub(super) fn closure(
-    output: &Output,
-    meter: &mut BudgetMeter,
-) -> Result<NominalMaterializationClosure, Error> {
-    NominalMaterializationClosure::from_export_hir(output.export.module(), meter).map_err(|error| {
+pub(super) fn closure(output: &Output) -> Result<NominalMaterializationClosure, Error> {
+    NominalMaterializationClosure::from_export_hir(output.export.module()).map_err(|error| {
         match error {
             PublicNominalShapeProjectionError::Materialization(
                 NominalMaterializationClosureError::Resource(error),
-            ) => inheritance::source_resources::resource(error),
-            other => inheritance::source_resources::invalid(other),
+            ) => inheritance::source_errors::resource(error),
+            other => inheritance::source_errors::invalid(other),
         }
     })
 }

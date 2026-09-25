@@ -6,7 +6,7 @@ fn nested_source_replay_rejects_changed_nominal_modality_and_omitted_child_closu
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for record in candidates.records.iter().filter(|r| {
                 !r.payload()
@@ -63,7 +63,6 @@ fn nested_source_replay_rejects_changed_nominal_modality_and_omitted_child_closu
                             &forged,
                             &candidates.protocols,
                             &fixture.source.entries().representations,
-                            &mut meter(),
                         )
                         .unwrap_err()
                     else {
@@ -82,7 +81,7 @@ fn nested_source_replay_rejects_wrong_param_free_exact_and_missing_representatio
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let concrete = candidates
                 .records
@@ -132,12 +131,7 @@ fn nested_source_replay_rejects_wrong_param_free_exact_and_missing_representatio
                 ),
             ] {
                 assert!(matches!(
-                    authority.validate_nested_source(
-                        candidate,
-                        &candidates.protocols,
-                        reps,
-                        &mut meter()
-                    ),
+                    authority.validate_nested_source(candidate, &candidates.protocols, reps),
                     Err(Error::Concrete(_))
                 ));
             }

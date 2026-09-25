@@ -10,12 +10,8 @@ pub(in crate::tests::m23_type_semantics_production) fn verify(
         .map(Record::owner)
         .filter(|id| !matches!(id, CallableTemplateOrigin::Constructor(_)))
         .collect();
-    let callables = hir::CanonicalNominalSourceCallablesV1::from_export_hir(
-        export,
-        &callable_ids,
-        &mut meter(),
-    )
-    .unwrap();
+    let callables =
+        hir::CanonicalNominalSourceCallablesV1::from_export_hir(export, &callable_ids).unwrap();
     let module = export.module();
     let mut rows = Vec::new();
     for interface in &module.source_parameter_interfaces {

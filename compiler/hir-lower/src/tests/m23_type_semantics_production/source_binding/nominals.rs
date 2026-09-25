@@ -13,7 +13,7 @@ mod borrowed_keys;
 mod combinations;
 mod corruption;
 mod origins;
-mod resources;
+
 mod root_closure;
 mod semantics;
 
@@ -30,15 +30,11 @@ fn sources(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Table {
     let table = Table::from_export_hir(
         &output.output().export,
         &fixture.source.entries().source_roots,
-        &mut meter(),
     )
     .unwrap();
     let bytes = encode(&table).unwrap();
-    let decoded: hir::DecodedCanonicalNominalSourceContractsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let restored = decoded
-        .resolve(&mut fixture.identities, &mut meter())
-        .unwrap();
+    let decoded: hir::DecodedCanonicalNominalSourceContractsV1 = decode_canonical(&bytes).unwrap();
+    let restored = decoded.resolve(&mut fixture.identities).unwrap();
     assert_eq!(encode(&restored).unwrap(), bytes);
     restored
 }
@@ -61,7 +57,6 @@ fn replace(table: &Table, record: Record) -> Table {
                 }
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -92,9 +87,7 @@ fn byte_restored_nominal_sources_bind_complete_declarations_and_variant_origins(
             let mut fixture = Fixture::from_output(output);
             let table = sources(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let bound = foundation
-                .bind_nominal_sources(&table, &mut meter())
-                .unwrap();
+            let bound = foundation.bind_nominal_sources(&table).unwrap();
             assert_eq!(bound.table(), &table);
             for record in table.records() {
                 assert_eq!(bound.nominal_source(record.owner()).unwrap(), record);

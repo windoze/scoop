@@ -24,7 +24,7 @@ impl WireEncode for DecodedImmortalObjectTypeRegistrationRefV1 {
 }
 
 impl WireDecode for DecodedImmortalObjectTypeRegistrationRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(
             match crate::DecodedStrongTypeDescriptorRefV2::decode(decoder)? {
                 crate::DecodedStrongTypeDescriptorRefV2::Local(exact) => Self::Local(exact),
@@ -79,7 +79,7 @@ impl WireEncode for DecodedStrongImmortalObjectRegistrationPlanV1 {
 }
 
 impl WireDecode for DecodedStrongImmortalObjectRegistrationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(15)?;
         Ok(Self {
             object: decoder.field(1, DecodedPersistentId::decode)?,
@@ -105,7 +105,7 @@ impl WireDecode for DecodedStrongImmortalObjectRegistrationPlanV1 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     #[test]
     fn external_registration_wire_requires_provider_and_retires_the_core_tag() {
@@ -113,25 +113,12 @@ mod tests {
         bytes.extend_from_slice(&[0x11; 32]);
         bytes.extend_from_slice(&[2, 0x58, 0x20]);
         bytes.extend_from_slice(&[0x22; 32]);
-        let decoded: DecodedImmortalObjectTypeRegistrationRefV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedImmortalObjectTypeRegistrationRefV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         let mut retired = vec![0xa2, 0, 2, 1, 0x58, 0x20];
         retired.extend_from_slice(&[0x22; 32]);
-        assert!(
-            decode_canonical::<DecodedImmortalObjectTypeRegistrationRefV1>(
-                &retired,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedImmortalObjectTypeRegistrationRefV1>(&retired,).is_err());
         retired[2] = 3;
-        assert!(
-            decode_canonical::<DecodedImmortalObjectTypeRegistrationRefV1>(
-                &retired,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedImmortalObjectTypeRegistrationRefV1>(&retired,).is_err());
     }
 }

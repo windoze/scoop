@@ -1,11 +1,11 @@
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, WireError};
+use scoop_wire::WireError;
 
+use super::TARGET;
 use super::initialization_fixture::attach_eager_initialization;
 use super::lir_fixture::{
     DiagnosticGraph, LayoutSource, exact, exact_layouts, function, nominal, provider_module,
 };
-use super::{TARGET, meter};
 use crate::*;
 
 pub(super) struct Provider {
@@ -47,8 +47,7 @@ impl Provider {
         let initialization_unit = attach_eager_initialization(&mut module, "providerValue", exact);
         let protocol = super::lir_fixture::provider_protocol(&mut module, exact);
         let output = SingleConeStrongLirOutput::try_new(module, Vec::new(), protocol).unwrap();
-        let empty =
-            StrongProductionDependencySelectionV2::empty(identity, TARGET, &mut meter()).unwrap();
+        let empty = StrongProductionDependencySelectionV2::empty(identity, TARGET).unwrap();
         let section = output
             .build_production_section_v2(
                 coordinate.clone(),
@@ -56,7 +55,6 @@ impl Provider {
                 EntryProductionSourceV1::Library,
                 &empty,
                 &[],
-                &mut meter(),
             )
             .unwrap();
         let (layouts, value) = exact_layouts(output.foundation(), exact_record);
@@ -67,14 +65,12 @@ impl Provider {
             registration,
             &diagnostics,
             output.foundation(),
-            &mut meter(),
         )
         .unwrap();
         let descriptors = CanonicalExactDescriptorExportsV1::try_new(
             TARGET,
             output.foundation(),
             vec![descriptor],
-            &mut meter(),
         )
         .unwrap();
         let callable_record = ExactCallableAbiExportV1::replay(
@@ -88,14 +84,12 @@ impl Provider {
                 result: &value,
             },
             output.foundation(),
-            &mut meter(),
         )
         .unwrap();
         let callables = CanonicalExactCallableAbiExportsV1::try_new(
             TARGET,
             output.foundation(),
             vec![callable_record],
-            &mut meter(),
         )
         .unwrap();
         let table = &output
@@ -108,23 +102,21 @@ impl Provider {
             .1
             .vtable;
         let mut resolver =
-            |_: CallableRef,
-             _: &mut BudgetMeter|
-             -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> { Ok(None) };
+            |_: CallableRef| -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> {
+                Ok(None)
+            };
         let dispatch_record = ExactDispatchExportV1::replay(
             TARGET,
             table.into(),
             &[],
             output.foundation(),
             &mut resolver,
-            &mut meter(),
         )
         .unwrap();
         let dispatch = CanonicalExactDispatchExportsV1::try_new(
             TARGET,
             output.foundation(),
             vec![dispatch_record],
-            &mut meter(),
         )
         .unwrap();
         let ordinary =
@@ -132,9 +124,7 @@ impl Provider {
                 .unwrap();
         let layout_section =
             provider_layout_section(&output, &layouts, &descriptors, &dispatch, &callables);
-        let section = section
-            .validate_layout_abi(&layout_section, &mut meter())
-            .unwrap();
+        let section = section.validate_layout_abi(&layout_section).unwrap();
         Self {
             coordinate,
             identity,
@@ -165,18 +155,15 @@ impl Provider {
     }
 
     pub(super) fn shape_link_provider(&self) -> ShapeLinkProviderV1<'_> {
-        ShapeLinkProviderV1::try_new(
-            ShapeLinkProviderPartsV1 {
-                foundation: self.output.foundation(),
-                production: ShapeLinkProductionV1::Reader(&self.section),
-                ordinary: &self.ordinary,
-                layouts: &self.layouts,
-                callables: &self.callables,
-                descriptors: &self.descriptors,
-                dispatch: &self.dispatch,
-            },
-            &mut meter(),
-        )
+        ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
+            foundation: self.output.foundation(),
+            production: ShapeLinkProductionV1::Reader(&self.section),
+            ordinary: &self.ordinary,
+            layouts: &self.layouts,
+            callables: &self.callables,
+            descriptors: &self.descriptors,
+            dispatch: &self.dispatch,
+        })
         .unwrap()
     }
 
@@ -200,7 +187,6 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for InitializationSupport<'a> {
         &self,
         provider: ConeIdentity,
         subject: ExternalStrongShapeSubjectV1,
-        _: &mut BudgetMeter,
     ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
         if provider != self.provider.identity
             || subject
@@ -237,7 +223,6 @@ fn provider_layout_section(
         layouts,
         descriptors,
         output.foundation(),
-        &mut meter(),
     )
     .unwrap();
     let exports = LayoutAbiExportConstituentsV1::try_new(
@@ -248,8 +233,7 @@ fn provider_layout_section(
         shape_support,
     )
     .unwrap();
-    CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &LayoutSource, &mut meter())
-        .unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &LayoutSource).unwrap()
 }
 
 pub(super) fn consumer_layout_section<'a>(
@@ -271,16 +255,11 @@ pub(super) fn consumer_layout_section<'a>(
         &registrations.types().registrations()[0],
         &diagnostics,
         output.foundation(),
-        &mut meter(),
     )
     .unwrap();
-    let descriptors = CanonicalExactDescriptorExportsV1::try_new(
-        TARGET,
-        output.foundation(),
-        vec![descriptor],
-        &mut meter(),
-    )
-    .unwrap();
+    let descriptors =
+        CanonicalExactDescriptorExportsV1::try_new(TARGET, output.foundation(), vec![descriptor])
+            .unwrap();
     let StrongCallableDefinitionOwner::Function(function) = provider.callable else {
         unreachable!()
     };
@@ -303,18 +282,18 @@ pub(super) fn consumer_layout_section<'a>(
         provider: provider.identity,
         body: provider.callable_body,
     };
-    let mut resolver = |callable: CallableRef,
-                        _: &mut BudgetMeter|
-     -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> {
-        Ok(match callable {
-            CallableRef::External(id)
-                if output.module().meta.external_callables[id].body() == provider.callable_body =>
-            {
-                Some(expected)
-            }
-            _ => None,
-        })
-    };
+    let mut resolver =
+        |callable: CallableRef| -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> {
+            Ok(match callable {
+                CallableRef::External(id)
+                    if output.module().meta.external_callables[id].body()
+                        == provider.callable_body =>
+                {
+                    Some(expected)
+                }
+                _ => None,
+            })
+        };
     let table = &output
         .module()
         .meta
@@ -330,30 +309,20 @@ pub(super) fn consumer_layout_section<'a>(
         &[input],
         output.foundation(),
         &mut resolver,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(dispatch.owner_exact(), exact);
-    let dispatch = CanonicalExactDispatchExportsV1::try_new(
-        TARGET,
-        output.foundation(),
-        vec![dispatch],
-        &mut meter(),
-    )
-    .unwrap();
-    let callables = CanonicalExactCallableAbiExportsV1::try_new(
-        TARGET,
-        output.foundation(),
-        Vec::new(),
-        &mut meter(),
-    )
-    .unwrap();
+    let dispatch =
+        CanonicalExactDispatchExportsV1::try_new(TARGET, output.foundation(), vec![dispatch])
+            .unwrap();
+    let callables =
+        CanonicalExactCallableAbiExportsV1::try_new(TARGET, output.foundation(), Vec::new())
+            .unwrap();
     let shape_support = CanonicalParamFreeShapeSupportExportsV1::from_sources(
         &[],
         &layouts,
         &descriptors,
         output.foundation(),
-        &mut meter(),
     )
     .unwrap();
     let exports = LayoutAbiExportConstituentsV1::try_new(
@@ -364,12 +333,5 @@ pub(super) fn consumer_layout_section<'a>(
         shape_support,
     )
     .unwrap();
-    CrossConeLayoutAbiSectionV1::try_new(
-        exports,
-        dependencies,
-        imports,
-        &LayoutSource,
-        &mut meter(),
-    )
-    .unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &LayoutSource).unwrap()
 }

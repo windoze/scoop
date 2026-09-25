@@ -132,7 +132,7 @@ impl WireEncode for DecodedTypeAliasInterfaceRecordV1 {
 }
 
 impl WireDecode for DecodedTypeAliasInterfaceRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             alias: decoder.field(1, DecodedPersistentId::decode)?,

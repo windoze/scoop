@@ -18,18 +18,12 @@ const COMBINED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/properties.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn required(
     output: &hir::DependencyHirOutput,
 ) -> hir::CanonicalPersistentIdsV1<PersistentPropertyId> {
     let export = &output.output().export;
-    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
-    let sources =
-        hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots, &mut meter())
-            .unwrap();
+    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export).unwrap();
+    let sources = hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots).unwrap();
     hir::CanonicalPersistentIdsV1::try_new(
         sources
             .records()
@@ -49,7 +43,7 @@ fn required(
     .unwrap()
 }
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
+    Table::from_export_hir(&output.output().export, &required(output)).unwrap()
 }
 
 #[test]
@@ -82,8 +76,7 @@ fn nominal_and_inheritance_properties_reuse_the_same_runtime_contracts() {
     with_source(COMBINED, |output, _| {
         let table = table(output);
         let inheritance =
-            hir::CanonicalInheritanceSourcePropertiesV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+            hir::CanonicalInheritanceSourcePropertiesV1::from_dependency_hir(output).unwrap();
         for record in inheritance.records() {
             assert_eq!(table.get(record.declaration()), Some(record));
         }
@@ -110,7 +103,7 @@ fn nominal_property_source_producer_rejects_missing_or_top_level_declarations() 
         .unwrap();
         let required = hir::CanonicalPersistentIdsV1::try_new(vec![missing]).unwrap();
         assert!(
-            matches!(Table::from_export_hir(&output.output().export, &required, &mut meter()),
+            matches!(Table::from_export_hir(&output.output().export, &required),
             Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(message))
                 if message == "required nominal source property has no sealed declaration")
         );
@@ -125,7 +118,7 @@ fn nominal_property_source_producer_rejects_missing_or_top_level_declarations() 
         };
         let required = hir::CanonicalPersistentIdsV1::try_new(vec![identity.id()]).unwrap();
         assert!(
-            matches!(Table::from_export_hir(&output.output().export, &required, &mut meter()),
+            matches!(Table::from_export_hir(&output.output().export, &required),
             Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(message))
                 if message == "source property has no nominal owner")
         );

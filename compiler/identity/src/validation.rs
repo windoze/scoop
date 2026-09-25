@@ -6,11 +6,7 @@ use std::collections::{BinaryHeap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use scoop_wire::budget::{COLLECTION_ELEMENT_BYTES, GRAPH_EDGE_BYTES, READY_SET_ELEMENT_BYTES};
-use scoop_wire::{
-    BudgetMeter, DecodeLimits, Decoder, Digest256, HashError, WireDecode, WireError, WireErrorKind,
-    WirePath, domain_separated_hash_stream_length, encode_canonical_temporary_with_meter,
-};
+use scoop_wire::{Digest256, HashError, WireError, WireErrorKind, WirePath};
 
 use crate::ids::PersistentIdConstruction;
 use crate::{
@@ -141,48 +137,35 @@ enum ValidationPhase {
 /// Callers first register every HIR/MIR/LIR identity record, then resolve each
 /// registered record. No trusted id or canonical record is exposed until
 /// [`Self::finish`] succeeds.
-pub struct PendingIdentityValidation<'meter> {
+pub struct PendingIdentityValidation {
     candidates: HashMap<IdentityNode, Candidate>,
     canonical_keys: HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
     phase: ValidationPhase,
-    meter: Option<&'meter mut BudgetMeter>,
+
     resource_error: Option<WireError>,
     resource_path: WirePath,
 }
 
-impl Default for PendingIdentityValidation<'static> {
+impl Default for PendingIdentityValidation {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PendingIdentityValidation<'static> {
+impl PendingIdentityValidation {
     pub fn new() -> Self {
         Self {
             candidates: HashMap::new(),
             canonical_keys: HashMap::new(),
             phase: ValidationPhase::Registering,
-            meter: None,
+
             resource_error: None,
             resource_path: WirePath::default(),
         }
     }
 }
 
-impl<'meter> PendingIdentityValidation<'meter> {
-    /// Starts an artifact-reader transaction backed by the artifact's shared
-    /// resource meter.
-    pub fn with_meter(meter: &'meter mut BudgetMeter) -> Self {
-        Self {
-            candidates: HashMap::new(),
-            canonical_keys: HashMap::new(),
-            phase: ValidationPhase::Registering,
-            meter: Some(meter),
-            resource_error: None,
-            resource_path: WirePath::default(),
-        }
-    }
-
+impl PendingIdentityValidation {
     /// Adds an identity that was established by a trusted authority rather
     /// than declared by one of the artifact's delta tables.
     pub fn register_authority<I: PersistentId + 'static>(
@@ -261,28 +244,12 @@ impl<'meter> PendingIdentityValidation<'meter> {
             ))
         })?;
         let mut nodes = Vec::new();
-        let reserve = match self.meter.as_deref_mut() {
-            Some(meter) => meter
-                .try_reserve_exact(
-                    &mut nodes,
-                    candidate_count,
-                    COLLECTION_ELEMENT_BYTES,
-                    &self.resource_path,
-                )
-                .map_err(IdentityValidationError::Resource),
-            None => nodes
-                .try_reserve_exact(graph.candidates.len())
-                .map_err(|_| {
-                    resource_error(
-                        WireErrorKind::ResourceAllocation {
-                            requested_logical_bytes: candidate_count
-                                .saturating_mul(COLLECTION_ELEMENT_BYTES),
-                            requested_slots: candidate_count,
-                        },
-                        &self.resource_path,
-                    )
-                }),
-        };
+        let reserve = scoop_wire::allocation::try_reserve_count(
+            &mut nodes,
+            candidate_count,
+            &self.resource_path,
+        )
+        .map_err(IdentityValidationError::Resource);
         if let Err(error) = reserve {
             return self.fail(error);
         }
@@ -332,26 +299,9 @@ impl<'meter> PendingIdentityValidation<'meter> {
             ))
         })?;
         let mut slots = Vec::new();
-        let reserve = match self.meter.as_deref_mut() {
-            Some(meter) => meter
-                .try_reserve_exact(
-                    &mut slots,
-                    count,
-                    COLLECTION_ELEMENT_BYTES,
-                    &self.resource_path,
-                )
-                .map_err(IdentityValidationError::Resource),
-            None => slots
-                .try_reserve_exact(graph.canonical_keys.len())
-                .map_err(|_| {
-                    resource_error(
-                        WireErrorKind::ResourceAllocation {
-                            requested_logical_bytes: count.saturating_mul(COLLECTION_ELEMENT_BYTES),
-                            requested_slots: count,
-                        },
-                        &self.resource_path,
-                    )
-                }),
+        let reserve = {
+            scoop_wire::allocation::try_reserve_count(&mut slots, count, &self.resource_path)
+                .map_err(IdentityValidationError::Resource)
         };
         if let Err(error) = reserve {
             return self.fail(error);
@@ -447,7 +397,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedCanonicalCAbiSignatureFingerprintRecord,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
-        let (fingerprint, _) = self.verify_c_abi_signature(record)?;
+        let fingerprint = self.verify_c_abi_signature(record)?;
         self.insert_candidate(layer, fingerprint)
     }
 
@@ -457,7 +407,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedCanonicalCAbiLayoutFingerprintRecord,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
-        let (fingerprint, _) = self.verify_c_abi_layout(record)?;
+        let fingerprint = self.verify_c_abi_layout(record)?;
         self.insert_candidate(layer, fingerprint)
     }
 
@@ -467,7 +417,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedNativeExternalContractRecord,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
-        let (fingerprint, _) = self.verify_native_external_contract(record)?;
+        let fingerprint = self.verify_native_external_contract(record)?;
         let node = IdentityNode::trusted(fingerprint);
         match self.candidates.get(&node) {
             None => self.insert_candidate(layer, fingerprint),
@@ -526,7 +476,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         D: DecodedIdentityKey<I>,
     {
         self.require_registration_phase()?;
-        self.charge_candidate_hashes::<I, D>(record.key())?;
+
         let expected = match record.key().candidate_identity() {
             Ok(expected) => expected,
             Err(error) => {
@@ -553,7 +503,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedSourceNativeExternalContractRecord,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
-        self.charge_source_native_contract_hash(record)?;
+
         let expected = record.candidate_identity().map_err(|error| {
             self.phase = ValidationPhase::Poisoned;
             IdentityValidationError::Hash {
@@ -578,7 +528,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
         record: &DecodedRuntimeIdentityRecord<PersistentCallableBodyId>,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
-        self.charge_callable_body_hash(record)?;
+
         let decoded = record.decoded_id();
         let validated = match record.validate_key::<DecodedCallableBodyKey>() {
             Ok(validated) => validated,
@@ -614,15 +564,15 @@ impl<'meter> PendingIdentityValidation<'meter> {
     {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
-        self.charge_candidate_hashes::<I, D>(record.key())?;
-        let record = self.try_copy_decoded(record)?;
+
+        let record = record.clone();
 
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
-                meter: self.meter.as_deref_mut(),
+
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
@@ -652,14 +602,14 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError> {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
-        self.charge_source_native_contract_hash(record)?;
-        let record = self.try_copy_decoded(record)?;
+
+        let record = record.clone();
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
-                meter: self.meter.as_deref_mut(),
+
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
@@ -688,7 +638,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     ) -> Result<(), IdentityValidationError> {
         let node = IdentityNode::decoded(record.decoded_id());
         self.start_resolution(node)?;
-        self.charge_callable_body_hash(record)?;
+
         let decoded = match record.decode_key::<DecodedCallableBodyKey>() {
             Ok(decoded) => decoded,
             Err(error) => {
@@ -704,7 +654,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
-                meter: self.meter.as_deref_mut(),
+
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
@@ -745,9 +695,9 @@ impl<'meter> PendingIdentityValidation<'meter> {
         &mut self,
         record: &DecodedCanonicalCAbiLayoutFingerprintRecord,
     ) -> Result<(), IdentityValidationError> {
-        let (fingerprint, hash_length) = self.verify_c_abi_layout(record)?;
-        let record = self.try_copy_decoded(record)?;
-        self.resolve_verified_leaf(fingerprint, (hash_length, None), |resolver| {
+        let fingerprint = self.verify_c_abi_layout(record)?;
+        let record = record.clone();
+        self.resolve_verified_leaf(fingerprint, |resolver| {
             record.resolve(resolver).map(|record| record.into_layout())
         })
     }
@@ -756,9 +706,9 @@ impl<'meter> PendingIdentityValidation<'meter> {
         &mut self,
         record: &DecodedCanonicalCAbiSignatureFingerprintRecord,
     ) -> Result<(), IdentityValidationError> {
-        let (fingerprint, hash_length) = self.verify_c_abi_signature(record)?;
-        let record = self.try_copy_decoded(record)?;
-        self.resolve_verified_leaf(fingerprint, (hash_length, None), |resolver| {
+        let fingerprint = self.verify_c_abi_signature(record)?;
+        let record = record.clone();
+        self.resolve_verified_leaf(fingerprint, |resolver| {
             record
                 .resolve(resolver)
                 .map(|record| record.into_signature())
@@ -769,17 +719,17 @@ impl<'meter> PendingIdentityValidation<'meter> {
         &mut self,
         record: &DecodedNativeExternalContractRecord,
     ) -> Result<(), IdentityValidationError> {
-        let (fingerprint, hash_lengths) = self.verify_native_external_contract(record)?;
+        let fingerprint = self.verify_native_external_contract(record)?;
         let node = IdentityNode::trusted(fingerprint);
         let first_preimage = self.start_shared_resolution(node)?;
-        self.charge_hash_streams(hash_lengths)?;
-        let record = self.try_copy_decoded(record)?;
+
+        let record = record.clone();
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
-                meter: self.meter.as_deref_mut(),
+
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
@@ -812,7 +762,6 @@ impl<'meter> PendingIdentityValidation<'meter> {
     fn resolve_verified_leaf<I, K, E>(
         &mut self,
         id: I,
-        hash_lengths: (u64, Option<u64>),
         resolve: impl FnOnce(&mut PendingIdentityResolver<'_>) -> Result<Arc<K>, E>,
     ) -> Result<(), IdentityValidationError>
     where
@@ -822,13 +771,13 @@ impl<'meter> PendingIdentityValidation<'meter> {
     {
         let node = IdentityNode::trusted(id);
         self.start_resolution(node)?;
-        self.charge_hash_streams(hash_lengths)?;
+
         let resolved = {
             let mut resolver = PendingIdentityResolver {
                 current: node,
                 candidates: &mut self.candidates,
                 canonical_keys: &self.canonical_keys,
-                meter: self.meter.as_deref_mut(),
+
                 resource_error: &mut self.resource_error,
                 resource_path: &self.resource_path,
             };
@@ -866,21 +815,6 @@ impl<'meter> PendingIdentityValidation<'meter> {
         }
         let node_count = u64::try_from(self.candidates.len())
             .map_err(|_| resource_error(WireErrorKind::IntegerOutOfRange, &self.resource_path))?;
-        let edge_count = self
-            .candidates
-            .values()
-            .try_fold(0_u64, |count, candidate| {
-                count
-                    .checked_add(candidate.dependency_count)
-                    .ok_or_else(|| {
-                        resource_error(WireErrorKind::IntegerOutOfRange, &self.resource_path)
-                    })
-            })?;
-        if let Some(meter) = self.meter.as_deref_mut() {
-            meter
-                .charge_stable_kahn(node_count, edge_count, &self.resource_path)
-                .map_err(IdentityValidationError::Resource)?;
-        }
         if let Some(node) = find_cycle(&mut self.candidates, node_count, &self.resource_path)? {
             return Err(IdentityValidationError::DependencyCycle {
                 kind: node.kind,
@@ -904,17 +838,7 @@ impl<'meter> PendingIdentityValidation<'meter> {
     fn verify_c_abi_signature(
         &mut self,
         record: &DecodedCanonicalCAbiSignatureFingerprintRecord,
-    ) -> Result<(CanonicalCAbiSignatureFingerprint, u64), IdentityValidationError> {
-        let hash_length = match record.candidate_hash_stream_length() {
-            Ok(length) => length,
-            Err(error) => {
-                return self.fail(IdentityValidationError::Hash {
-                    kind: CanonicalCAbiSignatureFingerprint::KIND,
-                    error,
-                });
-            }
-        };
-        self.charge_hash_streams((hash_length, None))?;
+    ) -> Result<CanonicalCAbiSignatureFingerprint, IdentityValidationError> {
         let fingerprint = match record.candidate_fingerprint() {
             Ok(fingerprint) => fingerprint,
             Err(error) => {
@@ -925,23 +849,13 @@ impl<'meter> PendingIdentityValidation<'meter> {
             }
         };
         self.verify_decoded_leaf(record.decoded_fingerprint(), fingerprint)?;
-        Ok((fingerprint, hash_length))
+        Ok(fingerprint)
     }
 
     fn verify_c_abi_layout(
         &mut self,
         record: &DecodedCanonicalCAbiLayoutFingerprintRecord,
-    ) -> Result<(CanonicalCAbiLayoutFingerprint, u64), IdentityValidationError> {
-        let hash_length = match record.candidate_hash_stream_length() {
-            Ok(length) => length,
-            Err(error) => {
-                return self.fail(IdentityValidationError::Hash {
-                    kind: CanonicalCAbiLayoutFingerprint::KIND,
-                    error,
-                });
-            }
-        };
-        self.charge_hash_streams((hash_length, None))?;
+    ) -> Result<CanonicalCAbiLayoutFingerprint, IdentityValidationError> {
         let fingerprint = match record.candidate_fingerprint() {
             Ok(fingerprint) => fingerprint,
             Err(error) => {
@@ -952,30 +866,25 @@ impl<'meter> PendingIdentityValidation<'meter> {
             }
         };
         self.verify_decoded_leaf(record.decoded_fingerprint(), fingerprint)?;
-        Ok((fingerprint, hash_length))
+        Ok(fingerprint)
     }
 
     fn verify_native_external_contract(
         &mut self,
         record: &DecodedNativeExternalContractRecord,
-    ) -> Result<(NativeExternalContractFingerprint, (u64, Option<u64>)), IdentityValidationError>
-    {
-        let copy = self.try_copy_decoded(record)?;
+    ) -> Result<NativeExternalContractFingerprint, IdentityValidationError> {
+        let copy = record.clone();
         let plan = match copy.into_fingerprint_hash_plan() {
             Ok(plan) => plan,
             Err(error) => return self.fail_native_fingerprint(record, error),
         };
-        let hash_lengths = match plan.hash_stream_lengths() {
-            Ok(lengths) => lengths,
-            Err(error) => return self.fail_native_fingerprint(record, error),
-        };
-        self.charge_hash_streams(hash_lengths)?;
+
         let fingerprint = match plan.candidate_fingerprint() {
             Ok(fingerprint) => fingerprint,
             Err(error) => return self.fail_native_fingerprint(record, error),
         };
         self.verify_decoded_leaf(record.decoded_fingerprint(), fingerprint)?;
-        Ok((fingerprint, hash_lengths))
+        Ok(fingerprint)
     }
 
     fn fail_native_fingerprint<T>(
@@ -1010,96 +919,6 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 expected: *mismatch.expected().as_array(),
                 actual: *mismatch.actual(),
             }),
-        }
-    }
-
-    fn charge_candidate_hashes<I, D>(&mut self, key: &D) -> Result<(), IdentityValidationError>
-    where
-        I: PersistentId,
-        D: DecodedIdentityKey<I>,
-    {
-        let lengths = match key.candidate_hash_stream_lengths() {
-            Ok(lengths) => lengths,
-            Err(error) => {
-                return self.fail(IdentityValidationError::Hash {
-                    kind: I::KIND,
-                    error,
-                });
-            }
-        };
-        self.charge_hash_streams(lengths)
-    }
-
-    fn charge_source_native_contract_hash(
-        &mut self,
-        record: &DecodedSourceNativeExternalContractRecord,
-    ) -> Result<(), IdentityValidationError> {
-        let length = match record.candidate_hash_stream_length() {
-            Ok(length) => length,
-            Err(error) => {
-                return self.fail(IdentityValidationError::Hash {
-                    kind: PersistentSourceNativeExternalContractId::KIND,
-                    error,
-                });
-            }
-        };
-        self.charge_hash_streams((length, None))
-    }
-
-    fn charge_callable_body_hash(
-        &mut self,
-        record: &DecodedRuntimeIdentityRecord<PersistentCallableBodyId>,
-    ) -> Result<(), IdentityValidationError> {
-        let payload_length = match u64::try_from(record.key_bytes().len()) {
-            Ok(length) => length,
-            Err(_) => {
-                return self.fail(IdentityValidationError::Hash {
-                    kind: PersistentCallableBodyId::KIND,
-                    error: HashError::LengthOverflow,
-                });
-            }
-        };
-        let length =
-            match domain_separated_hash_stream_length("scoop-callable-body-v1", payload_length) {
-                Ok(length) => length,
-                Err(error) => {
-                    return self.fail(IdentityValidationError::Hash {
-                        kind: PersistentCallableBodyId::KIND,
-                        error,
-                    });
-                }
-            };
-        self.charge_hash_streams((length, None))
-    }
-
-    fn charge_hash_streams(
-        &mut self,
-        lengths: (u64, Option<u64>),
-    ) -> Result<(), IdentityValidationError> {
-        for length in [Some(lengths.0), lengths.1].into_iter().flatten() {
-            let result = match self.meter.as_deref_mut() {
-                Some(meter) => meter.charge_sha256(length, &self.resource_path),
-                None => Ok(()),
-            };
-            if let Err(error) = result {
-                return self.fail(IdentityValidationError::Resource(error));
-            }
-        }
-        Ok(())
-    }
-
-    fn try_copy_decoded<T: WireDecode>(&mut self, value: &T) -> Result<T, IdentityValidationError> {
-        let path = self.resource_path.clone();
-        let result = match self.meter.as_deref_mut() {
-            Some(meter) => try_copy_decoded_with_meter(value, meter, &path),
-            None => {
-                let mut meter = BudgetMeter::new(DecodeLimits::default());
-                try_copy_decoded_with_meter(value, &mut meter, &path)
-            }
-        };
-        match result {
-            Ok(copy) => Ok(copy),
-            Err(error) => self.fail(IdentityValidationError::Resource(error)),
         }
     }
 
@@ -1215,21 +1034,8 @@ impl<'meter> PendingIdentityValidation<'meter> {
     }
 
     fn reserve_candidate_slot(&mut self) -> Result<(), IdentityValidationError> {
-        let result = match self.meter.as_deref_mut() {
-            Some(meter) => {
-                meter.try_reserve_map_slots(&mut self.candidates, 1, &self.resource_path)
-            }
-            None => self.candidates.try_reserve(1).map_err(|_| {
-                WireError::new(
-                    WireErrorKind::ResourceAllocation {
-                        requested_logical_bytes: COLLECTION_ELEMENT_BYTES,
-                        requested_slots: 1,
-                    },
-                    self.resource_path.clone(),
-                    None,
-                )
-            }),
-        };
+        let result =
+            scoop_wire::allocation::try_reserve_map(&mut self.candidates, 1, &self.resource_path);
         match result {
             Ok(()) => Ok(()),
             Err(error) => self.fail(IdentityValidationError::Resource(error)),
@@ -1237,21 +1043,11 @@ impl<'meter> PendingIdentityValidation<'meter> {
     }
 
     fn reserve_canonical_key_slot(&mut self) -> Result<(), IdentityValidationError> {
-        let result = match self.meter.as_deref_mut() {
-            Some(meter) => {
-                meter.try_reserve_map_slots(&mut self.canonical_keys, 1, &self.resource_path)
-            }
-            None => self.canonical_keys.try_reserve(1).map_err(|_| {
-                WireError::new(
-                    WireErrorKind::ResourceAllocation {
-                        requested_logical_bytes: COLLECTION_ELEMENT_BYTES,
-                        requested_slots: 1,
-                    },
-                    self.resource_path.clone(),
-                    None,
-                )
-            }),
-        };
+        let result = scoop_wire::allocation::try_reserve_map(
+            &mut self.canonical_keys,
+            1,
+            &self.resource_path,
+        );
         match result {
             Ok(()) => Ok(()),
             Err(error) => self.fail(IdentityValidationError::Resource(error)),
@@ -1300,24 +1096,12 @@ impl<'meter> PendingIdentityValidation<'meter> {
     }
 }
 
-fn try_copy_decoded_with_meter<T: WireDecode>(
-    value: &T,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<T, WireError> {
-    let encoded = encode_canonical_temporary_with_meter(value, meter, path)?;
-    let mut decoder = Decoder::new(&encoded, meter)?;
-    let copy = T::decode(&mut decoder)?;
-    decoder.finish()?;
-    Ok(copy)
-}
-
 #[doc(hidden)]
 pub struct PendingIdentityResolver<'validation> {
     current: IdentityNode,
     candidates: &'validation mut HashMap<IdentityNode, Candidate>,
     canonical_keys: &'validation HashMap<CanonicalKeySlot, Arc<dyn ErasedCanonicalKey>>,
-    meter: Option<&'validation mut BudgetMeter>,
+
     resource_error: &'validation mut Option<WireError>,
     resource_path: &'validation WirePath,
 }
@@ -1370,15 +1154,10 @@ where
                     self.resource_path.clone(),
                     None,
                 ));
-                return Err(IdentityReferenceError::ResourceLimit);
+                return Err(IdentityReferenceError::StorageFailure);
             }
         };
-        if let Some(meter) = self.meter.as_deref_mut()
-            && let Err(error) = meter.charge_edges(1, self.resource_path)
-        {
-            *self.resource_error = Some(error);
-            return Err(IdentityReferenceError::ResourceLimit);
-        }
+
         let Some(target_candidate) = self.candidates.get_mut(&target) else {
             return Err(IdentityReferenceError::Missing {
                 kind: target.kind,
@@ -1387,14 +1166,11 @@ where
         };
         if target_candidate.dependents.try_reserve_exact(1).is_err() {
             *self.resource_error = Some(WireError::new(
-                WireErrorKind::ResourceAllocation {
-                    requested_logical_bytes: GRAPH_EDGE_BYTES,
-                    requested_slots: 1,
-                },
+                WireErrorKind::Allocation,
                 self.resource_path.clone(),
                 None,
             ));
-            return Err(IdentityReferenceError::ResourceLimit);
+            return Err(IdentityReferenceError::StorageFailure);
         }
         target_candidate.dependents.push(self.current);
         let Some(source_candidate) = self.candidates.get_mut(&self.current) else {
@@ -1523,7 +1299,7 @@ impl ValidatedIdentityGraph {
     pub fn runtime_records<I, K>(
         &self,
         layer: IdentityLayer,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Vec<RuntimeIdentityRecord<I>>, IdentityValidationError>
     where
@@ -1549,8 +1325,7 @@ impl ValidatedIdentityGraph {
             ))
         })?;
         let mut records = Vec::new();
-        meter
-            .try_reserve_exact(&mut records, record_count, COLLECTION_ELEMENT_BYTES, path)
+        scoop_wire::allocation::try_reserve_count(&mut records, record_count, path)
             .map_err(IdentityValidationError::Resource)?;
         for (node, candidate) in &self.candidates {
             if node.kind != I::KIND || candidate.layer != Some(layer) {
@@ -1642,7 +1417,7 @@ pub enum IdentityReferenceError {
         id: [u8; 32],
     },
     #[doc(hidden)]
-    ResourceLimit,
+    StorageFailure,
 }
 
 impl fmt::Display for IdentityReferenceError {
@@ -1669,7 +1444,9 @@ impl fmt::Display for IdentityReferenceError {
                 write_hex(id, formatter)?;
                 formatter.write_str(" is not available in dependency-first order")
             }
-            Self::ResourceLimit => formatter.write_str("identity resource limit exceeded"),
+            Self::StorageFailure => {
+                formatter.write_str("identity storage allocation or size failed")
+            }
         }
     }
 }
@@ -1809,10 +1586,7 @@ fn find_cycle(
     let mut ready_storage = Vec::new();
     ready_storage.try_reserve_exact(capacity).map_err(|_| {
         IdentityValidationError::Resource(WireError::new(
-            WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: node_count.saturating_mul(READY_SET_ELEMENT_BYTES),
-                requested_slots: node_count,
-            },
+            WireErrorKind::Allocation,
             path.clone(),
             None,
         ))

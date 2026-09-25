@@ -95,10 +95,6 @@ impl Builder {
 
 impl Fixture {
     pub fn validate(&self) -> Result<(), Error> {
-        self.validate_limited(None)
-    }
-
-    pub fn validate_limited(&self, limits: Option<DecodeLimits>) -> Result<(), Error> {
         let mut interface = self.interface.clone();
         let bytes = cross_cone_artifact_for_with_hir_foundation(
             self.cone.clone(),
@@ -106,20 +102,14 @@ impl Fixture {
             &self.foundation,
             encode(&interface.index_for_wire().unwrap()).unwrap(),
         );
-        let mut front = declaration_front(&bytes);
+        let front = declaration_front(&bytes);
         let current = front.graph.identity();
-        let mut limited = limits.map(BudgetMeter::new);
-        let meter = match limited.as_mut() {
-            Some(meter) => meter,
-            None => front.graph.envelope.meter_mut(),
-        };
         CanonicalCrossConeHirSurfaceAuthority::new(
             current,
             &front.identities,
             &front.foundations.hir,
             &front.hir_interface,
             vec![],
-            meter,
         )
         .validate_default_call_domains()
     }

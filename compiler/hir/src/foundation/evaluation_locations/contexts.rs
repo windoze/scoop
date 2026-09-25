@@ -3,7 +3,6 @@ use scoop_identity::{
     DefinitionOriginSubject, DefinitionOwnerAtom, GeneratedCallableKey, InitializationUnitKey,
     NominalDeclarationOwner, PersistentId, PropertyOwner, SourceContextKey, SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::super::CanonicalHirFoundation;
 
@@ -11,36 +10,27 @@ pub(super) fn source_subject(
     foundation: &CanonicalHirFoundation,
     mut root: CallableTemplateOwner,
     context: &SourceContextKey,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<Option<DefinitionOriginSubject>, WireError> {
-    let mut depth = 1;
+) -> Option<DefinitionOriginSubject> {
     let mut matched = false;
     loop {
-        meter.check_semantic_depth(depth, path)?;
-        meter.charge_work(1, path)?;
         matched |= matches!(context, SourceContextKey::Callable { owner, .. } if same_callable(root, *owner));
         match root {
             CallableTemplateOwner::Function(id) => {
-                return Ok(matched.then_some(DefinitionOriginSubject::Function(id)));
+                return matched.then_some(DefinitionOriginSubject::Function(id));
             }
             CallableTemplateOwner::Constructor(id) => {
-                let Some(key) = key(&foundation.constructors, id, meter, path)? else {
-                    return Ok(None);
-                };
-                matched |= nominal_context(foundation, key, context, meter, path)?;
-                return Ok(matched.then_some(DefinitionOriginSubject::Constructor(id)));
+                let key = key(&foundation.constructors, id)?;
+                matched |= nominal_context(foundation, key, context);
+                return matched.then_some(DefinitionOriginSubject::Constructor(id));
             }
             CallableTemplateOwner::Accessor(id) => {
-                matched |= key(&foundation.property_accessors, id, meter, path)?.is_some_and(|key| {
+                matched |= key(&foundation.property_accessors, id).is_some_and(|key| {
                     matches!(context, SourceContextKey::Property { owner, .. } if *owner == key.owner())
                 });
-                return Ok(matched.then_some(DefinitionOriginSubject::PropertyAccessor(id)));
+                return matched.then_some(DefinitionOriginSubject::PropertyAccessor(id));
             }
             CallableTemplateOwner::Generated(id) => {
-                let Some(key) = key(&foundation.generated_callables, id, meter, path)? else {
-                    return Ok(None);
-                };
+                let key = key(&foundation.generated_callables, id)?;
                 match key {
                     GeneratedCallableKey::Lexical { parent, .. }
                     | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => {
@@ -48,10 +38,9 @@ pub(super) fn source_subject(
                     }
                     GeneratedCallableKey::Initialization { unit, .. } => {
                         matched |= matches!(context, SourceContextKey::Initialization { unit: owner, .. } if owner == unit)
-                            || initialization_context(foundation, *unit, context, meter, path)?;
-                        return Ok(
-                            matched.then_some(DefinitionOriginSubject::InitializationUnit(*unit))
-                        );
+                            || initialization_context(foundation, *unit, context);
+                        return matched
+                            .then_some(DefinitionOriginSubject::InitializationUnit(*unit));
                     }
                     GeneratedCallableKey::StaticNoGcCallbackStorageBridge { source, .. }
                     | GeneratedCallableKey::CoroutineDriver {
@@ -63,7 +52,7 @@ pub(super) fn source_subject(
                     }
                     | GeneratedCallableKey::DispatchAdjust { target: source, .. } => {
                         if source.context() != CallableMaterializationContext::NoSubstitution {
-                            return Ok(None);
+                            return None;
                         }
                         root = source.template();
                     }
@@ -77,14 +66,12 @@ pub(super) fn source_subject(
                     | GeneratedCallableKey::ContinuationShell { .. }
                     | GeneratedCallableKey::CoroutineStart { .. }
                     | GeneratedCallableKey::FunctionBridge { .. }
-                    | GeneratedCallableKey::BoxingAdjust { .. } => return Ok(None),
+                    | GeneratedCallableKey::BoxingAdjust { .. } => return None,
                 }
             }
             CallableTemplateOwner::GenericFunction(_)
-            | CallableTemplateOwner::VariantConstructor(_) => return Ok(None),
+            | CallableTemplateOwner::VariantConstructor(_) => return None,
         }
-        depth += 1;
-        meter.charge_edges(1, path)?;
     }
 }
 
@@ -102,25 +89,21 @@ fn nominal_context(
     foundation: &CanonicalHirFoundation,
     declaration: &SourceDeclarationKey,
     context: &SourceContextKey,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<bool, WireError> {
+) -> bool {
     let owner = nominal_owner(declaration);
-    Ok(match context {
+    match context {
         SourceContextKey::Nominal { owner: actual, .. } => owner == Some(*actual),
         SourceContextKey::Property {
             owner: property, ..
         } => {
             let declaration = match property {
-                PropertyOwner::Property(id) => key(&foundation.properties, *id, meter, path)?,
-                PropertyOwner::ExtensionProperty(id) => {
-                    key(&foundation.extension_properties, *id, meter, path)?
-                }
+                PropertyOwner::Property(id) => key(&foundation.properties, *id),
+                PropertyOwner::ExtensionProperty(id) => key(&foundation.extension_properties, *id),
             };
             owner.is_some() && declaration.is_some_and(|key| nominal_owner(key) == owner)
         }
         _ => false,
-    })
+    }
 }
 
 fn nominal_owner(key: &SourceDeclarationKey) -> Option<NominalDeclarationOwner> {
@@ -135,13 +118,11 @@ fn initialization_context(
     foundation: &CanonicalHirFoundation,
     unit: scoop_identity::PersistentInitializationUnitId,
     context: &SourceContextKey,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<bool, WireError> {
-    let Some(unit) = key(&foundation.initialization_units, unit, meter, path)? else {
-        return Ok(false);
+) -> bool {
+    let Some(unit) = key(&foundation.initialization_units, unit) else {
+        return false;
     };
-    Ok(match (unit, context) {
+    match (unit, context) {
         (
             InitializationUnitKey::TopLevelProperty(a),
             SourceContextKey::Property {
@@ -169,22 +150,17 @@ fn initialization_context(
                 owner: PropertyOwner::Property(b),
                 ..
             },
-        ) => key(&foundation.properties, *b, meter, path)?
+        ) => key(&foundation.properties, *b)
             .is_some_and(|key| nominal_owner(key) == Some(NominalDeclarationOwner::Concrete(*a))),
         _ => false,
-    })
+    }
 }
 
-fn key<'a, I: PersistentId, K>(
-    records: &'a [CborIdentityRecord<I, K>],
-    id: I,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<Option<&'a K>, WireError> {
+fn key<I: PersistentId, K>(records: &[CborIdentityRecord<I, K>], id: I) -> Option<&K> {
     // These identity tables retain dependency order, not numeric ID order.
-    meter.charge_work((records.len() as u64).saturating_mul(64) + 1, path)?;
-    Ok(records
+
+    records
         .iter()
         .find(|record| record.id() == id)
-        .map(CborIdentityRecord::key))
+        .map(CborIdentityRecord::key)
 }

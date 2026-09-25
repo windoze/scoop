@@ -15,7 +15,7 @@ impl WireEncode for DecodedDefaultWhenV1 {
 }
 
 impl WireDecode for DecodedDefaultWhenV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             subject: decoder.field(1, DecodedDefaultExpressionV1::decode)?,
@@ -42,7 +42,7 @@ impl WireEncode for DecodedDefaultWhenArmV1 {
 }
 
 impl WireDecode for DecodedDefaultWhenArmV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             pattern: decoder.field(1, DecodedDefaultPatternV1::decode)?,
@@ -63,7 +63,7 @@ impl WireEncode for DecodedOptionalDefaultWhenGuardV1 {
 }
 
 impl WireDecode for DecodedOptionalDefaultWhenGuardV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -94,7 +94,7 @@ impl WireEncode for DecodedDefaultWhenGuardV1 {
 }
 
 impl WireDecode for DecodedDefaultWhenGuardV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             setup: decoder.field(1, decode_statements)?,
@@ -118,7 +118,7 @@ impl WireEncode for DecodedDefaultWhenFallbackV1 {
 }
 
 impl WireDecode for DecodedDefaultWhenFallbackV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -163,7 +163,7 @@ impl WireEncode for DecodedDefaultTryV1 {
 }
 
 impl WireDecode for DecodedDefaultTryV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             body: decoder.field(1, decode_statements)?,
@@ -190,7 +190,7 @@ impl WireEncode for DecodedDefaultCatchV1 {
 }
 
 impl WireDecode for DecodedDefaultCatchV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             local_index: decoder.field(1, Decoder::u32)?,
@@ -211,7 +211,7 @@ impl WireEncode for DecodedOptionalDefaultStatementListV1 {
 }
 
 impl WireDecode for DecodedOptionalDefaultStatementListV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -237,7 +237,7 @@ impl<T: WireEncode> WireEncode for WireSequence<'_, T> {
 }
 
 fn decode_statements(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedDefaultStatementV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedDefaultStatementV1::decode(decoder))
 }
@@ -288,11 +288,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -303,6 +299,6 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

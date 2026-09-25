@@ -4,7 +4,7 @@ use crate::{
     NominalSupportConstructorInterfaceV1, ProtectedCallableInterfaceResolver, SourceNominalId,
 };
 use scoop_identity::PersistentConstructorId;
-use scoop_wire::{BudgetMeter, Decoder, WireDecode, WireError, WirePath};
+use scoop_wire::{Decoder, WireDecode, WireError, WirePath};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InheritanceConstructorInterfaceV1 {
@@ -95,24 +95,15 @@ impl DecodedInheritanceConstructorInterfaceV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<InheritanceConstructorInterfaceV1, InheritanceInterfaceResolutionError<E>> {
         use InheritanceInterfaceResolutionError as Error;
-        let source = self
-            .0
-            .resolve(resolver, meter)
-            .map_err(Error::Constructor)?;
-        meter
-            .charge_work(
-                scoop_wire::encoded_length(&source).map_err(Error::Encoding)?,
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+        let source = self.0.resolve(resolver).map_err(Error::Constructor)?;
+
         InheritanceConstructorInterfaceV1::try_new(source).map_err(Error::Build)
     }
 }
 impl WireDecode for DecodedInheritanceConstructorInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedNominalSupportConstructorInterfaceV1::decode(decoder).map(Self)
     }
 }
@@ -129,24 +120,20 @@ impl DecodedCanonicalInheritanceConstructorsV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalInheritanceConstructorsV1, InheritanceInterfaceResolutionError<E>> {
         use InheritanceInterfaceResolutionError as Error;
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
             .map_err(Error::Resource)?;
-        meter
-            .charge_work(self.records.len() as u64, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         for record in self.records {
-            records.push(record.resolve(resolver, meter)?);
+            records.push(record.resolve(resolver)?);
         }
         CanonicalInheritanceConstructorsV1::from_ordered(records).map_err(Error::Build)
     }
 }
 impl WireDecode for DecodedCanonicalInheritanceConstructorsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedInheritanceConstructorInterfaceV1::decode(d))
             .map(|records| Self { records })

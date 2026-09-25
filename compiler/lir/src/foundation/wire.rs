@@ -90,7 +90,7 @@ impl WireEncode for DecodedLirFoundation {
 }
 
 impl WireDecode for DecodedLirFoundation {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedLirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
     }
 }
@@ -99,7 +99,7 @@ impl DecodedLirFoundation {
     /// Registers every LIR-owned identity before cross-layer resolution.
     pub fn register_identities(
         &self,
-        validation: &mut PendingIdentityValidation<'_>,
+        validation: &mut PendingIdentityValidation,
     ) -> Result<(), IdentityValidationError> {
         for record in &self.decoded.c_abi_signatures {
             validation.register_c_abi_signature(IdentityLayer::Lir, record)?;
@@ -144,7 +144,7 @@ impl DecodedLirFoundation {
     /// all earlier-layer keys.
     pub fn resolve_identities(
         &self,
-        validation: &mut PendingIdentityValidation<'_>,
+        validation: &mut PendingIdentityValidation,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! resolve_tables {
             ($($table:ident),+ $(,)?) => {
@@ -219,7 +219,7 @@ impl WireEncode for DecodedLirFoundationWire {
 }
 
 impl WireDecode for DecodedLirFoundationWire {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(22)?;
         Ok(Self {
             materialized_exact_types: decode_table_field(decoder, 1)?,
@@ -249,7 +249,7 @@ impl WireDecode for DecodedLirFoundationWire {
 }
 
 fn decode_table_field<T: WireDecode>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
 ) -> Result<Vec<T>, WireError> {
     decoder.field(field, |decoder| {
@@ -282,17 +282,14 @@ mod tests {
         SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite,
         SourceNativeExternalContractKey, SourceNativeSymbol, StrongCallableDefinitionOwner,
     };
-    use scoop_wire::{
-        BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode,
-    };
+    use scoop_wire::{WireErrorKind, WirePath, decode_canonical, encode};
 
     use super::*;
 
     #[test]
     fn decodes_the_exact_empty_foundation_product() {
         let bytes = encode(&CanonicalLirFoundation::empty()).unwrap();
-        let validated =
-            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+        let validated = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap();
         let decoded = validated.decoded;
 
         assert!(decoded.materialized_exact_types.is_empty());
@@ -336,7 +333,7 @@ mod tests {
         assert_eq!(&bytes[id_offset - 2..id_offset], &[0x58, 0x20]);
         bytes.splice(id_offset - 2..id_offset + 32, encode(&record).unwrap());
 
-        assert!(decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).is_err());
+        assert!(decode_canonical::<DecodedLirFoundation>(&bytes).is_err());
     }
 
     #[test]
@@ -361,11 +358,8 @@ mod tests {
         .unwrap();
         let mut canonical = CanonicalLirFoundation::empty();
         canonical.set_callable_bodies(vec![record.clone()]).unwrap();
-        let decoded = decode_canonical::<DecodedLirFoundation>(
-            &encode(&canonical).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedLirFoundation>(&encode(&canonical).unwrap()).unwrap();
         let mut validation = PendingIdentityValidation::new();
         validation.register_authority(function).unwrap();
 
@@ -373,12 +367,11 @@ mod tests {
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         assert_eq!(
             graph
                 .runtime_records::<PersistentCallableBodyId, CallableBodyKey>(
                     IdentityLayer::Lir,
-                    &mut meter,
                     &WirePath::root(),
                 )
                 .unwrap(),
@@ -400,23 +393,19 @@ mod tests {
         let mut canonical = CanonicalLirFoundation::empty();
         canonical.set_c_abi_signatures(vec![signature]).unwrap();
         canonical.set_bridge_units(vec![unit.clone()]).unwrap();
-        let decoded = decode_canonical::<DecodedLirFoundation>(
-            &encode(&canonical).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedLirFoundation>(&encode(&canonical).unwrap()).unwrap();
         let mut validation = PendingIdentityValidation::new();
 
         decoded.register_identities(&mut validation).unwrap();
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         assert_eq!(
             graph
                 .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(
                     IdentityLayer::Lir,
-                    &mut meter,
                     &WirePath::root(),
                 )
                 .unwrap(),
@@ -474,11 +463,8 @@ mod tests {
         let mut canonical = CanonicalLirFoundation::empty();
         canonical.set_native_contracts(vec![contract]).unwrap();
         canonical.set_bridge_units(vec![unit.clone()]).unwrap();
-        let decoded = decode_canonical::<DecodedLirFoundation>(
-            &encode(&canonical).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedLirFoundation>(&encode(&canonical).unwrap()).unwrap();
         let mut validation = PendingIdentityValidation::new();
         validation.register_authority(source).unwrap();
 
@@ -486,12 +472,11 @@ mod tests {
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         assert_eq!(
             graph
                 .records::<GeneratedBridgeUnitId, GeneratedBridgeUnitKey>(
                     IdentityLayer::Lir,
-                    &mut meter,
                     &WirePath::root(),
                 )
                 .unwrap(),
@@ -514,8 +499,7 @@ mod tests {
             .position(|window| window == fingerprint)
             .unwrap();
         bytes[offset] ^= 1;
-        let decoded =
-            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap();
 
         assert!(matches!(
             decoded.register_identities(&mut PendingIdentityValidation::new()),
@@ -529,8 +513,7 @@ mod tests {
         assert_eq!(&bytes[..2], &[0xb6, 1]);
         bytes[0] = 0xb5;
 
-        let error =
-            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -550,8 +533,7 @@ mod tests {
             + 2;
         bytes[second_field] = 3;
 
-        let error =
-            decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {

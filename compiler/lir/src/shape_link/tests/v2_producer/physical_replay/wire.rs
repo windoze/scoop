@@ -14,20 +14,19 @@ pub(super) fn resolve(
         rows,
     })
     .unwrap();
-    let decoded: DecodedCrossConeLayoutAbiSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
     decoded
-        .validate_layouts(exports.layouts(), &mut meter())
+        .validate_layouts(exports.layouts())
         .unwrap()
-        .validate_callables(exports.callables(), &mut meter())
+        .validate_callables(exports.callables())
         .unwrap()
-        .validate_dispatch(exports.dispatch(), &mut meter())
+        .validate_dispatch(exports.dispatch())
         .unwrap()
-        .validate_descriptors(exports.descriptors(), &mut meter())
+        .validate_descriptors(exports.descriptors())
         .unwrap()
-        .validate_shape_support::<Infallible>(exports.shape_support(), &mut meter())
+        .validate_shape_support::<Infallible>(exports.shape_support())
         .unwrap()
-        .resolve_dependencies::<Infallible>(identities, &mut meter())
+        .resolve_dependencies::<Infallible>(identities)
         .unwrap()
 }
 

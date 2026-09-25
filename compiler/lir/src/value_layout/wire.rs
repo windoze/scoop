@@ -67,13 +67,13 @@ impl DecodedArrayElementStorageV1 {
 }
 
 impl WireDecode for DecodedValueStorageLayoutV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_storage(decoder).map(Self)
     }
 }
 
 impl WireDecode for DecodedArrayElementStorageV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_storage(decoder).map(Self)
     }
 }
@@ -132,7 +132,7 @@ impl WireEncode for DecodedArrayElementStorageV1 {
     }
 }
 
-fn decode_storage(decoder: &mut Decoder<'_, '_>) -> Result<RawStorage, WireError> {
+fn decode_storage(decoder: &mut Decoder<'_>) -> Result<RawStorage, WireError> {
     let actual = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     let expected = match tag {
@@ -186,6 +186,6 @@ fn encode_inline(
 #[cfg(test)]
 mod tests;
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

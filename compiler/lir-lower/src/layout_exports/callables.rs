@@ -3,21 +3,20 @@ use super::*;
 pub(super) fn lower(
     input: LayoutAbiExportInputV1<'_>,
     layouts: &lookup::Layouts<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactCallableAbiExportsV1, Error> {
-    let mut records = reserve(input.bridge.callables().entries().len(), meter)?;
+    let mut records = reserve(input.bridge.callables().entries().len())?;
     for binding in input.bridge.callables().entries() {
         let signature = binding.lowered_signature();
         let exact = signature.exact();
         let receiver = match exact.receiver().into_option() {
             None => lir::CallableAbiReceiverInputV1::NoReceiver,
-            Some(exact) => lir::CallableAbiReceiverInputV1::Receiver(layouts.value(exact, meter)?),
+            Some(exact) => lir::CallableAbiReceiverInputV1::Receiver(layouts.value(exact)?),
         };
-        let mut parameters = reserve(exact.parameters().len(), meter)?;
+        let mut parameters = reserve(exact.parameters().len())?;
         for exact in exact.parameters() {
-            parameters.push(layouts.value(*exact, meter)?);
+            parameters.push(layouts.value(*exact)?);
         }
-        let result = layouts.value(exact.result(), meter)?;
+        let result = layouts.value(exact.result())?;
         records.push(
             crate::lower_exact_callable_abi_export(
                 input.mir,
@@ -29,7 +28,6 @@ pub(super) fn lower(
                     parameters: &parameters,
                     result,
                 },
-                meter,
             )
             .map_err(|source| Error::Callable {
                 target: binding.implementation(),
@@ -41,6 +39,5 @@ pub(super) fn lower(
         input.lir.module().meta.target_profile,
         input.lir.foundation(),
         records,
-        meter,
     )?)
 }

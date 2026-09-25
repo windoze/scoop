@@ -240,7 +240,7 @@ impl WireEncode for DecodedCanonicalNominalInterfacesV1 {
 }
 
 impl WireDecode for DecodedCanonicalNominalInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let value = Self {
             records: decoder.field(1, |d| {
@@ -250,15 +250,7 @@ impl WireDecode for DecodedCanonicalNominalInterfacesV1 {
                 d.decode_array(|d, _| DecodedNominalInterfaceRecordV1::decode(d))
             })?,
         };
-        let path = decoder.path().clone();
-        let count = (value.records.len() + value.support.len()) as u64;
-        decoder.meter().charge_collection_slots(count, &path)?;
-        decoder.meter().charge_work(
-            count
-                .saturating_mul(64)
-                .saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-            &path,
-        )?;
+
         Ok(value)
     }
 }

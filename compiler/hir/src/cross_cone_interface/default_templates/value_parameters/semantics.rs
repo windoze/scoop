@@ -53,23 +53,13 @@ impl CanonicalTemplateValueParametersV1 {
                 },
             );
         }
-        self.validate_prefix(
-            position,
+        self.validate_prefix_types(
             source_parameters[..position_index]
                 .iter()
                 .map(|p| p.value_type()),
             locals,
-            |value, position| {
-                type_parameters
-                    .substitute_provider_type(provider, value)
-                    .map(std::borrow::Cow::Owned)
-                    .map_err(|error| {
-                        TemplateValueParameterSemanticValidationError::TypeSubstitution {
-                            position,
-                            error,
-                        }
-                    })
-            },
+            provider,
+            type_parameters,
         )
     }
 
@@ -79,17 +69,45 @@ impl CanonicalTemplateValueParametersV1 {
         provider: crate::DefaultTemplateProviderParameterV1<'_>,
         locals: &CanonicalTemplateLocalTableV1,
     ) -> Result<(), TemplateValueParameterSemanticValidationError> {
-        self.validate_prefix(
-            provider.position(),
+        self.validate_provider_prefix_types(
             provider.prefix().iter().map(|p| p.value_type()),
             locals,
-            |value, _| Ok(std::borrow::Cow::Borrowed(value)),
         )
+    }
+
+    pub fn validate_prefix_types<'a>(
+        &self,
+        expected: impl ExactSizeIterator<Item = &'a SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+        provider: DefaultTemplateProviderShapeV1,
+        mapping: &CanonicalBinderUseListV1,
+    ) -> Result<(), TemplateValueParameterSemanticValidationError> {
+        self.validate_prefix(expected.len(), expected, locals, |value, position| {
+            mapping
+                .substitute_provider_type(provider, value)
+                .map(std::borrow::Cow::Owned)
+                .map_err(
+                    |error| TemplateValueParameterSemanticValidationError::TypeSubstitution {
+                        position,
+                        error,
+                    },
+                )
+        })
+    }
+
+    pub fn validate_provider_prefix_types<'a>(
+        &self,
+        expected: impl ExactSizeIterator<Item = &'a SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+    ) -> Result<(), TemplateValueParameterSemanticValidationError> {
+        self.validate_prefix(expected.len(), expected, locals, |value, _| {
+            Ok(std::borrow::Cow::Borrowed(value))
+        })
     }
 
     fn validate_prefix<'e, 'l>(
         &self,
-        expected_len: u32,
+        expected_len: usize,
         expected: impl Iterator<Item = &'e SignatureTypeKey>,
         locals: &'l CanonicalTemplateLocalTableV1,
         mut map: impl FnMut(
@@ -100,7 +118,7 @@ impl CanonicalTemplateValueParametersV1 {
             TemplateValueParameterSemanticValidationError,
         >,
     ) -> Result<(), TemplateValueParameterSemanticValidationError> {
-        if self.len_u32() != expected_len {
+        if self.parameters().len() != expected_len {
             return Err(TemplateValueParameterSemanticValidationError::PrefixArity {
                 expected: expected_len,
                 actual: self.len_u32(),
@@ -149,7 +167,7 @@ pub enum TemplateValueParameterSemanticValidationError {
         actual: Option<ExportDefaultTemplateKeyV1>,
     },
     PrefixArity {
-        expected: u32,
+        expected: usize,
         actual: u32,
     },
     MissingLocal {

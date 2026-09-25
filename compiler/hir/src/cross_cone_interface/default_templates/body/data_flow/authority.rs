@@ -12,8 +12,6 @@ impl<A: DefaultLocalDataFlowSemanticAuthority<E>, E> DefaultBodyDataFlowAuthorit
         &mut self,
         declaration: PersistentFieldId,
         owner_type: &SignatureTypeKey,
-        _meter: &mut BudgetMeter,
-        _path: &WirePath,
     ) -> Result<u32, E> {
         self.authority
             .default_binding_struct_field_index(self.template, declaration, owner_type)

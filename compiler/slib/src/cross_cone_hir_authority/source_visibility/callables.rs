@@ -14,10 +14,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         path: &WirePath,
     ) -> Result<SourceAccessDomainV1, CallableError> {
         let unit = CoreBuiltinNominal::Unit.identity_record();
-        let bytes = scoop_wire::encoded_length(unit.key())
-            .map_err(|error| CallableError::Encoding(error.to_string()))?;
-        self.meter.charge_sha256(bytes, path)?;
-        self.meter.charge_work(bytes.saturating_add(65), path)?;
+
         let (declaration, arity) = match owner {
             SignatureTypeKey::Nominal(id) if *id == unit.id() => {
                 return self
@@ -57,6 +54,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             nominal_subject(declaration),
             record.declaration_details().declared_visibility(),
         )?;
-        SourceAccessDomainV1::from_constraints(constraints, self.meter, path).map_err(Into::into)
+        SourceAccessDomainV1::from_constraints(constraints).map_err(Into::into)
     }
 }

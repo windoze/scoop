@@ -9,10 +9,10 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for Operatio
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         role: DefaultOperationCoreTypeV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<SignatureTypeKey, &'static str> {
-        self.observation.check(template, meter, path)?;
+        self.observation.check(template, path)?;
         if role == DefaultOperationCoreTypeV1::Unit {
             Ok(self.unit.clone())
         } else {
@@ -23,20 +23,20 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for Operatio
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         _value: &SignatureTypeKey,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Option<DefaultCoreApplicationV1>, &'static str> {
-        self.observation.check(template, meter, path)?;
+        self.observation.check(template, path)?;
         Ok(None)
     }
     fn default_operation_entity_shape(
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         _entity: DefaultOperationEntityV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<DefaultOperationEntityShapeV1, &'static str> {
-        self.observation.check(template, meter, path)?;
+        self.observation.check(template, path)?;
         Err("unknown entity")
     }
     fn default_operation_type_relation(
@@ -45,20 +45,20 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for Operatio
         _relation: DefaultOperationTypeRelationV1,
         source: &SignatureTypeKey,
         target: &SignatureTypeKey,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<bool, &'static str> {
-        self.observation.check(template, meter, path)?;
+        self.observation.check(template, path)?;
         Ok(source == target)
     }
     fn validate_default_operation_intrinsic(
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         _intrinsic: DefaultOperationIntrinsicV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), &'static str> {
-        self.observation.check(template, meter, path)?;
+        self.observation.check(template, path)?;
         Err("unknown intrinsic")
     }
 }
@@ -78,20 +78,18 @@ fn protected_operation_callbacks_receive_actual_template_meter_and_path_and_reje
             vec![],
             expression(&f, DefaultExpressionKindV1::UnitLiteral, ty),
         );
-        let mut resources = meter();
+
         let path = WirePath::root();
         let mut authority = OperationAuthority {
-            observation: Observation::new(&template, &resources, &path),
+            observation: Observation::new(&template, &path),
             unit: value(&f),
         };
-        let result =
-            template.validate_operation_typing_semantics(&mut authority, &mut resources, &path);
+        let result = template.validate_operation_typing_semantics(&mut authority, &path);
         assert!(authority.observation.calls > 0);
         if valid {
             result.unwrap();
         } else {
             assert!(result.is_err());
         }
-        assert!(resources.usage().validation_work_units >= 13);
     }
 }

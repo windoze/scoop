@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::{PendingIdentityValidation, ValidatedIdentityGraph};
-use scoop_wire::{BudgetMeter, WireEncode};
+use scoop_wire::WireEncode;
 use std::convert::Infallible;
 
 mod fixtures;
@@ -30,12 +30,11 @@ pub(super) fn check_join(
                 &dependencies,
                 &provider.initialization_support(),
                 &mut identities,
-                &mut meter(),
             )
     };
     let checked = replay(&rows, &semantic).unwrap();
     consumer
-        .validate_replayed_layout_selection(&checked, &mut meter())
+        .validate_replayed_layout_selection(&checked)
         .unwrap();
     assert_eq!(
         encode(checked.physical_imports()).unwrap(),
@@ -49,7 +48,7 @@ pub(super) fn check_join(
             .collect::<Vec<_>>();
         let checked = replay(&incomplete, &semantic).unwrap();
         assert!(matches!(
-            consumer.validate_replayed_layout_selection(&checked, &mut meter()),
+            consumer.validate_replayed_layout_selection(&checked),
             Err(
                 StrongProductionLayoutJoinError::MissingPhysicalDescriptor { .. }
                     | StrongProductionLayoutJoinError::MissingPhysicalCallable { .. }
@@ -92,20 +91,19 @@ fn shared_physical_contract_replay_covers_all_ten_subjects() {
         let support = support(&provider);
         let expected = fixtures::imports(&provider, &view, module.cone, &definitions, &support);
         let bytes = encode(&expected).unwrap();
-        let replay = |meter: &mut BudgetMeter| {
+        let replay = || {
             let decoded: DecodedCanonicalExternalShapeLinkImportsV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             decoded.replay(
                 module.cone,
                 &definitions,
                 std::slice::from_ref(&view),
                 &support,
                 &mut graph(&provider, &[]),
-                meter,
             )
         };
-        let mut resources = meter();
-        let actual = replay(&mut resources).unwrap();
+
+        let actual = replay().unwrap();
         assert_eq!(actual.records().len(), 10);
         assert_eq!(encode(&actual).unwrap(), bytes);
         negative::check(

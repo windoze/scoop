@@ -19,7 +19,7 @@ impl<'a, 'i> Visitor<'a, 'i> {
     pub fn new(
         template: &'a DefaultSourceTemplateV1,
         expressions: &'i DefaultReferenceExpressionIndexV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, Error> {
         use ExportDefaultReferenceKindV1 as Kind;
@@ -36,11 +36,9 @@ impl<'a, 'i> Visitor<'a, 'i> {
         .into_iter()
         .map(|length| length as u64)
         .sum();
-        meter.check_table_entries(count, path)?;
-        let slot_bytes = std::mem::size_of::<DefaultSourceReferenceOccurrenceV1<'_>>() as u64;
-        meter.charge_owned_bytes(count.saturating_mul(slot_bytes), path)?;
+
         let mut occurrences = Vec::new();
-        meter.try_reserve_exact(&mut occurrences, count, slot_bytes, path)?;
+        scoop_wire::allocation::try_reserve_count(&mut occurrences, count, path)?;
         Ok(Self {
             expressions,
             receiver: template.receiver(),
@@ -56,17 +54,13 @@ impl<'a, 'i> Visitor<'a, 'i> {
             fields: Domain::new(refs.fields(), Kind::Field),
         })
     }
-    pub fn finish(
-        self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<DefaultSourceReferenceClosureV1<'a>, Error> {
-        self.callables.finish(meter, path)?;
-        self.constructors.finish(meter, path)?;
-        self.types.finish(meter, path)?;
-        self.globals.finish(meter, path)?;
-        self.singletons.finish(meter, path)?;
-        self.fields.finish(meter, path)?;
+    pub fn finish(self) -> Result<DefaultSourceReferenceClosureV1<'a>, Error> {
+        self.callables.finish()?;
+        self.constructors.finish()?;
+        self.types.finish()?;
+        self.globals.finish()?;
+        self.singletons.finish()?;
+        self.fields.finish()?;
         Ok(self.result)
     }
 }
@@ -76,7 +70,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
         &mut self,
         _: u32,
         _: &'a DefaultExpressionV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Error> {
         Ok(())
@@ -84,7 +78,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
     fn reference(
         &mut self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'a>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Error> {
         use DefaultBodyReferenceTargetV1 as Target;
@@ -92,8 +86,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
             Target::Callable(target) => {
                 let (i, r) = self.callables.observe(
                     occurrence,
-                    |declared, m, p| target.compare_to(declared, m, p),
-                    meter,
+                    |declared, p| target.compare_to(declared, p),
                     path,
                 )?;
                 (i, Record::Callable(r))
@@ -101,8 +94,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
             Target::Constructor(target) => {
                 let (i, r) = self.constructors.observe(
                     occurrence,
-                    |declared, m, p| target.compare_to(declared, m, p),
-                    meter,
+                    |declared, p| target.compare_to(declared, p),
                     path,
                 )?;
                 (i, Record::Constructor(r))
@@ -110,10 +102,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
             Target::Type(target) => {
                 let (i, r) = self.types.observe(
                     occurrence,
-                    |declared, m, p| {
-                        compare_default_signature_reference_targets(target, declared, m, p)
-                    },
-                    meter,
+                    |declared, p| compare_default_signature_reference_targets(target, declared, p),
                     path,
                 )?;
                 (i, Record::Type(r))
@@ -121,8 +110,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
             Target::Global(target) => {
                 let (i, r) = self.globals.observe(
                     occurrence,
-                    |declared, _, _| Ok(target.cmp(declared)),
-                    meter,
+                    |declared, _| Ok(target.cmp(declared)),
                     path,
                 )?;
                 (i, Record::Global(r))
@@ -130,8 +118,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
             Target::Singleton(target) => {
                 let (i, r) = self.singletons.observe(
                     occurrence,
-                    |declared, _, _| Ok(target.cmp(declared)),
-                    meter,
+                    |declared, _| Ok(target.cmp(declared)),
                     path,
                 )?;
                 (i, Record::Singleton(r))
@@ -139,24 +126,20 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
             Target::Field(target) => {
                 let (i, r) = self.fields.observe(
                     occurrence,
-                    |declared, m, p| target.compare_to(declared, m, p),
-                    meter,
+                    |declared, p| target.compare_to(declared, p),
                     path,
                 )?;
                 (i, Record::Field(r))
             }
         };
-        let context = project_default_reference_context(
-            occurrence,
-            self.receiver,
-            self.expressions,
-            meter,
-            path,
-        )
-        .map_err(|error| match error {
-            DefaultReferenceReceiverError::Resource(error) => Error::Resource(error),
-            DefaultReferenceReceiverError::ReceiverOutsideBody => Error::ReceiverOutsideBody,
-        })?;
+        let context =
+            project_default_reference_context(occurrence, self.receiver, self.expressions)
+                .map_err(|error| match error {
+                    DefaultReferenceReceiverError::Resource(error) => Error::Resource(error),
+                    DefaultReferenceReceiverError::ReceiverOutsideBody => {
+                        Error::ReceiverOutsideBody
+                    }
+                })?;
         self.result
             .occurrences
             .push(DefaultSourceReferenceOccurrenceV1 {

@@ -68,7 +68,7 @@ impl WireEncode for DecodedMirFoundation {
 }
 
 impl WireDecode for DecodedMirFoundation {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedMirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
     }
 }
@@ -77,7 +77,7 @@ impl DecodedMirFoundation {
     /// Registers every MIR-owned identity before cross-layer resolution.
     pub fn register_identities(
         &self,
-        validation: &mut PendingIdentityValidation<'_>,
+        validation: &mut PendingIdentityValidation,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! register_tables {
             ($($table:ident),+ $(,)?) => {
@@ -106,7 +106,7 @@ impl DecodedMirFoundation {
     /// candidates and HIR identities supplied the earlier-layer keys.
     pub fn resolve_identities(
         &self,
-        validation: &mut PendingIdentityValidation<'_>,
+        validation: &mut PendingIdentityValidation,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! resolve_tables {
             ($($table:ident),+ $(,)?) => {
@@ -151,7 +151,7 @@ impl WireEncode for DecodedMirFoundationWire {
 }
 
 impl WireDecode for DecodedMirFoundationWire {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(12)?;
         Ok(Self {
             exact_types: decode_table_field(decoder, 1)?,
@@ -171,7 +171,7 @@ impl WireDecode for DecodedMirFoundationWire {
 }
 
 fn decode_table_field<T: WireDecode>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
 ) -> Result<Vec<T>, WireError> {
     decoder.field(field, |decoder| {
@@ -195,17 +195,14 @@ fn encode_table_field<T: WireEncode>(
 #[cfg(test)]
 mod tests {
     use scoop_identity::{CborIdentityRecord, CoreBuiltinNominal, ExactTypeKey};
-    use scoop_wire::{
-        BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode,
-    };
+    use scoop_wire::{WireErrorKind, WirePath, decode_canonical, encode};
 
     use super::*;
 
     #[test]
     fn decodes_the_exact_empty_foundation_product() {
         let bytes = encode(&CanonicalMirFoundation::empty()).unwrap();
-        let validated =
-            decode_canonical::<DecodedMirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+        let validated = decode_canonical::<DecodedMirFoundation>(&bytes).unwrap();
         let decoded = validated.decoded;
 
         assert!(decoded.exact_types.is_empty());
@@ -228,11 +225,8 @@ mod tests {
         let record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap();
         let mut canonical = CanonicalMirFoundation::empty();
         canonical.set_exact_types(vec![record.clone()]).unwrap();
-        let decoded = decode_canonical::<DecodedMirFoundation>(
-            &encode(&canonical).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedMirFoundation>(&encode(&canonical).unwrap()).unwrap();
         let mut validation = PendingIdentityValidation::new();
         validation.register_authority(nominal).unwrap();
 
@@ -240,12 +234,11 @@ mod tests {
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         assert_eq!(
             graph
                 .records::<PersistentExactTypeId, ExactTypeKey>(
                     IdentityLayer::Mir,
-                    &mut meter,
                     &WirePath::root(),
                 )
                 .unwrap(),
@@ -259,8 +252,7 @@ mod tests {
         assert_eq!(bytes[0], 0xac);
         bytes[0] = 0xab;
 
-        let error =
-            decode_canonical::<DecodedMirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedMirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -280,8 +272,7 @@ mod tests {
             + 2;
         bytes[second_field] = 3;
 
-        let error =
-            decode_canonical::<DecodedMirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedMirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {

@@ -1,7 +1,7 @@
 use crate::{
-    InheritanceGraphError, MeteredSignatureTypeSemanticError, NominalSourceShapeSemanticError,
-    NominalSupportCallableSemanticError, NominalSupportPropertySemanticError,
-    ProtectedPropertyAccessorClosureError, TypeParameterBinderSemanticValidationError,
+    InheritanceGraphError, NominalSourceShapeSemanticError, NominalSupportCallableSemanticError,
+    NominalSupportPropertySemanticError, ProtectedPropertyAccessorClosureError,
+    SignatureTypeSemanticError, TypeParameterBinderSemanticValidationError,
 };
 use scoop_wire::WireError;
 use std::fmt;
@@ -12,7 +12,7 @@ pub enum NestedSourceSemanticError<E> {
     Foundation(E),
     Encoding(scoop_wire::cbor::EncodeError),
     Source(InheritanceGraphError<E>),
-    Signature(MeteredSignatureTypeSemanticError<E>),
+    Signature(SignatureTypeSemanticError<E>),
     Binders(TypeParameterBinderSemanticValidationError<E>),
     Shape(NominalSourceShapeSemanticError<E>),
     Callable(NominalSupportCallableSemanticError<E>),

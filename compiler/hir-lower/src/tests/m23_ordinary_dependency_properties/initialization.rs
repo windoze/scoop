@@ -1,13 +1,9 @@
 use super::*;
 use scoop_hir as hir;
 use scoop_identity::{ConeIdentity, PendingIdentityValidation, ValidatedIdentityGraph};
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod resources;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 fn fixture_path() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -78,7 +74,7 @@ fn with_shared(
         )
         .unwrap();
         foundation
-            .complete_cross_cone_interface_source_points(local, &public, &mut meter())
+            .complete_cross_cone_interface_source_points(local, &public)
             .unwrap();
         let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
         let graph = identities(
@@ -120,11 +116,7 @@ fn identities(
     let decoded = foundations
         .iter()
         .map(|foundation| {
-            decode_canonical::<hir::DecodedHirFoundation>(
-                &encode(*foundation).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap()
+            decode_canonical::<hir::DecodedHirFoundation>(&encode(*foundation).unwrap()).unwrap()
         })
         .collect::<Vec<_>>();
     let mut graphs = Vec::new();
@@ -150,10 +142,10 @@ fn property_initialization_uses_replay_actual_source_and_expanded_defaults() {
     for (name, count) in [("standalone", 1), ("combined", 4), ("inactive", 0)] {
         with_shared(name, |output, metadata, dependencies| {
             let actual = output
-                .materialized_property_initialization_uses(metadata.identities, &mut meter())
+                .materialized_property_initialization_uses(metadata.identities)
                 .unwrap();
             let replayed = metadata
-                .materialized_property_initialization_uses(dependencies, &mut meter())
+                .materialized_property_initialization_uses(dependencies)
                 .unwrap();
             assert_eq!(actual, replayed, "{name}");
             assert_eq!(actual.len(), count, "{name}: {actual:#?}");

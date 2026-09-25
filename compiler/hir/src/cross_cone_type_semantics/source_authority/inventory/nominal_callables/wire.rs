@@ -10,7 +10,7 @@ pub struct DecodedCanonicalNominalSourceCallablesV1 {
     records: Vec<DecodedNominalSupportCallableInterfaceV1>,
 }
 impl WireDecode for DecodedCanonicalNominalSourceCallablesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedNominalSupportCallableInterfaceV1::decode(d))
             .map(|records| Self { records })
@@ -25,14 +25,13 @@ impl DecodedCanonicalNominalSourceCallablesV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalNominalSourceCallablesV1, NominalSourceCallableResolutionError<E>> {
         use NominalSourceCallableResolutionError as Error;
-        let mut records = reserve(self.records.len(), meter).map_err(Error::Inventory)?;
+        let mut records = reserve(self.records.len()).map_err(Error::Inventory)?;
         for record in self.records {
-            records.push(record.resolve(resolver, meter).map_err(Error::Contract)?);
+            records.push(record.resolve(resolver).map_err(Error::Contract)?);
         }
-        CanonicalNominalSourceCallablesV1::from_ordered(records, meter).map_err(Error::Inventory)
+        CanonicalNominalSourceCallablesV1::from_ordered(records).map_err(Error::Inventory)
     }
 }
 #[derive(Debug)]

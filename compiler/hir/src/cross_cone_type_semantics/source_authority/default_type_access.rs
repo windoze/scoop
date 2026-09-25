@@ -2,7 +2,7 @@
 use scoop_identity::{
     CallingConvention, PersistentGenericTypeId, PersistentTypeId, SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WirePath;
 mod walk;
 
 /// Every identity-bearing or scope-dependent constituent is reported before
@@ -33,33 +33,9 @@ pub enum DefaultSourceTypeAccessDemandV1<'t> {
 /// successful traversal alone proves neither type validity nor accessibility.
 pub fn visit_default_source_type_access_demands<'t, E>(
     ty: &'t SignatureTypeKey,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-    visitor: &mut impl FnMut(
-        DefaultSourceTypeAccessDemandV1<'t>,
-        &mut BudgetMeter,
-        &WirePath,
-    ) -> Result<(), E>,
-) -> Result<(), DefaultSourceTypeAccessVisitError<E>> {
-    walk::visit(ty, meter, path, 1, visitor)
-}
 
-#[derive(Debug)]
-pub enum DefaultSourceTypeAccessVisitError<E> {
-    Resource(WireError),
-    Visitor(E),
+    path: &WirePath,
+    visitor: &mut impl FnMut(DefaultSourceTypeAccessDemandV1<'t>, &WirePath) -> Result<(), E>,
+) -> Result<(), E> {
+    walk::visit(ty, path, visitor)
 }
-impl<E> From<WireError> for DefaultSourceTypeAccessVisitError<E> {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
-}
-impl<E: std::fmt::Display> std::fmt::Display for DefaultSourceTypeAccessVisitError<E> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Resource(error) => error.fmt(f),
-            Self::Visitor(error) => error.fmt(f),
-        }
-    }
-}
-impl<E: std::error::Error + 'static> std::error::Error for DefaultSourceTypeAccessVisitError<E> {}

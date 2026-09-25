@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
+use scoop_wire::{WireEncode, decode_canonical, encode};
 
 use super::*;
 
@@ -14,9 +14,7 @@ fn empty_section_has_a_fixed_closed_wire() {
     let bytes = encode(&section).unwrap();
 
     assert_eq!(bytes, vec![0xa2, 0x01, 0x80, 0x02, 0x80]);
-    let decoded =
-        decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(producer).unwrap();
     let mut identities = pending.finish().unwrap();
@@ -44,9 +42,7 @@ fn decoded_section_rejects_a_forged_required_definition() {
     assert_eq!(positions.len(), 1);
     bytes[positions[0] + needle.len() - 1] ^= 1;
 
-    let decoded =
-        decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes).unwrap();
     assert!(matches!(
         decoded.validate(&mut fixture.identities(&[]), &fixture.foundation),
         Err(CrossConeLirBridgeValidationError::Export {
@@ -66,9 +62,7 @@ fn reader_rejects_noncanonical_export_order() {
     exports.sort_unstable_by_key(ParamFreeLirCallableExportV1::declaration);
     exports.reverse();
     let bytes = encode(&RawSection(&exports)).unwrap();
-    let decoded =
-        decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes).unwrap();
     let mut identities = first.identities(&[second.declaration]);
 
     assert!(matches!(
@@ -83,17 +77,9 @@ fn reader_rejects_unknown_root_plan_and_open_section_shapes() {
         vec![0xa1, 0x01, 0x80],
         vec![0xa3, 0x01, 0x80, 0x02, 0x80, 0x03, 0x80],
     ] {
-        assert!(
-            decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes,).is_err());
     }
-    assert!(
-        decode_canonical::<ExternalCallableRootPlan>(&[0x03], DecodeLimits::default(),).is_err()
-    );
+    assert!(decode_canonical::<ExternalCallableRootPlan>(&[0x03],).is_err());
 }
 
 struct RawSection<'a>(&'a [ParamFreeLirCallableExportV1]);
@@ -120,10 +106,7 @@ fn reader_rejects_the_removed_flat_seven_field_callable_export() {
     let mut bytes = vec![0xa2, 0x01, 0x81];
     bytes.extend(encode(&LegacyExport(&fixture.export())).unwrap());
     bytes.extend([0x02, 0x80]);
-    assert!(
-        decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes, DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes).is_err());
 }
 
 struct LegacyExport<'a>(&'a ParamFreeLirCallableExportV1);

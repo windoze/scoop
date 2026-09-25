@@ -3,42 +3,20 @@ use scoop_identity::DefinitionOriginSubject;
 
 pub(super) fn validate_all(
     bound: &BoundTypeFoundationSourcesV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), TypeFoundationBindingError> {
     use TypeFoundationBindingError as Error;
     let entries = bound.source.entries();
     let mut access_authority = AccessAuthority(bound);
-    for (index, source) in entries.sources.records().iter().enumerate() {
-        let path = WirePath::root().field(3).index(index as u64);
+    for source in entries.sources.records().iter() {
         let owner = source.owner();
         let key = bound.nominal_key(owner)?;
-        NominalRepresentationSupportV1::charge_source_key_resources(key, meter, &path)?;
-        let owners = source.access().lexical_owners().len() as u64;
-        meter.check_semantic_depth(owners.saturating_add(1), &path)?;
-        meter.charge_work(
-            owners
-                .saturating_add(1)
-                .saturating_pow(2)
-                .saturating_mul(64),
-            &path,
-        )?;
+
         let origin = source.access().definition_origin();
         let subject = match owner {
             SourceNominalId::Concrete(id) => DefinitionOriginSubject::Type(id),
             SourceNominalId::GenericTemplate(id) => DefinitionOriginSubject::GenericType(id),
         };
-        meter.charge_work(
-            u64::from(
-                bound
-                    .foundation
-                    .as_canonical()
-                    .counts()
-                    .definition_origins
-                    .max(1)
-                    .ilog2(),
-            ) + 1,
-            &path,
-        )?;
+
         if bound
             .foundation
             .definition_origin(subject)
@@ -47,13 +25,7 @@ pub(super) fn validate_all(
         {
             return Err(Error::DeclarationOrigin(owner));
         }
-        let source_bytes = origin.origin().source().logical_path().as_str().len() as u64;
-        meter.charge_work(
-            source_bytes.saturating_mul(
-                u64::from(entries.definition_sources.sources().len().max(1).ilog2()) + owners + 1,
-            ),
-            &path,
-        )?;
+
         source
             .access()
             .validate_for_declaration(key, &mut access_authority)
@@ -69,7 +41,6 @@ pub(super) fn validate_all(
             return Err(Error::RepresentationKind(owner));
         }
         if let NominalRepresentationShapeV1::Object { backing_class, .. } = representation.shape() {
-            meter.charge_work(128, &WirePath::root().field(4))?;
             if bound.generated_key(*backing_class)?
                 != &(GeneratedNominalKey::ObjectBackingClass { object: owner })
             {

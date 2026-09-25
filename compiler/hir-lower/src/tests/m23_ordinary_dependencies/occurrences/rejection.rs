@@ -56,9 +56,7 @@ fn error(
 #[test]
 fn repeated_target_does_not_hide_a_foreign_winner_binding() {
     let foreign = lower(&fixture("routes"));
-    let call = foreign
-        .committed_dependency_call_occurrences(&mut meter())
-        .unwrap()[1];
+    let call = foreign.committed_dependency_call_occurrences().unwrap()[1];
     let binding = std::sync::Arc::new(call.binding().clone());
     let failure = change(lower(&fixture("standalone")), |module| {
         let hir::concrete::ExprKind::ImportedDependencyCall {
@@ -133,60 +131,4 @@ fn actual_expressions_cannot_reference_a_missing_callable_or_closure() {
             hir::concrete::ExecutableExpressionStructureError::MissingLambda(_)
         )
     ));
-}
-
-#[test]
-fn occurrence_traversal_and_results_consume_one_budget() {
-    let output = lower(&fixture("standalone"));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 1,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let error = output
-            .committed_dependency_call_occurrences(&mut BudgetMeter::new(limits))
-            .unwrap_err();
-        let (hir::DependencyCallOccurrenceError::Resource(error)
-        | hir::DependencyCallOccurrenceError::Structure(
-            hir::concrete::ExecutableExpressionStructureError::Resource(error),
-        )) = error
-        else {
-            panic!("expected a resource rejection")
-        };
-        assert!(matches!(
-            error.kind(),
-            scoop_wire::WireErrorKind::LimitExceeded { .. }
-        ));
-    }
-    let mut accumulated = meter();
-    output
-        .committed_dependency_call_occurrences(&mut accumulated)
-        .unwrap();
-    let once = accumulated.usage();
-    output
-        .committed_dependency_call_occurrences(&mut accumulated)
-        .unwrap();
-    assert!(accumulated.usage().validation_work_units > once.validation_work_units);
-    assert!(accumulated.usage().logical_heap_bytes > once.logical_heap_bytes);
-    let mut bounded = BudgetMeter::new(DecodeLimits {
-        validation_work_units: once.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    output
-        .committed_dependency_call_occurrences(&mut bounded)
-        .unwrap();
-    assert!(
-        output
-            .committed_dependency_call_occurrences(&mut bounded)
-            .is_err()
-    );
 }

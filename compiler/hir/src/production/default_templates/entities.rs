@@ -18,25 +18,22 @@ use crate::{
     PersistentLexicalRootV1, SelectedImportedDependencySet, TypeId,
 };
 
-pub(super) struct DefaultEntityProjector<'a, 'meter> {
+pub(super) struct DefaultEntityProjector<'a> {
     export: &'a ExportHir,
     imported_dependencies: Option<&'a SelectedImportedDependencySet>,
     signatures: HirInterfaceSignatureProjector<'a>,
-    pub(super) resources: super::resources::ProjectionResources<'meter>,
 }
 
-impl<'a, 'meter> DefaultEntityProjector<'a, 'meter> {
+impl<'a> DefaultEntityProjector<'a> {
     pub(super) fn new(
         export: &'a ExportHir,
         imported_dependencies: Option<&'a SelectedImportedDependencySet>,
-        meter: &'meter mut scoop_wire::BudgetMeter,
     ) -> Self {
         Self {
             export,
 
             imported_dependencies,
             signatures: HirInterfaceSignatureProjector::new(export),
-            resources: super::resources::ProjectionResources::new(meter),
         }
     }
 
@@ -49,36 +46,9 @@ impl<'a, 'meter> DefaultEntityProjector<'a, 'meter> {
         ty: TypeId,
         binders: &[HirSignatureBinder],
     ) -> Result<SignatureTypeKey, DefaultEntityProjectionError> {
-        self.resources.with_meter(|meter, depth| {
-            crate::production::signatures::resources::ty(
-                self.export,
-                ty,
-                binders.len(),
-                depth + 1,
-                meter,
-            )
-        })?;
         self.signatures
             .map_type(ty, binders)
             .map_err(DefaultEntityProjectionError::Type)
-    }
-
-    pub(super) fn charge_origin(
-        &self,
-        origin: crate::DefinitionOrigin,
-    ) -> Result<(), scoop_wire::WireError> {
-        if let Some(source) = self.export.source_files.get(origin.file as usize) {
-            // One source-path copy and repeated source/context hash comparisons.
-            let length = source.identity.logical_path().as_str().len();
-            self.resources.leaf(length)?;
-            self.resources.with_meter(|meter, _| {
-                meter.charge_work(
-                    (length as u64).saturating_mul(4).saturating_add(256),
-                    &scoop_wire::WirePath::root(),
-                )
-            })?;
-        }
-        Ok(())
     }
 
     pub(super) fn lexical_root(

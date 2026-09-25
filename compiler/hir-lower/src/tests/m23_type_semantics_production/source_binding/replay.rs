@@ -55,22 +55,16 @@ fn byte_bound_sources_replay_gc_zst_inheritance_and_object_relations() {
             .iter()
             .copied(),
         &bound,
-        &mut meter(),
     )
     .unwrap();
     let mut identities = identity_closure(&output);
-    let decoded: hir::DecodedCanonicalExactTypeFactsV1 = decode_canonical(
-        &encode(production.section().exact_facts()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    let facts = decoded
-        .resolve_metered(&mut identities, &mut meter(), &WirePath::root())
-        .unwrap();
-    facts.validate_semantics(&bound, &mut meter()).unwrap();
+    let decoded: hir::DecodedCanonicalExactTypeFactsV1 =
+        decode_canonical(&encode(production.section().exact_facts()).unwrap()).unwrap();
+    let facts = decoded.resolve(&mut identities).unwrap();
+    facts.validate_semantics(&bound).unwrap();
     for record in production.section().inheritance().records() {
         graph
-            .validate_nominal_domains(record.owner(), record.domains(), &mut meter())
+            .validate_nominal_domains(record.owner(), record.domains())
             .unwrap();
     }
     let object = fixture
@@ -114,7 +108,7 @@ fn byte_bound_sources_replay_gc_zst_inheritance_and_object_relations() {
     assert!(
         hir::CanonicalExactTypeFactsV1::try_new(corrupt)
             .unwrap()
-            .validate_semantics(&bound, &mut meter())
+            .validate_semantics(&bound)
             .is_err()
     );
 }

@@ -8,7 +8,7 @@ use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, PersistentTypeAliasId, SemanticIdentitySession,
     SemanticOriginFingerprint,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::{artifact, decode, target};
 use crate::{
@@ -274,11 +274,7 @@ fn closure_from_fronts<'input>(
 fn empty_alias_expansions() -> CanonicalTypeAliasExpansionsV1 {
     CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
         .unwrap()
-        .expand_alias_closure(
-            &EmptyAliasAuthority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
         .unwrap()
 }
 

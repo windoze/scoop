@@ -1,7 +1,7 @@
 //! Artifact locations for the complete nominal default source inventory.
 use crate::*;
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod errors;
 mod providers;
@@ -21,19 +21,17 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         &'d self,
         templates: &'d CanonicalDefaultSourceTemplatesV1,
         dependencies: &[&BoundTypeFoundationSourcesV1<'_>],
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNominalDefaultOriginsV1<'d, 'p, 's, 'a, 'f>, Error> {
         let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        templates.validate_parameter_coverage(self.table(), meter)?;
+
+        templates.validate_parameter_coverage(self.table())?;
         let current = self.members().nominals.foundation;
-        let providers = providers::Providers::new(current, dependencies, meter)?;
+        let providers = providers::Providers::new(current, dependencies)?;
         for (index, template) in templates.records().iter().enumerate() {
             let path = path.clone().index(index as u64);
             let key = template.key();
             let origin = template.definition_origin();
-            let provider = providers.get(origin.origin().source().cone(), meter, &path)?;
+            let provider = providers.get(origin.origin().source().cone())?;
             provider
                 .foundation
                 .validate_default_template_root_origin(
@@ -41,21 +39,15 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
                     provider.identities,
                     template.definition_root(),
                     template.definition_origin(),
-                    meter,
-                    &path,
                 )
                 .map_err(Error::Root)?;
-            template.visit_definition_sources_metered(
-                &mut |origin: &ExportDefinitionSourceV1,
-                      _,
-                      meter: &mut BudgetMeter,
-                      path: &WirePath| {
+            template.visit_definition_sources(
+                &mut |origin: &ExportDefinitionSourceV1, _, _path: &WirePath| {
                     providers
-                        .get(origin.origin().source().cone(), meter, path)?
-                        .validate_origin(origin, meter, path)
+                        .get(origin.origin().source().cone())?
+                        .validate_origin(origin)
                         .map_err(|error| Error::Origin { key, error })
                 },
-                meter,
                 &path,
             )?;
         }

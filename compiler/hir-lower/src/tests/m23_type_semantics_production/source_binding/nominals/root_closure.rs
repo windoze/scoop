@@ -12,9 +12,7 @@ fn foundation_binds_complete_nested_source_roots_with_real_concrete_support() {
         let mut fixture = Fixture::from_output(output);
         let table = sources(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let bound = foundation
-            .bind_nominal_sources(&table, &mut meter())
-            .unwrap();
+        let bound = foundation.bind_nominal_sources(&table).unwrap();
         assert_eq!(bound.table().records().len(), 20);
         let entries = fixture.source.entries();
         assert_eq!(entries.representation_owners.values().len(), 19);
@@ -80,72 +78,11 @@ fn foundation_binds_complete_nested_source_roots_with_real_concrete_support() {
                 .filter(|r| r.owner() != leaf.owner())
                 .cloned()
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
         assert!(matches!(
-            foundation.bind_nominal_sources(&missing, &mut meter()),
+            foundation.bind_nominal_sources(&missing),
             Err(Error::Inventory("nominal owners"))
         ));
-    });
-}
-
-#[test]
-fn source_foundation_root_projection_uses_the_callers_shared_budget() {
-    with_source(ROOTS, |output, _| {
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            let result = hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(
-                output,
-                &mut BudgetMeter::new(limits),
-            );
-            assert!(
-                matches!(
-                    result,
-                    Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                        hir::SourceInventoryError::Resource(_)
-                    ))
-                ),
-                "{limits:?}: {result:?}"
-            );
-        }
-        let mut used = meter();
-        hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export, &mut used)
-            .unwrap();
-        let limits = DecodeLimits {
-            validation_work_units: used.usage().validation_work_units,
-            ..DecodeLimits::default()
-        };
-        assert!(
-            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(
-                output,
-                &mut BudgetMeter::new(limits)
-            )
-            .is_err()
-        );
     });
 }

@@ -1,5 +1,5 @@
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     CrossConeLayoutAbiSectionV1, LayoutAbiDependencyV1, LayoutAbiSectionError,
@@ -25,14 +25,13 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
     pub fn empty(
         consumer: ConeIdentity,
         target: crate::LirTargetProfile,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, LayoutAbiSectionError<()>> {
         Ok(Self {
             consumer,
             target,
             dependencies: Vec::new(),
             semantic: Vec::new(),
-            physical: CanonicalExternalShapeLinkImportsV1::from_checked(Vec::new(), meter)?,
+            physical: CanonicalExternalShapeLinkImportsV1::from_checked(Vec::new())?,
         })
     }
 
@@ -42,27 +41,25 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
         dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
         physical_imports: Vec<ExternalShapeLinkImportV1<'a>>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
-        let dependencies =
-            super::section::dependencies::complete(consumer, target, dependencies, meter)?;
-        let physical = CanonicalExternalShapeLinkImportsV1::from_checked(physical_imports, meter)?;
+        let dependencies = super::section::dependencies::complete(consumer, target, dependencies)?;
+        let physical = CanonicalExternalShapeLinkImportsV1::from_checked(physical_imports)?;
         source
-            .validate_physical_imports(physical.records(), meter)
+            .validate_physical_imports(physical.records())
             .map_err(LayoutAbiSectionError::Source)?;
         let roots = source
             .committed_semantic_roots()
             .map_err(LayoutAbiSectionError::Source)?;
         let mut dependency_exports = Vec::new();
-        meter.try_reserve_collection_slots(
+        scoop_wire::allocation::try_reserve(
             &mut dependency_exports,
             dependencies.len(),
             &WirePath::root(),
         )?;
         dependency_exports.extend(dependencies.iter().map(|section| &section.exports));
         let semantic =
-            super::semantic_closure::close_external(consumer, &dependency_exports, roots, meter)?;
-        meter.charge_work(physical.records().len() as u64, &WirePath::root())?;
+            super::semantic_closure::close_external(consumer, &dependency_exports, roots)?;
+
         for import in physical.records() {
             if import.provider() == consumer {
                 return Err(LayoutAbiSectionError::SelectedCurrentProvider);
@@ -79,7 +76,6 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
                 terminal.callables(),
                 terminal.descriptors(),
                 terminal.dispatch(),
-                meter,
             )?;
             let Some(target) = semantic_target(import.subject(), terminal)
                 .map_err(LayoutAbiSectionError::MissingPhysicalSubject)?
@@ -125,10 +121,6 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
             .ok()
             .map(|index| self.dependencies[index])?;
         terminal.record(target)
-    }
-
-    pub(crate) fn semantic_count(&self) -> usize {
-        self.semantic.len()
     }
 }
 

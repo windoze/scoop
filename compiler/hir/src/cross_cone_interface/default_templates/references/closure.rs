@@ -4,7 +4,7 @@ use std::fmt;
 use scoop_identity::{
     CallableTemplateOrigin, PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     ExportDefaultAccessWitnessV1, ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1,
@@ -36,7 +36,7 @@ impl ExportDefaultTemplateV1 {
     pub fn validate_reference_closure_semantics(
         &self,
         owner_interface: &CallableInterfaceRecordV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         let expected_owner = self.key().owner();
@@ -54,7 +54,7 @@ impl ExportDefaultTemplateV1 {
             expected_owner,
             call_domain(owner_interface.access()),
         );
-        self.validate_reference_closure(WitnessExpectation::Public(witness), meter, path)
+        self.validate_reference_closure(WitnessExpectation::Public(witness), path)
     }
 
     /// Checks the exact direct reference closure of any shared source default.
@@ -62,31 +62,26 @@ impl ExportDefaultTemplateV1 {
     /// actual provider declarations by the artifact reader.
     pub fn validate_source_reference_closure(
         &self,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.validate_reference_closure(
-            WitnessExpectation::SourceOwner(self.key().owner()),
-            meter,
-            path,
-        )
+        self.validate_reference_closure(WitnessExpectation::SourceOwner(self.key().owner()), path)
     }
 
     fn validate_reference_closure(
         &self,
         witness: WitnessExpectation,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        let mut observer = ClosureObserver::new(self.references(), witness, meter, path)?;
+        let mut observer = ClosureObserver::new(self.references(), witness, path)?;
         self.body().visit_direct_references(
             self.locals(),
             self.definition_origin(),
             &mut observer,
-            meter,
             path,
         )?;
-        observer.finish(meter, path)
+        observer.finish()
     }
 }
 
@@ -96,21 +91,10 @@ enum WitnessExpectation {
 }
 
 impl WitnessExpectation {
-    fn compare(
-        &self,
-        actual: &ExportDefaultAccessWitnessV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Ordering, WireError> {
+    fn compare(&self, actual: &ExportDefaultAccessWitnessV1) -> Result<Ordering, WireError> {
         match self {
-            Self::Public(expected) => {
-                actual.charge_comparison(expected, meter, path)?;
-                Ok(actual.cmp(expected))
-            }
-            Self::SourceOwner(expected) => {
-                meter.charge_work(1, path)?;
-                Ok(actual.owner().cmp(expected))
-            }
+            Self::Public(expected) => Ok(actual.cmp(expected)),
+            Self::SourceOwner(expected) => Ok(actual.owner().cmp(expected)),
         }
     }
 }
@@ -121,13 +105,9 @@ struct ReferenceDomain<'a, T> {
 }
 
 impl<'a, T> ReferenceDomain<'a, T> {
-    fn new(
-        records: &'a [ExportDefaultReferenceV1<T>],
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Self, WireError> {
+    fn new(records: &'a [ExportDefaultReferenceV1<T>], path: &WirePath) -> Result<Self, WireError> {
         let mut seen = Vec::new();
-        meter.try_reserve_collection_slots(&mut seen, records.len(), path)?;
+        scoop_wire::allocation::try_reserve(&mut seen, records.len(), path)?;
         seen.resize(records.len(), false);
         Ok(Self { records, seen })
     }
@@ -145,60 +125,32 @@ struct ReferenceDomains<'a> {
 impl<'a> ReferenceDomains<'a> {
     fn new(
         references: &'a ExportDefaultReferenceSetV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, WireError> {
         Ok(Self {
-            callables: ReferenceDomain::new(references.callables(), meter, path)?,
-            constructors: ReferenceDomain::new(references.constructors(), meter, path)?,
-            types: ReferenceDomain::new(references.types(), meter, path)?,
-            globals: ReferenceDomain::new(references.globals(), meter, path)?,
-            singletons: ReferenceDomain::new(references.singleton_values(), meter, path)?,
-            fields: ReferenceDomain::new(references.fields(), meter, path)?,
+            callables: ReferenceDomain::new(references.callables(), path)?,
+            constructors: ReferenceDomain::new(references.constructors(), path)?,
+            types: ReferenceDomain::new(references.types(), path)?,
+            globals: ReferenceDomain::new(references.globals(), path)?,
+            singletons: ReferenceDomain::new(references.singleton_values(), path)?,
+            fields: ReferenceDomain::new(references.fields(), path)?,
         })
     }
 
-    fn finish(
-        &self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        check_extras(
-            ExportDefaultReferenceKindV1::Callable,
-            &self.callables.seen,
-            meter,
-            path,
-        )?;
+    fn finish(&self) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        check_extras(ExportDefaultReferenceKindV1::Callable, &self.callables.seen)?;
         check_extras(
             ExportDefaultReferenceKindV1::Constructor,
             &self.constructors.seen,
-            meter,
-            path,
         )?;
-        check_extras(
-            ExportDefaultReferenceKindV1::Type,
-            &self.types.seen,
-            meter,
-            path,
-        )?;
-        check_extras(
-            ExportDefaultReferenceKindV1::Global,
-            &self.globals.seen,
-            meter,
-            path,
-        )?;
+        check_extras(ExportDefaultReferenceKindV1::Type, &self.types.seen)?;
+        check_extras(ExportDefaultReferenceKindV1::Global, &self.globals.seen)?;
         check_extras(
             ExportDefaultReferenceKindV1::Singleton,
             &self.singletons.seen,
-            meter,
-            path,
         )?;
-        check_extras(
-            ExportDefaultReferenceKindV1::Field,
-            &self.fields.seen,
-            meter,
-            path,
-        )
+        check_extras(ExportDefaultReferenceKindV1::Field, &self.fields.seen)
     }
 }
 
@@ -210,20 +162,17 @@ fn observe_record<T>(
     witness: &WitnessExpectation,
     kind: ExportDefaultReferenceKindV1,
     site: ExportDefaultReferenceOccurrenceSiteV1,
-    mut compare_target: impl FnMut(&T, &mut BudgetMeter, &WirePath) -> Result<Ordering, WireError>,
-    meter: &mut BudgetMeter,
+    mut compare_target: impl FnMut(&T, &WirePath) -> Result<Ordering, WireError>,
+
     path: &WirePath,
 ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
     let mut start = 0;
     let mut end = records.len();
     while start < end {
-        meter
-            .charge_work(1, path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
         let middle = start + (end - start) / 2;
         let record = &records[middle];
-        let witness_ordering = witness.compare(record.witness(), meter, path)?;
-        let ordering = compare_target(record.target(), meter, path)
+        let witness_ordering = witness.compare(record.witness())?;
+        let ordering = compare_target(record.target(), path)
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?
             .then_with(|| record.definition_origin().cmp(origin))
             .then(witness_ordering);
@@ -247,13 +196,8 @@ fn observe_record<T>(
 fn check_extras(
     kind: ExportDefaultReferenceKindV1,
     seen: &[bool],
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
     for (index, seen) in seen.iter().copied().enumerate() {
-        meter
-            .charge_work(1, path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
         if !seen {
             return Err(ExportDefaultReferenceClosureValidationError::Extra { kind, index });
         }

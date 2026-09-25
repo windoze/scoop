@@ -5,16 +5,12 @@ pub(super) fn restore(
     section: &hir::CrossConeTypeSemanticsSectionV1,
 ) -> hir::CrossConeTypeSemanticsSectionV1 {
     let mut fixture = Fixture::from_output(output);
-    let bytes = encode(&section.index_for_wire(&mut meter()).unwrap()).unwrap();
-    let decoded: hir::DecodedCrossConeTypeSemanticsSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let bytes = encode(&section.index_for_wire().unwrap()).unwrap();
+    let decoded: hir::DecodedCrossConeTypeSemanticsSectionV1 = decode_canonical(&bytes).unwrap();
     let restored = decoded
-        .resolve(&mut fixture.identities, &mut meter(), &WirePath::root())
+        .resolve(&mut fixture.identities, &WirePath::root())
         .unwrap();
-    assert_eq!(
-        encode(&restored.index_for_wire(&mut meter()).unwrap()).unwrap(),
-        bytes
-    );
+    assert_eq!(encode(&restored.index_for_wire().unwrap()).unwrap(), bytes);
     restored
 }
 
@@ -61,7 +57,7 @@ impl hir::ProtectedDefaultReferenceBodySemanticAuthority<&'static str> for Occur
         occurrence: hir::DefaultBodyReferenceOccurrenceV1<'_>,
         witness: &hir::ProtectedDefaultAccessWitnessV1,
         receiver: hir::ProtectedDefaultReferenceReceiverV1<'_>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<(), &'static str> {
         let expected = &self.source.occurrences()[self.count];
@@ -211,7 +207,6 @@ pub(super) fn direct_domains(
                     },
                     target_domain: hir::AccessDomain::universal(),
                 },
-                &mut meter(),
             )
             .unwrap();
             (source.owner(), source.direct_call_domain().clone())

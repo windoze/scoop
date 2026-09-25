@@ -50,33 +50,21 @@ impl CanonicalNominalInterfacesV1 {
     /// surface. Member and nested relations remain attached to their typed
     /// source owner instead of being recovered from names.
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, NominalInterfaceBuildError> {
-        Self::from_export_hir_with_budget(
-            export,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-        )
-    }
-
-    pub fn from_export_hir_with_budget(
-        export: &ExportHir,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<Self, NominalInterfaceBuildError> {
-        let roots = SharedSourceRoots::from_export_hir(export, meter)?;
-        Self::from_export_hir_with_source_roots(export, &roots, meter)
+        let roots = SharedSourceRoots::from_export_hir(export)?;
+        Self::from_export_hir_with_source_roots(export, &roots)
     }
 
     pub(in crate::production) fn from_export_hir_with_source_roots(
         export: &ExportHir,
         roots: &SharedSourceRoots,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, NominalInterfaceBuildError> {
-        let declarations =
-            source_contracts::project_required_declarations(export, &roots.nominals, meter)
-                .map_err(|error| match error {
-                    crate::CrossConeTypeSemanticsProductionError::SourceInventory(
-                        crate::SourceInventoryError::Resource(error),
-                    ) => NominalInterfaceBuildError::Resource(error),
-                    other => NominalInterfaceBuildError::Declarations(other.to_string()),
-                })?;
+        let declarations = source_contracts::project_required_declarations(export, &roots.nominals)
+            .map_err(|error| match error {
+                crate::CrossConeTypeSemanticsProductionError::SourceInventory(
+                    crate::SourceInventoryError::Resource(error),
+                ) => NominalInterfaceBuildError::Resource(error),
+                other => NominalInterfaceBuildError::Declarations(other.to_string()),
+            })?;
         let projection = NominalProjection::new(export, &declarations);
         let mut records = Vec::with_capacity(
             export.public_surface.classes.len()

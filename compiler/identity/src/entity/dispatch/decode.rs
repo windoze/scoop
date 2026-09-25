@@ -71,7 +71,7 @@ impl WireEncode for DecodedDispatchSlotKey {
 }
 
 impl WireDecode for DecodedDispatchSlotKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedDispatchDeclarationOwner::decode)?,
@@ -81,7 +81,7 @@ impl WireDecode for DecodedDispatchSlotKey {
 }
 
 impl WireDecode for DispatchRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::VirtualMethod),
             2 => Ok(Self::InterfaceMethod),
@@ -93,7 +93,7 @@ impl WireDecode for DispatchRole {
 }
 
 impl WireDecode for DispatchTableRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::VTable),
             2 => Ok(Self::ITable),
@@ -132,7 +132,7 @@ impl WireEncode for DecodedOptionalExactInterface {
 }
 
 impl WireDecode for DecodedOptionalExactInterface {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -202,7 +202,7 @@ impl WireEncode for DecodedDispatchTableKey {
 }
 
 impl WireDecode for DecodedDispatchTableKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
@@ -249,11 +249,7 @@ impl<E: fmt::Display> fmt::Display for DispatchIdentityResolutionError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for DispatchIdentityResolutionError<E> {}
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -265,7 +261,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

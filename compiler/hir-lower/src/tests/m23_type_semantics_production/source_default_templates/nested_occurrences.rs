@@ -17,7 +17,6 @@ fn expanded_source_references_preserve_distinct_abis_for_one_invoke_identity() {
                     restored.locals(),
                     restored.definition_origin(),
                     &mut collector,
-                    &mut meter(),
                     &scoop_wire::WirePath::root(),
                 )
                 .unwrap();
@@ -30,9 +29,7 @@ fn expanded_source_references_preserve_distinct_abis_for_one_invoke_identity() {
             assert_eq!(right.owner_type_parameter_count(), 1);
             assert_ne!(left.function_type(), right.function_type());
             let path = scoop_wire::WirePath::root();
-            let index = restored
-                .index_nested_callables(&mut meter(), &path)
-                .unwrap();
+            let index = restored.index_nested_callables(&path).unwrap();
             assert_eq!(index.template(), restored.key());
             assert_eq!(index.occurrences().len(), 2);
             for (ordinal, reference) in [left, right].into_iter().enumerate() {
@@ -43,8 +40,6 @@ fn expanded_source_references_preserve_distinct_abis_for_one_invoke_identity() {
                     .lookup(
                         site,
                         hir::DefaultNestedCallableIdentityV1::CallableReference(reference.invoke()),
-                        &mut meter(),
-                        &path,
                     )
                     .unwrap();
                 let descriptor = occurrence.descriptor();
@@ -71,11 +66,11 @@ impl<'a> hir::DefaultBodyReferenceVisitorV1<'a> for References<'a> {
         &mut self,
         _: u32,
         expression: &'a hir::DefaultExpressionV1,
-        meter: &mut BudgetMeter,
+
         path: &scoop_wire::WirePath,
     ) -> Result<(), Self::Error> {
         if let hir::DefaultExpressionKindV1::CallableReference(reference) = expression.kind() {
-            meter.try_reserve_collection_slots(&mut self.0, 1, path)?;
+            scoop_wire::allocation::try_reserve(&mut self.0, 1, path)?;
             self.0.push(reference);
         }
         Ok(())
@@ -83,7 +78,7 @@ impl<'a> hir::DefaultBodyReferenceVisitorV1<'a> for References<'a> {
     fn reference(
         &mut self,
         _: hir::DefaultBodyReferenceOccurrenceV1<'a>,
-        _: &mut BudgetMeter,
+
         _: &scoop_wire::WirePath,
     ) -> Result<(), Self::Error> {
         // Only expression descriptors are relevant to this ABI comparison.

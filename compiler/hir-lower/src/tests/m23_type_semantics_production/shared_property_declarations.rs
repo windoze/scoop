@@ -20,16 +20,12 @@ const COMBINED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-shared-property-declarations/combined.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn ordinary_property_metadata_keeps_complete_restricted_accessors_and_generic_owners() {
     for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
         with_hir_source(source, |output, _| {
             let export = output.output().export.module();
-            let properties = Properties::from_export_hir_with_budget(export, &mut meter()).unwrap();
+            let properties = Properties::from_export_hir(export).unwrap();
             let callables = Callables::from_export_hir(export).unwrap();
             properties.validate_accessor_closure(&callables).unwrap();
             assert!(!properties.support_records().is_empty());
@@ -37,7 +33,7 @@ fn ordinary_property_metadata_keeps_complete_restricted_accessors_and_generic_ow
             let mut identities =
                 source_inventory::identity_closure_for_foundation(output, foundation);
             let decoded: hir::DecodedCanonicalPropertyInterfacesV1 =
-                decode_canonical(&encode(&properties).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(&properties).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut identities).unwrap(), properties);
             let rows = render::table(&properties, &callables, &identities);
             let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
@@ -67,7 +63,7 @@ fn shared_property_inventory_rejects_omission_duplicate_and_public_promotion() {
             let omitted =
                 Properties::with_support(properties.records().to_vec(), remaining).unwrap();
             assert_eq!(
-                omitted.validate_declaration_inventory(&nominals, &mut meter()),
+                omitted.validate_declaration_inventory(&nominals),
                 Err(hir::PropertyDeclarationInventoryError::Missing(
                     record.declaration()
                 ))
@@ -143,19 +139,13 @@ fn restricted_setter_is_required_and_checked_against_the_logical_property() {
 }
 
 #[test]
-fn property_projection_shares_budget_and_ignores_unrelated_private_top_level_declarations() {
+fn property_projection_ignores_unrelated_private_top_level_declarations() {
     let project = |source: &str| {
         with_hir_source(source, |output, _| {
             let export = output.output().export.module();
-            let mut measured = meter();
-            let properties =
-                Properties::from_export_hir_with_budget(export, &mut measured).unwrap();
-            let mut bounded = BudgetMeter::new(DecodeLimits {
-                validation_work_units: measured.usage().validation_work_units,
-                ..DecodeLimits::default()
-            });
-            Properties::from_export_hir_with_budget(export, &mut bounded).unwrap();
-            assert!(Properties::from_export_hir_with_budget(export, &mut bounded).is_err());
+
+            let properties = Properties::from_export_hir(export).unwrap();
+
             encode(&properties).unwrap()
         })
     };

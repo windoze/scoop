@@ -14,14 +14,13 @@ impl ExportsResolvedCrossConeLayoutAbiSectionV1 {
     pub fn resolve_dependencies<E>(
         self,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError<E>> {
-        dispatch_inventory::validate(&self.exports, meter)?;
-        let mut semantic = reserve(self.selected.semantic.len(), meter)?;
+        dispatch_inventory::validate(&self.exports)?;
+        let mut semantic = reserve(self.selected.semantic.len())?;
         for relation in self.selected.semantic {
-            semantic.push(relation.resolve(identities, meter)?);
+            semantic.push(relation.resolve(identities)?);
         }
-        build::validate_selected_records(self.exports.provider(), &semantic, meter)?;
+        build::validate_selected_records(self.exports.provider(), &semantic)?;
         Ok(DependencyResolvedCrossConeLayoutAbiSectionV1 {
             exports: self.exports,
             semantic,
@@ -45,21 +44,13 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
         &self,
         dependencies: &[&LayoutAbiExportConstituentsV1],
         committed: &[LayoutAbiDependencyV1],
-        meter: &mut BudgetMeter,
     ) -> Result<(), LayoutAbiSectionError<E>> {
         dependencies::validate_exports(
             self.exports.provider(),
             self.exports.target_profile(),
             dependencies,
-            meter,
         )?;
-        build::close_selection(
-            &self.exports,
-            dependencies,
-            committed,
-            Some(&self.semantic),
-            meter,
-        )?;
+        build::close_selection(&self.exports, dependencies, committed, Some(&self.semantic))?;
         Ok(())
     }
 }

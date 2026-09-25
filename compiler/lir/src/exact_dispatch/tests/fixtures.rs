@@ -1,5 +1,5 @@
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, WireError};
+use scoop_wire::WireError;
 
 use crate::exact_layout::tests::{Bound, exact, source, unit};
 use crate::*;
@@ -13,7 +13,6 @@ pub(super) struct DirectFixture {
     pub vtable: VtableRecord,
     pub foundation: OdrFreeLirFoundation,
     pub slot: PersistentDispatchSlotId,
-    pub other_slot: PersistentDispatchSlotId,
     slot_signature: ExactDispatchSlotSignatureV1,
     pub target: StrongCallableDefinitionOwner,
 }
@@ -52,7 +51,6 @@ impl DirectFixture {
                 result: &result,
             },
             &callable_foundation,
-            &mut meter(),
         )
         .unwrap();
         let identity = TypeDescriptorIdentity::new(
@@ -73,7 +71,6 @@ impl DirectFixture {
             _ => unreachable!(),
         };
         let slot = dispatch_slot(declaration);
-        let other_slot = dispatch_slot(source_function("otherSlot"));
         let slot_signature = ExactDispatchSlotSignatureV1::new(
             ExactCallableSignature::new(
                 Effect::Ordinary,
@@ -90,7 +87,6 @@ impl DirectFixture {
             vtable,
             foundation,
             slot,
-            other_slot,
             slot_signature,
             target,
         }
@@ -129,13 +125,10 @@ impl DirectFixture {
 
     pub(super) fn local_resolver(
         &self,
-    ) -> impl FnMut(
-        CallableRef,
-        &mut BudgetMeter,
-    ) -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError>
-    + use<> {
+    ) -> impl FnMut(CallableRef) -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> + use<>
+    {
         let body = self.abi.definition().semantic_id();
-        move |callable, _| {
+        move |callable| {
             Ok(
                 matches!(callable, CallableRef::Local(local) if local.into_u32() == 0)
                     .then_some(StrongTypeDispatchCallableRefV2::Local(body)),
@@ -179,14 +172,9 @@ fn named_pointer(name: &str) -> ExactLayoutExportV1 {
         bound.identity,
         NichePointerKind::Managed,
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap()
     .into()
-}
-
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 fn callable_foundation(name: &str) -> (StrongCallableDefinitionOwner, OdrFreeLirFoundation) {

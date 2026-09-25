@@ -5,7 +5,6 @@ use crate::{
     DecodedStrongTypeItableSemanticPlan, DecodedStrongTypeVtableSemanticPlan,
     StrongDescriptorReference, StrongTypeItableSemanticPlan, StrongTypeVtableSemanticPlan,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
 pub(in super::super) trait TypeReferences {
     type Parent: WireEncode;
@@ -18,19 +17,16 @@ pub(in super::super) trait TypeReferences {
         &self,
         decoded: Self::Parent,
         index: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<Self::Descriptor>, StrongRegistrationProductionValidationError>;
     fn descriptor(
         &self,
         decoded: Self::DecodedDescriptor,
         index: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Self::Descriptor, StrongRegistrationProductionValidationError>;
     fn slots(
         &self,
         decoded: Vec<Self::DecodedCallable>,
         index: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<Self::Callable>, StrongRegistrationProductionValidationError>;
 }
 
@@ -51,9 +47,7 @@ impl TypeReferences for LegacyTypeReferences<'_> {
         &self,
         decoded: Self::Parent,
         index: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<Self::Descriptor>, StrongRegistrationProductionValidationError> {
-        self.charge_descriptor_search(meter)?;
         validate_optional_type_descriptor_ref(
             decoded,
             self.identities,
@@ -66,9 +60,7 @@ impl TypeReferences for LegacyTypeReferences<'_> {
         &self,
         decoded: Self::DecodedDescriptor,
         index: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Self::Descriptor, StrongRegistrationProductionValidationError> {
-        self.charge_descriptor_search(meter)?;
         resolve_type_descriptor_ref(
             decoded,
             self.identities,
@@ -81,33 +73,8 @@ impl TypeReferences for LegacyTypeReferences<'_> {
         &self,
         decoded: Vec<Self::DecodedCallable>,
         index: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<Self::Callable>, StrongRegistrationProductionValidationError> {
-        let path = WirePath::root();
-        meter.charge_collection_slots(decoded.len() as u64, &path)?;
-        meter.charge_work(
-            (decoded.len() as u64).saturating_mul(
-                (self.foundation.callable_bodies().len() as u64)
-                    .saturating_add(self.external.bridges().len() as u64)
-                    .saturating_add(1),
-            ),
-            &path,
-        )?;
         validate_type_dispatch_slots(decoded, self.foundation, self.external, index)
-    }
-}
-
-impl LegacyTypeReferences<'_> {
-    fn charge_descriptor_search(
-        &self,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), scoop_wire::WireError> {
-        meter.charge_work(
-            (self.identities.type_registrations().len() as u64)
-                .saturating_add(self.external.bridges().len() as u64)
-                .saturating_add(1),
-            &WirePath::root(),
-        )
     }
 }
 
@@ -117,10 +84,8 @@ pub(in super::super) fn vtable<R: TypeReferences>(
     foundation: &OdrFreeLirFoundation,
     references: &R,
     index: usize,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongTypeVtableSemanticPlan<R::Callable>, StrongRegistrationProductionValidationError>
 {
-    meter.charge_work(foundation.dispatch_tables().len() as u64, &WirePath::root())?;
     let table = resolve_dispatch_table(
         decoded.table,
         scoop_identity::DispatchTableKey::vtable(exact_type),
@@ -128,7 +93,7 @@ pub(in super::super) fn vtable<R: TypeReferences>(
         index,
         "vtable",
     )?;
-    let slots = references.slots(decoded.slots, index, meter)?;
+    let slots = references.slots(decoded.slots, index)?;
     Ok(StrongTypeVtableSemanticPlan::from_artifact(table, slots))
 }
 
@@ -138,13 +103,12 @@ pub(in super::super) fn itable<R: TypeReferences>(
     foundation: &OdrFreeLirFoundation,
     references: &R,
     index: usize,
-    meter: &mut BudgetMeter,
 ) -> Result<
     StrongTypeItableSemanticPlan<R::Descriptor, R::Callable>,
     StrongRegistrationProductionValidationError,
 > {
-    let interface = references.descriptor(decoded.interface, index, meter)?;
-    meter.charge_work(foundation.dispatch_tables().len() as u64, &WirePath::root())?;
+    let interface = references.descriptor(decoded.interface, index)?;
+
     let table = resolve_dispatch_table(
         decoded.table,
         scoop_identity::DispatchTableKey::itable(exact_type, interface.exact_type()),
@@ -152,7 +116,7 @@ pub(in super::super) fn itable<R: TypeReferences>(
         index,
         "itable",
     )?;
-    let slots = references.slots(decoded.slots, index, meter)?;
+    let slots = references.slots(decoded.slots, index)?;
     Ok(StrongTypeItableSemanticPlan::from_artifact(
         table, interface, slots,
     ))

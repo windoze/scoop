@@ -63,21 +63,19 @@ fn ordinary_source_fact_shapes_replay_after_byte_round_trip() {
     let output = lower_public_nominals();
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let source = hir::CanonicalExactTypeFactShapesV1::try_new(
         production
             .foundation()
             .source_fact_shapes()
             .map(|(exact, shape)| hir::ExactTypeFactShapeRecordV1::new(exact, shape.clone()))
             .collect(),
-        &mut meter,
     )
     .unwrap();
     let bytes = encode(&source).unwrap();
-    let decoded: hir::DecodedCanonicalExactTypeFactShapesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: hir::DecodedCanonicalExactTypeFactShapesV1 = decode_canonical(&bytes).unwrap();
     let restored = decoded
-        .resolve(&mut SourceIdentities::from_hir(&output), &mut meter)
+        .resolve(&mut SourceIdentities::from_hir(&output))
         .unwrap();
     assert_eq!(source, restored);
     assert_eq!(source.records().len(), 7);
@@ -115,13 +113,13 @@ fn ordinary_source_fact_shapes_replay_after_byte_round_trip() {
     .unwrap();
     let checked_dependencies = DependencyFacts(
         dependency_table
-            .validate_semantics(&dependency_shapes, &mut meter)
+            .validate_semantics(&dependency_shapes)
             .unwrap(),
     );
     production
         .section()
         .exact_facts()
-        .validate_semantics_with_dependencies(&restored, &checked_dependencies, &mut meter)
+        .validate_semantics_with_dependencies(&restored, &checked_dependencies)
         .unwrap();
 
     let mut mutated = production.section().exact_facts().records().to_vec();
@@ -140,7 +138,7 @@ fn ordinary_source_fact_shapes_replay_after_byte_round_trip() {
     assert!(
         hir::CanonicalExactTypeFactsV1::try_new(mutated)
             .unwrap()
-            .validate_semantics_with_dependencies(&restored, &checked_dependencies, &mut meter)
+            .validate_semantics_with_dependencies(&restored, &checked_dependencies)
             .is_err()
     );
 }

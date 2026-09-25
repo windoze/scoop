@@ -34,7 +34,6 @@ fn resolves_every_source_backed_external_target_to_its_canonical_public_root() {
         &fixture.interface,
         &[],
         &[],
-        &mut route_meter(),
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
@@ -63,7 +62,6 @@ fn rejects_a_generated_callable_without_a_lexical_source_root() {
         &fixture.interface,
         &[],
         &[],
-        &mut route_meter(),
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
@@ -300,7 +298,7 @@ impl ExternalTargetFixture {
     }
 }
 
-fn register<I, K>(pending: &mut PendingIdentityValidation<'_>, record: CborIdentityRecord<I, K>)
+fn register<I, K>(pending: &mut PendingIdentityValidation, record: CborIdentityRecord<I, K>)
 where
     I: scoop_identity::PersistentId + 'static,
     K: scoop_identity::CborIdentityKey<I> + Eq + Send + Sync + 'static,
@@ -392,8 +390,4 @@ fn cone(name: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

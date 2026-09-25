@@ -104,13 +104,8 @@ fn functions(output: &hir::DependencyHirOutput, names: &[&str]) -> String {
 }
 
 fn check(output: &hir::DependencyHirOutput, owner: hir::ExportParameterOwner, position: u32) {
-    let source = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
-        output,
-        owner,
-        position,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
-    .unwrap();
+    let source =
+        hir::DefaultSourceBodyProductionV1::from_dependency_hir(output, owner, position).unwrap();
     let references = source
         .references()
         .callables()

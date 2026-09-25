@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedManglingSchemaIdentity, DecodedPersistentSymbolKey, DecodedPersistentSymbolRequest,
@@ -67,16 +67,11 @@ test_id!(ObjectDefinitionAtomId);
 fn the_only_mangling_schema_identity_round_trips_and_rejects_other_names() {
     let decoded = decode_canonical::<DecodedManglingSchemaIdentity>(
         &encode(&ManglingSchemaIdentity).unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert_eq!(decoded.resolve().unwrap(), ManglingSchemaIdentity);
 
-    let decoded = decode_canonical::<DecodedManglingSchemaIdentity>(
-        b"\x6dunknown-value",
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedManglingSchemaIdentity>(b"\x6dunknown-value").unwrap();
     assert_eq!(
         decoded.resolve(),
         Err(ManglingSchemaIdentityError::UnknownIdentity(
@@ -88,11 +83,8 @@ fn the_only_mangling_schema_identity_round_trips_and_rejects_other_names() {
 #[test]
 fn every_symbol_key_round_trips_and_resolves_its_typed_owner() {
     for key in symbol_keys() {
-        let decoded = decode_canonical::<DecodedPersistentSymbolKey>(
-            &encode(&key).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedPersistentSymbolKey>(&encode(&key).unwrap()).unwrap();
 
         assert_eq!(decoded.kind(), key.kind());
         assert_eq!(decoded.owner_bytes(), key.owner_bytes());
@@ -109,11 +101,8 @@ fn requests_round_trip_and_recheck_the_linkage_matrix() {
             LinkageClass::ConeStrong
         };
         let request = PersistentSymbolRequest::new(key, linkage).unwrap();
-        let decoded = decode_canonical::<DecodedPersistentSymbolRequest>(
-            &encode(&request).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedPersistentSymbolRequest>(&encode(&request).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), request);
     }
 
@@ -121,11 +110,8 @@ fn requests_round_trip_and_recheck_the_linkage_matrix() {
         key: PersistentSymbolKey::CallableBody(PersistentCallableBodyId::expected()),
         linkage: LinkageClass::RuntimeAbi,
     };
-    let decoded = decode_canonical::<DecodedPersistentSymbolRequest>(
-        &encode(&invalid).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedPersistentSymbolRequest>(&encode(&invalid).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(PersistentSymbolResolutionError::Symbol(
@@ -141,11 +127,8 @@ fn requests_round_trip_and_recheck_the_linkage_matrix() {
 fn canonical_request_table_round_trips_without_reader_side_sorting() {
     let requests = canonical_requests();
     let table = PersistentSymbolRequestTable::new(requests).unwrap();
-    let decoded = decode_canonical::<DecodedPersistentSymbolRequestTable>(
-        &encode(&table).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedPersistentSymbolRequestTable>(&encode(&table).unwrap()).unwrap();
 
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), table);
 }
@@ -154,22 +137,18 @@ fn canonical_request_table_round_trips_without_reader_side_sorting() {
 fn request_table_rejects_noncanonical_order_and_duplicates() {
     let requests = canonical_requests();
     let reversed = RawTable(requests.iter().copied().rev().collect());
-    let decoded = decode_canonical::<DecodedPersistentSymbolRequestTable>(
-        &encode(&reversed).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedPersistentSymbolRequestTable>(&encode(&reversed).unwrap())
+            .unwrap();
     assert!(matches!(
         decoded.resolve(&mut Resolver),
         Err(PersistentSymbolResolutionError::NonCanonicalRequestOrder { .. })
     ));
 
     let duplicate = RawTable(vec![requests[0], requests[0]]);
-    let decoded = decode_canonical::<DecodedPersistentSymbolRequestTable>(
-        &encode(&duplicate).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedPersistentSymbolRequestTable>(&encode(&duplicate).unwrap())
+            .unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(PersistentSymbolResolutionError::DuplicateRequest {
@@ -182,20 +161,14 @@ fn request_table_rejects_noncanonical_order_and_duplicates() {
 fn symbol_decoder_rejects_unknown_tags_and_unregistered_references() {
     let mut unknown_key = vec![0xa2, 0x00, 0x17, 0x01, 0x58, 0x20];
     unknown_key.extend_from_slice(&[7; 32]);
-    let error =
-        decode_canonical::<DecodedPersistentSymbolKey>(&unknown_key, DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedPersistentSymbolKey>(&unknown_key).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 23 });
 
-    let error = decode_canonical::<LinkageClass>(b"\x05", DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<LinkageClass>(b"\x05").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
     let wrong = PersistentSymbolKey::CallableBody(PersistentCallableBodyId([99; 32]));
-    let decoded = decode_canonical::<DecodedPersistentSymbolKey>(
-        &encode(&wrong).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedPersistentSymbolKey>(&encode(&wrong).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver), Err(ResolutionError));
 }
 

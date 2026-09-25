@@ -16,13 +16,11 @@ pub(super) fn object_overrides(
         unreachable!()
     };
     assert_eq!(
-        authority
-            .canonical_receiver_path(backing, owner, &mut meter())
-            .unwrap(),
+        authority.canonical_receiver_path(backing, owner).unwrap(),
         [backing, owner]
     );
     assert!(matches!(
-        authority.canonical_receiver_path(backing, owners["OtherSingleton"], &mut meter()),
+        authority.canonical_receiver_path(backing, owners["OtherSingleton"]),
         Err(scoop_mir::MirDispatchSchemaError::MissingReceiverPath { .. })
     ));
     let targets: Vec<_> = schemas

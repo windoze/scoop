@@ -10,10 +10,6 @@ mod initialization;
 mod rejections;
 mod source_projection;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-mir-export-assembly");
@@ -68,7 +64,7 @@ fn with_exports<R>(
             nominal_classifier: &classifier,
             identities: graph,
         };
-        let exports = produce(context, &[&dependencies], &mut meter()).unwrap();
+        let exports = produce(context, &[&dependencies]).unwrap();
         run(context, &dependencies, &exports)
     })
 }
@@ -76,7 +72,6 @@ fn with_exports<R>(
 fn produce(
     input: MirTypeBridgeExportInputV1<'_>,
     types: &[&mir::CanonicalParamFreeMirTypeExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<mir::MirTypeBridgeExportConstituentsV1, Error> {
     lower_type_bridge_exports(
         input,
@@ -85,7 +80,6 @@ fn produce(
             callables: &[],
             dispatch: &[],
         },
-        meter,
     )
 }
 
@@ -119,7 +113,7 @@ fn actual_mir_export_assembly_completes_all_tables_and_keeps_ordinary_partition(
 }
 
 #[test]
-fn actual_mir_export_assembly_requires_complete_dependencies_and_one_shared_budget() {
+fn actual_mir_export_assembly_requires_complete_dependencies() {
     let (_, source) = fixture("combined");
     with_exports(&source, |input, dependencies, _| {
         rejections::check(input, dependencies);

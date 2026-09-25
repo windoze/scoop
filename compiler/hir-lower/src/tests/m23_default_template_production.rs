@@ -1,5 +1,5 @@
 use scoop_identity::{CallableTemplateOrigin, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath, encode};
+use scoop_wire::{WirePath, encode};
 
 use super::*;
 
@@ -106,11 +106,7 @@ fn producer_projects_a_typed_default_and_exact_reference_closure() {
 
     let callables = hir::CanonicalCallableInterfacesV1::from_export_hir(&module).unwrap();
     template
-        .validate_reference_closure_semantics(
-            callables.get(owner).unwrap(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_reference_closure_semantics(callables.get(owner).unwrap(), &WirePath::root())
         .expect("the producer must emit the exact six-domain reference closure");
     assert!(
         !encode(&templates.index_locals().unwrap())
@@ -161,11 +157,7 @@ fn producer_closes_callable_constructor_and_owner_type_references() {
     assert_eq!(template.references().constructors().len(), 1);
     let callables = hir::CanonicalCallableInterfacesV1::from_export_hir(&module).unwrap();
     template
-        .validate_reference_closure_semantics(
-            callables.get(owner).unwrap(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_reference_closure_semantics(callables.get(owner).unwrap(), &WirePath::root())
         .expect("constructor owner and callable shape types belong to the exact closure");
 }
 
@@ -227,11 +219,7 @@ fn inherited_default_keeps_provider_identity_and_composed_binder_mapping() {
 
     let callables = hir::CanonicalCallableInterfacesV1::from_export_hir(&module).unwrap();
     template
-        .validate_reference_closure_semantics(
-            callables.get(child).unwrap(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_reference_closure_semantics(callables.get(child).unwrap(), &WirePath::root())
         .expect("an inherited template must rewrite its witness to the publishing owner");
 }
 
@@ -274,11 +262,7 @@ fn producer_closes_nested_callable_capture_and_function_types() {
     }));
     let callables = hir::CanonicalCallableInterfacesV1::from_export_hir(&module).unwrap();
     template
-        .validate_reference_closure_semantics(
-            callables.get(owner).unwrap(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_reference_closure_semantics(callables.get(owner).unwrap(), &WirePath::root())
         .expect("nested callable metadata must participate in the exact reference closure");
 }
 

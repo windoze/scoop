@@ -70,7 +70,7 @@ impl WireEncode for DecodedDependencyCallableDeclarationId {
 }
 
 impl WireDecode for DecodedDependencyCallableDeclarationId {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         if fields != 2 {

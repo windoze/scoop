@@ -27,7 +27,7 @@ pub struct DecodedDefaultSourceTemplateV1 {
     pub(super) definition_origin: DecodedExportDefinitionSourceV1,
 }
 impl WireDecode for DecodedDefaultSourceTemplateV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(12)?;
         Ok(Self {
             key: decoder.field(1, DecodedProtectedDefaultTemplateKeyV1::decode)?,

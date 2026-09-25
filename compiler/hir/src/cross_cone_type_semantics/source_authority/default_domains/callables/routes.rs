@@ -5,12 +5,10 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
         &self,
         target: View<'_>,
         context: &Context<'_, '_>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<&'b Declarations<'s, 'a, 'f>, Error> {
         let declaration = target.source_declaration().map_err(Error::target)?;
         let provider = if let Declaration::Generated(id) = declaration {
-            let source = nested::attached(context, meter, path)?;
+            let source = nested::attached(context)?;
             let actual = match source.descriptor().identity() {
                 Nested::Lambda(id)
                 | Nested::AnonymousFunction(id)
@@ -23,9 +21,9 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
             source.definition_origin().origin().source().cone()
         } else {
             declaration
-                .source_provider(self.current.foundation.identities, meter, path)
+                .source_provider(self.current.foundation.identities)
                 .map_err(Error::target)?
         };
-        self.provider(provider, meter, path)
+        self.provider(provider)
     }
 }

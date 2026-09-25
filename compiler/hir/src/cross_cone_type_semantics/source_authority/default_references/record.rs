@@ -37,7 +37,7 @@ pub struct DecodedDefaultSourceReferenceV1<T> {
     pub(super) witness: DecodedDefaultSourceAccessWitnessV1,
 }
 impl<T: WireDecode> WireDecode for DecodedDefaultSourceReferenceV1<T> {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(3)?;
         Ok(Self {
             target: d.field(1, T::decode)?,

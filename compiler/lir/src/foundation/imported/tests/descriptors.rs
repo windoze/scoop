@@ -98,7 +98,7 @@ fn fixture(
     let strong = OdrFreeLirFoundation::try_new(provider, canonical.clone()).unwrap();
     let definitions = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&strong).unwrap();
     let decoded: super::super::super::DecodedLirFoundation =
-        decode_canonical(&encode(&canonical).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&canonical).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(provider).unwrap();
     pending.register_authority(exact).unwrap();

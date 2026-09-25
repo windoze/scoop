@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedNativeExternalSymbolKey, DecodedNativeLibraryBinding, DecodedNativeLibraryGrouping,
@@ -32,11 +32,8 @@ impl PersistentIdResolver<NativeLinkRequirementId> for Resolver {
 #[test]
 fn native_external_symbol_key_round_trips_and_validates_normalization() {
     let key = symbol_key();
-    let decoded = decode_canonical::<DecodedNativeExternalSymbolKey>(
-        &encode(&key).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedNativeExternalSymbolKey>(&encode(&key).unwrap()).unwrap();
     let allocation = decoded.native_link_symbol.0.as_ptr();
     let decoded = decoded.validate().unwrap();
     assert_eq!(decoded.native_link_symbol().as_bytes().as_ptr(), allocation);
@@ -46,7 +43,7 @@ fn native_external_symbol_key_round_trips_and_validates_normalization() {
         CborIdentityRecord::from_key(key.clone()).unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentNativeExternalSymbolId, DecodedNativeExternalSymbolKey>,
-    >(&encode(&record).unwrap(), DecodeLimits::default())
+    >(&encode(&record).unwrap())
     .unwrap();
     let resolved = decoded
         .resolve(DecodedNativeExternalSymbolKey::validate)
@@ -56,15 +53,13 @@ fn native_external_symbol_key_round_trips_and_validates_normalization() {
 
 #[test]
 fn native_link_symbol_rejects_noncanonical_logical_inputs() {
-    let missing_prefix =
-        decode_canonical::<DecodedNativeLinkSymbol>(b"\x43foo", DecodeLimits::default()).unwrap();
+    let missing_prefix = decode_canonical::<DecodedNativeLinkSymbol>(b"\x43foo").unwrap();
     assert_eq!(
         missing_prefix.validate_darwin(),
         Err(NativeLinkValidationError::MissingMachOExternalPrefix)
     );
 
-    let invalid_utf8 =
-        decode_canonical::<DecodedNativeLinkSymbol>(b"\x42_\xff", DecodeLimits::default()).unwrap();
+    let invalid_utf8 = decode_canonical::<DecodedNativeLinkSymbol>(b"\x42_\xff").unwrap();
     assert_eq!(
         invalid_utf8.validate_darwin(),
         Err(NativeLinkValidationError::SourceSymbol(
@@ -72,9 +67,7 @@ fn native_link_symbol_rejects_noncanonical_logical_inputs() {
         ))
     );
 
-    let llvm_escape =
-        decode_canonical::<DecodedNativeLinkSymbol>(b"\x45_\x01bad", DecodeLimits::default())
-            .unwrap();
+    let llvm_escape = decode_canonical::<DecodedNativeLinkSymbol>(b"\x45_\x01bad").unwrap();
     assert_eq!(
         llvm_escape.validate_darwin(),
         Err(NativeLinkValidationError::LinkSymbol(
@@ -106,11 +99,8 @@ fn all_native_link_requirement_shapes_round_trip_and_validate() {
     ];
 
     for value in values {
-        let decoded = decode_canonical::<DecodedNativeLinkRequirementKey>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedNativeLinkRequirementKey>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.validate().unwrap(), value);
     }
 }
@@ -126,7 +116,7 @@ fn native_link_requirement_record_validates_before_verifying_identity() {
         CborIdentityRecord::from_key(key.clone()).unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<NativeLinkRequirementId, DecodedNativeLinkRequirementKey>,
-    >(&encode(&record).unwrap(), DecodeLimits::default())
+    >(&encode(&record).unwrap())
     .unwrap();
     let resolved = decoded
         .resolve(DecodedNativeLinkRequirementKey::validate)
@@ -141,11 +131,8 @@ fn native_library_bindings_round_trip_and_resolve_requirement_ids() {
         NativeLibraryBinding::Requirement(requirement_id()),
     ];
     for value in values {
-        let decoded = decode_canonical::<DecodedNativeLibraryBinding>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedNativeLibraryBinding>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), value);
     }
 }
@@ -156,11 +143,8 @@ fn native_link_keys_reject_wrong_profile_and_invalid_names() {
         target: CapabilityId::new("org.scoop-lang.target-profile", "darwin-aarch64", 2).unwrap(),
         symbol: b"_entry".to_vec(),
     };
-    let decoded = decode_canonical::<DecodedNativeExternalSymbolKey>(
-        &encode(&raw).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedNativeExternalSymbolKey>(&encode(&raw).unwrap()).unwrap();
     assert!(matches!(
         decoded.validate(),
         Err(NativeLinkValidationError::TargetProfile(_))
@@ -176,11 +160,7 @@ fn native_link_keys_reject_wrong_profile_and_invalid_names() {
     );
     let mut library_bytes = encode(&key).unwrap();
     replace_once(&mut library_bytes, b"sample", b"bad/li");
-    let decoded = decode_canonical::<DecodedNativeLinkRequirementKey>(
-        &library_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedNativeLinkRequirementKey>(&library_bytes).unwrap();
     assert_eq!(
         decoded.validate(),
         Err(NativeLinkValidationError::Library(
@@ -190,9 +170,7 @@ fn native_link_keys_reject_wrong_profile_and_invalid_names() {
 
     let mut group_bytes = encode(&key).unwrap();
     replace_once(&mut group_bytes, b"group", b"bad/g");
-    let decoded =
-        decode_canonical::<DecodedNativeLinkRequirementKey>(&group_bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedNativeLinkRequirementKey>(&group_bytes).unwrap();
     assert_eq!(
         decoded.validate(),
         Err(NativeLinkValidationError::Group(
@@ -203,13 +181,10 @@ fn native_link_keys_reject_wrong_profile_and_invalid_names() {
 
 #[test]
 fn native_link_decoder_rejects_unknown_kinds_and_grouping_tags() {
-    let error =
-        decode_canonical::<NativeLibraryKind>(b"\x05", DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<NativeLibraryKind>(b"\x05").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let error =
-        decode_canonical::<DecodedNativeLibraryGrouping>(b"\xa1\x00\x03", DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedNativeLibraryGrouping>(b"\xa1\x00\x03").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 

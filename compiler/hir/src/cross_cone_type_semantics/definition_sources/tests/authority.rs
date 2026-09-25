@@ -36,16 +36,16 @@ pub(super) struct Expected {
 }
 pub(super) struct Authority<'a> {
     expected: &'a [Expected],
-    resources: *const BudgetMeter,
+
     path: &'a WirePath,
     pub seen: Vec<bool>,
     pub calls: usize,
 }
 impl<'a> Authority<'a> {
-    pub fn new(expected: &'a [Expected], meter: &BudgetMeter, path: &'a WirePath) -> Self {
+    pub fn new(expected: &'a [Expected], path: &'a WirePath) -> Self {
         Self {
             expected,
-            resources: std::ptr::from_ref(meter),
+
             path,
             seen: vec![false; expected.len()],
             calls: 0,
@@ -57,14 +57,11 @@ impl TypeDefinitionSourceSemanticAuthority<&'static str> for Authority<'_> {
         &mut self,
         source_use: TypeDefinitionSourceUseV1<'_>,
         source: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), &'static str> {
-        assert!(std::ptr::eq(self.resources, meter));
         assert!(path.segments().starts_with(self.path.segments()));
-        meter
-            .charge_work(5, path)
-            .map_err(|_| "source authority budget")?;
+
         let key = match source_use {
             TypeDefinitionSourceUseV1::Representation(record) => {
                 UseKey::Representation(record.owner())

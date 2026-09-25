@@ -73,7 +73,7 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
 
 impl<'input> ConstValidatedCrossConeHirClosure<'input> {
     /// Validates every provider route against its own direct and transitive
-    /// dependencies, retaining the same meter used to decode that artifact.
+    /// dependencies.
     pub fn validate_public_binding_routes(
         mut self,
     ) -> Result<PublicRouteValidatedCrossConeHirClosure<'input>, CrossConeClosurePublicRouteError>
@@ -83,20 +83,18 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
             let (previous, current_and_later) = artifacts.split_at_mut(position);
             let current = &mut current_and_later[0];
             let identity = current.identity();
-            let (identities, interface, meter) = current.hir_semantic_parts();
+            let (identities, interface) = current.hir_semantic_parts();
             let path = WirePath::root();
             let resource = |source| CrossConeClosurePublicRouteError::Resource { identity, source };
             let reachable = crate::dependency_reachability::transitive_positions(
                 position,
                 dependency_positions,
-                meter,
             )
             .map_err(resource)?;
             let inputs = RouteAuthorityInputs::try_new(
                 previous,
                 &dependency_positions[position],
                 &reachable,
-                meter,
                 &path,
             )
             .map_err(resource)?;
@@ -106,13 +104,12 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
                 interface,
                 inputs.direct(),
                 inputs.providers(),
-                meter,
                 &path,
             )
             .map_err(resource)?;
             interface
                 .public_bindings()
-                .validate_route_closure(identity, &authority, meter, &path.clone().field(9))
+                .validate_route_closure(identity, &authority)
                 .map_err(|source| CrossConeClosurePublicRouteError::Artifact {
                     identity,
                     source: Box::new(source),

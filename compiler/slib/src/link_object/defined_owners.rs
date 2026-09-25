@@ -291,7 +291,7 @@ impl WireEncode for DecodedMemberId {
 }
 
 impl WireDecode for DecodedMemberId {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_fixed_32(decoder).map(Self)
     }
 }
@@ -313,7 +313,7 @@ impl WireEncode for DecodedStrongDefinitionOwnerV1 {
 }
 
 impl WireDecode for DecodedStrongDefinitionOwnerV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             entity: decoder.field(1, DecodedStrongDefinitionEntity::decode)?,
@@ -352,7 +352,7 @@ impl WireEncode for DecodedLinkDefinitionOwnerV1 {
 }
 
 impl WireDecode for DecodedLinkDefinitionOwnerV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -406,7 +406,7 @@ impl WireEncode for DecodedDefinedLinkSymbolOwnerV1 {
 }
 
 impl WireDecode for DecodedDefinedLinkSymbolOwnerV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             member: decoder.field(1, DecodedMemberId::decode)?,
@@ -449,7 +449,7 @@ impl WireEncode for DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
 }
 
 impl WireDecode for DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedDefinedLinkSymbolOwnerV1::decode(decoder))
             .map(|owners| Self { owners })
@@ -516,7 +516,7 @@ fn encode_boundary(
     })
 }
 
-fn decode_boundary(decoder: &mut Decoder<'_, '_>) -> Result<VerifiedBoundaryRoleV1, WireError> {
+fn decode_boundary(decoder: &mut Decoder<'_>) -> Result<VerifiedBoundaryRoleV1, WireError> {
     match decoder.unsigned()? {
         1 => Ok(VerifiedBoundaryRoleV1::Start),
         2 => Ok(VerifiedBoundaryRoleV1::End),
@@ -540,7 +540,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn decode_fixed_32(decoder: &mut Decoder<'_, '_>) -> Result<[u8; 32], WireError> {
+fn decode_fixed_32(decoder: &mut Decoder<'_>) -> Result<[u8; 32], WireError> {
     let bytes = decoder.bytes()?;
     <&[u8; 32]>::try_from(bytes).copied().map_err(|_| {
         wire_error(
@@ -553,11 +553,7 @@ fn decode_fixed_32(decoder: &mut Decoder<'_, '_>) -> Result<[u8; 32], WireError>
     })
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -568,7 +564,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

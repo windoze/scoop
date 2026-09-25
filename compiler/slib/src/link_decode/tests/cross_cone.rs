@@ -100,7 +100,6 @@ fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
     let hir_proof = scoop_hir::OdrFreeHirFoundation::try_new(hir_foundation).unwrap();
     let hir_production = decode_canonical::<scoop_hir::DecodedCoreBootstrapInterfaceSectionV1>(
         &empty_hir_library_section(),
-        DecodeLimits::default(),
     )
     .unwrap()
     .validate_against_strong_foundation(cone().identity(), &hir_proof)

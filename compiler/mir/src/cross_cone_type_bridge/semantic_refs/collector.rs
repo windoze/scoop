@@ -49,14 +49,14 @@ impl std::error::Error for MirTypeBridgeReferenceError {}
 
 pub(super) struct Collector<'a> {
     pub graph: &'a ValidatedIdentityGraph,
-    pub meter: &'a mut BudgetMeter,
+
     targets: Vec<MirTypeBridgeTargetV1>,
 }
 impl<'a> Collector<'a> {
-    pub fn new(graph: &'a ValidatedIdentityGraph, meter: &'a mut BudgetMeter) -> Self {
+    pub fn new(graph: &'a ValidatedIdentityGraph) -> Self {
         Self {
             graph,
-            meter,
+
             targets: Vec::new(),
         }
     }
@@ -65,16 +65,8 @@ impl<'a> Collector<'a> {
         target: MirTypeBridgeTargetV1,
     ) -> Result<(), MirTypeBridgeReferenceError> {
         let path = WirePath::root();
-        let count = self
-            .targets
-            .len()
-            .checked_add(1)
-            .ok_or(MirTypeBridgeReferenceError::ArithmeticOverflow)?;
-        self.meter.check_table_entries(count as u64, &path)?;
-        self.meter.charge_work(1, &path)?;
-        self.meter.charge_edges(1, &path)?;
-        self.meter
-            .try_reserve_collection_slots(&mut self.targets, 1, &path)?;
+
+        scoop_wire::allocation::try_reserve(&mut self.targets, 1, &path)?;
         self.targets.push(target);
         Ok(())
     }
@@ -82,33 +74,25 @@ impl<'a> Collector<'a> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.exact_in(exact, false, 1)
+        self.exact_in(exact, false)
     }
     pub fn field(
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.exact_in(exact, true, 1)
+        self.exact_in(exact, true)
     }
     fn exact_in(
         &mut self,
         exact: PersistentExactTypeId,
         transient: bool,
-        depth: u64,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        let path = WirePath::root();
-        self.meter.check_semantic_depth(depth, &path)?;
-        self.meter.charge_work(1, &path)?;
-        self.meter.charge_nodes(1, &path)?;
         let key = self.graph.canonical_key::<_, ExactTypeKey>(exact)?;
         match key.as_ref() {
             ExactTypeKey::Nominal(_) => self.push(MirTypeBridgeTargetV1::Type(exact)),
             ExactTypeKey::Tuple(elements) if transient => {
-                let depth = depth
-                    .checked_add(1)
-                    .ok_or(MirTypeBridgeReferenceError::ArithmeticOverflow)?;
                 for element in elements.as_slice() {
-                    self.exact_in(*element, true, depth)?;
+                    self.exact_in(*element, true)?;
                 }
                 Ok(())
             }
@@ -120,10 +104,7 @@ impl<'a> Collector<'a> {
         nominal: PersistentTypeId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
         let key = ExactTypeKey::Nominal(nominal);
-        self.meter.charge_sha256(
-            PersistentExactTypeId::hash_stream_length(&key)?,
-            &WirePath::root(),
-        )?;
+
         self.exact(PersistentExactTypeId::from_key(&key)?)
     }
     pub fn signature(
@@ -146,7 +127,6 @@ impl<'a> Collector<'a> {
         &mut self,
         slot: scoop_identity::PersistentDispatchSlotId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.meter.charge_work(1, &WirePath::root())?;
         let key = self.graph.canonical_key::<_, DispatchSlotKey>(slot)?;
         self.member_target(match key.owner() {
             DispatchDeclarationOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
@@ -158,13 +138,8 @@ impl<'a> Collector<'a> {
     pub fn finish(
         mut self,
     ) -> Result<MirTypeBridgeSemanticReferencesV1, MirTypeBridgeReferenceError> {
-        let count = self.targets.len();
-        let path = WirePath::root();
-        for _ in 0..usize::BITS - count.max(1).saturating_sub(1).leading_zeros() {
-            self.meter.charge_work(count as u64, &path)?;
-        }
         self.targets.sort_unstable();
-        self.meter.charge_work(count as u64, &path)?;
+
         self.targets.dedup();
         Ok(MirTypeBridgeSemanticReferencesV1 {
             targets: self.targets,

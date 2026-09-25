@@ -8,10 +8,7 @@ impl<'a, K: Copy> DefaultSourceNestedCallablesV1<'a, K> {
     pub fn require_local_declaration(
         &self,
         declaration: scoop_identity::CallableTemplateOrigin,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), Error> {
-        meter.charge_work((self.occurrences.len() as u64).saturating_mul(65), path)?;
         let identity = DefaultNestedCallableIdentityV1::LocalFunction(declaration);
         if self
             .occurrences
@@ -29,8 +26,6 @@ impl<'a, K: Copy> DefaultSourceNestedCallablesV1<'a, K> {
     pub fn attached_to(
         &self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'a>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<&DefaultSourceNestedCallableOccurrenceV1<'a>, Error> {
         let descriptor = match occurrence.attachment {
             DefaultBodyReferenceAttachmentV1::Expression { expression, .. } => {
@@ -50,13 +45,13 @@ impl<'a, K: Copy> DefaultSourceNestedCallablesV1<'a, K> {
             ) => Descriptor::LocalFunction(f),
             _ => return Err(Error::Attachment),
         };
-        meter.charge_work((self.occurrences.len() as u64).saturating_mul(65), path)?;
+
         let source = self
             .occurrences
             .iter()
             .find(|o| same_node(o.descriptor, descriptor))
             .ok_or(Error::MissingIdentity(descriptor.identity()))?;
-        self.lookup(source.site(), descriptor.identity(), meter, path)
+        self.lookup(source.site(), descriptor.identity())
     }
 }
 

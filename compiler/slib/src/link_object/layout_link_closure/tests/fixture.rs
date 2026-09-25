@@ -1,12 +1,9 @@
 use scoop_identity::*;
 use scoop_lir::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 pub(in crate::link_object::layout_link_closure) const TARGET: LirTargetProfile =
     LirTargetProfile::DARWIN_AARCH64;
-pub(in crate::link_object) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 pub(in crate::link_object) struct Provider {
     pub foundation: OdrFreeLirFoundation,
@@ -92,21 +89,17 @@ impl Provider {
             exact,
             RepresentationRole::ManagedValue,
             &foundation,
-            &mut meter(),
         )
         .unwrap();
         let value = ExactValueLayoutV1::scalar(
             identity,
             ScalarRepresentationKindV1::Integer(IntegerKind::SIGNED_64),
             &foundation,
-            &mut meter(),
         )
         .unwrap();
         let exports = exports(&foundation, vec![value.into()]);
         let source = Source::local(&exports);
-        let section =
-            CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &source, &mut meter())
-                .unwrap();
+        let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &source).unwrap();
         let external = StrongExternalLirBridgeSurfaceV1::try_new(provider, Vec::new()).unwrap();
         let digests = image.digest_finalization_plan().clone();
         let old = StrongProductionSectionV1::new(
@@ -122,7 +115,7 @@ impl Provider {
         )
         .unwrap();
         let raw: DecodedStrongProductionSectionV2 =
-            decode_canonical(&encode(&old).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&old).unwrap()).unwrap();
         let production = raw
             .replay(
                 coordinate,
@@ -133,12 +126,11 @@ impl Provider {
                 EntryProductionSourceV1::Library,
                 &[],
                 None,
-                &StrongTypeReferenceDefinitionsV2::new(provider, &[], &mut meter()).unwrap(),
-                &StrongInitializationDefinitionCatalogV2::new(provider, &[], &mut meter()).unwrap(),
-                &mut meter(),
+                &StrongTypeReferenceDefinitionsV2::new(provider, &[]).unwrap(),
+                &StrongInitializationDefinitionCatalogV2::new(provider, &[]).unwrap(),
             )
             .unwrap()
-            .validate_layout_abi(&section, &mut meter())
+            .validate_layout_abi(&section)
             .unwrap();
         let ordinary =
             CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
@@ -152,18 +144,15 @@ impl Provider {
     }
 
     pub fn import(&self, consumer: ConeIdentity) -> ExternalShapeLinkImportV1<'_> {
-        let provider = ShapeLinkProviderV1::try_new(
-            ShapeLinkProviderPartsV1 {
-                foundation: &self.foundation,
-                production: ShapeLinkProductionV1::Reader(&self.production),
-                ordinary: &self.ordinary,
-                layouts: self.section.layouts(),
-                callables: self.section.callables(),
-                descriptors: self.section.descriptors(),
-                dispatch: self.section.dispatch(),
-            },
-            &mut meter(),
-        )
+        let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
+            foundation: &self.foundation,
+            production: ShapeLinkProductionV1::Reader(&self.production),
+            ordinary: &self.ordinary,
+            layouts: self.section.layouts(),
+            callables: self.section.callables(),
+            descriptors: self.section.descriptors(),
+            dispatch: self.section.dispatch(),
+        })
         .unwrap();
         let foundation =
             OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
@@ -173,7 +162,6 @@ impl Provider {
             consumer,
             &StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap(),
             &NoShapeLinkSupportV1,
-            &mut meter(),
         )
         .unwrap()
     }
@@ -189,14 +177,8 @@ impl Provider {
             LayoutAbiSemanticTargetV1::Layout(self.layout),
         ));
         source.imports.push(encode(&import).unwrap());
-        CrossConeLayoutAbiSectionV1::try_new(
-            exports,
-            &[&self.section],
-            vec![import],
-            &source,
-            &mut meter(),
-        )
-        .unwrap()
+        CrossConeLayoutAbiSectionV1::try_new(exports, &[&self.section], vec![import], &source)
+            .unwrap()
     }
 }
 
@@ -207,29 +189,24 @@ pub(in crate::link_object) fn empty_section(
         OdrFreeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
     let exports = exports(&foundation, vec![]);
     let source = Source::local(&exports);
-    CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &source, &mut meter()).unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &source).unwrap()
 }
 
 pub(in crate::link_object::layout_link_closure) fn exports(
     foundation: &OdrFreeLirFoundation,
     values: Vec<ExactLayoutExportV1>,
 ) -> LayoutAbiExportConstituentsV1 {
-    let layouts =
-        CanonicalExactLayoutExportsV1::try_new(TARGET, foundation, values, &mut meter()).unwrap();
+    let layouts = CanonicalExactLayoutExportsV1::try_new(TARGET, foundation, values).unwrap();
     let descriptors =
-        CanonicalExactDescriptorExportsV1::try_new(TARGET, foundation, vec![], &mut meter())
-            .unwrap();
-    let dispatch =
-        CanonicalExactDispatchExportsV1::try_new(TARGET, foundation, vec![], &mut meter()).unwrap();
+        CanonicalExactDescriptorExportsV1::try_new(TARGET, foundation, vec![]).unwrap();
+    let dispatch = CanonicalExactDispatchExportsV1::try_new(TARGET, foundation, vec![]).unwrap();
     let callables =
-        CanonicalExactCallableAbiExportsV1::try_new(TARGET, foundation, vec![], &mut meter())
-            .unwrap();
+        CanonicalExactCallableAbiExportsV1::try_new(TARGET, foundation, vec![]).unwrap();
     let support = CanonicalParamFreeShapeSupportExportsV1::from_sources(
         &[],
         &layouts,
         &descriptors,
         foundation,
-        &mut meter(),
     )
     .unwrap();
     LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, support)
@@ -253,11 +230,7 @@ impl Source {
     }
 }
 impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(
-        &self,
-        exports: &LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, exports: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         (*exports == self.exports).then_some(()).ok_or(())
     }
     fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
@@ -266,7 +239,6 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
     fn validate_physical_imports(
         &self,
         imports: &[ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
     ) -> Result<(), ()> {
         (imports.len() == self.imports.len()
             && imports

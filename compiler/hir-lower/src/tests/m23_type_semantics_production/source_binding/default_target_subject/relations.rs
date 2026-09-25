@@ -9,7 +9,7 @@ type FieldRecord = CborIdentityRecord<PersistentFieldId, FieldIdentityKey>;
 
 fn extend_graph(fixture: &Fixture, record: &FieldRecord) -> ValidatedIdentityGraph {
     let decoded: DecodedCborIdentityRecord<PersistentFieldId, DecodedFieldIdentityKey> =
-        decode_canonical(&encode(record).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(record).unwrap()).unwrap();
     let mut validation = PendingIdentityValidation::new();
     validation
         .register_external_graph_authorities(&fixture.identities)
@@ -72,10 +72,10 @@ fn default_field_routes_require_one_identity_graph_and_matching_logical_property
             let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
             let foundation = fixture
                 .source
-                .bind_to_foundation(&artifact, &fixture.identities, &mut meter())
+                .bind_to_foundation(&artifact, &fixture.identities)
                 .unwrap();
             assert!(matches!(
-                foundation.default_indirect_access_subject(target, &mut meter()),
+                foundation.default_indirect_access_subject(target),
                 Err(Error::Foundation(
                     hir::TypeFoundationBindingError::Identity(_)
                 ))
@@ -83,10 +83,10 @@ fn default_field_routes_require_one_identity_graph_and_matching_logical_property
             let graph = extend_graph(&fixture, &record);
             let foundation = fixture
                 .source
-                .bind_to_foundation(&artifact, &graph, &mut meter())
+                .bind_to_foundation(&artifact, &graph)
                 .unwrap();
             assert!(
-                matches!(foundation.default_indirect_access_subject(target, &mut meter()), Err(Error::PropertyOwner { field, .. }) if field == record.id())
+                matches!(foundation.default_indirect_access_subject(target), Err(Error::PropertyOwner { field, .. }) if field == record.id())
             );
         }
     });
@@ -115,16 +115,15 @@ fn default_object_fields_require_the_artifacts_generated_backing_relation() {
         let mut canonical = fixture.foundation.as_canonical().clone();
         canonical.set_generated_types(vec![]).unwrap();
         let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
-        let error =
-            match fixture
-                .source
-                .bind_to_foundation(&artifact, &fixture.identities, &mut meter())
-            {
-                Ok(foundation) => foundation
-                    .default_indirect_access_subject(Target::ClassField(field), &mut meter())
-                    .unwrap_err(),
-                Err(error) => Error::Foundation(error),
-            };
+        let error = match fixture
+            .source
+            .bind_to_foundation(&artifact, &fixture.identities)
+        {
+            Ok(foundation) => foundation
+                .default_indirect_access_subject(Target::ClassField(field))
+                .unwrap_err(),
+            Err(error) => Error::Foundation(error),
+        };
         assert!(
             matches!(error, Error::MissingGenerated(id) | Error::Foundation(hir::TypeFoundationBindingError::MissingGenerated(id)) if id == owner)
         );
@@ -154,10 +153,10 @@ fn default_field_routes_cannot_borrow_foreign_nominal_ownership_from_the_artifac
         let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&artifact, &graph, &mut meter())
+            .bind_to_foundation(&artifact, &graph)
             .unwrap();
         assert!(
-            matches!(foundation.default_indirect_access_subject(Target::ClassField(record.id()), &mut meter()), Err(Error::ForeignDeclaration(Subject::Type(id))) if id == foreign.id())
+            matches!(foundation.default_indirect_access_subject(Target::ClassField(record.id())), Err(Error::ForeignDeclaration(Subject::Type(id))) if id == foreign.id())
         );
     });
 }

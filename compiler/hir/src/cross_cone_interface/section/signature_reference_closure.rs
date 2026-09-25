@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{NominalDeclarationOwner, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{CrossConeHirInterfaceSectionV1, signature_nominal_walk::SignatureNominalWalker};
 use crate::{
@@ -17,7 +17,7 @@ impl CrossConeHirInterfaceSectionV1 {
     pub fn validate_signature_reference_closure<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExternalHirSignatureClosureValidationError<E>>
     where
@@ -26,7 +26,6 @@ impl CrossConeHirInterfaceSectionV1 {
         let mut validator = SignatureReferenceClosureValidator::new(
             self.external_references(),
             authority,
-            meter,
             &path.clone().field(10),
         )?;
 
@@ -35,7 +34,7 @@ impl CrossConeHirInterfaceSectionV1 {
         self.visit_property_signatures(&mut validator, path)?;
         self.visit_source_call_signatures(&mut validator, path)?;
 
-        validator.finish(&path.clone().field(10))
+        validator.finish()
     }
 
     fn visit_nominal_signatures<A, E>(
@@ -296,22 +295,20 @@ struct SignatureReferenceClosureValidator<'references, 'validation, A> {
     seen: Vec<bool>,
     current: scoop_identity::ConeIdentity,
     authority: &'validation mut A,
-    meter: &'validation mut BudgetMeter,
 }
 
 impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references, 'validation, A> {
     fn new<E>(
         references: &'references CanonicalExternalHirReferencesV1,
         authority: &'validation mut A,
-        meter: &'validation mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, ExternalHirSignatureClosureValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         let mut seen = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut seen, references.records().len(), path)
+        scoop_wire::allocation::try_reserve(&mut seen, references.records().len(), path)
             .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
         seen.resize(references.records().len(), false);
         Ok(Self {
@@ -319,7 +316,6 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
             seen,
             current: authority.current_cone(),
             authority,
-            meter,
         })
     }
 
@@ -332,13 +328,13 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        let mut walker = SignatureNominalWalker::new(signature, self.meter, path)
+        let mut walker = SignatureNominalWalker::new(signature, path)
             .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
         while let Some(declaration) = walker
-            .next(self.meter, path)
+            .next(path)
             .map_err(ExternalHirSignatureClosureValidationError::Resource)?
         {
-            self.observe_nominal(declaration, site, path)?;
+            self.observe_nominal(declaration, site)?;
         }
         Ok(())
     }
@@ -347,7 +343,6 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
         &mut self,
         declaration: NominalDeclarationOwner,
         site: ExternalHirSignatureUseSiteV1,
-        path: &WirePath,
     ) -> Result<(), ExternalHirSignatureClosureValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
@@ -369,8 +364,7 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
 
         let record_index = self
             .references
-            .find_index_metered(target, self.meter, path)
-            .map_err(ExternalHirSignatureClosureValidationError::Resource)?
+            .find_index(target)
             .ok_or(ExternalHirSignatureClosureValidationError::MissingReference { site, target })?;
         let record = &self.references.records()[record_index];
         if record.origin() != expected {
@@ -398,14 +392,8 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
         Ok(())
     }
 
-    fn finish<E>(
-        self,
-        path: &WirePath,
-    ) -> Result<(), ExternalHirSignatureClosureValidationError<E>> {
+    fn finish<E>(self) -> Result<(), ExternalHirSignatureClosureValidationError<E>> {
         for (record_index, record) in self.references.records().iter().enumerate() {
-            self.meter
-                .charge_work(1, path)
-                .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
             if record
                 .roles()
                 .contains(ExternalHirReferenceRoleV1::SignatureDependency)

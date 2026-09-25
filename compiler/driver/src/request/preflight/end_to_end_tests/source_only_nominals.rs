@@ -31,7 +31,6 @@ fn formal_publication_keeps_unrequested_nominals_as_complete_source_interfaces()
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )
@@ -84,7 +83,7 @@ fn source_only_objects_preserve_required_initialization_through_all_emitted_stag
             Vec::new(),
         );
         request.emit = StageDumpPolicy::Stage(kind);
-        let library = request.build_and_publish(DecodeLimits::default()).unwrap();
+        let library = request.build_and_publish().unwrap();
         let dump = library.emitted_dump().unwrap();
         let snapshot = directory.join(format!("initialization-demand.{stage}.snap"));
         if std::env::var_os("SCOOP_UPDATE_AUTOMATIC_SNAPSHOTS").is_some() {
@@ -103,7 +102,6 @@ fn source_only_objects_preserve_required_initialization_through_all_emitted_stag
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

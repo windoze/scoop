@@ -1,14 +1,10 @@
 use super::*;
 use crate::*;
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod layout;
 mod v2_producer;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn shape_link_subject_contract_matrix_is_closed() {
@@ -74,8 +70,7 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
 #[test]
 fn no_shape_support_never_grants_object_or_initialization_relations() {
     for (index, subject) in subjects().into_iter().enumerate() {
-        let result =
-            NoShapeLinkSupportV1.support_source(ConeIdentity::SINGLE_FILE, subject, &mut meter());
+        let result = NoShapeLinkSupportV1.support_source(ConeIdentity::SINGLE_FILE, subject);
         if index < 6 {
             assert!(result.unwrap().is_none());
         } else {
@@ -96,9 +91,6 @@ fn shape_link_contract_reader_rejects_unknown_tags_and_wrong_product_arity() {
         vec![0xa2, 0, 3, 1, 0],
         vec![0xa4, 0, 4],
     ] {
-        assert!(
-            decode_canonical::<DecodedShapeLinkContractV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedShapeLinkContractV1>(&bytes).is_err());
     }
 }

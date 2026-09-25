@@ -17,7 +17,7 @@ pub struct DecodedStrongStaticStorageSemanticProjectionV1 {
         DecodedStrongStaticStorageInitialStatePlanV1,
 }
 impl DecodedStrongStaticStorageSemanticProjectionV1 {
-    pub(super) fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    pub(super) fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(Self {
             storage: decoder.field(1, DecodedPersistentId::decode)?,
             storage_symbol: decoder.field(2, DecodedPersistentSymbolRequest::decode)?,
@@ -49,7 +49,7 @@ impl DecodedStrongStaticStorageSemanticProjectionV1 {
     }
 }
 impl WireDecode for DecodedStrongStaticStorageSemanticProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Self::decode_fields(decoder)
     }
@@ -67,38 +67,7 @@ impl DecodedStrongStaticStorageSemanticProjectionV1 {
     pub fn validate_against(
         self,
         expected: &crate::StrongStaticStorageSemanticPlanV1,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<(), StrongSemanticProjectionError> {
-        let path = scoop_wire::WirePath::root();
-        meter.charge_nodes(1, &path)?;
-        meter.charge_work(10, &path)?;
-        match (&self.scan_program, expected.scan_program()) {
-            (DecodedRefScan::None, crate::RefScan::None) => {}
-            (DecodedRefScan::References(actual), crate::RefScan::References(expected)) => {
-                meter.charge_work(
-                    (actual.len() as u64).saturating_add(expected.len() as u64),
-                    &path,
-                )?;
-            }
-            _ => return Err(StrongSemanticProjectionError::Mismatch),
-        }
-        if let DecodedStrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
-            initial_template,
-            immortal_relocations,
-        } = &self.initial_state
-        {
-            meter.charge_work(
-                (initial_template.len() as u64)
-                    .saturating_add((immortal_relocations.len() as u64).saturating_mul(3)),
-                &path,
-            )?;
-        }
-        meter.charge_work(
-            (expected.initial_state().initial_template().len() as u64).saturating_add(
-                (expected.initial_state().immortal_relocations().len() as u64).saturating_mul(3),
-            ),
-            &path,
-        )?;
-        compare_semantics(&self, &expected.semantic_projection(), meter)
+        compare_semantics(&self, &expected.semantic_projection())
     }
 }

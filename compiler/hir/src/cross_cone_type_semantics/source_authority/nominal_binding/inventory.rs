@@ -16,10 +16,7 @@ struct Inventory {
 pub(super) fn validate(
     foundation: &BoundTypeFoundationSourcesV1<'_>,
     table: &CanonicalNominalSourceContractsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    let path = WirePath::root();
-    binding_keys::charge_map(table.records().len(), meter, &path)?;
     let mut inventories: BTreeMap<_, _> = table
         .records()
         .iter()
@@ -35,7 +32,6 @@ pub(super) fn validate(
                 $records,
                 $include,
                 $insert,
-                meter,
             )?;
         };
     }
@@ -87,12 +83,7 @@ pub(super) fn validate(
     for record in table.records() {
         let expected = &inventories[&record.owner()];
         let members = record.members().values();
-        let count = members
-            .len()
-            .saturating_add(record.constructors().values().len())
-            .saturating_add(record.children().values().len());
-        meter.check_table_entries(count as u64, &path)?;
-        meter.charge_work((count as u64).saturating_mul(3), &path)?;
+
         if !expected
             .constructors
             .iter()
@@ -141,17 +132,14 @@ fn scan<I>(
     records: &[CborIdentityRecord<I, SourceDeclarationKey>],
     include: impl Fn(PublicNominalKindV1) -> bool,
     mut insert: impl FnMut(&mut Inventory, I),
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error>
 where
     I: PersistentId + 'static,
     SourceDeclarationKey: CborIdentityKey<I>,
 {
-    let path = WirePath::root();
     // At most one inventory entry is allocated per scanned artifact record.
-    binding_keys::charge_map(records.len(), meter, &path)?;
+
     for record in records {
-        queries(inventories.len(), meter)?;
         let key = record.key();
         let Some(owner) = direct_owner(key) else {
             continue;
@@ -162,8 +150,8 @@ where
         if !include(source.kind()) {
             continue;
         }
-        binding_keys::verify(record.id(), key, foundation.identities, meter, &path)?;
-        NominalRepresentationSupportV1::charge_source_key_resources(key, meter, &path)?;
+        binding_keys::verify(record.id(), key, foundation.identities)?;
+
         let parent = foundation.nominal_key(owner)?;
         let chain = key.owners().owners();
         if key.origin() != foundation.source().entries().provider

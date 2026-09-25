@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::{
@@ -164,7 +162,7 @@ impl WireEncode for DecodedDefaultLocalFunctionV1 {
 }
 
 impl WireDecode for DecodedDefaultLocalFunctionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,

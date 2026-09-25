@@ -19,11 +19,9 @@ fn default_local_dependencies_project_the_expanded_provider_binders() {
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
-                let bound = parameters
-                    .bind_default_declarations(&table, &[], &mut meter())
-                    .unwrap();
+                let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
                 let mut captures = 0;
                 for contract in bound.declarations() {
                     let template = table.get(contract.key()).unwrap();

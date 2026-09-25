@@ -7,12 +7,11 @@ use DefaultSourceReferencesProductionError as Error;
 pub use errors::DefaultSourceReferencesProductionError;
 
 pub(super) fn project(
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_>,
     provider: CallableTemplateOrigin,
     binders: &[HirSignatureBinder],
     source: &ExportDefaultReferences,
 ) -> Result<DefaultSourceReferencesV1, Error> {
-    let _depth = entities.resources.enter::<DefaultSourceReferencesV1>()?;
     let callables = sequence(
         entities,
         provider,
@@ -104,7 +103,7 @@ pub(super) fn project(
 }
 
 fn sequence<'a, S, T>(
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_>,
     provider: CallableTemplateOrigin,
     source: impl ExactSizeIterator<Item = (S, DefinitionOrigin, &'a ExportDefaultAccessWitness)>,
     kind: ExportDefaultReferenceKindV1,
@@ -112,12 +111,9 @@ fn sequence<'a, S, T>(
 ) -> Result<Vec<DefaultSourceReferenceV1<T>>, Error> {
     u32::try_from(source.len())
         .map_err(|_| Error::Build(DefaultSourceReferencesBuildError::TooMany(kind)))?;
-    entities
-        .resources
-        .collection::<DefaultSourceReferenceV1<T>>(source.len())?;
+
     let mut records = Vec::with_capacity(source.len());
     for (index, (source_target, source_origin, source_witness)) in source.enumerate() {
-        let _depth = entities.resources.enter::<DefaultSourceReferenceV1<T>>()?;
         let actual = entities.parameter_owner(source_witness.owner)?;
         if actual != provider {
             return Err(Error::Provider {
@@ -128,22 +124,15 @@ fn sequence<'a, S, T>(
             });
         }
         let target = target(source_target)?;
-        entities.charge_origin(source_origin)?;
+
         let origin = super::super::definition_sources::project_definition_source(
             entities.export(),
             source_origin,
         )
         .map_err(Error::DefinitionOrigin)?;
-        let witness = entities
-            .resources
-            .with_fallible_meter(|meter, _| {
-                DefaultSourceAccessWitnessV1::from_export_hir(
-                    entities.export(),
-                    source_witness,
-                    meter,
-                )
-            })
-            .map_err(Error::Access)?;
+        let witness =
+            { DefaultSourceAccessWitnessV1::from_export_hir(entities.export(), source_witness) }
+                .map_err(Error::Access)?;
         records.push(DefaultSourceReferenceV1::new(target, origin, witness));
     }
     Ok(records)

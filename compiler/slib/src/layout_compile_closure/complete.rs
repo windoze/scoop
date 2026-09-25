@@ -7,8 +7,8 @@ use crate::{
 };
 
 impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
-    /// Replays all shared semantic stages with each artifact's original budget.
-    /// Object, physical-import and two-view publication checks remain required.
+    /// Checks the shared semantic records in the decoded dependency closure.
+    /// Link consumption additionally checks objects and physical imports.
     pub fn replay_semantics(
         self,
     ) -> Result<

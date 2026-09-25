@@ -1,6 +1,6 @@
 use super::*;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn interface_application(
         &self,
         ty: TypeId,
@@ -46,7 +46,7 @@ impl Projection<'_, '_> {
         &mut self,
         application: InterfaceApplicationId,
     ) -> Result<Vec<InterfaceMethodId>, Error> {
-        crate::production::nominal_dispatch::Projection::new(self.export, self.meter)
+        crate::production::nominal_dispatch::Projection::new(self.export)
             .interface_members(application)
     }
 
@@ -54,7 +54,7 @@ impl Projection<'_, '_> {
         &mut self,
         application: InterfaceApplicationId,
     ) -> Result<Vec<InterfaceApplicationId>, Error> {
-        let result = crate::production::nominal_dispatch::Projection::new(self.export, self.meter)
+        let result = crate::production::nominal_dispatch::Projection::new(self.export)
             .interface_postorder(application)?;
         for application in &result {
             exact(

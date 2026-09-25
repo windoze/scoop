@@ -56,15 +56,13 @@ fn generic_source_root_preserves_binders_without_an_exact_inheritance_node() {
     .unwrap();
     let record = ProtectedNestedNominalInterfaceV1::try_new(owner, access, payload).unwrap();
     let bytes = encode(&record).unwrap();
-    let decoded: DecodedProtectedNestedNominalInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+    let decoded: DecodedProtectedNestedNominalInterfaceV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
     let graph_source = fixture.graph.clone();
     let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
         graph_source.records.values(),
         graph_source.keys.keys().copied(),
         &graph_source,
-        &mut meter(),
     )
     .unwrap();
     assert!(graph.source_exact(owner).is_err());
@@ -73,7 +71,6 @@ fn generic_source_root_preserves_binders_without_an_exact_inheritance_node() {
             &graph,
             &CanonicalNominalRepresentationSupportV1::default(),
             &mut fixture,
-            &mut meter(),
         )
         .unwrap();
     fixture.nominal_sources.get_mut(&owner).unwrap().modality = NominalInheritanceModalityV1::Open;
@@ -81,8 +78,7 @@ fn generic_source_root_preserves_binders_without_an_exact_inheritance_node() {
         record.validate_source(
             &graph,
             &CanonicalNominalRepresentationSupportV1::default(),
-            &mut fixture,
-            &mut meter()
+            &mut fixture
         ),
         Err(NestedSourceSemanticError::Modality)
     ));

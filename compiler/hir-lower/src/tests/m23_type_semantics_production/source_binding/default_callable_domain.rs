@@ -7,7 +7,7 @@ mod dependencies;
 mod rejection;
 mod repeated;
 mod replacement;
-mod resources;
+
 pub(super) mod support;
 use support::with_inputs;
 
@@ -26,8 +26,8 @@ fn callable_domains_replay_declarations_nested_targets_equality_and_inherited_de
     for (name, source) in [("standalone", SOURCE), ("combinations", COMBINATIONS)] {
         with_inputs(source, |inputs| {
             inputs.with_bound(|domains, parameters, _| {
-                let declarations = parameters.bind_default_declarations(&inputs.templates, &[], &mut meter()).unwrap();
-                let proof = domains.bind_nominal_default_callable_domains(&declarations, &mut meter()).unwrap();
+                let declarations = parameters.bind_default_declarations(&inputs.templates, &[]).unwrap();
+                let proof = domains.bind_nominal_default_callable_domains(&declarations).unwrap();
                 assert!(std::ptr::eq(proof.declarations(), &declarations));
                 let mut counts = [0; 10];
                 let mut constrained = 0;

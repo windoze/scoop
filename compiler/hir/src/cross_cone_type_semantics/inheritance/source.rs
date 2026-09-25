@@ -1,5 +1,4 @@
 use scoop_identity::{ConeIdentity, SourceDeclarationKey};
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
     CheckedInheritanceSourceV1, CheckedNominalInheritanceGraphV1, InheritanceGraphError,
@@ -17,16 +16,7 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
         source: &'s DeclarationAccessSourceV1,
         key: &'s SourceDeclarationKey,
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedDeclarationAccessSourceV1<'s>, InheritanceGraphError<E>> {
-        let count = source.lexical_owners().len() as u64;
-        let path = WirePath::root();
-        meter
-            .check_semantic_depth(count.saturating_add(1), &path)
-            .map_err(InheritanceGraphError::Resource)?;
-        meter
-            .charge_work(count.saturating_add(1).saturating_pow(2), &path)
-            .map_err(InheritanceGraphError::Resource)?;
         for owner in source.lexical_owners() {
             if self.source(*owner).is_none() {
                 return Err(InheritanceGraphError::Source {
@@ -48,32 +38,17 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
         &mut self,
         owner: SourceNominalId,
         authority: &'a A,
-        meter: &mut BudgetMeter,
-        depth: u64,
     ) -> Result<(), InheritanceGraphError<E>>
     where
         A: NominalInheritanceSemanticAuthority<E>,
     {
-        let path = WirePath::root();
-        meter
-            .check_semantic_depth(depth, &path)
-            .map_err(InheritanceGraphError::Resource)?;
-        meter
-            .charge_work(1, &path)
-            .map_err(InheritanceGraphError::Resource)?;
         if self.sources.contains_key(&owner) {
             return Ok(());
         }
         let key = authority
             .nominal_declaration_key(owner)
             .map_err(InheritanceGraphError::Foundation)?;
-        let owner_count = key.owners().owners().len() as u64;
-        meter
-            .check_semantic_depth(owner_count.saturating_add(1), &path)
-            .map_err(InheritanceGraphError::Resource)?;
-        meter
-            .charge_work(owner_count.saturating_add(1).saturating_pow(2), &path)
-            .map_err(InheritanceGraphError::Resource)?;
+
         if SourceNominalId::from_source_declaration(key).ok() != Some(owner) {
             return Err(InheritanceGraphError::SourceIdentity(owner));
         }
@@ -91,21 +66,14 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
             authority,
             cone: key.origin(),
         };
-        meter
-            .charge_edges(access.lexical_owners().len() as u64, &path)
-            .map_err(InheritanceGraphError::Resource)?;
+
         access
             .validate_for_declaration(key, &mut scoped)
             .map_err(|error| InheritanceGraphError::Source { owner, error })?;
         for ancestor in access.lexical_owners() {
-            self.validate_source(*ancestor, authority, meter, depth + 1)?;
+            self.validate_source(*ancestor, authority)?;
         }
-        meter
-            .charge_nodes(1, &path)
-            .map_err(InheritanceGraphError::Resource)?;
-        meter
-            .charge_collection_slots(1, &path)
-            .map_err(InheritanceGraphError::Resource)?;
+
         self.sources
             .insert(owner, CheckedInheritanceSourceV1 { key, access });
         Ok(())

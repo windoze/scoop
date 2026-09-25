@@ -5,7 +5,7 @@ use scoop_identity::{
     ExactTypeKey, GeneratedNominalKey, PersistentExactTypeId, PersistentTypeId,
     SourceDeclarationKey, SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::{
     CheckedInheritanceNodeV1, CheckedNominalInheritanceGraphV1, DirectClassBaseV1,
@@ -42,12 +42,11 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
     pub fn validate<A, E>(
         records: impl IntoIterator<Item = &'a NominalInheritanceEdgesV1>,
         authority: &'a A,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, InheritanceGraphError<E>>
     where
         A: NominalInheritanceSemanticAuthority<E>,
     {
-        Self::validate_with_source_roots(records, std::iter::empty(), authority, meter)
+        Self::validate_with_source_roots(records, std::iter::empty(), authority)
     }
 
     /// Source roots preserve generic declaration metadata without creating an
@@ -57,7 +56,6 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
         records: impl IntoIterator<Item = &'a NominalInheritanceEdgesV1>,
         source_roots: impl IntoIterator<Item = SourceNominalId>,
         authority: &'a A,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, InheritanceGraphError<E>>
     where
         A: NominalInheritanceSemanticAuthority<E>,
@@ -67,17 +65,8 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
             sources: Default::default(),
             object_backings: Default::default(),
         };
-        let path = WirePath::root();
+
         for record in records {
-            meter
-                .charge_nodes(1, &path)
-                .map_err(InheritanceGraphError::Resource)?;
-            meter
-                .charge_collection_slots(1, &path)
-                .map_err(InheritanceGraphError::Resource)?;
-            meter
-                .charge_work(1, &path)
-                .map_err(InheritanceGraphError::Resource)?;
             let exact = record.owner();
             let key = authority
                 .exact_type_key(exact)
@@ -89,11 +78,11 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
                 return Err(InheritanceGraphError::ExactIdentity(exact));
             }
             let source = SourceNominalId::Concrete(*id);
-            graph.validate_source(source, authority, meter, 1)?;
+            graph.validate_source(source, authority)?;
             let kind = graph.sources[&source].key.declaration_kind();
             validate_kind(record, kind)?;
             if kind == SourceDeclarationKind::Object {
-                graph.validate_object(exact, *id, authority, meter)?;
+                graph.validate_object(exact, *id, authority)?;
             }
             if graph
                 .nodes
@@ -110,24 +99,20 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
             }
         }
         for source in source_roots {
-            graph.validate_source(source, authority, meter, 1)?;
+            graph.validate_source(source, authority)?;
         }
-        graph.validate_edges(meter)?;
+        graph.validate_edges()?;
         let mut active = BTreeSet::new();
         let mut complete = BTreeSet::new();
         for exact in graph.nodes.keys() {
-            graph.visit(*exact, &mut active, &mut complete, meter, 1)?;
+            graph.visit(*exact, &mut active, &mut complete)?;
         }
         Ok(graph)
     }
 
-    fn validate_edges<E>(&self, meter: &mut BudgetMeter) -> Result<(), InheritanceGraphError<E>> {
-        let path = WirePath::root();
+    fn validate_edges<E>(&self) -> Result<(), InheritanceGraphError<E>> {
         for (owner, node) in &self.nodes {
             if let DirectClassBaseV1::ClassBase { exact } = node.edges.direct_base() {
-                meter
-                    .charge_edges(1, &path)
-                    .map_err(InheritanceGraphError::Resource)?;
                 let base = self
                     .nodes
                     .get(&exact)
@@ -146,9 +131,7 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
                     });
                 }
             }
-            meter
-                .charge_edges(node.edges.direct_interfaces().len() as u64, &path)
-                .map_err(InheritanceGraphError::Resource)?;
+
             for interface in node.edges.direct_interfaces() {
                 let target = self
                     .nodes
@@ -170,32 +153,21 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
         exact: PersistentExactTypeId,
         active: &mut BTreeSet<PersistentExactTypeId>,
         complete: &mut BTreeSet<PersistentExactTypeId>,
-        meter: &mut BudgetMeter,
-        depth: u64,
     ) -> Result<(), InheritanceGraphError<E>> {
-        let path = WirePath::root();
-        meter
-            .charge_work(1, &path)
-            .map_err(InheritanceGraphError::Resource)?;
-        meter
-            .check_semantic_depth(depth, &path)
-            .map_err(InheritanceGraphError::Resource)?;
         if complete.contains(&exact) {
             return Ok(());
         }
         if active.contains(&exact) {
             return Err(InheritanceGraphError::Cycle(exact));
         }
-        meter
-            .charge_collection_slots(2, &path)
-            .map_err(InheritanceGraphError::Resource)?;
+
         active.insert(exact);
         let edges = self.nodes[&exact].edges;
         if let DirectClassBaseV1::ClassBase { exact } = edges.direct_base() {
-            self.visit(exact, active, complete, meter, depth + 1)?;
+            self.visit(exact, active, complete)?;
         }
         for interface in edges.direct_interfaces() {
-            self.visit(*interface, active, complete, meter, depth + 1)?;
+            self.visit(*interface, active, complete)?;
         }
         active.remove(&exact);
         complete.insert(exact);

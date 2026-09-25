@@ -27,11 +27,7 @@ fn default_access_sources_reject_local_callable_owner_chains() {
             .unwrap();
         let subject = function(export, &local.name);
         assert!(matches!(
-            Table::from_export_hir(
-                &output.output().export,
-                &BTreeSet::from([subject]),
-                &mut meter()
-            ),
+            Table::from_export_hir(&output.output().export, &BTreeSet::from([subject])),
             Err(hir::CrossConeTypeSemanticsProductionError::InvalidLexicalOwner(_))
         ));
     });
@@ -59,11 +55,7 @@ fn default_access_declarations_reject_foreign_missing_roles_and_const_accessors(
         );
         for subject in [foreign, missing, constant] {
             assert!(matches!(
-                Table::from_export_hir(
-                    &output.output().export,
-                    &BTreeSet::from([subject]),
-                    &mut meter()
-                ),
+                Table::from_export_hir(&output.output().export, &BTreeSet::from([subject])),
                 Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
             ));
         }
@@ -75,7 +67,7 @@ fn default_access_declarations_reject_foreign_missing_roles_and_const_accessors(
             .unwrap()
             .subject();
         assert!(
-            matches!(Table::from_export_hir(&output.output().export, &BTreeSet::from([field]), &mut meter()),
+            matches!(Table::from_export_hir(&output.output().export, &BTreeSet::from([field])),
             Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(hir::SourceInventoryError::InvalidDefaultAccessSubject(id))) if id == field)
         );
         assert!(
@@ -83,71 +75,4 @@ fn default_access_declarations_reject_foreign_missing_roles_and_const_accessors(
             Err(hir::SourceInventoryError::InvalidDefaultAccessSubject(id)) if id == field)
         );
     });
-}
-
-#[test]
-fn default_access_projection_and_resolution_use_shared_resource_budgets() {
-    for source in [SOURCE, COMBINATIONS] {
-        with_hir_source(source, |output, _| {
-            let required = required(output.output().export.module());
-            let mut measured = meter();
-            let table =
-                Table::from_export_hir(&output.output().export, &required, &mut measured).unwrap();
-            let work = measured.usage().validation_work_units;
-            let mut shared = BudgetMeter::new(DecodeLimits {
-                validation_work_units: work * 2 - 1,
-                ..DecodeLimits::default()
-            });
-            Table::from_export_hir(&output.output().export, &required, &mut shared).unwrap();
-            assert!(
-                Table::from_export_hir(&output.output().export, &required, &mut shared).is_err()
-            );
-            let decoded: Decoded =
-                decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
-            let mut ids = identity_closure(output);
-            for limits in [
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    decoded_nodes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_table_entries: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_recursion: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_leaf_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    Table::from_export_hir(
-                        &output.output().export,
-                        &required,
-                        &mut BudgetMeter::new(limits)
-                    )
-                    .is_err(),
-                    "{limits:?}"
-                );
-                assert!(
-                    decoded
-                        .clone()
-                        .resolve(&mut ids, &mut BudgetMeter::new(limits))
-                        .is_err(),
-                    "{limits:?}"
-                );
-            }
-        });
-    }
 }

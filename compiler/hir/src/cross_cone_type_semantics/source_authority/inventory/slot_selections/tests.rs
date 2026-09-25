@@ -1,16 +1,13 @@
 use super::*;
 use crate::{InheritanceCallableDeclarationV1, InheritanceSourceSlotSelectionV1 as Selection};
 use scoop_identity::{AccessorRole, PersistentId};
-use scoop_wire::{DecodeLimits, WireDecode, decode_canonical, encode};
+use scoop_wire::{WireDecode, decode_canonical, encode};
 
 mod fixture;
 use fixture::Fixture;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 #[test]
@@ -25,7 +22,7 @@ fn selection_wire_preserves_abstract_concrete_default_and_callable_roles() {
         };
         assert_eq!(encode(&selection).unwrap(), expected);
         let decoded_selection: DecodedInheritanceSourceSlotSelectionV1 =
-            decode_canonical(&expected, DecodeLimits::default()).unwrap();
+            decode_canonical(&expected).unwrap();
         assert_eq!(encode(&decoded_selection).unwrap(), expected);
         let record = InheritanceSourceSlotSelectionRecordV1::new(
             fixture.owners[0],
@@ -42,10 +39,9 @@ fn selection_wire_preserves_abstract_concrete_default_and_callable_roles() {
         ]
         .concat();
         assert_eq!(encode(&record).unwrap(), expected_record);
-        let table = CanonicalInheritanceSourceSlotSelectionsV1::try_new(vec![record], &mut meter())
-            .unwrap();
+        let table = CanonicalInheritanceSourceSlotSelectionsV1::try_new(vec![record]).unwrap();
         let decoded: DecodedCanonicalInheritanceSourceSlotSelectionsV1 = decoded(&table);
-        assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), table);
+        assert_eq!(decoded.resolve(&mut fixture).unwrap(), table);
     }
 }
 
@@ -72,13 +68,10 @@ fn slot_choices_sort_by_owner_then_slot_and_allow_different_choices_per_owner() 
             )
         })
         .collect();
-    let table =
-        CanonicalInheritanceSourceSlotSelectionsV1::try_new(records.clone(), &mut meter()).unwrap();
-    let reversed = CanonicalInheritanceSourceSlotSelectionsV1::try_new(
-        records.into_iter().rev().collect(),
-        &mut meter(),
-    )
-    .unwrap();
+    let table = CanonicalInheritanceSourceSlotSelectionsV1::try_new(records.clone()).unwrap();
+    let reversed =
+        CanonicalInheritanceSourceSlotSelectionsV1::try_new(records.into_iter().rev().collect())
+            .unwrap();
     assert_eq!(encode(&table).unwrap(), encode(&reversed).unwrap());
     assert!(
         table
@@ -94,7 +87,7 @@ fn slot_choices_sort_by_owner_then_slot_and_allow_different_choices_per_owner() 
     }
     let decoded: DecodedCanonicalInheritanceSourceSlotSelectionsV1 = decoded(&table);
     assert_eq!(encode(&decoded).unwrap(), encode(&table).unwrap());
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), table);
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), table);
     let empty = CanonicalInheritanceSourceSlotSelectionsV1::default();
     assert_eq!(encode(&empty).unwrap(), [0x80]);
     assert_eq!(empty.get(fixture.owners[0], fixture.slots[0]), None);
@@ -115,7 +108,7 @@ fn duplicate_and_reversed_source_decisions_are_rejected_without_repair() {
     );
     for second in [record, changed] {
         assert!(matches!(
-            CanonicalInheritanceSourceSlotSelectionsV1::try_new(vec![record, second], &mut meter()),
+            CanonicalInheritanceSourceSlotSelectionsV1::try_new(vec![record, second]),
             Err(SourceInventoryError::NonCanonicalOrder { index: 1, .. })
         ));
         let bytes = [
@@ -125,9 +118,9 @@ fn duplicate_and_reversed_source_decisions_are_rejected_without_repair() {
         ]
         .concat();
         let decoded: DecodedCanonicalInheritanceSourceSlotSelectionsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture, &mut meter()),
+            decoded.resolve(&mut fixture),
             Err(SourceInventoryError::NonCanonicalOrder { index: 1, .. })
         ));
     }
@@ -145,9 +138,9 @@ fn duplicate_and_reversed_source_decisions_are_rejected_without_repair() {
     ]
     .concat();
     let decoded: DecodedCanonicalInheritanceSourceSlotSelectionsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(SourceInventoryError::NonCanonicalOrder { index: 1, .. })
     ));
 }
@@ -162,13 +155,7 @@ fn source_choice_wire_rejects_unknown_tags_and_inexact_products() {
         vec![0xa2, 0, 1, 1, 0],
         vec![0xa2, 0, 2, 1, 0xa2, 0, 4, 1, 0],
     ] {
-        assert!(
-            decode_canonical::<DecodedInheritanceSourceSlotSelectionV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedInheritanceSourceSlotSelectionV1>(&bytes).is_err());
     }
     let fixture = Fixture::new();
     let record = InheritanceSourceSlotSelectionRecordV1::new(
@@ -179,68 +166,6 @@ fn source_choice_wire_rejects_unknown_tags_and_inexact_products() {
     for header in [0xa2, 0xa4] {
         let mut bytes = encode(&record).unwrap();
         bytes[0] = header;
-        assert!(
-            decode_canonical::<DecodedInheritanceSourceSlotSelectionRecordV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
-    }
-}
-
-#[test]
-fn resolver_checks_each_typed_reference_and_shared_budget_before_queries() {
-    let source = Fixture::new();
-    let record = InheritanceSourceSlotSelectionRecordV1::new(
-        source.owners[0],
-        source.slots[0],
-        source.selections()[1],
-    );
-    let table =
-        CanonicalInheritanceSourceSlotSelectionsV1::try_new(vec![record], &mut meter()).unwrap();
-    for field in [1, 2, 3] {
-        let mut resolver = Fixture::new();
-        match field {
-            1 => resolver.inner.inheritance.exacts.clear(),
-            2 => resolver.inner.slots.clear(),
-            3 => resolver.inner.functions.clear(),
-            _ => unreachable!(),
-        }
-        let decoded: DecodedCanonicalInheritanceSourceSlotSelectionsV1 = decoded(&table);
-        assert!(matches!(
-            decoded.resolve(&mut resolver, &mut meter()),
-            Err(SourceInventoryError::Reference(_))
-        ));
-    }
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 2,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let mut resolver = Fixture::new();
-        let decoded: DecodedCanonicalInheritanceSourceSlotSelectionsV1 = decoded(&table);
-        assert!(matches!(
-            decoded.resolve(&mut resolver, &mut BudgetMeter::new(limits)),
-            Err(SourceInventoryError::Resource(_))
-        ));
-        assert_eq!(resolver.queries, 0);
+        assert!(decode_canonical::<DecodedInheritanceSourceSlotSelectionRecordV1>(&bytes).is_err());
     }
 }

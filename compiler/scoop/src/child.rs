@@ -13,8 +13,6 @@ use scoop_slib::FingerprintAvailability;
 
 use crate::{PairedCompilerError, ResolvedPairedScoopc, ValidatedCrossConeArtifactHandle};
 
-const FRAME_PREFIX_BYTES: usize = 8;
-const MAX_CHILD_STDERR_BYTES: u64 = 65_536;
 const COMPILER_FAILURE_EXIT_CODE: i32 = 1;
 
 #[derive(Debug, Default)]
@@ -81,16 +79,8 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
             .stderr
             .take()
             .ok_or(ChildTransportError::MissingPipe("stderr"))?;
-        let stdout_thread = std::thread::spawn(move || {
-            read_bounded_stream(
-                stdout,
-                "stdout",
-                child_stdout_limit().ok_or(ChildTransportError::StreamLengthOverflow("stdout"))?,
-            )
-        });
-        let stderr_thread = std::thread::spawn(move || {
-            read_bounded_stream(stderr, "stderr", MAX_CHILD_STDERR_BYTES)
-        });
+        let stdout_thread = std::thread::spawn(move || read_stream(stdout, "stdout"));
+        let stderr_thread = std::thread::spawn(move || read_stream(stderr, "stderr"));
         let write_result = child
             .stdin
             .take()
@@ -273,12 +263,6 @@ fn check_child_field(
     }
 }
 
-fn child_stdout_limit() -> Option<u64> {
-    scoop_protocol::PROTOCOL_MAX_FRAME_BYTES
-        .checked_add(FRAME_PREFIX_BYTES)
-        .and_then(|limit| u64::try_from(limit).ok())
-}
-
 fn join_reader(
     thread: std::thread::JoinHandle<Result<Vec<u8>, ChildTransportError>>,
     name: &'static str,
@@ -288,28 +272,11 @@ fn join_reader(
         .map_err(|_| ChildTransportError::ReaderPanicked(name))?
 }
 
-fn read_bounded_stream(
-    stream: impl Read,
-    name: &'static str,
-    limit: u64,
-) -> Result<Vec<u8>, ChildTransportError> {
-    let read_limit = limit
-        .checked_add(1)
-        .ok_or(ChildTransportError::StreamLengthOverflow(name))?;
+fn read_stream(mut stream: impl Read, name: &'static str) -> Result<Vec<u8>, ChildTransportError> {
     let mut bytes = Vec::new();
     stream
-        .take(read_limit)
         .read_to_end(&mut bytes)
         .map_err(|source| ChildTransportError::ReadStream { name, source })?;
-    let observed =
-        u64::try_from(bytes.len()).map_err(|_| ChildTransportError::StreamLengthOverflow(name))?;
-    if observed > limit {
-        return Err(ChildTransportError::StreamTooLarge {
-            name,
-            limit,
-            observed,
-        });
-    }
     Ok(bytes)
 }
 
@@ -360,12 +327,6 @@ pub enum ChildTransportError {
         name: &'static str,
         source: std::io::Error,
     },
-    StreamLengthOverflow(&'static str),
-    StreamTooLarge {
-        name: &'static str,
-        limit: u64,
-        observed: u64,
-    },
     ReaderPanicked(&'static str),
     Response {
         status: ExitStatus,
@@ -412,17 +373,6 @@ impl fmt::Display for ChildTransportError {
             Self::ReadStream { name, source } => {
                 write!(formatter, "cannot read child {name}: {source}")
             }
-            Self::StreamLengthOverflow(name) => {
-                write!(formatter, "child {name} byte limit overflowed")
-            }
-            Self::StreamTooLarge {
-                name,
-                limit,
-                observed,
-            } => write!(
-                formatter,
-                "child {name} exceeds byte limit {limit}: observed {observed}"
-            ),
             Self::ReaderPanicked(name) => write!(formatter, "child {name} reader panicked"),
             Self::Response {
                 status,
@@ -463,8 +413,6 @@ impl std::error::Error for ChildTransportError {
             Self::Response { source, .. } => Some(source),
             Self::MissingExecutableParent { .. }
             | Self::MissingPipe(_)
-            | Self::StreamLengthOverflow(_)
-            | Self::StreamTooLarge { .. }
             | Self::ReaderPanicked(_)
             | Self::RequestIdMismatch { .. }
             | Self::UnexpectedStderr(_)

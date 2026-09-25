@@ -1,6 +1,5 @@
 use super::*;
 use scoop_identity::{NominalDeclarationOwner, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 const SHAPES: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -68,15 +67,13 @@ fn shared_public_and_source_contract_producers_preserve_every_intrinsic_family()
         }
     }
     assert_eq!(expected.len(), 14);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let required = hir::CanonicalSourceNominalIdsV1::try_new(
         expected.iter().map(|(owner, _, _)| *owner).collect(),
-        &mut meter,
     )
     .unwrap();
     let contracts =
-        hir::CanonicalNominalSourceContractsV1::from_export_hir(&module, &required, &mut meter)
-            .unwrap();
+        hir::CanonicalNominalSourceContractsV1::from_export_hir(&module, &required).unwrap();
     let mut dump = Vec::new();
     for (owner, name, family) in expected {
         let record = public.get(owner).unwrap();

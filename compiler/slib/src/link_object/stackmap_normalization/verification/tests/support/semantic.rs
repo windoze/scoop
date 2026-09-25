@@ -125,11 +125,9 @@ fn complete_registration_production_uses_the_closed_eight_field_shape() {
     let inputs = inputs(Corruption::None);
     let encoded = scoop_wire::encode(&inputs.registration_production).unwrap();
     assert_eq!(encoded[0], 0xa8);
-    let decoded = scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
-        &encoded,
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(&encoded)
+            .unwrap();
     assert_eq!(scoop_wire::encode(&decoded).unwrap(), encoded);
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(inputs.module.cone, Vec::new()).unwrap();
@@ -148,7 +146,6 @@ fn complete_registration_production_uses_the_closed_eight_field_shape() {
     assert!(
         scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
             &old_identity_only,
-            scoop_wire::DecodeLimits::default(),
         )
         .is_err()
     );
@@ -167,11 +164,9 @@ fn registration_production_rejects_a_stale_derived_plan_identity() {
         .position(|bytes| bytes == stale.as_array())
         .unwrap();
     encoded[offset] ^= 1;
-    let decoded = scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
-        &encoded,
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(&encoded)
+            .unwrap();
 
     assert!(
         decoded

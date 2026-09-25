@@ -9,7 +9,7 @@ impl Graph<'_> {
         source: &crate::CallableDeclarationRecordV1,
         metadata: SharedTypeMetadataV1<'_>,
         call: &crate::HirDependencyCallSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Error> {
         let Some(owner) = source.owner().nominal_owner() else {
@@ -18,10 +18,6 @@ impl Graph<'_> {
         let declaration = match source.declaration() {
             CallableTemplateOrigin::Function(id) => Member::Function(id),
             CallableTemplateOrigin::Accessor(id) => {
-                meter.charge_work(
-                    1 + u64::from(metadata.identities.identity_count().max(1).ilog2()),
-                    path,
-                )?;
                 let key = metadata
                     .identities
                     .canonical_key::<_, PropertyAccessorKey>(id)?;
@@ -40,7 +36,7 @@ impl Graph<'_> {
         let SourceNominalId::Concrete(owner) = owner else {
             return Err(Error::NonConcreteSignature);
         };
-        let (provider, owner_exact) = self.resolve_nominal(owner, meter)?;
+        let (provider, owner_exact) = self.resolve_nominal(owner)?;
         if provider != metadata.provider {
             return Err(Error::CallableContract(source.declaration()));
         }
@@ -52,18 +48,15 @@ impl Graph<'_> {
         let SourceCallReceiver::Receiver { static_type } = call.receiver() else {
             return Err(invalid());
         };
-        meter.charge_work(
-            1 + u64::from(self.current.identities.identity_count().max(1).ilog2()),
-            path,
-        )?;
+
         if !matches!(
             self.current
                 .identities
                 .canonical_key::<_, ExactTypeKey>(static_type)?
                 .as_ref(),
             ExactTypeKey::Nominal(_)
-        ) || !is_nominal_ancestor(static_type, owner_exact, meter, path, |current, meter| {
-            self.source_receiver_parents(current, meter, path)
+        ) || !is_nominal_ancestor(static_type, owner_exact, path, |current| {
+            self.source_receiver_parents(current, path)
         })? {
             return Err(invalid());
         }
@@ -75,7 +68,6 @@ impl Graph<'_> {
                 receiver: static_type,
                 declaration,
             },
-            meter,
         )
     }
 }

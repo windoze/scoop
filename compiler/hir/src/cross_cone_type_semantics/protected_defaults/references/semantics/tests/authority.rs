@@ -14,7 +14,6 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<&'static str> for Authority 
     fn default_access_profile(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
-        _meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, &'static str> {
         if key != self.key {
             return Err("unknown source default");
@@ -51,12 +50,7 @@ impl Authority {
     fn validate(
         &mut self,
         source_use: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), &'static str> {
-        meter
-            .charge_work(1, path)
-            .map_err(|_| "source work budget")?;
         if source_use.owner.key() != self.key || source_use.template.key() != self.key {
             return Err("wrong typed source owner");
         }
@@ -91,24 +85,24 @@ impl ProtectedDefaultReferenceAccessSemanticAuthority<&'static str> for Authorit
         &mut self,
         source_use: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
         graph: &'g CheckedNominalInheritanceGraphV1<'a>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
+
+        _path: &WirePath,
     ) -> Result<CheckedPersistentAccessDomainV1<'g, 'a>, &'static str> {
-        self.validate(source_use, meter, path)?;
+        self.validate(source_use)?;
         self.concrete += 1;
         let target = graph
-            .replay_nominal_access(self.target, meter)
+            .replay_nominal_access(self.target)
             .map_err(|_| "target source domain")?;
         graph
-            .validate_access_domain(target.lookup().domain(), meter)
+            .validate_access_domain(target.lookup().domain())
             .map_err(|_| "target graph domain")
     }
     fn validate_generic_default_reference(
         &mut self,
         source_use: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
+
+        _path: &WirePath,
     ) -> Result<(), &'static str> {
-        self.validate(source_use, meter, path)
+        self.validate(source_use)
     }
 }

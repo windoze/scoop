@@ -7,10 +7,7 @@ fn source_inventory_rejects_duplicate_and_out_of_order_owner_records() {
     let first = &source.records()[0];
     let second = &source.records()[1];
     assert!(matches!(
-        CanonicalSourceInheritanceInventoriesV1::try_new(
-            vec![first.clone(), first.clone()],
-            &mut meter()
-        ),
+        CanonicalSourceInheritanceInventoriesV1::try_new(vec![first.clone(), first.clone()]),
         Err(SourceInventoryError::NonCanonicalOrder { index: 1, .. })
     ));
     for pair in [[first, first], [second, first]] {
@@ -21,9 +18,9 @@ fn source_inventory_rejects_duplicate_and_out_of_order_owner_records() {
         ]
         .concat();
         let decoded: DecodedCanonicalSourceInheritanceInventoriesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut bundle.fixture, &mut meter()),
+            decoded.resolve(&mut bundle.fixture),
             Err(SourceInventoryError::NonCanonicalOrder { index: 1, .. })
         ));
     }
@@ -45,8 +42,7 @@ fn constructors_are_not_accepted_as_protected_members_in_source_or_wire() {
             base.owner(),
             base.constructors().clone(),
             members.clone(),
-            base.slot_schemas().clone(),
-            &mut meter()
+            base.slot_schemas().clone()
         ),
         Err(SourceInventoryError::ConstructorInMembers { .. })
     ));
@@ -61,49 +57,11 @@ fn constructors_are_not_accepted_as_protected_members_in_source_or_wire() {
         encode(base.slot_schemas()).unwrap(),
     ]
     .concat();
-    let decoded: DecodedSourceInheritanceInventoryV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedSourceInheritanceInventoryV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut bundle.fixture, &mut meter()),
+        decoded.resolve(&mut bundle.fixture),
         Err(SourceInventoryError::ConstructorInMembers { .. })
     ));
-}
-
-#[test]
-fn resolver_preflights_nested_tables_before_identity_lookup() {
-    let mut bundle = fixture();
-    let source = source_inventory(&bundle);
-    let record = source.get(bundle.base.exact).unwrap();
-    // Without the nested preflight the deliberately absent owner would fail first.
-    bundle.fixture.graph.exacts.clear();
-    for limits in [
-        DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 2,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let decoded: DecodedSourceInheritanceInventoryV1 = decoded(record);
-        assert!(matches!(
-            decoded.resolve(&mut bundle.fixture, &mut BudgetMeter::new(limits)),
-            Err(SourceInventoryError::Resource(_))
-        ));
-    }
 }
 
 #[test]
@@ -114,13 +72,7 @@ fn wire_and_resolver_reject_inexact_products_and_unknown_typed_references() {
     for header in [0xa3, 0xa5] {
         let mut bytes = encode(base).unwrap();
         bytes[0] = header;
-        assert!(
-            decode_canonical::<DecodedSourceInheritanceInventoryV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedSourceInheritanceInventoryV1>(&bytes).is_err());
     }
     for missing in 1..=3 {
         let mut resolver = bundle.fixture.clone();
@@ -132,7 +84,7 @@ fn wire_and_resolver_reject_inexact_products_and_unknown_typed_references() {
         }
         let decoded: DecodedSourceInheritanceInventoryV1 = decoded(base);
         assert!(matches!(
-            decoded.resolve(&mut resolver, &mut meter()),
+            decoded.resolve(&mut resolver),
             Err(SourceInventoryError::Reference(_))
         ));
     }

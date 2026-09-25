@@ -8,9 +8,6 @@ use scoop_mir_lower::{SourceMirDispatchProductionError as Error, lower_dispatch_
 mod assertions;
 mod rejections;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-mir-dispatch-production");
@@ -30,7 +27,7 @@ fn with_dispatch<R>(
 ) -> R {
     with_production(source, |output, input, hir, graph, types| {
         let unit = dependencies::unit(input, graph);
-        let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit], &mut meter()).unwrap();
+        let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
         let callables = scoop_mir_lower::lower_source_callable_bindings(
             output,
             &public_interface(output),
@@ -38,27 +35,20 @@ fn with_dispatch<R>(
             input,
             graph,
             &index,
-            &mut meter(),
         )
         .unwrap();
         let boxing = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-            input,
-            types,
-            graph,
-            &index,
-            &callables,
-            &mut meter(),
+            input, types, graph, &index, &callables,
         )
         .unwrap();
-        let bindings =
-            MirTypeBridgeCallableIndexV1::try_new(&[&callables, &boxing], &mut meter()).unwrap();
+        let bindings = MirTypeBridgeCallableIndexV1::try_new(&[&callables, &boxing]).unwrap();
         let authority = MirDispatchSchemaAuthority {
             identities: graph,
             types: &index,
             callables: &bindings,
         };
-        let schemas = lower_dispatch_schemas(hir, input, types, authority, &[], &mut meter())
-            .unwrap_or_else(|error| {
+        let schemas =
+            lower_dispatch_schemas(hir, input, types, authority, &[]).unwrap_or_else(|error| {
                 panic!(
                     "{error:?}; source owners: {:?}",
                     source_dispatch::owners(output)
@@ -66,9 +56,7 @@ fn with_dispatch<R>(
             });
         let restored: scoop_mir::DecodedCanonicalMirDispatchSchemasV1 = decoded(&schemas);
         assert_eq!(
-            restored
-                .validate(graph, &index, &bindings, &mut meter())
-                .unwrap(),
+            restored.validate(graph, &index, &bindings).unwrap(),
             schemas
         );
         let authority = MirDispatchSchemaAuthority {

@@ -41,7 +41,7 @@ impl WireEncode for DecodedReexportRouteHopV1 {
 }
 
 impl WireDecode for DecodedReexportRouteHopV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             exporter: decoder.field(1, DecodedPersistentId::decode)?,
@@ -95,7 +95,7 @@ impl WireEncode for DecodedReexportRouteV1 {
 }
 
 impl WireDecode for DecodedReexportRouteV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             immediate_provider: decoder.field(1, DecodedPersistentId::decode)?,
@@ -157,7 +157,7 @@ impl WireEncode for DecodedCanonicalReexportRoutesV1 {
 }
 
 impl WireDecode for DecodedCanonicalReexportRoutesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedReexportRouteV1::decode(decoder))
             .map(|routes| Self { routes })

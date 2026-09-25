@@ -7,27 +7,20 @@ use crate::{
     HirDependencyTypeSiteV1 as Site,
 };
 use scoop_identity::{CallableMaterialization, PersistentExactTypeId, PersistentLocalValueId};
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 use std::collections::BTreeMap;
 
 mod constructors;
 mod storage;
 
-pub(super) fn collect<E>(
-    local: &crate::LocalConcreteHirOutput,
-    meter: &mut BudgetMeter,
-) -> Result<Vec<Site>, Error<E>> {
+pub(super) fn collect<E>(local: &crate::LocalConcreteHirOutput) -> Result<Vec<Site>, Error<E>> {
     let module = local.module();
     let mut output = Collector {
         module,
-        meter,
+
         sites: BTreeMap::new(),
     };
     for (id, function) in module.functions.iter() {
-        output
-            .meter
-            .charge_work(1, &WirePath::root())
-            .map_err(Error::Resource)?;
         if matches!(function.kind, FunctionKind::Intrinsic(_)) {
             continue;
         }
@@ -46,10 +39,6 @@ pub(super) fn collect<E>(
         }
         output.signature(root, Part::Result, function.return_ty)?;
         if let FunctionKind::User(body) = &function.kind {
-            output
-                .meter
-                .charge_work(body.locals.len() as u64, &WirePath::root())
-                .map_err(Error::Resource)?;
             for (local_id, local) in body.locals.iter() {
                 if matches!(local.definition, crate::LocalValueDefinitionSite::Source(_)) {
                     output.local(
@@ -72,9 +61,7 @@ pub(super) fn collect<E>(
         })?;
     }
     let mut sites = Vec::new();
-    output
-        .meter
-        .try_reserve_collection_slots(&mut sites, output.sites.len(), &WirePath::root())
+    scoop_wire::allocation::try_reserve(&mut sites, output.sites.len(), &WirePath::root())
         .map_err(Error::Resource)?;
     sites.extend(output.sites.into_values());
     Ok(sites)
@@ -82,7 +69,7 @@ pub(super) fn collect<E>(
 
 struct Collector<'a> {
     module: &'a Module,
-    meter: &'a mut BudgetMeter,
+
     sites: BTreeMap<Position, Site>,
 }
 
@@ -109,10 +96,6 @@ impl Collector<'_> {
         ty: TypeId,
         make: impl FnOnce(PersistentExactTypeId) -> Site,
     ) -> Result<(), Error<E>> {
-        let path = WirePath::root();
-        self.meter
-            .charge_work(1 + u64::from(self.sites.len().max(1).ilog2()), &path)
-            .map_err(Error::Resource)?;
         let exact = self
             .module
             .exact_type_identities
@@ -128,12 +111,7 @@ impl Collector<'_> {
                 Err(Error::ConflictingDeclarationType(position))
             };
         }
-        self.meter
-            .charge_owned_bytes((std::mem::size_of::<(Position, Site)>() + 32) as u64, &path)
-            .map_err(Error::Resource)?;
-        self.meter
-            .charge_collection_slots(1, &path)
-            .map_err(Error::Resource)?;
+
         self.sites.insert(position, site);
         Ok(())
     }

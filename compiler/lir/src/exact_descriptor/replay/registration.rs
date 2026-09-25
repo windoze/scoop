@@ -4,17 +4,13 @@ pub(crate) fn validate_registration_plan(
     registration: &StrongTypeRegistrationPlanV2,
     layouts: &crate::CanonicalExactLayoutExportsV1,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExactDescriptorError> {
     use scoop_identity::{DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey};
 
-    let path = WirePath::root();
-    meter.charge_work(layouts.records().len() as u64, &path)?;
     let exact = registration.exact_type();
     let descriptor = StrongShapeDefinitionRefV1::from_foundation(
         ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
         foundation,
-        meter,
     )?;
     if registration.descriptor_definition_plan() != descriptor.definition()
         || registration.descriptor_primary_atom() != descriptor.primary()
@@ -39,7 +35,6 @@ pub(crate) fn validate_registration_plan(
             let physical = StrongShapeDefinitionRefV1::from_foundation(
                 ExternalStrongShapeSubjectV1::Scan(scan),
                 foundation,
-                meter,
             )?;
             StrongTypeDescriptorInlineScanPlanV1::Defined {
                 scan,
@@ -55,7 +50,7 @@ pub(crate) fn validate_registration_plan(
         DefinitionAtomRole::AddressTakenConstant,
         DefinitionAtomSubkey::ExactType(exact),
     );
-    meter.charge_work(foundation.definition_atoms().len() as u64, &path)?;
+
     let diagnostic = foundation
         .definition_atoms()
         .iter()
@@ -72,7 +67,7 @@ pub(crate) fn validate_registration_plan(
             DefinitionAtomRole::RuntimeRecord,
             DefinitionAtomSubkey::ExactType(exact),
         );
-        meter.charge_work(foundation.definition_atoms().len() as u64, &path)?;
+
         let atom = foundation
             .definition_atoms()
             .iter()

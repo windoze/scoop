@@ -1,10 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{CapabilityId, ConeIdentity};
-use scoop_wire::{
-    BudgetMeter, Encoder, HashError, WireEncode, WireError, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, HashError, WireEncode, WireError, domain_separated_cbor_hash};
 
 use crate::{
     CapabilityContractRegistry, CompatibilityRecord, DecodedMetadataSection, DependencyRecord,
@@ -158,7 +155,7 @@ impl SemanticFingerprintRecord {
         lir: &[MetadataSection],
     ) -> Result<Self, SemanticFingerprintError> {
         let dependencies = OrderedDependencies::sorted(direct_dependencies)?;
-        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, None, None)
+        metadata_fingerprints(compatibility, hir, mir, lir, &dependencies, None)
     }
 
     pub(crate) fn from_decoded_compile_metadata_sections(
@@ -167,7 +164,6 @@ impl SemanticFingerprintRecord {
         hir: &[DecodedMetadataSection<'_>],
         mir: &[DecodedMetadataSection<'_>],
         lir: &[DecodedMetadataSection<'_>],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SemanticFingerprintError> {
         let dependencies = OrderedDependencies::canonical(direct_dependencies);
         metadata_fingerprints(
@@ -176,7 +172,6 @@ impl SemanticFingerprintRecord {
             mir,
             lir,
             &dependencies,
-            Some(meter),
             Some(MemberPurposeSet::COMPILE),
         )
     }
@@ -188,7 +183,7 @@ fn metadata_fingerprints<S: SemanticSection>(
     mir: &[S],
     lir: &[S],
     dependencies: &OrderedDependencies<'_>,
-    mut meter: Option<&mut BudgetMeter>,
+
     required_view: Option<MemberPurposeSet>,
 ) -> Result<SemanticFingerprintRecord, SemanticFingerprintError> {
     let hir = calculate_layer_fingerprint(
@@ -196,7 +191,6 @@ fn metadata_fingerprints<S: SemanticSection>(
         compatibility,
         hir,
         dependencies,
-        meter.as_deref_mut(),
         required_view,
     )?;
     let mir = calculate_layer_fingerprint(
@@ -204,7 +198,6 @@ fn metadata_fingerprints<S: SemanticSection>(
         compatibility,
         mir,
         dependencies,
-        meter.as_deref_mut(),
         required_view,
     )?;
     let lir = calculate_layer_fingerprint(
@@ -212,7 +205,6 @@ fn metadata_fingerprints<S: SemanticSection>(
         compatibility,
         lir,
         dependencies,
-        meter,
         required_view,
     )?;
     Ok(SemanticFingerprintRecord::from_foundation_digests(
@@ -270,11 +262,10 @@ fn calculate_layer_fingerprint<S: SemanticSection>(
     compatibility: &CompatibilityRecord,
     sections: &[S],
     dependencies: &OrderedDependencies<'_>,
-    mut meter: Option<&mut BudgetMeter>,
+
     required_view: Option<MemberPurposeSet>,
 ) -> Result<scoop_wire::Digest256, SemanticFingerprintError> {
-    let contributions =
-        collect_contributions(layer, sections, meter.as_deref_mut(), required_view)?;
+    let contributions = collect_contributions(layer, sections, required_view)?;
     let input = LayerFingerprintInput {
         context: LayerFingerprintContext {
             layer,
@@ -286,27 +277,16 @@ fn calculate_layer_fingerprint<S: SemanticSection>(
             dependencies,
         },
     };
-    if let Some(meter) = meter {
-        let stream_length = domain_separated_cbor_hash_stream_length(layer.domain(), &input)
-            .map_err(SemanticFingerprintError::Hash)?;
-        meter
-            .charge_sha256(stream_length, &Default::default())
-            .map_err(SemanticFingerprintError::Resource)?;
-    }
+
     domain_separated_cbor_hash(layer.domain(), &input).map_err(SemanticFingerprintError::Hash)
 }
 
 fn collect_contributions<'section, S: SemanticSection>(
     layer: FoundationLayer,
     sections: &'section [S],
-    meter: Option<&mut BudgetMeter>,
+
     required_view: Option<MemberPurposeSet>,
 ) -> Result<Vec<CanonicalSemanticContribution<'section>>, SemanticFingerprintError> {
-    if let Some(meter) = meter {
-        meter
-            .charge_collection_slots(sections.len() as u64, &Default::default())
-            .map_err(SemanticFingerprintError::Resource)?;
-    }
     let mut contributions = Vec::new();
     contributions
         .try_reserve_exact(sections.len())
@@ -580,7 +560,6 @@ impl WireEncode for LayerFingerprintInput<'_> {
 mod tests {
     use scoop_identity::ConeCoordinate;
     use scoop_lir::ValidatedLirTargetSelection;
-    use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
 
     use super::*;
     use crate::{
@@ -660,54 +639,6 @@ mod tests {
                 "1146795f5298d4df3d1e887e8b181e2d9a1f6314ef96c560d88826cd76fc18dd",
             ]
         );
-    }
-
-    #[test]
-    fn semantic_hash_work_has_inclusive_boundaries() {
-        let compatibility = compatibility();
-        let hir = section(FoundationLayer::Hir, b"hir");
-        let dependencies = OrderedDependencies::sorted(&[]).unwrap();
-        let work = {
-            let mut meter = BudgetMeter::new(DecodeLimits::default());
-            calculate_layer_fingerprint(
-                FoundationLayer::Hir,
-                &compatibility,
-                std::slice::from_ref(&hir),
-                &dependencies,
-                Some(&mut meter),
-                None,
-            )
-            .unwrap();
-            meter.usage().validation_work_units
-        };
-        assert!(work > 0);
-
-        for (limit, accepted) in [(work - 1, false), (work, true), (work + 1, true)] {
-            let mut meter = BudgetMeter::new(DecodeLimits {
-                validation_work_units: limit,
-                ..DecodeLimits::default()
-            });
-            let result = calculate_layer_fingerprint(
-                FoundationLayer::Hir,
-                &compatibility,
-                std::slice::from_ref(&hir),
-                &dependencies,
-                Some(&mut meter),
-                None,
-            );
-            assert_eq!(result.is_ok(), accepted);
-            if !accepted {
-                assert!(matches!(
-                    result,
-                    Err(SemanticFingerprintError::Resource(ref error))
-                        if error.kind() == &WireErrorKind::LimitExceeded {
-                            resource: ResourceKind::ValidationWorkUnits,
-                            limit,
-                            observed: work,
-                        }
-                ));
-            }
-        }
     }
 
     #[test]

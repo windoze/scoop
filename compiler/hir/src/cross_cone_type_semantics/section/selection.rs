@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::{ConeIdentity, CoreBuiltinNominal, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod closure;
 mod errors;
@@ -41,7 +41,7 @@ pub trait CommittedTypeUseSemanticAuthorityV1<E> {
         root: &Self::Root,
         target: CheckedTypeSelectionTargetV1<'_>,
         context: TypeSectionUseContextV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), E>;
     fn semantic_edges(&self, parent: CheckedTypeSelectionTargetV1<'_>) -> Result<&[Self::Edge], E>;
@@ -55,7 +55,7 @@ pub trait CommittedTypeUseSemanticAuthorityV1<E> {
         edge: &Self::Edge,
         target: CheckedTypeSelectionTargetV1<'_>,
         context: TypeSectionUseContextV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), E>;
 }

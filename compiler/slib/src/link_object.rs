@@ -398,7 +398,7 @@ impl WireEncode for DecodedScoopLirObjectLogicalKeyV1 {
 }
 
 impl WireDecode for DecodedScoopLirObjectLogicalKeyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_object_logical_key(decoder).map(|(unit_count, unit_set_digest)| Self {
             unit_count,
             unit_set_digest,
@@ -434,7 +434,7 @@ impl WireEncode for DecodedGeneratedBridgeObjectLogicalKeyV1 {
 }
 
 impl WireDecode for DecodedGeneratedBridgeObjectLogicalKeyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_object_logical_key(decoder).map(|(unit_count, unit_set_digest)| Self {
             unit_count,
             unit_set_digest,
@@ -519,7 +519,7 @@ fn encode_decoded_object_logical_key(
     digest.encode(encoder)
 }
 
-fn decode_object_logical_key(decoder: &mut Decoder<'_, '_>) -> Result<(u32, Digest256), WireError> {
+fn decode_object_logical_key(decoder: &mut Decoder<'_>) -> Result<(u32, Digest256), WireError> {
     decoder.expect_map(2)?;
     Ok((
         decoder.field(1, Decoder::u32)?,

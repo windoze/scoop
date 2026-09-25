@@ -12,7 +12,7 @@ use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
     IdentityFoundationArtifactInput, ProducerRecord,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode, sha256};
+use scoop_wire::{decode_canonical, encode, sha256};
 
 use super::*;
 
@@ -84,7 +84,7 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
         warning("SCOOPC_A_WARNING", "a warning"),
     ]);
     let bytes = encode(&receipt).unwrap();
-    let decoded = decode_cache_receipt_v1(&bytes, DecodeLimits::M23_DEFAULT).unwrap();
+    let decoded = decode_cache_receipt_v1(&bytes).unwrap();
 
     assert_eq!(decoded, receipt);
     assert_eq!(
@@ -94,7 +94,7 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
 
     assert_eq!(
         receipt.fingerprint().to_string(),
-        "ea4e639a635125aa4f5ade5dacb5ea506f075607d3bb68be42311a0dbcdfc156"
+        "60dd657f5a29ad072a07e8304f2aa2c4dbb9d927fb3da245cf15aee1cb896043"
     );
 }
 
@@ -119,12 +119,11 @@ fn receipt_rejects_the_legacy_single_cone_profile() {
 fn receipt_rejects_fingerprint_tampering() {
     let receipt = receipt_with_warnings(vec![warning("SCOOPC_WARNING", "warning")]);
     let bytes = encode(&receipt).unwrap();
-    let mut decoded: DecodedCacheReceiptV1 =
-        decode_canonical(&bytes, DecodeLimits::M23_DEFAULT).unwrap();
+    let mut decoded: DecodedCacheReceiptV1 = decode_canonical(&bytes).unwrap();
     decoded.fingerprint = sha256(b"tampered");
 
     assert!(matches!(
-        decode_cache_receipt_v1(&encode(&decoded).unwrap(), DecodeLimits::M23_DEFAULT),
+        decode_cache_receipt_v1(&encode(&decoded).unwrap()),
         Err(CacheReceiptDecodeError::FingerprintMismatch { .. })
     ));
 }
@@ -136,12 +135,11 @@ fn receipt_rejects_noncanonical_warning_order() {
         warning("SCOOPC_Z_WARNING", "z warning"),
     ]);
     let bytes = encode(&receipt).unwrap();
-    let mut decoded: DecodedCacheReceiptV1 =
-        decode_canonical(&bytes, DecodeLimits::M23_DEFAULT).unwrap();
+    let mut decoded: DecodedCacheReceiptV1 = decode_canonical(&bytes).unwrap();
     decoded.body.structured_warnings.swap(0, 1);
 
     assert!(matches!(
-        decode_cache_receipt_v1(&encode(&decoded).unwrap(), DecodeLimits::M23_DEFAULT),
+        decode_cache_receipt_v1(&encode(&decoded).unwrap()),
         Err(CacheReceiptDecodeError::Validation(
             CacheReceiptValidationError::WarningOrder
         ))
@@ -211,24 +209,6 @@ fn receipt_rejects_non_warning_and_host_path_diagnostics() {
     assert!(matches!(
         receipt_body_with_warning(host_warning),
         Err(CacheReceiptValidationError::HostPathDiagnosticOrigin)
-    ));
-}
-
-#[test]
-fn receipt_decode_is_budgeted() {
-    let bytes = encode(&receipt_with_warnings(vec![warning(
-        "SCOOPC_WARNING",
-        "warning",
-    )]))
-    .unwrap();
-    let limits = DecodeLimits {
-        owned_bytes: 0,
-        ..DecodeLimits::M23_DEFAULT
-    };
-
-    assert!(matches!(
-        decode_cache_receipt_v1(&bytes, limits),
-        Err(CacheReceiptDecodeError::Wire(_))
     ));
 }
 

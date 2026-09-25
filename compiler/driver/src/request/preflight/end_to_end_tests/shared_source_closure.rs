@@ -20,7 +20,7 @@ fn ordinary_reader_preserves_complete_shared_source_defaults() {
             vec![],
         );
         request.emit = StageDumpPolicy::Stage(StageDumpKind::Hir);
-        let library = request.build_and_publish(DecodeLimits::default()).unwrap();
+        let library = request.build_and_publish().unwrap();
         let dump = library.emitted_dump().unwrap();
         let snapshot = directory.join(format!("{case}.hir.snap"));
         if std::env::var_os("SCOOP_UPDATE_SOURCE_CLOSURE_SNAPSHOTS").is_some() {
@@ -39,7 +39,6 @@ fn ordinary_reader_preserves_complete_shared_source_defaults() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

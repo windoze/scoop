@@ -12,7 +12,7 @@ pub(super) struct RawField<I: PersistentId> {
 }
 
 impl<I: PersistentId> WireDecode for RawField<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -39,7 +39,7 @@ pub(super) struct RawVariant {
     pub(super) fields: Vec<RawVariantField>,
 }
 impl WireDecode for RawVariant {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -68,7 +68,7 @@ pub(super) struct RawRegion {
     pub(super) alignment: u64,
 }
 impl WireDecode for RawRegion {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             offset: decoder.field(1, Decoder::unsigned)?,
@@ -92,7 +92,7 @@ pub(super) enum RawSlot {
     Dedicated(RawRegion),
 }
 impl WireDecode for RawSlot {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -138,7 +138,7 @@ pub(super) struct RawTaggedVariant {
     pub(super) slot: RawSlot,
 }
 impl WireDecode for RawTaggedVariant {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             variant: RawVariant {

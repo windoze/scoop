@@ -23,11 +23,11 @@ pub(super) fn candidate(
     };
     let checked = authority
         .graph()
-        .check_declaration_source(source.declaration_access, key, authority, &mut meter())
+        .check_declaration_source(source.declaration_access, key, authority)
         .unwrap();
     let domains = authority
         .graph()
-        .replay_declaration_access(checked, &mut meter())
+        .replay_declaration_access(checked)
         .unwrap();
     let implementation = match selection.selection() {
         hir::InheritanceSourceSlotSelectionV1::Abstract => Implementation::Abstract,

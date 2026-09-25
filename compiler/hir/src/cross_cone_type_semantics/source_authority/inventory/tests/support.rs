@@ -2,10 +2,6 @@ use super::*;
 use scoop_identity::DefinitionOrigin;
 use std::sync::Arc;
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 pub(super) fn two_records<T: scoop_wire::WireEncode>(left: &T, right: &T) -> Vec<u8> {
     [vec![0x82], encode(left).unwrap(), encode(right).unwrap()].concat()
 }

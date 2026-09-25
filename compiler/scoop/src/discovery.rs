@@ -18,8 +18,8 @@ use crate::locator::{
 };
 use crate::request::{BuildGraphRequestParts, BuildRootInputKind};
 use crate::{
-    ArtifactCacheRoot, ArtifactSearchRoot, BuildGraphRequest, BuildLimitsProfileV1,
-    DiagnosticsPolicy, PairedScoopcLocator, TrustedSysrootRoot,
+    ArtifactCacheRoot, ArtifactSearchRoot, BuildGraphRequest, DiagnosticsPolicy,
+    PairedScoopcLocator, TrustedSysrootRoot,
 };
 
 mod builder;
@@ -37,7 +37,6 @@ pub(crate) struct BuildContext {
     pub(crate) target: scoop_toolchain::ResolvedTargetProfile,
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
-    pub(crate) limits: BuildLimitsProfileV1,
 }
 
 #[derive(Debug)]
@@ -113,10 +112,6 @@ impl DiscoveredBuildGraph {
 
     pub const fn diagnostics(&self) -> DiagnosticsPolicy {
         self.context.diagnostics
-    }
-
-    pub const fn limits(&self) -> BuildLimitsProfileV1 {
-        self.context.limits
     }
 
     pub(crate) fn into_parts(self) -> DiscoveredGraphParts {

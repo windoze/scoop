@@ -40,7 +40,7 @@ pub(super) fn entry_source(
 pub(super) fn decode(
     section: &CoreBootstrapBridgeSectionV1,
 ) -> DecodedCoreBootstrapBridgeSectionV1 {
-    decode_canonical(&encode(section).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(section).unwrap()).unwrap()
 }
 
 pub(super) struct Fixture {
@@ -169,10 +169,8 @@ fn validate_mir_at(
     mir: &CanonicalMirFoundation,
     provider: ConeIdentity,
 ) -> (ValidatedIdentityGraph, ValidatedMirFoundation) {
-    let hir: scoop_hir::DecodedHirFoundation =
-        decode_canonical(&encode(hir).unwrap(), DecodeLimits::default()).unwrap();
-    let mir: DecodedMirFoundation =
-        decode_canonical(&encode(mir).unwrap(), DecodeLimits::default()).unwrap();
+    let hir: scoop_hir::DecodedHirFoundation = decode_canonical(&encode(hir).unwrap()).unwrap();
+    let mir: DecodedMirFoundation = decode_canonical(&encode(mir).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending
@@ -186,12 +184,7 @@ fn validate_mir_at(
     hir.resolve_identities(&mut pending).unwrap();
     mir.resolve_identities(&mut pending).unwrap();
     let mut identities = pending.finish().unwrap();
-    let foundation = mir
-        .validate(
-            &mut identities,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-        .unwrap();
+    let foundation = mir.validate(&mut identities).unwrap();
     (identities, foundation)
 }
 

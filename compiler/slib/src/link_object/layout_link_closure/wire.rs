@@ -1,7 +1,6 @@
 use scoop_lir::{DecodedCanonicalExternalShapeLinkImportsV1, SelectedDependencyLayoutAbiSetV1};
 use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath,
-    encode_canonical_temporary_with_meter,
+    Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode_canonical_temporary,
 };
 
 use super::{
@@ -27,7 +26,7 @@ impl WireEncode for DecodedUse {
     }
 }
 impl WireDecode for DecodedUse {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             use_site: decoder.field(1, DecodedCanonicalUndefinedRelocationUseV1::decode)?,
@@ -51,7 +50,7 @@ impl WireEncode for DecodedCoverage {
     }
 }
 impl WireDecode for DecodedCoverage {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             objects: decoder.field(1, DecodedCodeLinkObjectMemberSetV1::decode)?,
@@ -73,9 +72,8 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
     pub fn replay_object_coverage_against(
         &self,
         expected: &super::ExternalShapeObjectCoverageV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), LayoutLinkClosureError> {
-        if !same_bytes(&self.object_coverage, expected, meter)? {
+        if !same_bytes(&self.object_coverage, expected)? {
             return Err(LayoutLinkClosureError::ObjectCoverageMismatch);
         }
         Ok(())
@@ -85,19 +83,17 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
     pub fn replay_requirements_against(
         &self,
         expected: &super::VerifiedExternalShapeRequirementClosureV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), LayoutLinkClosureError> {
-        self.validate_physical_imports_against(expected.semantic_imports(), meter)?;
-        validate_requirements(&self.requirements, expected.requirements(), meter)
+        self.validate_physical_imports_against(expected.semantic_imports())?;
+        validate_requirements(&self.requirements, expected.requirements())
     }
 
     /// Checks the Compile projection without claiming relocation coverage.
     pub fn validate_semantic_imports_against(
         &self,
         selected: &SelectedDependencyLayoutAbiSetV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), LayoutLinkClosureError> {
-        self.validate_physical_imports_against(selected.physical_imports(), meter)
+        self.validate_physical_imports_against(selected.physical_imports())
     }
 
     /// Checks terminal contracts replayed from the same artifact's shared
@@ -105,9 +101,8 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
     pub fn validate_physical_imports_against(
         &self,
         imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), LayoutLinkClosureError> {
-        if !same_bytes(&self.semantic_imports, imports, meter)? {
+        if !same_bytes(&self.semantic_imports, imports)? {
             return Err(LayoutLinkClosureError::SemanticImports(
                 scoop_lir::ShapeLinkError::Contract,
             ));
@@ -120,15 +115,13 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
     pub fn validate_against<'a>(
         self,
         expected: &CrossConeLayoutLinkClosureSectionV1<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<CrossConeLayoutLinkClosureSectionV1<'a>, LayoutLinkClosureError> {
         self.semantic_imports
-            .validate_against(expected.semantic_imports(), meter)?;
-        validate_requirements(&self.requirements, expected.requirements(), meter)?;
+            .validate_against(expected.semantic_imports())?;
+        validate_requirements(&self.requirements, expected.requirements())?;
         if !same_bytes(
             &self.object_coverage.objects,
             expected.object_coverage().verified_link_objects(),
-            meter,
         )? || !self.object_coverage.digest.matches(
             expected
                 .object_coverage()
@@ -144,29 +137,23 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
 fn validate_requirements(
     actual: &[DecodedUse],
     expected: &[super::ExternalShapeUndefinedUseV1],
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutLinkClosureError> {
-    meter.charge_nodes(actual.len() as u64, &WirePath::root())?;
     if actual.len() != expected.len() {
         return Err(LayoutLinkClosureError::RequirementsMismatch);
     }
     for (actual, expected) in actual.iter().zip(expected) {
-        if !same_bytes(actual, expected, meter)? {
+        if !same_bytes(actual, expected)? {
             return Err(LayoutLinkClosureError::RequirementsMismatch);
         }
     }
     Ok(())
 }
 
-fn same_bytes(
-    actual: &impl WireEncode,
-    expected: &impl WireEncode,
-    meter: &mut BudgetMeter,
-) -> Result<bool, WireError> {
+fn same_bytes(actual: &impl WireEncode, expected: &impl WireEncode) -> Result<bool, WireError> {
     let path = WirePath::root();
-    let actual = encode_canonical_temporary_with_meter(actual, meter, &path)?;
-    let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
-    meter.charge_work(actual.len().min(expected.len()) as u64, &path)?;
+    let actual = encode_canonical_temporary(actual, &path)?;
+    let expected = encode_canonical_temporary(expected, &path)?;
+
     Ok(actual == expected)
 }
 
@@ -182,7 +169,7 @@ impl WireEncode for DecodedCrossConeLayoutLinkClosureSectionV1 {
     }
 }
 impl WireDecode for DecodedCrossConeLayoutLinkClosureSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             semantic_imports: decoder

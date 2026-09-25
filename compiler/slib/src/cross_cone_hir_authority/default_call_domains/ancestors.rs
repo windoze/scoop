@@ -34,16 +34,12 @@ impl<'a> Query<'_, 'a> {
         }
         let arity = nominal.type_parameters().len_u32();
         let mut arguments = Vec::new();
-        self.authority
-            .meter
-            .try_reserve_collection_slots(&mut arguments, arity as usize, path)?;
+        scoop_wire::allocation::try_reserve(&mut arguments, arity as usize, path)?;
         for index in 0..arity {
             arguments.push(SignatureTypeKey::Binder { depth: 0, index });
         }
         let mut frames = Vec::new();
-        self.authority
-            .meter
-            .try_reserve_collection_slots(&mut frames, 1, path)?;
+        scoop_wire::allocation::try_reserve(&mut frames, 1, path)?;
         frames.push(Frame {
             nominal,
             arguments: signatures::mapping(arguments, path)?,
@@ -56,12 +52,10 @@ impl<'a> Query<'_, 'a> {
                 continue;
             };
             frame.next += 1;
-            self.authority.meter.charge_edges(1, path)?;
-            let applied = frame.arguments.substitute_provider_type_metered(
+
+            let applied = frame.arguments.substitute_provider_type(
                 signatures::shape(frame.nominal.type_parameters().len_u32(), path)?,
                 parent,
-                self.authority.meter,
-                path,
             )?;
             let (owner, arguments) = match applied {
                 SignatureTypeKey::Nominal(id) => (SourceNominalId::Concrete(id), Vec::new()),
@@ -86,9 +80,7 @@ impl<'a> Query<'_, 'a> {
             } else if parent.kind() != PublicNominalKindV1::Interface {
                 return Err(Error::SupertypeShape);
             }
-            self.authority
-                .meter
-                .charge_work((frames.len() as u64).saturating_mul(65), path)?;
+
             if frames
                 .iter()
                 .any(|frame| frame.nominal.declaration() == owner)
@@ -111,13 +103,8 @@ impl<'a> Query<'_, 'a> {
                 &mut inherited,
                 path,
             )?;
-            self.authority
-                .meter
-                .check_semantic_depth(frames.len() as u64 + 1, path)?;
-            self.authority.meter.charge_nodes(1, path)?;
-            self.authority
-                .meter
-                .try_reserve_collection_slots(&mut frames, 1, path)?;
+
+            scoop_wire::allocation::try_reserve(&mut frames, 1, path)?;
             frames.push(Frame {
                 nominal: parent,
                 arguments,
@@ -138,11 +125,10 @@ impl<'a> Query<'_, 'a> {
         path: &WirePath,
     ) -> Result<(), Error> {
         for member in nominal.declaration_details().members().values() {
-            self.authority.meter.charge_work(1, path)?;
             let NestedSourceMemberRefV1::Function(id) = member else {
                 continue;
             };
-            let candidate = self.source(CallableTemplateOrigin::Function(*id), path)?;
+            let candidate = self.source(CallableTemplateOrigin::Function(*id))?;
             if candidate.declaration.owner()
                 != PublicDeclarationOwnerV1::Nominal(nominal.declaration())
             {
@@ -154,19 +140,13 @@ impl<'a> Query<'_, 'a> {
             {
                 continue;
             }
-            if !signatures::matches(source, candidate, arguments, self.authority.meter, path)? {
+            if !signatures::matches(source, candidate, arguments, path)? {
                 continue;
             }
             let mut duplicate = false;
             for previous in inherited.iter_mut() {
-                self.authority.meter.charge_work(65, path)?;
                 if previous.source.declaration.declaration() == candidate.declaration.declaration()
-                    && signatures::equal_arguments(
-                        &previous.arguments,
-                        arguments,
-                        self.authority.meter,
-                        path,
-                    )?
+                    && signatures::equal_arguments(&previous.arguments, arguments)
                 {
                     previous.distance = previous.distance.min(distance);
                     duplicate = true;
@@ -176,11 +156,8 @@ impl<'a> Query<'_, 'a> {
             if duplicate {
                 continue;
             }
-            let arguments =
-                signatures::copy_arguments(arguments.arguments(), self.authority.meter, path)?;
-            self.authority
-                .meter
-                .try_reserve_collection_slots(inherited, 1, path)?;
+            let arguments = signatures::copy_arguments(arguments.arguments(), path)?;
+            scoop_wire::allocation::try_reserve(inherited, 1, path)?;
             inherited.push(Inherited {
                 source: candidate,
                 arguments,

@@ -20,8 +20,8 @@ impl<'input> SourceInterfaceValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<ConstValidatedCrossConeHirFrontSections<'input>, CrossConeHirConstSurfaceError>
     {
         let mut front = self.0;
-        let (input, meter) = front.hir_validation_parts();
-        input.constants(dependencies, meter)?;
+        let input = front.hir_validation_parts();
+        input.constants(dependencies)?;
         Ok(ConstValidatedCrossConeHirFrontSections(front))
     }
 }

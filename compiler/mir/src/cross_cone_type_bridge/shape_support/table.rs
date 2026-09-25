@@ -10,12 +10,9 @@ impl CanonicalMirShapeSupportsV1 {
         provider: ConeIdentity,
         authority: MirShapeSupportAuthority<'_>,
         mut records: Vec<ParamFreeMirShapeSupportV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirShapeSupportError> {
-        check_provider(provider, &records, meter)?;
-        for _ in 0..usize::BITS - records.len().max(1).saturating_sub(1).leading_zeros() {
-            meter.charge_work(records.len() as u64, &WirePath::root())?;
-        }
+        check_provider(provider, &records)?;
+
         records.sort_unstable_by_key(ParamFreeMirShapeSupportV1::source);
         for (index, record) in records.iter().enumerate() {
             if index > 0 && records[index - 1].source() == record.source() {
@@ -23,7 +20,7 @@ impl CanonicalMirShapeSupportsV1 {
                     source: record.source(),
                 });
             }
-            authority.validate(record, meter)?;
+            authority.validate(record)?;
         }
         Ok(Self { provider, records })
     }
@@ -44,17 +41,12 @@ impl CanonicalMirShapeSupportsV1 {
     pub fn validate_required_sources(
         &self,
         required: &[PersistentTypeId],
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirShapeSupportError> {
-        let path = WirePath::root();
-        meter.check_table_entries(required.len() as u64, &path)?;
-        meter.charge_work(required.len() as u64, &path)?;
         if let Some(index) = required.windows(2).position(|pair| pair[0] >= pair[1]) {
             return Err(MirShapeSupportError::NonCanonicalRequiredSources { index: index + 1 });
         }
         let mut actual = self.records.iter().peekable();
         for source in required {
-            meter.charge_work(1, &path)?;
             match actual.peek() {
                 Some(record) if record.source() == *source => {
                     actual.next();
@@ -79,10 +71,7 @@ impl CanonicalMirShapeSupportsV1 {
 fn check_provider(
     provider: ConeIdentity,
     records: &[ParamFreeMirShapeSupportV1],
-    meter: &mut BudgetMeter,
 ) -> Result<(), MirShapeSupportError> {
-    meter.check_table_entries(records.len() as u64, &WirePath::root())?;
-    meter.charge_work(records.len() as u64, &WirePath::root())?;
     for record in records {
         if record.provider() != provider {
             return Err(MirShapeSupportError::ProviderMismatch {
@@ -103,15 +92,13 @@ impl DecodedCanonicalMirShapeSupportsV1 {
         provider: ConeIdentity,
         identities: &mut ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirShapeSupportsV1, MirShapeSupportError> {
         let mut records: Vec<ParamFreeMirShapeSupportV1> = Vec::new();
         let path = WirePath::root();
-        meter.check_table_entries(self.records.len() as u64, &path)?;
-        meter.try_reserve_collection_slots(&mut records, self.records.len(), &path)?;
+
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &path)?;
         for (index, decoded) in self.records.into_iter().enumerate() {
-            meter.charge_nodes(1, &path.clone().index(index as u64))?;
-            let record = decoded.validate(identities, types, meter)?;
+            let record = decoded.validate(identities, types)?;
             if records
                 .last()
                 .is_some_and(|previous| previous.source() >= record.source())
@@ -120,7 +107,7 @@ impl DecodedCanonicalMirShapeSupportsV1 {
             }
             records.push(record);
         }
-        check_provider(provider, &records, meter)?;
+        check_provider(provider, &records)?;
         Ok(CanonicalMirShapeSupportsV1 { provider, records })
     }
 }
@@ -135,7 +122,7 @@ impl WireEncode for DecodedCanonicalMirShapeSupportsV1 {
     }
 }
 impl WireDecode for DecodedCanonicalMirShapeSupportsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedParamFreeMirShapeSupportV1::decode(decoder))
             .map(|records| Self { records })

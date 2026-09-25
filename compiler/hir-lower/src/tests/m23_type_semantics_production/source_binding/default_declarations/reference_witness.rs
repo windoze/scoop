@@ -57,15 +57,11 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn change_at
         t.value_parameters().clone(),
         refs,
         t.definition_origin().clone(),
-        &mut meter(),
     )
     .unwrap();
-    let bytes = encode(&changed.index_locals(&mut meter()).unwrap()).unwrap();
-    let decoded: hir::DecodedDefaultSourceTemplateV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    decoded
-        .resolve(&mut identity_closure(output), &mut meter())
-        .unwrap()
+    let bytes = encode(&changed.index_locals().unwrap()).unwrap();
+    let decoded: hir::DecodedDefaultSourceTemplateV1 = decode_canonical(&bytes).unwrap();
+    decoded.resolve(&mut identity_closure(output)).unwrap()
 }
 fn overwrite<T: Clone>(record: &mut Reference<T>, update: impl FnOnce(&Witness) -> Witness) {
     *record = Reference::new(

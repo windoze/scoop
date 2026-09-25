@@ -2,7 +2,6 @@ use scoop_identity::{
     ExactTypeKey, GeneratedNominalKey, PersistentExactTypeId, PersistentTypeId,
     SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
     CheckedNominalInheritanceGraphV1, InheritanceGraphError, InheritanceQueryError,
@@ -39,12 +38,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         exact: PersistentExactTypeId,
         object: PersistentTypeId,
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<(), InheritanceGraphError<E>> {
-        let path = WirePath::root();
-        meter
-            .charge_work(3, &path)
-            .map_err(InheritanceGraphError::Resource)?;
         let representation = authority
             .object_representation(object)
             .map_err(InheritanceGraphError::Foundation)?;
@@ -75,12 +69,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         {
             return Err(InheritanceGraphError::ObjectBacking(exact));
         }
-        meter
-            .charge_nodes(1, &path)
-            .map_err(InheritanceGraphError::Resource)?;
-        meter
-            .charge_collection_slots(1, &path)
-            .map_err(InheritanceGraphError::Resource)?;
+
         self.object_backings.insert(
             exact,
             CheckedObjectInheritanceRelationV1 {
@@ -106,20 +95,17 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         &self,
         receiver: PersistentExactTypeId,
         access_subject: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<bool, InheritanceQueryError> {
         if self.object_backings.contains_key(&access_subject) {
             // A source object is final. Its physical backing-class id is not a
             // source static receiver type and cannot be substituted here.
-            meter
-                .charge_work(1, &WirePath::root())
-                .map_err(InheritanceQueryError::Resource)?;
+
             self.nodes
                 .get(&receiver)
                 .ok_or(InheritanceQueryError::UnknownExact(receiver))?;
             return Ok(receiver == access_subject);
         }
-        self.is_subclass(receiver, access_subject, meter)
+        self.is_subclass(receiver, access_subject)
     }
 
     pub(in crate::cross_cone_type_semantics) fn is_class_access_scope(

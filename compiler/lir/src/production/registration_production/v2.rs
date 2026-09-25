@@ -1,5 +1,3 @@
-use scoop_wire::BudgetMeter;
-
 use super::*;
 
 impl StrongRegistrationProductionSurfaceV2 {
@@ -45,7 +43,6 @@ impl StrongRegistrationProductionSurfaceV2 {
         digests: &StrongDigestFinalizationPlanV1,
         selected: &crate::StrongProductionDependencySelectionV2<'_>,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
         if module.cone != foundation.producer() {
             return Err(StrongRegistrationProductionBuildError::ProducerMismatch {
@@ -59,7 +56,7 @@ impl StrongRegistrationProductionSurfaceV2 {
         let safepoint_semantics = StrongSafepointSemanticPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::SafepointSemantics)?;
         let type_semantics =
-            crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module, selected, meter)
+            crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module, selected)
                 .map_err(StrongRegistrationProductionBuildError::TypeSemantics)?;
         let immortal_semantics = StrongImmortalObjectSemanticPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::ImmortalSemantics)?;
@@ -71,7 +68,6 @@ impl StrongRegistrationProductionSurfaceV2 {
                 digests,
                 selected,
                 external_initialization_uses,
-                meter,
             )
             .map_err(StrongRegistrationProductionBuildError::InitializationSemanticsV2)?;
         let callable_runtime_scans = StrongCallableRuntimeScanPlanSetV1::from_module(module)

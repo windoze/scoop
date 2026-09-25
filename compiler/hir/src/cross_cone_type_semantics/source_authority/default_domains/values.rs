@@ -20,37 +20,28 @@ impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
     pub fn value_source_domain(
         &self,
         target: Target<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
-        self.value_source_domain_at(target, meter, &WirePath::root())
+        self.value_source_domain_at(target)
     }
 
     fn value_source_domain_at(
         &self,
         target: Target<'_>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
-        meter.check_semantic_depth(1, path)?;
-        meter.charge_nodes(1, path)?;
-        meter.charge_work(1, path)?;
-        let provider = self.value_provider(target, meter, path)?;
+        let provider = self.value_provider(target)?;
         let foundation = provider.foundation;
         let subject = match target {
             Target::Constructor(target) => foundation
-                .default_constructor_access_subject(target, meter)
+                .default_constructor_access_subject(target)
                 .map_err(Error::target)?,
             Target::Global(target) => foundation
-                .default_global_access_subject(target, meter)
+                .default_global_access_subject(target)
                 .map_err(Error::target)?,
             Target::Singleton(target) => foundation
-                .default_indirect_access_subject(
-                    DefaultSourceIndirectTargetV1::Singleton(target),
-                    meter,
-                )
+                .default_indirect_access_subject(DefaultSourceIndirectTargetV1::Singleton(target))
                 .map_err(Error::target)?,
             Target::Field(target) => match foundation
-                .default_field_access_subject(target, meter)
+                .default_field_access_subject(target)
                 .map_err(Error::target)?
             {
                 DefaultSourceFieldAccessSubjectV1::Declaration(subject) => subject,
@@ -60,7 +51,7 @@ impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
             },
         };
         provider
-            .source_lookup_domain(subject, meter)
+            .source_lookup_domain(subject)
             .map_err(Error::domain)
     }
 }

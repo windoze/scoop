@@ -8,7 +8,7 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_> {
+impl BodyProjection<'_, '_> {
     pub(super) fn lambda(
         &mut self,
         id: crate::LambdaId,
@@ -19,7 +19,7 @@ impl BodyProjection<'_, '_, '_> {
                 index: super::super::raw_index(id),
             },
         )?;
-        self.entities.resources.path(&lambda.definition_path)?;
+
         DefaultLambdaV1::try_new(
             self.entities.generated_function_id(lambda.function)?,
             lambda.definition_path.clone(),
@@ -40,7 +40,7 @@ impl BodyProjection<'_, '_, '_> {
                 kind: "anonymous function",
                 index: super::super::raw_index(id),
             })?;
-        self.entities.resources.path(&function.definition_path)?;
+
         DefaultAnonymousFunctionV1::try_new(
             self.entities.generated_function_id(function.function)?,
             function.definition_path.clone(),
@@ -57,7 +57,7 @@ impl BodyProjection<'_, '_, '_> {
         id: crate::LocalFunctionId,
     ) -> Result<DefaultLocalFunctionV1, super::super::DefaultBodyProjectionError> {
         let function = self.local_function_record(id)?;
-        self.entities.resources.path(&function.definition_path)?;
+
         DefaultLocalFunctionV1::try_new(
             self.entities
                 .source_callable_declaration(function.function)?,
@@ -120,7 +120,7 @@ impl BodyProjection<'_, '_, '_> {
                 }
             }
         };
-        self.entities.resources.path(&reference.definition_path)?;
+
         DefaultCallableReferenceV1::try_new(
             self.entities
                 .callable_reference_invoke(reference.definition_root, &reference.definition_path)?,
@@ -140,9 +140,6 @@ impl BodyProjection<'_, '_, '_> {
         match arguments {
             CallableBodyTypeArguments::Lexical => Ok(DefaultCallableBodyTypeArgumentsV1::lexical()),
             CallableBodyTypeArguments::Explicit(arguments) => {
-                self.entities
-                    .resources
-                    .collection::<scoop_identity::SignatureTypeKey>(arguments.len())?;
                 let arguments = arguments
                     .iter()
                     .map(|&argument| self.type_key(argument))
@@ -157,9 +154,6 @@ impl BodyProjection<'_, '_, '_> {
         &self,
         captures: &[crate::Capture],
     ) -> Result<Vec<DefaultCaptureV1>, super::super::DefaultBodyProjectionError> {
-        self.entities
-            .resources
-            .collection::<DefaultCaptureV1>(captures.len())?;
         captures
             .iter()
             .map(|capture| self.capture(capture))
@@ -172,9 +166,9 @@ impl BodyProjection<'_, '_, '_> {
     ) -> Result<DefaultCaptureV1, super::super::DefaultBodyProjectionError> {
         let selector = match &capture.source.kind {
             crate::ExprKind::Local(local) => self.local(*local)?,
-            crate::ExprKind::Capture(binding) if *binding == capture.binding => self
-                .locals
-                .binding_selector(*binding, &self.entities.resources)?,
+            crate::ExprKind::Capture(binding) if *binding == capture.binding => {
+                self.locals.binding_selector(*binding)?
+            }
             _ => return Err(super::super::DefaultBodyProjectionError::InvalidCaptureSource),
         };
         let value_type = self.type_key(capture.ty)?;

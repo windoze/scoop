@@ -7,8 +7,8 @@ use crate::{
 };
 
 use super::{
-    BodyNode, BodyValidator, BodyWork, DefaultAssignmentOperationV1,
-    DefaultBodyOperationTypingProblemV1, DefaultBodyOperationV1, DefaultStatementOperationV1,
+    BodyNode, BodyValidator, DefaultAssignmentOperationV1, DefaultBodyOperationTypingProblemV1,
+    DefaultBodyOperationV1, DefaultStatementOperationV1,
     ExportDefaultBodyOperationTypingValidationError,
 };
 
@@ -19,12 +19,11 @@ where
     pub(super) fn process_statement<'body>(
         &mut self,
         statement: &'body DefaultStatementV1,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         match statement.kind() {
             DefaultStatementKindV1::Expr(expression) => {
-                self.push_node(pending, BodyNode::Expression(expression), depth)
+                self.push_node(pending, BodyNode::Expression(expression))
             }
             DefaultStatementKindV1::InitializationEnsure(_)
             | DefaultStatementKindV1::LocalFunction(_)
@@ -38,12 +37,12 @@ where
                 match value.as_ref() {
                     Some(value) => {
                         self.expect_type(value.result_type(), self.template.result(), site)?;
-                        self.push_node(pending, BodyNode::Expression(value), depth)
+                        self.push_node(pending, BodyNode::Expression(value))
                     }
                     None => {
                         let unit = self.core_type(DefaultOperationCoreTypeV1::Unit, site)?;
                         if self.template.result() == &unit {
-                            self.charge_work()
+                            Ok(())
                         } else {
                             self.problem(
                                 site,
@@ -60,12 +59,11 @@ where
                         pattern,
                         subject: init.result_type().clone(),
                     },
-                    depth,
                 )?;
-                self.push_node(pending, BodyNode::Expression(init), depth)
+                self.push_node(pending, BodyNode::Expression(init))
             }
             DefaultStatementKindV1::Assign { target, value } => {
-                self.push_node(pending, BodyNode::Assignment { target, value }, depth)
+                self.push_node(pending, BodyNode::Assignment { target, value })
             }
             DefaultStatementKindV1::If {
                 condition,
@@ -79,10 +77,10 @@ where
                 let boolean = self.core_type(DefaultOperationCoreTypeV1::Boolean, site)?;
                 self.expect_type(condition.result_type(), &boolean, site)?;
                 if let OptionalDefaultStatementListViewV1::Present(else_body) = else_body.view() {
-                    self.push_statements(pending, else_body, depth)?;
+                    self.push_statements(pending, else_body)?;
                 }
-                self.push_statements(pending, then_body, depth)?;
-                self.push_node(pending, BodyNode::Expression(condition), depth)
+                self.push_statements(pending, then_body)?;
+                self.push_node(pending, BodyNode::Expression(condition))
             }
             DefaultStatementKindV1::While {
                 condition_setup,
@@ -95,19 +93,13 @@ where
                 );
                 let boolean = self.core_type(DefaultOperationCoreTypeV1::Boolean, site)?;
                 self.expect_type(condition.result_type(), &boolean, site)?;
-                self.push_statements(pending, body, depth)?;
-                self.push_node(pending, BodyNode::Expression(condition), depth)?;
-                self.push_statements(pending, condition_setup, depth)
+                self.push_statements(pending, body)?;
+                self.push_node(pending, BodyNode::Expression(condition))?;
+                self.push_statements(pending, condition_setup)
             }
-            DefaultStatementKindV1::For(plan) => {
-                self.push_node(pending, BodyNode::For(plan), depth)
-            }
-            DefaultStatementKindV1::When(value) => {
-                self.push_node(pending, BodyNode::When(value), depth)
-            }
-            DefaultStatementKindV1::Try(value) => {
-                self.push_node(pending, BodyNode::Try(value), depth)
-            }
+            DefaultStatementKindV1::For(plan) => self.push_node(pending, BodyNode::For(plan)),
+            DefaultStatementKindV1::When(value) => self.push_node(pending, BodyNode::When(value)),
+            DefaultStatementKindV1::Try(value) => self.push_node(pending, BodyNode::Try(value)),
             DefaultStatementKindV1::Throw(value) => {
                 let site = Self::site(
                     DefaultBodyOperationV1::Statement(DefaultStatementOperationV1::Throw),
@@ -115,7 +107,7 @@ where
                 );
                 let throwable = self.core_type(DefaultOperationCoreTypeV1::Throwable, site)?;
                 self.expect_assignable(value.result_type(), &throwable, site)?;
-                self.push_node(pending, BodyNode::Expression(value), depth)
+                self.push_node(pending, BodyNode::Expression(value))
             }
         }
     }
@@ -124,8 +116,7 @@ where
         &mut self,
         target: &'body DefaultAssignTargetV1,
         value: &'body crate::DefaultExpressionV1,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         match target {
             DefaultAssignTargetV1::Local { local } => {
@@ -135,7 +126,7 @@ where
                 );
                 let record = self.local_record(local, site)?;
                 self.expect_type(value.result_type(), record.value_type(), site)?;
-                self.push_node(pending, BodyNode::Expression(value), depth)
+                self.push_node(pending, BodyNode::Expression(value))
             }
             DefaultAssignTargetV1::Global { property } => {
                 let site = Self::site(
@@ -150,7 +141,7 @@ where
                     );
                 }
                 self.expect_type(value.result_type(), shape.value_type(), site)?;
-                self.push_node(pending, BodyNode::Expression(value), depth)
+                self.push_node(pending, BodyNode::Expression(value))
             }
             DefaultAssignTargetV1::Index { array, index } => {
                 let operation =
@@ -175,9 +166,9 @@ where
                     application.element(),
                     Self::site(operation, DefaultOperationValueRoleV1::Value),
                 )?;
-                self.push_node(pending, BodyNode::Expression(value), depth)?;
-                self.push_node(pending, BodyNode::Expression(index), depth)?;
-                self.push_node(pending, BodyNode::Expression(array), depth)
+                self.push_node(pending, BodyNode::Expression(value))?;
+                self.push_node(pending, BodyNode::Expression(index))?;
+                self.push_node(pending, BodyNode::Expression(array))
             }
             DefaultAssignTargetV1::Field { receiver, field } => {
                 let operation =
@@ -218,8 +209,8 @@ where
                     shape.value_type(),
                     Self::site(operation, DefaultOperationValueRoleV1::Value),
                 )?;
-                self.push_node(pending, BodyNode::Expression(value), depth)?;
-                self.push_node(pending, BodyNode::Expression(receiver), depth)
+                self.push_node(pending, BodyNode::Expression(value))?;
+                self.push_node(pending, BodyNode::Expression(receiver))
             }
         }
     }
@@ -227,8 +218,7 @@ where
     pub(super) fn process_when<'body>(
         &mut self,
         value: &'body crate::DefaultWhenV1,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         let subject = value.subject().result_type().clone();
         self.push_node(
@@ -237,7 +227,6 @@ where
                 fallback: value.fallback(),
                 subject: subject.clone(),
             },
-            depth,
         )?;
         for (index, arm) in value.arms().iter().enumerate().rev() {
             self.push_node(
@@ -247,10 +236,9 @@ where
                     index,
                     subject: subject.clone(),
                 },
-                depth,
             )?;
         }
-        self.push_node(pending, BodyNode::Expression(value.subject()), depth)
+        self.push_node(pending, BodyNode::Expression(value.subject()))
     }
 
     pub(super) fn process_when_arm<'body>(
@@ -258,12 +246,11 @@ where
         arm: &'body crate::DefaultWhenArmV1,
         index: usize,
         subject: &SignatureTypeKey,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.push_statements(pending, arm.body(), depth)?;
+        self.push_statements(pending, arm.body())?;
         if let Some(guard) = arm.guard().as_ref() {
-            self.push_node(pending, BodyNode::WhenGuard { guard, arm: index }, depth)?;
+            self.push_node(pending, BodyNode::WhenGuard { guard, arm: index })?;
         }
         self.push_node(
             pending,
@@ -271,7 +258,6 @@ where
                 pattern: arm.pattern(),
                 subject: subject.clone(),
             },
-            depth,
         )
     }
 
@@ -279,8 +265,7 @@ where
         &mut self,
         guard: &'body crate::DefaultWhenGuardV1,
         arm: usize,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         let site = Self::site(
             DefaultBodyOperationV1::Statement(DefaultStatementOperationV1::WhenGuard { arm }),
@@ -288,22 +273,21 @@ where
         );
         let boolean = self.core_type(DefaultOperationCoreTypeV1::Boolean, site)?;
         self.expect_type(guard.condition().result_type(), &boolean, site)?;
-        self.push_node(pending, BodyNode::Expression(guard.condition()), depth)?;
-        self.push_statements(pending, guard.setup(), depth)
+        self.push_node(pending, BodyNode::Expression(guard.condition()))?;
+        self.push_statements(pending, guard.setup())
     }
 
     pub(super) fn process_when_fallback<'body>(
         &mut self,
         fallback: &'body crate::DefaultWhenFallbackV1,
         subject: &SignatureTypeKey,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         let operation =
             DefaultBodyOperationV1::Statement(DefaultStatementOperationV1::WhenFallback);
         match fallback.view() {
             DefaultWhenFallbackViewV1::Else(statements) => {
-                self.push_statements(pending, statements, depth)
+                self.push_statements(pending, statements)
             }
             DefaultWhenFallbackViewV1::IrrefutableArm { subject_type }
             | DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => self.expect_type(
@@ -330,26 +314,24 @@ where
     pub(super) fn process_try<'body>(
         &mut self,
         value: &'body crate::DefaultTryV1,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         if let OptionalDefaultStatementListViewV1::Present(finally_body) =
             value.finally_body().view()
         {
-            self.push_statements(pending, finally_body, depth)?;
+            self.push_statements(pending, finally_body)?;
         }
         for (index, catch) in value.catches().iter().enumerate().rev() {
-            self.push_node(pending, BodyNode::Catch { catch, index }, depth)?;
+            self.push_node(pending, BodyNode::Catch { catch, index })?;
         }
-        self.push_statements(pending, value.body(), depth)
+        self.push_statements(pending, value.body())
     }
 
     pub(super) fn process_catch<'body>(
         &mut self,
         catch: &'body crate::DefaultCatchV1,
         index: usize,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         let site = Self::site(
             DefaultBodyOperationV1::Statement(DefaultStatementOperationV1::Catch { index }),
@@ -360,7 +342,7 @@ where
         self.expect_mutability(record.mutable(), CanonicalBooleanV1::False, site)?;
         let throwable = self.core_type(DefaultOperationCoreTypeV1::Throwable, site)?;
         self.expect_assignable(catch.value_type(), &throwable, site)?;
-        self.push_statements(pending, catch.body(), depth)
+        self.push_statements(pending, catch.body())
     }
 }
 use scoop_identity::SignatureTypeKey;

@@ -5,7 +5,6 @@ use crate::cross_cone_hir_authority::{
 };
 use scoop_hir::DefaultSourceValueTargetV1 as Target;
 use scoop_hir::*;
-use scoop_wire::WirePath;
 
 pub(super) mod declarations;
 mod providers;
@@ -110,34 +109,4 @@ fn value_access_rejects_wrong_applied_owners_and_field_roles() {
             ));
         }
     }
-}
-
-#[test]
-fn tuple_value_access_is_structural_and_keeps_the_existing_budget() {
-    let (bytes, _) = support::surface(cone());
-    let mut front = declaration_front(&bytes);
-    support::insert_reference(
-        &mut front,
-        Target::Field(&DefaultFieldRefV1::Tuple {
-            declaration_index: 0,
-        }),
-    );
-    let before = front
-        .graph
-        .envelope
-        .meter_mut()
-        .usage()
-        .validation_work_units;
-    support::validate(&mut front).unwrap();
-    let meter = front.graph.envelope.meter_mut();
-    let work = meter.usage().validation_work_units - before;
-    assert!(work > 1);
-    let remaining = meter.limits().validation_work_units - meter.usage().validation_work_units;
-    meter
-        .charge_work(remaining - (work - 1), &WirePath::root())
-        .unwrap();
-    assert!(matches!(
-        support::failure(&mut front, ExportDefaultReferenceKindV1::Field),
-        Error::Resource(_)
-    ));
 }

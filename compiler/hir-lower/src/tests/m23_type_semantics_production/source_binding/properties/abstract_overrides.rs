@@ -6,7 +6,7 @@ fn abstract_property_overrides_retain_typed_root_slots_and_logical_value_types()
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let bound = sources.bind(&foundation, &mut meter()).unwrap();
+        let bound = sources.bind(&foundation).unwrap();
         let export = output.output().export.module();
         let mut rows = Vec::new();
         for (id, property) in export.properties.iter() {
@@ -59,7 +59,7 @@ fn abstract_property_overrides_retain_typed_root_slots_and_logical_value_types()
                 .unwrap(),
             ));
             assert!(
-                matches!(forged.bind(&foundation, &mut meter()), Err(Error::Signature(id)) if id == record.declaration())
+                matches!(forged.bind(&foundation), Err(Error::Signature(id)) if id == record.declaration())
             );
             if old.slot_relations().slots().len() == 2 {
                 let slots = hir::CanonicalProtectedSlotRefsV1::try_new(vec![
@@ -80,7 +80,7 @@ fn abstract_property_overrides_retain_typed_root_slots_and_logical_value_types()
                     .unwrap(),
                 ));
                 assert!(
-                    matches!(forged.bind(&foundation, &mut meter()), Err(Error::Slots(id)) if id == record.declaration())
+                    matches!(forged.bind(&foundation), Err(Error::Slots(id)) if id == record.declaration())
                 );
             }
         }

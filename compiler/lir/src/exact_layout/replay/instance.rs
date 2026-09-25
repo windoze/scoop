@@ -12,9 +12,8 @@ fn finish_instance(
     representation: InstanceRepresentation,
     role: ScanRole,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<ExactInstanceLayoutV1, ExactLayoutReplayError> {
-    let scan = scan_binding(&identity, role, foundation, meter)?;
+    let scan = scan_binding(&identity, role, foundation)?;
     Ok(ExactInstanceLayoutV1 {
         identity,
         shape,
@@ -30,7 +29,6 @@ impl ExactInstanceLayoutV1 {
         identity: ExactLayoutIdentityV1,
         payload: &ExactValueLayoutV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         require_roles(&payload.identity, &[RepresentationRole::ManagedValue])?;
@@ -61,7 +59,6 @@ impl ExactInstanceLayoutV1 {
             InstanceRepresentation::BoxedPayload(payload.value.clone()),
             ScanRole::ManagedObject,
             foundation,
-            meter,
         )
     }
 
@@ -71,7 +68,6 @@ impl ExactInstanceLayoutV1 {
         identity: ExactLayoutIdentityV1,
         element: &ExactValueLayoutV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         let ExactTypeKey::NominalApplication { arguments, .. } = identity.exact_key() else {
@@ -95,7 +91,6 @@ impl ExactInstanceLayoutV1 {
             },
             ScanRole::ArrayElement,
             foundation,
-            meter,
         )
     }
 
@@ -104,7 +99,6 @@ impl ExactInstanceLayoutV1 {
     pub fn inline_bytes(
         identity: ExactLayoutIdentityV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         if is_unit(identity.exact_key()) {
@@ -120,14 +114,12 @@ impl ExactInstanceLayoutV1 {
             InstanceRepresentation::InlineBytes,
             ScanRole::ManagedObject,
             foundation,
-            meter,
         )
     }
 
     pub fn abstract_reference(
         identity: ExactLayoutIdentityV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
         if is_unit(identity.exact_key()) {
@@ -147,7 +139,6 @@ impl ExactInstanceLayoutV1 {
             InstanceRepresentation::AbstractReference,
             ScanRole::ManagedObject,
             foundation,
-            meter,
         )
     }
 }

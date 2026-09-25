@@ -26,7 +26,6 @@ pub(super) fn rebuild(
         t.value_parameters().clone(),
         t.references().clone(),
         t.definition_origin().clone(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -77,7 +76,7 @@ fn default_declarations_check_non_parameter_local_types_and_scope() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let mut locals = original.locals().records().to_vec();
             let index = locals.iter().position(|local| {
@@ -91,7 +90,7 @@ fn default_declarations_check_non_parameter_local_types_and_scope() {
             ).unwrap();
             let changed = replace(&table, rebuild(original, locals, original.body().clone()));
             let Error::Record { key: failed, error } = parameters
-                .bind_default_declarations(&changed, &[], &mut meter()).unwrap_err()
+                .bind_default_declarations(&changed, &[]).unwrap_err()
             else { panic!("source envelope must fail"); };
             assert_eq!(failed, original.key());
             let Error::LocalType { index: actual, error } = *error else {
@@ -99,13 +98,11 @@ fn default_declarations_check_non_parameter_local_types_and_scope() {
             };
             assert_eq!(actual, index);
             assert!(matches!(*error,
-                hir::MeteredSignatureTypeSemanticError::Semantic(
-                    hir::SignatureTypeSemanticError::BinderScope(
+                hir::SignatureTypeSemanticError::BinderScope(
                         hir::SignatureBinderScopeError::DepthOutOfRange {
                             depth: 0, available_depths: 0,
                         }
                     )
-                )
             ));
             let mut locals = original.locals().records().to_vec();
             let wrong = LocalValueSelector::LocalDeclaration {
@@ -120,7 +117,7 @@ fn default_declarations_check_non_parameter_local_types_and_scope() {
             ).unwrap());
             let changed = replace(&table, rebuild(original, locals, original.body().clone()));
             let Error::Record { error, .. } = parameters
-                .bind_default_declarations(&changed, &[], &mut meter()).unwrap_err()
+                .bind_default_declarations(&changed, &[]).unwrap_err()
             else { panic!("source scope must fail"); };
             assert!(matches!(*error,
                 Error::LocalScope(hir::TemplateLocalScopeValidationError::LocalOutsideDefinitionPath {
@@ -141,7 +138,7 @@ fn default_declarations_replay_nested_capture_types_from_independent_nominal_sha
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let array = core.array().persistent();
             let hir::DefaultExpressionKindV1::Lambda(lambda) = original.body().value().kind()
@@ -162,7 +159,7 @@ fn default_declarations_replay_nested_capture_types_from_independent_nominal_sha
             for (index, ty) in cases.into_iter().enumerate() {
                 let changed = replace(&table, capture_type(original, ty));
                 let Error::Record { key: failed, error } = parameters
-                    .bind_default_declarations(&changed, &[], &mut meter())
+                    .bind_default_declarations(&changed, &[])
                     .unwrap_err()
                 else {
                     panic!("source capture type must fail");

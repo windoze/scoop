@@ -34,22 +34,12 @@ fn declaration_domain_empty_wire_still_contains_all_nine_fields() {
             let mut bytes = expected.clone();
             bytes[0] = header;
             assert!(
-                decode_canonical::<hir::DecodedTypeDeclarationSourceAuthorityV1>(
-                    &bytes,
-                    DecodeLimits::default()
-                )
-                .is_err()
+                decode_canonical::<hir::DecodedTypeDeclarationSourceAuthorityV1>(&bytes).is_err()
             );
         }
         let mut bytes = expected;
         bytes[17] = 10;
-        assert!(
-            decode_canonical::<hir::DecodedTypeDeclarationSourceAuthorityV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<hir::DecodedTypeDeclarationSourceAuthorityV1>(&bytes).is_err());
     });
 }
 
@@ -94,58 +84,18 @@ fn declaration_domain_reader_preserves_canonical_order_and_rejects_unknown_refs(
                 let mut columns = columns(e);
                 columns[field - 1] = malformed;
                 let decoded: hir::DecodedTypeDeclarationSourceAuthorityV1 =
-                    decode_canonical(&product(columns), DecodeLimits::default()).unwrap();
+                    decode_canonical(&product(columns)).unwrap();
                 assert!(
-                    decoded
-                        .resolve(&mut fixture.identities, &mut meter())
-                        .is_err(),
+                    decoded.resolve(&mut fixture.identities).is_err(),
                     "field {field}, duplicate={duplicate}"
                 );
             }
         }
         let decoded: hir::DecodedTypeDeclarationSourceAuthorityV1 =
-            decode_canonical(&encode(domain).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(domain).unwrap()).unwrap();
         let mut empty = scoop_identity::PendingIdentityValidation::new()
             .finish()
             .unwrap();
-        assert!(decoded.resolve(&mut empty, &mut meter()).is_err());
-    });
-}
-
-#[test]
-fn declaration_domain_resolver_uses_one_budget_for_every_child_table() {
-    with_domain(SOURCE, |_, fixture, _, source, _| {
-        let bytes = encode(source).unwrap();
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            let decoded: hir::DecodedTypeDeclarationSourceAuthorityV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-            assert!(
-                decoded
-                    .resolve(&mut fixture.identities, &mut BudgetMeter::new(limits))
-                    .is_err(),
-                "{limits:?}"
-            );
-        }
+        assert!(decoded.resolve(&mut empty).is_err());
     });
 }

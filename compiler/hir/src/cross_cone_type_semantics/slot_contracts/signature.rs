@@ -1,10 +1,10 @@
 use std::fmt;
 
 use scoop_identity::{
-    DecodedExactCallableSignature, ExactCallableSignature,
-    MeteredExactCallableSignatureResolutionError, PersistentExactTypeId, PersistentIdResolver,
+    DecodedExactCallableSignature, ExactCallableSignature, ExactCallableSignatureResolutionError,
+    PersistentExactTypeId, PersistentIdResolver,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{
     CallableImplementationV1, CallableSourceEffectsBuildError, CallableSourceEffectsV1,
@@ -76,12 +76,11 @@ impl DecodedInheritanceCallableSignatureV1 {
     pub fn resolve<R: PersistentIdResolver<PersistentExactTypeId, Error = E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<InheritanceCallableSignatureV1, InheritanceCallableSignatureResolutionError<E>>
     {
         let exact = self
             .exact_signature
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(InheritanceCallableSignatureResolutionError::Exact)?;
         let effects = self
             .effects
@@ -101,7 +100,7 @@ impl WireEncode for DecodedInheritanceCallableSignatureV1 {
     }
 }
 impl WireDecode for DecodedInheritanceCallableSignatureV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             exact_signature: decoder.field(1, DecodedExactCallableSignature::decode)?,
@@ -129,7 +128,7 @@ impl std::error::Error for InheritanceCallableSignatureBuildError {}
 
 #[derive(Debug)]
 pub enum InheritanceCallableSignatureResolutionError<E> {
-    Exact(MeteredExactCallableSignatureResolutionError<E>),
+    Exact(ExactCallableSignatureResolutionError<E>),
     Effects(CallableSourceEffectsBuildError),
     Signature(InheritanceCallableSignatureBuildError),
 }

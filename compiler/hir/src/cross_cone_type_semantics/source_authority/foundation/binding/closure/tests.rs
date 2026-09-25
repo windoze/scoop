@@ -1,16 +1,12 @@
 use super::*;
 use scoop_identity::DefinitionOrigin;
 use scoop_identity::*;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod fixture;
 mod public;
 mod rejection;
 use fixture::*;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn byte_restored_dependencies_replay_inheritance_without_merging_local_inventory() {
@@ -21,9 +17,7 @@ fn byte_restored_dependencies_replay_inheritance_without_merging_local_inventory
     let public = empty_public();
     let base_provider = provider(&base_bound, &public);
     let child_provider = provider(&child_bound, &public);
-    let closure =
-        TypeFoundationSourceClosureV1::try_new(child_provider, &[base_provider], &mut meter())
-            .unwrap();
+    let closure = TypeFoundationSourceClosureV1::try_new(child_provider, &[base_provider]).unwrap();
     assert_eq!(closure.current_provider(), child.provider());
     assert_eq!(
         closure.local_source_roots().unwrap(),
@@ -72,24 +66,15 @@ fn byte_restored_dependencies_replay_inheritance_without_merging_local_inventory
             SourceNominalId::Concrete(base.owner),
         ],
         &closure,
-        &mut meter(),
     )
     .unwrap();
-    assert!(
-        graph
-            .is_subclass(child.exact, base.exact, &mut meter())
-            .unwrap()
-    );
-    assert!(
-        !graph
-            .is_subclass(base.exact, child.exact, &mut meter())
-            .unwrap()
-    );
+    assert!(graph.is_subclass(child.exact, base.exact).unwrap());
+    assert!(!graph.is_subclass(base.exact, child.exact).unwrap());
     child
         .source
         .entries()
         .representations
-        .validate_source_semantics(&closure, &mut meter(), &WirePath::root())
+        .validate_source_semantics(&closure, &WirePath::root())
         .unwrap();
     let facts = CanonicalExactTypeFactsV1::try_new(vec![
         ExactTypeFactsV1::try_new(
@@ -100,7 +85,7 @@ fn byte_restored_dependencies_replay_inheritance_without_merging_local_inventory
         .unwrap(),
     ])
     .unwrap();
-    facts.validate_semantics(&closure, &mut meter()).unwrap();
+    facts.validate_semantics(&closure).unwrap();
     assert!(matches!(
         closure
             .representation_source(base.owner)
@@ -120,13 +105,12 @@ fn derived_source_representation_cannot_be_replaced_by_dependency_representation
     let closure = TypeFoundationSourceClosureV1::try_new(
         provider(&child_bound, &public),
         &[provider(&base_bound, &public)],
-        &mut meter(),
     )
     .unwrap();
     let candidate = &base.source.entries().representations;
     assert!(
         candidate
-            .validate_source_semantics(&closure, &mut meter(), &WirePath::root())
+            .validate_source_semantics(&closure, &WirePath::root())
             .is_err()
     );
     let original = child
@@ -149,7 +133,7 @@ fn derived_source_representation_cannot_be_replaced_by_dependency_representation
     assert!(
         CanonicalNominalRepresentationSupportV1::try_new(vec![forged])
             .unwrap()
-            .validate_source_semantics(&closure, &mut meter(), &WirePath::root())
+            .validate_source_semantics(&closure, &WirePath::root())
             .is_err()
     );
 }

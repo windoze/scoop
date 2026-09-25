@@ -25,17 +25,16 @@ pub(super) fn check(
     let dependencies = [core_resolved.dependency_view(core.initialization_units())];
     let expected = section.selected().relations().collect::<Vec<_>>();
     let resolved = wire::resolve(section, &[core], &expected, input.identities);
-    let replay = |candidate: &_, meter: &mut BudgetMeter| {
+    let replay = |candidate: &_| {
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
             &[],
             candidate,
             section.initialization_units(),
             &dependencies,
-            meter,
         )
     };
-    replay(&resolved, &mut meter()).unwrap();
+    replay(&resolved).unwrap();
     for (provider, owner) in shapes {
         let shape = core.shape_support().get(*owner).unwrap();
         for target in [
@@ -51,7 +50,7 @@ pub(super) fn check(
                 .filter(|relation| *relation != required)
                 .collect::<Vec<_>>();
             assert!(
-                matches!(replay(&wire::resolve(section, &[core], &missing, input.identities), &mut meter()), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
+                matches!(replay(&wire::resolve(section, &[core], &missing, input.identities)), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
             );
         }
         if let mir::MirBoxedShapeSupportV1::Available(exact) = shape.boxed() {
@@ -77,16 +76,10 @@ pub(super) fn check(
     extra.push(unused);
     extra.sort_unstable();
     assert!(
-        matches!(replay(&wire::resolve(section, &[core], &extra, input.identities), &mut meter()), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
+        matches!(replay(&wire::resolve(section, &[core], &extra, input.identities)), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
     );
-    let mut measured = meter();
-    replay(&resolved, &mut measured).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay(&resolved, &mut shared).unwrap();
-    assert!(replay(&resolved, &mut shared).is_err());
+
+    replay(&resolved).unwrap();
     assert!(matches!(
         scoop_slib::replay_shared_mir_dependency_graph(
             hir::SharedTypeMetadataV1 {
@@ -96,8 +89,7 @@ pub(super) fn check(
             &[],
             &resolved,
             section.initialization_units(),
-            &dependencies,
-            &mut meter()
+            &dependencies
         ),
         Err(Error::InputProvider { .. })
     ));
@@ -107,8 +99,7 @@ pub(super) fn check(
             &[],
             &resolved,
             section.initialization_units(),
-            &[],
-            &mut meter()
+            &[]
         )
         .is_err()
     );

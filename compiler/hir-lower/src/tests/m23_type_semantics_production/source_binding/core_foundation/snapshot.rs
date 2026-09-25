@@ -1,8 +1,8 @@
 use super::*;
 
 pub(super) fn render(output: &hir::Output) -> String {
-    let source = Production::from_hir(output, &mut meter()).unwrap();
-    let transcript = source.source_transcript(&mut meter()).unwrap();
+    let source = Production::from_hir(output).unwrap();
+    let transcript = source.source_transcript().unwrap();
     let entries = transcript.entries();
     let mut rows = Vec::new();
     for owner in source.source_roots() {

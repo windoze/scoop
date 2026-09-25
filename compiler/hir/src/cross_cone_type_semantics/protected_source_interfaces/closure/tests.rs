@@ -2,7 +2,6 @@ use super::*;
 use crate::cross_cone_type_semantics::inheritance::inheritance_interface_fixture;
 use crate::*;
 use scoop_identity::*;
-use scoop_wire::DecodeLimits;
 
 mod cases;
 mod nested;
@@ -19,14 +18,8 @@ enum Case {
     Nested,
     NestedMissing,
 }
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
-fn validate(
-    case: Case,
-    limits: DecodeLimits,
-) -> Result<usize, ProtectedSourceClosureError<&'static str>> {
+fn validate(case: Case) -> Result<usize, ProtectedSourceClosureError<&'static str>> {
     let mut bundle = inheritance_interface_fixture();
     let mut nested_owner = None;
     let mut expected = bundle
@@ -140,7 +133,6 @@ fn validate(
         graph_source.records.values(),
         graph_source.keys.keys().copied(),
         &graph_source,
-        &mut meter(),
     )
     .unwrap();
     let protected = bundle
@@ -149,12 +141,11 @@ fn validate(
             &graph,
             &CanonicalNominalRepresentationSupportV1::default(),
             &mut bundle.fixture,
-            &mut meter(),
         )
         .unwrap();
     let inheritance = bundle
         .table
-        .validate_interfaces(&graph, protected, &mut bundle.fixture, &mut meter())
+        .validate_interfaces(&graph, protected, &mut bundle.fixture)
         .unwrap();
     let checked = table.validate_protocols(
         protected,
@@ -163,7 +154,6 @@ fn validate(
         &keys,
         &mut bundle.fixture,
         &mut Authority,
-        &mut BudgetMeter::new(limits),
     )?;
     assert_eq!(checked.entries().len(), expected_count);
     assert_eq!(checked.table(), &table);
@@ -171,7 +161,7 @@ fn validate(
         let source = checked.get(owner).unwrap();
         assert_eq!(source.owner(), source.protocol().record().owner());
         let replay = source
-            .validate_owner_source(&graph, &mut bundle.fixture, &mut meter())
+            .validate_owner_source(&graph, &mut bundle.fixture)
             .unwrap();
         assert_eq!(replay.declaration(), owner);
         assert_eq!(replay.payload(), source.payload());

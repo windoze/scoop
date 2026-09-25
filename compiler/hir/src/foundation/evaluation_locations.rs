@@ -4,7 +4,6 @@ use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner, ConeIdentity,
     EvaluationOrigin, PersistentSourceContextId,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::{DefinitionSourceLocationValidationError, OdrFreeHirFoundation};
 
@@ -16,19 +15,10 @@ impl OdrFreeHirFoundation {
         current: ConeIdentity,
         root: CallableMaterialization,
         origin: &EvaluationOrigin,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), ExecutableEvaluationValidationError> {
         use ExecutableEvaluationValidationError as Error;
-        self.validate_source_location(
-            current,
-            origin.source(),
-            origin.span(),
-            origin.context(),
-            meter,
-            path,
-        )
-        .map_err(Error::Location)?;
+        self.validate_source_location(current, origin.source(), origin.span(), origin.context())
+            .map_err(Error::Location)?;
         if root.context() != CallableMaterializationContext::NoSubstitution
             || matches!(
                 root.template(),
@@ -46,19 +36,9 @@ impl OdrFreeHirFoundation {
             .source_context_key(origin.context())
             .ok_or_else(context_error)?;
         // Generated lexical and initialization bodies use their canonical source anchor.
-        let subject =
-            contexts::source_subject(self.as_canonical(), root.template(), context, meter, path)?
-                .ok_or_else(context_error)?;
-        meter.charge_work(
-            u64::from(
-                self.as_canonical()
-                    .counts()
-                    .definition_origins
-                    .max(1)
-                    .ilog2(),
-            ) + 1,
-            path,
-        )?;
+        let subject = contexts::source_subject(self.as_canonical(), root.template(), context)
+            .ok_or_else(context_error)?;
+
         let definition = self
             .definition_origin(subject)
             .ok_or(Error::MissingRootOrigin(root))?;
@@ -71,7 +51,6 @@ impl OdrFreeHirFoundation {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExecutableEvaluationValidationError {
-    Resource(WireError),
     Location(DefinitionSourceLocationValidationError),
     Materialization(CallableMaterialization),
     MissingRootOrigin(CallableMaterialization),
@@ -82,16 +61,9 @@ pub enum ExecutableEvaluationValidationError {
     },
 }
 
-impl From<WireError> for ExecutableEvaluationValidationError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
-}
-
 impl std::fmt::Display for ExecutableEvaluationValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Resource(error) => error.fmt(f),
             Self::Location(error) => error.fmt(f),
             Self::Materialization(root) => {
                 write!(f, "call root {root:?} is not an ODR-free executable")

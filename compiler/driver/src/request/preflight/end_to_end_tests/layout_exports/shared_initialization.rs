@@ -11,20 +11,18 @@ pub(super) fn check(
     strong: &lir::ValidatedStrongProductionSectionV2,
 ) {
     let replay = |callables: &mir::StrongCallableBridgeSurfaceV1,
-                  layouts: &lir::CanonicalExactLayoutExportsV1,
-                  meter: &mut BudgetMeter| {
+                  layouts: &lir::CanonicalExactLayoutExportsV1| {
         scoop_slib::replay_shared_initialization_abi(
             lir.module().meta.target_profile,
             callables,
             layouts,
             &[],
             lir.foundation(),
-            meter,
         )
     };
     let callables = mir.strong_callable_bridges();
-    let expected = replay(callables, layout.layouts(), &mut meter())
-        .unwrap_or_else(|error| panic!("{name}: {error}"));
+    let expected =
+        replay(callables, layout.layouts()).unwrap_or_else(|error| panic!("{name}: {error}"));
     assert_eq!(expected.as_deref(), strong.initialization_cycle_abi());
     if name.starts_with("shared-init-abi-") {
         rejections::check(callables, layout.layouts(), lir.foundation(), &replay);
@@ -60,7 +58,6 @@ pub(super) fn check_consumption(
             layouts,
             dependencies,
             input.lir.foundation(),
-            &mut meter(),
         )
         .unwrap()
         .as_deref(),

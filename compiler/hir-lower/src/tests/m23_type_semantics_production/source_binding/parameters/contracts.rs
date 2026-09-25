@@ -44,8 +44,8 @@ fn source_parameter_arity_names_and_types_must_match_bound_signatures() {
                     _ => unreachable!(),
                 }
                 let mut forged = sources.clone();
-                forged.replace(Record::try_new(owner, parameters, &mut meter()).unwrap());
-                let error = forged.bind(&foundation, core, &mut meter()).unwrap_err();
+                forged.replace(Record::try_new(owner, parameters).unwrap());
+                let error = forged.bind(&foundation, core).unwrap_err();
                 assert!(matches!((field, error), (0, Error::Arity(actual))
                     | (1 | 2, Error::Shape { owner: actual, position: 0 }) if actual == owner));
             }
@@ -75,9 +75,9 @@ fn scalar_and_binder_parameters_cannot_claim_vararg_array_protocols() {
                     first.definition_origin().clone(),
                 );
                 let mut forged = sources.clone();
-                forged.replace(Record::try_new(record.owner(), parameters, &mut meter()).unwrap());
+                forged.replace(Record::try_new(record.owner(), parameters).unwrap());
                 assert!(
-                    matches!(forged.bind(&foundation, inputs.protocols().fundamental_types(), &mut meter()),
+                    matches!(forged.bind(&foundation, inputs.protocols().fundamental_types()),
                     Err(Error::Vararg { owner, position: 0 }) if owner == record.owner())
                 );
             }
@@ -117,9 +117,9 @@ fn parameter_origins_must_resolve_actual_foundation_source_points() {
             first.calling_kind(),
             hir::ExportDefinitionSourceV1::new(invalid),
         );
-        sources.replace(Record::try_new(record.owner(), parameters, &mut meter()).unwrap());
+        sources.replace(Record::try_new(record.owner(), parameters).unwrap());
         assert!(
-            matches!(sources.bind(&foundation, inputs.protocols().fundamental_types(), &mut meter()),
+            matches!(sources.bind(&foundation, inputs.protocols().fundamental_types()),
             Err(Error::Foundation(hir::TypeFoundationBindingError::MissingSourcePoint(offset))) if offset == invalid_offset)
         );
     });

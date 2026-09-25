@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentSourceContextId, PersistentTypeId, SourceContextKey, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind, SourceSpan,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1};
@@ -197,7 +197,7 @@ fn domains_round_trip_all_constraint_kinds_and_keep_purpose_fields() {
         PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal()),
     );
     let decoded: DecodedNominalAccessDomainsV1 =
-        decode_canonical(&encode(&domains).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&domains).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut fixture).unwrap(), domains);
     assert_eq!(domain.intersect(&domain).unwrap(), domain);
     assert!(
@@ -222,11 +222,8 @@ fn repeated_or_reversed_constraints_are_rejected_without_repair() {
         PersistentAccessDomainV1::try_from_constraints(vec![cone.clone(), cone.clone()]).is_err()
     );
     let decode_constraint = |constraint: &PersistentAccessConstraintV1| {
-        decode_canonical::<DecodedPersistentAccessConstraintV1>(
-            &encode(constraint).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap()
+        decode_canonical::<DecodedPersistentAccessConstraintV1>(&encode(constraint).unwrap())
+            .unwrap()
     };
     let duplicate = DecodedPersistentAccessDomainV1::Conjunction(vec![
         decode_constraint(&cone),
@@ -244,10 +241,7 @@ fn repeated_or_reversed_constraints_are_rejected_without_repair() {
         &[0xa2, 0, 1, 1, 0][..],
         &[0xa1, 0, 2][..],
     ] {
-        assert!(
-            decode_canonical::<DecodedPersistentAccessDomainV1>(bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedPersistentAccessDomainV1>(bytes).is_err());
     }
 }
 
@@ -262,8 +256,7 @@ fn declared_visibility_and_source_use_closed_wire_and_foundation_origin() {
     ] {
         assert_eq!(encode(&visibility).unwrap(), [0xa1, 0, tag]);
         assert_eq!(
-            decode_canonical::<DeclaredVisibilityV1>(&[0xa1, 0, tag], DecodeLimits::default())
-                .unwrap(),
+            decode_canonical::<DeclaredVisibilityV1>(&[0xa1, 0, tag]).unwrap(),
             visibility
         );
     }
@@ -274,7 +267,7 @@ fn declared_visibility_and_source_use_closed_wire_and_foundation_origin() {
     )
     .unwrap();
     let decoded: DecodedDeclarationAccessSourceV1 =
-        decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&source).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut fixture).unwrap(), source);
     let member = fixture.member_key.clone();
     assert_eq!(

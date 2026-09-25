@@ -2,7 +2,7 @@ use std::fmt;
 
 use scoop_wire::{
     Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
-    domain_separated_cbor_hash, domain_separated_cbor_hash_stream_length,
+    domain_separated_cbor_hash,
 };
 
 use super::{
@@ -58,7 +58,7 @@ impl WireEncode for DecodedNativeExternAbi {
 }
 
 impl WireDecode for DecodedNativeExternAbi {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 2)?;
         match tag {
@@ -197,7 +197,7 @@ impl WireEncode for DecodedNativeExternalContract {
 }
 
 impl WireDecode for DecodedNativeExternalContract {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -264,7 +264,6 @@ impl DecodedNativeExternalContractRecord {
             .map_err(NativeExternalContractFingerprintError::SymbolKey)?;
         Ok(NativeExternalContractFingerprintHashPlan {
             symbol_key,
-            decoded_symbol_id: self.symbol_id,
             contract: self.contract,
         })
     }
@@ -367,31 +366,10 @@ impl DecodedNativeExternalContractRecord {
 
 pub(crate) struct NativeExternalContractFingerprintHashPlan {
     symbol_key: NativeExternalSymbolKey,
-    decoded_symbol_id: DecodedPersistentId<PersistentNativeExternalSymbolId>,
     contract: DecodedNativeExternalContract,
 }
 
 impl NativeExternalContractFingerprintHashPlan {
-    pub(crate) fn hash_stream_lengths(
-        &self,
-    ) -> Result<(u64, Option<u64>), NativeExternalContractFingerprintError> {
-        let symbol_length = domain_separated_cbor_hash_stream_length(
-            "scoop-native-link-symbol-v1",
-            &self.symbol_key,
-        )
-        .map_err(NativeExternalContractFingerprintError::Hash)?;
-        let fingerprint_input = DecodedNativeExternalContractFingerprintLengthInput {
-            symbol_id: self.decoded_symbol_id,
-            contract: &self.contract,
-        };
-        let fingerprint_length = domain_separated_cbor_hash_stream_length(
-            "scoop-native-external-contract-v1",
-            &fingerprint_input,
-        )
-        .map_err(NativeExternalContractFingerprintError::Hash)?;
-        Ok((symbol_length, Some(fingerprint_length)))
-    }
-
     pub(crate) fn candidate_fingerprint(
         &self,
     ) -> Result<NativeExternalContractFingerprint, NativeExternalContractFingerprintError> {
@@ -410,21 +388,6 @@ impl NativeExternalContractFingerprintHashPlan {
 struct DecodedNativeExternalContractFingerprintInput<'a> {
     symbol_id: PersistentNativeExternalSymbolId,
     contract: &'a DecodedNativeExternalContract,
-}
-
-struct DecodedNativeExternalContractFingerprintLengthInput<'a> {
-    symbol_id: DecodedPersistentId<PersistentNativeExternalSymbolId>,
-    contract: &'a DecodedNativeExternalContract,
-}
-
-impl WireEncode for DecodedNativeExternalContractFingerprintLengthInput<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.symbol_id.encode(encoder)?;
-        encoder.field(2)?;
-        self.contract.encode(encoder)
-    }
 }
 
 impl WireEncode for DecodedNativeExternalContractFingerprintInput<'_> {
@@ -471,7 +434,7 @@ impl WireEncode for DecodedNativeExternalContractRecord {
 }
 
 impl WireDecode for DecodedNativeExternalContractRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             source: decoder.field(1, DecodedPersistentId::decode)?,
@@ -538,7 +501,7 @@ where
 }
 
 fn decode_data_contract(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
 ) -> Result<(DecodedNativeLibraryBinding, DecodedCanonicalCStorageType), WireError> {
     expect_sum_length(decoder, fields, 3)?;
@@ -562,17 +525,13 @@ fn encode_data_contract(
     storage.encode(encoder)
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -584,7 +543,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

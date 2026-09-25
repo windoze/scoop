@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use scoop_identity::{
     ConeIdentity, DecodedSignatureTypeKey, LocalValueSelector, PersistentIdResolver,
     PersistentKeyResolver, PersistentSourceContextId, SignatureTypeKey, SourceContextKey,
@@ -109,7 +107,7 @@ impl WireEncode for DecodedTemplateLocalDefinitionV1 {
 }
 
 impl WireDecode for DecodedTemplateLocalDefinitionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -227,7 +225,7 @@ impl WireEncode for DecodedTemplateLocalRecordV1 {
 }
 
 impl WireDecode for DecodedTemplateLocalRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             selector: decoder.field(1, LocalValueSelector::decode)?,
@@ -375,7 +373,7 @@ impl WireEncode for DecodedCanonicalTemplateLocalTableV1 {
 }
 
 impl WireDecode for DecodedCanonicalTemplateLocalTableV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedTemplateLocalRecordV1::decode(decoder))
             .map(|records| Self { records })
@@ -434,11 +432,7 @@ fn duplicate_selector(records: &[TemplateLocalRecordV1]) -> Option<LocalValueSel
         .map(|pair| pair[0].selector.clone())
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -449,7 +443,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

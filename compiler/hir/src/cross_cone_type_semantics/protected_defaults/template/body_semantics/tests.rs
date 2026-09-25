@@ -5,9 +5,9 @@ use scoop_identity::{
     CallableTemplateOrigin, Effect, GeneratedCallableKey, LexicalCallableParent,
     LexicalCallableRole, LocalValueSelector, PersistentFieldId, PersistentGeneratedCallableId,
     SignatureTypeKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment, SyntheticLocalRole,
+    StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 mod flow;
 mod nested;

@@ -21,11 +21,11 @@ fn default_source_lookup_protected_class_requires_bound_artifact_exact_evidence(
         let foundation = fixture.bind().unwrap();
         assert_eq!(foundation.exact_type_key(exact).unwrap(), &expected_key);
         let bound = foundation
-            .bind_default_access_declarations(table, required, &mut meter())
+            .bind_default_access_declarations(table, required)
             .unwrap();
         assert_eq!(
             bound
-                .source_lookup_domain(subject, &mut meter())
+                .source_lookup_domain(subject)
                 .unwrap()
                 .persistent()
                 .constraints(),
@@ -55,15 +55,14 @@ fn default_source_lookup_protected_class_requires_bound_artifact_exact_evidence(
                 .collect(),
         )
         .unwrap();
-        let incomplete =
-            hir::TypeFoundationSourceAuthorityV1::try_new(entries, &mut meter()).unwrap();
+        let incomplete = hir::TypeFoundationSourceAuthorityV1::try_new(entries).unwrap();
         let foundation = incomplete
-            .bind_to_foundation(&fixture.foundation, &fixture.identities, &mut meter())
+            .bind_to_foundation(&fixture.foundation, &fixture.identities)
             .unwrap();
         let bound = foundation
-            .bind_default_access_declarations(table, required, &mut meter())
+            .bind_default_access_declarations(table, required)
             .unwrap();
-        assert!(matches!(bound.source_lookup_domain(subject, &mut meter()),
+        assert!(matches!(bound.source_lookup_domain(subject),
             Err(DomainError::Authority(Error::Foundation(error))) if matches!(*error, hir::TypeFoundationBindingError::MissingExact(id) if id == exact)));
         let mut canonical = fixture.foundation.as_canonical().clone();
         canonical.set_exact_types(vec![]).unwrap();
@@ -71,7 +70,7 @@ fn default_source_lookup_protected_class_requires_bound_artifact_exact_evidence(
         assert!(matches!(
             fixture
                 .source
-                .bind_to_foundation(&incomplete, &fixture.identities, &mut meter()),
+                .bind_to_foundation(&incomplete, &fixture.identities),
             Err(hir::TypeFoundationBindingError::MissingExact(_))
         ));
     });
@@ -84,13 +83,12 @@ fn default_source_lookup_queries_cannot_escape_the_bound_demand_closure() {
         let selected = function(export, "fileOnly");
         let other = function(export, "exposed");
         let required = BTreeSet::from([selected]);
-        let table =
-            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let table = Table::from_export_hir(&output.output().export, &required).unwrap();
         let foundation = fixture.bind().unwrap();
         let bound = foundation
-            .bind_default_access_declarations(&table, &required, &mut meter())
+            .bind_default_access_declarations(&table, &required)
             .unwrap();
-        assert!(matches!(bound.source_lookup_domain(other, &mut meter()),
+        assert!(matches!(bound.source_lookup_domain(other),
             Err(DomainError::Authority(Error::MissingRecord(id))) if id == other));
     });
 }

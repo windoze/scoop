@@ -27,7 +27,7 @@ impl SignatureBinderScopeV1 {
     pub(crate) fn with_inner_frame(
         &self,
         own_arity: u32,
-        meter: &mut scoop_wire::BudgetMeter,
+
         path: &scoop_wire::WirePath,
     ) -> Result<Self, scoop_wire::WireError> {
         let inner = NonZeroU32::new(own_arity);
@@ -42,10 +42,9 @@ impl SignatureBinderScopeV1 {
                 None,
             ));
         }
-        meter.check_semantic_depth(count as u64, path)?;
-        meter.charge_work(count as u64, path)?;
+
         let mut frames = Vec::new();
-        meter.try_reserve_collection_slots(&mut frames, count, path)?;
+        scoop_wire::allocation::try_reserve(&mut frames, count, path)?;
         frames.extend(inner);
         frames.extend_from_slice(&self.frames);
         Ok(Self { frames })

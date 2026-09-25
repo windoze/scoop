@@ -1,5 +1,5 @@
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity, NominalDeclarationOwner};
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::{call, file, fun, fun_expr, int_lit, sp, stmt, ty_named, var};
 use crate::{CurrentConeSources, lower_current_cone};
@@ -230,11 +230,7 @@ fn imported_core_default_projects_after_the_input_world_is_dropped() {
     assert_eq!(template.references().callables().len(), 1);
     let callables = scoop_hir::CanonicalCallableInterfacesV1::from_export_hir(export).unwrap();
     template
-        .validate_reference_closure_semantics(
-            callables.get(owner).unwrap(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_reference_closure_semantics(callables.get(owner).unwrap(), &WirePath::root())
         .expect("the imported callable reference must close exactly");
 }
 

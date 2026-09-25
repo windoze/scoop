@@ -19,7 +19,7 @@ fn default_constructor_access_rejects_wrong_owner_root_kind_and_generic_arity() 
                 );
                 assert!(
                     matches!(
-                        foundation.default_constructor_access_subject(&wrong, &mut meter()),
+                        foundation.default_constructor_access_subject(&wrong),
                         Err(Error::AppliedOwner(_))
                     ),
                     "{name}"
@@ -44,7 +44,7 @@ fn default_constructor_access_rejects_wrong_owner_root_kind_and_generic_arity() 
                 if let Some(wrong) = wrong_kind {
                     assert!(
                         matches!(
-                            foundation.default_constructor_access_subject(&wrong, &mut meter()),
+                            foundation.default_constructor_access_subject(&wrong),
                             Err(Error::NominalKind { .. })
                         ),
                         "{name}"
@@ -65,7 +65,7 @@ fn default_constructor_access_rejects_wrong_owner_root_kind_and_generic_arity() 
                         },
                     );
                     assert!(
-                        matches!(foundation.default_constructor_access_subject(&wrong, &mut meter()), Err(Error::AppliedOwnerArity { owner: SourceNominalId::GenericTemplate(id), expected: 1, actual: 2 }) if id == *origin)
+                        matches!(foundation.default_constructor_access_subject(&wrong), Err(Error::AppliedOwnerArity { owner: SourceNominalId::GenericTemplate(id), expected: 1, actual: 2 }) if id == *origin)
                     );
                 }
             }
@@ -101,12 +101,11 @@ fn default_constructor_access_requires_actual_artifact_constructor_and_owner_key
                     let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
                     let foundation = fixture
                         .source
-                        .bind_to_foundation(&artifact, &fixture.identities, &mut meter())
+                        .bind_to_foundation(&artifact, &fixture.identities)
                         .unwrap();
                     assert!(
                         matches!(
-                            foundation
-                                .default_constructor_access_subject(record.target(), &mut meter()),
+                            foundation.default_constructor_access_subject(record.target()),
                             Err(Error::MissingDeclaration(_)) | Err(Error::MissingTarget(_))
                         ),
                         "{name} missing_owner={missing_owner}"
@@ -138,7 +137,7 @@ fn default_constructor_access_cannot_select_an_object_initialization_entry() {
             owner_type: SignatureTypeKey::Nominal(owner),
         };
         assert!(
-            matches!(fixture.bind().unwrap().default_constructor_access_subject(&target, &mut meter()), Err(Error::NominalKind { owner: SourceNominalId::Concrete(actual), expected: scoop_identity::SourceDeclarationKind::Class }) if actual == owner)
+            matches!(fixture.bind().unwrap().default_constructor_access_subject(&target), Err(Error::NominalKind { owner: SourceNominalId::Concrete(actual), expected: scoop_identity::SourceDeclarationKind::Class }) if actual == owner)
         );
     });
 }

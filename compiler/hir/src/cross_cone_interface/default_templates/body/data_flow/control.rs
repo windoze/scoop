@@ -21,8 +21,6 @@ where
         region: Region,
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError<E>> {
         for statement in statements {
-            self.enter_edge(region.depth)?;
-            self.enter_node(region.depth)?;
             let statement_reachable = reachable && flow.falls_through;
             let next = self.validate_statement(
                 statement,
@@ -52,34 +50,28 @@ where
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError<E>> {
         match statement.kind() {
             DefaultStatementKindV1::Expr(expression) => {
-                self.validate_expression(expression, &available, reachable, region.depth)?;
+                self.validate_expression(expression, &available, reachable)?;
                 Ok(Flow::falling_through(available))
             }
             DefaultStatementKindV1::InitializationEnsure(_) => Ok(Flow::falling_through(available)),
             DefaultStatementKindV1::LocalFunction(function) => {
-                self.validate_captures(function.captures(), &available, reachable, region.depth)?;
+                self.validate_captures(function.captures(), &available, reachable)?;
                 Ok(Flow::falling_through(available))
             }
             DefaultStatementKindV1::Return(value) => {
                 if let Some(value) = value.as_ref() {
-                    self.validate_expression(value, &available, reachable, region.depth)?;
+                    self.validate_expression(value, &available, reachable)?;
                 }
                 self.abrupt_flow(available, DefaultLoopControlV1::Return)
             }
             DefaultStatementKindV1::ValDecl { pattern, init } => {
-                self.validate_expression(init, &available, reachable, region.depth)?;
-                self.define_pattern(pattern, &mut available, region.owner, region.depth)?;
+                self.validate_expression(init, &available, reachable)?;
+                self.define_pattern(pattern, &mut available, region.owner)?;
                 Ok(Flow::falling_through(available))
             }
             DefaultStatementKindV1::Assign { target, value } => {
-                self.validate_expression(value, &available, reachable, region.depth)?;
-                self.validate_assignment_target(
-                    target,
-                    &mut available,
-                    reachable,
-                    region.owner,
-                    region.depth,
-                )?;
+                self.validate_expression(value, &available, reachable)?;
+                self.validate_assignment_target(target, &mut available, reachable, region.owner)?;
                 Ok(Flow::falling_through(available))
             }
             DefaultStatementKindV1::If {
@@ -87,11 +79,8 @@ where
                 then_body,
                 else_body,
             } => {
-                self.validate_expression(condition, &available, reachable, region.depth)?;
-                let child = Region {
-                    depth: self.child_depth(region.depth)?,
-                    ..region
-                };
+                self.validate_expression(condition, &available, reachable)?;
+                let child = Region { ..region };
                 let then_available = self.copy_bits(&available)?;
                 let then_flow = self.validate_statements(
                     then_body,
@@ -157,7 +146,7 @@ where
                 self.validate_try(value, available, reachable, region)
             }
             DefaultStatementKindV1::Throw(value) => {
-                self.validate_expression(value, &available, reachable, region.depth)?;
+                self.validate_expression(value, &available, reachable)?;
                 self.abrupt_flow(available, DefaultLoopControlV1::Throw)
             }
         }
@@ -169,7 +158,6 @@ where
         available: &mut [bool],
         reachable: bool,
         owner: DefinitionOwner,
-        depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         match target {
             DefaultAssignTargetV1::Local { local } => self.require_mutable_assignment(
@@ -180,11 +168,11 @@ where
             ),
             DefaultAssignTargetV1::Global { .. } => Ok(()),
             DefaultAssignTargetV1::Index { array, index } => {
-                self.validate_expression(array, available, reachable, depth)?;
-                self.validate_expression(index, available, reachable, depth)
+                self.validate_expression(array, available, reachable)?;
+                self.validate_expression(index, available, reachable)
             }
             DefaultAssignTargetV1::Field { receiver, .. } => {
-                self.validate_expression(receiver, available, reachable, depth)
+                self.validate_expression(receiver, available, reachable)
             }
         }
     }
@@ -194,19 +182,15 @@ where
         root: &DefaultPatternV1,
         available: &mut [bool],
         owner: DefinitionOwner,
-        parent_depth: u64,
     ) -> Result<bool, ExportDefaultLocalDataFlowValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.enter_edge(depth)?;
-        pending.push((root, depth));
+
+        pending.push(root);
         let mut irrefutable = true;
 
-        while let Some((pattern, depth)) = pending.pop() {
-            self.enter_node(depth)?;
+        while let Some(pattern) = pending.pop() {
             match pattern.view() {
                 DefaultPatternViewV1::Binding { local } => {
                     self.define_local(
@@ -222,13 +206,13 @@ where
                 DefaultPatternViewV1::Literal { .. } => irrefutable = false,
                 DefaultPatternViewV1::Variant { fields, .. } => {
                     irrefutable = false;
-                    self.push_pattern_fields(&mut pending, fields, depth)?;
+                    self.push_pattern_fields(&mut pending, fields)?;
                 }
                 DefaultPatternViewV1::Tuple { elements } => {
-                    self.push_patterns(&mut pending, elements, depth)?;
+                    self.push_patterns(&mut pending, elements)?;
                 }
                 DefaultPatternViewV1::Struct { fields, .. } => {
-                    self.push_pattern_fields(&mut pending, fields, depth)?;
+                    self.push_pattern_fields(&mut pending, fields)?;
                 }
             }
         }
@@ -237,34 +221,28 @@ where
 
     fn push_patterns<'body>(
         &mut self,
-        pending: &mut Vec<(&'body DefaultPatternV1, u64)>,
+        pending: &mut Vec<&'body DefaultPatternV1>,
         patterns: &'body [DefaultPatternV1],
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
         for pattern in patterns.iter().rev() {
-            self.meter
-                .try_reserve_collection_slots(pending, 1, self.path)
+            scoop_wire::allocation::try_reserve(pending, 1, self.path)
                 .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-            self.enter_edge(depth)?;
-            pending.push((pattern, depth));
+
+            pending.push(pattern);
         }
         Ok(())
     }
 
     fn push_pattern_fields<'body>(
         &mut self,
-        pending: &mut Vec<(&'body DefaultPatternV1, u64)>,
+        pending: &mut Vec<&'body DefaultPatternV1>,
         fields: &'body [crate::DefaultPatternFieldV1],
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
         for field in fields.iter().rev() {
-            self.meter
-                .try_reserve_collection_slots(pending, 1, self.path)
+            scoop_wire::allocation::try_reserve(pending, 1, self.path)
                 .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-            self.enter_edge(depth)?;
-            pending.push((field.pattern(), depth));
+
+            pending.push(field.pattern());
         }
         Ok(())
     }
@@ -288,7 +266,7 @@ where
         })?;
         let child = Region {
             loop_depth,
-            depth: self.child_depth(region.depth)?,
+
             ..region
         };
         let condition_flow = self.validate_statements(
@@ -301,7 +279,6 @@ where
             condition,
             &condition_flow.available,
             reachable && condition_flow.falls_through,
-            region.depth,
         )?;
         let body_available = self.copy_bits(&condition_flow.available)?;
         let body_flow = self.validate_statements(
@@ -334,26 +311,18 @@ where
         reachable: bool,
         region: Region,
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError<E>> {
-        self.validate_expression(value.subject(), &available, reachable, region.depth)?;
+        self.validate_expression(value.subject(), &available, reachable)?;
         let mut paths = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut paths, value.arms().len() + 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut paths, value.arms().len() + 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         let mut guard_abrupt = AbruptOutcomes::default();
         let mut next_reachable = reachable;
-        let child = Region {
-            depth: self.child_depth(region.depth)?,
-            ..region
-        };
+        let child = Region { ..region };
 
         for arm in value.arms() {
             let mut arm_available = self.copy_bits(&available)?;
-            let irrefutable = self.define_pattern(
-                arm.pattern(),
-                &mut arm_available,
-                region.owner,
-                region.depth,
-            )?;
+            let irrefutable =
+                self.define_pattern(arm.pattern(), &mut arm_available, region.owner)?;
             let arm_reachable = next_reachable;
             let (body_reachable, can_try_next, body_available, abrupt) =
                 if let Some(guard) = arm.guard().as_ref() {
@@ -367,7 +336,6 @@ where
                         guard.condition(),
                         &guard_flow.available,
                         arm_reachable && guard_flow.falls_through,
-                        region.depth,
                     )?;
                     (
                         arm_reachable && guard_flow.falls_through,
@@ -425,13 +393,9 @@ where
         reachable: bool,
         region: Region,
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError<E>> {
-        let child = Region {
-            depth: self.child_depth(region.depth)?,
-            ..region
-        };
+        let child = Region { ..region };
         let mut paths = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut paths, value.catches().len() + 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut paths, value.catches().len() + 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         let body_available = self.copy_bits(&available)?;
         paths.push(self.validate_statements(
@@ -501,9 +465,6 @@ where
         let mut abrupt = AbruptOutcomes::default();
         let mut available = None;
         for flow in paths {
-            self.meter
-                .charge_work(1, self.path)
-                .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
             self.merge_abrupt_outcomes(&mut abrupt, flow.abrupt)?;
             if flow.falls_through {
                 match &mut available {
@@ -551,13 +512,9 @@ where
         output: &[bool],
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         let mut additions = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut additions, output.len(), self.path)
+        scoop_wire::allocation::try_reserve(&mut additions, output.len(), self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         for (before, after) in input.iter().zip(output) {
-            self.meter
-                .charge_work(1, self.path)
-                .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
             additions.push(!before && *after);
         }
         if flow.falls_through {
@@ -582,9 +539,6 @@ where
         additions: &[bool],
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         for (slot, addition) in target.iter_mut().zip(additions) {
-            self.meter
-                .charge_work(1, self.path)
-                .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
             *slot |= *addition;
         }
         Ok(())

@@ -190,12 +190,11 @@ fn generic_source_only_root_has_independent_definition_origin_authority() {
             .records()
             .is_empty()
     );
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
         production.local_inheritance_edges().iter(),
         production.source_roots().iter().copied(),
         production.foundation(),
-        &mut meter,
     )
     .unwrap();
 }

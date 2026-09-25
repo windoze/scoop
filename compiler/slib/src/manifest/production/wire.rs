@@ -13,8 +13,8 @@ use scoop_lir::{
     GeneratedBridgePlanSetV1,
 };
 use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-    encode, encode_canonical_temporary_with_meter,
+    Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath, encode,
+    encode_canonical_temporary,
 };
 
 use super::SingleConeProductionManifestV1;
@@ -51,7 +51,7 @@ impl WireEncode for DecodedArtifactDistributionClassV1 {
 }
 
 impl WireDecode for DecodedArtifactDistributionClassV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::DistributableCone),
@@ -90,7 +90,7 @@ impl WireEncode for DecodedExecutableRootProjectionV1 {
 }
 
 impl WireDecode for DecodedExecutableRootProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             main: decoder.field(1, DecodedPersistentId::decode)?,
@@ -127,7 +127,7 @@ impl WireEncode for DecodedSingleConeProductionOutputV1 {
 }
 
 impl WireDecode for DecodedSingleConeProductionOutputV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -200,10 +200,9 @@ impl DecodedSingleConeProductionManifestV1 {
         self,
         bridge_plan: &GeneratedBridgePlanSetV1,
         profile: &CBridgeToolchainProfileV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CBridgeCheckedSingleConeProductionManifestV1, CBridgeProductionValidationError>
     {
-        let c_bridge_production = self.replay_c_bridge_production(bridge_plan, profile, meter)?;
+        let c_bridge_production = self.replay_c_bridge_production(bridge_plan, profile)?;
         Ok(CBridgeCheckedSingleConeProductionManifestV1 {
             decoded: self,
             c_bridge_production,
@@ -216,21 +215,9 @@ impl DecodedSingleConeProductionManifestV1 {
         &self,
         bridge_plan: &GeneratedBridgePlanSetV1,
         profile: &CBridgeToolchainProfileV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CBridgeProductionSetV1, CBridgeProductionValidationError> {
-        let path = WirePath::root().field(10);
-        let count = bridge_plan.units().len() as u64;
-        meter.check_table_entries(count, &path)?;
-        meter.charge_collection_slots(count, &path)?;
-        meter.charge_owned_bytes(count.saturating_mul(32), &path)?;
-        meter.charge_work(count, &path)?;
-        if count != 0 {
-            let profile_bytes = encode_canonical_temporary_with_meter(profile.id(), meter, &path)?;
-            meter.charge_owned_bytes(profile_bytes.len() as u64, &path)?;
-            meter.charge_work((profile_bytes.len() as u64).saturating_mul(3), &path)?;
-        }
         let expected = CBridgeProductionSetV1::from_generated_bridge_plan(bridge_plan, profile);
-        self.c_bridge_production.validate(expected, meter)
+        self.c_bridge_production.validate(expected)
     }
 
     /// Rebuilds the complete manifest from the verified Code proof and only
@@ -278,7 +265,7 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
 }
 
 impl WireDecode for DecodedSingleConeProductionManifestV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
             distribution: decoder.field(1, DecodedArtifactDistributionClassV1::decode)?,
@@ -377,11 +364,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -392,7 +375,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

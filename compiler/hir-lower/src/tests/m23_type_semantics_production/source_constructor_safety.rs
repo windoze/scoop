@@ -13,10 +13,9 @@ fn constructor_source_safety_matches_public_interfaces_and_survives_wire() {
         let public =
             hir::CanonicalCallableInterfacesV1::from_export_hir(output.output().export.module())
                 .unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         let sources =
-            hir::CanonicalInheritanceSourceConstructorsV1::from_dependency_hir(output, &mut meter)
-                .unwrap();
+            hir::CanonicalInheritanceSourceConstructorsV1::from_dependency_hir(output).unwrap();
         let mut unsafe_count = 0;
         for record in sources.records() {
             let callable = public
@@ -29,9 +28,9 @@ fn constructor_source_safety_matches_public_interfaces_and_survives_wire() {
         assert_eq!(unsafe_count, 4);
         let bytes = encode(&sources).unwrap();
         let decoded: hir::DecodedCanonicalInheritanceSourceConstructorsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         let restored = decoded
-            .resolve(&mut source_inventory::identity_closure(output), &mut meter)
+            .resolve(&mut source_inventory::identity_closure(output))
             .unwrap();
         assert_eq!(sources, restored);
         assert_eq!(encode(&restored).unwrap(), bytes);

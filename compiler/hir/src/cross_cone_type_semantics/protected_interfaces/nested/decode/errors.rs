@@ -1,9 +1,8 @@
 use super::*;
 use crate::{
     BinderListValidationError, DeclarationAccessSourceResolutionError,
-    MeteredInterfaceResolutionError, NominalSourceShapeResolutionError,
-    NominalSupportPropertyResolutionError, ProtectedCallableInterfaceResolutionError,
-    SignatureTypeSetValidationError,
+    NominalSourceShapeResolutionError, NominalSupportPropertyResolutionError,
+    ProtectedCallableInterfaceResolutionError, SignatureTypeSetValidationError,
 };
 use std::fmt;
 
@@ -11,9 +10,9 @@ use std::fmt;
 pub enum NestedSourceResolutionError<E> {
     Resource(WireError),
     Foundation(E),
-    Binders(MeteredInterfaceResolutionError<BinderListValidationError<E>>),
-    Supertypes(MeteredInterfaceResolutionError<SignatureTypeSetValidationError<E>>),
-    Shape(MeteredInterfaceResolutionError<NominalSourceShapeResolutionError<E>>),
+    Binders(BinderListValidationError<E>),
+    Supertypes(SignatureTypeSetValidationError<E>),
+    Shape(NominalSourceShapeResolutionError<E>),
     Access(DeclarationAccessSourceResolutionError<E>),
     Callable(ProtectedCallableInterfaceResolutionError<E>),
     Property(NominalSupportPropertyResolutionError<E>),

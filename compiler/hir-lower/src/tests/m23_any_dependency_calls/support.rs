@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use scoop_hir as hir;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use crate::tests::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core};
 use crate::tests::m23_ordinary_dependencies::support::{
@@ -13,10 +12,6 @@ pub(super) fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-any-call-signatures")
         .join(name)
-}
-
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 pub(super) fn with_output<T>(

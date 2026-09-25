@@ -1,5 +1,3 @@
-use scoop_wire::{BudgetMeter, WirePath};
-
 use super::{
     AccessDomainSemanticError, CheckedPersistentAccessDomainV1, Constraint, normalization,
 };
@@ -7,11 +5,7 @@ use crate::{CheckedNominalInheritanceGraphV1, InheritanceQueryError, SourceNomin
 
 impl<'g, 'a> CheckedPersistentAccessDomainV1<'g, 'a> {
     /// Whether every call point in `required` is admitted by this target.
-    pub fn covers(
-        &self,
-        required: &Self,
-        meter: &mut BudgetMeter,
-    ) -> Result<bool, AccessDomainSemanticError> {
+    pub fn covers(&self, required: &Self) -> Result<bool, AccessDomainSemanticError> {
         if !std::ptr::eq(self.graph, required.graph) {
             return Err(AccessDomainSemanticError::DifferentGraph);
         }
@@ -24,10 +18,7 @@ impl<'g, 'a> CheckedPersistentAccessDomainV1<'g, 'a> {
         for wider in self.domain.constraints() {
             let mut implied = false;
             for narrower in required.domain.constraints() {
-                meter
-                    .charge_work(1, &WirePath::root())
-                    .map_err(AccessDomainSemanticError::Resource)?;
-                if implies(self.graph, narrower, wider, meter)? {
+                if implies(self.graph, narrower, wider)? {
                     implied = true;
                     break;
                 }
@@ -39,24 +30,16 @@ impl<'g, 'a> CheckedPersistentAccessDomainV1<'g, 'a> {
         Ok(true)
     }
 
-    pub fn intersect(
-        &self,
-        other: &Self,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, AccessDomainSemanticError> {
+    pub fn intersect(&self, other: &Self) -> Result<Self, AccessDomainSemanticError> {
         if !std::ptr::eq(self.graph, other.graph) {
             return Err(AccessDomainSemanticError::DifferentGraph);
         }
-        let slots =
-            self.domain.constraints().len() as u64 + other.domain.constraints().len() as u64;
-        meter
-            .charge_collection_slots(slots, &WirePath::root())
-            .map_err(AccessDomainSemanticError::Resource)?;
+
         let domain = self
             .domain
             .intersect(&other.domain)
             .map_err(AccessDomainSemanticError::Encoding)?;
-        let domain = normalization::normalize(self.graph, &domain, meter)?;
+        let domain = normalization::normalize(self.graph, &domain)?;
         Ok(Self {
             graph: self.graph,
             domain,
@@ -66,7 +49,6 @@ impl<'g, 'a> CheckedPersistentAccessDomainV1<'g, 'a> {
     pub(super) fn allows_scope(
         &self,
         scope: SourceNominalId,
-        meter: &mut BudgetMeter,
     ) -> Result<bool, AccessDomainSemanticError> {
         if self.domain.is_empty() {
             return Ok(false);
@@ -76,9 +58,6 @@ impl<'g, 'a> CheckedPersistentAccessDomainV1<'g, 'a> {
             .source(scope)
             .ok_or(InheritanceQueryError::UnknownSource(scope))?;
         for constraint in self.domain.constraints() {
-            meter
-                .charge_work(1, &WirePath::root())
-                .map_err(AccessDomainSemanticError::Resource)?;
             let allowed = match constraint {
                 Constraint::Cone(cone) => source.key.origin() == *cone,
                 Constraint::File(file) => {
@@ -87,8 +66,8 @@ impl<'g, 'a> CheckedPersistentAccessDomainV1<'g, 'a> {
                 Constraint::LexicalOwner(owner) => self.graph.lexically_contains(*owner, scope)?,
                 Constraint::SubclassesOf(base) => {
                     let mut allowed = false;
-                    for class in self.graph.scope_classes(scope, meter)? {
-                        if self.graph.is_subclass(class, *base, meter)? {
+                    for class in self.graph.scope_classes(scope)? {
+                        if self.graph.is_subclass(class, *base)? {
                             allowed = true;
                             break;
                         }
@@ -108,7 +87,6 @@ fn implies(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     narrow: &Constraint,
     wide: &Constraint,
-    meter: &mut BudgetMeter,
 ) -> Result<bool, AccessDomainSemanticError> {
     if narrow == wide {
         return Ok(true);
@@ -137,12 +115,12 @@ fn implies(
             graph.lexically_contains(*outer, *inner)?
         }
         (Constraint::SubclassesOf(derived), Constraint::SubclassesOf(base)) => {
-            graph.is_subclass(*derived, *base, meter)?
+            graph.is_subclass(*derived, *base)?
         }
         (Constraint::LexicalOwner(owner), Constraint::SubclassesOf(base)) => {
             let mut implied = false;
-            for class in graph.scope_classes(*owner, meter)? {
-                if graph.is_subclass(class, *base, meter)? {
+            for class in graph.scope_classes(*owner)? {
+                if graph.is_subclass(class, *base)? {
                     implied = true;
                     break;
                 }

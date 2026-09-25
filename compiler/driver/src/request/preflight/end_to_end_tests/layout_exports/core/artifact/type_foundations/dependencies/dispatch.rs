@@ -24,9 +24,7 @@ pub(super) fn check(
     );
     let mut provider = lower(sysroot, target, &root, vec![], &[core]);
     let checked = provider.check(&[core]).unwrap();
-    checked
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
-        .unwrap();
+    checked.with_inheritance_graph(&[core], |_| ()).unwrap();
     schemas::check(checked, core);
     declarations::check(checked, core);
 
@@ -106,9 +104,9 @@ pub(super) fn reject_section(
         source.selected().clone(),
     );
     candidate
-        .validate_shared_foundation(checked.metadata(), &[core], &mut meter())
+        .validate_shared_foundation(checked.metadata(), &[core])
         .unwrap()
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
+        .with_inheritance_graph(&[core], |_| ())
         .expect_err("schema must agree with the actual shared declaration order")
 }
 
@@ -169,8 +167,8 @@ pub(super) fn reject_nominal(
     metadata.public = &public;
     checked
         .section()
-        .validate_shared_foundation(metadata, &[core], &mut meter())
+        .validate_shared_foundation(metadata, &[core])
         .unwrap()
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
+        .with_inheritance_graph(&[core], |_| ())
         .expect_err("shared declaration changes must be reflected in the emitted schema")
 }

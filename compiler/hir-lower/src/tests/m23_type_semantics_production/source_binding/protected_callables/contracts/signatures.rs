@@ -41,7 +41,7 @@ fn protected_parameters_and_generic_binders_must_match_source_keys() {
                 hir::CanonicalSourceParameterShapesV1::try_new(parameters).unwrap(),
                 old.result().clone(),
             ));
-            let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err() else {
+            let Error::Semantic(error) = forged.bind(&foundation).unwrap_err() else {
                 panic!("source signature mismatch")
             };
             assert!(matches!(
@@ -58,7 +58,7 @@ fn protected_parameters_and_generic_binders_must_match_source_keys() {
             old.parameters().clone(),
             SignatureTypeKey::Binder { depth: 1, index: 0 },
         ));
-        let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err() else {
+        let Error::Semantic(error) = forged.bind(&foundation).unwrap_err() else {
             panic!("out-of-scope source binder")
         };
         assert!(matches!(
@@ -100,7 +100,7 @@ fn accessors_replay_property_value_types_and_the_language_unit_identity() {
                 old.parameters().clone(),
                 wrong_result,
             ));
-            let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err() else {
+            let Error::Semantic(error) = forged.bind(&foundation).unwrap_err() else {
                 panic!("wrong accessor result")
             };
             assert!(matches!(
@@ -123,8 +123,7 @@ fn accessors_replay_property_value_types_and_the_language_unit_identity() {
                     parameters,
                     old.result().clone(),
                 ));
-                let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err()
-                else {
+                let Error::Semantic(error) = forged.bind(&foundation).unwrap_err() else {
                     panic!("wrong setter parameter")
                 };
                 assert!(matches!(

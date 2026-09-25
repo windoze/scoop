@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::LocalValueSelector;
@@ -7,10 +5,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::{TemplateLocalIndexResolver, TemplateLocalSelectorResolver};
 
-mod metered_semantics;
 mod semantics;
 
-pub use metered_semantics::MeteredTemplateValueParameterSemanticValidationError;
 pub use semantics::TemplateValueParameterSemanticValidationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -94,7 +90,7 @@ impl WireEncode for DecodedTemplateValueParameterV1 {
 }
 
 impl WireDecode for DecodedTemplateValueParameterV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             position: decoder.field(1, Decoder::u32)?,
@@ -226,7 +222,7 @@ impl WireEncode for DecodedCanonicalTemplateValueParametersV1 {
 }
 
 impl WireDecode for DecodedCanonicalTemplateValueParametersV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedTemplateValueParameterV1::decode(decoder))
             .map(|parameters| Self { parameters })

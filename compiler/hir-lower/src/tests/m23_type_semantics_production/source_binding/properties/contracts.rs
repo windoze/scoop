@@ -29,9 +29,7 @@ fn property_logical_type_must_match_its_dispatch_accessor() {
         .unwrap();
         let id = record.declaration();
         sources.replace(replace_payload(record, forged));
-        assert!(
-            matches!(sources.bind(&foundation, &mut meter()), Err(Error::Signature(actual)) if actual == id)
-        );
+        assert!(matches!(sources.bind(&foundation), Err(Error::Signature(actual)) if actual == id));
     });
 }
 
@@ -80,7 +78,7 @@ fn private_setter_cannot_widen_a_protected_getter_domain() {
         let id = record.declaration();
         sources.replace(replace_payload(record, forged));
         assert!(
-            matches!(sources.bind(&foundation, &mut meter()), Err(Error::SetterDomain(actual)) if actual == id)
+            matches!(sources.bind(&foundation), Err(Error::SetterDomain(actual)) if actual == id)
         );
     });
 }
@@ -110,10 +108,7 @@ fn property_source_cannot_drop_a_required_setter_or_use_it_as_getter() {
                 )
                 .unwrap(),
             ));
-            assert!(matches!(
-                forged.bind(&foundation, &mut meter()),
-                Err(Error::Accessor(_))
-            ));
+            assert!(matches!(forged.bind(&foundation), Err(Error::Accessor(_))));
         }
     });
 }
@@ -152,7 +147,7 @@ fn property_slot_relations_cannot_be_omitted_or_borrowed_from_another_property()
                 .unwrap(),
             ));
             assert!(
-                matches!(forged.bind(&foundation, &mut meter()), Err(Error::Slots(actual)) if actual == record.declaration())
+                matches!(forged.bind(&foundation), Err(Error::Slots(actual)) if actual == record.declaration())
             );
         }
     });

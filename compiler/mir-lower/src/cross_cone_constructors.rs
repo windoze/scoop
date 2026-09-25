@@ -7,7 +7,7 @@ use scoop_identity::{
     ValidatedIdentityGraph,
 };
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 mod binding;
 use binding::Producer;
@@ -20,15 +20,14 @@ pub fn lower_constructor_bindings(
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirConstructorProductionError> {
     let local = output.output().local.module();
-    let mut producer = Producer::new(public, input, identities, types, meter)?;
+    let mut producer = Producer::new(public, input, identities, types)?;
     for (id, constructor) in local.class_constructors.iter() {
         let Some((declaration, source)) = producer.source(constructor.materialization)? else {
             continue;
         };
-        producer.signature_cost(local.types.len(), constructor.parameters.len())?;
+
         let lowered = crate::source_callables::exact_class_initializer_signature(local, id);
         let owner = lowered.receiver().into_option().ok_or(
             SourceMirConstructorProductionError::InvalidClassSignature(declaration),
@@ -51,7 +50,7 @@ pub fn lower_constructor_bindings(
         let Some((declaration, source)) = producer.source(constructor.materialization)? else {
             continue;
         };
-        producer.signature_cost(local.types.len(), constructor.parameters.len())?;
+
         let lowered = crate::source_callables::exact_struct_constructor_signature(local, id);
         let owner = lowered.result();
         producer.record(

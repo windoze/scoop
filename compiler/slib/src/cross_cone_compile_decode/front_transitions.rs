@@ -77,7 +77,7 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
         CrossConeHirInterfaceResolutionError<IdentityReferenceError>,
     > {
         let Self {
-            mut graph,
+            graph,
             mut identities,
             foundations,
             hir_core_production,
@@ -87,8 +87,7 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
             lir_strong_production,
             lir_cross_cone_bridge,
         } = self;
-        let hir_interface =
-            hir_interface.resolve_metered(&mut identities, graph.envelope.meter_mut())?;
+        let hir_interface = hir_interface.resolve(&mut identities)?;
         Ok(ResolvedCrossConeHirFrontSections {
             graph,
             identities,

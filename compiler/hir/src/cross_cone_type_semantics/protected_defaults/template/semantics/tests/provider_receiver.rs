@@ -110,15 +110,14 @@ pub(super) fn inherited(
 fn inherited_default_keeps_the_base_receiver_in_its_original_binder_frame() {
     for generic in [false, true] {
         let (case, mut template, mut authority) = inherited(u32::from(generic), None);
-        case.validate(&template, &mut authority, &mut meter())
-            .unwrap();
+        case.validate(&template, &mut authority).unwrap();
         assert_eq!(authority.inherited_calls, 1);
         assert_ne!(authority.provider_receiver, case.expected_receiver);
         set_receiver(&mut template, case.expected_receiver.clone().unwrap());
         assert!(matches!(
-            case.validate(&template, &mut authority, &mut meter()),
+            case.validate(&template, &mut authority),
             Err(ProtectedDefaultTemplateContractSemanticError::Receiver(
-                MeteredTemplateReceiverSemanticValidationError::CallableType
+                TemplateReceiverSemanticValidationError::CallableType { .. }
             ))
         ));
     }
@@ -127,14 +126,13 @@ fn inherited_default_keeps_the_base_receiver_in_its_original_binder_frame() {
 #[test]
 fn inherited_relation_checks_the_complete_mapping_even_for_unused_binders() {
     let (case, mut template, mut authority) = inherited(1, None);
-    case.validate(&template, &mut authority, &mut meter())
-        .unwrap();
+    case.validate(&template, &mut authority).unwrap();
     // The value locals and result have no binders, so their type checks cannot
     // establish this owner-to-provider substitution.
     template.type_parameters =
         CanonicalBinderUseListV1::try_new(vec![case.expected_receiver.clone().unwrap()]).unwrap();
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(
             ProtectedDefaultTemplateContractSemanticError::DefinitionRoot(
                 DefaultTemplateRootSemanticValidationError::InheritedRelation(
@@ -154,13 +152,13 @@ fn direct_defaults_require_identity_mapping_and_the_independent_source_receiver(
     template.type_parameters =
         CanonicalBinderUseListV1::try_new(vec![binder(0, 0), binder(1, 0)]).unwrap();
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(ProtectedDefaultTemplateContractSemanticError::DirectMapping { index: 0 })
     ));
     template = case.template();
     authority.provider_receiver = None;
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(ProtectedDefaultTemplateContractSemanticError::ProviderOwnerReceiver)
     ));
     assert_eq!(authority.inherited_calls, 0);

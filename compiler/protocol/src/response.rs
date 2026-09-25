@@ -3,8 +3,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use crate::diagnostic::DecodedStructuredDiagnosticV1;
 use crate::path::DecodedHostPathCarrier;
 use crate::{
-    HostPathCarrier, MAX_DIAGNOSTICS, MAX_EMITTED_DUMPS, PROTOCOL_VERSION, ProtocolValidationError,
-    StageDumpKindV1, StructuredDiagnosticV1,
+    HostPathCarrier, MAX_EMITTED_DUMPS, PROTOCOL_VERSION, ProtocolValidationError, StageDumpKindV1,
+    StructuredDiagnosticV1,
 };
 
 const RESPONSE_MAGIC: &[u8; 8] = b"SCOOPRES";
@@ -176,9 +176,6 @@ impl ScoopcSuccessV1 {
         warnings: Vec<StructuredDiagnosticV1>,
         emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
     ) -> Result<Self, ProtocolValidationError> {
-        if warnings.len() > MAX_DIAGNOSTICS {
-            return Err(ProtocolValidationError::TooManyDiagnostics(warnings.len()));
-        }
         if warnings.iter().any(|warning| warning.severity().is_error()) {
             return Err(ProtocolValidationError::SuccessContainsErrorDiagnostic);
         }
@@ -389,7 +386,7 @@ impl WireEncode for DecodedDumpDestinationV1 {
 }
 
 impl WireDecode for DecodedDumpDestinationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -438,7 +435,7 @@ impl WireEncode for DecodedDumpDescriptorV1 {
 }
 
 impl WireDecode for DecodedDumpDescriptorV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         let stage = decoder.field(1, Decoder::unsigned)?;
         let destination = decoder.field(2, DecodedDumpDestinationV1::decode)?;
@@ -584,7 +581,7 @@ impl WireEncode for DecodedResponseV1 {
 }
 
 impl WireDecode for DecodedResponseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -641,7 +638,7 @@ fn encode_decoded_diagnostics(
 }
 
 fn decode_decoded_diagnostics(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedStructuredDiagnosticV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedStructuredDiagnosticV1::decode(decoder))
 }
@@ -678,7 +675,7 @@ impl WireEncode for DecodedScoopcResponseEnvelopeV1 {
 }
 
 impl WireDecode for DecodedScoopcResponseEnvelopeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         let magic = decoder.field(1, Decoder::owned_bytes)?;
         let version = decoder.field(2, Decoder::u32)?;
@@ -697,11 +694,7 @@ fn validate_failure_diagnostics(
     if diagnostics.is_empty() {
         return Err(ProtocolValidationError::FailureRequiresDiagnostic);
     }
-    if diagnostics.len() > MAX_DIAGNOSTICS {
-        return Err(ProtocolValidationError::TooManyDiagnostics(
-            diagnostics.len(),
-        ));
-    }
+
     if !diagnostics
         .iter()
         .any(|diagnostic| diagnostic.severity().is_error())
@@ -727,7 +720,7 @@ fn decode_stage(tag: u64) -> Result<StageDumpKindV1, ProtocolValidationError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{DiagnosticOriginV1, DiagnosticSeverityV1, ProtocolWriteError};
+    use crate::{DiagnosticOriginV1, DiagnosticSeverityV1};
 
     fn diagnostic(severity: DiagnosticSeverityV1, message: String) -> StructuredDiagnosticV1 {
         StructuredDiagnosticV1::new(
@@ -790,17 +783,12 @@ mod tests {
     }
 
     #[test]
-    fn frame_writer_rejects_oversize_response_before_payload_encoding() {
-        let message = "x".repeat(crate::MAX_DIAGNOSTIC_TEXT_BYTES);
-        let warning = diagnostic(DiagnosticSeverityV1::Warning, message);
-        let result = success(vec![warning; 17], Vec::new()).unwrap();
+    fn response_frames_preserve_complete_diagnostic_text() {
+        let warning = diagnostic(DiagnosticSeverityV1::Warning, "detail ".repeat(2_500_000));
+        let result = success(vec![warning], Vec::new()).unwrap();
         let response =
             ScoopcResponseEnvelopeV1::success(RequestCorrelationId::from_array([0; 16]), result);
-        assert!(matches!(
-            crate::encode_response_frame(&response),
-            Err(ProtocolWriteError::Frame(
-                crate::ProtocolFrameError::PayloadTooLarge { .. }
-            ))
-        ));
+        let frame = crate::encode_response_frame(&response).unwrap();
+        assert_eq!(crate::decode_response_frame(&frame).unwrap(), response);
     }
 }

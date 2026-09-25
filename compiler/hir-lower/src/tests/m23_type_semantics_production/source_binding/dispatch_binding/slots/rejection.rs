@@ -6,9 +6,9 @@ fn another_applicable_base_implementation_cannot_replace_the_sealed_override_cho
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
+        let dispatch = sources.bind(&foundation).unwrap();
 
-        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
+        let slots = dispatch.bind_slot_sources().unwrap();
         let mut checked = 0;
         for selection in sources.selections.records() {
             let record = candidate(&slots, *selection);
@@ -27,10 +27,10 @@ fn another_applicable_base_implementation_cannot_replace_the_sealed_override_cho
             );
             slots
                 .graph()
-                .validate_slot_contract(selection.owner(), &forged, &slots, &mut meter())
+                .validate_slot_contract(selection.owner(), &forged, &slots)
                 .unwrap();
             assert!(matches!(
-                slots.validate_contract(selection.owner(), &forged, &mut meter()),
+                slots.validate_contract(selection.owner(), &forged),
                 Err(hir::InheritanceInterfaceSemanticError::SlotSelection)
             ));
             checked += 1;
@@ -45,9 +45,9 @@ fn matching_candidate_root_and_target_effects_cannot_override_source_contracts()
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
+        let dispatch = sources.bind(&foundation).unwrap();
 
-        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
+        let slots = dispatch.bind_slot_sources().unwrap();
         for selection in sources.selections.records() {
             let record = candidate(&slots, *selection);
             let rewrite = |signature: &hir::InheritanceCallableSignatureV1| {
@@ -97,10 +97,10 @@ fn matching_candidate_root_and_target_effects_cannot_override_source_contracts()
             );
             slots
                 .graph()
-                .validate_slot_contract(selection.owner(), &forged, &slots, &mut meter())
+                .validate_slot_contract(selection.owner(), &forged, &slots)
                 .unwrap();
             assert!(matches!(
-                slots.validate_contract(selection.owner(), &forged, &mut meter()),
+                slots.validate_contract(selection.owner(), &forged),
                 Err(hir::InheritanceInterfaceSemanticError::SourceContract)
             ));
         }

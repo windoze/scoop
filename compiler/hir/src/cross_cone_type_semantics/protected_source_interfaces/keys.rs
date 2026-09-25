@@ -50,7 +50,7 @@ impl DecodedProtectedDefaultTemplateKeyV1 {
     }
 }
 impl WireDecode for DecodedProtectedDefaultTemplateKeyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedExportDefaultTemplateKeyV1::decode(decoder).map(Self)
     }
 }
@@ -68,7 +68,7 @@ impl ProtectedDefaultTemplateIndexV1 {
     }
 }
 impl WireDecode for ProtectedDefaultTemplateIndexV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.u32().map(Self)
     }
 }

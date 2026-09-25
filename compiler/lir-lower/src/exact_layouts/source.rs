@@ -4,22 +4,17 @@ use super::*;
 
 mod classes;
 
-impl<'a> Projection<'a, '_> {
+impl<'a> Projection<'a> {
     pub(super) fn shape(
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<&'a mir::ParamFreeMirTypeExportV1> {
-        self.lookup(self.types.records().len())?;
         self.types
             .get(exact)
             .ok_or(ExactLayoutLoweringError::MissingMirShape(exact))
     }
 
     pub(super) fn physical_type(&mut self, exact: PersistentExactTypeId) -> Result<mir::Type> {
-        self.meter.charge_work(
-            self.module.meta.source_exact_types.len() as u64,
-            &WirePath::root(),
-        )?;
         if let Some(record) = self.module.meta.source_exact_types.get_by_identity(exact) {
             let ty = match record.ty() {
                 mir::Type::Unit => mir::Type::Unit,
@@ -45,10 +40,7 @@ impl<'a> Projection<'a, '_> {
         {
             return Ok(mir::Type::Any);
         }
-        self.meter.charge_work(
-            self.module.meta.generated_exact_types.len() as u64,
-            &WirePath::root(),
-        )?;
+
         let ty = match self
             .module
             .meta
@@ -94,10 +86,7 @@ impl<'a> Projection<'a, '_> {
         {
             return Err(ExactLayoutLoweringError::MissingSourceExact);
         }
-        self.meter.charge_work(
-            self.module.meta.source_exact_types.len() as u64,
-            &WirePath::root(),
-        )?;
+
         if let Some(record) = self.module.meta.source_exact_types.get(ty) {
             let exact = record.identity_record().id();
             self.validate_location(ty, exact)?;
@@ -113,10 +102,7 @@ impl<'a> Projection<'a, '_> {
             mir::Type::Enum(id, _) => mir::GeneratedExactTypeLocation::Enum(*id),
             _ => return Err(ExactLayoutLoweringError::MissingSourceExact),
         };
-        self.meter.charge_work(
-            self.module.meta.generated_exact_types.len() as u64,
-            &WirePath::root(),
-        )?;
+
         let exact = self
             .module
             .meta
@@ -135,7 +121,7 @@ impl<'a> Projection<'a, '_> {
     ) -> Result<()> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let exact = source.exact();
-        self.meter.charge_work(1, &WirePath::root())?;
+
         match (source.representation(), ty) {
             (Kind::Intrinsic(Intrinsic::Unit), mir::Type::Unit)
             | (Kind::Intrinsic(Intrinsic::Boolean), mir::Type::Boolean)
@@ -176,8 +162,7 @@ impl<'a> Projection<'a, '_> {
                 {
                     return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
                 }
-                self.meter
-                    .charge_work(fields.len() as u64, &WirePath::root())?;
+
                 for (expected, actual) in fields.iter().zip(actual) {
                     if expected.field != actual.identity
                         || expected.value != self.exact_of(&actual.ty)?
@@ -200,16 +185,14 @@ impl<'a> Projection<'a, '_> {
                 {
                     return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
                 }
-                self.meter
-                    .charge_work(variants.len() as u64, &WirePath::root())?;
+
                 for (variant, actual) in variants.iter().zip(&definition.variants) {
                     if variant.fields.len() != actual.fields.len()
                         || actual.gc_free != (variant.gc == mir::MirGcKindV1::GcFree)
                     {
                         return Err(ExactLayoutLoweringError::SourceFields(exact));
                     }
-                    self.meter
-                        .charge_work(variant.fields.len() as u64, &WirePath::root())?;
+
                     for (field, actual) in variant.fields.iter().zip(&actual.fields) {
                         if field.value != self.exact_of(&actual.ty)? {
                             return Err(ExactLayoutLoweringError::SourceFields(exact));
@@ -242,8 +225,6 @@ impl<'a> Projection<'a, '_> {
                 self.validate_class(source, *id, declared_fields, None)
             }
             (Kind::BoxedValue { payload }, mir::Type::Class(id)) => {
-                self.meter
-                    .charge_work(self.module.meta.boxed_types.len() as u64, &WirePath::root())?;
                 let boxed = self
                     .module
                     .meta

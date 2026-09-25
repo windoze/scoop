@@ -1,5 +1,4 @@
 use super::*;
-use scoop_identity::{ConeIdentity, NormalizedSourcePath, SourceIdentity};
 use scoop_wire::{Encoder, WireEncode, WireErrorKind};
 
 #[test]
@@ -16,29 +15,19 @@ fn witness_branches_have_independent_exact_wire_shapes() {
     ] {
         let bytes = encode(&record).unwrap();
         assert_eq!(&bytes[..3], &prefix);
-        let decoded: DecodedProtectedDefaultAccessWitnessV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedProtectedDefaultAccessWitnessV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+        assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
         let mut wide = bytes.clone();
         wide[0] += 1;
         assert!(matches!(
-            decode_canonical::<DecodedProtectedDefaultAccessWitnessV1>(
-                &wide,
-                DecodeLimits::default()
-            )
-            .unwrap_err()
-            .kind(),
+            decode_canonical::<DecodedProtectedDefaultAccessWitnessV1>(&wide)
+                .unwrap_err()
+                .kind(),
             WireErrorKind::InvalidLength { .. }
         ));
     }
-    assert!(
-        decode_canonical::<DecodedProtectedDefaultAccessWitnessV1>(
-            &[0xa1, 0, 3],
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedProtectedDefaultAccessWitnessV1>(&[0xa1, 0, 3]).is_err());
 }
 
 #[test]
@@ -71,9 +60,9 @@ fn constructor_and_generic_callable_defaults_cannot_claim_dispatch_roots() {
             slots: &slots,
         };
         let decoded: DecodedProtectedDefaultAccessWitnessV1 =
-            decode_canonical(&encode(&raw).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&raw).unwrap()).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture, &mut meter()),
+            decoded.resolve(&mut fixture),
             Err(ProtectedDefaultAccessWitnessResolutionError::Build(
                 ProtectedDefaultAccessWitnessBuildError::SlotsForNonDispatchOwner
             ))
@@ -97,56 +86,5 @@ impl WireEncode for Raw<'_> {
         self.slots.encode(encoder)?;
         encoder.field(4)?;
         PersistentAccessDomainV1::universal().encode(encoder)
-    }
-}
-#[test]
-fn witness_resolution_preserves_shared_budget_failure() {
-    let mut fixture = Fixture::default();
-    let owner = fixture.class("Owner");
-    let function = fixture.function(owner, "method", false, vec![]);
-    let decoded: DecodedProtectedDefaultAccessWitnessV1 = decode_canonical(
-        &encode(&param_free(function)).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        decoded_nodes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter),
-        Err(ProtectedDefaultAccessWitnessResolutionError::Resource(_))
-    ));
-}
-
-#[test]
-fn domain_order_replay_charges_long_source_paths_before_resolving() {
-    let source = SourceIdentity::new(
-        ConeIdentity::CORE,
-        NormalizedSourcePath::new(&format!("{}.scoop", "segment/".repeat(512))).unwrap(),
-    )
-    .unwrap();
-    let domain =
-        PersistentAccessDomainV1::try_from_constraints(vec![PersistentAccessConstraintV1::File(
-            source,
-        )])
-        .unwrap();
-    let bytes = encode(&domain).unwrap();
-    for limits in [
-        DecodeLimits {
-            owned_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 16,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let decoded: DecodedPersistentAccessDomainV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        assert!(matches!(
-            decoded.resolve_metered(&mut Fixture::default(), &mut BudgetMeter::new(limits)),
-            Err(PersistentAccessResolutionError::Resource(_))
-        ));
     }
 }

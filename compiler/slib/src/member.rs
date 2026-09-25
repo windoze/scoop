@@ -3,13 +3,12 @@ use std::fmt;
 use scoop_identity::{ConeIdentity, ObjectFormatId, TargetProfileWireId};
 use scoop_wire::{
     CanonicalHashStream, Digest256, Encoder, HashError, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length, encoded_length, sha256,
+    sha256,
 };
 
 const MEMBER_ID_DOMAIN: &str = "scoop-slib-member-v1";
 const MEMBER_FINGERPRINT_DOMAIN: &str = "scoop-slib-member-content-v1";
 const LINK_MEMBER_FINGERPRINT_DOMAIN: &str = "scoop-slib-link-member-v1";
-const MAX_LOGICAL_KEY_BYTES: usize = 4_096;
 const WIRE_SCHEMA: u64 = 1;
 
 macro_rules! typed_digest {
@@ -51,9 +50,6 @@ impl LogicalMemberKey {
     pub fn new(bytes: Vec<u8>) -> Result<Self, LogicalMemberKeyError> {
         match bytes.len() {
             0 => Err(LogicalMemberKeyError::Empty),
-            length if length > MAX_LOGICAL_KEY_BYTES => {
-                Err(LogicalMemberKeyError::TooLong { actual: length })
-            }
             _ => Ok(Self(bytes)),
         }
     }
@@ -66,17 +62,12 @@ impl LogicalMemberKey {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LogicalMemberKeyError {
     Empty,
-    TooLong { actual: usize },
 }
 
 impl fmt::Display for LogicalMemberKeyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Empty => formatter.write_str("member logical key must not be empty"),
-            Self::TooLong { actual } => write!(
-                formatter,
-                "member logical key exceeds 4096 bytes: found {actual}"
-            ),
         }
     }
 }
@@ -330,10 +321,6 @@ impl SlibMemberRecord {
             .map(|digest| MemberFingerprint(*digest.as_array()))
     }
 
-    pub(crate) fn fingerprint_hash_stream_length(&self) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(MEMBER_FINGERPRINT_DOMAIN, self)
-    }
-
     pub fn as_link_member(&self) -> Option<LinkMemberRecord<'_>> {
         match self.role {
             SlibMemberRole::LinkObject { .. }
@@ -388,17 +375,6 @@ impl SlibMemberId {
         stream.update_raw(cone.as_array());
         stream.update_canonical_cbor(stable_key)?;
         Ok(Self(*stream.finalize().as_array()))
-    }
-
-    pub(crate) fn hash_stream_length(stable_key: &MemberStableKey) -> Result<u64, HashError> {
-        let domain_length =
-            u64::try_from(MEMBER_ID_DOMAIN.len()).map_err(|_| HashError::LengthOverflow)?;
-        let key_length = encoded_length(stable_key).map_err(|_| HashError::CborEncoding)?;
-        8_u64
-            .checked_add(domain_length)
-            .and_then(|length| length.checked_add(32))
-            .and_then(|length| length.checked_add(key_length))
-            .ok_or(HashError::LengthOverflow)
     }
 }
 

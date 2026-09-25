@@ -51,7 +51,7 @@ fn complete_parameter_sources_bind_all_roles_from_restored_bytes() {
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let bound = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
                 assert_eq!(bound.provider(), members.provider());
                 assert!(std::ptr::eq(bound.members(), members));
@@ -95,51 +95,4 @@ fn complete_parameter_sources_bind_all_roles_from_restored_bytes() {
             });
         });
     }
-}
-
-#[test]
-fn complete_parameter_binding_charges_every_shared_resource_dimension() {
-    with_sources(SOURCE, |_, fixture, sources, core| {
-        let foundation = fixture.bind().unwrap();
-        sources.with_bound(&foundation, core, |members, constructors| {
-            for limits in [
-                DecodeLimits {
-                    semantic_table_entries: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    decoded_nodes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_recursion: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_leaf_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    matches!(
-                        members.bind_parameter_protocols(
-                            constructors,
-                            &sources.protocols,
-                            &mut BudgetMeter::new(limits)
-                        ),
-                        Err(Error::Resource(_))
-                    ),
-                    "{limits:?}"
-                );
-            }
-        });
-    });
 }

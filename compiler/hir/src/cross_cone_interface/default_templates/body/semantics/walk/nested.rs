@@ -19,25 +19,18 @@ where
         &mut self,
         function: &'body DefaultLocalFunctionV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        self.push_captures(pending, depth, function.captures())?;
-        self.meter.charge_edges(1, self.path).map_err(M::resource)?;
-        self.meter.charge_work(1, self.path).map_err(M::resource)?;
-        self.mode.validate_local_function_signature(
-            function,
-            definition_origin,
-            self.meter,
-            self.path,
-        )
+        self.push_captures(pending, function.captures())?;
+
+        self.mode
+            .validate_local_function_signature(function, definition_origin, self.path)
     }
 
     pub(super) fn process_lambda<'body>(
         &mut self,
         lambda: &'body DefaultLambdaV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.process_lexical_callable(
@@ -45,7 +38,6 @@ where
             lambda.body_type_arguments(),
             lambda.captures(),
             definition_origin,
-            depth,
             pending,
         )
     }
@@ -54,7 +46,6 @@ where
         &mut self,
         function: &'body DefaultAnonymousFunctionV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.process_lexical_callable(
@@ -62,7 +53,6 @@ where
             function.body_type_arguments(),
             function.captures(),
             definition_origin,
-            depth,
             pending,
         )
     }
@@ -73,10 +63,9 @@ where
         body_type_arguments: &'body DefaultCallableBodyTypeArgumentsV1,
         captures: &'body [DefaultCaptureV1],
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        self.push_captures(pending, depth, captures)?;
+        self.push_captures(pending, captures)?;
         if let Some(arguments) = body_type_arguments.explicit_arguments() {
             for (index, argument) in arguments.iter().enumerate().rev() {
                 self.push_type(
@@ -99,11 +88,10 @@ where
         &mut self,
         reference: &'body DefaultCallableReferenceV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        self.push_captures(pending, depth, reference.captures())?;
-        self.push_callable_reference_target(pending, depth, reference.target(), definition_origin)?;
+        self.push_captures(pending, reference.captures())?;
+        self.push_callable_reference_target(pending, reference.target(), definition_origin)?;
         self.push_type(
             pending,
             reference.function_type(),
@@ -115,7 +103,6 @@ where
     fn push_callable_reference_target<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,
-        depth: u64,
         target: &'body DefaultCallableReferenceTargetV1,
         definition_origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), M::Error> {
@@ -125,7 +112,6 @@ where
                 callee: callable, ..
             } => self.push_child(
                 pending,
-                depth,
                 BodyNode::CallableRef {
                     callable,
                     definition_origin,
@@ -134,24 +120,22 @@ where
             DefaultCallableReferenceTargetV1::BoundMember { receiver, callee } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::MethodCallee {
                         callee,
                         definition_origin,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
             DefaultCallableReferenceTargetV1::BoundExtension { receiver, callee } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::CallableRef {
                         callable: callee,
                         definition_origin,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
         }
     }
@@ -159,11 +143,10 @@ where
     fn push_captures<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,
-        depth: u64,
         captures: &'body [DefaultCaptureV1],
     ) -> Result<(), M::Error> {
         for capture in captures.iter().rev() {
-            self.push_child(pending, depth, BodyNode::Capture(capture))?;
+            self.push_child(pending, BodyNode::Capture(capture))?;
         }
         Ok(())
     }
@@ -171,7 +154,6 @@ where
     pub(super) fn process_capture<'body>(
         &mut self,
         capture: &'body DefaultCaptureV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_type(
@@ -182,7 +164,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::Origin {
                 source: capture.first_use_origin(),
                 site: DefaultBodyOriginSiteV1::CaptureFirstUse,
@@ -219,7 +200,6 @@ where
         &mut self,
         callable: &'body DefaultBoundCallableRefV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_type(
@@ -230,7 +210,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BoundCallableSource {
                 source: callable.source(),
                 definition_origin,
@@ -250,14 +229,12 @@ where
         &mut self,
         source: &'body DefaultBoundCallableSourceV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match source {
             DefaultBoundCallableSourceV1::Class { bound, callable } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::CallableRef {
                         callable,
                         definition_origin,
@@ -283,13 +260,11 @@ where
         &mut self,
         callee: &'body DefaultMethodCalleeV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match callee {
             DefaultMethodCalleeV1::Callable(callable) => self.push_child(
                 pending,
-                depth,
                 BodyNode::CallableRef {
                     callable,
                     definition_origin,
@@ -297,7 +272,6 @@ where
             ),
             DefaultMethodCalleeV1::Bound(callable) => self.push_child(
                 pending,
-                depth,
                 BodyNode::BoundCallableRef {
                     callable,
                     definition_origin,
@@ -334,7 +308,6 @@ where
         &mut self,
         equality: &'body DefaultLiteralEqualityV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         let target = match equality {
@@ -343,7 +316,6 @@ where
         };
         self.push_child(
             pending,
-            depth,
             BodyNode::CallableRef {
                 callable: target,
                 definition_origin,

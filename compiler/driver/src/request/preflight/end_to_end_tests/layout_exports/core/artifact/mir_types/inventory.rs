@@ -33,7 +33,6 @@ pub(super) fn check(replay: &Replay<'_, '_>) {
             types: replay.section.types(),
         },
         shapes,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(replay.reject_shapes(records.to_vec(), &shapes),
@@ -45,7 +44,6 @@ pub(super) fn check(replay: &Replay<'_, '_>) {
             types: replay.section.types(),
         },
         vec![],
-        &mut meter(),
     )
     .unwrap();
     assert!(

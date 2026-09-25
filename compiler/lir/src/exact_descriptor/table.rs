@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use scoop_identity::{ConeIdentity, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::*;
 use crate::{LirTargetProfile, OdrFreeLirFoundation};
@@ -21,16 +21,7 @@ impl CanonicalExactDescriptorExportsV1 {
         target: LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         mut records: Vec<ExactDescriptorExportV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactDescriptorTableError> {
-        let path = WirePath::root();
-        let count = records.len() as u64;
-        meter.check_table_entries(count, &path)?;
-        meter.charge_collection_slots(count, &path)?;
-        let comparisons = count
-            .checked_mul(u64::from(count.max(1).ilog2()) + 1)
-            .ok_or(ExactDescriptorTableError::CountOverflow)?;
-        meter.charge_work(comparisons, &path)?;
         records.sort_unstable_by_key(ExactDescriptorExportV1::exact);
         for (index, record) in records.iter().enumerate() {
             if index > 0 && records[index - 1].exact() == record.exact() {
@@ -47,7 +38,6 @@ impl CanonicalExactDescriptorExportsV1 {
             let expected = crate::StrongShapeDefinitionRefV1::from_foundation(
                 crate::ExternalStrongShapeSubjectV1::TypeDescriptor(record.exact()),
                 foundation,
-                meter,
             )?;
             if expected != record.physical_definition() {
                 return Err(ExactDescriptorTableError::Definition(record.exact()));

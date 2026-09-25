@@ -41,7 +41,7 @@ fn formal_pipeline_calls_a_direct_dependency_through_the_cross_cone_artifact_clo
         vec![provider.artifact().path().to_path_buf()],
         Vec::new(),
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap();
 
     let mut dependencies = vec![ConeIdentity::CORE, provider_coordinate.identity().unwrap()];
@@ -112,7 +112,7 @@ public import dependency.api.helper
         vec![provider.artifact().path().to_path_buf()],
         Vec::new(),
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap();
     let facade_coordinate = ConeCoordinate::new("dev.example", "m23-facade", "0.1.0").unwrap();
     let facade_identity = facade_coordinate.identity().unwrap();
@@ -149,7 +149,7 @@ public fun invoke(value: Number): Int {
         vec![facade.artifact().path().to_path_buf()],
         vec![provider.artifact().path().to_path_buf()],
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap();
     let consumer_identity = ConeCoordinate::new("dev.example", "m23-reexport-consumer", "0.1.0")
         .unwrap()
@@ -176,7 +176,6 @@ public fun invoke(value: Number): Int {
         direct,
         vec![&core_bytes, &provider_bytes, &facade_bytes],
         &consumer_bytes,
-        DecodeLimits::default(),
         target.c_bridge_toolchain().profile(),
         &mut session,
     )

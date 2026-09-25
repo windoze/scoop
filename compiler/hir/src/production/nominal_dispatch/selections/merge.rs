@@ -4,13 +4,7 @@ pub(super) fn insert(
     selections: &mut Selections,
     slot: PersistentDispatchSlotId,
     selection: Selection,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    let path = WirePath::root();
-    meter
-        .charge_work(u64::from(selections.len().max(1).ilog2()) + 1, &path)
-        .map_err(resource)?;
-    meter.charge_collection_slots(1, &path).map_err(resource)?;
     if let Some(previous) = selections.get(&slot) {
         if *previous != selection {
             return Err(invalid(
@@ -18,9 +12,6 @@ pub(super) fn insert(
             ));
         }
     } else {
-        meter
-            .check_table_entries(selections.len() as u64 + 1, &path)
-            .map_err(resource)?;
         selections.insert(slot, selection);
     }
     Ok(())
@@ -30,7 +21,6 @@ pub(super) fn insert(
 mod tests {
     use super::*;
     use scoop_identity::*;
-    use scoop_wire::DecodeLimits;
 
     #[test]
     fn repeated_source_paths_merge_only_when_their_actual_choices_agree() {
@@ -54,36 +44,15 @@ mod tests {
             .unwrap();
         let callable = InheritanceCallableDeclarationV1::Function(function);
         let mut selections = Selections::new();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         for _ in 0..2 {
-            insert(
-                &mut selections,
-                slot,
-                Selection::Concrete(callable),
-                &mut meter,
-            )
-            .unwrap();
+            insert(&mut selections, slot, Selection::Concrete(callable)).unwrap();
         }
         assert_eq!(selections.len(), 1);
         for conflicting in [Selection::Abstract, Selection::InterfaceDefault(callable)] {
-            assert!(
-                matches!(insert(&mut selections, slot, conflicting, &mut meter),
-                Err(Error::InvalidSourceDeclaration(reason)) if reason.contains("conflicting implementation selections"))
-            );
+            assert!(matches!(insert(&mut selections, slot, conflicting),
+                Err(Error::InvalidSourceDeclaration(reason)) if reason.contains("conflicting implementation selections")));
             assert_eq!(selections[&slot], Selection::Concrete(callable));
         }
-        let mut exhausted = BudgetMeter::new(DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        });
-        assert!(matches!(
-            insert(
-                &mut selections,
-                slot,
-                Selection::Concrete(callable),
-                &mut exhausted
-            ),
-            Err(Error::SourceInventory(SourceInventoryError::Resource(_)))
-        ));
     }
 }

@@ -6,7 +6,6 @@ pub(super) fn validate(
     order: &NominalDispatchOrderV1,
     context: &SchemaDeclarations<'_>,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let NominalDispatchOrderV1::Class { slots } = order else {
         return Ok(());
@@ -23,17 +22,11 @@ pub(super) fn validate(
     };
     let path = WirePath::root();
     let mut expected = Vec::new();
-    meter.try_reserve_collection_slots(&mut expected, prefix.len() + slots.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut expected, prefix.len() + slots.len(), &path)?;
     expected.extend_from_slice(prefix);
-    meter.charge_collection_slots(prefix.len() as u64, &path)?;
-    meter.charge_work(
-        (prefix.len() as u64).saturating_mul(1 + u64::from(prefix.len().max(1).ilog2())),
-        &path,
-    )?;
+
     let mut seen: BTreeSet<_> = prefix.iter().copied().collect();
     for slot in slots {
-        contracts::lookup(seen.len(), meter)?;
-        meter.charge_collection_slots(1, &path)?;
         if seen.insert(*slot) {
             expected.push(*slot);
         }
@@ -42,7 +35,7 @@ pub(super) fn validate(
         .schemas(owner)?
         .get(role)
         .ok_or(Error::SlotOrder(owner))?;
-    meter.charge_work(expected.len() as u64 + schema.slots().len() as u64, &path)?;
+
     if expected != schema.slots() {
         return Err(Error::SlotOrder(owner));
     }

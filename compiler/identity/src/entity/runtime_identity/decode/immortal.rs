@@ -52,7 +52,7 @@ impl WireEncode for DecodedImmortalObjectOwner {
 }
 
 impl WireDecode for DecodedImmortalObjectOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => decode_value_variant(
@@ -74,7 +74,7 @@ impl WireDecode for DecodedImmortalObjectOwner {
 }
 
 impl WireDecode for ImmortalObjectRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::StringConstant),
             tag => Err(unknown_tag(decoder, tag)),
@@ -125,7 +125,7 @@ impl WireEncode for DecodedImmortalObjectKey {
 }
 
 impl WireDecode for DecodedImmortalObjectKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedImmortalObjectOwner::decode)?,

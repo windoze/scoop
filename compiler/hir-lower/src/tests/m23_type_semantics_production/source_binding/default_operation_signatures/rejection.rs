@@ -13,11 +13,9 @@ fn member_operation_queries_reject_omitted_generic_owner_wrong_owner_and_both_ar
         )
         .unwrap();
         assert!(matches!(
-            bound.members().default_member_callable_shape(
-                &reference,
-                &mut meter(),
-                &WirePath::root()
-            ),
+            bound
+                .members()
+                .default_member_callable_shape(&reference, &WirePath::root()),
             Err(Error::MissingOwner(_))
         ));
         let reference = hir::DefaultCallableRefV1::try_new(
@@ -27,7 +25,7 @@ fn member_operation_queries_reject_omitted_generic_owner_wrong_owner_and_both_ar
         )
         .unwrap();
         assert!(
-            matches!(bound.members().default_member_callable_shape(&reference, &mut meter(), &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::DefaultSourceNominalOperationError::CallableArity { expected: 1, actual: 0, .. }))
+            matches!(bound.members().default_member_callable_shape(&reference,  &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::DefaultSourceNominalOperationError::CallableArity { expected: 1, actual: 0, .. }))
         );
         let OptionalSignatureType::Present(owner) = original.owner() else {
             panic!("generic owner");
@@ -49,14 +47,14 @@ fn member_operation_queries_reject_omitted_generic_owner_wrong_owner_and_both_ar
         )
         .unwrap();
         assert!(
-            matches!(bound.members().default_member_callable_shape(&reference, &mut meter(), &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::DefaultSourceNominalOperationError::Arity { expected: 1, actual: 2, .. }))
+            matches!(bound.members().default_member_callable_shape(&reference,  &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::DefaultSourceNominalOperationError::Arity { expected: 1, actual: 2, .. }))
         );
         let [nested]: [hir::DefaultCallableRefV1; 1] = callables(&template(output, "nested", 0))
             .try_into()
             .unwrap();
         let owner = bound
             .members()
-            .default_member_callable_shape(&nested, &mut meter(), &WirePath::root())
+            .default_member_callable_shape(&nested, &WirePath::root())
             .unwrap()
             .receiver()
             .unwrap()
@@ -68,20 +66,16 @@ fn member_operation_queries_reject_omitted_generic_owner_wrong_owner_and_both_ar
         )
         .unwrap();
         assert!(matches!(
-            bound.members().default_member_callable_shape(
-                &reference,
-                &mut meter(),
-                &WirePath::root()
-            ),
+            bound
+                .members()
+                .default_member_callable_shape(&reference, &WirePath::root()),
             Err(Error::Owner { .. })
         ));
         with_core_source(SOURCE, |_, other, _| {
             assert!(matches!(
-                other.members().default_member_callable_shape(
-                    &original,
-                    &mut meter(),
-                    &WirePath::root()
-                ),
+                other
+                    .members()
+                    .default_member_callable_shape(&original, &WirePath::root()),
                 Err(Error::Member(_))
             ));
         });
@@ -97,7 +91,7 @@ fn constructor_operation_queries_reject_a_different_applied_owner() {
         };
         *owner_type = template(output, "empty", 0).result().clone();
         assert!(matches!(
-            bound.default_constructor_operation_shape(&reference, &mut meter(), &WirePath::root()),
+            bound.default_constructor_operation_shape(&reference, &WirePath::root()),
             Err(Error::Target(_))
         ));
     });

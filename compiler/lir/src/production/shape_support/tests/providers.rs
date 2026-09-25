@@ -3,7 +3,6 @@ use scoop_identity::{
     CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, PackagePath,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::BudgetMeter;
 
 fn source(provider: ConeIdentity, kind: SourceNominalKind) -> SourceDeclarationKey {
     SourceDeclarationKey::nominal(
@@ -49,8 +48,7 @@ fn core_and_ordinary_plans_preserve_the_actual_definition_provider() {
                 scoop_identity::ObjectDefinitionPlanId::from_key(&expected_definition).unwrap()
             );
             let bytes = encode(&plan).unwrap();
-            let decoded: DecodedParamFreeShapeSupportPlanSetV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: DecodedParamFreeShapeSupportPlanSetV1 = decode_canonical(&bytes).unwrap();
             let replayed = decoded
                 .validate(
                     [&fixture.source],
@@ -95,13 +93,7 @@ fn assert_shape_link_partition_allows(fixture: &Fixture, closure: &ParamFreeShap
         ]);
     }
     for subject in subjects {
-        ShapeLinkProviderV1::reject_legacy_subject(
-            &ordinary,
-            None,
-            subject,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-        .unwrap();
+        ShapeLinkProviderV1::reject_legacy_subject(&ordinary, None, subject).unwrap();
     }
 }
 
@@ -118,13 +110,8 @@ fn ordinary_reader_rejects_wrong_provider_and_inexact_source_coverage() {
     )
     .unwrap();
     let bytes = encode(&plan).unwrap();
-    let mut wrong_root: DecodedParamFreeShapeSupportPlanSetV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    wrong_root.closures[0].root = decode_canonical(
-        &encode(&ConeIdentity::CORE).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let mut wrong_root: DecodedParamFreeShapeSupportPlanSetV1 = decode_canonical(&bytes).unwrap();
+    wrong_root.closures[0].root = decode_canonical(&encode(&ConeIdentity::CORE).unwrap()).unwrap();
     assert!(matches!(
         wrong_root.validate(
             [&fixture.source],
@@ -134,8 +121,7 @@ fn ordinary_reader_rejects_wrong_provider_and_inexact_source_coverage() {
         ),
         Err(ParamFreeShapeSupportValidationError::WrongRoot)
     ));
-    let extra: DecodedParamFreeShapeSupportPlanSetV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let extra: DecodedParamFreeShapeSupportPlanSetV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
         extra.validate(
             [],
@@ -145,8 +131,7 @@ fn ordinary_reader_rejects_wrong_provider_and_inexact_source_coverage() {
         ),
         Err(ParamFreeShapeSupportValidationError::PlanMismatch)
     ));
-    let missing: DecodedParamFreeShapeSupportPlanSetV1 =
-        decode_canonical(b"\x80", DecodeLimits::default()).unwrap();
+    let missing: DecodedParamFreeShapeSupportPlanSetV1 = decode_canonical(b"\x80").unwrap();
     assert!(matches!(
         missing.validate(
             [&fixture.source],
@@ -172,8 +157,7 @@ fn all_providers_encode_empty_plans_as_arrays_and_reject_old_core_wrappers() {
         )
         .unwrap();
         assert_eq!(encode(&plan).unwrap(), b"\x80");
-        let decoded: DecodedParamFreeShapeSupportPlanSetV1 =
-            decode_canonical(b"\x80", DecodeLimits::default()).unwrap();
+        let decoded: DecodedParamFreeShapeSupportPlanSetV1 = decode_canonical(b"\x80").unwrap();
         assert_eq!(
             decoded
                 .validate(
@@ -187,12 +171,6 @@ fn all_providers_encode_empty_plans_as_arrays_and_reject_old_core_wrappers() {
         );
     }
     for old_wrapper in [b"\xa1\x00\x01".as_slice(), b"\xa2\x00\x02\x01\x80"] {
-        assert!(
-            decode_canonical::<DecodedParamFreeShapeSupportPlanSetV1>(
-                old_wrapper,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedParamFreeShapeSupportPlanSetV1>(old_wrapper,).is_err());
     }
 }

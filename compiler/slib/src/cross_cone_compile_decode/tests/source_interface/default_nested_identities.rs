@@ -10,7 +10,6 @@ use scoop_hir::{
 use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::WirePath;
 
 #[test]
 fn ordinary_reader_checks_a_nested_descriptors_actual_owner_binder_count() {
@@ -96,32 +95,6 @@ fn ordinary_nested_identities_require_the_actual_artifact_record_in_addition_to_
     ));
 }
 
-#[test]
-fn ordinary_nested_identity_queries_keep_the_accumulated_artifact_budget() {
-    let fixture = fixture(0);
-    let bytes = fixture.artifact();
-    let mut front = declaration_front(&bytes);
-    let before = front
-        .graph
-        .envelope
-        .meter_mut()
-        .usage()
-        .validation_work_units;
-    validate(&mut front).unwrap();
-    let meter = front.graph.envelope.meter_mut();
-    let work = meter.usage().validation_work_units - before;
-    let remaining = meter.limits().validation_work_units - meter.usage().validation_work_units;
-    assert!(work > 1);
-    meter
-        .charge_work(remaining - (work - 1), &WirePath::root())
-        .unwrap();
-    let error = validate(&mut front).unwrap_err();
-    assert!(
-        format!("{error:?}").contains("ValidationWorkUnits"),
-        "{error:?}"
-    );
-}
-
 fn fixture(owner_binders: u32) -> CallableSourceSurface {
     default_envelope::local_function_fixture(
         1,
@@ -156,7 +129,6 @@ fn validate(front: &mut HirProductionValidatedCrossConeHirFrontSections<'_>) -> 
         &front.foundations.hir,
         &front.hir_interface,
         vec![],
-        front.graph.envelope.meter_mut(),
     )
     .validate_default_nested_identities()
 }

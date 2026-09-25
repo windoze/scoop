@@ -1,5 +1,5 @@
 use scoop_identity::SignatureTypeKey;
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
@@ -33,7 +33,7 @@ pub(super) fn validate<A, E>(
     body: &ExportDefaultBodyV1,
     provider: DefaultTemplateProviderShapeV1,
     authority: &mut A,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>
 where
@@ -55,7 +55,7 @@ where
                 })
             },
         },
-        meter,
+
         path,
     }
     .run(body)
@@ -69,7 +69,7 @@ pub(super) fn validate_types<
     body: &ExportDefaultBodyV1,
     provider: DefaultTemplateProviderShapeV1,
     authority: &mut A,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
     Validator {
@@ -79,7 +79,7 @@ pub(super) fn validate_types<
             // This pass consumes types only; origin binding is a separate input proof.
             origin: |_, _, _| Ok(()),
         },
-        meter,
+
         path,
     }
     .run(body)
@@ -88,21 +88,16 @@ pub(super) fn validate_types<
 pub(super) fn visit_definition_sources<V, E>(
     body: &ExportDefaultBodyV1,
     visitor: &mut V,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), E>
 where
-    V: FnMut(
-        &ExportDefinitionSourceV1,
-        DefaultBodyOriginSiteV1,
-        &mut BudgetMeter,
-        &WirePath,
-    ) -> Result<(), E>,
+    V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
     E: From<WireError>,
 {
     Validator {
         mode: origin::DefinitionSourceVisitor { visitor },
-        meter,
+
         path,
     }
     .run(body)
@@ -118,7 +113,7 @@ pub(super) trait BodyWalkMode {
         signature: &SignatureTypeKey,
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Self::Error>;
 
@@ -126,7 +121,7 @@ pub(super) trait BodyWalkMode {
         &mut self,
         function: &DefaultLocalFunctionV1,
         definition_origin: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Self::Error>;
 
@@ -142,14 +137,14 @@ pub(super) trait BodyWalkMode {
         &mut self,
         source: &ExportDefinitionSourceV1,
         site: DefaultBodyOriginSiteV1,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<(), Self::Error>;
 }
 
 pub(super) struct Validator<'a, M> {
     mode: M,
-    meter: &'a mut BudgetMeter,
+
     path: &'a WirePath,
 }
 
@@ -159,12 +154,9 @@ where
 {
     fn run(&mut self, body: &ExportDefaultBodyV1) -> Result<(), M::Error> {
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
-            .map_err(M::resource)?;
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path).map_err(M::resource)?;
         pending.push(WorkItem::Body {
             node: BodyNode::Body(body),
-            depth: 1,
         });
 
         while let Some(work) = pending.pop() {
@@ -174,37 +166,21 @@ where
                     site,
                     definition_origin,
                 } => self.validate_type(signature, site, definition_origin)?,
-                WorkItem::Body { node, depth } => {
-                    self.enter_node(depth)?;
-                    self.process_node(node, depth, &mut pending)?;
+                WorkItem::Body { node } => {
+                    self.process_node(node, &mut pending)?;
                 }
             }
         }
         Ok(())
     }
 
-    fn enter_node(&mut self, depth: u64) -> Result<(), M::Error> {
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(M::resource)?;
-        self.meter.charge_nodes(1, self.path).map_err(M::resource)?;
-        self.meter.charge_work(1, self.path).map_err(M::resource)
-    }
-
     pub(super) fn push_child<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,
-        parent_depth: u64,
         node: BodyNode<'body>,
     ) -> Result<(), M::Error> {
-        let depth = parent_depth
-            .checked_add(1)
-            .ok_or_else(|| M::resource(integer_out_of_range(self.path)))?;
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(M::resource)?;
         self.reserve_edge(pending)?;
-        pending.push(WorkItem::Body { node, depth });
+        pending.push(WorkItem::Body { node });
         Ok(())
     }
 
@@ -215,9 +191,6 @@ where
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), M::Error> {
-        self.meter
-            .check_semantic_depth(1, self.path)
-            .map_err(M::resource)?;
         self.reserve_edge(pending)?;
         pending.push(WorkItem::Type {
             signature,
@@ -235,9 +208,6 @@ where
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), M::Error> {
-        self.meter
-            .check_semantic_depth(1, self.path)
-            .map_err(M::resource)?;
         self.reserve_edge(pending)?;
         pending.push(WorkItem::Body {
             node: BodyNode::Binder {
@@ -246,17 +216,12 @@ where
                 site,
                 definition_origin,
             },
-            depth: 1,
         });
         Ok(())
     }
 
     fn reserve_edge<T>(&mut self, pending: &mut Vec<T>) -> Result<(), M::Error> {
-        self.meter.charge_edges(1, self.path).map_err(M::resource)?;
-        self.meter.charge_work(1, self.path).map_err(M::resource)?;
-        self.meter
-            .try_reserve_collection_slots(pending, 1, self.path)
-            .map_err(M::resource)
+        scoop_wire::allocation::try_reserve(pending, 1, self.path).map_err(M::resource)
     }
 
     fn validate_type(
@@ -266,58 +231,57 @@ where
         definition_origin: &ExportDefinitionSourceV1,
     ) -> Result<(), M::Error> {
         self.mode
-            .validate_type(signature, site, definition_origin, self.meter, self.path)
+            .validate_type(signature, site, definition_origin, self.path)
     }
 
     fn process_node<'body>(
         &mut self,
         node: BodyNode<'body>,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match node {
-            BodyNode::Body(body) => self.process_body(body, depth, pending),
-            BodyNode::Statement(statement) => self.process_statement(statement, depth, pending),
-            BodyNode::Expression(expression) => self.process_expression(expression, depth, pending),
+            BodyNode::Body(body) => self.process_body(body, pending),
+            BodyNode::Statement(statement) => self.process_statement(statement, pending),
+            BodyNode::Expression(expression) => self.process_expression(expression, pending),
             BodyNode::Pattern {
                 pattern,
                 definition_origin,
-            } => self.process_pattern(pattern, definition_origin, depth, pending),
+            } => self.process_pattern(pattern, definition_origin, pending),
             BodyNode::AssignTarget {
                 target,
                 definition_origin,
-            } => self.process_assign_target(target, definition_origin, depth, pending),
+            } => self.process_assign_target(target, definition_origin, pending),
             BodyNode::When {
                 value,
                 definition_origin,
-            } => self.process_when(value, definition_origin, depth, pending),
-            BodyNode::WhenArm(arm) => self.process_when_arm(arm, depth, pending),
+            } => self.process_when(value, definition_origin, pending),
+            BodyNode::WhenArm(arm) => self.process_when_arm(arm, pending),
             BodyNode::WhenGuard {
                 guard,
                 definition_origin,
-            } => self.process_when_guard(guard, definition_origin, depth, pending),
+            } => self.process_when_guard(guard, definition_origin, pending),
             BodyNode::WhenFallback {
                 fallback,
                 definition_origin,
-            } => self.process_when_fallback(fallback, definition_origin, depth, pending),
+            } => self.process_when_fallback(fallback, definition_origin, pending),
             BodyNode::Try {
                 value,
                 definition_origin,
-            } => self.process_try(value, definition_origin, depth, pending),
-            BodyNode::Catch(catch) => self.process_catch(catch, depth, pending),
+            } => self.process_try(value, definition_origin, pending),
+            BodyNode::Catch(catch) => self.process_catch(catch, pending),
             BodyNode::For {
                 plan,
                 definition_origin,
-            } => self.process_for(plan, definition_origin, depth, pending),
+            } => self.process_for(plan, definition_origin, pending),
             BodyNode::BindingPlan {
                 plan,
                 definition_origin,
-            } => self.process_binding_plan(plan, definition_origin, depth, pending),
-            BodyNode::BindingAction(action) => self.process_binding_action(action, depth, pending),
+            } => self.process_binding_plan(plan, definition_origin, pending),
+            BodyNode::BindingAction(action) => self.process_binding_action(action, pending),
             BodyNode::BindingShape {
                 shape,
                 definition_origin,
-            } => self.process_binding_shape(shape, definition_origin, depth, pending),
+            } => self.process_binding_shape(shape, definition_origin, pending),
             BodyNode::BindingTemporary {
                 temporary,
                 definition_origin,
@@ -341,30 +305,30 @@ where
                 definition_origin,
             } => self.process_binding_projection(projection, definition_origin, pending),
             BodyNode::IteratorConformance(conformance) => {
-                self.process_iterator_conformance(conformance, depth, pending)
+                self.process_iterator_conformance(conformance, pending)
             }
-            BodyNode::IteratorNext(next) => self.process_iterator_next(next, depth, pending),
+            BodyNode::IteratorNext(next) => self.process_iterator_next(next, pending),
             BodyNode::AppliedOption {
                 option,
                 definition_origin,
-            } => self.process_applied_option(option, definition_origin, depth, pending),
+            } => self.process_applied_option(option, definition_origin, pending),
             BodyNode::LocalFunction {
                 function,
                 definition_origin,
-            } => self.process_local_function(function, definition_origin, depth, pending),
+            } => self.process_local_function(function, definition_origin, pending),
             BodyNode::Lambda {
                 lambda,
                 definition_origin,
-            } => self.process_lambda(lambda, definition_origin, depth, pending),
+            } => self.process_lambda(lambda, definition_origin, pending),
             BodyNode::AnonymousFunction {
                 function,
                 definition_origin,
-            } => self.process_anonymous(function, definition_origin, depth, pending),
+            } => self.process_anonymous(function, definition_origin, pending),
             BodyNode::CallableReference {
                 reference,
                 definition_origin,
-            } => self.process_callable_reference(reference, definition_origin, depth, pending),
-            BodyNode::Capture(capture) => self.process_capture(capture, depth, pending),
+            } => self.process_callable_reference(reference, definition_origin, pending),
+            BodyNode::Capture(capture) => self.process_capture(capture, pending),
             BodyNode::CallableRef {
                 callable,
                 definition_origin,
@@ -372,15 +336,15 @@ where
             BodyNode::BoundCallableRef {
                 callable,
                 definition_origin,
-            } => self.process_bound_callable_ref(callable, definition_origin, depth, pending),
+            } => self.process_bound_callable_ref(callable, definition_origin, pending),
             BodyNode::BoundCallableSource {
                 source,
                 definition_origin,
-            } => self.process_bound_callable_source(source, definition_origin, depth, pending),
+            } => self.process_bound_callable_source(source, definition_origin, pending),
             BodyNode::MethodCallee {
                 callee,
                 definition_origin,
-            } => self.process_method_callee(callee, definition_origin, depth, pending),
+            } => self.process_method_callee(callee, definition_origin, pending),
             BodyNode::ConstructorRef {
                 constructor,
                 definition_origin,
@@ -415,17 +379,15 @@ where
             BodyNode::LiteralEquality {
                 equality,
                 definition_origin,
-            } => self.process_literal_equality(equality, definition_origin, depth, pending),
+            } => self.process_literal_equality(equality, definition_origin, pending),
             BodyNode::ArrayAssembly {
                 assembly,
                 definition_origin,
-            } => self.process_array_assembly(assembly, definition_origin, depth, pending),
+            } => self.process_array_assembly(assembly, definition_origin, pending),
             BodyNode::IntegerArguments(arguments) => {
-                self.process_integer_arguments(arguments, depth, pending)
+                self.process_integer_arguments(arguments, pending)
             }
-            BodyNode::Origin { source, site } => {
-                self.mode.visit_origin(source, site, self.meter, self.path)
-            }
+            BodyNode::Origin { source, site } => self.mode.visit_origin(source, site, self.path),
             BodyNode::Binder {
                 depth: binder_depth,
                 index,
@@ -440,17 +402,12 @@ where
     fn process_body<'body>(
         &mut self,
         body: &'body ExportDefaultBodyV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        self.push_child(pending, depth, BodyNode::Expression(body.value()))?;
+        self.push_child(pending, BodyNode::Expression(body.value()))?;
         for statement in body.statements().iter().rev() {
-            self.push_child(pending, depth, BodyNode::Statement(statement))?;
+            self.push_child(pending, BodyNode::Statement(statement))?;
         }
         Ok(())
     }
-}
-
-fn integer_out_of_range(path: &WirePath) -> WireError {
-    WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None)
 }

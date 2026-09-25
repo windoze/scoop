@@ -10,7 +10,7 @@ pub(super) fn check(
     let records = descriptors.records();
     let reject = |rows: &[lir::ExactDescriptorExportV1]| {
         let wire: lir::DecodedCanonicalExactDescriptorExportsV1 = decoded(&Rows(rows));
-        assert!(wire.validate_against(descriptors, &mut meter()).is_err());
+        assert!(wire.validate_against(descriptors).is_err());
     };
     for index in 0..records.len() {
         let mut missing = records.to_vec();
@@ -58,10 +58,9 @@ pub(super) fn check(
                 })
                 .cloned()
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
-        let error = replay(input, &layouts, expected.dispatch(), &[], &mut meter()).unwrap_err();
+        let error = replay(input, &layouts, expected.dispatch(), &[]).unwrap_err();
         assert!(
             matches!(error, Error::Replay { exact: missing, source } if missing == exact && matches!(
                 *source, lir::ExactDescriptorError::MissingValueLayout(_) | lir::ExactDescriptorError::MissingInstanceLayout(_)
@@ -84,13 +83,10 @@ pub(super) fn check(
             .filter(|record| record.table() != vtable)
             .cloned()
             .collect(),
-        &mut meter(),
     )
     .unwrap();
-    assert!(
-        matches!(replay(input, expected.layouts(), &dispatch, &[], &mut meter()),
-        Err(Error::Replay { exact: missing, source }) if missing == exact && matches!(*source, lir::ExactDescriptorError::DispatchInventory(_)))
-    );
+    assert!(matches!(replay(input, expected.layouts(), &dispatch, &[]),
+        Err(Error::Replay { exact: missing, source }) if missing == exact && matches!(*source, lir::ExactDescriptorError::DispatchInventory(_))));
 }
 
 struct Rows<'a>(&'a [lir::ExactDescriptorExportV1]);

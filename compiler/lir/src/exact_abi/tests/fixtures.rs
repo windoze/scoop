@@ -71,7 +71,6 @@ pub(super) fn aggregate(zst: bool) -> ExactLayoutExportV1 {
         false,
         if zst { &[] } else { &input },
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap()
     .into()
@@ -102,7 +101,6 @@ pub(super) fn function(
             result,
         },
         &foundation,
-        &mut meter(),
     )
     .unwrap()
 }
@@ -141,19 +139,15 @@ pub(super) fn enumeration(payload: &ExactValueLayoutV1) -> ExactLayoutExportV1 {
         },
     ];
     let bound = Bound::value(exact(&owner));
-    ExactValueLayoutV1::enumeration(bound.identity, &inputs, &bound.foundation, &mut meter())
+    ExactValueLayoutV1::enumeration(bound.identity, &inputs, &bound.foundation)
         .unwrap()
         .into()
 }
 
 pub(super) fn roundtrip(expected: &ExactCallableAbiExportV1) {
     let bytes = encode(expected).unwrap();
-    let raw = decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes, DecodeLimits::default())
-        .unwrap();
+    let raw = decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes).unwrap();
     assert_eq!(bytes[0], 0xa6);
     assert_eq!(encode(&raw).unwrap(), bytes);
-    assert_eq!(
-        raw.validate_against(expected, &mut meter()).unwrap(),
-        *expected
-    );
+    assert_eq!(raw.validate_against(expected).unwrap(), *expected);
 }

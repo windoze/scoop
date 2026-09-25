@@ -30,7 +30,7 @@ impl WireEncode for HirExpressionTypeRoleV1 {
 }
 
 impl WireDecode for HirExpressionTypeRoleV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Value),
             2 => Ok(Self::SizeOf),

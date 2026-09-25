@@ -10,11 +10,7 @@ fn decoded_record(
         point_offsets,
     )
     .unwrap();
-    scoop_wire::decode_canonical(
-        &scoop_wire::encode(&record).unwrap(),
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap()
+    scoop_wire::decode_canonical(&scoop_wire::encode(&record).unwrap()).unwrap()
 }
 
 #[test]
@@ -130,11 +126,8 @@ fn reader_resolves_a_dependency_source_through_validated_cone_authority() {
     )
     .unwrap();
     let expected = SourceRecord::from_utf8(source, "abc", [0, 3]).unwrap();
-    let decoded: DecodedSourceRecord = scoop_wire::decode_canonical(
-        &scoop_wire::encode(&expected).unwrap(),
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedSourceRecord =
+        scoop_wire::decode_canonical(&scoop_wire::encode(&expected).unwrap()).unwrap();
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending
         .register_authority(coordinate.identity().unwrap())

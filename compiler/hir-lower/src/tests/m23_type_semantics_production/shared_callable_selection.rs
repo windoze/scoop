@@ -22,7 +22,6 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
                 &public,
                 types.section(),
                 &identities,
-                &mut BudgetMeter::new(DecodeLimits::default()),
             )
             .unwrap();
             assert_eq!(selected.len(), count, "{case}");
@@ -30,14 +29,9 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
             let classifier = world
                 .nominal_exact_leaf_classifier(public.nominal_interfaces())
                 .unwrap();
-            let ordinary = hir::select_ordinary_source_callables(
-                provider,
-                &public,
-                &classifier,
-                &identities,
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+            let ordinary =
+                hir::select_ordinary_source_callables(provider, &public, &classifier, &identities)
+                    .unwrap();
             assert_eq!(ordinary.len(), if case == "standalone" { 1 } else { 3 });
             let mut rows = Vec::new();
             for source in public.callable_interfaces().all_declarations() {
@@ -90,7 +84,6 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
                 &public,
                 types.section(),
                 &identities,
-                &mut BudgetMeter::new(DecodeLimits::default()),
             )
             .unwrap();
             assert!(

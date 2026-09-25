@@ -42,7 +42,6 @@ pub(super) fn reference(
         output,
         hir::ExportParameterOwner::Function(id),
         position,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(body.references().constructors().len(), 1, "{name}");
@@ -79,21 +78,20 @@ fn default_constructor_subjects_replay_actual_source_reference_domains() {
             for (_, record) in &records {
                 required.insert(
                     foundation
-                        .default_constructor_access_subject(record.target(), &mut meter())
+                        .default_constructor_access_subject(record.target())
                         .unwrap(),
                 );
             }
-            let table =
-                Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+            let table = Table::from_export_hir(&output.output().export, &required).unwrap();
             let bound = foundation
-                .bind_default_access_declarations(&table, &required, &mut meter())
+                .bind_default_access_declarations(&table, &required)
                 .unwrap();
             let mut snapshot = String::new();
             for (name, record) in &records {
                 let subject = foundation
-                    .default_constructor_access_subject(record.target(), &mut meter())
+                    .default_constructor_access_subject(record.target())
                     .unwrap();
-                let domain = bound.source_lookup_domain(subject, &mut meter()).unwrap();
+                let domain = bound.source_lookup_domain(subject).unwrap();
                 assert_eq!(&domain, record.witness().target_domain(), "{name}");
                 let role = match subject {
                     Subject::Constructor(_) => "Constructor",
@@ -122,68 +120,4 @@ fn default_constructor_subjects_replay_actual_source_reference_domains() {
             }
         });
     }
-}
-
-#[test]
-fn default_constructor_subject_queries_share_work_node_edge_and_shape_budgets() {
-    with_hir_source(COMBINATIONS, |output, _| {
-        let fixture = Fixture::from_output(output);
-        let foundation = fixture.bind().unwrap();
-        for (name, position) in COMBINED_CASES {
-            let record = reference(output, name, *position);
-            let target = record.target();
-            let mut measured = meter();
-            foundation
-                .default_constructor_access_subject(target, &mut measured)
-                .unwrap();
-            let mut shared = BudgetMeter::new(DecodeLimits {
-                validation_work_units: measured.usage().validation_work_units * 2 - 1,
-                ..DecodeLimits::default()
-            });
-            foundation
-                .default_constructor_access_subject(target, &mut shared)
-                .unwrap();
-            assert!(matches!(
-                foundation.default_constructor_access_subject(target, &mut shared),
-                Err(Error::Resource(_))
-            ));
-            for limits in [
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    decoded_nodes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    decoded_edges: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_table_entries: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_recursion: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_leaf_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    matches!(
-                        foundation.default_constructor_access_subject(
-                            target,
-                            &mut BudgetMeter::new(limits)
-                        ),
-                        Err(Error::Resource(_))
-                    ),
-                    "{name} {limits:?}"
-                );
-            }
-        }
-    });
 }

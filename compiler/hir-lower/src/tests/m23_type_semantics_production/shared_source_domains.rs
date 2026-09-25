@@ -54,7 +54,7 @@ fn shared_source_domains_preserve_private_internal_protected_and_generic_default
                         hir::AccessDomain::from_constraints([hir::AccessConstraint::SubclassesOf(
                             id,
                         )]);
-                    let projected = Domain::from_export_hir(export, &domain, &mut meter()).unwrap();
+                    let projected = Domain::from_export_hir(export, &domain).unwrap();
                     assert_eq!(projected.constraints(), &[Constraint::SubclassesOf(owner)]);
                 }
             }
@@ -79,18 +79,13 @@ fn shared_source_domains_preserve_private_internal_protected_and_generic_default
                     )
                     .chain(refs.fields.iter().map(|r| ("field", &r.witness)));
                 for (kind, witness) in references {
-                    let projected = hir::ExportDefaultAccessWitnessV1::from_export_hir(
-                        export,
-                        witness,
-                        &mut meter(),
-                    )
-                    .unwrap();
+                    let projected =
+                        hir::ExportDefaultAccessWitnessV1::from_export_hir(export, witness)
+                            .unwrap();
                     let bytes = encode(&projected).unwrap();
                     let decoded: hir::DecodedExportDefaultAccessWitnessV1 =
-                        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-                    let restored = decoded
-                        .resolve(&mut identities, &mut meter(), &WirePath::root())
-                        .unwrap();
+                        decode_canonical(&bytes).unwrap();
+                    let restored = decoded.resolve(&mut identities, &WirePath::root()).unwrap();
                     assert_eq!(restored, projected);
                     assert_eq!(encode(&restored).unwrap(), bytes);
                     let hir::ExportParameterOwner::Function(id) = witness.owner else {
@@ -133,9 +128,6 @@ fn portable_domains_do_not_widen_protected_default_access() {
     assert_eq!(failures[0].span, Some(ast::Span::new(start, start + 6)));
 }
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn render(domain: &Domain, names: &BTreeMap<hir::SourceNominalId, String>) -> String {
     if domain.is_empty() {
         return "empty".into();

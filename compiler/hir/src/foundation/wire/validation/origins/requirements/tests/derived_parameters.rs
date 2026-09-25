@@ -39,7 +39,7 @@ fn derived_parameters_reject_fabricated_source_origins() {
     };
     let origin = DefinitionOrigin::new(source, SourceSpan::new(0, 0).unwrap(), &context).unwrap();
     let path = WirePath::root().field(29);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     for selector in [
         LocalValueSelector::This,
         LocalValueSelector::Parameter {
@@ -49,15 +49,14 @@ fn derived_parameters_reject_fabricated_source_origins() {
         let local = local(CallableTemplateOwner::Generated(records[0].id()), selector);
         let subject = DefinitionOriginSubject::LocalValue(local.id());
         for fabricated in [false, true] {
-            let mut requirements = OriginRequirements::new(&records, 1, &mut meter, &path).unwrap();
-            requirements.local_value(&local, &mut meter, &path).unwrap();
+            let mut requirements = OriginRequirements::new(&records, 1, &path).unwrap();
+            requirements.local_value(&local, &path).unwrap();
             let origins = if fabricated {
                 vec![DefinitionOriginRecord::new(subject, origin.clone())]
             } else {
                 Vec::new()
             };
-            let result =
-                validate_records(ConeIdentity::CORE, &[], requirements, &origins, &mut meter);
+            let result = validate_records(ConeIdentity::CORE, &[], requirements, &origins);
             if fabricated {
                 assert!(matches!(result, Err(HirFoundationValidationError::Origin(
                     DefinitionOriginValidationError::UnexpectedSubject { subject: actual }
@@ -79,10 +78,10 @@ fn only_the_derived_receiver_and_sole_parameter_are_synthetic() {
         },
     );
     let path = WirePath::root().field(29);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    let mut requirements = OriginRequirements::new(&records, 1, &mut meter, &path).unwrap();
+
+    let mut requirements = OriginRequirements::new(&records, 1, &path).unwrap();
     assert!(matches!(
-        requirements.local_value(&local, &mut meter, &path),
+        requirements.local_value(&local,  &path),
         Err(HirFoundationValidationError::Origin(DefinitionOriginValidationError::MissingSourceAnchor { subject }))
             if subject == DefinitionOriginSubject::LocalValue(local.id())
     ));
@@ -110,32 +109,12 @@ fn ordinary_receiver_still_requires_a_source_origin() {
         LocalValueSelector::This,
     );
     let path = WirePath::root().field(29);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    let mut requirements = OriginRequirements::new(&[], 1, &mut meter, &path).unwrap();
-    requirements.local_value(&local, &mut meter, &path).unwrap();
+
+    let mut requirements = OriginRequirements::new(&[], 1, &path).unwrap();
+    requirements.local_value(&local, &path).unwrap();
     assert!(matches!(
-        validate_records(ConeIdentity::CORE, &[], requirements, &[], &mut meter),
+        validate_records(ConeIdentity::CORE, &[], requirements, &[]),
         Err(HirFoundationValidationError::Origin(DefinitionOriginValidationError::MissingSubject { subject }))
             if subject == DefinitionOriginSubject::LocalValue(local.id())
-    ));
-}
-
-#[test]
-fn synthetic_parameter_classification_consumes_the_shared_budget() {
-    let records = [application()];
-    let local = local(
-        CallableTemplateOwner::Generated(records[0].id()),
-        LocalValueSelector::This,
-    );
-    let path = WirePath::root().field(29);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    let mut requirements = OriginRequirements::new(&records, 1, &mut meter, &path).unwrap();
-    let mut exhausted = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        requirements.local_value(&local, &mut exhausted, &path),
-        Err(HirFoundationValidationError::Resource(_))
     ));
 }

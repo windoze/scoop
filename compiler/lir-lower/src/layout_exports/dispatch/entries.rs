@@ -5,12 +5,11 @@ pub(super) fn project<'a>(
     layouts: &'a lookup::Layouts<'_>,
     callables: &'a lir::CanonicalExactCallableAbiExportsV1,
     dependencies: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<lir::ExactDispatchEntryInputV1<'a>>, Error> {
-    let mut entries = reserve(slots.len(), meter)?;
+    let mut entries = reserve(slots.len())?;
     for slot in slots {
         let implementation = implementation(slot.implementation());
-        let abi = lookup::callable(implementation.target(), callables, dependencies, meter)?;
+        let abi = lookup::callable(implementation.target(), callables, dependencies)?;
         let signature = slot.signature();
         let receiver = match implementation.receiver_adaptation() {
             lir::ExactDispatchReceiverAdaptationV1::Identity => None,
@@ -18,13 +17,10 @@ pub(super) fn project<'a>(
                 .exact()
                 .receiver()
                 .into_option()
-                .map(|exact| layouts.value(exact, meter))
+                .map(|exact| layouts.value(exact))
                 .transpose()?,
         };
-        meter.charge_collection_slots(
-            signature.exact().parameters().len() as u64,
-            &WirePath::root(),
-        )?;
+
         entries.push(lir::ExactDispatchEntryInputV1 {
             position: lir::ExactDispatchPositionV1::from_u32(slot.position().get()),
             slot: slot.slot(),

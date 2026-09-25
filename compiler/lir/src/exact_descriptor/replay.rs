@@ -4,7 +4,7 @@ use scoop_identity::{
     CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph, PersistentDispatchTableId,
     PersistentExactTypeId, RepresentationRole,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -28,9 +28,8 @@ impl ExactDescriptorExportV1 {
         registration: &StrongTypeRegistrationPlanV2,
         diagnostics: &impl ExactTypeDiagnosticGraph,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactDescriptorError> {
-        validate_registration_plan(registration, layouts, foundation, meter)?;
+        validate_registration_plan(registration, layouts, foundation)?;
         let expected_registration = StrongShapeRegistrationV1::from_artifact(
             registration.exact_type(),
             registration.definition_plan(),
@@ -44,7 +43,6 @@ impl ExactDescriptorExportV1 {
             expected_registration,
             diagnostics,
             foundation,
-            meter,
         )
     }
 }
@@ -57,7 +55,6 @@ pub(super) fn replay_test_parts(
     registration: StrongShapeRegistrationV1<PersistentExactTypeId>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<ExactDescriptorExportV1, ExactDescriptorError> {
     replay_parts(
         target,
@@ -66,6 +63,5 @@ pub(super) fn replay_test_parts(
         registration,
         diagnostics,
         foundation,
-        meter,
     )
 }

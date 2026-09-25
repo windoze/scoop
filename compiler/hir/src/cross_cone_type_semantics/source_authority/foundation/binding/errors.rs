@@ -38,7 +38,6 @@ impl From<DefinitionSourceLocationValidationError> for TypeFoundationBindingErro
     fn from(error: DefinitionSourceLocationValidationError) -> Self {
         use DefinitionSourceLocationValidationError as Location;
         match error {
-            Location::Resource(error) => Self::Resource(error),
             Location::Provider { .. } => Self::ForeignOrigin,
             Location::MissingSourceContext { context } => Self::MissingSourceContext(context),
             Location::SourceContextMismatch { context } => Self::SourceContextMismatch(context),

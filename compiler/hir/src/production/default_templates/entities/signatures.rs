@@ -5,7 +5,7 @@ use super::DefaultEntityProjector;
 use crate::{ExportDefaultTypeTarget, HirSignatureBinder, LocalFunctionId};
 use scoop_identity::SignatureTypeKey;
 
-impl DefaultEntityProjector<'_, '_> {
+impl DefaultEntityProjector<'_> {
     pub(in super::super) fn reference_type(
         &self,
         target: ExportDefaultTypeTarget,
@@ -39,8 +39,7 @@ impl DefaultEntityProjector<'_, '_> {
         let invalid = || DefaultEntityProjectionError::InvalidLocalFunctionBinders {
             local_function: raw_index(id),
         };
-        self.resources
-            .collection::<&crate::TypeParamDecl>(function.type_param_count())?;
+
         let parameters = function.type_params();
         let own = parameters
             .get(local.owner_type_arguments.len()..)
@@ -55,7 +54,7 @@ impl DefaultEntityProjector<'_, '_> {
             return self.type_key(ty, binders);
         }
         let count = own.len().checked_add(binders.len()).ok_or_else(invalid)?;
-        self.resources.collection::<HirSignatureBinder>(count)?;
+
         let mut scoped = Vec::with_capacity(count);
         for binder in binders {
             scoped.push(HirSignatureBinder {

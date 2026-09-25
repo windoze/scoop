@@ -7,7 +7,6 @@ pub(super) fn project(
     export: &ExportHir,
     id: FunctionId,
     declaration: Declaration,
-    meter: &mut BudgetMeter,
 ) -> Result<InheritanceSourceCallableV1, Error> {
     let function = &export.functions[id];
     let method = function
@@ -28,16 +27,9 @@ pub(super) fn project(
         ));
     }
     let path = WirePath::root();
-    meter.check_semantic_depth(3, &path).map_err(resource)?;
-    meter
-        .check_table_entries(parameters.len() as u64, &path)
-        .map_err(resource)?;
-    meter
-        .charge_work(parameters.len() as u64 + 3, &path)
-        .map_err(resource)?;
+
     let mut exact_parameters = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut exact_parameters, parameters.len(), &path)
+    scoop_wire::allocation::try_reserve(&mut exact_parameters, parameters.len(), &path)
         .map_err(resource)?;
     for parameter in parameters {
         exact_parameters.push(exact(export, parameter.ty)?);
@@ -76,15 +68,7 @@ pub(super) fn project(
         }
     };
     let (key, subject, visibility) = access_source(export, id)?;
-    meter
-        .check_table_entries(key.owners().owners().len() as u64, &path)
-        .map_err(resource)?;
-    meter
-        .charge_collection_slots(key.owners().owners().len() as u64, &path)
-        .map_err(resource)?;
-    meter
-        .charge_work(key.owners().owners().len() as u64, &path)
-        .map_err(resource)?;
+
     let access = declaration_access_for_subject(export, key, subject, visibility.into())?;
     Ok(InheritanceSourceCallableV1::new(
         declaration,

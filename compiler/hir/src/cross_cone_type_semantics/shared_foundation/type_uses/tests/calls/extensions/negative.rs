@@ -19,9 +19,7 @@ fn shared_extension_receivers_reject_wrong_identity_and_impostor_any_at_the_actu
                 consumer.calls(&provider, &[extension, extension]);
                 let actual = consumer.uses(&dependencies).unwrap();
                 consumer.change_last_receiver(exact(receiver));
-                let error = consumer
-                    .validate(&actual, &dependencies, &mut meter())
-                    .unwrap_err();
+                let error = consumer.validate(&actual, &dependencies).unwrap_err();
                 assert!(matches!(error, Error::CallReceiver {
                     position, receiver: crate::SourceCallReceiver::Receiver { static_type }, expected,
                 } if position.expression_index == 1 && static_type == exact(receiver) && expected == exact(base)));

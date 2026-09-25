@@ -8,9 +8,9 @@ fn complete_protocol_inventory_rejects_every_missing_record_and_unrelated_extra(
             for index in 0..sources.protocols.records().len() {
                 let mut records = sources.protocols.records().to_vec();
                 records.remove(index);
-                let forged = Table::try_new(records, &mut meter()).unwrap();
+                let forged = Table::try_new(records).unwrap();
                 assert!(matches!(
-                    members.bind_parameter_protocols(constructors, &forged, &mut meter()),
+                    members.bind_parameter_protocols(constructors, &forged),
                     Err(Error::Inventory)
                 ));
             }
@@ -31,14 +31,14 @@ fn complete_protocol_inventory_rejects_every_missing_record_and_unrelated_extra(
                 })
                 .unwrap();
             let mut records = sources.protocols.records().to_vec();
-            records.push(Record::try_new(unused, vec![], &mut meter()).unwrap());
-            let forged = Table::try_new(records, &mut meter()).unwrap();
+            records.push(Record::try_new(unused, vec![]).unwrap());
+            let forged = Table::try_new(records).unwrap();
             assert!(matches!(
-                members.bind_parameter_protocols(constructors, &forged, &mut meter()),
+                members.bind_parameter_protocols(constructors, &forged),
                 Err(Error::Inventory)
             ));
             let bound = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let Error::MissingProtocol(owner) = bound.protocol(unused).unwrap_err() else {
                 panic!("missing protocol");
@@ -53,25 +53,24 @@ fn complete_protocol_binding_rejects_distinct_nominal_proofs_even_with_identical
     with_sources(SOURCE, |_, fixture, sources, core| {
         let foundation = fixture.bind().unwrap();
         let first = foundation
-            .bind_nominal_sources(&sources.members.nominals, &mut meter())
+            .bind_nominal_sources(&sources.members.nominals)
             .unwrap();
         let second = foundation
-            .bind_nominal_sources(&sources.members.nominals, &mut meter())
+            .bind_nominal_sources(&sources.members.nominals)
             .unwrap();
         let members = first
             .bind_member_sources(
                 &sources.members.properties,
                 &sources.members.callables,
                 core,
-                &mut meter(),
             )
             .unwrap();
         let constructors = second
-            .bind_constructor_sources(&sources.constructors, &mut meter())
+            .bind_constructor_sources(&sources.constructors)
             .unwrap();
         assert_eq!(members.provider(), constructors.provider());
         assert!(matches!(
-            members.bind_parameter_protocols(&constructors, &sources.protocols, &mut meter()),
+            members.bind_parameter_protocols(&constructors, &sources.protocols),
             Err(Error::NominalSourcesMismatch)
         ));
     });

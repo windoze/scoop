@@ -173,7 +173,6 @@ impl std::error::Error for CrossConeLirBridgeRelationError {
 #[derive(Debug)]
 pub enum CrossConeLirBridgeBuildError {
     Callable(crate::CallableAbiValidationError),
-    Physical(crate::StrongShapeDefinitionError),
     Resource(scoop_wire::WireError),
     DuplicateExport(DependencyCallableDeclarationId),
     DuplicateSelected {
@@ -193,7 +192,6 @@ impl std::error::Error for CrossConeLirBridgeBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Callable(source) => Some(source),
-            Self::Physical(source) => Some(source),
             Self::Resource(source) => Some(source),
             Self::Relation(source) => Some(source),
             Self::DuplicateExport(_) | Self::DuplicateSelected { .. } => None,

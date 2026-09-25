@@ -6,7 +6,7 @@ fn nested_protocol_replay_requires_even_zero_parameter_records_and_checks_callin
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let mut zero_parameters = 0;
             for record in &candidates.records {
@@ -30,7 +30,6 @@ fn nested_protocol_replay_requires_even_zero_parameter_records_and_checks_callin
                             record,
                             &missing,
                             &fixture.source.entries().representations,
-                            &mut meter(),
                         )
                         .unwrap_err()
                     else {
@@ -85,7 +84,6 @@ fn nested_protocol_replay_requires_even_zero_parameter_records_and_checks_callin
                                 record,
                                 &forged,
                                 &fixture.source.entries().representations,
-                                &mut meter(),
                             )
                             .unwrap_err()
                         else {
@@ -111,7 +109,7 @@ fn bound_protocol_entry_rejects_other_valid_origins_for_constructors_and_variant
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let mut roles = BTreeSet::new();
             for protocol in candidates
@@ -120,9 +118,7 @@ fn bound_protocol_entry_rejects_other_valid_origins_for_constructors_and_variant
                 .iter()
                 .filter(|p| !p.parameters().is_empty())
             {
-                authority
-                    .validate_source_protocol(protocol, &mut meter())
-                    .unwrap();
+                authority.validate_source_protocol(protocol).unwrap();
                 let owner = protocol.owner();
                 roles.insert(match owner {
                     CallableTemplateOrigin::Constructor(_) => 0,
@@ -160,9 +156,7 @@ fn bound_protocol_entry_rejects_other_valid_origins_for_constructors_and_variant
                 .unwrap();
                 let hir::ProtectedSourceSemanticError::Foundation(
                     hir::NominalParameterBindingError::Contract(error),
-                ) = authority
-                    .validate_source_protocol(&forged, &mut meter())
-                    .unwrap_err()
+                ) = authority.validate_source_protocol(&forged).unwrap_err()
                 else {
                     panic!("bound origin rejection");
                 };

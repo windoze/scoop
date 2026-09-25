@@ -35,13 +35,8 @@ fn defaults(output: &hir::Output) -> Vec<(String, Type)> {
             if !name.starts_with("Values.") && !name.starts_with("Combinations.") {
                 return None;
             }
-            let source = hir::DefaultSourceBodyProductionV1::from_export_hir(
-                export,
-                p.owner,
-                1,
-                &mut meter(),
-            )
-            .unwrap();
+            let source =
+                hir::DefaultSourceBodyProductionV1::from_export_hir(export, p.owner, 1).unwrap();
             Some((
                 export.functions[id]
                     .name
@@ -81,19 +76,10 @@ fn operation_types_replay_all_real_imported_language_roles() {
         let mut dump = Vec::new();
         for (name, actual) in defaults {
             let role = roles[name.as_str()];
-            assert_eq!(
-                protocols
-                    .default_operation_type(role, &mut meter(), &WirePath::root())
-                    .unwrap(),
-                actual
-            );
+            assert_eq!(protocols.default_operation_type(role).unwrap(), actual);
             assert!(
                 protocols
-                    .classify_default_operation_application(
-                        &actual,
-                        &mut meter(),
-                        &WirePath::root()
-                    )
+                    .classify_default_operation_application(&actual, &WirePath::root())
                     .unwrap()
                     .is_none()
             );
@@ -125,7 +111,7 @@ fn operation_applications_keep_open_arguments_and_reject_same_named_ordinary_typ
         let mut dump = Vec::new();
         for (name, actual) in defaults(output) {
             let result = protocols
-                .classify_default_operation_application(&actual, &mut meter(), &WirePath::root())
+                .classify_default_operation_application(&actual, &WirePath::root())
                 .unwrap();
             if name.starts_with("mimic") || name == "tuple" {
                 assert!(result.is_none());
@@ -143,7 +129,7 @@ fn operation_applications_keep_open_arguments_and_reject_same_named_ordinary_typ
                 arguments: NonEmptyVec::from_first(argument.clone(), [argument.clone()]),
             };
             assert!(
-                matches!(protocols.classify_default_operation_application(&wrong_arity, &mut meter(), &WirePath::root()), Err(hir::DefaultOperationProtocolTypeError::Arity { origin: actual, actual: 2 }) if actual == origin)
+                matches!(protocols.classify_default_operation_application(&wrong_arity,  &WirePath::root()), Err(hir::DefaultOperationProtocolTypeError::Arity { origin: actual, actual: 2 }) if actual == origin)
             );
             dump.push(format!("{name}: {kind}"));
         }

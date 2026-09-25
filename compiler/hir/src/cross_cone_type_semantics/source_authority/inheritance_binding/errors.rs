@@ -50,9 +50,9 @@ impl InheritanceSourceBindingError {
                 ProtectedCallableSemanticError::Resource(error),
             )
             | NominalSupportCallableSemanticError::Signature(
-                ProtectedCallableSemanticError::Signature(
-                    MeteredSignatureTypeSemanticError::Resource(error),
-                ),
+                ProtectedCallableSemanticError::Signature(SignatureTypeSemanticError::Allocation(
+                    error,
+                )),
             )
             | NominalSupportCallableSemanticError::Signature(
                 ProtectedCallableSemanticError::Source(InheritanceGraphError::Resource(error)),

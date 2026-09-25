@@ -15,10 +15,9 @@ impl ExactInstanceLayoutV1 {
         base: ClassLayoutBaseV1<'_>,
         fields: &[NominalLayoutFieldInputV1<'_>],
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         let owner = nominal(identity.exact_key())?;
-        replay_class(identity, owner, base, fields, foundation, meter)
+        replay_class(identity, owner, base, fields, foundation)
     }
 
     /// Preserves the source object exact while checking its separately
@@ -29,7 +28,6 @@ impl ExactInstanceLayoutV1 {
         base: ClassLayoutBaseV1<'_>,
         fields: &[NominalLayoutFieldInputV1<'_>],
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         nominal(identity.exact_key())?;
         let GeneratedNominalKey::ObjectBackingClass { object } = backing.key() else {
@@ -44,7 +42,6 @@ impl ExactInstanceLayoutV1 {
             base,
             fields,
             foundation,
-            meter,
         )
     }
 }
@@ -55,10 +52,9 @@ fn replay_class(
     base: ClassLayoutBaseV1<'_>,
     fields: &[NominalLayoutFieldInputV1<'_>],
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<ExactInstanceLayoutV1, ExactLayoutReplayError> {
     require_roles(&identity, &[RepresentationRole::ManagedObject])?;
-    let declared = aggregate::nominal_fields_for_owner(&identity, owner, fields, meter)?;
+    let declared = aggregate::nominal_fields_for_owner(&identity, owner, fields)?;
     let base = match base {
         ClassLayoutBaseV1::NoBase => ClassBaseStorageV1::NoBase,
         ClassLayoutBaseV1::Base(base) => {
@@ -68,26 +64,14 @@ fn replay_class(
             let InstanceRepresentation::ClassObject(layout) = &base.representation.0 else {
                 return Err(ExactLayoutReplayError::BaseKind);
             };
-            meter.check_semantic_depth(layout.inheritance_depth() as u64 + 1, &WirePath::root())?;
-            meter.charge_work(layout.inheritance_depth() as u64, &WirePath::root())?;
-            meter.charge_collection_slots(
-                layout.inheritance_depth() as u64 + 1,
-                &WirePath::root(),
-            )?;
+
             // Reserve the inherited projection and duplicate-id set before
             // ClassStorageLayoutV1 clones either collection.
-            meter.charge_collection_slots(
-                layout.complete_fields().len() as u64,
-                &WirePath::root(),
-            )?;
-            meter.charge_collection_slots(
-                layout.complete_fields().len() as u64,
-                &WirePath::root(),
-            )?;
+
             ClassBaseStorageV1::Base(layout)
         }
     };
-    meter.charge_collection_slots(fields.len() as u64, &WirePath::root())?;
+
     let layout = ClassStorageLayoutV1::replay(
         identity.target(),
         identity.layout_key().clone(),
@@ -100,6 +84,5 @@ fn replay_class(
         InstanceRepresentation::ClassObject(layout),
         ScanRole::ManagedObject,
         foundation,
-        meter,
     )
 }

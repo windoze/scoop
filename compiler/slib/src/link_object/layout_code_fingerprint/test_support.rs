@@ -12,7 +12,7 @@ use scoop_lir::{
 };
 
 use super::*;
-use crate::link_object::layout_link_closure::tests::fixture::{empty_section, meter};
+use crate::link_object::layout_link_closure::tests::fixture::empty_section;
 use crate::link_object::native_requirements::tests::dependency_closure;
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
@@ -88,7 +88,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         None,
     )
     .unwrap()
-    .validate_layout_abi(&layout, &mut meter())
+    .validate_layout_abi(&layout)
     .unwrap();
     let dependencies = vec![
         DependencyRecord::new(
@@ -121,8 +121,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let callable = legacy_closure(strong);
-    let shape =
-        verify_external_shape_requirements_v1(&callable, layout.selected(), &mut meter()).unwrap();
+    let shape = verify_external_shape_requirements_v1(&callable, layout.selected()).unwrap();
     let native =
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(target, &foundation).unwrap();
     let source =
@@ -141,12 +140,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, &shape)
             .unwrap();
     let code = compute_cross_cone_layout_code_fingerprint_v1(
-        production,
-        native,
-        defined,
-        partitions,
-        &shape,
-        &mut meter(),
+        production, native, defined, partitions, &shape,
     )
     .unwrap();
 

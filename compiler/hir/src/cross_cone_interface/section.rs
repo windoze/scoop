@@ -234,20 +234,6 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
     where
         R: CrossConeHirInterfaceResolver<E>,
     {
-        self.resolve_metered(
-            resolver,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-        )
-    }
-
-    pub fn resolve_metered<R, E>(
-        self,
-        resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<CrossConeHirInterfaceSectionV1, CrossConeHirInterfaceResolutionError<E>>
-    where
-        R: CrossConeHirInterfaceResolver<E>,
-    {
         let public_bindings = self.public_bindings.resolve(resolver).map_err(|error| {
             CrossConeHirInterfaceResolutionError::PublicBindings(Box::new(error))
         })?;
@@ -272,7 +258,7 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
             .map_err(|error| CrossConeHirInterfaceResolutionError::TypeAliases(Box::new(error)))?;
         let mut default_templates = self
             .default_templates
-            .resolve_metered(resolver, meter, &scoop_wire::WirePath::root().field(7))
+            .resolve_at(resolver, &scoop_wire::WirePath::root().field(10))
             .map_err(|error| {
                 CrossConeHirInterfaceResolutionError::DefaultTemplates(Box::new(error))
             })?;
@@ -291,7 +277,7 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
         })?;
         let external_references = self
             .external_references
-            .resolve_metered(resolver, meter, &scoop_wire::WirePath::root().field(10))
+            .resolve_at(resolver, &scoop_wire::WirePath::root().field(7))
             .map_err(|error| {
                 CrossConeHirInterfaceResolutionError::ExternalReferences(Box::new(error))
             })?;
@@ -338,7 +324,7 @@ impl WireEncode for DecodedCrossConeHirInterfaceSectionV1 {
 }
 
 impl WireDecode for DecodedCrossConeHirInterfaceSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
             public_bindings: decoder.field(1, DecodedCanonicalPublicExportBindingsV1::decode)?,

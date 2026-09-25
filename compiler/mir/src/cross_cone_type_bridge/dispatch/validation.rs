@@ -8,10 +8,7 @@ impl MirDispatchSchemaAuthority<'_> {
     pub(super) fn validate_record(
         &self,
         record: &ParamFreeMirDispatchSchemaV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
-        meter.charge_nodes(1, &WirePath::root())?;
-        meter.check_table_entries(record.itables().len() as u64, &WirePath::root())?;
         let representation = self.type_export(record.owner())?.representation();
         let class_like = matches!(
             representation,
@@ -32,7 +29,7 @@ impl MirDispatchSchemaAuthority<'_> {
                 owner: record.owner(),
             });
         }
-        self.entries(record.owner(), None, record.vtable().entries(), meter)?;
+        self.entries(record.owner(), None, record.vtable().entries())?;
         for (index, itable) in record.itables().iter().enumerate() {
             if index > 0 && record.itables()[index - 1].interface() >= itable.interface() {
                 return Err(MirDispatchSchemaError::NonCanonicalInterfaceOrder { index });
@@ -45,13 +42,8 @@ impl MirDispatchSchemaAuthority<'_> {
                     owner: itable.interface(),
                 });
             }
-            self.canonical_receiver_path(record.owner(), itable.interface(), meter)?;
-            self.entries(
-                record.owner(),
-                Some(itable.interface()),
-                itable.entries(),
-                meter,
-            )?;
+            self.canonical_receiver_path(record.owner(), itable.interface())?;
+            self.entries(record.owner(), Some(itable.interface()), itable.entries())?;
         }
         Ok(())
     }
@@ -61,13 +53,11 @@ impl MirDispatchSchemaAuthority<'_> {
         owner: PersistentExactTypeId,
         interface: Option<PersistentExactTypeId>,
         entries: &[MirDispatchEntryV1],
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
         let mut seen = HashSet::new();
-        meter.check_table_entries(entries.len() as u64, &WirePath::root())?;
-        meter.try_reserve_set_slots(&mut seen, entries.len(), &WirePath::root())?;
+
+        scoop_wire::allocation::try_reserve_set(&mut seen, entries.len(), &WirePath::root())?;
         for (index, entry) in entries.iter().enumerate() {
-            meter.charge_work(16, &WirePath::root())?;
             if usize::try_from(entry.position().get()).ok() != Some(index) {
                 return Err(MirDispatchSchemaError::Position { index });
             }
@@ -97,14 +87,14 @@ impl MirDispatchSchemaAuthority<'_> {
             if receiver_is_interface != interface.is_some() {
                 return Err(MirDispatchSchemaError::SlotRole { slot: entry.slot() });
             }
-            self.canonical_receiver_path(interface.unwrap_or(owner), receiver, meter)?;
+            self.canonical_receiver_path(interface.unwrap_or(owner), receiver)?;
             if !same_non_receiver(entry.signature(), original)
                 || entry.signature().exact().receiver().into_option()
                     != Some(interface.unwrap_or(receiver))
             {
                 return Err(MirDispatchSchemaError::SlotSignature { slot: entry.slot() });
             }
-            self.implementation(owner, interface, entry, key.owner(), meter)?;
+            self.implementation(owner, interface, entry, key.owner())?;
         }
         Ok(())
     }
@@ -124,7 +114,6 @@ impl MirDispatchSchemaAuthority<'_> {
         interface: Option<PersistentExactTypeId>,
         entry: &MirDispatchEntryV1,
         declaration: DispatchDeclarationOwner,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
         let target = self.callable(entry.implementation().target())?;
         let invalid = || MirDispatchSchemaError::InvalidImplementation { slot: entry.slot() };
@@ -140,7 +129,7 @@ impl MirDispatchSchemaAuthority<'_> {
                 {
                     return Err(invalid());
                 }
-                self.direct_receiver(owner, entry, target.lowered_signature(), receiver, meter)?;
+                self.direct_receiver(owner, entry, target.lowered_signature(), receiver)?;
                 if !matches!(
                     self.type_export(owner)?.representation(),
                     MirTypeRepresentationV1::Interface
@@ -184,7 +173,7 @@ impl MirDispatchSchemaAuthority<'_> {
                         return Err(invalid());
                     }
                 }
-                self.direct_receiver(owner, entry, target.lowered_signature(), receiver, meter)?;
+                self.direct_receiver(owner, entry, target.lowered_signature(), receiver)?;
             }
             MirDispatchImplementationV1::AdjustThunkTarget(_) => {
                 let (semantic_target, generated) = match (target.lowering_role(), target.origin()) {
@@ -208,7 +197,7 @@ impl MirDispatchSchemaAuthority<'_> {
                 };
                 if let Some(receiver) = target.semantic_signature().exact().receiver().into_option()
                 {
-                    self.canonical_receiver_path(owner, receiver, meter)?;
+                    self.canonical_receiver_path(owner, receiver)?;
                 }
                 if !relation
                     || target.lowered_signature() != entry.signature()
@@ -228,7 +217,6 @@ impl MirDispatchSchemaAuthority<'_> {
         entry: &MirDispatchEntryV1,
         target: &MirBridgeCallableSignatureV1,
         adaptation: MirDispatchReceiverAdaptationV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
         let mismatch = || MirDispatchSchemaError::TargetSignature { slot: entry.slot() };
         if adaptation == MirDispatchReceiverAdaptationV1::Identity {
@@ -248,7 +236,7 @@ impl MirDispatchSchemaAuthority<'_> {
             target.exact().receiver(),
         ] {
             let receiver = receiver.into_option().ok_or_else(mismatch)?;
-            let path = self.canonical_receiver_path(owner, receiver, meter)?;
+            let path = self.canonical_receiver_path(owner, receiver)?;
             for exact in path {
                 if self.type_export(exact)?.facts().kind() != MirValueKindV1::Reference {
                     return Err(mismatch());

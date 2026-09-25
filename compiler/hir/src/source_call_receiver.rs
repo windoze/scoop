@@ -62,7 +62,7 @@ impl<T: WireEncode> WireEncode for SourceCallReceiver<T> {
 }
 
 impl<T: WireDecode> WireDecode for SourceCallReceiver<T> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let expected = match tag {
@@ -89,6 +89,6 @@ impl<T: WireDecode> WireDecode for SourceCallReceiver<T> {
     }
 }
 
-fn error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

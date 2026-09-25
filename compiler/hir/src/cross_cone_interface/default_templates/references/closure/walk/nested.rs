@@ -18,10 +18,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         function: &'body DefaultLocalFunctionV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        self.push_captures(pending, depth, function.captures())?;
+        self.push_captures(pending, function.captures())?;
         self.push_type(
             pending,
             function.function_type(),
@@ -40,12 +39,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         lambda: &'body DefaultLambdaV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         self.push_lexical_callable_shape(
             pending,
-            depth,
             lambda.function_type(),
             lambda.body_type_arguments(),
             lambda.captures(),
@@ -63,12 +60,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         function: &'body DefaultAnonymousFunctionV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         self.push_lexical_callable_shape(
             pending,
-            depth,
             function.function_type(),
             function.body_type_arguments(),
             function.captures(),
@@ -85,13 +80,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn push_lexical_callable_shape(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         function_type: &'body scoop_identity::SignatureTypeKey,
         body_type_arguments: &'body DefaultCallableBodyTypeArgumentsV1,
         captures: &'body [DefaultCaptureV1],
         origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), V::Error> {
-        self.push_captures(pending, depth, captures)?;
+        self.push_captures(pending, captures)?;
         if let Some(arguments) = body_type_arguments.explicit_arguments() {
             for (index, argument) in arguments.iter().enumerate().rev() {
                 self.push_type(
@@ -114,11 +108,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         reference: &'body DefaultCallableReferenceV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        self.push_captures(pending, depth, reference.captures())?;
-        self.push_callable_reference_target_shape(pending, depth, reference.target(), origin)?;
+        self.push_captures(pending, reference.captures())?;
+        self.push_callable_reference_target_shape(pending, reference.target(), origin)?;
         self.push_type(
             pending,
             reference.function_type(),
@@ -136,7 +129,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn push_callable_reference_target_shape(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         target: &'body DefaultCallableReferenceTargetV1,
         origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), V::Error> {
@@ -144,25 +136,20 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             DefaultCallableReferenceTargetV1::Named(callable)
             | DefaultCallableReferenceTargetV1::Local {
                 callee: callable, ..
-            } => self.push_child(pending, depth, BodyNode::CallableShape { callable, origin }),
+            } => self.push_child(pending, BodyNode::CallableShape { callable, origin }),
             DefaultCallableReferenceTargetV1::BoundMember { receiver, callee } => {
-                self.push_child(
-                    pending,
-                    depth,
-                    BodyNode::MethodCalleeShape { callee, origin },
-                )?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::MethodCalleeShape { callee, origin })?;
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
             DefaultCallableReferenceTargetV1::BoundExtension { receiver, callee } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::CallableShape {
                         callable: callee,
                         origin,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
         }
     }
@@ -170,11 +157,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn push_captures(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         captures: &'body [DefaultCaptureV1],
     ) -> Result<(), V::Error> {
         for capture in captures.iter().rev() {
-            self.push_child(pending, depth, BodyNode::Capture(capture))?;
+            self.push_child(pending, BodyNode::Capture(capture))?;
         }
         Ok(())
     }
@@ -196,10 +182,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         callable: &'body DefaultCallableRefV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        self.push_child(pending, depth, BodyNode::CallableShape { callable, origin })?;
+        self.push_child(pending, BodyNode::CallableShape { callable, origin })?;
         self.push_callable(
             pending,
             CallableTargetView::Callable(callable),
@@ -237,14 +222,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         callable: &'body DefaultBoundCallableRefV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        self.push_child(
-            pending,
-            depth,
-            BodyNode::BoundCallableShape { callable, origin },
-        )?;
+        self.push_child(pending, BodyNode::BoundCallableShape { callable, origin })?;
         self.push_callable(
             pending,
             CallableTargetView::Bound(callable),
@@ -257,7 +237,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         callable: &'body DefaultBoundCallableRefV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         self.push_type(
@@ -268,7 +247,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         match callable.source() {
             DefaultBoundCallableSourceV1::Class { bound, callable } => {
-                self.push_child(pending, depth, BodyNode::CallableShape { callable, origin })?;
+                self.push_child(pending, BodyNode::CallableShape { callable, origin })?;
                 self.push_type(
                     pending,
                     bound,
@@ -289,18 +268,15 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         callee: &'body DefaultMethodCalleeV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match callee {
             DefaultMethodCalleeV1::Callable(callable) => {
-                self.push_child(pending, depth, BodyNode::CallableUse { callable, origin })
+                self.push_child(pending, BodyNode::CallableUse { callable, origin })
             }
-            DefaultMethodCalleeV1::Bound(callable) => self.push_child(
-                pending,
-                depth,
-                BodyNode::BoundCallableUse { callable, origin },
-            ),
+            DefaultMethodCalleeV1::Bound(callable) => {
+                self.push_child(pending, BodyNode::BoundCallableUse { callable, origin })
+            }
             DefaultMethodCalleeV1::DerivedEquality { owner_type } => {
                 self.push_type(
                     pending,
@@ -322,18 +298,15 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         callee: &'body DefaultMethodCalleeV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match callee {
             DefaultMethodCalleeV1::Callable(callable) => {
-                self.push_child(pending, depth, BodyNode::CallableShape { callable, origin })
+                self.push_child(pending, BodyNode::CallableShape { callable, origin })
             }
-            DefaultMethodCalleeV1::Bound(callable) => self.push_child(
-                pending,
-                depth,
-                BodyNode::BoundCallableShape { callable, origin },
-            ),
+            DefaultMethodCalleeV1::Bound(callable) => {
+                self.push_child(pending, BodyNode::BoundCallableShape { callable, origin })
+            }
             DefaultMethodCalleeV1::DerivedEquality { owner_type } => self.push_type(
                 pending,
                 owner_type,
@@ -391,13 +364,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         equality: &'body DefaultLiteralEqualityV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         let callable = match equality {
             DefaultLiteralEqualityV1::Integer { .. } => return Ok(()),
             DefaultLiteralEqualityV1::Ordinary { target } => target,
         };
-        self.push_child(pending, depth, BodyNode::CallableUse { callable, origin })
+        self.push_child(pending, BodyNode::CallableUse { callable, origin })
     }
 }

@@ -1,5 +1,5 @@
 use scoop_identity::{AccessorRole, DispatchSlotKey, PersistentDispatchSlotId, SourceNominalKind};
-use scoop_wire::{BudgetMeter, DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::CheckedNominalInheritanceGraphV1;
@@ -9,9 +9,6 @@ pub(in crate::cross_cone_type_semantics) mod support;
 use support::Fixture;
 mod overrides;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn vtable(slots: &[PersistentDispatchSlotId]) -> InheritanceSlotSchemaV1 {
     InheritanceSlotSchemaV1::try_new(InheritanceSlotSchemaRoleV1::ClassVtable, slots.to_vec())
         .unwrap()
@@ -32,13 +29,7 @@ fn schema_wire_keeps_semantic_slot_order_and_rejects_duplicate_or_unknown_forms(
         encode(&InheritanceSlotSchemaRoleV1::ClassVtable).unwrap(),
         [0xa1, 0, 1]
     );
-    assert!(
-        decode_canonical::<DecodedInheritanceSlotSchemaRoleV1>(
-            &[0xa1, 0, 3],
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedInheritanceSlotSchemaRoleV1>(&[0xa1, 0, 3]).is_err());
     let mut fixture = Fixture::default();
     let class = fixture.add("Owner", SourceNominalKind::Class);
     let a = fixture.function(class, "a");
@@ -47,30 +38,19 @@ fn schema_wire_keeps_semantic_slot_order_and_rejects_duplicate_or_unknown_forms(
     slots.sort_unstable_by(|left, right| right.cmp(left));
     let schema = vtable(&slots);
     let bytes = encode(&schema).unwrap();
-    let decoded: DecodedInheritanceSlotSchemaV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedInheritanceSlotSchemaV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert!(matches!(
-        decoded.clone().resolve(
-            &mut fixture,
-            &mut BudgetMeter::new(DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(InheritanceSlotSchemaResolutionError::Resource(_))
-    ));
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), schema);
+
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), schema);
     assert_eq!(schema.slots(), slots);
     assert!(
         InheritanceSlotSchemaV1::try_new(InheritanceSlotSchemaRoleV1::ClassVtable, vec![a, a])
             .is_err()
     );
     let bad = RawSchema(vec![a, a]);
-    let decoded: DecodedInheritanceSlotSchemaV1 =
-        decode_canonical(&encode(&bad).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedInheritanceSlotSchemaV1 = decode_canonical(&encode(&bad).unwrap()).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(InheritanceSlotSchemaResolutionError::Schema(
             InheritanceSlotSchemaBuildError::DuplicateSlot { .. }
         ))
@@ -89,13 +69,13 @@ fn schema_tables_sort_roles_only_and_reader_rejects_reversed_roles() {
         InheritanceSlotSchemaRoleV1::ClassVtable
     );
     let decoded: DecodedCanonicalInheritanceSlotSchemasV1 =
-        decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), table);
+        decode_canonical(&encode(&table).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), table);
     let reversed = RawTable(vec![interface(owner, &[]), vtable(&[])]);
     let decoded: DecodedCanonicalInheritanceSlotSchemasV1 =
-        decode_canonical(&encode(&reversed).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&reversed).unwrap()).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(InheritanceSlotSchemaResolutionError::Schema(
             InheritanceSlotSchemaBuildError::RoleOrder { .. }
         ))
@@ -125,14 +105,9 @@ fn class_schema_preserves_base_prefix_and_joins_interface_provider_order() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
-    assert!(
-        graph
-            .validate_slot_schemas(derived.exact, &fixture, &mut meter())
-            .is_ok()
-    );
+    assert!(graph.validate_slot_schemas(derived.exact, &fixture).is_ok());
     fixture.schemas.insert(
         derived.exact,
         CanonicalInheritanceSlotSchemasV1::try_new(vec![
@@ -142,7 +117,7 @@ fn class_schema_preserves_base_prefix_and_joins_interface_provider_order() {
         .unwrap(),
     );
     assert!(matches!(
-        graph.validate_slot_schemas(derived.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(derived.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::BasePrefix(_))
     ));
     fixture.schemas.insert(
@@ -154,7 +129,7 @@ fn class_schema_preserves_base_prefix_and_joins_interface_provider_order() {
         .unwrap(),
     );
     assert!(matches!(
-        graph.validate_slot_schemas(derived.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(derived.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::InterfaceOrder { .. })
     ));
     fixture.schemas.insert(
@@ -162,7 +137,7 @@ fn class_schema_preserves_base_prefix_and_joins_interface_provider_order() {
         CanonicalInheritanceSlotSchemasV1::try_new(vec![vtable(&[inherited, added])]).unwrap(),
     );
     assert!(matches!(
-        graph.validate_slot_schemas(derived.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(derived.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::RoleCoverage(_))
     ));
 }
@@ -197,14 +172,9 @@ fn diamond_interface_schema_deduplicates_inherited_roots_before_new_slots() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
-    assert!(
-        graph
-            .validate_slot_schemas(joined.exact, &fixture, &mut meter())
-            .is_ok()
-    );
+    assert!(graph.validate_slot_schemas(joined.exact, &fixture).is_ok());
     fixture.schemas.insert(
         joined.exact,
         CanonicalInheritanceSlotSchemasV1::try_new(vec![interface(
@@ -214,7 +184,7 @@ fn diamond_interface_schema_deduplicates_inherited_roots_before_new_slots() {
         .unwrap(),
     );
     assert!(matches!(
-        graph.validate_slot_schemas(joined.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(joined.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::InheritedSlots(_))
     ));
 }
@@ -229,30 +199,18 @@ fn slot_role_and_source_owner_are_replayed_from_foundation_keys() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
-        graph.validate_slot_schemas(base.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(base.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::NewSlotOwner { .. })
     ));
     let function = fixture.functions.keys().next().copied().unwrap();
     let wrong = DispatchSlotKey::interface_method(function);
     fixture.slots.insert(foreign, wrong);
     assert!(matches!(
-        graph.validate_slot_schemas(base.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(base.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::SlotIdentity(_))
-    ));
-    assert!(matches!(
-        graph.validate_slot_schemas(
-            base.exact,
-            &fixture,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(InheritanceSlotSchemaSemanticError::Resource(_))
     ));
 }
 
@@ -271,11 +229,10 @@ fn canonical_getter_identity_cannot_be_registered_as_a_setter_slot() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
-        graph.validate_slot_schemas(owner.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(owner.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::SlotIdentity(_))
     ));
 }

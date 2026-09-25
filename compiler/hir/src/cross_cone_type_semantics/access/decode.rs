@@ -71,7 +71,7 @@ impl WireEncode for DecodedPersistentAccessConstraintV1 {
 }
 
 impl WireDecode for DecodedPersistentAccessConstraintV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => decoder
@@ -98,38 +98,6 @@ pub enum DecodedPersistentAccessDomainV1 {
 }
 
 impl DecodedPersistentAccessDomainV1 {
-    pub fn resolve_metered<R: PersistentAccessResolver<E>, E>(
-        self,
-        resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<PersistentAccessDomainV1, PersistentAccessResolutionError<E>> {
-        let path = scoop_wire::WirePath::root();
-        meter
-            .charge_nodes(1, &path)
-            .map_err(PersistentAccessResolutionError::Resource)?;
-        if let Self::Conjunction(constraints) = &self {
-            meter
-                .charge_collection_slots(constraints.len() as u64, &path)
-                .map_err(PersistentAccessResolutionError::Resource)?;
-            meter
-                .charge_work(constraints.len() as u64, &path)
-                .map_err(PersistentAccessResolutionError::Resource)?;
-            // Canonical order replay encodes every constraint, including source paths.
-            let bytes = scoop_wire::encoded_length(&self).map_err(|error| {
-                PersistentAccessResolutionError::Domain(PersistentAccessDomainError::Encoding(
-                    error,
-                ))
-            })?;
-            meter
-                .charge_work(bytes, &path)
-                .map_err(PersistentAccessResolutionError::Resource)?;
-            meter
-                .charge_owned_bytes(bytes, &path)
-                .map_err(PersistentAccessResolutionError::Resource)?;
-        }
-        self.resolve(resolver)
-    }
-
     pub fn resolve<R: PersistentAccessResolver<E>, E>(
         self,
         resolver: &mut R,
@@ -162,7 +130,7 @@ impl WireEncode for DecodedPersistentAccessDomainV1 {
 }
 
 impl WireDecode for DecodedPersistentAccessDomainV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -192,20 +160,6 @@ pub struct DecodedNominalAccessDomainsV1 {
 }
 
 impl DecodedNominalAccessDomainsV1 {
-    pub fn resolve_metered<R: PersistentAccessResolver<E>, E>(
-        self,
-        resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<NominalAccessDomainsV1, PersistentAccessResolutionError<E>> {
-        meter
-            .charge_nodes(1, &scoop_wire::WirePath::root())
-            .map_err(PersistentAccessResolutionError::Resource)?;
-        Ok(NominalAccessDomainsV1::new(
-            PersistentLookupDomainV1::new(self.lookup.resolve_metered(resolver, meter)?),
-            PersistentInheritanceDomainV1::new(self.inheritance.resolve_metered(resolver, meter)?),
-            PersistentSlotContractDomainV1::new(self.slot.resolve_metered(resolver, meter)?),
-        ))
-    }
     pub fn resolve<R: PersistentAccessResolver<E>, E>(
         self,
         resolver: &mut R,
@@ -231,7 +185,7 @@ impl WireEncode for DecodedNominalAccessDomainsV1 {
 }
 
 impl WireDecode for DecodedNominalAccessDomainsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             lookup: decoder.field(1, DecodedPersistentAccessDomainV1::decode)?,

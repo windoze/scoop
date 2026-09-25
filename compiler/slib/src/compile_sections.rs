@@ -3,7 +3,7 @@
 use std::fmt;
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
-use scoop_wire::{WireDecode, WireError, WirePath, decode_canonical_with_meter};
+use scoop_wire::{WireDecode, WireError, decode_canonical};
 
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, DecodedMetadataEnvelope,
@@ -11,8 +11,6 @@ use crate::{
     SemanticFingerprintRecord, SlibMemberId, SlibMemberRecord, SlibMemberRole,
     ValidatedGraphArtifact,
 };
-
-const COMPILE_SECTION_HANDLER_BASE_WORK: u64 = 64;
 
 /// Canonically decoded HIR, MIR, and LIR metadata envelopes for one exact
 /// Compile profile. Inner capability payloads remain profile-specific and
@@ -50,14 +48,13 @@ impl<'input> DecodedCompileMetadataEnvelopes<'input> {
         graph: &mut ValidatedGraphArtifact<'_>,
     ) -> Result<(), CompileSectionDecodeError> {
         let actual = {
-            let (manifest, meter) = graph.envelope.manifest_and_meter();
+            let manifest = graph.envelope.manifest();
             SemanticFingerprintRecord::from_decoded_compile_metadata_sections(
                 manifest.compatibility(),
                 manifest.direct_dependencies(),
                 self.hir.sections(),
                 self.mir.sections(),
                 self.lir.sections(),
-                meter,
             )
         }
         .map_err(CompileSectionDecodeError::SemanticFingerprints)?;
@@ -103,9 +100,9 @@ pub(crate) fn decode_compile_metadata_envelopes<'input>(
     let mir_payload = member_payload(graph, MetadataLocation::Mir, mir_member)?;
     let lir_payload = member_payload(graph, MetadataLocation::Lir, lir_member)?;
 
-    let hir = decode_metadata_envelope(graph, MetadataLocation::Hir, hir_payload)?;
-    let mir = decode_metadata_envelope(graph, MetadataLocation::Mir, mir_payload)?;
-    let lir = decode_metadata_envelope(graph, MetadataLocation::Lir, lir_payload)?;
+    let hir = decode_metadata_envelope(MetadataLocation::Hir, hir_payload)?;
+    let mir = decode_metadata_envelope(MetadataLocation::Mir, mir_payload)?;
+    let lir = decode_metadata_envelope(MetadataLocation::Lir, lir_payload)?;
 
     profile
         .validate_compile_metadata_inventory(MetadataLocation::Hir, hir.sections())
@@ -121,35 +118,24 @@ pub(crate) fn decode_compile_metadata_envelopes<'input>(
 }
 
 pub(crate) fn decode_compile_section<T: WireDecode>(
-    graph: &mut ValidatedGraphArtifact<'_>,
     metadata: &DecodedCompileMetadataEnvelopes<'_>,
     location: MetadataLocation,
     capability: CapabilityId,
 ) -> Result<T, CompileSectionDecodeError> {
     let payload = metadata.required_section(location, &capability)?;
-    let meter = graph.envelope.meter_mut();
-    meter
-        .charge_work(COMPILE_SECTION_HANDLER_BASE_WORK, &WirePath::root())
-        .map_err(|source| CompileSectionDecodeError::InnerSection {
-            location,
-            capability: capability.clone(),
-            source,
-        })?;
-    decode_canonical_with_meter(payload, meter).map_err(|source| {
-        CompileSectionDecodeError::InnerSection {
-            location,
-            capability,
-            source,
-        }
+
+    decode_canonical(payload).map_err(|source| CompileSectionDecodeError::InnerSection {
+        location,
+        capability,
+        source,
     })
 }
 
 fn decode_metadata_envelope<'input>(
-    graph: &mut ValidatedGraphArtifact<'input>,
     location: MetadataLocation,
     payload: &'input [u8],
 ) -> Result<DecodedMetadataEnvelope<'input>, CompileSectionDecodeError> {
-    DecodedMetadataEnvelope::decode_with_meter(payload, location, graph.envelope.meter_mut())
+    DecodedMetadataEnvelope::decode(payload, location)
         .map_err(|source| CompileSectionDecodeError::OuterEnvelope { location, source })
 }
 

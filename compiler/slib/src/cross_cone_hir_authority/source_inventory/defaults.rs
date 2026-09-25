@@ -17,20 +17,17 @@ impl Closure<'_, '_> {
             self.signature(ty)?;
         }
         let path = WirePath::root().field(7);
-        let nested = template.index_nested_callables(self.world.meter, &path)?;
+        let nested = template.index_nested_callables(&path)?;
         let mut occurrences = Occurrences(Vec::new());
         template.body().visit_direct_references(
             template.locals(),
             template.definition_origin(),
             &mut occurrences,
-            self.world.meter,
             &path,
         )?;
         for occurrence in occurrences.0 {
             match occurrence.target {
-                Target::Callable(target) => {
-                    self.default_callable(target, &nested, occurrence, &path)?
-                }
+                Target::Callable(target) => self.default_callable(target, &nested, occurrence)?,
                 Target::Type(ty) => self.signature(ty)?,
                 Target::Global(id) => self.property(PropertyOwner::Property(id))?,
                 Target::Singleton(id) => {
@@ -101,7 +98,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Occurrences<'a> {
         &mut self,
         _: u32,
         _: &'a scoop_hir::DefaultExpressionV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Error> {
         // Dependency edges are emitted by the reference callback, including
@@ -112,11 +109,10 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Occurrences<'a> {
     fn reference(
         &mut self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'a>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Error> {
-        meter.check_table_entries(self.0.len() as u64 + 1, path)?;
-        meter.try_reserve_collection_slots(&mut self.0, 1, path)?;
+        scoop_wire::allocation::try_reserve(&mut self.0, 1, path)?;
         self.0.push(occurrence);
         Ok(())
     }

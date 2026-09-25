@@ -11,7 +11,6 @@ use crate::{
 };
 
 mod errors;
-mod replay;
 mod selection;
 mod validation;
 mod wire;

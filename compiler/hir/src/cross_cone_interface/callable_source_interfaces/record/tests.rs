@@ -9,7 +9,7 @@ use scoop_identity::{
     SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceSpan,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -29,8 +29,7 @@ fn indexed_record_has_fixed_shape_and_round_trips_to_semantic_keys() {
         "a201a20001015820af418bd2075fe80f10ad47ef0fea34845c20891a5ca83271b942d98a557321560283a40168726571756972656402a300070100020003a1000104a301a20158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02717372632f436f6c6c6563742e73636f6f7002a20104020b035820453de8be5cb869f5f1f9434dce1c9e33e942ee5d7089d92b70de600cb847050aa4016866616c6c6261636b02a300070100020103a20002010004a301a20158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02717372632f436f6c6c6563742e73636f6f7002a20104020b035820453de8be5cb869f5f1f9434dce1c9e33e942ee5d7089d92b70de600cb847050aa401647461696c02a300070100020203a3000401a3000701000203020104a301a20158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02717372632f436f6c6c6563742e73636f6f7002a20104020b035820453de8be5cb869f5f1f9434dce1c9e33e942ee5d7089d92b70de600cb847050a"
     );
 
-    let decoded: DecodedCallableSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCallableSourceInterfaceV1 = decode_canonical(&bytes).unwrap();
     let mut identities = IdentityResolver(fixture.identities());
     let mut template_keys = TemplateKeyResolver::new(fixture.templates.clone());
     assert_eq!(
@@ -83,8 +82,7 @@ fn decoding_reports_missing_template_index_and_owner_authority() {
     let record = fixture.record();
     let mut indices = TemplateIndexResolver::new(fixture.templates.clone());
     let bytes = encode(&record.index_templates(&mut indices).unwrap()).unwrap();
-    let decoded: DecodedCallableSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCallableSourceInterfaceV1 = decode_canonical(&bytes).unwrap();
     let mut empty_identities = IdentityResolver(PendingIdentityValidation::new().finish().unwrap());
     let mut templates = TemplateKeyResolver::new(fixture.templates.clone());
     assert!(matches!(
@@ -94,8 +92,7 @@ fn decoding_reports_missing_template_index_and_owner_authority() {
         ))
     ));
 
-    let decoded: DecodedCallableSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCallableSourceInterfaceV1 = decode_canonical(&bytes).unwrap();
     let mut identities = IdentityResolver(fixture.identities());
     let mut missing = TemplateKeyResolver::new(vec![fixture.templates[0]]);
     assert!(matches!(
@@ -130,11 +127,8 @@ fn indexing_reports_the_parameter_with_a_missing_template_key() {
 
 #[test]
 fn decoder_requires_exact_record_shape() {
-    let error = decode_canonical::<DecodedCallableSourceInterfaceV1>(
-        &[0xa1, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedCallableSourceInterfaceV1>(&[0xa1, 0x01, 0x00]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

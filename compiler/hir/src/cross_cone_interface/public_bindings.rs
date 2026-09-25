@@ -5,9 +5,7 @@ use scoop_identity::{
     DecodedPersistentId, ExportBindingKey, PersistentExportBindingId, PersistentIdResolver,
     PersistentKeyResolver,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use crate::{CanonicalReexportRoutesV1, DecodedCanonicalReexportRoutesV1};
 
@@ -98,27 +96,6 @@ impl CanonicalPublicExportBindingsV1 {
             .ok()
             .map(|index| &self.records[index])
     }
-
-    pub fn get_metered(
-        &self,
-        binding: PersistentExportBindingId,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<&PublicExportBindingRecordV1>, WireError> {
-        meter.check_table_entries(self.records.len() as u64, path)?;
-        let mut start = 0;
-        let mut end = self.records.len();
-        while start < end {
-            meter.charge_work(1, path)?;
-            let middle = start + (end - start) / 2;
-            match self.records[middle].binding().cmp(&binding) {
-                std::cmp::Ordering::Less => start = middle + 1,
-                std::cmp::Ordering::Greater => end = middle,
-                std::cmp::Ordering::Equal => return Ok(Some(&self.records[middle])),
-            }
-        }
-        Ok(None)
-    }
 }
 
 impl WireEncode for CanonicalPublicExportBindingsV1 {
@@ -158,7 +135,7 @@ impl WireEncode for DecodedExportBindingSourceV1 {
 }
 
 impl WireDecode for DecodedExportBindingSourceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         if fields != 2 {
@@ -246,7 +223,7 @@ impl WireEncode for DecodedPublicExportBindingRecordV1 {
 }
 
 impl WireDecode for DecodedPublicExportBindingRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             binding: decoder.field(1, DecodedPersistentId::decode)?,
@@ -306,7 +283,7 @@ impl WireEncode for DecodedCanonicalPublicExportBindingsV1 {
 }
 
 impl WireDecode for DecodedCanonicalPublicExportBindingsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedPublicExportBindingRecordV1::decode(decoder))
             .map(|records| Self { records })

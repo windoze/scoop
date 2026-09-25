@@ -17,7 +17,6 @@ impl Bundle {
         let graph = CheckedNominalInheritanceGraphV1::validate(
             graph_source.records.values(),
             &graph_source,
-            &mut meter(),
         )
         .unwrap();
         let protected = self
@@ -26,11 +25,10 @@ impl Bundle {
                 &graph,
                 &CanonicalNominalRepresentationSupportV1::try_new(vec![]).unwrap(),
                 &mut self.fixture,
-                &mut meter(),
             )
             .unwrap();
         self.table
-            .validate_interfaces(&graph, protected, &mut self.fixture, &mut meter())
+            .validate_interfaces(&graph, protected, &mut self.fixture)
             .map(|_| ())
     }
     pub fn change(&mut self, owner: Node, change: impl FnOnce(&mut NominalInheritanceInterfaceV1)) {
@@ -161,11 +159,10 @@ pub(in crate::cross_cone_type_semantics) fn fixture() -> Bundle {
         let graph = CheckedNominalInheritanceGraphV1::validate(
             fixture.graph.records.values(),
             &fixture.graph,
-            &mut meter(),
         )
         .unwrap();
         let domains = graph
-            .replay_nominal_domains(owner.exact, &mut meter())
+            .replay_nominal_domains(owner.exact)
             .unwrap()
             .to_record();
         records.push(

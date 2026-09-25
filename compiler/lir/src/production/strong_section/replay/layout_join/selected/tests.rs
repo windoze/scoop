@@ -4,16 +4,11 @@ use scoop_identity::{
     PersistentExactTypeId, PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
     StrongCallableDefinitionOwner,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 struct Source;
 
 impl crate::LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(
-        &self,
-        _: &crate::LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, _: &crate::LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         Ok(())
     }
 
@@ -24,7 +19,6 @@ impl crate::LayoutAbiSectionSourceAuthorityV1<()> for Source {
     fn validate_physical_imports(
         &self,
         imports: &[crate::ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
     ) -> Result<(), ()> {
         imports.is_empty().then_some(()).ok_or(())
     }
@@ -43,8 +37,7 @@ fn dependency_descriptor_and_dispatch_body_require_selected_physical_closure() {
     assert!(matches!(
         descriptor(
             crate::StrongTypeDescriptorRefV2::DependencyExternal { provider, exact },
-            Selection::Complete(section.selected()),
-            &mut meter()
+            Selection::Complete(section.selected())
         ),
         Err(StrongProductionLayoutJoinError::MissingSelectedDescriptor {
             provider: actual,
@@ -69,8 +62,7 @@ fn dependency_descriptor_and_dispatch_body_require_selected_physical_closure() {
                 provider,
                 body,
             },
-            Selection::Complete(section.selected()),
-            &mut meter()
+            Selection::Complete(section.selected())
         ),
         Err(StrongProductionLayoutJoinError::MissingPhysicalCallable {
             provider: actual,
@@ -84,7 +76,7 @@ fn dependency_descriptor_and_dispatch_body_require_selected_physical_closure() {
         );
     let unit = dependency.unit();
     assert!(matches!(
-        initialization(&dependency, Selection::Complete(section.selected()), &mut meter()),
+        initialization(&dependency, Selection::Complete(section.selected())),
         Err(StrongProductionLayoutJoinError::MissingPhysicalInitialization {
             provider: actual,
             unit: actual_unit,
@@ -102,14 +94,12 @@ fn empty_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
         crate::LirTargetProfile::DARWIN_AARCH64,
         &foundation,
         Vec::new(),
-        &mut meter(),
     )
     .unwrap();
     let descriptors = crate::CanonicalExactDescriptorExportsV1::try_new(
         crate::LirTargetProfile::DARWIN_AARCH64,
         &foundation,
         Vec::new(),
-        &mut meter(),
     )
     .unwrap();
     let exports = crate::LayoutAbiExportConstituentsV1::try_new(
@@ -119,14 +109,12 @@ fn empty_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
             crate::LirTargetProfile::DARWIN_AARCH64,
             &foundation,
             Vec::new(),
-            &mut meter(),
         )
         .unwrap(),
         crate::CanonicalExactCallableAbiExportsV1::try_new(
             crate::LirTargetProfile::DARWIN_AARCH64,
             &foundation,
             Vec::new(),
-            &mut meter(),
         )
         .unwrap(),
         crate::CanonicalParamFreeShapeSupportExportsV1::from_sources(
@@ -134,13 +122,11 @@ fn empty_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
             &layouts,
             &descriptors,
             &foundation,
-            &mut meter(),
         )
         .unwrap(),
     )
     .unwrap();
-    crate::CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &Source, &mut meter())
-        .unwrap()
+    crate::CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &Source).unwrap()
 }
 
 fn source_site(provider: ConeIdentity) -> SourceDeclarationSite {
@@ -151,8 +137,4 @@ fn source_site(provider: ConeIdentity) -> SourceDeclarationSite {
         DeclarationScope::ConeWide,
     )
     .unwrap()
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

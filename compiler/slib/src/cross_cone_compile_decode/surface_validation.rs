@@ -10,7 +10,7 @@ use scoop_lir::{
 use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::HirProductionValidatedCrossConeHirFrontSections;
 use crate::{
@@ -48,15 +48,14 @@ struct ValidatedSurfaceFront<'input> {
 }
 
 impl ValidatedSurfaceFront<'_> {
-    fn hir_validation_parts(&mut self) -> (HirInterfaceValidationInput<'_>, &mut BudgetMeter) {
-        let input = HirInterfaceValidationInput {
+    fn hir_validation_parts(&mut self) -> HirInterfaceValidationInput<'_> {
+        HirInterfaceValidationInput {
             current: self.graph.identity(),
             identities: &self.identities,
             foundation: &self.foundations.hir,
             core: &self.hir_core_production,
             interface: &self.hir_interface,
-        };
-        (input, self.graph.envelope.meter_mut())
+        }
     }
 }
 
@@ -146,26 +145,19 @@ impl_surface_front_accessors!(SourceInterfaceValidatedCrossConeHirFrontSections)
 impl_surface_front_accessors!(ConstValidatedCrossConeHirFrontSections);
 
 impl ConstValidatedCrossConeHirFrontSections<'_> {
-    pub(crate) fn hir_reference_validation_parts(
-        &mut self,
-    ) -> (HirInterfaceValidationInput<'_>, &mut BudgetMeter) {
+    pub(crate) fn hir_reference_validation_parts(&mut self) -> HirInterfaceValidationInput<'_> {
         self.0.hir_validation_parts()
     }
 
     pub(crate) fn hir_semantic_parts(
         &mut self,
-    ) -> (
-        &ValidatedIdentityGraph,
-        &CrossConeHirInterfaceSectionV1,
-        &mut BudgetMeter,
-    ) {
+    ) -> (&ValidatedIdentityGraph, &CrossConeHirInterfaceSectionV1) {
         let ValidatedSurfaceFront {
-            graph,
             identities,
             hir_interface,
             ..
         } = &mut self.0;
-        (identities, hir_interface, graph.envelope.meter_mut())
+        (identities, hir_interface)
     }
 }
 
@@ -200,7 +192,7 @@ impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<InternallyClosedCrossConeHirFrontSections<'input>, CrossConeHirInternalClosureError>
     {
         let Self {
-            mut graph,
+            graph,
             identities,
             foundations,
             hir_core_production,
@@ -213,7 +205,6 @@ impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
         hir_interface
             .validate_internal_closures(
                 hir_core_production.direct_public_surface(),
-                graph.envelope.meter_mut(),
                 &WirePath::root(),
             )
             .map_err(CrossConeHirInternalClosureError::Interface)?;
@@ -242,8 +233,8 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<NominalValidatedCrossConeHirFrontSections<'input>, CrossConeHirNominalSurfaceError>
     {
         let mut front = self.0;
-        let (input, meter) = front.hir_validation_parts();
-        input.nominals(dependencies, meter)?;
+        let input = front.hir_validation_parts();
+        input.nominals(dependencies)?;
         Ok(NominalValidatedCrossConeHirFrontSections(front))
     }
 }
@@ -256,8 +247,8 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<PropertyValidatedCrossConeHirFrontSections<'input>, CrossConeHirPropertySurfaceError>
     {
         let mut front = self.0;
-        let (input, meter) = front.hir_validation_parts();
-        input.properties(dependencies, meter)?;
+        let input = front.hir_validation_parts();
+        input.properties(dependencies)?;
         Ok(PropertyValidatedCrossConeHirFrontSections(front))
     }
 }
@@ -271,8 +262,8 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<CallableValidatedCrossConeHirFrontSections<'input>, CrossConeHirCallableSurfaceError>
     {
         let mut front = self.0;
-        let (input, meter) = front.hir_validation_parts();
-        input.callables(dependencies, meter)?;
+        let input = front.hir_validation_parts();
+        input.callables(dependencies)?;
         Ok(CallableValidatedCrossConeHirFrontSections(front))
     }
 }
@@ -288,8 +279,8 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
         CrossConeHirTypeAliasSurfaceError,
     > {
         let mut front = self.0;
-        let (input, meter) = front.hir_validation_parts();
-        input.type_aliases(dependencies, meter)?;
+        let input = front.hir_validation_parts();
+        input.type_aliases(dependencies)?;
         Ok(TypeAliasValidatedCrossConeHirFrontSections(front))
     }
 }

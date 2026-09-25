@@ -8,15 +8,9 @@ impl HirInterfaceValidationInput<'_> {
         provider: ConeIdentity,
         site: &HirDependencyTypeSiteV1,
         dependencies: &[ValidatedNominalProviderView<'_>],
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), CrossConeHirTypeSiteError> {
         let valid = match site {
             HirDependencyTypeSiteV1::ConstructorInitializerResult { exact, .. } => {
-                meter.charge_work(
-                    1 + u64::from(self.identities.identity_count().max(1).ilog2()),
-                    path,
-                )?;
                 let key = self
                     .identities
                     .canonical_key::<_, ExactTypeKey>(*exact)
@@ -24,7 +18,6 @@ impl HirInterfaceValidationInput<'_> {
                 *key == ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id())
             }
             HirDependencyTypeSiteV1::InitializationCycleMessage { exact, .. } => {
-                meter.charge_work(dependencies.len() as u64 + 1, path)?;
                 let source = if provider == self.current {
                     Some(self.core)
                 } else {

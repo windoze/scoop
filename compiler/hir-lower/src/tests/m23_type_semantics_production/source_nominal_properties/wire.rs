@@ -5,8 +5,6 @@ use hir::{
 };
 use scoop_wire::{Encoder, WireEncode};
 
-mod resources;
-
 struct Records<'a>(&'a [hir::NominalSupportPropertyInterfaceV1]);
 impl WireEncode for Records<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -24,9 +22,9 @@ fn nominal_source_properties_restore_both_payloads_from_canonical_bytes() {
         with_source(input, |output, _| {
             let source = table(output);
             let bytes = encode(&source).unwrap();
-            let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: Decoded = decode_canonical(&bytes).unwrap();
             let mut identities = source_inventory::identity_closure(output);
-            let restored = decoded.resolve(&mut identities, &mut meter()).unwrap();
+            let restored = decoded.resolve(&mut identities).unwrap();
             assert_eq!(restored, source);
             assert_eq!(encode(&restored).unwrap(), bytes);
             for record in restored.records() {
@@ -45,11 +43,8 @@ fn nominal_source_properties_restore_both_payloads_from_canonical_bytes() {
                 extra[0] = 0xa4;
                 extra.extend([4, 0]);
                 assert!(
-                    decode_canonical::<hir::DecodedNominalSupportPropertyInterfaceV1>(
-                        &extra,
-                        DecodeLimits::default()
-                    )
-                    .is_err()
+                    decode_canonical::<hir::DecodedNominalSupportPropertyInterfaceV1>(&extra)
+                        .is_err()
                 );
             }
         });
@@ -63,20 +58,16 @@ fn nominal_source_properties_reject_duplicate_and_reordered_records() {
         let first = table.records()[0].clone();
         let duplicate = vec![first.clone(), first];
         assert!(matches!(
-            Table::try_new(duplicate.clone(), &mut meter()),
+            Table::try_new(duplicate.clone()),
             Err(hir::SourceInventoryError::NonCanonicalOrder { .. })
         ));
         let mut reverse = table.records().to_vec();
         reverse.reverse();
         for records in [duplicate, reverse] {
-            let decoded: Decoded = decode_canonical(
-                &encode(&Records(&records)).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded: Decoded = decode_canonical(&encode(&Records(&records)).unwrap()).unwrap();
             let mut identities = source_inventory::identity_closure(output);
             assert!(matches!(
-                decoded.resolve(&mut identities, &mut meter()),
+                decoded.resolve(&mut identities),
                 Err(Error::Inventory(
                     hir::SourceInventoryError::NonCanonicalOrder { .. }
                 ))
@@ -89,12 +80,12 @@ fn nominal_source_properties_reject_duplicate_and_reordered_records() {
 fn nominal_property_source_reader_requires_real_identity_closure() {
     with_source(SOURCE, |output, _| {
         let bytes = encode(&table(output)).unwrap();
-        let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: Decoded = decode_canonical(&bytes).unwrap();
         let mut empty = scoop_identity::PendingIdentityValidation::new()
             .finish()
             .unwrap();
         assert!(matches!(
-            decoded.resolve(&mut empty, &mut meter()),
+            decoded.resolve(&mut empty),
             Err(Error::Contract(
                 hir::NominalSupportPropertyResolutionError::Identity(_)
             ))

@@ -9,7 +9,7 @@ use scoop_identity::{
     SourceNominalKind, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -27,8 +27,7 @@ fn callable_declarations_have_fixed_tags_and_resolve_by_kind() {
     for (index, declaration) in declarations.into_iter().enumerate() {
         let bytes = encode(&declaration).unwrap();
         assert_eq!(bytes[2], u8::try_from(index + 1).unwrap());
-        let decoded: DecodedDefaultCallableDeclarationV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultCallableDeclarationV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut resolver), Ok(declaration));
     }
 }
@@ -44,8 +43,7 @@ fn callable_reference_has_fixed_wire_and_round_trips() {
         "a301a2000101582012104f4f6e246d6533e24859a416718ca33e20fa88c78d1285c694aa56c3766402a100010381a3000701000201"
     );
 
-    let decoded: DecodedDefaultCallableRefV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultCallableRefV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(callable));
 }
 
@@ -79,8 +77,7 @@ fn method_callee_variants_round_trip_without_application_ids() {
     for (expected_tag, expected) in [1, 2, 2, 3].into_iter().zip(cases) {
         let bytes = encode(&expected).unwrap();
         assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultMethodCalleeV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultMethodCalleeV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(expected));
     }
 }
@@ -92,7 +89,7 @@ fn binder_reference_has_fixed_wire() {
 
     assert_eq!(hex(&bytes), "a2010302182a");
     assert_eq!(
-        decode_canonical::<DefaultBinderRefV1>(&bytes, DecodeLimits::default()).unwrap(),
+        decode_canonical::<DefaultBinderRefV1>(&bytes).unwrap(),
         reference
     );
     assert_eq!(reference.depth(), 3);
@@ -108,11 +105,8 @@ fn callable_resolution_reports_declaration_and_type_argument_locations() {
         Vec::new(),
     )
     .unwrap();
-    let decoded: DecodedDefaultCallableRefV1 = decode_canonical(
-        &encode(&missing_declaration).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultCallableRefV1 =
+        decode_canonical(&encode(&missing_declaration).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut fixture.resolver()),
         Err(DefaultCallableRefResolutionError::Declaration(
@@ -130,7 +124,7 @@ fn callable_resolution_reports_declaration_and_type_argument_locations() {
     )
     .unwrap();
     let decoded: DecodedDefaultCallableRefV1 =
-        decode_canonical(&encode(&missing_argument).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&missing_argument).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut fixture.resolver()),
         Err(DefaultCallableRefResolutionError::TypeArgument {
@@ -144,18 +138,12 @@ fn callable_resolution_reports_declaration_and_type_argument_locations() {
 fn sum_decoders_reject_unknown_tags_and_non_exact_maps() {
     let mut unknown_declaration = vec![0xa2, 0x00, 0x05, 0x01, 0x58, 0x20];
     unknown_declaration.extend([0; 32]);
-    let error = decode_canonical::<DecodedDefaultCallableDeclarationV1>(
-        &unknown_declaration,
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultCallableDeclarationV1>(&unknown_declaration).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let error = decode_canonical::<DecodedDefaultCallableDeclarationV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultCallableDeclarationV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -164,11 +152,7 @@ fn sum_decoders_reject_unknown_tags_and_non_exact_maps() {
         }
     );
 
-    let error = decode_canonical::<DecodedDefaultMethodCalleeV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultMethodCalleeV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

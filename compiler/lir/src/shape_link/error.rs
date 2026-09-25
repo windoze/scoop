@@ -29,7 +29,7 @@ pub enum ShapeLinkError {
     Descriptor(crate::ExactDescriptorWireError),
     DescriptorPlan(crate::ExactDescriptorError),
     Dispatch(crate::ExactDispatchWireError),
-    Scan(crate::MeteredScanValidationError),
+    Scan(crate::RefScanValidationError),
     Storage(crate::StrongSemanticProjectionError),
     Resource(WireError),
 }
@@ -50,7 +50,7 @@ from_error!(crate::StrongShapeDefinitionError, Definition);
 from_error!(crate::ExactLayoutWireError, Layout);
 from_error!(crate::ExactDescriptorWireError, Descriptor);
 from_error!(crate::ExactDispatchWireError, Dispatch);
-from_error!(crate::MeteredScanValidationError, Scan);
+from_error!(crate::RefScanValidationError, Scan);
 from_error!(crate::StrongSemanticProjectionError, Storage);
 
 impl std::fmt::Display for ShapeLinkError {

@@ -98,7 +98,7 @@ fn shared_type_uses_do_not_treat_a_value_or_builtin_as_an_inheritance_target() {
 
 fn reject(consumer: &Loaded, provider: &Loaded, records: Vec<SelectedExternalTypeUseV1>) {
     assert!(matches!(
-        consumer.validate(&selected(records), &[provider], &mut meter()),
+        consumer.validate(&selected(records), &[provider]),
         Err(Error::TypeUseInventory)
     ));
 }

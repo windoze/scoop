@@ -9,9 +9,8 @@ use scoop_slib::{
     DecodedDependencyRecord, DependencyRecord, DependencyRecordValidationError,
 };
 use scoop_wire::{
-    BudgetMeter, DecodeLimits, Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode,
-    WireError, WirePath, decode_canonical_with_meter, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length, encode,
+    Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError, decode_canonical,
+    domain_separated_cbor_hash, encode,
 };
 
 use super::ConeCompileCacheKeyV1;
@@ -19,7 +18,6 @@ use crate::PairedCompilerFingerprintV1;
 use crate::discovery::compare_coordinates;
 
 const RECEIPT_FINGERPRINT_DOMAIN: &str = "scoop-cache-receipt-v1";
-const MAX_RECEIPT_WARNINGS: usize = 4_096;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CacheReceiptFingerprintV1([u8; 32]);
@@ -224,14 +222,10 @@ impl WireEncode for CacheReceiptV1 {
     }
 }
 
-pub fn decode_cache_receipt_v1(
-    bytes: &[u8],
-    limits: DecodeLimits,
-) -> Result<CacheReceiptV1, CacheReceiptDecodeError> {
-    let mut meter = BudgetMeter::new(limits);
+pub fn decode_cache_receipt_v1(bytes: &[u8]) -> Result<CacheReceiptV1, CacheReceiptDecodeError> {
     let decoded: DecodedCacheReceiptV1 =
-        decode_canonical_with_meter(bytes, &mut meter).map_err(CacheReceiptDecodeError::Wire)?;
-    let receipt = decoded.validate(&mut meter)?;
+        decode_canonical(bytes).map_err(CacheReceiptDecodeError::Wire)?;
+    let receipt = decoded.validate()?;
     Ok(receipt)
 }
 
@@ -242,14 +236,9 @@ struct DecodedCacheReceiptV1 {
 }
 
 impl DecodedCacheReceiptV1 {
-    fn validate(self, meter: &mut BudgetMeter) -> Result<CacheReceiptV1, CacheReceiptDecodeError> {
-        let body = self.body.validate(meter)?;
-        let stream_length =
-            domain_separated_cbor_hash_stream_length(RECEIPT_FINGERPRINT_DOMAIN, &body)
-                .map_err(CacheReceiptDecodeError::Hash)?;
-        meter
-            .charge_sha256(stream_length, &WirePath::root().field(1))
-            .map_err(CacheReceiptDecodeError::Wire)?;
+    fn validate(self) -> Result<CacheReceiptV1, CacheReceiptDecodeError> {
+        let body = self.body.validate()?;
+
         let receipt = CacheReceiptV1::new(body).map_err(CacheReceiptDecodeError::Hash)?;
         if receipt.fingerprint.as_array() != self.fingerprint.as_array() {
             return Err(CacheReceiptDecodeError::FingerprintMismatch {
@@ -272,7 +261,7 @@ impl WireEncode for DecodedCacheReceiptV1 {
 }
 
 impl WireDecode for DecodedCacheReceiptV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             body: decoder.field(1, DecodedCacheReceiptBodyV1::decode)?,
@@ -295,33 +284,25 @@ struct DecodedCacheReceiptBodyV1 {
 }
 
 impl DecodedCacheReceiptBodyV1 {
-    fn validate(
-        self,
-        meter: &mut BudgetMeter,
-    ) -> Result<CacheReceiptBodyV1, CacheReceiptDecodeError> {
+    fn validate(self) -> Result<CacheReceiptBodyV1, CacheReceiptDecodeError> {
         if self.schema != 1 {
             return Err(CacheReceiptDecodeError::UnsupportedSchema(self.schema));
         }
         let cone = self
             .cone
-            .validate(meter, &WirePath::root().field(1).field(4))
+            .validate()
             .map_err(|source| CacheReceiptDecodeError::Cone(Box::new(source)))?;
         let mut dependencies = Vec::with_capacity(self.direct_dependencies.len());
         for (index, dependency) in self.direct_dependencies.into_iter().enumerate() {
-            dependencies.push(
-                dependency
-                    .validate(
-                        meter,
-                        &WirePath::root().field(1).field(6).index(index as u64),
-                    )
-                    .map_err(|source| CacheReceiptDecodeError::Dependency {
-                        index,
-                        source: Box::new(source),
-                    })?,
-            );
+            dependencies.push(dependency.validate().map_err(|source| {
+                CacheReceiptDecodeError::Dependency {
+                    index,
+                    source: Box::new(source),
+                }
+            })?);
         }
         validate_dependency_order(&dependencies).map_err(CacheReceiptDecodeError::Validation)?;
-        validate_warning_order(&self.structured_warnings, Some(meter))
+        validate_warning_order(&self.structured_warnings)
             .map_err(CacheReceiptDecodeError::Validation)?;
         let capability = self
             .artifact_profile
@@ -373,7 +354,7 @@ impl WireEncode for DecodedCacheReceiptBodyV1 {
 }
 
 impl WireDecode for DecodedCacheReceiptBodyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(9)?;
         Ok(Self {
             schema: decoder.field(1, Decoder::u32)?,
@@ -424,7 +405,7 @@ impl WireEncode for DecodedCacheTargetSelectionV1 {
 }
 
 impl WireDecode for DecodedCacheTargetSelectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             target: decoder.field(1, Decoder::u32)?,
@@ -459,7 +440,7 @@ impl WireEncode for DecodedPairedCompilerFingerprintV1 {
 }
 
 impl WireDecode for DecodedPairedCompilerFingerprintV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             executable: decoder.field(1, Digest256::decode)?,
@@ -487,9 +468,6 @@ impl WireEncode for WarningKey<'_> {
 pub(crate) fn canonical_warnings(
     mut warnings: Vec<StructuredDiagnosticV1>,
 ) -> Result<Vec<StructuredDiagnosticV1>, CacheReceiptValidationError> {
-    if warnings.len() > MAX_RECEIPT_WARNINGS {
-        return Err(CacheReceiptValidationError::TooManyWarnings(warnings.len()));
-    }
     for warning in &warnings {
         validate_warning(warning)?;
     }
@@ -504,28 +482,12 @@ pub(crate) fn canonical_warnings(
 
 pub(crate) fn validate_warning_order(
     warnings: &[StructuredDiagnosticV1],
-    mut meter: Option<&mut BudgetMeter>,
 ) -> Result<(), CacheReceiptValidationError> {
-    if warnings.len() > MAX_RECEIPT_WARNINGS {
-        return Err(CacheReceiptValidationError::TooManyWarnings(warnings.len()));
-    }
     let mut keyed = Vec::with_capacity(warnings.len());
     for warning in warnings {
         validate_warning(warning)?;
         let key = warning_key(warning)?;
-        if let Some(meter) = meter.as_deref_mut() {
-            let length = u64::try_from(key.len())
-                .map_err(|_| CacheReceiptValidationError::WarningKeyLengthOverflow)?;
-            meter
-                .charge_owned_bytes(length, &WirePath::root().field(1).field(9))
-                .map_err(CacheReceiptValidationError::Resource)?;
-        }
         keyed.push((key, warning));
-    }
-    if let Some(meter) = meter {
-        meter
-            .charge_canonical_sequence(warnings.len() as u64, &WirePath::root().field(1).field(9))
-            .map_err(CacheReceiptValidationError::Resource)?;
     }
     for pair in keyed.windows(2) {
         match pair[0].0.cmp(&pair[1].0) {
@@ -635,11 +597,9 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
 
 #[derive(Debug)]
 pub enum CacheReceiptValidationError {
-    TooManyWarnings(usize),
     NonWarningDiagnostic(String),
     HostPathDiagnosticOrigin,
     WarningKeyEncoding,
-    WarningKeyLengthOverflow,
     DuplicateWarningKey(String),
     ConflictingWarningKey(String),
     WarningOrder,
@@ -653,12 +613,6 @@ pub enum CacheReceiptValidationError {
 impl fmt::Display for CacheReceiptValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TooManyWarnings(actual) => {
-                write!(
-                    formatter,
-                    "cache receipt warning limit 4096 exceeded: found {actual}"
-                )
-            }
             Self::NonWarningDiagnostic(code) => {
                 write!(
                     formatter,
@@ -670,9 +624,6 @@ impl fmt::Display for CacheReceiptValidationError {
             }
             Self::WarningKeyEncoding => {
                 formatter.write_str("cannot encode cache receipt warning key")
-            }
-            Self::WarningKeyLengthOverflow => {
-                formatter.write_str("cache receipt warning key length does not fit u64")
             }
             Self::DuplicateWarningKey(code) => {
                 write!(formatter, "cache receipt repeats warning key {code}")

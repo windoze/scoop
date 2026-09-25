@@ -6,30 +6,17 @@ use crate::{
 use scoop_hir::{
     ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceSetSemanticValidationError,
 };
-use scoop_wire::WirePath;
 
 impl<'a> HirInterfaceValidationInput<'a> {
     pub(crate) fn definition_sources(
         self,
         dependencies: &[DefinitionSourceProviderView<'_>],
-        meter: &mut BudgetMeter,
     ) -> Result<(), CrossConeHirDefinitionSourceSurfaceError> {
-        let path = WirePath::root().field(9);
         let sources = self.interface.definition_sources().sources();
-        meter
-            .check_table_entries(sources.len() as u64, &path)
-            .map_err(CrossConeHirDefinitionSourceSurfaceError::Resource)?;
+
         for (index, source) in sources.iter().enumerate() {
-            let path = path.clone().index(index as u64);
             let provider = source.origin().source().cone();
-            meter
-                .charge_work(
-                    (dependencies.len() as u64)
-                        .saturating_mul(32)
-                        .saturating_add(1),
-                    &path,
-                )
-                .map_err(CrossConeHirDefinitionSourceSurfaceError::Resource)?;
+
             let foundation = if provider == self.current {
                 self.foundation
             } else {
@@ -45,7 +32,7 @@ impl<'a> HirInterfaceValidationInput<'a> {
                     )?
             };
             foundation
-                .validate_definition_source_location(provider, source, meter, &path)
+                .validate_definition_source_location(provider, source)
                 .map_err(|error| {
                     CrossConeHirDefinitionSourceSurfaceError::DefinitionSources(
                         ExportDefinitionSourceSetSemanticValidationError::Source {
@@ -60,7 +47,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
     pub(crate) fn sources(
         self,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
-        meter: &'a mut BudgetMeter,
     ) -> Result<(), CrossConeHirSourceInterfaceSurfaceError> {
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             self.current,
@@ -68,7 +54,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             self.foundation,
             self.interface,
             dependencies,
-            meter,
         );
         self.interface
             .source_interfaces()
@@ -106,7 +91,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
     pub(crate) fn constants(
         self,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
-        meter: &'a mut BudgetMeter,
     ) -> Result<(), CrossConeHirConstSurfaceError> {
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             self.current,
@@ -114,7 +98,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             self.foundation,
             self.interface,
             dependencies,
-            meter,
         );
         self.interface
             .constants()

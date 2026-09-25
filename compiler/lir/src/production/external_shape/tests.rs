@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentPropertyId, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
     PropertyOwner, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode, encode_runtime};
+use scoop_wire::{decode_canonical, encode, encode_runtime};
 
 mod type_references;
 
@@ -77,18 +77,13 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
     ]
 }
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn all_ten_subjects_have_closed_cbor_and_distinct_runtime_tags() {
     for (index, subject) in subjects().iter().enumerate() {
         let tag = (index + 1) as u32;
         let bytes = encode(subject).unwrap();
         assert_eq!(&bytes[..4], &[0xa2, 0, tag as u8, 1]);
-        let decoded: DecodedExternalStrongShapeSubjectV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedExternalStrongShapeSubjectV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         let runtime = encode_runtime(subject).unwrap();
         assert_eq!(&runtime[..4], &tag.to_le_bytes());
@@ -105,13 +100,7 @@ fn all_ten_subjects_have_closed_cbor_and_distinct_runtime_tags() {
         for field_count in [0xa1, 0xa3] {
             let mut bad = bytes.clone();
             bad[0] = field_count;
-            assert!(
-                decode_canonical::<DecodedExternalStrongShapeSubjectV1>(
-                    &bad,
-                    DecodeLimits::default()
-                )
-                .is_err()
-            );
+            assert!(decode_canonical::<DecodedExternalStrongShapeSubjectV1>(&bad).is_err());
         }
     }
     for tag in [0, 11, 255] {
@@ -122,13 +111,7 @@ fn all_ten_subjects_have_closed_cbor_and_distinct_runtime_tags() {
             bytes.extend([0x18, tag]);
         }
         bytes.extend([1, 0]);
-        assert!(
-            decode_canonical::<DecodedExternalStrongShapeSubjectV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedExternalStrongShapeSubjectV1>(&bytes).is_err());
     }
 }
 
@@ -161,12 +144,11 @@ fn binding_requires_the_exact_symbol_definition_and_unique_primary_atom() {
     .unwrap();
     for subject in subjects() {
         assert!(matches!(
-            StrongShapeDefinitionRefV1::from_foundation(subject, &empty, &mut meter()),
+            StrongShapeDefinitionRefV1::from_foundation(subject, &empty),
             Err(StrongShapeDefinitionError::MissingDefinition(_))
         ));
         let physical = foundation(subject, true, 1);
-        let bound =
-            StrongShapeDefinitionRefV1::from_foundation(subject, &physical, &mut meter()).unwrap();
+        let bound = StrongShapeDefinitionRefV1::from_foundation(subject, &physical).unwrap();
         let (key, symbol) = subject
             .expected_definition(ConeIdentity::SINGLE_FILE)
             .unwrap();
@@ -179,19 +161,14 @@ fn binding_requires_the_exact_symbol_definition_and_unique_primary_atom() {
         );
         assert_eq!(bound.primary(), physical.definition_atoms()[0].id());
         assert!(matches!(
-            StrongShapeDefinitionRefV1::from_foundation(
-                subject,
-                &foundation(subject, false, 1),
-                &mut meter()
-            ),
+            StrongShapeDefinitionRefV1::from_foundation(subject, &foundation(subject, false, 1)),
             Err(StrongShapeDefinitionError::MissingSymbol(_))
         ));
         for count in [0, 2] {
             assert!(matches!(
                 StrongShapeDefinitionRefV1::from_foundation(
                     subject,
-                    &foundation(subject, true, count),
-                    &mut meter()
+                    &foundation(subject, true, count)
                 ),
                 Err(StrongShapeDefinitionError::PrimaryAtomSet(_))
             ));
@@ -246,35 +223,6 @@ fn foundation(
 }
 
 #[test]
-fn identity_resolution_and_definition_search_charge_the_shared_budget_first() {
-    let subject = subjects()[1];
-    let bytes = encode(&subject).unwrap();
-    let decoded: DecodedExternalStrongShapeSubjectV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let mut identities = PendingIdentityValidation::new().finish().unwrap();
-    let limits = DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        decoded.resolve(&mut identities, &mut BudgetMeter::new(limits)),
-        Err(ExternalShapeSubjectResolutionError::Resource(_))
-    ));
-    assert!(matches!(
-        decoded.resolve(&mut identities, &mut meter()),
-        Err(ExternalShapeSubjectResolutionError::Identity(_))
-    ));
-    assert!(matches!(
-        StrongShapeDefinitionRefV1::from_foundation(
-            subject,
-            &foundation(subject, true, 1),
-            &mut BudgetMeter::new(limits)
-        ),
-        Err(StrongShapeDefinitionError::Resource(_))
-    ));
-}
-
-#[test]
 fn decoded_ids_must_resolve_in_their_kind_specific_authority() {
     let subject = subjects()[1];
     let ExternalStrongShapeSubjectV1::Layout(layout) = subject else {
@@ -284,18 +232,13 @@ fn decoded_ids_must_resolve_in_their_kind_specific_authority() {
     pending.register_authority(layout).unwrap();
     let mut identities = pending.finish().unwrap();
     let bytes = encode(&subject).unwrap();
-    let decoded: DecodedExternalStrongShapeSubjectV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert_eq!(
-        decoded.resolve(&mut identities, &mut meter()).unwrap(),
-        subject
-    );
+    let decoded: DecodedExternalStrongShapeSubjectV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(decoded.resolve(&mut identities).unwrap(), subject);
     let mut wrong_kind = bytes;
     wrong_kind[2] = 3;
-    let decoded: DecodedExternalStrongShapeSubjectV1 =
-        decode_canonical(&wrong_kind, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExternalStrongShapeSubjectV1 = decode_canonical(&wrong_kind).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut identities, &mut meter()),
+        decoded.resolve(&mut identities),
         Err(ExternalShapeSubjectResolutionError::Identity(_))
     ));
 }

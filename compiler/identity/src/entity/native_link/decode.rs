@@ -28,7 +28,7 @@ impl WireEncode for DecodedNativeLinkSymbol {
 }
 
 impl WireDecode for DecodedNativeLinkSymbol {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.owned_bytes().map(Self)
     }
 }
@@ -61,7 +61,7 @@ impl WireEncode for DecodedNativeExternalSymbolKey {
 }
 
 impl WireDecode for DecodedNativeExternalSymbolKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             target_profile: decoder.field(1, DecodedCapabilityId::decode)?,
@@ -86,7 +86,7 @@ impl WireEncode for DecodedCanonicalNativeGroupName {
 }
 
 impl WireDecode for DecodedCanonicalNativeGroupName {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.owned_text().map(Self)
     }
 }
@@ -129,7 +129,7 @@ impl WireEncode for DecodedNativeLibraryGrouping {
 }
 
 impl WireDecode for DecodedNativeLibraryGrouping {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -185,7 +185,7 @@ impl WireEncode for DecodedNativeLinkRequirementKey {
 }
 
 impl WireDecode for DecodedNativeLinkRequirementKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             target_profile: decoder.field(1, DecodedCapabilityId::decode)?,
@@ -224,7 +224,7 @@ impl WireEncode for DecodedNativeLibraryBinding {
 }
 
 impl WireDecode for DecodedNativeLibraryBinding {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -243,7 +243,7 @@ impl WireDecode for DecodedNativeLibraryBinding {
 }
 
 impl WireDecode for NativeLibraryKind {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::TargetDefault),
             2 => Ok(Self::Dynamic),
@@ -292,17 +292,13 @@ fn resolve_target_profile(
     TargetProfileWireId::refine(target).map_err(NativeLinkValidationError::TargetProfile)
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -314,7 +310,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

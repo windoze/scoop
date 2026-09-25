@@ -62,7 +62,7 @@ impl WireEncode for DecodedStrongObjectDefinitionPlanV1 {
 }
 
 impl WireDecode for DecodedStrongObjectDefinitionPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             plan: decoder.field(1, DecodedPersistentId::decode)?,
@@ -226,7 +226,7 @@ impl WireEncode for DecodedStrongObjectDefinitionPlanSurfaceV1 {
 }
 
 impl WireDecode for DecodedStrongObjectDefinitionPlanSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedStrongObjectDefinitionPlanV1::decode(decoder))
             .map(|plans| Self { plans })

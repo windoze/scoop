@@ -6,11 +6,11 @@ use scoop_identity::{
     InitializationUnitKey, PackagePath, PendingIdentityValidation, PropertyAccessorKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
-mod budget;
 mod builders;
 mod generated;
+mod signature_wire;
 mod source;
 mod support;
 mod wire;

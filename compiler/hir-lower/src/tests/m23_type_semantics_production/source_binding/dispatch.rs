@@ -17,17 +17,13 @@ fn independent_foundation_replays_nonempty_dispatch_and_accessor_sources() {
                 entries.local_inheritance_edges.records().iter(),
                 entries.source_roots.values().iter().copied(),
                 &bound,
-                &mut meter(),
             )
             .unwrap();
             for edge in entries.local_inheritance_edges.records() {
                 assert_eq!(graph.get(edge.owner()).unwrap().edges(), edge);
             }
-            let callables = hir::CanonicalInheritanceSourceCallablesV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+            let callables =
+                hir::CanonicalInheritanceSourceCallablesV1::from_dependency_hir(output).unwrap();
             assert!(!callables.records().is_empty());
             for callable in callables.records() {
                 assert!(
@@ -90,7 +86,6 @@ fn protected_constructor_does_not_require_candidate_contracts_to_bind_foundation
             entries.local_inheritance_edges.records().iter(),
             entries.source_roots.values().iter().copied(),
             &bound,
-            &mut meter(),
         )
         .unwrap();
         let production =
@@ -104,8 +99,7 @@ fn protected_constructor_does_not_require_candidate_contracts_to_bind_foundation
             1
         );
         let sources =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
         assert_eq!(
             sources
                 .records()
@@ -123,11 +117,10 @@ fn foundation_preserves_generic_supertypes_without_machine_edges() {
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
             let foundation =
-                hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output(), &mut meter())
-                    .unwrap();
+                hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output()).unwrap();
             assert!(
                 foundation
-                    .source_transcript(&mut meter())
+                    .source_transcript()
                     .unwrap()
                     .entries()
                     .local_inheritance_edges
@@ -149,26 +142,17 @@ fn foundation_preserves_generic_supertypes_without_machine_edges() {
 }
 
 #[test]
-fn independent_foundation_bytes_are_deterministic_and_still_budgeted() {
+fn independent_foundation_bytes_are_deterministic() {
     let first = with_source(INTERFACES, |output, _| {
         let foundation =
-            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
-        assert!(
-            foundation
-                .source_transcript(&mut BudgetMeter::new(DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                }))
-                .is_err()
-        );
-        encode(&foundation.source_transcript(&mut meter()).unwrap()).unwrap()
+            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output).unwrap();
+
+        encode(&foundation.source_transcript().unwrap()).unwrap()
     });
     let second = with_source(INTERFACES, |output, _| {
         let foundation =
-            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
-        encode(&foundation.source_transcript(&mut meter()).unwrap()).unwrap()
+            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output).unwrap();
+        encode(&foundation.source_transcript().unwrap()).unwrap()
     });
     assert_eq!(first, second);
 }

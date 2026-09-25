@@ -9,13 +9,11 @@ pub(in super::super) fn rewrite_production(
     let mut entries = archive.members();
     let first = entries.next().unwrap().unwrap();
     assert_eq!(first.name(), b"manifest.cbor");
-    let manifest = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        first.data(bytes).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
-    .validate(artifact.target_selection(), &mut meter())
-    .unwrap();
+    let manifest =
+        scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(first.data(bytes).unwrap())
+            .unwrap()
+            .validate(artifact.target_selection())
+            .unwrap();
     let members = manifest
         .members()
         .iter()

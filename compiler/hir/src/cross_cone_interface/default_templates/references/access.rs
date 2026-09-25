@@ -1,7 +1,7 @@
 //! The single declaration-side access snapshot for a default reference.
 
 use scoop_identity::{CallableTemplateOrigin, DecodedCallableTemplateOrigin};
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use crate::{
     CallableDeclarationId, CallableDeclarationIdResolver, DecodedSourceAccessDomainV1,
@@ -51,28 +51,6 @@ impl ExportDefaultAccessWitnessV1 {
         }
         if !self.target.is_universal() {
             return Err(PublicDefaultWitnessError::RestrictedTarget);
-        }
-        Ok(())
-    }
-
-    pub(in crate::cross_cone_interface::default_templates) fn charge_comparison(
-        &self,
-        other: &Self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), WireError> {
-        for witness in [self, other] {
-            for domain in std::iter::once(&witness.direct)
-                .chain(witness.slot.iter())
-                .chain(std::iter::once(&witness.target))
-            {
-                meter.charge_work(domain.constraints().len() as u64 + 1, path)?;
-                for constraint in domain.constraints() {
-                    if let crate::SourceAccessConstraintV1::File(source) = constraint {
-                        meter.charge_work(source.logical_path().as_str().len() as u64, path)?;
-                    }
-                }
-            }
         }
         Ok(())
     }
@@ -155,32 +133,22 @@ impl DecodedExportDefaultAccessWitnessV1 {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<ExportDefaultAccessWitnessV1, ExportDefaultAccessWitnessResolutionError<E>>
     where
         R: CallableDeclarationIdResolver<E> + SourceAccessDomainResolver<E>,
     {
-        meter
-            .charge_work(1, path)
-            .map_err(SourceAccessDomainResolutionError::Resource)?;
-        meter
-            .charge_nodes(1, path)
-            .map_err(SourceAccessDomainResolutionError::Resource)?;
         let owner = self
             .owner
             .resolve(resolver)
             .map_err(ExportDefaultAccessWitnessResolutionError::Owner)?;
-        let direct = self
-            .direct
-            .resolve(resolver, meter, &path.clone().field(2))?;
+        let direct = self.direct.resolve(resolver, &path.clone().field(2))?;
         let slot = self
             .slot
-            .map(|slot| slot.resolve(resolver, meter, &path.clone().field(3)))
+            .map(|slot| slot.resolve(resolver, &path.clone().field(3)))
             .transpose()?;
-        let target = self
-            .target
-            .resolve(resolver, meter, &path.clone().field(4))?;
+        let target = self.target.resolve(resolver, &path.clone().field(4))?;
         ExportDefaultAccessWitnessV1::try_new(owner, direct, slot, target)
             .map_err(ExportDefaultAccessWitnessResolutionError::Build)
     }
@@ -210,7 +178,7 @@ encode_witness!(ExportDefaultAccessWitnessV1);
 encode_witness!(DecodedExportDefaultAccessWitnessV1);
 
 impl WireDecode for DecodedExportDefaultAccessWitnessV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(4)?;
         Ok(Self {
             owner: d.field(1, DecodedCallableTemplateOrigin::decode)?,

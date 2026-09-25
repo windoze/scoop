@@ -107,7 +107,7 @@ impl Fixture {
             ])
             .unwrap();
         let decoded: DecodedHirFoundation =
-            decode_canonical(&encode(&foundation).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&foundation).unwrap()).unwrap();
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(provider).unwrap();
         decoded.register_identities(&mut pending).unwrap();
@@ -123,11 +123,7 @@ impl Fixture {
     pub fn exact(&self) -> PersistentExactTypeId {
         let records = self
             .identities
-            .records::<PersistentExactTypeId, ExactTypeKey>(
-                IdentityLayer::Hir,
-                &mut meter(),
-                &WirePath::root(),
-            )
+            .records::<PersistentExactTypeId, ExactTypeKey>(IdentityLayer::Hir, &WirePath::root())
             .unwrap();
         assert_eq!(records.len(), 1);
         records[0].id()

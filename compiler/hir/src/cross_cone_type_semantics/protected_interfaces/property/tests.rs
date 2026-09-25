@@ -4,7 +4,7 @@ use scoop_identity::{
     AccessorRole, CallableTemplateOrigin, DecodedPersistentId, PersistentIdResolver, PropertyOwner,
     SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod rejections;
 mod slots;
@@ -12,36 +12,23 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) mod support;
 mod wire;
 use support::setup;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn protected_property_keeps_private_setter_restricted_and_joins_the_checked_getter() {
     let (mut fixture, _, property, getter, _) = setup(Some(DeclaredVisibilityV1::Private));
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let mut getter_authority = fixture.clone();
-    let checked_property = property
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let checked_property = property.validate_source(&graph, &mut fixture).unwrap();
     let checked_getter = getter
-        .validate_source(&graph, &mut getter_authority, &mut meter())
+        .validate_source(&graph, &mut getter_authority)
         .unwrap();
     checked_property
-        .validate_accessor_contracts(checked_getter, None, &mut meter())
+        .validate_accessor_contracts(checked_getter, None)
         .unwrap();
     assert!(matches!(
-        checked_property.validate_accessor_contracts(
-            checked_getter,
-            Some(checked_getter),
-            &mut meter()
-        ),
+        checked_property.validate_accessor_contracts(checked_getter, Some(checked_getter)),
         Err(ProtectedPropertyAccessorClosureError::Setter)
     ));
     assert_eq!(
@@ -55,36 +42,27 @@ fn protected_setter_requires_its_own_checked_source_callable() {
     let (mut fixture, _, property, getter, setter) = setup(Some(DeclaredVisibilityV1::Protected));
     let setter = setter.unwrap();
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let mut getter_authority = fixture.clone();
     let mut setter_authority = fixture.clone();
-    let checked_property = property
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let checked_property = property.validate_source(&graph, &mut fixture).unwrap();
     let checked_getter = getter
-        .validate_source(&graph, &mut getter_authority, &mut meter())
+        .validate_source(&graph, &mut getter_authority)
         .unwrap();
     let checked_setter = setter
-        .validate_source(&graph, &mut setter_authority, &mut meter())
+        .validate_source(&graph, &mut setter_authority)
         .unwrap();
     checked_property
-        .validate_accessor_contracts(checked_getter, Some(checked_setter), &mut meter())
+        .validate_accessor_contracts(checked_getter, Some(checked_setter))
         .unwrap();
     assert!(matches!(
-        checked_property.validate_accessor_contracts(checked_getter, None, &mut meter()),
+        checked_property.validate_accessor_contracts(checked_getter, None),
         Err(ProtectedPropertyAccessorClosureError::Setter)
     ));
     assert!(matches!(
-        checked_property.validate_accessor_contracts(
-            checked_setter,
-            Some(checked_getter),
-            &mut meter()
-        ),
+        checked_property.validate_accessor_contracts(checked_setter, Some(checked_getter)),
         Err(ProtectedPropertyAccessorClosureError::Getter)
     ));
 }
@@ -93,14 +71,11 @@ fn protected_setter_requires_its_own_checked_source_callable() {
 fn setter_domains_are_compared_semantically_instead_of_by_visibility_order() {
     let (mut fixture, _, property, _, _) = setup(Some(DeclaredVisibilityV1::Internal));
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     assert!(matches!(
-        property.validate_source(&graph, &mut fixture, &mut meter()),
+        property.validate_source(&graph, &mut fixture),
         Err(ProtectedPropertySemanticError::SetterDomain)
     ));
 }

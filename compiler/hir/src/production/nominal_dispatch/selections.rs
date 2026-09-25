@@ -2,7 +2,7 @@ use super::*;
 
 mod merge;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn selections(&mut self, nominal: NominalOwner) -> Result<Selections, Error> {
         let mut selections = Selections::new();
         let (implementations, allow_abstract) = match nominal {
@@ -31,7 +31,6 @@ impl Projection<'_, '_> {
             }
         };
         for implementation in implementations {
-            self.work(1)?;
             for method in &implementation.methods {
                 let slot = self.interface_slot(method.member)?;
                 let selection = match method.target {
@@ -61,7 +60,6 @@ impl Projection<'_, '_> {
         // The first encounter in derived-to-base order is the selected override.
         for class in self.class_chain(class)? {
             for function in &self.export.classes[class].methods {
-                self.work(1)?;
                 let method = self.method(*function)?;
                 let family = match method.dispatch {
                     MethodDispatch::Virtual(family) | MethodDispatch::FinalOverride(family) => {
@@ -80,7 +78,7 @@ impl Projection<'_, '_> {
                     .get_virtual(family)
                     .ok_or_else(|| invalid("virtual family has no sealed dispatch identity"))?
                     .id();
-                self.search(selections.len())?;
+
                 if !selections.contains_key(&slot) {
                     let selection = if method.modifier == MethodModifier::Abstract {
                         Selection::Abstract
@@ -100,6 +98,6 @@ impl Projection<'_, '_> {
         slot: PersistentDispatchSlotId,
         selection: Selection,
     ) -> Result<(), Error> {
-        merge::insert(selections, slot, selection, self.meter)
+        merge::insert(selections, slot, selection)
     }
 }

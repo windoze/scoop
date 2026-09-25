@@ -1,7 +1,5 @@
 //! Canonical production of the cross-Cone external HIR reference closure.
 
-use scoop_wire::{BudgetMeter, DecodeLimits};
-
 use crate::{CanonicalExternalHirReferencesV1, ExternalHirReferenceSemanticAuthority};
 
 mod accumulator;
@@ -44,27 +42,26 @@ impl CanonicalExternalHirReferencesV1 {
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
         let mut accumulator = accumulator::ExternalReferenceAccumulator::new(authority);
 
-        surface::collect_reexports(input, &mut accumulator, &mut meter)?;
-        signatures::collect(input, &mut accumulator, &mut meter)?;
-        dispatch::collect(input, &mut accumulator, &mut meter)?;
-        surface::collect_aliases(input, &mut accumulator, &mut meter)?;
-        defaults::collect(input, &mut accumulator, &mut meter)?;
-        surface::collect_constants(input, &mut accumulator, &mut meter)?;
+        surface::collect_reexports(input, &mut accumulator)?;
+        signatures::collect(input, &mut accumulator)?;
+        dispatch::collect(input, &mut accumulator)?;
+        surface::collect_aliases(input, &mut accumulator)?;
+        defaults::collect(input, &mut accumulator)?;
+        surface::collect_constants(input, &mut accumulator)?;
         for use_ in witness_uses {
             accumulator.add_witness_use(use_)?;
         }
         if let Some(output) = dependency_output {
             accumulator.add_implicit_dependency_witnesses(output.imported_dependencies());
-            accumulator.add_call_sites(output, &mut meter)?;
-            accumulator.add_runtime_call_sites(output, &mut meter)?;
-            accumulator.add_type_sites(output, &mut meter)?;
-            accumulator.add_declaration_type_sites(output, &mut meter)?;
+            accumulator.add_call_sites(output)?;
+            accumulator.add_runtime_call_sites(output)?;
+            accumulator.add_type_sites(output)?;
+            accumulator.add_declaration_type_sites(output)?;
         }
 
-        accumulator.finish(&mut meter)
+        accumulator.finish()
     }
 }
 

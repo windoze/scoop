@@ -4,7 +4,7 @@ use scoop_identity::{
     PackagePath, PendingIdentityValidation, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 #[test]
 fn descriptor_wire_retains_core_and_ordinary_providers() {
@@ -12,8 +12,7 @@ fn descriptor_wire_retains_core_and_ordinary_providers() {
         let descriptor = descriptor(provider, "Visible");
         let bytes = encode(&descriptor).unwrap();
         assert_eq!(bytes[0], 0xa4);
-        let decoded: DecodedExternalTypeDescriptor =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedExternalTypeDescriptor = decode_canonical(&bytes).unwrap();
         let mut identities = identities(provider, descriptor.target());
         assert_eq!(decoded.validate(&mut identities).unwrap(), descriptor);
     }
@@ -24,9 +23,7 @@ fn descriptor_reader_requires_registered_provider_and_target() {
     let provider = ordinary_provider();
     let descriptor = descriptor(provider, "Visible");
     let bytes = encode(&descriptor).unwrap();
-    let read = || {
-        decode_canonical::<DecodedExternalTypeDescriptor>(&bytes, DecodeLimits::default()).unwrap()
-    };
+    let read = || decode_canonical::<DecodedExternalTypeDescriptor>(&bytes).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(descriptor.target()).unwrap();
     assert!(matches!(
@@ -65,7 +62,7 @@ fn descriptor_reader_rejects_inconsistent_symbol_and_definition() {
             Err(ExternalTypeDescriptorValidationError::ContractMismatch)
         );
         let decoded: DecodedExternalTypeDescriptor =
-            decode_canonical(&encode(&changed).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&changed).unwrap()).unwrap();
         assert!(matches!(
             decoded.validate(&mut identities(provider, original.target())),
             Err(ExternalTypeDescriptorDecodeError::RecordMismatch)
@@ -88,9 +85,7 @@ fn descriptor_reader_rejects_legacy_implicit_core_product() {
         }
     }
     let bytes = encode(&Legacy(descriptor(ConeIdentity::CORE, "String"))).unwrap();
-    assert!(
-        decode_canonical::<DecodedExternalTypeDescriptor>(&bytes, DecodeLimits::default()).is_err()
-    );
+    assert!(decode_canonical::<DecodedExternalTypeDescriptor>(&bytes).is_err());
 }
 
 #[test]

@@ -20,7 +20,7 @@ mod providers;
 mod reference_closure;
 mod reference_receivers;
 pub(super) mod reference_witness;
-mod resources;
+
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/declaration-binding.scoop"
@@ -37,10 +37,9 @@ fn source_template(output: &hir::DependencyHirOutput, name: &str, position: u32)
         output,
         hir::ExportParameterOwner::Function(id),
         position,
-        &mut meter(),
     )
     .unwrap()
-    .into_source_template(&mut meter())
+    .into_source_template()
     .unwrap()
 }
 fn key(
@@ -73,16 +72,14 @@ fn default_declarations_join_real_artifact_sources_for_every_parameter_owner() {
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
-                let bound = parameters
-                    .bind_default_declarations(&table, &[], &mut meter())
-                    .unwrap();
+                let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
                 assert_eq!(bound.provider(), parameters.provider());
                 assert!(std::ptr::eq(bound.origins().templates(), &table));
                 assert_eq!(bound.declarations().len(), table.records().len());
                 for template in table.records() {
-                    let declared = bound.declaration(template.key(), &mut meter()).unwrap();
+                    let declared = bound.declaration(template.key()).unwrap();
                     assert_eq!(declared.key(), template.key());
                     let parameter = declared.provider_parameter();
                     assert_eq!(parameter.position(), template.key().parameter_position());
@@ -110,17 +107,17 @@ fn default_declarations_join_real_artifact_sources_for_every_parameter_owner() {
                 }
                 if source == SOURCE {
                     let inherited = key(output, "ContractChild.pick", 2);
-                    let contract = bound.declaration(inherited, &mut meter()).unwrap();
+                    let contract = bound.declaration(inherited).unwrap();
                     assert_ne!(contract.owner().owner(), contract.provider().owner());
                     assert_eq!(contract.owner_binders().nominal_owner_binder_arity(), 1);
                     assert_eq!(contract.provider_binders().nominal_owner_binder_arity(), 2);
                     let copy = bound
-                        .declaration(key(output, "ContractBase.copy", 2), &mut meter())
+                        .declaration(key(output, "ContractBase.copy", 2))
                         .unwrap();
                     assert_eq!(copy.provider_binders().nominal_owner_binder_arity(), 2);
                     assert_eq!(copy.provider_binders().callable_own_binder_arity(), 1);
                     let nested = bound
-                        .declaration(key(output, "ContractBase.Static.copy", 1), &mut meter())
+                        .declaration(key(output, "ContractBase.Static.copy", 1))
                         .unwrap();
                     assert_eq!(nested.provider_binders().nominal_owner_binder_arity(), 0);
                 }

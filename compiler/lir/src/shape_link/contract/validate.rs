@@ -1,4 +1,4 @@
-use scoop_wire::{BudgetMeter, WirePath, encode_canonical_temporary_with_meter};
+use scoop_wire::{WirePath, encode_canonical_temporary};
 
 use super::*;
 use crate::shape_link::ShapeLinkError;
@@ -7,10 +7,9 @@ impl DecodedShapeLinkContractV1 {
     pub fn validate_against(
         self,
         expected: &ShapeLinkContractV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ShapeLinkError> {
         let path = WirePath::root();
-        meter.charge_work(1, &path)?;
+
         match (self, expected) {
             (
                 Self::CallableAbi {
@@ -27,24 +26,16 @@ impl DecodedShapeLinkContractV1 {
                 if calling_convention != *expected_cc || protocol != *expected_protocol {
                     return Err(ShapeLinkError::Contract);
                 }
-                meter.charge_work(
-                    (canonical_signature.argument_count() as u64)
-                        .saturating_add(canonical_signature.signature_parameter_count() as u64)
-                        .saturating_add(expected_signature.arguments().len() as u64)
-                        .saturating_add(expected_signature.signature().parameters().len() as u64),
-                    &path,
-                )?;
-                let actual =
-                    encode_canonical_temporary_with_meter(&canonical_signature, meter, &path)?;
-                let wanted =
-                    encode_canonical_temporary_with_meter(*expected_signature, meter, &path)?;
-                meter.charge_work(actual.len() as u64, &path)?;
+
+                let actual = encode_canonical_temporary(&canonical_signature, &path)?;
+                let wanted = encode_canonical_temporary(*expected_signature, &path)?;
+
                 if actual != wanted {
                     return Err(ShapeLinkError::Contract);
                 }
             }
             (Self::Layout(actual), ShapeLinkContractV1::Layout { record }) => {
-                actual.validate_against(record, meter)?
+                actual.validate_against(record)?
             }
             (
                 Self::Scan {
@@ -61,7 +52,7 @@ impl DecodedShapeLinkContractV1 {
                 if layout.verify(*expected_layout).is_err() || role != *expected_role {
                     return Err(ShapeLinkError::Contract);
                 }
-                let checked = canonical_scan.validate_metered(meter)?;
+                let checked = canonical_scan.validate()?;
                 if checked.as_ref_scan() != *expected_scan {
                     return Err(ShapeLinkError::Contract);
                 }
@@ -71,18 +62,18 @@ impl DecodedShapeLinkContractV1 {
                 ShapeLinkContractV1::Type {
                     descriptor_projection,
                 },
-            ) => actual.validate_against(descriptor_projection, meter)?,
+            ) => actual.validate_against(descriptor_projection)?,
             (Self::Dispatch(actual), ShapeLinkContractV1::Dispatch { table_projection }) => {
-                actual.validate_against(table_projection, meter)?
+                actual.validate_against(table_projection)?
             }
             (
                 Self::StaticStorage(actual),
                 ShapeLinkContractV1::StaticStorage { storage_projection },
-            ) => actual.validate_against(storage_projection, meter)?,
+            ) => actual.validate_against(storage_projection)?,
             (
                 Self::Initialization(actual),
                 ShapeLinkContractV1::Initialization { unit_projection },
-            ) => actual.validate_against(*unit_projection, meter)?,
+            ) => actual.validate_against(*unit_projection)?,
             _ => return Err(ShapeLinkError::Contract),
         }
         Ok(())

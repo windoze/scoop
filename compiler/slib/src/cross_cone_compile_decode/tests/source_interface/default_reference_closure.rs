@@ -87,69 +87,6 @@ fn ordinary_reader_matches_reference_origins_in_addition_to_typed_targets() {
     } if *definition_origin == original));
 }
 
-#[test]
-fn ordinary_reader_reference_walk_spends_the_existing_artifact_budget() {
-    let fixture = default_fixture::fixture(default_fixture::Case::Defined);
-    let bytes = fixture.artifact();
-    let mut decoded = open_graph(&bytes)
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
-    let identities = decoded
-        .validate_foundation_identities(std::iter::empty())
-        .unwrap();
-    let mut front = decoded
-        .validate_foundation_structure(identities)
-        .unwrap()
-        .resolve_hir_interface()
-        .unwrap()
-        .validate_hir_production()
-        .unwrap();
-    let before = front
-        .graph
-        .envelope
-        .meter_mut()
-        .usage()
-        .validation_work_units;
-    contracts(&mut front).unwrap();
-    let meter = front.graph.envelope.meter_mut();
-    let work = meter.usage().validation_work_units - before;
-    assert!(work > 1);
-    let remaining = meter.limits().validation_work_units - meter.usage().validation_work_units;
-    meter
-        .charge_work(remaining - (work - 1), &scoop_wire::WirePath::root())
-        .unwrap();
-    let Err(ContractError::Template {
-        index: 0, source, ..
-    }) = contracts(&mut front)
-    else {
-        panic!("the final reference walk must retain the exhausted artifact budget")
-    };
-    let ContractError::ReferenceClosure(error) = *source else {
-        panic!("the reference closure must report budget exhaustion")
-    };
-    let ClosureError::Resource(error) = *error else {
-        panic!("reference closure resource error")
-    };
-    assert!(
-        format!("{error:?}").contains("ValidationWorkUnits"),
-        "{error:?}"
-    );
-}
-
-fn contracts(
-    state: &mut HirProductionValidatedCrossConeHirFrontSections<'_>,
-) -> Result<(), ContractError> {
-    crate::cross_cone_hir_authority::CanonicalCrossConeHirSurfaceAuthority::new(
-        state.graph.identity(),
-        &state.identities,
-        &state.foundations.hir,
-        &state.hir_interface,
-        vec![],
-        state.graph.envelope.meter_mut(),
-    )
-    .validate_default_provider_contracts()
-}
-
 fn failure(fixture: &CallableSourceSurface) -> ClosureError {
     let bytes = fixture.artifact();
     let Err(CrossConeHirSourceInterfaceSurfaceError::DefaultProviderContract(

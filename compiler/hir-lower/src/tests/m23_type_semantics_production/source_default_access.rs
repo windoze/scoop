@@ -8,16 +8,13 @@ use hir::{
 use hir::{DefaultSourceAccessDomainV1 as Domain, DefaultSourceAccessWitnessV1 as Witness};
 use scoop_wire::{decode_canonical, encode};
 
-mod budgets;
 mod rejection;
 mod wire;
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/access.scoop"
 ));
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn function(export: &hir::ExportHir, name: &str) -> hir::ExportParameterOwner {
     hir::ExportParameterOwner::Function(
         export
@@ -91,18 +88,16 @@ fn actual_default_witnesses_round_trip_all_source_regions_without_public_lookup(
                 output,
                 function(export, name),
                 0,
-                &mut meter(),
             )
             .unwrap();
             let mut count = 0;
             for source in witnesses(body.source_references()) {
-                let snapshot = Witness::from_export_hir(export, source, &mut meter()).unwrap();
+                let snapshot = Witness::from_export_hir(export, source).unwrap();
                 assert_eq!(snapshot.owner(), body.definition_root().declaration());
                 let bytes = encode(&snapshot).unwrap();
-                let decoded: DecodedWitness =
-                    decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                let decoded: DecodedWitness = decode_canonical(&bytes).unwrap();
                 assert_eq!(encode(&decoded).unwrap(), bytes);
-                let restored = decoded.resolve(&mut identities, &mut meter()).unwrap();
+                let restored = decoded.resolve(&mut identities).unwrap();
                 assert_eq!(restored, snapshot);
                 assert_eq!(encode(&restored).unwrap(), bytes);
                 let slot = match snapshot.slot_call_domain() {
@@ -167,23 +162,20 @@ fn mixed_source_domains_partition_only_actual_generic_class_constraints() {
             hir::AccessConstraint::Cone(export.cone),
             hir::AccessConstraint::File(export.source_files[0].identity.clone()),
         ]);
-        let domain = Domain::from_export_hir(export, &source, &mut meter()).unwrap();
+        let domain = Domain::from_export_hir(export, &source).unwrap();
         assert_eq!(domain.generic_subclasses().values().len(), 2);
         assert_eq!(domain.persistent().constraints().len(), 4);
-        let decoded: DecodedDomain =
-            decode_canonical(&encode(&domain).unwrap(), DecodeLimits::default()).unwrap();
+        let decoded: DecodedDomain = decode_canonical(&encode(&domain).unwrap()).unwrap();
         assert_eq!(
-            decoded
-                .resolve(&mut identity_closure(output), &mut meter())
-                .unwrap(),
+            decoded.resolve(&mut identity_closure(output)).unwrap(),
             domain
         );
         assert_eq!(
-            Domain::from_export_hir(export, &hir::AccessDomain::empty(), &mut meter()).unwrap(),
+            Domain::from_export_hir(export, &hir::AccessDomain::empty()).unwrap(),
             Domain::empty()
         );
         assert_eq!(
-            Domain::from_export_hir(export, &hir::AccessDomain::universal(), &mut meter()).unwrap(),
+            Domain::from_export_hir(export, &hir::AccessDomain::universal()).unwrap(),
             Domain::universal()
         );
     });

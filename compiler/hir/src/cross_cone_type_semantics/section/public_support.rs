@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 /// Borrowed evidence from the complete frozen ten-table validator. A single
 /// callable/nominal table or an unvalidated section cannot construct this token.
@@ -15,14 +15,14 @@ impl<'a> CheckedTypeSectionPublicSupportV1<'a> {
         provider: ConeIdentity,
         surface: &CanonicalDirectPublicSurfaceV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, TypeSectionPublicSupportError<E>> {
         if ExportDefinitionSourceSemanticAuthority::current_cone(authority) != provider {
             return Err(TypeSectionPublicSupportError::Provider);
         }
         section
-            .validate_semantics(provider, surface, authority, meter, path)
+            .validate_semantics(provider, surface, authority, path)
             .map_err(|error| TypeSectionPublicSupportError::Section(Box::new(error)))?;
         Ok(Self { provider, section })
     }

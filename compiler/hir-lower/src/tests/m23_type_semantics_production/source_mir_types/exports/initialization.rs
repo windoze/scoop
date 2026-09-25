@@ -40,7 +40,6 @@ fn actual_mir_export_assembly_rejects_initialization_edges_without_source_uses()
                 callables: &[],
                 dispatch: &[],
             },
-            &mut meter(),
         )
         .unwrap();
         for local_unit in [local, units[1].id()] {
@@ -51,12 +50,10 @@ fn actual_mir_export_assembly_rejects_initialization_edges_without_source_uses()
                 ConeIdentity::CORE,
                 units[0].id(),
                 mir::MirExternalInitializationCauseV1::InitializationSupport(units[0].id()),
-                &mut meter(),
             )
             .unwrap();
             let uses =
-                mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![record], &mut meter())
-                    .unwrap();
+                mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![record]).unwrap();
             let candidate = mir::MirTypeBridgeExportConstituentsV1::new(
                 exports.types().clone(),
                 exports.callables().clone(),
@@ -66,7 +63,7 @@ fn actual_mir_export_assembly_rejects_initialization_edges_without_source_uses()
                 uses,
             );
             assert!(matches!(
-                candidate.validate_sources(input.mir.module().cone, &graph, &source, &mut meter()),
+                candidate.validate_sources(input.mir.module().cone, &graph, &source),
                 Err(mir::MirTypeBridgeSourceJoinError::Record(
                     mir::MirTypeBridgeSourceRecordV1::InitializationUses
                 ))

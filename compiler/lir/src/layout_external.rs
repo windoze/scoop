@@ -2,7 +2,6 @@
 //! selection.
 
 use scoop_identity::{ConeIdentity, PersistentExactTypeId, StrongCallableDefinitionOwner};
-use scoop_wire::{BudgetMeter, WirePath};
 
 use crate::{
     EnumDefs, ExternalCallable, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
@@ -20,9 +19,8 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         provider: ConeIdentity,
         source: scoop_identity::PersistentTypeId,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
-        shapes::materialize(self, provider, source, exact, meter)
+        shapes::materialize(self, provider, source, exact)
     }
 
     /// Refines an imported helper from the complete source shape and physical
@@ -34,17 +32,8 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         external: &la_arena::Arena<ExternalTypeDescriptor>,
         descriptor: crate::ExternalTypeDescriptorId,
         storage_type: crate::LirType,
-        meter: &mut BudgetMeter,
     ) -> Result<crate::BoxedValueDescriptor, LayoutExternalMaterializationError> {
-        boxing::materialize(
-            self,
-            provider,
-            source,
-            external,
-            descriptor,
-            storage_type,
-            meter,
-        )
+        boxing::materialize(self, provider, source, external, descriptor, storage_type)
     }
 
     /// Materializes one external TypeDescriptor only when both the semantic
@@ -53,9 +42,8 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         &self,
         provider: ConeIdentity,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
-        materialize_type_descriptor(self, provider, exact, meter)
+        materialize_type_descriptor(self, provider, exact)
     }
 
     /// Materializes one dispatch-callable declaration from the same selected
@@ -66,9 +54,8 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         target: StrongCallableDefinitionOwner,
         signature: ScoopAbiSignature,
         enums: &EnumDefs,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
-        materialize_dispatch_callable(self, provider, target, signature, enums, meter)
+        materialize_dispatch_callable(self, provider, target, signature, enums)
     }
 }
 
@@ -77,9 +64,8 @@ impl StrongProductionDependencySelectionV2<'_> {
         &self,
         provider: ConeIdentity,
         source: scoop_identity::PersistentTypeId,
-        meter: &mut BudgetMeter,
-    ) -> Result<Option<&crate::ParamFreeShapeSupportExportV1>, scoop_wire::WireError> {
-        shapes::selected(self, provider, source, meter)
+    ) -> Option<&crate::ParamFreeShapeSupportExportV1> {
+        shapes::selected(self, provider, source)
     }
 
     pub fn materialize_shape_type_descriptor(
@@ -87,9 +73,8 @@ impl StrongProductionDependencySelectionV2<'_> {
         provider: ConeIdentity,
         source: scoop_identity::PersistentTypeId,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
-        shapes::materialize(self, provider, source, exact, meter)
+        shapes::materialize(self, provider, source, exact)
     }
 
     pub fn materialize_boxed_value_descriptor(
@@ -99,26 +84,16 @@ impl StrongProductionDependencySelectionV2<'_> {
         external: &la_arena::Arena<ExternalTypeDescriptor>,
         descriptor: crate::ExternalTypeDescriptorId,
         storage_type: crate::LirType,
-        meter: &mut BudgetMeter,
     ) -> Result<crate::BoxedValueDescriptor, LayoutExternalMaterializationError> {
-        boxing::materialize(
-            self,
-            provider,
-            source,
-            external,
-            descriptor,
-            storage_type,
-            meter,
-        )
+        boxing::materialize(self, provider, source, external, descriptor, storage_type)
     }
 
     pub fn materialize_type_descriptor(
         &self,
         provider: ConeIdentity,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
-        materialize_type_descriptor(self, provider, exact, meter)
+        materialize_type_descriptor(self, provider, exact)
     }
 
     pub fn materialize_dispatch_callable(
@@ -127,15 +102,13 @@ impl StrongProductionDependencySelectionV2<'_> {
         target: StrongCallableDefinitionOwner,
         signature: ScoopAbiSignature,
         enums: &EnumDefs,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
-        materialize_dispatch_callable(self, provider, target, signature, enums, meter)
+        materialize_dispatch_callable(self, provider, target, signature, enums)
     }
 }
 
 trait MaterializationSelection<'a> {
     fn consumer(&self) -> ConeIdentity;
-    fn semantic_count(&self) -> usize;
     fn semantic_record(
         &'a self,
         provider: ConeIdentity,
@@ -147,10 +120,6 @@ trait MaterializationSelection<'a> {
 impl<'a> MaterializationSelection<'a> for SelectedDependencyLayoutAbiSetV1<'a> {
     fn consumer(&self) -> ConeIdentity {
         self.consumer()
-    }
-
-    fn semantic_count(&self) -> usize {
-        self.len()
     }
 
     fn semantic_record(
@@ -170,10 +139,6 @@ impl<'a> MaterializationSelection<'a> for SelectedDependencyLayoutAbiSetV1<'a> {
 impl<'a> MaterializationSelection<'a> for StrongProductionDependencySelectionV2<'a> {
     fn consumer(&self) -> ConeIdentity {
         self.consumer()
-    }
-
-    fn semantic_count(&self) -> usize {
-        self.semantic_count()
     }
 
     fn semantic_record(
@@ -207,10 +172,9 @@ fn materialize_type_descriptor<'a>(
     selected: &'a impl MaterializationSelection<'a>,
     provider: ConeIdentity,
     exact: PersistentExactTypeId,
-    meter: &mut BudgetMeter,
 ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
     validate_provider(selected, provider)?;
-    meter.charge_work(selected.semantic_count() as u64, &WirePath::root())?;
+
     let LayoutAbiSemanticRecordV1::Descriptor(record) = selected
         .semantic_record(provider, LayoutAbiSemanticTargetV1::Descriptor(exact))
         .ok_or(LayoutExternalMaterializationError::MissingDescriptor { provider, exact })?
@@ -221,7 +185,6 @@ fn materialize_type_descriptor<'a>(
         selected,
         provider,
         ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
-        meter,
     )?;
     let ShapeLinkContractV1::Type {
         descriptor_projection,
@@ -253,10 +216,9 @@ fn materialize_dispatch_callable<'a>(
     target: StrongCallableDefinitionOwner,
     signature: ScoopAbiSignature,
     enums: &EnumDefs,
-    meter: &mut BudgetMeter,
 ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
     validate_provider(selected, provider)?;
-    meter.charge_work(selected.semantic_count() as u64, &WirePath::root())?;
+
     let LayoutAbiSemanticRecordV1::Callable(record) = selected
         .semantic_record(provider, LayoutAbiSemanticTargetV1::Callable(target))
         .ok_or(LayoutExternalMaterializationError::MissingCallable { provider, target })?
@@ -267,7 +229,6 @@ fn materialize_dispatch_callable<'a>(
         selected,
         provider,
         ExternalStrongShapeSubjectV1::Callable(target),
-        meter,
     )?;
     let ShapeLinkContractV1::CallableAbi {
         canonical_signature,
@@ -292,7 +253,6 @@ fn materialize_dispatch_callable<'a>(
         import.required_definition(),
         signature,
         enums,
-        meter,
     )
 }
 
@@ -300,12 +260,7 @@ fn physical_import<'a>(
     selected: &'a impl MaterializationSelection<'a>,
     provider: ConeIdentity,
     subject: ExternalStrongShapeSubjectV1,
-    meter: &mut BudgetMeter,
 ) -> Result<&'a crate::ExternalShapeLinkImportV1<'a>, LayoutExternalMaterializationError> {
-    meter.charge_work(
-        selected.physical_imports().records().len() as u64,
-        &WirePath::root(),
-    )?;
     selected
         .physical_imports()
         .records()

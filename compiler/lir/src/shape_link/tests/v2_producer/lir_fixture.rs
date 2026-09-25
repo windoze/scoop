@@ -1,8 +1,7 @@
 use la_arena::Arena;
 use scoop_identity::*;
-use scoop_wire::BudgetMeter;
 
-use super::{TARGET, meter};
+use super::TARGET;
 use crate::*;
 
 pub(super) fn provider_protocol(
@@ -165,14 +164,12 @@ pub(super) fn exact_layouts(
         exact_record.clone(),
         RepresentationRole::ManagedValue,
         foundation,
-        &mut meter(),
     )
     .unwrap();
     let value: ExactLayoutExportV1 = ExactValueLayoutV1::qualified_pointer(
         value_identity,
         NichePointerKind::Managed,
         foundation,
-        &mut meter(),
     )
     .unwrap()
     .into();
@@ -181,7 +178,6 @@ pub(super) fn exact_layouts(
         exact_record,
         RepresentationRole::ManagedObject,
         foundation,
-        &mut meter(),
     )
     .unwrap();
     let instance: ExactLayoutExportV1 = ExactInstanceLayoutV1::class(
@@ -189,17 +185,12 @@ pub(super) fn exact_layouts(
         ClassLayoutBaseV1::NoBase,
         &[],
         foundation,
-        &mut meter(),
     )
     .unwrap()
     .into();
-    let layouts = CanonicalExactLayoutExportsV1::try_new(
-        TARGET,
-        foundation,
-        vec![value.clone(), instance],
-        &mut meter(),
-    )
-    .unwrap();
+    let layouts =
+        CanonicalExactLayoutExportsV1::try_new(TARGET, foundation, vec![value.clone(), instance])
+            .unwrap();
     (layouts, value)
 }
 
@@ -365,11 +356,7 @@ impl ExactTypeDiagnosticGraph for DiagnosticGraph {
 pub(super) struct LayoutSource;
 
 impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
-    fn validate_local_exports(
-        &self,
-        _: &LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         Ok(())
     }
 
@@ -377,11 +364,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
         Ok(&[])
     }
 
-    fn validate_physical_imports(
-        &self,
-        _: &[ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1<'_>]) -> Result<(), ()> {
         Ok(())
     }
 }

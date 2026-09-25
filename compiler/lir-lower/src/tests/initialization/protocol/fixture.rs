@@ -147,7 +147,6 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     let canonical_lir = core_lir.foundation().as_canonical().clone();
     let decoded_lir = scoop_wire::decode_canonical::<lir::DecodedLirFoundation>(
         &scoop_wire::encode(&canonical_lir).unwrap(),
-        scoop_wire::DecodeLimits::default(),
     )
     .unwrap();
     let mut pending = PendingIdentityValidation::new();
@@ -164,10 +163,7 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
                     scoop_identity::PersistentExactTypeId,
                     scoop_identity::DecodedExactTypeKey,
                 >,
-            >(
-                &scoop_wire::encode(identity.identity_record()).unwrap(),
-                scoop_wire::DecodeLimits::default(),
-            )
+            >(&scoop_wire::encode(identity.identity_record()).unwrap())
             .unwrap()
         })
         .collect::<Vec<_>>();

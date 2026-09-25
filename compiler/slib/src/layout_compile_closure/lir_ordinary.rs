@@ -59,20 +59,14 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
                 let mut layouts = Vec::new();
                 let mut callables = Vec::new();
                 let mut metadata = Vec::new();
                 let path = WirePath::root();
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut layouts, reachable.len(), &path)?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut callables, reachable.len(), &path)?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut metadata, reachable.len(), &path)?;
+                scoop_wire::allocation::try_reserve(&mut layouts, reachable.len(), &path)?;
+                scoop_wire::allocation::try_reserve(&mut callables, reachable.len(), &path)?;
+                scoop_wire::allocation::try_reserve(&mut metadata, reachable.len(), &path)?;
                 for position in reachable {
                     let dependency = &complete[position];
                     layouts.push(dependency.lir_exports().layouts());
@@ -95,12 +89,9 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
                         callables: &callables,
                     },
                     parts.lir_foundation,
-                    parts.meter,
                 )?;
-                let ordinary = ordinary.validate_against(expected, parts.meter)?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &path)?;
+                let ordinary = ordinary.validate_against(expected)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
                 Ok(OrdinaryLirBridgeValidatedCrossConeLayoutSections {
                     prepared,
                     mir,

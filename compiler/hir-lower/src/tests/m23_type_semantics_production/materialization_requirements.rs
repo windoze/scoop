@@ -23,17 +23,11 @@ fn shared_machine_requirements_preserve_roles_and_positions_after_wire_round_tri
         source_dispatch::with_hir_source(source, |output, _| {
             let public = public_interface(output);
             let mut identities = source_inventory::identity_closure(output);
-            let nominals: hir::DecodedCanonicalNominalInterfacesV1 = decode_canonical(
-                &encode(public.nominal_interfaces()).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let nominals: hir::DecodedCanonicalNominalInterfacesV1 =
+                decode_canonical(&encode(public.nominal_interfaces()).unwrap()).unwrap();
             let nominals = nominals.resolve(&mut identities).unwrap();
-            let callables: hir::DecodedCanonicalCallableInterfacesV1 = decode_canonical(
-                &encode(public.callable_interfaces()).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let callables: hir::DecodedCanonicalCallableInterfacesV1 =
+                decode_canonical(&encode(public.callable_interfaces()).unwrap()).unwrap();
             let callables = callables.resolve(&mut identities).unwrap();
             assert_eq!(&nominals, public.nominal_interfaces());
             assert_eq!(&callables, public.callable_interfaces());
@@ -66,7 +60,7 @@ fn render(
     let mut fields = BTreeSet::new();
     let mut variant_fields = BTreeSet::new();
     nominals
-        .visit_materialization_requirements::<Error>(callables, &mut meter(), |requirement, _| {
+        .visit_materialization_requirements::<Error>(callables, |requirement| {
             let owner = name(requirement.owner(), identities);
             let detail = match requirement {
                 Requirement::Field { field, .. } => {
@@ -117,8 +111,7 @@ fn render(
         })
         .unwrap();
     let closure =
-        hir::NominalMaterializationClosure::from_declarations(nominals, callables, &mut meter())
-            .unwrap();
+        hir::NominalMaterializationClosure::from_declarations(nominals, callables).unwrap();
     for nominal in nominals.all_records() {
         if let hir::SourceNominalId::Concrete(owner) = nominal.declaration() {
             rows.push(format!(
@@ -134,8 +127,4 @@ fn render(
 
 fn name(owner: PersistentTypeId, identities: &ValidatedIdentityGraph) -> String {
     declaration_dump::nominal(hir::SourceNominalId::Concrete(owner), identities)
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

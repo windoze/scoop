@@ -48,7 +48,7 @@ impl WireEncode for NominalCLayoutPolicyV1 {
 }
 
 impl WireDecode for NominalCLayoutPolicyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -90,7 +90,7 @@ fn encode_alignment(
     )
 }
 
-fn decode_alignment(decoder: &mut Decoder<'_, '_>) -> Result<HirCLayoutValue, WireError> {
+fn decode_alignment(decoder: &mut Decoder<'_>) -> Result<HirCLayoutValue, WireError> {
     decoder.expect_map(1)?;
     match decoder.field(0, Decoder::unsigned)? {
         1 => Ok(HirCLayoutValue::Natural),
@@ -156,7 +156,7 @@ impl WireEncode for NominalIntrinsicRepresentationV1 {
 }
 
 impl WireDecode for NominalIntrinsicRepresentationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let family = match tag {
@@ -184,7 +184,7 @@ impl WireDecode for NominalIntrinsicRepresentationV1 {
     }
 }
 
-fn decode_signedness(decoder: &mut Decoder<'_, '_>) -> Result<IntegerSignedness, WireError> {
+fn decode_signedness(decoder: &mut Decoder<'_>) -> Result<IntegerSignedness, WireError> {
     decoder.expect_map(1)?;
     match decoder.field(0, Decoder::unsigned)? {
         1 => Ok(IntegerSignedness::Signed),
@@ -193,7 +193,7 @@ fn decode_signedness(decoder: &mut Decoder<'_, '_>) -> Result<IntegerSignedness,
     }
 }
 
-fn decode_width(decoder: &mut Decoder<'_, '_>) -> Result<IntegerWidth, WireError> {
+fn decode_width(decoder: &mut Decoder<'_>) -> Result<IntegerWidth, WireError> {
     decoder.expect_map(1)?;
     match decoder.field(0, Decoder::unsigned)? {
         1 => Ok(IntegerWidth::W8),

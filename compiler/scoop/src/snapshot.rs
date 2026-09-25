@@ -29,8 +29,8 @@ pub struct ImmutableInputSnapshot {
 }
 
 impl ImmutableInputSnapshot {
-    pub fn capture(source_locator: &Path, byte_limit: u64) -> Result<Self, SnapshotFileError> {
-        let captured = read_stable_regular_file(source_locator, byte_limit)?;
+    pub fn capture(source_locator: &Path) -> Result<Self, SnapshotFileError> {
+        let captured = read_stable_regular_file(source_locator)?;
         let bytes: Arc<[u8]> = captured.bytes.into();
         let digest = sha256(&bytes);
         Ok(Self {
@@ -41,11 +41,8 @@ impl ImmutableInputSnapshot {
         })
     }
 
-    pub(crate) fn capture_no_follow(
-        source_locator: &Path,
-        byte_limit: u64,
-    ) -> Result<Self, SnapshotFileError> {
-        let captured = io::read_stable_regular_file_no_follow(source_locator, byte_limit)?;
+    pub(crate) fn capture_no_follow(source_locator: &Path) -> Result<Self, SnapshotFileError> {
+        let captured = io::read_stable_regular_file_no_follow(source_locator)?;
         let bytes: Arc<[u8]> = captured.bytes.into();
         let digest = sha256(&bytes);
         Ok(Self {
@@ -95,7 +92,7 @@ mod tests {
         let input = directory.path().join("input.bin");
         std::fs::write(&input, b"immutable input").unwrap();
 
-        let snapshot = ImmutableInputSnapshot::capture(&input, 15).unwrap();
+        let snapshot = ImmutableInputSnapshot::capture(&input).unwrap();
 
         assert_eq!(snapshot.source_locator(), input);
         assert_eq!(snapshot.resolved_path(), input.canonicalize().unwrap());
@@ -107,21 +104,13 @@ mod tests {
     }
 
     #[test]
-    fn snapshot_enforces_regular_file_and_size_before_growth() {
+    fn snapshot_rejects_non_regular_files() {
         let directory = tempfile::tempdir().unwrap();
         let input = directory.path().join("input.bin");
         std::fs::write(&input, b"1234").unwrap();
 
         assert!(matches!(
-            ImmutableInputSnapshot::capture(&input, 3),
-            Err(SnapshotFileError::TooLarge {
-                limit: 3,
-                observed: 4,
-                ..
-            })
-        ));
-        assert!(matches!(
-            ImmutableInputSnapshot::capture(directory.path(), u64::MAX),
+            ImmutableInputSnapshot::capture(directory.path()),
             Err(SnapshotFileError::NotRegularFile(_))
         ));
     }
@@ -138,7 +127,7 @@ mod tests {
         symlink(&target, &alias).unwrap();
 
         assert!(matches!(
-            ImmutableInputSnapshot::capture_no_follow(&alias, 6),
+            ImmutableInputSnapshot::capture_no_follow(&alias),
             Err(SnapshotFileError::NotRegularFile(path)) if path == alias
         ));
     }

@@ -1,6 +1,5 @@
 use scoop_identity::{ConeCoordinate, SemanticIdentitySession};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::DecodeLimits;
 
 use crate::{
     ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact, SlibDiagnostic,
@@ -18,7 +17,7 @@ struct CompileAttempt {
 fn arbitrary_archives_are_panic_free_deterministic_and_failure_atomic() {
     let artifact = empty_foundation_artifact();
     let canonical = artifact.as_bytes().to_vec();
-    let canonical_attempt = compile_attempt(&canonical, tiny_limits());
+    let canonical_attempt = compile_attempt(&canonical);
     assert!(canonical_attempt.result.is_ok());
     assert_eq!(canonical_attempt.session_origins, 1);
     assert!(canonical_attempt.session_entities > 0);
@@ -36,8 +35,8 @@ fn arbitrary_archives_are_panic_free_deterministic_and_failure_atomic() {
     }
 
     for bytes in corpus {
-        let first = compile_attempt(&bytes, tiny_limits());
-        let second = compile_attempt(&bytes, tiny_limits());
+        let first = compile_attempt(&bytes);
+        let second = compile_attempt(&bytes);
         assert_eq!(
             first,
             second,
@@ -51,11 +50,11 @@ fn arbitrary_archives_are_panic_free_deterministic_and_failure_atomic() {
     }
 }
 
-fn compile_attempt(bytes: &[u8], limits: DecodeLimits) -> CompileAttempt {
+fn compile_attempt(bytes: &[u8]) -> CompileAttempt {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let mut session = SemanticIdentitySession::new();
     let result = (|| {
-        let envelope = crate::DecodedSlibEnvelope::open(bytes, limits, selection)
+        let envelope = crate::DecodedSlibEnvelope::open(bytes, selection)
             .map_err(|error| Box::new(error.diagnostic()))?;
         let graph = envelope
             .validate_graph()
@@ -95,20 +94,6 @@ fn empty_foundation_artifact() -> IdentityFoundationArtifact {
     )
     .unwrap();
     super::foundation_artifact(cone, None)
-}
-
-fn tiny_limits() -> DecodeLimits {
-    DecodeLimits {
-        cbor_nesting: 64,
-        semantic_table_entries: 1_024,
-        semantic_leaf_bytes: 4_096,
-        semantic_recursion: 64,
-        logical_heap_bytes: 1_048_576,
-        decoded_nodes: 16_384,
-        decoded_edges: 16_384,
-        owned_bytes: 262_144,
-        validation_work_units: 262_144,
-    }
 }
 
 fn arbitrary_byte_corpus() -> Vec<Vec<u8>> {

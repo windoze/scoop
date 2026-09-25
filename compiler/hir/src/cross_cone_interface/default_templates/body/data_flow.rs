@@ -3,7 +3,7 @@ use crate::{DefaultBodyDataFlowAuthority, DefaultBodyValidationInputV1};
 use std::fmt;
 
 use scoop_identity::{LocalValueSelector, PersistentFieldId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use crate::{
     CanonicalBooleanV1, DefaultBindingTemporaryV1, ExportDefaultTemplateV1, TemplateLocalRecordV1,
@@ -37,7 +37,7 @@ impl ExportDefaultTemplateV1 {
     pub fn validate_local_data_flow_semantics<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>>
     where
@@ -48,7 +48,6 @@ impl ExportDefaultTemplateV1 {
                 template: self,
                 authority,
             },
-            meter,
             path,
         )
     }
@@ -58,10 +57,10 @@ impl DefaultBodyValidationInputV1<'_> {
     pub(crate) fn validate_local_data_flow<A: DefaultBodyDataFlowAuthority<E>, E>(
         self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        Validator::new(self, authority, meter, path)?.run()
+        Validator::new(self, authority, path)?.run()
     }
 }
 
@@ -70,7 +69,7 @@ struct Validator<'a, A, E> {
     authority: &'a mut A,
     owners: Vec<Option<DefinitionOwner>>,
     next_plan: u32,
-    meter: &'a mut BudgetMeter,
+
     path: &'a WirePath,
     error: std::marker::PhantomData<fn() -> E>,
 }
@@ -82,12 +81,11 @@ where
     fn new(
         template: DefaultBodyValidationInputV1<'a>,
         authority: &'a mut A,
-        meter: &'a mut BudgetMeter,
+
         path: &'a WirePath,
     ) -> Result<Self, ExportDefaultLocalDataFlowValidationError<E>> {
         let mut owners = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut owners, template.locals().records().len(), path)
+        scoop_wire::allocation::try_reserve(&mut owners, template.locals().records().len(), path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         owners.resize(template.locals().records().len(), None);
         Ok(Self {
@@ -95,14 +93,13 @@ where
             authority,
             owners,
             next_plan: 0,
-            meter,
+
             path,
             error: std::marker::PhantomData,
         })
     }
 
     fn run(mut self) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        self.enter_node(1)?;
         let mut available = self.empty_bits()?;
 
         if let Some(receiver) = self.template.receiver().receiver() {
@@ -131,7 +128,6 @@ where
         let region = Region {
             owner: DefinitionOwner::Ordinary,
             loop_depth: 0,
-            depth: 2,
         };
         let flow = self.validate_statements(
             self.template.body().statements(),
@@ -143,7 +139,6 @@ where
             self.template.body().value(),
             &flow.available,
             flow.falls_through,
-            2,
         )
     }
 
@@ -152,9 +147,6 @@ where
         selector: &LocalValueSelector,
         site: DefaultLocalDataFlowSiteV1,
     ) -> Result<usize, ExportDefaultLocalDataFlowValidationError<E>> {
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         self.template
             .locals()
             .records()
@@ -169,9 +161,6 @@ where
         actual_mutability: Option<CanonicalBooleanV1>,
         site: DefaultLocalDataFlowSiteV1,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         let record = &self.template.locals().records()[index];
         if let Some(actual) = actual_type
             && record.value_type() != actual
@@ -264,9 +253,6 @@ where
         site: DefaultLocalDataFlowSiteV1,
         owner: DefinitionOwner,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         match self.owners[index] {
             None => self.owners[index] = Some(owner),
             Some(actual) if actual == owner => {}
@@ -320,13 +306,12 @@ where
 
     fn empty_bits(&mut self) -> Result<Vec<bool>, ExportDefaultLocalDataFlowValidationError<E>> {
         let mut bits = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(
-                &mut bits,
-                self.template.locals().records().len(),
-                self.path,
-            )
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
+        scoop_wire::allocation::try_reserve(
+            &mut bits,
+            self.template.locals().records().len(),
+            self.path,
+        )
+        .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         bits.resize(self.template.locals().records().len(), false);
         Ok(bits)
     }
@@ -336,12 +321,9 @@ where
         source: &[bool],
     ) -> Result<Vec<bool>, ExportDefaultLocalDataFlowValidationError<E>> {
         let mut copy = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut copy, source.len(), self.path)
+        scoop_wire::allocation::try_reserve(&mut copy, source.len(), self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.meter
-            .charge_work(source.len() as u64, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
+
         copy.extend_from_slice(source);
         Ok(copy)
     }
@@ -382,9 +364,6 @@ where
         other: &[bool],
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         for (slot, other) in target.iter_mut().zip(other) {
-            self.meter
-                .charge_work(1, self.path)
-                .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
             *slot &= *other;
         }
         Ok(())
@@ -403,53 +382,12 @@ where
         })?;
         Ok(DefinitionOwner::ForPlan(plan))
     }
-
-    fn enter_node(
-        &mut self,
-        depth: u64,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.meter
-            .charge_nodes(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)
-    }
-
-    fn enter_edge(
-        &mut self,
-        child_depth: u64,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        self.meter
-            .check_semantic_depth(child_depth, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.meter
-            .charge_edges(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)
-    }
-
-    fn child_depth(&self, depth: u64) -> Result<u64, ExportDefaultLocalDataFlowValidationError<E>> {
-        depth.checked_add(1).ok_or_else(|| {
-            ExportDefaultLocalDataFlowValidationError::Resource(WireError::new(
-                WireErrorKind::IntegerOutOfRange,
-                self.path.clone(),
-                None,
-            ))
-        })
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Region {
     owner: DefinitionOwner,
     loop_depth: u64,
-    depth: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

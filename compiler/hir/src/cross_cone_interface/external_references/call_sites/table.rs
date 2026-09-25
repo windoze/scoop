@@ -1,4 +1,4 @@
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::*;
 
@@ -64,26 +64,18 @@ impl DecodedCanonicalHirDependencyCallSitesV1 {
     pub fn resolve<R: HirDependencyCallSiteResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CanonicalHirDependencyCallSitesV1, HirDependencyCallSiteResolutionError<E>> {
         use HirDependencyCallSiteResolutionError as Error;
         let mut records = Vec::new();
-        meter
-            .charge_owned_bytes(
-                (self.records.len() * std::mem::size_of::<HirDependencyCallSiteV1>()) as u64,
-                path,
-            )
-            .map_err(Error::Resource)?;
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), path)
+
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), path)
             .map_err(Error::Resource)?;
         for (index, record) in self.records.into_iter().enumerate() {
-            records.push(record.resolve(resolver, meter, &path.clone().index(index as u64))?);
+            records.push(record.resolve(resolver, &path.clone().index(index as u64))?);
         }
-        meter
-            .charge_work(records.len() as u64, path)
-            .map_err(Error::Resource)?;
+
         CanonicalHirDependencyCallSitesV1::from_canonical(records).map_err(Error::Shape)
     }
 }
@@ -99,7 +91,7 @@ impl WireEncode for DecodedCanonicalHirDependencyCallSitesV1 {
 }
 
 impl WireDecode for DecodedCanonicalHirDependencyCallSitesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedHirDependencyCallSiteV1::decode(d))
             .map(|records| Self { records })

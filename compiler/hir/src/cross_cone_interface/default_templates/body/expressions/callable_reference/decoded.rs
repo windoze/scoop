@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::{
@@ -168,7 +166,7 @@ impl WireEncode for DecodedDefaultCallableReferenceV1 {
 }
 
 impl WireDecode for DecodedDefaultCallableReferenceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             invoke: decoder.field(1, DecodedPersistentId::decode)?,
@@ -202,7 +200,7 @@ impl WireEncode for DecodedDefaultCallableReferenceTargetV1 {
 }
 
 impl WireDecode for DecodedDefaultCallableReferenceTargetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -363,11 +361,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -378,6 +372,6 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

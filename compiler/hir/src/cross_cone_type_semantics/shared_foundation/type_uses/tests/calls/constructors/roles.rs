@@ -49,11 +49,8 @@ fn shared_source_and_runtime_calls_of_one_constructor_keep_both_reasons() {
         )
     };
     let combined = make(vec![source.clone(), runtime.clone()]).unwrap();
-    let decoded: DecodedExternalHirReferenceV1 = scoop_wire::decode_canonical(
-        &scoop_wire::encode(&combined).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedExternalHirReferenceV1 =
+        scoop_wire::decode_canonical(&scoop_wire::encode(&combined).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut consumer.identities).unwrap(), combined);
     for calls in [vec![source], vec![runtime]] {
         assert_eq!(

@@ -13,7 +13,7 @@ pub struct DecodedProtectedDefaultReferenceSetV1 {
     pub(super) fields: Vec<DecodedProtectedDefaultFieldReferenceV1>,
 }
 impl WireDecode for DecodedProtectedDefaultReferenceSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             callables: decoder.field(1, |d| {

@@ -12,15 +12,13 @@ fn core_source_foundation_supplies_real_dependency_domains_to_default_binding() 
         let sources = Sources::from_output(output, &mut fixture);
         let templates = super::super::default_origins::templates(output);
         let core_output = support::lower_protocol_core();
-        let core_source = Production::from_hir(&core_output, &mut meter())
+        let core_source = Production::from_hir(&core_output)
             .unwrap()
-            .source_transcript(&mut meter())
+            .source_transcript()
             .unwrap();
         let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 =
-            decode_canonical(&encode(&core_source).unwrap(), DecodeLimits::default()).unwrap();
-        let core_source = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&encode(&core_source).unwrap()).unwrap();
+        let core_source = decoded.resolve(&mut fixture.identities).unwrap();
         let core_required = core_source
             .entries()
             .source_roots
@@ -43,24 +41,23 @@ fn core_source_foundation_supplies_real_dependency_domains_to_default_binding() 
         );
         let foundation = fixture.bind().unwrap();
         let core_bound = core_source
-            .bind_to_foundation(&core.source_foundation, &fixture.identities, &mut meter())
+            .bind_to_foundation(&core.source_foundation, &fixture.identities)
             .unwrap();
         let core_access = core_bound
-            .bind_default_access_declarations(&core_access, &core_required, &mut meter())
+            .bind_default_access_declarations(&core_access, &core_required)
             .unwrap();
         let local_access = foundation
-            .bind_default_access_declarations(&local_access, &local_required, &mut meter())
+            .bind_default_access_declarations(&local_access, &local_required)
             .unwrap();
         let imported = core.foundation.import_core_inputs(&core.interface).unwrap();
         let types = imported.protocols().fundamental_types();
         let dependencies = [&core_access];
         let domains =
-            hir::DefaultSourceDomainsV1::new(&local_access, &dependencies, types, &mut meter())
-                .unwrap();
+            hir::DefaultSourceDomainsV1::new(&local_access, &dependencies, types).unwrap();
         sources.with_bound(&foundation, types, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-            let bound = parameters.bind_default_declarations(&templates, &[], &mut meter()).unwrap();
-            let proof = domains.bind_nominal_default_type_domains(&bound, &mut meter()).unwrap();
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+            let bound = parameters.bind_default_declarations(&templates, &[]).unwrap();
+            let proof = domains.bind_nominal_default_type_domains(&bound).unwrap();
             assert_eq!(proof.declarations().declarations().len(), 2);
             assert!(bound.declarations().iter().flat_map(|d| d.references().occurrences()).any(|o| {
                 matches!(o.source(), hir::DefaultSourceReferenceRecordV1::Type(r) if r.target() == &Type::Nominal(types.boolean().persistent()))
@@ -79,13 +76,9 @@ fn access(
     required: &BTreeSet<Subject>,
     identities: &mut scoop_identity::ValidatedIdentityGraph,
 ) -> hir::CanonicalDefaultSourceAccessDeclarationsV1 {
-    let table = hir::CanonicalDefaultSourceAccessDeclarationsV1::from_export_hir(
-        output,
-        required,
-        &mut meter(),
-    )
-    .unwrap();
+    let table =
+        hir::CanonicalDefaultSourceAccessDeclarationsV1::from_export_hir(output, required).unwrap();
     let decoded: hir::DecodedCanonicalDefaultSourceAccessDeclarationsV1 =
-        decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
-    decoded.resolve(identities, &mut meter()).unwrap()
+        decode_canonical(&encode(&table).unwrap()).unwrap();
+    decoded.resolve(identities).unwrap()
 }

@@ -60,23 +60,15 @@ fn nested_object_const_has_a_typed_value_without_an_accessor_or_public_property_
     let (mut fixture, record) = fixture();
     assert!(fixture.accessors.is_empty());
     let bytes = encode(&record).unwrap();
-    let decoded: DecodedNominalSupportPropertyInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedNominalSupportPropertyInterfaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(
-        decoded.clone().resolve(&mut fixture, &mut meter()).unwrap(),
-        record
-    );
+    assert_eq!(decoded.clone().resolve(&mut fixture).unwrap(), record);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
-    let CheckedNominalSupportPropertySourceV1::Const(checked) = record
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap()
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
+    let CheckedNominalSupportPropertySourceV1::Const(checked) =
+        record.validate_source(&graph, &mut fixture).unwrap()
     else {
         panic!("const support required")
     };
@@ -86,22 +78,11 @@ fn nested_object_const_has_a_typed_value_without_an_accessor_or_public_property_
     );
     assert!(
         !graph
-            .replay_declaration_access(checked.declaration_access(), &mut meter())
+            .replay_declaration_access(checked.declaration_access())
             .unwrap()
             .lookup()
             .domain()
             .is_universal()
-    );
-    assert!(
-        decoded
-            .resolve(
-                &mut fixture,
-                &mut BudgetMeter::new(DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                })
-            )
-            .is_err()
     );
 }
 
@@ -119,14 +100,11 @@ fn const_support_rejects_a_type_kind_mismatch_and_mismatched_outer_identity() {
     );
     record.payload = NominalSupportPropertyPayloadV1::Const { value: bad };
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     assert!(matches!(
-        record.validate_source(&graph, &mut fixture, &mut meter()),
+        record.validate_source(&graph, &mut fixture),
         Err(NominalSupportPropertySemanticError::ConstType)
     ));
     let key = SourceDeclarationKey::property(
@@ -143,10 +121,6 @@ fn const_support_rejects_a_type_kind_mismatch_and_mismatched_outer_identity() {
         Err(NominalSupportPropertyBuildError::ConstIdentity)
     ));
     assert!(
-        decode_canonical::<DecodedNominalSupportPropertyPayloadV1>(
-            &[0xa2, 0, 3, 1, 0],
-            DecodeLimits::default()
-        )
-        .is_err()
+        decode_canonical::<DecodedNominalSupportPropertyPayloadV1>(&[0xa2, 0, 3, 1, 0]).is_err()
     );
 }

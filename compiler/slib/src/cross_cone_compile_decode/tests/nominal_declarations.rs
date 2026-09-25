@@ -4,7 +4,6 @@ use scoop_hir::{
     CanonicalNestedMemberRefsV1, CanonicalNestedNominalRefsV1, DeclaredVisibilityV1,
     NominalDeclarationDetailsV1, NominalInheritanceModalityV1,
 };
-use scoop_wire::DecodeLimits;
 
 mod support;
 use support::*;
@@ -19,8 +18,7 @@ fn source_support_queries_never_expose_a_dependency_private_nominal() {
     let provider = front(&bytes).validate_nominal_surface(vec![]).unwrap();
     let mut identities = fixture.identities();
     let empty: scoop_hir::DecodedCrossConeHirInterfaceSectionV1 =
-        scoop_wire::decode_canonical(&empty_cross_cone_hir_interface(), DecodeLimits::default())
-            .unwrap();
+        scoop_wire::decode_canonical(&empty_cross_cone_hir_interface()).unwrap();
     let empty = empty.resolve(&mut identities).unwrap();
     let empty_foundation =
         scoop_hir::OdrFreeHirFoundation::try_new(CanonicalHirFoundation::empty()).unwrap();
@@ -43,14 +41,13 @@ fn source_support_queries_never_expose_a_dependency_private_nominal() {
                 vec![provider.nominal_provider_view()],
             )
         };
-        let mut meter = scoop_wire::BudgetMeter::new(DecodeLimits::default());
+
         let authority = CanonicalCrossConeHirSurfaceAuthority::new(
             current,
             &identities,
             foundation,
             interface,
             dependencies,
-            &mut meter,
         );
         let mut authority = if source_scope {
             authority.for_source_declarations()

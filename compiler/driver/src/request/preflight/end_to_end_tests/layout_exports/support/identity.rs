@@ -34,14 +34,14 @@ pub(in super::super) fn identities(
     let core_hir: hir::DecodedHirFoundation = decoded(core.hir_foundation_wire());
     let core_hir = hir::OdrFreeHirFoundation::from_validated(
         core_hir
-            .validate(core.coordinate(), &mut core_graph, &mut meter())
+            .validate(core.coordinate(), &mut core_graph)
             .unwrap(),
     )
     .unwrap();
     let core_lir: lir::DecodedLirFoundation = decoded(core.lir_foundation_wire());
     let core_lir = lir::OdrFreeLirFoundation::from_validated(
         core_lir
-            .validate(ConeIdentity::CORE, &mut core_graph, &mut meter())
+            .validate(ConeIdentity::CORE, &mut core_graph)
             .unwrap(),
     )
     .unwrap();

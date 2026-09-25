@@ -5,15 +5,14 @@ use scoop_hir::{
     SharedTypeMetadataV1,
 };
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::HirDeclarationsValidatedCrossConeLayoutClosure;
 use crate::dependency_reachability::transitive_positions;
 
 impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
-    /// Borrows checked records from the artifacts themselves. Fact,
-    /// representation, inheritance, slot and default replay share the original
-    /// artifact budget. The complete selected-use join remains pending.
+    /// Borrows the artifact's records to check type facts, representation,
+    /// inheritance, slots and defaults before resolving selected uses.
     pub fn validate_type_foundations(
         &mut self,
     ) -> Result<Vec<CheckedSharedTypeFoundationV1<'_>>, CrossConeLayoutTypeFoundationError> {
@@ -21,24 +20,24 @@ impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
         let mut checked: Vec<CheckedSharedTypeFoundationV1<'_>> = Vec::new();
         for (position, artifact) in artifacts.iter_mut().enumerate() {
             let provider = artifact.identity();
-            let (identities, foundation, _, public, types, meter) = artifact.hir_semantic_parts();
+            let (identities, foundation, _, public, types) = artifact.hir_semantic_parts();
             let input = SharedTypeMetadataV1 {
                 provider,
                 identities,
                 foundation,
                 public,
             };
-            let result = validate_provider(types, input, &checked, position, dependencies, meter)
-                .map_err(|source| CrossConeLayoutTypeFoundationError {
-                provider,
-                source: Box::new(source),
-            })?;
-            meter
-                .try_reserve_collection_slots(&mut checked, 1, &WirePath::root())
+            let result = validate_provider(types, input, &checked, position, dependencies)
                 .map_err(|source| CrossConeLayoutTypeFoundationError {
                     provider,
-                    source: Box::new(source.into()),
+                    source: Box::new(source),
                 })?;
+            scoop_wire::allocation::try_reserve(&mut checked, 1, &WirePath::root()).map_err(
+                |source| CrossConeLayoutTypeFoundationError {
+                    provider,
+                    source: Box::new(source.into()),
+                },
+            )?;
             checked.push(result);
         }
         Ok(checked)
@@ -51,16 +50,15 @@ fn validate_provider<'a>(
     checked: &[CheckedSharedTypeFoundationV1<'a>],
     position: usize,
     dependencies: &[Vec<usize>],
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedSharedTypeFoundationV1<'a>, SharedTypeMetadataError> {
     let path = WirePath::root();
-    let reachable = transitive_positions(position, dependencies, meter)?;
+    let reachable = transitive_positions(position, dependencies)?;
     let mut providers = Vec::new();
-    meter.try_reserve_collection_slots(&mut providers, reachable.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut providers, reachable.len(), &path)?;
     providers.extend(reachable.iter().map(|position| checked[*position]));
-    let checked = types.validate_shared_foundation(input, &providers, meter)?;
-    checked.with_inheritance_graph(&providers, meter, |_, _| ())?;
-    checked.validate_materialized_type_uses(&providers, meter)?;
+    let checked = types.validate_shared_foundation(input, &providers)?;
+    checked.with_inheritance_graph(&providers, |_| ())?;
+    checked.validate_materialized_type_uses(&providers)?;
     Ok(checked)
 }
 

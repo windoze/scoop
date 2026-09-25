@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    BodyNode, BodyValidator, BodyWork, DefaultBodyOperationTypingProblemV1, DefaultBodyOperationV1,
+    BodyNode, BodyValidator, DefaultBodyOperationTypingProblemV1, DefaultBodyOperationV1,
     DefaultPatternOperationV1, ExportDefaultBodyOperationTypingValidationError,
 };
 
@@ -18,8 +18,7 @@ where
         &mut self,
         pattern: &'body DefaultPatternV1,
         subject: &scoop_identity::SignatureTypeKey,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         match pattern.view() {
             DefaultPatternViewV1::Binding { local } => {
@@ -96,7 +95,6 @@ where
                             pattern: element,
                             subject: element_type.clone(),
                         },
-                        depth,
                     )?;
                 }
                 Ok(())
@@ -125,7 +123,6 @@ where
                             pattern: field.pattern(),
                             subject: field_type.clone(),
                         },
-                        depth,
                     )?;
                 }
                 Ok(())
@@ -154,7 +151,6 @@ where
                             pattern: field.pattern(),
                             subject: field_type.clone(),
                         },
-                        depth,
                     )?;
                 }
                 Ok(())

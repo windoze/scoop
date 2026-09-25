@@ -15,21 +15,17 @@ pub struct CanonicalNominalSourcePropertiesV1 {
 impl CanonicalNominalSourcePropertiesV1 {
     pub fn try_new(
         mut records: Vec<NominalSupportPropertyInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(NominalSupportPropertyInterfaceV1::declaration);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
     fn from_ordered(
         records: Vec<NominalSupportPropertyInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             NominalSupportPropertyInterfaceV1::declaration,
             "nominal source properties",
-            meter,
         )?;
         Ok(Self { records })
     }

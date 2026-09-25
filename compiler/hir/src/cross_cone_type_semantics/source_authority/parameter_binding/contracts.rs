@@ -5,18 +5,15 @@ pub(super) fn validate(
     constructors: &BoundInheritanceConstructorSourcesV1<'_, '_>,
     protocol: &InheritanceSourceParameterProtocolV1,
     array: PersistentGenericTypeId,
-    meter: &mut BudgetMeter,
 ) -> Result<(), InheritanceParameterBindingError> {
     use InheritanceParameterBindingError as Error;
     let owner = protocol.owner();
     let (expected, access) = match owner {
         CallableTemplateOrigin::Constructor(id) => {
-            query(constructors.table().records().len(), meter)?;
             let record = constructors.constructor_source(id)?;
             (record.payload().parameters(), record.declaration_access())
         }
         CallableTemplateOrigin::Function(_) | CallableTemplateOrigin::GenericFunction(_) => {
-            query(callables.table().records().len(), meter)?;
             let record = callables.callable_source(owner)?;
             (record.payload().parameters(), record.declaration_access())
         }
@@ -29,7 +26,6 @@ pub(super) fn validate(
         expected,
         access,
         array,
-        meter,
     )?;
     Ok(())
 }

@@ -1,34 +1,24 @@
 use super::*;
 use std::collections::BTreeMap;
 
-pub(super) struct Producer<'a, 'm> {
+pub(super) struct Producer<'a> {
     source: BTreeMap<PersistentConstructorId, &'a hir::CallableDeclarationRecordV1>,
     input: &'a mir::SingleConeStrongMirInput,
     authority: mir::MirCallableBridgeAuthority<'a>,
     records: Vec<mir::ParamFreeMirCallableBindingV1>,
-    meter: &'m mut BudgetMeter,
 }
-impl<'a, 'm> Producer<'a, 'm> {
+impl<'a> Producer<'a> {
     pub(super) fn new(
         public: &'a hir::CrossConeHirInterfaceSectionV1,
         input: &'a mir::SingleConeStrongMirInput,
         identities: &'a ValidatedIdentityGraph,
         types: &'a dyn mir::MirTypeBridgeTypeLookupV1,
-        meter: &'m mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let source = hir::select_param_free_source_constructors(
-            input.module().cone,
-            public,
-            identities,
-            meter,
-        )?;
+        let source =
+            hir::select_param_free_source_constructors(input.module().cone, public, identities)?;
         let mut records = Vec::new();
-        meter.charge_owned_bytes(
-            (source.len() as u64)
-                .saturating_mul(std::mem::size_of::<mir::ParamFreeMirCallableBindingV1>() as u64),
-            &WirePath::root(),
-        )?;
-        meter.try_reserve_collection_slots(&mut records, source.len(), &WirePath::root())?;
+
+        scoop_wire::allocation::try_reserve(&mut records, source.len(), &WirePath::root())?;
         Ok(Self {
             source,
             input,
@@ -38,7 +28,6 @@ impl<'a, 'm> Producer<'a, 'm> {
                 types,
             },
             records,
-            meter,
         })
     }
 
@@ -52,11 +41,6 @@ impl<'a, 'm> Producer<'a, 'm> {
         )>,
         Error,
     > {
-        self.meter.charge_nodes(1, &WirePath::root())?;
-        self.meter.charge_work(
-            u64::from(self.source.len().checked_ilog2().unwrap_or(0)) + 1,
-            &WirePath::root(),
-        )?;
         let CallableTemplateOwner::Constructor(declaration) = materialization.template() else {
             return Ok(None);
         };
@@ -69,22 +53,6 @@ impl<'a, 'm> Producer<'a, 'm> {
         Ok(Some((declaration, source)))
     }
 
-    pub(super) fn signature_cost(&mut self, types: usize, parameters: usize) -> Result<(), Error> {
-        self.meter
-            .charge_collection_slots((parameters as u64).saturating_mul(2), &WirePath::root())?;
-        self.meter.charge_work(
-            (types as u64).saturating_add(parameters as u64 * 3 + 1),
-            &WirePath::root(),
-        )?;
-        self.meter.charge_owned_bytes(
-            (parameters as u64).saturating_mul(
-                2 * std::mem::size_of::<scoop_identity::PersistentExactTypeId>() as u64,
-            ),
-            &WirePath::root(),
-        )?;
-        Ok(())
-    }
-
     pub(super) fn record(
         &mut self,
         declaration: PersistentConstructorId,
@@ -95,19 +63,7 @@ impl<'a, 'm> Producer<'a, 'm> {
     ) -> Result<(), Error> {
         let roots = self.input.materialization().callable_roots();
         let signatures = &self.input.module().meta.callable_signatures;
-        let type_work = u64::from(
-            self.authority
-                .types
-                .record_count()
-                .checked_ilog2()
-                .unwrap_or(0),
-        ) + 1;
-        self.meter.charge_work(
-            (signatures.len() as u64)
-                .saturating_add(u64::from(roots.len().checked_ilog2().unwrap_or(0)) + 1)
-                .saturating_add((semantic.parameters().len() as u64 * 2 + 8) * type_work + 32),
-            &WirePath::root(),
-        )?;
+
         let index = roots
             .binary_search_by_key(&CallableOwner::Constructor(declaration), |root| {
                 root.implementation()
@@ -146,11 +102,7 @@ impl<'a, 'm> Producer<'a, 'm> {
                 actual: self.records.len(),
             });
         }
-        self.meter.charge_work(
-            (self.records.len() as u64)
-                .saturating_mul(u64::from(self.records.len().checked_ilog2().unwrap_or(0)) + 1),
-            &WirePath::root(),
-        )?;
+
         Ok(mir::CanonicalMirCallableBindingsV1::try_new(self.records)?)
     }
 }

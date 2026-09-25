@@ -2,13 +2,12 @@ use super::*;
 
 pub(super) fn validate(
     bound: &BoundNominalDispatchSourcesV1<'_, '_, '_, '_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let members = bound.parameters.members();
     let foundation = members.nominals.foundation;
     for record in bound.slots.dispatch.callables.records() {
         let declaration = record.declaration();
-        query(members.callables().records().len(), meter)?;
+
         let source = members
             .callable_source(origin(declaration))
             .map_err(NominalNestedBindingError::from)?;
@@ -19,21 +18,13 @@ pub(super) fn validate(
             source.declaration_access(),
             id,
             "access",
-            meter,
         )?;
-        compare(
-            &record.modality(),
-            &payload.modality(),
-            id,
-            "modality",
-            meter,
-        )?;
+        compare(&record.modality(), &payload.modality(), id, "modality")?;
         compare(
             &record.signature().effects(),
             &payload.effects(),
             id,
             "effects",
-            meter,
         )?;
         let signature = record.signature().exact_signature();
         let SourceNominalId::Concrete(owner) = payload.owner() else {
@@ -51,7 +42,6 @@ pub(super) fn validate(
             std::slice::from_ref(&expected),
             &[receiver],
             foundation,
-            meter,
         )
         .map_err(|e| Error::signature(declaration, e))?;
         if !payload.type_parameters().is_empty()
@@ -72,7 +62,6 @@ pub(super) fn validate(
                 std::slice::from_ref(source.value_type()),
                 std::slice::from_ref(exact),
                 foundation,
-                meter,
             )
             .map_err(|e| Error::signature(declaration, e))?;
         }
@@ -80,7 +69,6 @@ pub(super) fn validate(
             std::slice::from_ref(payload.result()),
             &[signature.result()],
             foundation,
-            meter,
         )
         .map_err(|e| Error::signature(declaration, e))?;
     }

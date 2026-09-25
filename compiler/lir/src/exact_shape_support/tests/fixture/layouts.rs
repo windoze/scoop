@@ -5,7 +5,7 @@ use scoop_identity::{
     SourceDeclarationKind,
 };
 
-use crate::exact_layout::tests::{Bound, meter};
+use crate::exact_layout::tests::Bound;
 use crate::{
     EnumLayoutFieldInputV1, EnumLayoutVariantInputV1, ExactInstanceLayoutV1, ExactLayoutExportV1,
     ExactValueLayoutV1, NichePointerKind,
@@ -158,9 +158,7 @@ fn empty_struct(
         RepresentationRole::ManagedValue,
         ScanRole::InlineValue,
     );
-    let value =
-        ExactValueLayoutV1::ordinary_struct(identity, false, &[], &foundation, &mut meter())
-            .unwrap();
+    let value = ExactValueLayoutV1::ordinary_struct(identity, false, &[], &foundation).unwrap();
     (value, foundation)
 }
 
@@ -177,13 +175,9 @@ fn managed_value(
         RepresentationRole::ManagedValue,
         ScanRole::InlineValue,
     );
-    let value = ExactValueLayoutV1::qualified_pointer(
-        identity,
-        NichePointerKind::Managed,
-        &foundation,
-        &mut meter(),
-    )
-    .unwrap();
+    let value =
+        ExactValueLayoutV1::qualified_pointer(identity, NichePointerKind::Managed, &foundation)
+            .unwrap();
     (value, foundation)
 }
 
@@ -202,11 +196,10 @@ fn source_instance(
     );
     let instance = match source.declaration_kind() {
         SourceDeclarationKind::Struct => {
-            ExactInstanceLayoutV1::boxed_payload(identity, value, &foundation, &mut meter())
-                .unwrap()
+            ExactInstanceLayoutV1::boxed_payload(identity, value, &foundation).unwrap()
         }
         SourceDeclarationKind::Interface => {
-            ExactInstanceLayoutV1::abstract_reference(identity, &foundation, &mut meter()).unwrap()
+            ExactInstanceLayoutV1::abstract_reference(identity, &foundation).unwrap()
         }
         _ => panic!("fixture source kind"),
     };
@@ -227,8 +220,7 @@ fn boxed_instance(
         RepresentationRole::ManagedObject,
         ScanRole::ManagedObject,
     );
-    let instance =
-        ExactInstanceLayoutV1::boxed_payload(identity, payload, &foundation, &mut meter()).unwrap();
+    let instance = ExactInstanceLayoutV1::boxed_payload(identity, payload, &foundation).unwrap();
     (instance, foundation)
 }
 
@@ -280,8 +272,7 @@ fn helper_shape(
         RepresentationRole::ManagedValue,
         ScanRole::InlineValue,
     );
-    let value = ExactValueLayoutV1::enumeration(identity, &inputs, &value_foundation, &mut meter())
-        .unwrap();
+    let value = ExactValueLayoutV1::enumeration(identity, &inputs, &value_foundation).unwrap();
     let (instance, instance_foundation) = boxed_instance(provider, exact.clone(), &value);
     (
         Shape {

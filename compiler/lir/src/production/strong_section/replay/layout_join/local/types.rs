@@ -1,30 +1,17 @@
 use super::*;
-use scoop_wire::WirePath;
 
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    validate_descriptors(production, section, meter)?;
-    validate_dispatch(production, section, meter)
+    validate_descriptors(production, section)?;
+    validate_dispatch(production, section)
 }
 
 fn validate_descriptors(
     production: &ReplayedStrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    let path = WirePath::root();
-    meter.charge_work(
-        (section.descriptors().records().len() as u64)
-            .saturating_mul(production.type_registrations().registrations().len().max(1) as u64)
-            .saturating_add(
-                (section.descriptors().records().len() as u64)
-                    .saturating_mul(section.layouts().records().len().max(1) as u64),
-            ),
-        &path,
-    )?;
     for record in section.descriptors().records() {
         let exact = record.exact();
         let registration = production
@@ -95,13 +82,7 @@ fn validate_descriptors(
 fn validate_dispatch(
     production: &ReplayedStrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    meter.charge_work(
-        (section.dispatch().records().len() as u64)
-            .saturating_mul(production.type_registrations().registrations().len().max(1) as u64),
-        &WirePath::root(),
-    )?;
     for record in section.dispatch().records() {
         let registration = production
             .type_registrations()

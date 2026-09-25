@@ -5,7 +5,7 @@ use super::{
 use std::fmt;
 
 use scoop_identity::{Effect, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::{
     CanonicalBooleanV1, DefaultAssignTargetV1, DefaultBindingActionV1, DefaultBindingPlanV1,
@@ -283,7 +283,7 @@ impl ExportDefaultBodyV1 {
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>>
     where
@@ -295,7 +295,6 @@ impl ExportDefaultBodyV1 {
                 template,
                 authority,
             },
-            meter,
             path,
         )
     }
@@ -306,13 +305,13 @@ impl DefaultBodyValidationInputV1<'_> {
         self,
         body: &ExportDefaultBodyV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         BodyValidator {
             template: self,
             authority,
-            meter,
+
             path,
             error: std::marker::PhantomData,
         }
@@ -323,7 +322,7 @@ impl DefaultBodyValidationInputV1<'_> {
 struct BodyValidator<'a, A, E> {
     template: DefaultBodyValidationInputV1<'a>,
     authority: &'a mut A,
-    meter: &'a mut BudgetMeter,
+
     path: &'a WirePath,
     error: std::marker::PhantomData<fn() -> E>,
 }
@@ -337,64 +336,56 @@ where
         body: &ExportDefaultBodyV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path)
             .map_err(ExportDefaultBodyOperationTypingValidationError::Resource)?;
-        pending.push(BodyWork {
-            node: BodyNode::Body(body),
-            depth: 1,
-        });
+        pending.push(BodyNode::Body(body));
         while let Some(work) = pending.pop() {
-            if let BodyNode::Expression(expression) = work.node {
-                self.validate_expression(expression, work.depth)?;
+            if let BodyNode::Expression(expression) = work {
+                self.validate_expression(expression)?;
                 continue;
             }
-            self.enter_node(work.depth)?;
-            match work.node {
-                BodyNode::Body(body) => self.process_body(body, work.depth, &mut pending)?,
+
+            match work {
+                BodyNode::Body(body) => self.process_body(body, &mut pending)?,
                 BodyNode::Statement(statement) => {
-                    self.process_statement(statement, work.depth, &mut pending)?;
+                    self.process_statement(statement, &mut pending)?;
                 }
                 BodyNode::Assignment { target, value } => {
-                    self.process_assignment(target, value, work.depth, &mut pending)?;
+                    self.process_assignment(target, value, &mut pending)?;
                 }
                 BodyNode::Pattern { pattern, subject } => {
-                    self.process_pattern(pattern, &subject, work.depth, &mut pending)?;
+                    self.process_pattern(pattern, &subject, &mut pending)?;
                 }
-                BodyNode::When(value) => self.process_when(value, work.depth, &mut pending)?,
+                BodyNode::When(value) => self.process_when(value, &mut pending)?,
                 BodyNode::WhenArm {
                     arm,
                     index,
                     subject,
-                } => self.process_when_arm(arm, index, &subject, work.depth, &mut pending)?,
+                } => self.process_when_arm(arm, index, &subject, &mut pending)?,
                 BodyNode::WhenGuard { guard, arm } => {
-                    self.process_when_guard(guard, arm, work.depth, &mut pending)?;
+                    self.process_when_guard(guard, arm, &mut pending)?;
                 }
                 BodyNode::WhenFallback { fallback, subject } => {
-                    self.process_when_fallback(fallback, &subject, work.depth, &mut pending)?;
+                    self.process_when_fallback(fallback, &subject, &mut pending)?;
                 }
-                BodyNode::Try(value) => self.process_try(value, work.depth, &mut pending)?,
+                BodyNode::Try(value) => self.process_try(value, &mut pending)?,
                 BodyNode::Catch { catch, index } => {
-                    self.process_catch(catch, index, work.depth, &mut pending)?;
+                    self.process_catch(catch, index, &mut pending)?;
                 }
-                BodyNode::For(plan) => self.process_for(plan, work.depth, &mut pending)?,
+                BodyNode::For(plan) => self.process_for(plan, &mut pending)?,
                 BodyNode::BindingPlan(plan) => {
-                    self.process_binding_plan(plan, work.depth, &mut pending)?;
+                    self.process_binding_plan(plan, &mut pending)?;
                 }
                 BodyNode::BindingAction {
                     action,
                     index,
                     actions,
-                } => {
-                    self.process_binding_action(action, index, actions, work.depth, &mut pending)?
-                }
+                } => self.process_binding_action(action, index, actions, &mut pending)?,
                 BodyNode::BindingShape {
                     shape,
                     source,
                     actions,
-                } => {
-                    self.process_binding_shape(shape, source, actions, work.depth, &mut pending)?
-                }
+                } => self.process_binding_shape(shape, source, actions, &mut pending)?,
                 BodyNode::Expression(_) => unreachable!("expressions are dispatched separately"),
             }
         }
@@ -404,8 +395,7 @@ where
     fn process_body<'body>(
         &mut self,
         body: &'body ExportDefaultBodyV1,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         self.expect_type(
             body.value().result_type(),
@@ -415,23 +405,22 @@ where
                 DefaultOperationValueRoleV1::Result,
             ),
         )?;
-        self.push_node(pending, BodyNode::Expression(body.value()), depth)?;
-        self.push_statements(pending, body.statements(), depth)
+        self.push_node(pending, BodyNode::Expression(body.value()))?;
+        self.push_statements(pending, body.statements())
     }
 
     fn validate_expression(
         &mut self,
         expression: &DefaultExpressionV1,
-        depth: u64,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         ExpressionValidator {
             template: self.template,
             authority: self.authority,
-            meter: self.meter,
+
             path: self.path,
             error: std::marker::PhantomData,
         }
-        .run_expression_at(expression, depth)
+        .run_expression_at(expression)
         .map_err(|error| {
             ExportDefaultBodyOperationTypingValidationError::Expression(Box::new(error))
         })
@@ -444,68 +433,24 @@ where
         DefaultBodyOperationTypingSiteV1 { operation, role }
     }
 
-    fn enter_node(
-        &mut self,
-        depth: u64,
-    ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(ExportDefaultBodyOperationTypingValidationError::Resource)?;
-        self.meter
-            .charge_nodes(1, self.path)
-            .map_err(ExportDefaultBodyOperationTypingValidationError::Resource)?;
-        self.charge_work()
-    }
-
-    fn child_depth(
-        &mut self,
-        parent: u64,
-    ) -> Result<u64, ExportDefaultBodyOperationTypingValidationError<E>> {
-        let depth = parent.checked_add(1).ok_or_else(|| {
-            ExportDefaultBodyOperationTypingValidationError::Resource(WireError::new(
-                WireErrorKind::IntegerOutOfRange,
-                self.path.clone(),
-                None,
-            ))
-        })?;
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(ExportDefaultBodyOperationTypingValidationError::Resource)?;
-        self.meter
-            .charge_edges(1, self.path)
-            .map_err(ExportDefaultBodyOperationTypingValidationError::Resource)?;
-        self.charge_work()?;
-        Ok(depth)
-    }
-
-    fn charge_work(&mut self) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultBodyOperationTypingValidationError::Resource)
-    }
-
     fn push_node<'body>(
         &mut self,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
         node: BodyNode<'body>,
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
-        self.meter
-            .try_reserve_collection_slots(pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(pending, 1, self.path)
             .map_err(ExportDefaultBodyOperationTypingValidationError::Resource)?;
-        pending.push(BodyWork { node, depth });
+        pending.push(node);
         Ok(())
     }
 
     fn push_statements<'body>(
         &mut self,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
         statements: &'body [DefaultStatementV1],
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         for statement in statements.iter().rev() {
-            self.push_node(pending, BodyNode::Statement(statement), parent_depth)?;
+            self.push_node(pending, BodyNode::Statement(statement))?;
         }
         Ok(())
     }
@@ -515,9 +460,8 @@ where
         role: DefaultOperationCoreTypeV1,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<SignatureTypeKey, ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         self.authority
-            .canonical_default_operation_type(role, self.meter, self.path)
+            .canonical_default_operation_type(role, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )
@@ -529,10 +473,9 @@ where
         expected: DefaultOperationExpectedTypeShapeV1,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<DefaultCoreApplicationV1, ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         let actual = self
             .authority
-            .classify_default_core_application(value, self.meter, self.path)
+            .classify_default_core_application(value, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )?;
@@ -554,9 +497,8 @@ where
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<DefaultOperationEntityShapeV1, ExportDefaultBodyOperationTypingValidationError<E>>
     {
-        self.charge_work()?;
         self.authority
-            .default_operation_entity_shape(entity, self.meter, self.path)
+            .default_operation_entity_shape(entity, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )
@@ -568,7 +510,6 @@ where
         expected: &SignatureTypeKey,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if actual == expected {
             Ok(())
         } else {
@@ -586,7 +527,6 @@ where
         expected: usize,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if actual == expected {
             Ok(())
         } else {
@@ -604,7 +544,6 @@ where
         expected: CanonicalBooleanV1,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if actual == expected {
             Ok(())
         } else {
@@ -625,10 +564,9 @@ where
         target: &SignatureTypeKey,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         let valid = self
             .authority
-            .default_operation_type_relation(relation, source, target, self.meter, self.path)
+            .default_operation_type_relation(relation, source, target, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )?;
@@ -651,7 +589,7 @@ where
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         if source == target {
-            self.charge_work()
+            Ok(())
         } else {
             self.expect_relation(
                 DefaultOperationTypeRelationV1::ReferenceRetype,
@@ -667,9 +605,8 @@ where
         intrinsic: DefaultOperationIntrinsicV1<'_>,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         self.authority
-            .validate_default_operation_intrinsic(intrinsic, self.meter, self.path)
+            .validate_default_operation_intrinsic(intrinsic, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )
@@ -803,7 +740,6 @@ where
         selector: &scoop_identity::LocalValueSelector,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<TemplateLocalRecordV1, ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         self.template.locals().get(selector).cloned().ok_or(
             ExportDefaultBodyOperationTypingValidationError::Problem {
                 site,
@@ -827,7 +763,6 @@ where
         shape: &super::DefaultCallableOperationShapeV1,
         site: DefaultBodyOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if shape.captures().is_empty() {
             Ok(())
         } else {
@@ -845,11 +780,6 @@ where
     ) -> Result<T, ExportDefaultBodyOperationTypingValidationError<E>> {
         Err(ExportDefaultBodyOperationTypingValidationError::Problem { site, problem })
     }
-}
-
-struct BodyWork<'a> {
-    node: BodyNode<'a>,
-    depth: u64,
 }
 
 enum BodyNode<'a> {

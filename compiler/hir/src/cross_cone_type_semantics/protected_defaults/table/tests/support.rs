@@ -5,9 +5,6 @@ use scoop_identity::{
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 pub(super) fn template(f: &Fixture, position: u32) -> ProtectedDefaultTemplateV1 {
     let owner = CallableTemplateOrigin::Function(f.function);
     let locals = (0..position)
@@ -72,5 +69,5 @@ impl WireEncode for Raw<'_> {
     }
 }
 pub(super) fn decoded(value: &impl WireEncode) -> DecodedCanonicalProtectedDefaultTemplatesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

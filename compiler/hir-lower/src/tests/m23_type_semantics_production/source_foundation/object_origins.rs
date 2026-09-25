@@ -28,13 +28,8 @@ fn object_property_fields_require_their_source_origins_in_foundation_bytes() {
             let coordinate = ConeCoordinate::new("test", "scoop-hir-lower", "0.0.0").unwrap();
             let validate = |foundation: &hir::CanonicalHirFoundation| {
                 let decoded: hir::DecodedHirFoundation =
-                    decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default())
-                        .unwrap();
-                decoded.validate_with_dependency_sources(
-                    &coordinate,
-                    &mut identity_closure(output),
-                    &mut meter(),
-                )
+                    decode_canonical(&encode(foundation).unwrap()).unwrap();
+                decoded.validate_with_dependency_sources(&coordinate, &mut identity_closure(output))
             };
             let restored =
                 hir::OdrFreeHirFoundation::from_validated(validate(&canonical).unwrap()).unwrap();

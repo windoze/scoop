@@ -22,7 +22,7 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
     sources: &CheckedProtectedSourceInterfacesV1<'_>,
     defaults: &CheckedProtectedDefaultTemplatesV1<'_>,
     foundation: &F,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
     if !std::ptr::eq(sources.table(), candidate.protected_source_interfaces())
@@ -31,8 +31,8 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         return Err(TypeSectionExportValidationError::PublicOverlap);
     }
     let public = public.section();
-    nominals::validate(candidate, public, graph, foundation, meter, path)?;
-    sequence(sources.entries().len(), meter, path)?;
+    nominals::validate(candidate, public, graph, foundation, path)?;
+
     for source in sources.entries() {
         callables::validate(
             source.owner(),
@@ -40,13 +40,12 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
             source.payload(),
             public,
             graph,
-            meter,
             path,
         )?;
-        protocols::validate(source, public, graph, meter, path)?;
+        protocols::validate(source, public, graph, path)?;
     }
-    nested::validate(candidate, public, graph, meter, path)?;
-    defaults::validate(defaults, public, meter, &path.clone().field(6))
+    nested::validate(candidate, public, graph, path)?;
+    defaults::validate(defaults, public, &path.clone().field(6))
 }
 
 fn require<E>(matches: bool) -> Result<(), TypeSectionExportValidationError<E>> {
@@ -58,31 +57,22 @@ fn require<E>(matches: bool) -> Result<(), TypeSectionExportValidationError<E>> 
 fn effective_public<E>(
     access: &DeclarationAccessSourceV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<bool, TypeSectionExportValidationError<E>> {
     if access.declared_visibility() != DeclaredVisibilityV1::Public {
         return Ok(false);
     }
-    public_owners(access, graph, meter, path)
+    public_owners(access, graph)
 }
 
 fn public_owners<E>(
     access: &DeclarationAccessSourceV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<bool, TypeSectionExportValidationError<E>> {
-    sequence(access.lexical_owners().len(), meter, path)?;
     for owner in access.lexical_owners() {
-        let domain = graph
-            .replay_nominal_access(*owner, meter)
-            .map_err(|e| match e {
-                AccessDomainSemanticError::Resource(e) => {
-                    TypeSectionExportValidationError::Resource(e)
-                }
-                _ => TypeSectionExportValidationError::PublicOverlap,
-            })?;
+        let domain = graph.replay_nominal_access(*owner).map_err(|e| match e {
+            AccessDomainSemanticError::Resource(e) => TypeSectionExportValidationError::Resource(e),
+            _ => TypeSectionExportValidationError::PublicOverlap,
+        })?;
         if !domain.lookup().domain().is_universal() {
             return Ok(false);
         }

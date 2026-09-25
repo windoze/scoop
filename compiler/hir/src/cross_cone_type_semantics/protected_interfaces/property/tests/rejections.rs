@@ -5,16 +5,13 @@ use crate::cross_cone_type_semantics::protected_interfaces::tests::support::nomi
 fn property_source_rejects_wrong_logical_type_accessor_role_and_source_shape() {
     let (fixture, _, property, _, _) = setup(Some(DeclaredVisibilityV1::Private));
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let mut bad = property.clone();
     bad.payload.source.value_type = SignatureTypeKey::Nominal(nominal(fixture.unit));
     assert!(matches!(
-        bad.validate_source(&graph, &mut fixture.clone(), &mut meter()),
+        bad.validate_source(&graph, &mut fixture.clone()),
         Err(ProtectedPropertySemanticError::ValueType)
     ));
     let mut bad = property.clone();
@@ -30,7 +27,7 @@ fn property_source_rejects_wrong_logical_type_accessor_role_and_source_shape() {
         .unwrap()
         .getter = setter;
     assert!(matches!(
-        bad.validate_source(&graph, &mut changed, &mut meter()),
+        bad.validate_source(&graph, &mut changed),
         Err(ProtectedPropertySemanticError::Accessor)
     ));
     let mut changed = fixture.clone();
@@ -40,13 +37,13 @@ fn property_source_rejects_wrong_logical_type_accessor_role_and_source_shape() {
         .unwrap()
         .setter = None;
     assert!(matches!(
-        property.validate_source(&graph, &mut changed, &mut meter()),
+        property.validate_source(&graph, &mut changed),
         Err(ProtectedPropertySemanticError::SourceShape)
     ));
     let mut bad = property;
     bad.payload.source.value_type = SignatureTypeKey::Binder { depth: 0, index: 0 };
     assert!(matches!(
-        bad.validate_source(&graph, &mut fixture.clone(), &mut meter()),
+        bad.validate_source(&graph, &mut fixture.clone()),
         Err(ProtectedPropertySemanticError::Signature(_))
     ));
 }

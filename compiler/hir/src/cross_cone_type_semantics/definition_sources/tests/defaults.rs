@@ -5,13 +5,7 @@ use crate::cross_cone_interface::expression_test_support::Fixture as ExpressionF
 fn default_literal_local_and_all_reference_origins_are_independent_inline_uses() {
     let fixture = fixture();
     assert_eq!(fixture.expected.len(), 15);
-    assert_eq!(
-        fixture
-            .validate(&fixture.declared(), DecodeLimits::default())
-            .unwrap()
-            .0,
-        15
-    );
+    assert_eq!(fixture.validate(&fixture.declared()).unwrap(), 15);
     // The result literal has no named reference. Its origin still belongs to field 7.
     let result_origin = origin(ConeIdentity::CORE, 5);
     let declared = CanonicalExportDefinitionSourcesV1::try_new(
@@ -25,7 +19,7 @@ fn default_literal_local_and_all_reference_origins_are_independent_inline_uses()
     )
     .unwrap();
     assert!(matches!(
-        fixture.validate(&declared, DecodeLimits::default()),
+        fixture.validate(&declared),
         Err(TypeDefinitionSourceClosureError::Missing { .. })
     ));
 }

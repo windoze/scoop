@@ -33,7 +33,7 @@ fn nested_source_replay_rejects_callable_constructor_and_property_contract_chang
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let mut counts = [0; 3];
             for record in &candidates.records {
@@ -114,8 +114,7 @@ fn nested_source_replay_rejects_callable_constructor_and_property_contract_chang
                         authority.validate_nested_source(
                             &forged,
                             &candidates.protocols,
-                            &fixture.source.entries().representations,
-                            &mut meter()
+                            &fixture.source.entries().representations
                         ),
                         Err(Error::Contract { .. })
                     ));
@@ -132,7 +131,7 @@ fn nested_source_replay_checks_contracts_inside_grandchild_support() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let record = candidates
                 .records
@@ -198,7 +197,6 @@ fn nested_source_replay_checks_contracts_inside_grandchild_support() {
                     &forged,
                     &candidates.protocols,
                     &fixture.source.entries().representations,
-                    &mut meter(),
                 )
                 .unwrap_err()
             else {

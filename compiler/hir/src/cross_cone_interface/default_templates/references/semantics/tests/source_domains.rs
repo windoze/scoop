@@ -4,11 +4,9 @@ use crate::{SourceAccessConstraintV1, SourceAccessDomainV1};
 #[test]
 fn restricted_source_snapshot_cannot_serve_as_a_public_default_witness() {
     let fixture = Fixture::new();
-    let domain = SourceAccessDomainV1::from_constraints(
-        vec![SourceAccessConstraintV1::Cone(ConeIdentity::CORE)],
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
+    let domain = SourceAccessDomainV1::from_constraints(vec![SourceAccessConstraintV1::Cone(
+        ConeIdentity::CORE,
+    )])
     .unwrap();
     for restricted_target in [false, true] {
         let (direct, target) = if restricted_target {

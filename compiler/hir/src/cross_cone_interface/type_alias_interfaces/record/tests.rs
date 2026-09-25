@@ -5,7 +5,7 @@ use scoop_identity::{
     SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
     SourceNominalKind, SourceSpan, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -106,9 +106,7 @@ fn reader_replays_record_invariants_and_exact_map_shape() {
         ))
     ));
 
-    let wrong_shape =
-        decode_canonical::<DecodedTypeAliasInterfaceRecordV1>(&[0xa0], DecodeLimits::default())
-            .unwrap_err();
+    let wrong_shape = decode_canonical::<DecodedTypeAliasInterfaceRecordV1>(&[0xa0]).unwrap_err();
     assert_eq!(
         wrong_shape.kind(),
         &WireErrorKind::InvalidLength {
@@ -220,11 +218,11 @@ impl WireEncode for InvalidRecord {
 }
 
 fn decode_record(value: &TypeAliasInterfaceRecordV1) -> DecodedTypeAliasInterfaceRecordV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn decode_invalid(value: &InvalidRecord) -> DecodedTypeAliasInterfaceRecordV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn site() -> SourceDeclarationSite {

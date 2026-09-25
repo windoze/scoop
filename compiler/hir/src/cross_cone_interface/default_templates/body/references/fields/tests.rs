@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentTypeId, SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite,
     SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -17,13 +17,11 @@ fn enum_member_references_round_trip_with_owner_type() {
     let field = DefaultEnumVariantFieldRefV1::new(fixture.variant_field, binder(1));
 
     let variant_bytes = encode(&variant).unwrap();
-    let decoded: DecodedDefaultEnumVariantRefV1 =
-        decode_canonical(&variant_bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultEnumVariantRefV1 = decode_canonical(&variant_bytes).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(variant));
 
     let field_bytes = encode(&field).unwrap();
-    let decoded: DecodedDefaultEnumVariantFieldRefV1 =
-        decode_canonical(&field_bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultEnumVariantFieldRefV1 = decode_canonical(&field_bytes).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(field));
 }
 
@@ -47,8 +45,7 @@ fn field_reference_variants_have_fixed_tags_and_round_trip() {
     for (expected_tag, expected) in [1, 2, 3].into_iter().zip(cases) {
         let bytes = encode(&expected).unwrap();
         assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultFieldRefV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultFieldRefV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(expected));
     }
 }
@@ -68,8 +65,7 @@ fn field_resolution_distinguishes_owner_type_failures() {
         declaration: fixture.class_field,
         owner_type: SignatureTypeKey::Nominal(fixture.missing_type),
     };
-    let decoded: DecodedDefaultFieldRefV1 =
-        decode_canonical(&encode(&field).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultFieldRefV1 = decode_canonical(&encode(&field).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver()),
@@ -81,18 +77,13 @@ fn field_resolution_distinguishes_owner_type_failures() {
 
 #[test]
 fn field_decoder_rejects_unknown_tags_and_variant_specific_shapes() {
-    let error = decode_canonical::<DecodedDefaultFieldRefV1>(
-        &[0xa2, 0x00, 0x04, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultFieldRefV1>(&[0xa2, 0x00, 0x04, 0x01, 0x00]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 4 });
 
-    let error = decode_canonical::<DecodedDefaultFieldRefV1>(
-        &[0xa3, 0x00, 0x02, 0x01, 0x00, 0x02, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultFieldRefV1>(&[0xa3, 0x00, 0x02, 0x01, 0x00, 0x02, 0x00])
+            .unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

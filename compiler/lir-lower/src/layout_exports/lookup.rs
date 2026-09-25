@@ -8,14 +8,9 @@ pub(super) struct Layouts<'a> {
 }
 
 impl Layouts<'_> {
-    pub fn value(
-        &self,
-        exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-    ) -> Result<&lir::ExactLayoutExportV1, Error> {
+    pub fn value(&self, exact: PersistentExactTypeId) -> Result<&lir::ExactLayoutExportV1, Error> {
         let mut found = None;
         for table in std::iter::once(self.local).chain(self.dependencies.iter().copied()) {
-            meter.charge_work(table.records().len() as u64, &WirePath::root())?;
             if let Some(record) = table.find_exact_role(exact, RepresentationRole::ManagedValue) {
                 if found.is_some() {
                     return Err(Error::AmbiguousLayout(exact));
@@ -31,7 +26,6 @@ pub(super) fn validate_dependencies(
     provider: ConeIdentity,
     target: lir::LirTargetProfile,
     dependencies: LayoutAbiExportDependenciesV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let mut providers = BTreeSet::new();
     for (role, origin, actual) in dependencies
@@ -45,8 +39,6 @@ pub(super) fn validate_dependencies(
                 .map(|table| (1, table.provider(), table.target())),
         )
     {
-        meter.charge_collection_slots(1, &WirePath::root())?;
-        search(providers.len(), meter)?;
         if origin == provider {
             return Err(Error::Provider);
         }
@@ -64,11 +56,9 @@ pub(super) fn callable<'a>(
     target: StrongCallableDefinitionOwner,
     local: &'a lir::CanonicalExactCallableAbiExportsV1,
     dependencies: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<&'a lir::ExactCallableAbiExportV1, Error> {
     let mut found = None;
     for table in std::iter::once(local).chain(dependencies.iter().copied()) {
-        search(table.records().len(), meter)?;
         if let Some(record) = table.get(target) {
             if found.is_some() {
                 return Err(Error::AmbiguousCallable(target));

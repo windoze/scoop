@@ -46,22 +46,13 @@ impl DecodedCanonicalParamFreeMirTypeExportsV1 {
         self,
         identities: &mut ValidatedIdentityGraph,
         foundation: &crate::OdrFreeMirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalParamFreeMirTypeExportsV1, MirTypeBridgeError> {
         let mut records = Vec::new();
         let path = WirePath::root();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &path)
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &path)
             .map_err(MirTypeBridgeError::Resource)?;
         for (index, decoded) in self.records.into_iter().enumerate() {
-            let path = path.clone().index(index as u64);
-            meter
-                .charge_nodes(1, &path)
-                .map_err(MirTypeBridgeError::Resource)?;
-            meter
-                .charge_work(4, &path)
-                .map_err(MirTypeBridgeError::Resource)?;
-            let record = decoded.validate(identities, foundation, meter)?;
+            let record = decoded.validate(identities, foundation)?;
             if records
                 .last()
                 .is_some_and(|previous: &ParamFreeMirTypeExportV1| {
@@ -81,7 +72,7 @@ impl WireEncode for DecodedCanonicalParamFreeMirTypeExportsV1 {
     }
 }
 impl WireDecode for DecodedCanonicalParamFreeMirTypeExportsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedParamFreeMirTypeExportV1::decode(decoder))
             .map(|records| Self { records })

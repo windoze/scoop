@@ -6,7 +6,7 @@ use crate::{
     CanonicalProtectedDeclarationRefsV1, ProtectedDeclarationRefV1,
 };
 use scoop_identity::{PersistentConstructorId, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, Encoder, WireEncode, WirePath};
+use scoop_wire::{Encoder, WireEncode};
 
 mod decode;
 pub use decode::*;
@@ -27,7 +27,6 @@ impl SourceInheritanceInventoryV1 {
         constructors: CanonicalPersistentIdsV1<PersistentConstructorId>,
         protected_members: CanonicalProtectedDeclarationRefsV1,
         slot_schemas: CanonicalInheritanceSlotSchemasV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         let result = Self {
             owner,
@@ -35,7 +34,7 @@ impl SourceInheritanceInventoryV1 {
             protected_members,
             slot_schemas,
         };
-        result.validate(meter, &WirePath::root())?;
+        result.validate()?;
         Ok(result)
     }
 
@@ -52,23 +51,7 @@ impl SourceInheritanceInventoryV1 {
         &self.slot_schemas
     }
 
-    fn validate(
-        &self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), SourceInventoryError> {
-        meter.check_semantic_depth(1, path)?;
-        meter.charge_nodes(1, path)?;
-        for (field, count) in [
-            (2, self.constructors.values().len()),
-            (3, self.protected_members.values().len()),
-            (4, self.slot_schemas.records().len()),
-        ] {
-            let at = path.clone().field(field);
-            meter.check_table_entries(count as u64, &at)?;
-            meter.charge_work(count as u64, &at)?;
-            meter.charge_edges(count as u64, &at)?;
-        }
+    fn validate(&self) -> Result<(), SourceInventoryError> {
         for member in self.protected_members.values() {
             if let ProtectedDeclarationRefV1::Constructor(constructor) = member {
                 return Err(SourceInventoryError::ConstructorInMembers {
@@ -77,13 +60,7 @@ impl SourceInheritanceInventoryV1 {
                 });
             }
         }
-        for (index, schema) in self.slot_schemas.records().iter().enumerate() {
-            let at = path.clone().field(4).index(index as u64);
-            meter.check_semantic_depth(3, &at)?;
-            meter.check_table_entries(schema.slots().len() as u64, &at)?;
-            meter.charge_work(schema.slots().len() as u64, &at)?;
-            meter.charge_edges(schema.slots().len() as u64, &at)?;
-        }
+
         Ok(())
     }
 }
@@ -111,26 +88,22 @@ pub struct CanonicalSourceInheritanceInventoriesV1 {
 impl CanonicalSourceInheritanceInventoriesV1 {
     pub fn try_new(
         mut records: Vec<SourceInheritanceInventoryV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(SourceInheritanceInventoryV1::owner);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
 
     fn from_ordered(
         records: Vec<SourceInheritanceInventoryV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             SourceInheritanceInventoryV1::owner,
             "inheritance owners",
-            meter,
         )?;
-        let mut owners = reserve(records.len(), meter)?;
-        for (index, record) in records.iter().enumerate() {
-            record.validate(meter, &WirePath::root().index(index as u64))?;
+        let mut owners = reserve(records.len())?;
+        for record in records.iter() {
+            record.validate()?;
             owners.push(record.owner());
         }
         let owners = CanonicalPersistentIdsV1::try_new(owners).map_err(reference)?;

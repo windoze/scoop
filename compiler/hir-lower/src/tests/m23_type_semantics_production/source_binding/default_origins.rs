@@ -5,7 +5,6 @@ use scoop_identity::CallableTemplateOrigin;
 
 mod corruption;
 mod dependencies;
-mod resources;
 
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -13,18 +12,11 @@ const SOURCE: &str = include_str!(concat!(
 ));
 
 pub(super) fn templates(output: &hir::DependencyHirOutput) -> Table {
-    let production =
-        hir::NominalDefaultSourceProductionV1::from_dependency_hir(output, &mut meter()).unwrap();
-    let bytes = encode(&production.templates().index_locals(&mut meter()).unwrap()).unwrap();
-    let decoded: hir::DecodedCanonicalDefaultSourceTemplatesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let restored = decoded
-        .resolve(&mut identity_closure(output), &mut meter())
-        .unwrap();
-    assert_eq!(
-        encode(&restored.index_locals(&mut meter()).unwrap()).unwrap(),
-        bytes
-    );
+    let production = hir::NominalDefaultSourceProductionV1::from_dependency_hir(output).unwrap();
+    let bytes = encode(&production.templates().index_locals().unwrap()).unwrap();
+    let decoded: hir::DecodedCanonicalDefaultSourceTemplatesV1 = decode_canonical(&bytes).unwrap();
+    let restored = decoded.resolve(&mut identity_closure(output)).unwrap();
+    assert_eq!(encode(&restored.index_locals().unwrap()).unwrap(), bytes);
     restored
 }
 
@@ -41,7 +33,6 @@ pub(super) fn replace(table: &Table, template: hir::DefaultSourceTemplateV1) -> 
                 }
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -65,7 +56,6 @@ fn rebuild(
         t.value_parameters().clone(),
         t.references().clone(),
         origin,
-        &mut meter(),
     )
     .unwrap()
 }
@@ -84,11 +74,9 @@ fn complete_default_locations_bind_from_artifact_bytes_for_all_source_roles() {
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
-                let bound = parameters
-                    .bind_default_origins(&table, &[], &mut meter())
-                    .unwrap();
+                let bound = parameters.bind_default_origins(&table, &[]).unwrap();
                 assert_eq!(bound.provider(), parameters.provider());
                 assert!(std::ptr::eq(bound.parameters(), &parameters));
                 assert!(std::ptr::eq(bound.templates(), &table));

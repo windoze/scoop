@@ -15,10 +15,6 @@ const COMBINED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-shared-callable-declarations/combined.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn shared_callables_preserve_restricted_signatures_in_ordinary_metadata() {
     for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
@@ -26,9 +22,9 @@ fn shared_callables_preserve_restricted_signatures_in_ordinary_metadata() {
             let export = output.output().export.module();
             let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
             let properties = hir::CanonicalPropertyInterfacesV1::from_export_hir(export).unwrap();
-            let table = Table::from_export_hir_with_budget(export, &mut meter()).unwrap();
+            let table = Table::from_export_hir(export).unwrap();
             table
-                .validate_declaration_inventory(&nominals, &properties, &mut meter())
+                .validate_declaration_inventory(&nominals, &properties)
                 .unwrap();
             assert!(!table.support_records().is_empty());
             for record in table.support_records() {
@@ -39,7 +35,7 @@ fn shared_callables_preserve_restricted_signatures_in_ordinary_metadata() {
             let mut identities =
                 source_inventory::identity_closure_for_foundation(output, foundation);
             let restored: hir::DecodedCanonicalCallableInterfacesV1 =
-                decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(&table).unwrap()).unwrap();
             assert_eq!(restored.resolve(&mut identities).unwrap(), table);
             let rows = render::table(&table, &identities);
             let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
@@ -69,7 +65,7 @@ fn shared_callables_reject_missing_support_and_cross_partition_duplicates() {
                 .collect();
             let missing = Table::with_support(table.records().to_vec(), support).unwrap();
             assert_eq!(
-                missing.validate_declaration_inventory(&nominals, &properties, &mut meter()),
+                missing.validate_declaration_inventory(&nominals, &properties),
                 Err(Error::Missing(removed.declaration()))
             );
         }
@@ -130,7 +126,7 @@ fn shared_callables_reject_wrong_owner_and_unrelated_support() {
         .unwrap();
         let invalid = Table::with_support(table.records().to_vec(), support).unwrap();
         assert_eq!(
-            invalid.validate_declaration_inventory(&nominals, &properties, &mut meter()),
+            invalid.validate_declaration_inventory(&nominals, &properties),
             Err(Error::Owner {
                 declaration,
                 expected: hir::PublicDeclarationOwnerV1::Nominal(expected),
@@ -140,34 +136,9 @@ fn shared_callables_reject_wrong_owner_and_unrelated_support() {
         assert!(matches!(
             table.validate_declaration_inventory(
                 &hir::CanonicalNominalInterfacesV1::try_new(vec![]).unwrap(),
-                &properties,
-                &mut meter()
+                &properties
             ),
             Err(Error::UnexpectedSupport(_))
         ));
     });
-}
-
-#[test]
-fn shared_callable_projection_uses_cumulative_budget_and_canonical_declarations() {
-    let project = |source: &str| {
-        with_hir_source(source, |output, _| {
-            let export = output.output().export.module();
-            let mut measured = meter();
-            let first = Table::from_export_hir_with_budget(export, &mut measured).unwrap();
-            let mut bounded = BudgetMeter::new(DecodeLimits {
-                validation_work_units: measured.usage().validation_work_units,
-                ..DecodeLimits::default()
-            });
-            Table::from_export_hir_with_budget(export, &mut bounded).unwrap();
-            assert!(Table::from_export_hir_with_budget(export, &mut bounded).is_err());
-            encode(&first).unwrap()
-        })
-    };
-    let prefix = "private class Unrelated {}\n";
-    let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
-    assert_eq!(
-        project(&format!("{padding}{STANDALONE}")),
-        project(&format!("{prefix}{STANDALONE}"))
-    );
 }

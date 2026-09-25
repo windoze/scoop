@@ -12,21 +12,16 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         path: &WirePath,
     ) -> Result<SourceAccessDomainV1, Error> {
         let mut constraints = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut constraints, 2, path)
-            .map_err(Error::Resource)?;
+        scoop_wire::allocation::try_reserve(&mut constraints, 2, path).map_err(Error::Resource)?;
         self.visibility_declared(&mut constraints, key, subject, visibility)?;
-        SourceAccessDomainV1::from_constraints(constraints, self.meter, path)
-            .map_err(Error::Resource)
+        SourceAccessDomainV1::from_constraints(constraints).map_err(Error::Resource)
     }
 
     pub(in crate::cross_cone_hir_authority) fn source_declaration_access_domain(
         &mut self,
         subject: Subject,
         key: &SourceDeclarationKey,
-        path: &WirePath,
     ) -> Result<SourceAccessDomainV1, Error> {
-        self.visibility_work(self.dependencies.len() as u64 + 1)?;
         let interface = self.provider_interface(key.origin())?;
         let visibility = match subject {
             Subject::Type(_) | Subject::GenericType(_) => {
@@ -40,15 +35,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                         });
                     }
                 };
-                self.visibility_work(
-                    u64::from(
-                        interface
-                            .nominal_interfaces()
-                            .declaration_count()
-                            .max(1)
-                            .ilog2(),
-                    ) + 1,
-                )?;
+
                 interface
                     .nominal_interfaces()
                     .declaration(declaration)
@@ -70,15 +57,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                         });
                     }
                 };
-                self.visibility_work(
-                    u64::from(
-                        interface
-                            .property_interfaces()
-                            .declaration_count()
-                            .max(1)
-                            .ilog2(),
-                    ) + 1,
-                )?;
+
                 interface
                     .property_interfaces()
                     .declaration(declaration)
@@ -101,15 +80,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                         });
                     }
                 };
-                self.visibility_work(
-                    u64::from(
-                        interface
-                            .callable_interfaces()
-                            .declaration_count()
-                            .max(1)
-                            .ilog2(),
-                    ) + 1,
-                )?;
+
                 interface
                     .callable_interfaces()
                     .declaration(declaration)
@@ -127,7 +98,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             }
         };
         let constraints = self.visibility_domain(key, subject, visibility)?;
-        SourceAccessDomainV1::from_constraints(constraints, self.meter, path)
-            .map_err(Error::Resource)
+        SourceAccessDomainV1::from_constraints(constraints).map_err(Error::Resource)
     }
 }

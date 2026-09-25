@@ -11,16 +11,15 @@ pub(super) fn validate(
     provider: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
     template: &DefaultSourceTemplateV1,
     references: &DefaultSourceReferenceClosureV1<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<DefaultSourceAccessDomainV1, Error> {
     let owner = template.definition_root().declaration();
-    let expected = source_domain(provider, owner, meter, path)?;
-    let expected_bytes = scoop_wire::encoded_length(&expected).map_err(DomainError::Encoding)?;
+    let expected = source_domain(provider, owner, path)?;
+
     for occurrence in references.occurrences() {
         let actual = occurrence.source().witness().direct_call_domain();
-        let actual_bytes = scoop_wire::encoded_length(actual).map_err(DomainError::Encoding)?;
-        meter.charge_work(expected_bytes.saturating_add(actual_bytes), path)?;
+
         if actual != &expected {
             return Err(DomainError::Witness {
                 kind: occurrence.source().kind(),
@@ -35,33 +34,24 @@ pub(super) fn validate(
 pub(super) fn source_domain(
     provider: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
     owner: CallableTemplateOrigin,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<DefaultSourceAccessDomainV1, Error> {
     let foundation = provider.members().nominals.foundation;
     let access = match owner {
-        CallableTemplateOrigin::Constructor(id) => {
-            sources::query(provider.constructors().table().records().len(), meter, path)?;
-            provider
-                .constructors()
-                .constructor_source(id)?
-                .declaration_access()
-        }
+        CallableTemplateOrigin::Constructor(id) => provider
+            .constructors()
+            .constructor_source(id)?
+            .declaration_access(),
         CallableTemplateOrigin::Function(_) | CallableTemplateOrigin::GenericFunction(_) => {
-            sources::query(provider.members().callables().records().len(), meter, path)?;
             provider
                 .members()
                 .callable_source(owner)?
                 .declaration_access()
         }
         CallableTemplateOrigin::VariantConstructor(_) => {
-            sources::query(provider.members().callables().records().len(), meter, path)?;
             let nominal = provider.members().callable_source(owner)?.payload().owner();
-            sources::query(
-                foundation.source().entries().sources.records().len(),
-                meter,
-                path,
-            )?;
+
             foundation
                 .nominal_source(nominal)
                 .map_err(DomainError::Foundation)?
@@ -69,7 +59,7 @@ pub(super) fn source_domain(
         }
         CallableTemplateOrigin::Accessor(_) => return Err(Error::Declaration(owner)),
     };
-    lookup_domain(access, foundation, meter, path)
+    lookup_domain(access, foundation, path)
         .map_err(DomainError::from)
         .map_err(Error::from)
 }

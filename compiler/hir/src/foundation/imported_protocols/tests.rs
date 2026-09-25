@@ -1,5 +1,5 @@
 use scoop_identity::*;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::core_protocol_test_support::standalone_at;
@@ -98,8 +98,7 @@ fn protocol_import_rejects_same_named_declarations_from_another_provider() {
 }
 
 fn import(origin: ConeIdentity, foundation: &CanonicalHirFoundation) -> ImportedHirFoundation {
-    let decoded: DecodedHirFoundation =
-        decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedHirFoundation = decode_canonical(&encode(foundation).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     let mut providers = vec![
         ConeIdentity::CORE,

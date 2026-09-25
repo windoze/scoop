@@ -122,7 +122,7 @@ impl WireEncode for DecodedCanonicalTypeAliasInterfacesV1 {
 }
 
 impl WireDecode for DecodedCanonicalTypeAliasInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedTypeAliasInterfaceRecordV1::decode(decoder))
             .map(|records| Self { records })

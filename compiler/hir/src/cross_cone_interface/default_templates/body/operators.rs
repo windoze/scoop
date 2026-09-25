@@ -25,7 +25,7 @@ macro_rules! wire_leaf_enum {
         }
 
         impl WireDecode for $name {
-            fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+            fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
                 match decoder.unsigned()? {
                     $($tag => Ok(Self::$variant),)+
                     tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
@@ -253,7 +253,7 @@ bidirectional_mapping!(DefaultBinaryOperatorV1, crate::BinOp, {
 
 bidirectional_mapping!(DefaultUnaryOperatorV1, crate::UnOp, { Not => Not });
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

@@ -20,12 +20,10 @@ fn shared_call_receiver_demands_its_original_static_type_before_argument_adaptat
     let expected = selected(uses);
     let actual = consumer.uses(&dependencies).unwrap();
     assert_eq!(actual, expected);
-    consumer
-        .validate(&actual, &dependencies, &mut meter())
-        .unwrap();
+    consumer.validate(&actual, &dependencies).unwrap();
     let missing = selected(signature_uses(provider.provider(), &[base]));
     assert!(matches!(
-        consumer.validate(&missing, &dependencies, &mut meter()),
+        consumer.validate(&missing, &dependencies),
         Err(Error::TypeUseInventory)
     ));
     snapshot("call-receiver-static", &actual);

@@ -6,13 +6,13 @@ use hir::{
 
 pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
     checked
-        .with_inheritance_graph(&[], &mut meter(), |graph, meter| {
+        .with_inheritance_graph(&[], |graph| {
             for record in checked.section().inheritance().records() {
                 assert_eq!(graph.get(record.owner()).unwrap().edges(), record.edges());
             }
             for declaration in checked.metadata().public.nominal_interfaces().all_records() {
                 graph
-                    .replay_nominal_access(declaration.declaration(), meter)
+                    .replay_nominal_access(declaration.declaration())
                     .unwrap();
             }
         })
@@ -75,26 +75,6 @@ pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
         reject(checked, domains),
         Error::InheritanceDomains(_)
     ));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            owned_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(
-            checked
-                .with_inheritance_graph(&[], &mut BudgetMeter::new(limits), |_, _| ())
-                .is_err()
-        );
-    }
 }
 
 fn reject(
@@ -113,9 +93,9 @@ fn reject(
         source.selected().clone(),
     );
     let foundation = candidate
-        .validate_shared_foundation(checked.metadata(), &[], &mut meter())
+        .validate_shared_foundation(checked.metadata(), &[])
         .unwrap();
     foundation
-        .with_inheritance_graph(&[], &mut meter(), |_, _| ())
+        .with_inheritance_graph(&[], |_| ())
         .expect_err("invalid inheritance must fail against shared source declarations")
 }

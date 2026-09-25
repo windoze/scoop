@@ -13,7 +13,7 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -384,7 +384,7 @@ fn ordered(fixture: &Fixture) -> (&ExportConstValueV1, &ExportConstValueV1) {
 }
 
 fn decode_table(value: &impl WireEncode) -> DecodedCanonicalExportConstValuesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn property_interface(

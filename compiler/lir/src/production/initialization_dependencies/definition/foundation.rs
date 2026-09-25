@@ -8,7 +8,6 @@ use scoop_identity::{
     DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanKey, PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod error;
 pub use error::InitializationDefinitionResolutionErrorV2;
@@ -24,18 +23,15 @@ impl StrongInitializationUnitDefinitionRefV2 {
         foundation: &OdrFreeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let path = WirePath::root();
-        meter.charge_work(identities.initialization_units().len() as u64, &path)?;
         let identity = identities
             .initialization_units()
             .iter()
             .find(|identity| identity.semantic_id() == unit)
             .ok_or(Error::MissingRegistrationIdentity(unit))?;
-        let descriptor = artifact(unit, ArtifactRole::Descriptor, foundation, meter)?;
-        let cell = artifact(unit, ArtifactRole::Cell, foundation, meter)?;
-        let registration = artifact(unit, ArtifactRole::Registration, foundation, meter)?;
+        let descriptor = artifact(unit, ArtifactRole::Descriptor, foundation)?;
+        let cell = artifact(unit, ArtifactRole::Cell, foundation)?;
+        let registration = artifact(unit, ArtifactRole::Registration, foundation)?;
         if identity.definition_plan() != registration.plan() {
             return Err(Error::RegistrationDefinition {
                 expected: registration.plan(),
@@ -43,7 +39,7 @@ impl StrongInitializationUnitDefinitionRefV2 {
             });
         }
         let expected = DigestNodeKey::strong_registration(registration.plan());
-        meter.charge_work(digests.nodes().len() as u64, &path)?;
+
         let fingerprint = digests
             .nodes()
             .iter()
@@ -94,17 +90,14 @@ fn artifact(
     unit: PersistentInitializationUnitId,
     role: ArtifactRole,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongInitializationArtifactRefV2, Error> {
-    let path = WirePath::root();
-    meter.charge_work(1, &path)?;
     let key = ObjectDefinitionPlanKey::strong(
         foundation.producer(),
         StrongDefinitionEntity::initialization_unit(unit),
         role.definition(),
     )
     .map_err(Error::DefinitionKey)?;
-    meter.charge_work(foundation.definition_plans().len() as u64, &path)?;
+
     let definition = foundation
         .definition_plans()
         .iter()
@@ -112,11 +105,11 @@ fn artifact(
         .ok_or(Error::MissingDefinition(key))?;
     let symbol = PersistentSymbolRequest::new(role.symbol(unit), LinkageClass::ConeStrong)
         .map_err(Error::Symbol)?;
-    meter.charge_work(foundation.symbol_requests().len() as u64, &path)?;
+
     if !foundation.contains_symbol_request(symbol) {
         return Err(Error::MissingSymbol(symbol));
     }
-    meter.charge_work(foundation.definition_atoms().len() as u64, &path)?;
+
     let mut primary = foundation.definition_atoms().iter().filter(|record| {
         record.key().plan() == definition.id() && record.key().role() == DefinitionAtomRole::Primary
     });
@@ -124,7 +117,7 @@ fn artifact(
         (Some(record), None) => record.id(),
         _ => return Err(Error::PrimaryAtoms(definition.id())),
     };
-    meter.charge_work(foundation.definition_atoms().len() as u64, &path)?;
+
     let mut associated = foundation.definition_atoms().iter().filter(|record| {
         record.key().plan() == definition.id() && record.key().role() != DefinitionAtomRole::Primary
     });

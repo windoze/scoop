@@ -2,7 +2,6 @@
 
 use crate::*;
 use scoop_identity::{ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey};
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod errors;
 mod inheritance;
@@ -20,21 +19,12 @@ pub struct BoundInheritanceSlotSourcesV1<'s, 'a, 'f> {
 impl<'a, 'f> BoundInheritanceDispatchSourcesV1<'a, 'f> {
     pub fn bind_slot_sources<'s>(
         &'s self,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundInheritanceSlotSourcesV1<'s, 'a, 'f>, Error> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        meter.charge_work(2, &path)?;
         let nominal = scoop_identity::CoreBuiltinNominal::Unit
             .identity_record()
             .id();
         let expected = ExactTypeKey::Nominal(nominal);
-        meter.charge_sha256(
-            scoop_wire::encoded_length(&expected)
-                .map_err(|error| Error::Identity(error.to_string()))?,
-            &path,
-        )?;
+
         let unit = PersistentExactTypeId::from_key(&expected)
             .map_err(|error| Error::Identity(error.to_string()))?;
         let entries = self.foundation.source().entries();
@@ -42,7 +32,6 @@ impl<'a, 'f> BoundInheritanceDispatchSourcesV1<'a, 'f> {
             entries.local_inheritance_edges.records().iter(),
             entries.source_roots.values().iter().copied(),
             self.foundation,
-            meter,
         )
         .map_err(Error::from_graph)?;
         Ok(BoundInheritanceSlotSourcesV1 {
@@ -62,11 +51,10 @@ impl BoundInheritanceSlotSourcesV1<'_, '_, '_> {
         &self,
         owner: PersistentExactTypeId,
         contract: &'c InheritanceSlotContractV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedInheritanceSourceSlotContractV1<'c>, InheritanceInterfaceSemanticError<Error>>
     {
         self.graph
-            .validate_slot_source_contract(owner, contract, self, meter)
+            .validate_slot_source_contract(owner, contract, self)
     }
 }
 

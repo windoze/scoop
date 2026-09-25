@@ -4,10 +4,6 @@ use super::*;
 pub enum LayoutLinkObjectContentsError {
     CompileView,
     Resource(scoop_wire::WireError),
-    ObjectEnvelope {
-        member: crate::SlibMemberId,
-        source: ObjectEnvelopeValidationError,
-    },
     CBridgeProduction(lir::CBridgeProductionValidationError),
     CBridgeEnvelopes(CBridgeProductionEnvelopeValidationError),
     DigestInputs(LinkDigestPatchInputValidationError),

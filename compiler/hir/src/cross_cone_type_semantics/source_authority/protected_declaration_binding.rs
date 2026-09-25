@@ -1,8 +1,8 @@
 //! Complete protected source replay against one artifact's bound declarations.
-use super::nominal_nested_binding::{compare, query};
+use super::nominal_nested_binding::compare;
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod errors;
@@ -57,9 +57,8 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         table: &'c CanonicalProtectedDeclarationInterfacesV1,
         protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
         representations: &'c CanonicalNominalRepresentationSupportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundProtectedDeclarationSourcesV1<'c, 'p, 's, 'a, 'f>, Error> {
-        inventory::validate(self, table, meter)?;
+        inventory::validate(self, table)?;
         let mut checked = BoundProtectedDeclarationSourcesV1 {
             members: self.members(),
             constructors: self.constructors(),
@@ -68,39 +67,27 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
             representations,
             protocols: BTreeMap::new(),
         };
-        replay::validate(self, protocols, &mut checked, meter)?;
+        replay::validate(self, protocols, &mut checked)?;
         Ok(checked)
     }
 }
 fn retain<'c>(
     checked: &mut BoundProtectedDeclarationSourcesV1<'c, '_, '_, '_, '_>,
     protocol: CheckedProtectedSourceProtocolV1<'c>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let owner = protocol.record().owner();
-    query(checked.protocols.len(), meter)?;
-    if !checked.protocols.contains_key(&owner) {
-        let path = WirePath::root();
-        meter.check_table_entries(checked.protocols.len() as u64 + 1, &path)?;
-        meter.charge_collection_slots(1, &path)?;
-        checked.protocols.insert(owner, protocol);
-    }
+
+    checked.protocols.entry(owner).or_insert(protocol);
     Ok(())
 }
 
 pub(super) fn required_declarations(
     authority: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalProtectedDeclarationRefsV1, Error> {
-    let required = inventory::collect(authority, meter)?;
+    let required = inventory::collect(authority)?;
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, required.len(), &WirePath::root())?;
-    meter.charge_work(
-        (required.len() as u64)
-            .saturating_mul(u64::from(required.len().max(1).ilog2()) + 1)
-            .saturating_mul(128),
-        &WirePath::root(),
-    )?;
+    scoop_wire::allocation::try_reserve(&mut values, required.len(), &WirePath::root())?;
+
     values.extend(required);
     CanonicalProtectedDeclarationRefsV1::try_new(values).map_err(|_| Error::Inventory)
 }

@@ -18,9 +18,8 @@ pub(in crate::production) struct SharedSourceRoots {
 impl SharedSourceRoots {
     pub(in crate::production) fn from_export_hir(
         export: &ExportHir,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, NominalInterfaceBuildError> {
-        Self::collect(export, meter).map_err(|error| match error {
+        Self::collect(export).map_err(|error| match error {
             Error::SourceInventory(SourceInventoryError::Resource(error)) => {
                 NominalInterfaceBuildError::Resource(error)
             }
@@ -28,15 +27,14 @@ impl SharedSourceRoots {
         })
     }
 
-    fn collect(export: &ExportHir, meter: &mut BudgetMeter) -> Result<Self, Error> {
-        let index = super::Index::new(export, meter)?;
-        let source_index = SourceIndex::new(export, meter)?;
+    fn collect(export: &ExportHir) -> Result<Self, Error> {
+        let index = super::Index::new(export)?;
+        let source_index = SourceIndex::new(export)?;
         let mut nominals = Roots {
             complete_children: true,
             required: BTreeMap::new(),
             pending: Vec::new(),
             field_types: BTreeSet::new(),
-            meter,
         };
         let mut sources = SourceRoots::default();
         for local in super::index::public(export) {
@@ -50,12 +48,11 @@ impl SharedSourceRoots {
         }
         loop {
             while let Some(owner) = nominals.expand_next(export, &index)? {
-                work(nominals.meter, source_index.members.len())?;
                 if let Some(members) = source_index.members.get(&owner) {
                     for member in members {
                         match *member {
                             SourceWork::Callable(id) => {
-                                let protocol = source_index.protocol(id, nominals.meter)?;
+                                let protocol = source_index.protocol(id)?;
                                 sources.callable(export, protocol.owner, &mut nominals)?;
                             }
                             SourceWork::Property(id) => {
@@ -69,7 +66,7 @@ impl SharedSourceRoots {
                 match next {
                     SourceWork::Callable(id) => sources.protocol(
                         export,
-                        source_index.protocol(id, nominals.meter)?,
+                        source_index.protocol(id)?,
                         &index,
                         &mut nominals,
                     )?,
@@ -83,13 +80,15 @@ impl SharedSourceRoots {
             }
         }
         let mut required = Vec::new();
-        nominals
-            .meter
-            .try_reserve_collection_slots(&mut required, nominals.required.len(), &WirePath::root())
-            .map_err(resource)?;
+        scoop_wire::allocation::try_reserve(
+            &mut required,
+            nominals.required.len(),
+            &WirePath::root(),
+        )
+        .map_err(resource)?;
         required.extend(nominals.required.into_keys());
         Ok(Self {
-            nominals: CanonicalSourceNominalIdsV1::try_new(required, nominals.meter)
+            nominals: CanonicalSourceNominalIdsV1::try_new(required)
                 .map_err(Error::SourceInventory)?,
             top_level_callables: sources.top_level_callables,
             top_level_properties: sources.top_level_properties,
@@ -118,33 +117,28 @@ impl SourceRoots {
         &mut self,
         export: &ExportHir,
         owner: ExportParameterOwner,
-        roots: &mut Roots<'_>,
+        roots: &mut Roots,
     ) -> Result<(), Error> {
         let Some((id, scope)) = identity::callable(export, owner)? else {
             return Ok(());
         };
-        if scope.provider != export.cone || !insert(&mut self.callables, id, roots.meter)? {
+        if scope.provider != export.cone || !insert(&mut self.callables, id)? {
             return Ok(());
         }
         match scope.owner {
             PublicDeclarationOwnerV1::Nominal(owner) => roots.require(owner, true)?,
             owner @ (PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension) => {
-                work(roots.meter, self.top_level_callables.len())?;
-                roots
-                    .meter
-                    .charge_collection_slots(1, &WirePath::root())
-                    .map_err(resource)?;
                 self.top_level_callables.insert(id, owner);
             }
         }
-        push(&mut self.pending, SourceWork::Callable(id), roots.meter)
+        push(&mut self.pending, SourceWork::Callable(id))
     }
 
     fn function(
         &mut self,
         export: &ExportHir,
         function: FunctionId,
-        roots: &mut Roots<'_>,
+        roots: &mut Roots,
     ) -> Result<(), Error> {
         match export
             .function_identities
@@ -177,7 +171,7 @@ impl SourceRoots {
         &mut self,
         export: &ExportHir,
         property: PropertyId,
-        roots: &mut Roots<'_>,
+        roots: &mut Roots,
     ) -> Result<(), Error> {
         let identity = export
             .property_identities
@@ -185,38 +179,24 @@ impl SourceRoots {
             .ok_or_else(|| invalid("default property has no source identity"))?;
         let scope = identity::scope(identity.declaration())?;
         let id = identity.property_owner();
-        if scope.provider != export.cone || !insert(&mut self.properties, id, roots.meter)? {
+        if scope.provider != export.cone || !insert(&mut self.properties, id)? {
             return Ok(());
         }
         match scope.owner {
             PublicDeclarationOwnerV1::Nominal(owner) => roots.require(owner, true)?,
             PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => {
-                insert(&mut self.top_level_properties, id, roots.meter)?;
+                insert(&mut self.top_level_properties, id)?;
             }
         }
-        push(
-            &mut self.pending,
-            SourceWork::Property(property),
-            roots.meter,
-        )
+        push(&mut self.pending, SourceWork::Property(property))
     }
 }
 
-fn insert<T: Copy + Ord>(
-    set: &mut BTreeSet<T>,
-    value: T,
-    meter: &mut BudgetMeter,
-) -> Result<bool, Error> {
-    work(meter, set.len())?;
+fn insert<T: Copy + Ord>(set: &mut BTreeSet<T>, value: T) -> Result<bool, Error> {
     if set.contains(&value) {
         return Ok(false);
     }
-    meter
-        .check_table_entries(set.len() as u64 + 1, &WirePath::root())
-        .map_err(resource)?;
-    meter
-        .charge_collection_slots(1, &WirePath::root())
-        .map_err(resource)?;
+
     set.insert(value);
     Ok(true)
 }

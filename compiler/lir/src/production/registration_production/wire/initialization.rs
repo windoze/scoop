@@ -18,7 +18,7 @@ impl WireEncode for DecodedStrongInitializationSchedulePlanV1 {
 }
 
 impl WireDecode for DecodedStrongInitializationSchedulePlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let length = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -60,7 +60,7 @@ impl WireEncode for DecodedStrongInitializationStaticStorageRefPlanV1 {
 }
 
 impl WireDecode for DecodedStrongInitializationStaticStorageRefPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             storage: decoder.field(1, DecodedPersistentId::decode)?,
@@ -102,7 +102,7 @@ impl WireEncode for DecodedStrongInitializationCallableRefPlanV1 {
 }
 
 impl WireDecode for DecodedStrongInitializationCallableRefPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(9)?;
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,
@@ -145,7 +145,7 @@ impl WireEncode for DecodedStrongInitializationRegistrationSchedulePlanV1 {
 }
 
 impl WireDecode for DecodedStrongInitializationRegistrationSchedulePlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let length = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -221,7 +221,7 @@ impl WireEncode for DecodedStrongInitializationUnitRegistrationPlanV1 {
 }
 
 impl WireDecode for DecodedStrongInitializationUnitRegistrationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(28)?;
         Ok(Self {
             semantic: DecodedStrongInitializationUnitSemanticProjectionV1::decode_fields(decoder)?,

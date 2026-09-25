@@ -47,9 +47,6 @@ impl SourceNativeSymbol {
         if value.is_empty() {
             return Err(SourceNativeSymbolError::Empty);
         }
-        if value.len() > 4_095 {
-            return Err(SourceNativeSymbolError::TooLong);
-        }
         if std::str::from_utf8(value).is_err() {
             return Err(SourceNativeSymbolError::InvalidUtf8);
         }
@@ -100,7 +97,6 @@ impl std::error::Error for CanonicalNativeNameError {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceNativeSymbolError {
     Empty,
-    TooLong,
     InvalidUtf8,
     Nul,
 }
@@ -109,7 +105,6 @@ impl fmt::Display for SourceNativeSymbolError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Empty => "source native symbol must not be empty",
-            Self::TooLong => "source native symbol exceeds 4095 UTF-8 bytes",
             Self::InvalidUtf8 => "source native symbol must be valid UTF-8",
             Self::Nul => "source native symbol must not contain NUL",
         })

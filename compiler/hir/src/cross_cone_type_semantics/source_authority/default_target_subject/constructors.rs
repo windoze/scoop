@@ -7,15 +7,9 @@ impl DefaultTargetIdentityQueriesV1<'_> {
     pub fn default_constructor_access_subject(
         &self,
         target: &DefaultConstructorRefV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Subject, Error> {
-        let mut query = Query {
-            foundation: self,
-            meter,
-            path: WirePath::root(),
-        };
-        query.meter.check_semantic_depth(1, &query.path)?;
-        query.meter.charge_nodes(1, &query.path)?;
+        let mut query = Query { foundation: self };
+
         let (subject, owner) = match target {
             DefaultConstructorRefV1::Struct { declaration, .. } => {
                 query.constructor(*declaration, SourceDeclarationKind::Struct)?
@@ -43,12 +37,11 @@ impl DefaultTargetIdentityQueriesV1<'_> {
         Ok(subject)
     }
 }
-impl Query<'_, '_, '_> {
+impl Query<'_, '_> {
     fn adapter(
         &mut self,
         id: PersistentGeneratedCallableId,
     ) -> Result<PersistentConstructorId, Error> {
-        self.meter.charge_edges(1, &self.path)?;
         let canonical = self.foundation.foundation.as_canonical();
         let key = self.key(
             canonical.type_source_generated_callable_records(),
@@ -67,7 +60,6 @@ impl Query<'_, '_, '_> {
         id: PersistentConstructorId,
         kind: SourceDeclarationKind,
     ) -> Result<(Subject, SourceNominalId), Error> {
-        self.meter.charge_edges(1, &self.path)?;
         let subject = Subject::Constructor(id);
         let key = self.declaration(subject)?;
         let owner = match key.owners().owners().last() {

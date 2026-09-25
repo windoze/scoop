@@ -18,11 +18,9 @@ impl Query<'_, '_> {
             .iter()
             .filter(|candidate| candidate.kind == PublicNominalKindV1::Class)
             .min_by_key(|candidate| candidate.distance);
-        self.authority
-            .meter
-            .charge_work(inherited.len() as u64 + 1, path)?;
-        let physical = self.physical_slot(source, nearest_class, path)?;
-        self.validate_physical_slot(source, &physical, path)?;
+
+        let physical = self.physical_slot(source, nearest_class)?;
+        self.validate_physical_slot(source, &physical)?;
         if inherited.is_empty() {
             return Ok(match physical {
                 PhysicalSlot::Absent => None,
@@ -44,7 +42,7 @@ impl Query<'_, '_> {
                 source.declaration.declared_visibility(),
                 path,
             )?;
-            self.share_domain(domain, path)?
+            std::rc::Rc::new(domain)
         };
         for candidate in inherited {
             let declaration = candidate.source.declaration.declaration();
@@ -53,10 +51,7 @@ impl Query<'_, '_> {
                 .slot
                 .as_ref()
                 .ok_or(Error::FinalOverride(declaration))?;
-            if !self
-                .authority
-                .source_domain_is_subset(required, &domain, path)?
-            {
+            if !self.authority.source_domain_is_subset(required, &domain)? {
                 return Err(Error::SlotCoverage(declaration));
             }
         }
@@ -67,7 +62,6 @@ impl Query<'_, '_> {
         &mut self,
         source: Source<'_>,
         nearest_class: Option<&Inherited<'_>>,
-        path: &WirePath,
     ) -> Result<PhysicalSlot, Error> {
         let declaration = source.declaration;
         let (CallableTemplateOrigin::Function(function), PublicDeclarationOwnerV1::Nominal(owner)) =
@@ -120,7 +114,7 @@ impl Query<'_, '_> {
                 PhysicalSlot::Absent
             }
         };
-        self.authority.meter.charge_work(1, path)?;
+
         Ok(slot)
     }
 
@@ -128,22 +122,19 @@ impl Query<'_, '_> {
         &mut self,
         source: Source<'_>,
         expected: &PhysicalSlot,
-        path: &WirePath,
     ) -> Result<(), Error> {
         let slots = source.declaration.slot_relations().values();
         match (slots, expected) {
             ([], PhysicalSlot::Absent) => Ok(()),
             ([actual], PhysicalSlot::Own(expected)) => {
-                if self.slot_key(*actual, path)? == *expected {
+                if self.slot_key(*actual)? == *expected {
                     Ok(())
                 } else {
                     Err(Error::PhysicalSlot)
                 }
             }
             ([actual], PhysicalSlot::Inherited(expected)) if actual == expected => {
-                if self.slot_key(*actual, path)?.role()
-                    == scoop_identity::DispatchRole::VirtualMethod
-                {
+                if self.slot_key(*actual)?.role() == scoop_identity::DispatchRole::VirtualMethod {
                     Ok(())
                 } else {
                     Err(Error::PhysicalSlot)

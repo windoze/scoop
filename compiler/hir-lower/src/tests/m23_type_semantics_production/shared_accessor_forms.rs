@@ -19,7 +19,7 @@ fn shared_accessor_forms_preserve_actual_source_bodies_storage_constants_and_slo
             let mut identities =
                 source_inventory::identity_closure_for_foundation(output, foundation);
             let decoded: hir::DecodedCanonicalPropertyInterfacesV1 =
-                decode_canonical(&encode(properties).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(properties).unwrap()).unwrap();
             let restored = decoded.resolve(&mut identities).unwrap();
             assert_eq!(&restored, properties);
             restored

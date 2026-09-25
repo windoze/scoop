@@ -32,12 +32,6 @@ pub(super) fn check(
                         encode(original.layout_link_closure_wire()).unwrap(),
                     ]
                 );
-                let before = original.decode_usage();
-                let after = current.decode_usage();
-                assert!(after.validation_work_units > before.validation_work_units);
-                assert!(after.owned_bytes > before.owned_bytes);
-                assert!(after.decoded_nodes >= before.decoded_nodes);
-                assert!(after.decoded_edges >= before.decoded_edges);
             }
             let current = physical.artifact(layout.provider()).unwrap();
             assert_eq!(current.lir_exports(), layout.exports());

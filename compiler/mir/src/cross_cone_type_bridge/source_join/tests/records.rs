@@ -5,12 +5,7 @@ fn independent_source_inventory_and_complete_records_produce_a_local_join() {
     let source = Source::new(ConeIdentity::SINGLE_FILE);
     let exports = source.exports();
     let proof = exports
-        .validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut meter(),
-        )
+        .validate_sources(source.provider, &source.fixture.graph, &source)
         .unwrap();
     assert_eq!(proof.provider(), source.provider);
     assert!(std::ptr::eq(proof.exports(), &exports));
@@ -23,24 +18,14 @@ fn source_inventory_is_not_inferred_from_the_transport_table() {
     let exports = source.exports();
     source.required_types.pop();
     assert!(matches!(
-        exports.validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut meter()
-        ),
+        exports.validate_sources(source.provider, &source.fixture.graph, &source),
         Err(MirTypeBridgeSourceJoinError::Inventory(
             MirTypeBridgeSourceInventoryV1::Types
         ))
     ));
     source.required_types.push(source.required_types[0]);
     assert!(matches!(
-        exports.validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut meter()
-        ),
+        exports.validate_sources(source.provider, &source.fixture.graph, &source),
         Err(MirTypeBridgeSourceJoinError::NonCanonicalInventory(
             MirTypeBridgeSourceInventoryV1::Types
         ))
@@ -57,12 +42,7 @@ fn every_export_inventory_is_checked_even_when_the_transport_table_is_empty() {
             source.frame_owner(),
         ));
     assert!(matches!(
-        exports.validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut meter()
-        ),
+        exports.validate_sources(source.provider, &source.fixture.graph, &source),
         Err(MirTypeBridgeSourceJoinError::Inventory(
             MirTypeBridgeSourceInventoryV1::Callables
         ))
@@ -70,12 +50,7 @@ fn every_export_inventory_is_checked_even_when_the_transport_table_is_empty() {
     source.required_callables.clear();
     source.required_dispatch.push(source.fixture.payload.id());
     assert!(matches!(
-        exports.validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut meter()
-        ),
+        exports.validate_sources(source.provider, &source.fixture.graph, &source),
         Err(MirTypeBridgeSourceJoinError::Inventory(
             MirTypeBridgeSourceInventoryV1::Dispatch
         ))
@@ -85,12 +60,7 @@ fn every_export_inventory_is_checked_even_when_the_transport_table_is_empty() {
         scoop_identity::CborIdentityRecord::from_key(source.fixture.object.key().clone()).unwrap();
     source.required_objects.push(value.id());
     assert!(matches!(
-        exports.validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut meter()
-        ),
+        exports.validate_sources(source.provider, &source.fixture.graph, &source),
         Err(MirTypeBridgeSourceJoinError::Inventory(
             MirTypeBridgeSourceInventoryV1::Objects
         ))
@@ -132,7 +102,7 @@ fn same_exact_with_changed_fields_and_facts_cannot_replace_the_source_record() {
     )
     .unwrap();
     assert!(
-        matches!(exports.validate_sources(source.provider, &source.fixture.graph, &source, &mut meter()), Err(MirTypeBridgeSourceJoinError::Record(MirTypeBridgeSourceRecordV1::Type(exact))) if exact == source.fixture.payload.id())
+        matches!(exports.validate_sources(source.provider, &source.fixture.graph, &source), Err(MirTypeBridgeSourceJoinError::Record(MirTypeBridgeSourceRecordV1::Type(exact))) if exact == source.fixture.payload.id())
     );
 }
 
@@ -140,54 +110,9 @@ fn same_exact_with_changed_fields_and_facts_cannot_replace_the_source_record() {
 fn local_source_join_does_not_accept_a_different_manifest_provider() {
     let source = Source::new(ConeIdentity::SINGLE_FILE);
     assert!(matches!(
-        source.exports().validate_sources(
-            ConeIdentity::CORE,
-            &source.fixture.graph,
-            &source,
-            &mut meter()
-        ),
+        source
+            .exports()
+            .validate_sources(ConeIdentity::CORE, &source.fixture.graph, &source),
         Err(MirTypeBridgeSourceJoinError::Provider)
-    ));
-}
-
-#[test]
-fn source_comparisons_share_an_inclusive_validation_budget() {
-    let source = Source::new(ConeIdentity::SINGLE_FILE);
-    let exports = source.exports();
-    let mut measured = meter();
-    exports
-        .validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut measured,
-        )
-        .unwrap();
-    let work = measured.usage().validation_work_units;
-    exports
-        .validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: work,
-                ..DecodeLimits::default()
-            }),
-        )
-        .unwrap();
-    assert!(matches!(
-        exports.validate_sources(
-            source.provider,
-            &source.fixture.graph,
-            &source,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: work - 1,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(MirTypeBridgeSourceJoinError::Resource(_))
-            | Err(MirTypeBridgeSourceJoinError::Shape(
-                MirShapeSupportError::Resource(_)
-            ))
     ));
 }

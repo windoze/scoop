@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use fs4::FileExt;
-use scoop_wire::{DecodeLimits, encode};
+use scoop_wire::encode;
 
 use super::{
     COMPILE_CACHE_NAMESPACE, CacheReceiptV1, ConeCompileCacheKeyV1, decode_cache_receipt_v1,
@@ -58,10 +58,9 @@ impl CompileCacheStoreV1 {
     pub fn lookup(
         &self,
         lock: &CompileCacheKeyLockV1,
-        limits: DecodeLimits,
     ) -> Result<CompileCacheLookupV1, CompileCacheStoreError> {
         self.validate_lock(lock, None)?;
-        lookup_entry(&self.entry_path(lock.key), lock.key, limits)
+        lookup_entry(&self.entry_path(lock.key), lock.key)
     }
 
     pub fn publish(
@@ -69,7 +68,6 @@ impl CompileCacheStoreV1 {
         lock: &CompileCacheKeyLockV1,
         artifact: &ImmutableInputSnapshot,
         receipt: &CacheReceiptV1,
-        limits: DecodeLimits,
     ) -> Result<CompileCachePublishV1, CompileCacheStoreError> {
         self.validate_lock(lock, Some(CompileCacheLockModeV1::Exclusive))?;
         if receipt.body().cache_key() != lock.key {
@@ -79,15 +77,6 @@ impl CompileCacheStoreV1 {
             });
         }
         let receipt_bytes = encode(receipt).map_err(CompileCacheStoreError::ReceiptEncode)?;
-        let receipt_limit = limits.owned_bytes;
-        let receipt_length = u64::try_from(receipt_bytes.len())
-            .map_err(|_| CompileCacheStoreError::LengthOverflow)?;
-        if receipt_length > receipt_limit {
-            return Err(CompileCacheStoreError::ReceiptTooLarge {
-                limit: receipt_limit,
-                observed: receipt_length,
-            });
-        }
         let staging = self.namespace.join(STAGING_DIRECTORY);
         let candidate = tempfile::Builder::new()
             .prefix("entry-")
@@ -101,7 +90,7 @@ impl CompileCacheStoreV1 {
         write_cache_file(&candidate.path().join(RECEIPT_FILE_NAME), &receipt_bytes)?;
         sync_directory(candidate.path())?;
 
-        let verified = match lookup_entry(candidate.path(), lock.key, limits)? {
+        let verified = match lookup_entry(candidate.path(), lock.key)? {
             CompileCacheLookupV1::Miss => {
                 return Err(CompileCacheStoreError::CandidateVerificationMissing);
             }
@@ -119,7 +108,7 @@ impl CompileCacheStoreV1 {
             AtomicRenameOutcome::Published => {
                 let _kept_path = candidate.keep();
                 sync_directory(&self.namespace)?;
-                match lookup_entry(&destination, lock.key, limits)? {
+                match lookup_entry(&destination, lock.key)? {
                     CompileCacheLookupV1::Hit(entry) => Ok(CompileCachePublishV1::Published(entry)),
                     CompileCacheLookupV1::Miss => Err(
                         CompileCacheStoreError::PublishedEntryDisappeared(destination),
@@ -127,7 +116,7 @@ impl CompileCacheStoreV1 {
                 }
             }
             AtomicRenameOutcome::AlreadyExists => {
-                let winner = match lookup_entry(&destination, lock.key, limits)? {
+                let winner = match lookup_entry(&destination, lock.key)? {
                     CompileCacheLookupV1::Hit(entry) => entry,
                     CompileCacheLookupV1::Miss => {
                         return Err(CompileCacheStoreError::PublishedEntryDisappeared(
@@ -295,7 +284,6 @@ pub enum CompileCachePublishV1 {
 fn lookup_entry(
     entry_path: &Path,
     key: ConeCompileCacheKeyV1,
-    limits: DecodeLimits,
 ) -> Result<CompileCacheLookupV1, CompileCacheStoreError> {
     let metadata = match std::fs::symlink_metadata(entry_path) {
         Ok(metadata) => metadata,
@@ -316,13 +304,13 @@ fn lookup_entry(
     let artifact_path = entry_path.join(ARTIFACT_FILE_NAME);
     let receipt_path = entry_path.join(RECEIPT_FILE_NAME);
     let receipt_snapshot =
-        ImmutableInputSnapshot::capture_no_follow(&receipt_path, limits.owned_bytes).map_err(
-            |source| CompileCacheStoreError::Snapshot {
+        ImmutableInputSnapshot::capture_no_follow(&receipt_path).map_err(|source| {
+            CompileCacheStoreError::Snapshot {
                 role: CachePathRole::ReceiptFile,
                 source,
-            },
-        )?;
-    let receipt = decode_cache_receipt_v1(receipt_snapshot.as_bytes(), limits)
+            }
+        })?;
+    let receipt = decode_cache_receipt_v1(receipt_snapshot.as_bytes())
         .map_err(|source| CompileCacheStoreError::ReceiptDecode(Box::new(source)))?;
     if receipt.body().cache_key() != key {
         return Err(CompileCacheStoreError::ReceiptKeyMismatch {
@@ -330,11 +318,12 @@ fn lookup_entry(
             actual: receipt.body().cache_key(),
         });
     }
-    let artifact = ImmutableInputSnapshot::capture_no_follow(&artifact_path, limits.owned_bytes)
-        .map_err(|source| CompileCacheStoreError::Snapshot {
+    let artifact = ImmutableInputSnapshot::capture_no_follow(&artifact_path).map_err(|source| {
+        CompileCacheStoreError::Snapshot {
             role: CachePathRole::ArtifactFile,
             source,
-        })?;
+        }
+    })?;
     Ok(CompileCacheLookupV1::Hit(Box::new(
         RawCompileCacheEntryV1 {
             key,

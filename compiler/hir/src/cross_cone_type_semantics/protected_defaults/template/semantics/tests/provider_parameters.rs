@@ -37,20 +37,19 @@ fn replace_prefix(template: &mut ProtectedDefaultTemplateV1, ty: SignatureTypeKe
 #[test]
 fn provider_parameters_preserve_raw_binders_under_collapsed_substitution() {
     let (case, template, mut authority) = collapsed();
-    case.validate(&template, &mut authority, &mut meter())
-        .unwrap();
+    case.validate(&template, &mut authority).unwrap();
     let mut wrong = template.clone();
     wrong.result = binder(0, 0);
     assert!(matches!(
-        case.validate(&wrong, &mut authority, &mut meter()),
+        case.validate(&wrong, &mut authority),
         Err(Error::ProviderResultMismatch)
     ));
     let mut wrong = template;
     replace_prefix(&mut wrong, binder(0, 1));
     assert!(matches!(
-        case.validate(&wrong, &mut authority, &mut meter()),
+        case.validate(&wrong, &mut authority),
         Err(Error::ValueParameters(
-            MeteredTemplateValueParameterSemanticValidationError::LocalType { position: 0 }
+            TemplateValueParameterSemanticValidationError::LocalType { position: 0, .. }
         ))
     ));
 }
@@ -60,12 +59,12 @@ fn provider_parameters_check_position_arity_and_the_complete_tail() {
     let (case, template, mut authority) = collapsed();
     authority.provider_position = 0;
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(Error::ProviderParameterPosition)
     ));
     authority.provider_position = 2;
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(Error::Foundation("wrong provider position"))
     ));
     authority.provider_position = 1;
@@ -76,7 +75,7 @@ fn provider_parameters_check_position_arity_and_the_complete_tail() {
     ));
     authority.provider_parameters = CanonicalSourceParameterShapesV1::try_new(parameters).unwrap();
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(Error::ProviderParameterArity)
     ));
     let mut published = case.source.parameters().parameters().to_vec();
@@ -93,8 +92,7 @@ fn provider_parameters_check_position_arity_and_the_complete_tail() {
             &template,
             &published,
             authority.provider,
-            &mut authority,
-            &mut meter()
+            &mut authority
         ),
         Err(Error::ProviderParameterType { index: 2 })
     ));

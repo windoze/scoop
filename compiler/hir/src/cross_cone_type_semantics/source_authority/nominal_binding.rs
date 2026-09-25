@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentFieldId,
     PersistentObjectValueId, SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::binding_keys;
 use crate::*;
@@ -48,13 +48,9 @@ impl<'f> BoundTypeFoundationSourcesV1<'f> {
     pub fn bind_nominal_sources<'a>(
         &'a self,
         table: &'a CanonicalNominalSourceContractsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNominalSourceContractsV1<'a, 'f>, Error> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        binding_keys::charge_map(table.records().len(), meter, &path)?;
         let roots = self.source().entries().source_roots.values();
-        meter.charge_work(roots.len() as u64, &path)?;
+
         if !table
             .records()
             .iter()
@@ -63,7 +59,7 @@ impl<'f> BoundTypeFoundationSourcesV1<'f> {
         {
             return Err(Error::Inventory("nominal owners"));
         }
-        inventory::validate(self, table, meter)?;
+        inventory::validate(self, table)?;
         let mut bound = BoundNominalSourceContractsV1 {
             foundation: self,
             table,
@@ -73,9 +69,9 @@ impl<'f> BoundTypeFoundationSourcesV1<'f> {
             objects: BTreeMap::new(),
             variant_sources: BTreeMap::new(),
         };
-        keys::bind(&mut bound, meter)?;
+        keys::bind(&mut bound)?;
         for record in table.records() {
-            contracts::validate(&mut bound, record, meter)?;
+            contracts::validate(&mut bound, record)?;
         }
         Ok(bound)
     }
@@ -152,11 +148,6 @@ impl<'a, 'f> BoundNominalSourceContractsV1<'a, 'f> {
             .map(|source| &source.origin)
             .ok_or(Error::MissingVariant(variant))
     }
-}
-
-fn queries(length: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    meter.charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())?;
-    Ok(())
 }
 
 fn invalid(owner: SourceNominalId, reason: impl std::fmt::Display) -> Error {

@@ -1,5 +1,5 @@
 use scoop_identity::{CallableTemplateOrigin, LocalValueSelector, SignatureTypeKey};
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::support::*;
 use crate::{
@@ -89,23 +89,19 @@ fn reader_replays_result_local_and_witness_owner_invariants() {
     let f = Fixture::new();
     let value = template(&f);
     let mut input = decoded(&value);
-    input.result = decode_canonical(
-        &encode(&SignatureTypeKey::Binder { depth: 0, index: 1 }).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    input.result =
+        decode_canonical(&encode(&SignatureTypeKey::Binder { depth: 0, index: 1 }).unwrap())
+            .unwrap();
     assert!(matches!(
-        input.resolve(&mut f.resolver(), &mut meter()),
+        input.resolve(&mut f.resolver()),
         Err(ProtectedDefaultTemplateResolutionError::Record(
             ProtectedDefaultTemplateBuildError::ResultType { .. }
         ))
     ));
     let mut input = decoded(&value);
-    input.locals =
-        decode_canonical::<DecodedCanonicalTemplateLocalTableV1>(&[0x80], DecodeLimits::default())
-            .unwrap();
+    input.locals = decode_canonical::<DecodedCanonicalTemplateLocalTableV1>(&[0x80]).unwrap();
     assert!(matches!(
-        input.resolve(&mut f.resolver(), &mut meter()),
+        input.resolve(&mut f.resolver()),
         Err(ProtectedDefaultTemplateResolutionError::Receiver(_))
     ));
     let mut input = decoded(&value);
@@ -115,11 +111,10 @@ fn reader_replays_result_local_and_witness_owner_invariants() {
             CallableTemplateOrigin::Constructor(f.constructor),
         ))
         .unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert!(matches!(
-        input.resolve(&mut f.resolver(), &mut meter()),
+        input.resolve(&mut f.resolver()),
         Err(ProtectedDefaultTemplateResolutionError::Record(
             ProtectedDefaultTemplateBuildError::ReferenceOwner { .. }
         ))

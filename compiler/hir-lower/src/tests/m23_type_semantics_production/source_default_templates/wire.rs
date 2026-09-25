@@ -5,8 +5,8 @@ use scoop_wire::{Decoder, WireDecode};
 // reconstructing a candidate default or depending on private source DTO fields.
 pub(super) fn fields(value: &Template) -> Vec<Vec<u8>> {
     let bytes = bytes(value);
-    let mut shared = meter();
-    let mut d = Decoder::new(&bytes, &mut shared).unwrap();
+
+    let mut d = Decoder::new(&bytes).unwrap();
     d.expect_map(12).unwrap();
     let mut result = Vec::new();
     macro_rules! field {
@@ -35,7 +35,7 @@ pub(super) fn replaced(value: &Template, field: u8, payload: Vec<u8>) -> Decoded
     let mut fields = fields(value);
     fields[field as usize - 1] = [vec![field], payload].concat();
     let bytes = [vec![0xac], fields.concat()].concat();
-    decode_canonical(&bytes, DecodeLimits::default()).unwrap()
+    decode_canonical(&bytes).unwrap()
 }
 
 #[test]
@@ -46,23 +46,17 @@ fn source_template_wire_requires_exact_fields_and_known_key_identity() {
         for count in [0xa0, 0xab, 0xad] {
             let mut malformed = bytes.clone();
             malformed[0] = count;
-            assert!(decode_canonical::<Decoded>(&malformed, DecodeLimits::default()).is_err());
+            assert!(decode_canonical::<Decoded>(&malformed).is_err());
         }
         let mut fields = fields(&value);
         fields.swap(2, 3);
-        assert!(
-            decode_canonical::<Decoded>(
-                &[vec![0xac], fields.concat()].concat(),
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
-        let input: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        assert!(decode_canonical::<Decoded>(&[vec![0xac], fields.concat()].concat()).is_err());
+        let input: Decoded = decode_canonical(&bytes).unwrap();
         let mut empty = scoop_identity::PendingIdentityValidation::new()
             .finish()
             .unwrap();
         assert!(matches!(
-            input.resolve(&mut empty, &mut meter()),
+            input.resolve(&mut empty),
             Err(hir::DefaultSourceTemplateResolutionError::Key(_))
         ));
     });

@@ -12,15 +12,12 @@ fn declaration_source_table_rejects_a_missing_protected_setter_after_inventory_j
         ],
     );
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let representations = representations(&fixture);
     assert!(matches!(
-        table.validate_sources(&graph, &representations, &mut fixture, &mut meter()),
+        table.validate_sources(&graph, &representations, &mut fixture),
         Err(ProtectedDeclarationSemanticError::Table(
             ProtectedDeclarationTableError::AccessorClosure
         ))
@@ -48,15 +45,12 @@ fn accessor_presence_cannot_substitute_for_its_source_signature_validation() {
         ],
     );
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let representations = representations(&fixture);
     assert!(matches!(
-        table.validate_sources(&graph, &representations, &mut fixture, &mut meter()),
+        table.validate_sources(&graph, &representations, &mut fixture),
         Err(ProtectedDeclarationSemanticError::Callable(
             ProtectedCallableSemanticError::Result
         ))

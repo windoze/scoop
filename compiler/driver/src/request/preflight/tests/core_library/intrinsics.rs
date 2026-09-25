@@ -71,7 +71,7 @@ pub(super) fn assert_integer_exception_requires_layout(
     std::fs::write(&source, include_str!("../../../../../../../tests/fixtures/core-library/integer-default-exception-consumer.scoop")).unwrap();
     let output = workspace.join("integer-exception.slib");
     let error = consumer_request(target, &source, &output, core, StageDumpPolicy::None)
-        .build_and_publish(DecodeLimits::default())
+        .build_and_publish()
         .unwrap_err();
     let SingleConeProductionError::Production(error) = error else {
         panic!("integer exception rejection must originate in HIR")

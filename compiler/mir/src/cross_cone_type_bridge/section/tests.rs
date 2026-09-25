@@ -1,8 +1,7 @@
 use super::*;
 use scoop_identity::{InitializationCallableRole, PersistentObjectValueId};
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
-mod budget;
 mod callables;
 mod closure;
 mod core;
@@ -16,7 +15,3 @@ mod wire;
 
 use source::Source;
 use support::*;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}

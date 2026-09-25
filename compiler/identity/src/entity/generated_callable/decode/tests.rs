@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedGeneratedCallableKey, DecodedLexicalCallableParent, GeneratedCallableResolutionError,
@@ -89,11 +89,8 @@ impl PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey> 
 #[test]
 fn enum_variant_constructor_is_a_typed_lexical_parent() {
     let parent = LexicalCallableParent::variant_constructor(PersistentEnumVariantId::expected());
-    let decoded = decode_canonical::<DecodedLexicalCallableParent>(
-        &encode(&parent).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedLexicalCallableParent>(&encode(&parent).unwrap()).unwrap();
     assert_eq!(
         decoded
             .resolve(&mut Resolver { generated: vec![] })
@@ -180,7 +177,7 @@ fn all_generated_callable_records_round_trip_and_resolve() {
         let record = CborIdentityRecord::<PersistentGeneratedCallableId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentGeneratedCallableId, DecodedGeneratedCallableKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut resolver)).unwrap(),
@@ -195,11 +192,8 @@ fn generated_callable_resolution_rejects_invalid_target_receiver() {
     let invalid = GeneratedCallableKey::DynamicFunctionAdapter {
         target: ExactCallableSignature::new(Effect::Ordinary, Some(exact), vec![], exact),
     };
-    let decoded = decode_canonical::<DecodedGeneratedCallableKey>(
-        &encode(&invalid).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedGeneratedCallableKey>(&encode(&invalid).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver { generated: vec![] }),
@@ -238,18 +232,13 @@ fn generated_callable_resolution_rejects_nonlexical_generated_parent() {
 
 #[test]
 fn generated_callable_decoder_rejects_unknown_tags_and_roles() {
-    let outer =
-        decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x11", DecodeLimits::default())
-            .unwrap_err();
+    let outer = decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x11").unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 17 });
 
     let parent_bytes = [b"\xa2\x00\x07\x01\x58\x20".as_slice(), &[0; 32]].concat();
-    let parent =
-        decode_canonical::<DecodedLexicalCallableParent>(&parent_bytes, DecodeLimits::default())
-            .unwrap_err();
+    let parent = decode_canonical::<DecodedLexicalCallableParent>(&parent_bytes).unwrap_err();
     assert_eq!(parent.kind(), &WireErrorKind::UnknownTag { tag: 7 });
 
-    let role =
-        decode_canonical::<LexicalCallableRole>(b"\x03", DecodeLimits::default()).unwrap_err();
+    let role = decode_canonical::<LexicalCallableRole>(b"\x03").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }

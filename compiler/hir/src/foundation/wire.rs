@@ -125,7 +125,7 @@ impl WireEncode for DecodedHirFoundation {
 }
 
 impl WireDecode for DecodedHirFoundation {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedHirFoundationWire::decode(decoder).map(|decoded| Self { decoded })
     }
 }
@@ -134,7 +134,7 @@ impl DecodedHirFoundation {
     /// Registers every HIR-owned identity before any layer starts resolution.
     pub fn register_identities(
         &self,
-        validation: &mut PendingIdentityValidation<'_>,
+        validation: &mut PendingIdentityValidation,
     ) -> Result<(), IdentityValidationError> {
         for identity in &self.decoded.external_source_types {
             validation.register_external_source_type(*identity)?;
@@ -188,7 +188,7 @@ impl DecodedHirFoundation {
     /// their candidates.
     pub fn resolve_identities(
         &self,
-        validation: &mut PendingIdentityValidation<'_>,
+        validation: &mut PendingIdentityValidation,
     ) -> Result<(), IdentityValidationError> {
         macro_rules! resolve_tables {
             ($($table:ident),+ $(,)?) => {
@@ -274,7 +274,7 @@ impl WireEncode for DecodedHirFoundationWire {
 }
 
 impl WireDecode for DecodedHirFoundationWire {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(32)?;
         Ok(Self {
             sources: decode_table_field(decoder, 1)?,
@@ -314,7 +314,7 @@ impl WireDecode for DecodedHirFoundationWire {
 }
 
 fn decode_table_field<T: WireDecode>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
 ) -> Result<Vec<T>, WireError> {
     decoder.field(field, |decoder| {
@@ -342,17 +342,14 @@ mod tests {
         DefinitionOwnerChain, PackagePath, SourceDeclarationKey, SourceDeclarationSite,
         SourceNominalKind,
     };
-    use scoop_wire::{
-        BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode,
-    };
+    use scoop_wire::{WireErrorKind, WirePath, decode_canonical, encode};
 
     use super::*;
 
     #[test]
     fn decodes_the_exact_empty_foundation_product() {
         let bytes = encode(&CanonicalHirFoundation::empty()).unwrap();
-        let validated =
-            decode_canonical::<DecodedHirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+        let validated = decode_canonical::<DecodedHirFoundation>(&bytes).unwrap();
         let decoded = validated.decoded;
 
         assert!(decoded.sources.is_empty());
@@ -406,11 +403,8 @@ mod tests {
         let record = CborIdentityRecord::from_key(declaration).unwrap();
         let mut canonical = CanonicalHirFoundation::empty();
         canonical.set_types(vec![record.clone()]).unwrap();
-        let decoded = decode_canonical::<DecodedHirFoundation>(
-            &encode(&canonical).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedHirFoundation>(&encode(&canonical).unwrap()).unwrap();
         let mut validation = PendingIdentityValidation::new();
         validation.register_authority(ConeIdentity::CORE).unwrap();
 
@@ -418,12 +412,11 @@ mod tests {
         decoded.resolve_identities(&mut validation).unwrap();
 
         let graph = validation.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         assert_eq!(
             graph
                 .records::<PersistentTypeId, SourceDeclarationKey>(
                     IdentityLayer::Hir,
-                    &mut meter,
                     &WirePath::root(),
                 )
                 .unwrap(),
@@ -437,8 +430,7 @@ mod tests {
         assert_eq!(&bytes[..2], &[0xb8, 32]);
         bytes[1] = 31;
 
-        let error =
-            decode_canonical::<DecodedHirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedHirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -458,8 +450,7 @@ mod tests {
             + 2;
         bytes[second_field] = 3;
 
-        let error =
-            decode_canonical::<DecodedHirFoundation>(&bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedHirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {

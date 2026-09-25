@@ -15,16 +15,12 @@ pub(super) fn check(
     strong: &mir::StrongCallableBridgeSurfaceV1,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
 ) {
-    let hir_bytes = encode(&hir.index_for_wire(&mut meter()).unwrap()).unwrap();
+    let hir_bytes = encode(&hir.index_for_wire().unwrap()).unwrap();
     let open = || {
-        DecodedSlibEnvelope::open(
-            artifact.as_bytes(),
-            DecodeLimits::default(),
-            artifact.target_selection(),
-        )
-        .unwrap()
-        .validate_graph()
-        .unwrap()
+        DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
+            .unwrap()
+            .validate_graph()
+            .unwrap()
     };
     let compile = open().decode_cross_cone_layout_compile_sections().unwrap();
     let link = open().decode_cross_cone_layout_link_sections().unwrap();

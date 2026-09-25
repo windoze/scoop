@@ -47,11 +47,9 @@ fn default_type_binding_rejects_losing_one_of_multiple_generic_constraints() {
                 inputs.output,
             );
             let table = super::super::default_origins::replace(&inputs.templates, changed);
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let error = domains
-                .bind_nominal_default_type_domains(&bound, &mut meter())
+                .bind_nominal_default_type_domains(&bound)
                 .unwrap_err();
             let Error::Witness { key, index: actual } = error else {
                 panic!("unexpected failure: {error:?}");
@@ -95,11 +93,9 @@ fn default_type_binding_rejects_corrupt_target_witness_with_exact_occurrence() {
                         let table =
                             super::super::default_origins::replace(&inputs.templates, changed);
                         // Declaration binding alone cannot authenticate target domains.
-                        let bound = parameters
-                            .bind_default_declarations(&table, &[], &mut meter())
-                            .unwrap();
+                        let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
                         let error = domains
-                            .bind_nominal_default_type_domains(&bound, &mut meter())
+                            .bind_nominal_default_type_domains(&bound)
                             .unwrap_err();
                         let Error::Witness { key, index: actual } = error else {
                             panic!("unexpected failure: {error:?}");
@@ -120,22 +116,22 @@ fn default_type_binding_rejects_another_bound_foundation_and_missing_access_sour
     with_inputs(SOURCE, |inputs| {
         inputs.with_bound(|_, parameters, foundation| {
             let bound = parameters
-                .bind_default_declarations(&inputs.templates, &[], &mut meter())
+                .bind_default_declarations(&inputs.templates, &[])
                 .unwrap();
             let other = inputs.fixture.bind().unwrap();
             let access = other
-                .bind_default_access_declarations(&inputs.access, &inputs.required, &mut meter())
+                .bind_default_access_declarations(&inputs.access, &inputs.required)
                 .unwrap();
-            let domains = Domains::new(&access, &[], inputs.core_types, &mut meter()).unwrap();
-            let error = domains.bind_nominal_default_type_domains(&bound, &mut meter()).unwrap_err();
+            let domains = Domains::new(&access, &[], inputs.core_types).unwrap();
+            let error = domains.bind_nominal_default_type_domains(&bound).unwrap_err();
             assert!(matches!(error, Error::Foundation { expected, actual } if expected == actual));
 
-            let empty = hir::CanonicalDefaultSourceAccessDeclarationsV1::try_new(vec![], &mut meter()).unwrap();
+            let empty = hir::CanonicalDefaultSourceAccessDeclarationsV1::try_new(vec![]).unwrap();
             let access = foundation
-                .bind_default_access_declarations(&empty, &BTreeSet::new(), &mut meter())
+                .bind_default_access_declarations(&empty, &BTreeSet::new())
                 .unwrap();
-            let domains = Domains::new(&access, &[], inputs.core_types, &mut meter()).unwrap();
-            let error = domains.bind_nominal_default_type_domains(&bound, &mut meter()).unwrap_err();
+            let domains = Domains::new(&access, &[], inputs.core_types).unwrap();
+            let error = domains.bind_nominal_default_type_domains(&bound).unwrap_err();
             assert!(matches!(error, Error::Target { error, .. } if matches!(*error, hir::DefaultSourceDomainError::Access(_))));
         });
     });
@@ -150,10 +146,10 @@ fn default_type_binding_requires_actual_core_access_sources_for_boolean() {
     with_inputs(source, |inputs| {
         inputs.with_bound(|domains, parameters, _| {
             let bound = parameters
-                .bind_default_declarations(&inputs.templates, &[], &mut meter())
+                .bind_default_declarations(&inputs.templates, &[])
                 .unwrap();
             let error = domains
-                .bind_nominal_default_type_domains(&bound, &mut meter())
+                .bind_nominal_default_type_domains(&bound)
                 .unwrap_err();
             let Error::Target { key, index, error } = error else {
                 panic!("unexpected failure: {error:?}");

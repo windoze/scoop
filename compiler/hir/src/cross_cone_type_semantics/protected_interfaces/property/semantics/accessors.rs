@@ -9,18 +9,12 @@ pub(super) fn validate_key<A: ProtectedCallableSemanticAuthority<E>, E>(
     accessor: PersistentPropertyAccessorId,
     role: AccessorRole,
     authority: &A,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ProtectedPropertySemanticError<E>> {
     use ProtectedPropertySemanticError as Error;
     let key = authority
         .property_accessor_key(accessor)
         .map_err(Error::Foundation)?;
-    meter
-        .charge_sha256(
-            scoop_wire::encoded_length(key).map_err(Error::Encoding)?,
-            &WirePath::root(),
-        )
-        .map_err(Error::Resource)?;
+
     if PersistentPropertyAccessorId::from_key(key).ok() != Some(accessor)
         || key.owner() != PropertyOwner::Property(property)
         || key.role() != role
@@ -37,12 +31,10 @@ impl CheckedProtectedPropertySourceV1<'_> {
         &self,
         getter: CheckedProtectedCallableSourceV1<'_>,
         setter: Option<CheckedProtectedCallableSourceV1<'_>>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
         self.validate_accessor_views(
             AccessorView::checked(&getter),
             setter.as_ref().map(AccessorView::checked),
-            meter,
         )
     }
 
@@ -50,12 +42,10 @@ impl CheckedProtectedPropertySourceV1<'_> {
         &self,
         getter: &crate::ProtectedCallableInterfaceV1,
         setter: Option<&crate::ProtectedCallableInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
         self.validate_accessor_views(
             AccessorView::record(getter),
             setter.map(AccessorView::record),
-            meter,
         )
     }
 
@@ -63,30 +53,14 @@ impl CheckedProtectedPropertySourceV1<'_> {
         &self,
         getter: AccessorView<'_>,
         setter: Option<AccessorView<'_>>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
         use ProtectedPropertyAccessorClosureError as Error;
         let property = self.record().payload();
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
-        meter
-            .charge_work(
-                scoop_wire::encoded_length(property.value_type())
-                    .map_err(Error::Encoding)?
-                    .saturating_mul(2),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+
         if getter.declaration != CallableTemplateOrigin::Accessor(property.getter()) {
             return Err(Error::Getter);
         }
-        check_common(
-            self.record(),
-            getter,
-            self.record().declaration_access(),
-            meter,
-        )?;
+        check_common(self.record(), getter, self.record().declaration_access())?;
         if !getter.payload.parameters().is_empty()
             || getter.payload.result() != property.value_type()
         {
@@ -103,7 +77,7 @@ impl CheckedProtectedPropertySourceV1<'_> {
                 if setter.declaration != CallableTemplateOrigin::Accessor(*expected) {
                     return Err(Error::Setter);
                 }
-                check_common(self.record(), setter, setter_access, meter)?;
+                check_common(self.record(), setter, setter_access)?;
                 if setter.payload.parameters().parameters().len() != 1
                     || setter.payload.parameters().parameters()[0].value_type()
                         != property.value_type()
@@ -124,16 +98,9 @@ fn check_common(
     property: &ProtectedPropertyInterfaceV1,
     accessor: AccessorView<'_>,
     source: &DeclarationAccessSourceV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ProtectedPropertyAccessorClosureError> {
     use ProtectedPropertyAccessorClosureError as Error;
-    let slot_count = accessor.payload.slot_relations().slots().len() as u64;
-    let table_count = property.payload().slot_relations().slots().len() as u64;
-    let work = (source.lexical_owners().len() as u64)
-        .saturating_add(slot_count.saturating_mul(table_count.saturating_add(1)));
-    meter
-        .charge_work(work, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     let actual = accessor.access;
     if accessor.payload.owner() != property.payload().owner()
         || actual.declared_visibility() != source.declared_visibility()

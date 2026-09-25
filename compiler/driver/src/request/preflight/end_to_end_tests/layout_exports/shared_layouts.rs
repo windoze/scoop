@@ -4,20 +4,13 @@ use scoop_slib::SharedLirLayoutValidationError as Error;
 
 mod corruption;
 mod dump;
-mod resources;
 
 pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
     dependencies: LayoutAbiExportDependenciesV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
-    let layouts = replay(
-        input,
-        input.bridge.types(),
-        dependencies.layouts,
-        &mut meter(),
-    )
-    .unwrap();
+    let layouts = replay(input, input.bridge.types(), dependencies.layouts).unwrap();
     assert_eq!(&layouts, expected.layouts());
     for source in input.bridge.types().records() {
         let mir::MirTypeRepresentationV1::Object { backing } = source.representation() else {
@@ -39,12 +32,9 @@ pub(super) fn check(
         );
     }
     let wire: lir::DecodedCanonicalExactLayoutExportsV1 = decoded(expected.layouts());
-    assert_eq!(
-        wire.validate_against(&layouts, &mut meter()).unwrap(),
-        layouts
-    );
+    assert_eq!(wire.validate_against(&layouts).unwrap(), layouts);
     if !dependencies.layouts.is_empty() {
-        let without_dependencies = replay(input, input.bridge.types(), &[], &mut meter());
+        let without_dependencies = replay(input, input.bridge.types(), &[]);
         if has_foreign_layout_dependency(input.bridge.types()) {
             assert!(matches!(
                 without_dependencies,
@@ -56,13 +46,13 @@ pub(super) fn check(
         let mut repeated = dependencies.layouts.to_vec();
         repeated.push(dependencies.layouts[0]);
         assert!(matches!(
-            replay(input, input.bridge.types(), &repeated, &mut meter()),
+            replay(input, input.bridge.types(), &repeated),
             Err(Error::DependencyProvider(_))
         ));
     }
     let local_as_dependency = [expected.layouts()];
     assert!(matches!(
-        replay(input, input.bridge.types(), &local_as_dependency, &mut meter()),
+        replay(input, input.bridge.types(), &local_as_dependency),
         Err(Error::DependencyProvider(provider)) if provider == expected.provider()
     ));
 }
@@ -95,7 +85,7 @@ pub(super) fn probe(
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
     corruption::check(input, expected.layouts());
-    resources::check(input);
+
     dump::check(name, input, expected.layouts());
 }
 
@@ -103,7 +93,6 @@ fn replay(
     input: LayoutAbiExportInputV1<'_>,
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactLayoutExportsV1, Error> {
     scoop_slib::replay_shared_mir_layouts(
         input.lir.module().meta.target_profile,
@@ -111,6 +100,5 @@ fn replay(
         input.lir.foundation(),
         input.identities,
         dependencies,
-        meter,
     )
 }

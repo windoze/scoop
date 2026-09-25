@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind};
+use scoop_wire::{WireError, WireErrorKind};
 
 pub(super) fn mapping(
     arguments: Vec<SignatureTypeKey>,
@@ -18,60 +18,46 @@ fn count_error(path: &WirePath) -> Error {
 
 pub(super) fn copy_arguments(
     arguments: &[SignatureTypeKey],
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<CanonicalBinderUseListV1, Error> {
     let mut output = Vec::new();
-    meter.try_reserve_collection_slots(&mut output, arguments.len(), path)?;
+    scoop_wire::allocation::try_reserve(&mut output, arguments.len(), path)?;
     for argument in arguments {
-        output.push(scoop_hir::copy_default_signature_type_metered(
-            argument, meter, path,
-        )?);
+        output.push(scoop_hir::copy_default_signature_type(argument, path)?);
     }
     mapping(output, path)
 }
 
-pub(super) fn equal_types(
-    left: &SignatureTypeKey,
-    right: &SignatureTypeKey,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<bool, Error> {
-    let cost = scoop_wire::encoded_length(left)
-        .and_then(|left| scoop_wire::encoded_length(right).map(|right| left.saturating_add(right)))
-        .map_err(|e| Error::Encoding(e.to_string()))?;
-    meter.charge_work(cost, path)?;
-    Ok(left == right)
+pub(super) fn equal_types(left: &SignatureTypeKey, right: &SignatureTypeKey) -> bool {
+    left == right
 }
 
 pub(super) fn equal_arguments(
     left: &CanonicalBinderUseListV1,
     right: &CanonicalBinderUseListV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<bool, Error> {
-    meter.charge_work(1, path)?;
+) -> bool {
     if left.len_u32() != right.len_u32() {
-        return Ok(false);
+        return false;
     }
     for (left, right) in left.arguments().iter().zip(right.arguments()) {
-        if !equal_types(left, right, meter, path)? {
-            return Ok(false);
+        if !equal_types(left, right) {
+            return false;
         }
     }
-    Ok(true)
+    true
 }
 
 pub(super) fn matches(
     source: Source<'_>,
     inherited: Source<'_>,
     arguments: &CanonicalBinderUseListV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<bool, Error> {
     let current = source.declaration;
     let candidate = inherited.declaration;
-    meter.charge_work(1, path)?;
+
     if source.key.name() != inherited.key.name()
         || current.type_parameters().len_u32() != candidate.type_parameters().len_u32()
         || current.parameters().parameters().len() != candidate.parameters().parameters().len()
@@ -92,8 +78,8 @@ pub(super) fn matches(
         .map(|parameter| parameter.value_type())
         .chain(std::iter::once(candidate.result()));
     for (current, inherited) in current_types.zip(inherited_types) {
-        let applied = arguments.substitute_provider_type_metered(shape, inherited, meter, path)?;
-        if !equal_types(current, &applied, meter, path)? {
+        let applied = arguments.substitute_provider_type(shape, inherited)?;
+        if !equal_types(current, &applied) {
             return Ok(false);
         }
     }

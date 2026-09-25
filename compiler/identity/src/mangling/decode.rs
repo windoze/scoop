@@ -36,7 +36,7 @@ impl WireEncode for DecodedManglingSchemaIdentity {
 }
 
 impl WireDecode for DecodedManglingSchemaIdentity {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.owned_text().map(Self)
     }
 }
@@ -242,7 +242,7 @@ impl WireEncode for DecodedPersistentSymbolKey {
 }
 
 impl WireDecode for DecodedPersistentSymbolKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -274,7 +274,7 @@ impl WireDecode for DecodedPersistentSymbolKey {
 }
 
 impl WireDecode for LinkageClass {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ConeStrong),
             2 => Ok(Self::TemplateSupportHidden),
@@ -319,7 +319,7 @@ impl WireEncode for DecodedPersistentSymbolRequest {
 }
 
 impl WireDecode for DecodedPersistentSymbolRequest {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             key: decoder.field(1, DecodedPersistentSymbolKey::decode)?,
@@ -380,7 +380,7 @@ impl WireEncode for DecodedPersistentSymbolRequestTable {
 }
 
 impl WireDecode for DecodedPersistentSymbolRequestTable {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedPersistentSymbolRequest::decode(decoder))
             .map(|requests| Self { requests })
@@ -438,7 +438,7 @@ fn compare_decoded_requests(
 }
 
 fn decode_id<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
 where
@@ -447,7 +447,7 @@ where
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

@@ -6,13 +6,10 @@ impl BoundNominalParameterProtocolsV1<'_, '_, '_, '_> {
     pub fn validate_source_protocol<'c>(
         &mut self,
         candidate: &'c ProtectedCallableSourceInterfaceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedSourceProtocolV1<'c>, ProtectedSourceSemanticError<Error>> {
         let owner = candidate.owner();
         let (payload, access) = match owner {
             CallableTemplateOrigin::Constructor(id) => {
-                query(self.constructors.table().records().len(), meter)
-                    .map_err(ProtectedSourceSemanticError::Foundation)?;
                 let source = self
                     .constructors
                     .constructor_source(id)
@@ -23,8 +20,6 @@ impl BoundNominalParameterProtocolsV1<'_, '_, '_, '_> {
             CallableTemplateOrigin::Function(_)
             | CallableTemplateOrigin::GenericFunction(_)
             | CallableTemplateOrigin::VariantConstructor(_) => {
-                query(self.members.callables().records().len(), meter)
-                    .map_err(ProtectedSourceSemanticError::Foundation)?;
                 let source = self
                     .members
                     .callable_source(owner)
@@ -38,6 +33,6 @@ impl BoundNominalParameterProtocolsV1<'_, '_, '_, '_> {
                 ));
             }
         };
-        candidate.validate(owner, payload, access, self, meter)
+        candidate.validate(owner, payload, access, self)
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{PersistentExactTypeId, SourceDeclarationKey};
-use scoop_wire::{BudgetMeter, WireError};
+use scoop_wire::WireError;
 
 use super::*;
 use crate::{
@@ -46,9 +46,8 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         owner: PersistentExactTypeId,
         record: &'s InheritanceSlotContractV1,
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedInheritanceSlotContractV1<'s>, InheritanceSlotContractSemanticError<E>> {
-        relations::validate(self, owner, record, authority, meter)?;
+        relations::validate(self, owner, record, authority)?;
         Ok(CheckedInheritanceSlotContractV1 { owner, record })
     }
 }

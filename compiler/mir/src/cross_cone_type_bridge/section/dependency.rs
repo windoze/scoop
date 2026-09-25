@@ -28,12 +28,10 @@ impl DecodedMirTypeBridgeDependencyV1 {
     pub(super) fn resolve<E>(
         self,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<MirTypeBridgeDependencyV1, MirTypeBridgeSectionError<E>> {
-        meter.charge_work(1, &WirePath::root())?;
         Ok(MirTypeBridgeDependencyV1::new(
             graph.resolve(self.provider)?,
-            self.target.resolve(graph, meter)?,
+            self.target.resolve(graph)?,
         ))
     }
 }
@@ -53,7 +51,7 @@ macro_rules! encode_dependency {
 encode_dependency!(MirTypeBridgeDependencyV1);
 encode_dependency!(DecodedMirTypeBridgeDependencyV1);
 impl WireDecode for DecodedMirTypeBridgeDependencyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             provider: decoder.field(1, DecodedPersistentId::decode)?,

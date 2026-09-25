@@ -46,8 +46,8 @@ M23-2 不通过把当前 Rust `Module` 直接 serde 化来换取“能 round-tri
 - deterministic CBOR与canonical normal `ar` writer/reader；
 - `MemberFingerprint`、`LinkMemberFingerprint`、三层foundation semantic fingerprint与`ArtifactFingerprint`；
 - raw envelope、单 artifact Graph proof、单 artifact Compile proof与session-local typed remap；
-- 集中的单 artifact decode budget、结构化错误与失败原子性；
-- fixed hash/wire/ar golden、round-trip、corruption、budget、capability、顺序/路径可复现测试；
+- 单 artifact 格式与边界检查、结构化错误与失败原子性；
+- fixed hash/wire/ar golden、round-trip、corruption、capability、顺序/路径可复现测试；
 - 当前 M1～M23-1 pipeline 对 persistent source/runtime/symbol identity 的迁移与全量回归。
 
 ### 1.2 本阶段明确不做
@@ -111,7 +111,7 @@ M24 的升级是规范已经声明的整体不兼容重建，不构成修改 M23
 scoop-wire
   cbor/           deterministic CBOR与strict decoder
   digest/         Digest256、hash framing
-  budget/         可注入的累计budget meter与structured path
+  allocation.rs   实际容量分配、整数转换与structured path
 
 scoop-identity -> scoop-wire
   cone/           ConeCoordinate、ConeIdentity
@@ -156,13 +156,13 @@ slib-foundation:
     -> foundation `.slib`
 
 slib-read:
-    bytes + SlibDecodeLimits
+    bytes
     -> DecodedSlibEnvelope
     -> ValidatedGraphArtifact
     -> ValidatedCompileArtifact<IdentityFoundationProfile>
 ```
 
-foundation writer是M23-2测试与迁移工具，不接入当前driver的production输出，也不返回`PublishableArtifact`。M23-3将以同一低层writer接收完整single-Cone产物，并在Compile、Link两种proof均成功后才创建可发布类型。
+foundation writer是M23-2测试与迁移工具，不接入当前driver的production输出，也不返回`PublishableArtifact`。后续产物发布使用同一低层 writer；共有格式与语义只验证一次，Link 追加实际对象、符号、ABI 和 relocation 检查。
 
 ### 2.3 所有权与不变量
 
@@ -1051,7 +1051,7 @@ owner必须是同一条extern source declaration；其唯一source location由�
 | 4 | `ReadOnlyTls` | 同tag 2 |
 | 5 | `MutableTls` | 同tag 2 |
 
-source symbol是1…4095 byte、无NUL的annotation UTF-8值；target规范化前不宣称它就是object symbol bytes。`SourceExternFunctionAbi`是`C=1 {1=SourceCAbiFunctionSignature}`或`Scoop=2 {1=SourceScoopAbiFunctionSignature, 2=GcEffect}`；`GcEffect`为`Managed=1, NoGc=2`，`SourceCallingConvention`的唯一值为`Cdecl=1`。data/TLS不携带calling convention且只接受C-safe storage type。`CallbackMode`固定为`Reusable=1, OneShot=2`；callback的`SourceCAbiFunctionSignature`复用本段唯一schema。
+source symbol是非空、无NUL的annotation UTF-8值；target规范化前不宣称它就是object symbol bytes。`SourceExternFunctionAbi`是`C=1 {1=SourceCAbiFunctionSignature}`或`Scoop=2 {1=SourceScoopAbiFunctionSignature, 2=GcEffect}`；`GcEffect`为`Managed=1, NoGc=2`，`SourceCallingConvention`的唯一值为`Cdecl=1`。data/TLS不携带calling convention且只接受C-safe storage type。`CallbackMode`固定为`Reusable=1, OneShot=2`；callback的`SourceCAbiFunctionSignature`复用本段唯一schema。
 
 仅有identity与field id不足以从不受信任artifact重算`@CLayout`或Scoop value ABI；因此foundation还携带一个**只服务native boundary闭包**、不公开为通用layout API的最小source witness。`CLayoutOverride`是`Natural=1`或`Bytes=2 {1=1|2|4|8|16}`：
 
@@ -1102,7 +1102,7 @@ LIR在当前LIR target profile下完成native symbol/calling-convention与canoni
 ```text
 NativeExternalSymbolKey {
     target_profile: TargetProfileWireId,     // field 1
-    native_link_symbol: bytes,               // field 2, 1..4096 bytes, no NUL
+    native_link_symbol: bytes,               // field 2, nonempty bytes, no NUL
 }
 
 PersistentNativeExternalSymbolId =
@@ -1199,7 +1199,7 @@ reader分别重算symbol id与contract fingerprint，再验证source contract经
 
 `PersistentExactTypeId = DomainSeparatedCborHash("scoop-exact-type-v1", ExactTypeKey)`。primitive/`Unit`都是core nominal，tuple和function是结构type，`RawPointer`与managed nominal、`NativeFunctionPointer`与managed function互不转换。nominal ref作为leaf，exact table对其他exact edge做cycle检查并以dependency-first顺序编码。
 
-`CanonicalExactTypeDiagnosticName`完全沿用M23总设计3.1的ASCII grammar。M23-2实现只能从已验证identity graph生成它，并用memoized subtree cost在分配前实施16 MiB单字段上限；wire中若冗余保存diagnostic name，reader必须重算后逐byte相等。
+`CanonicalExactTypeDiagnosticName`完全沿用M23总设计3.1的ASCII grammar。实现从完整 identity graph 生成它，以显式遍历栈检测当前路径环，并按实际输出长度检查溢出和分配失败，不施加长度或展开次数配额；wire中若冗余保存diagnostic name，reader必须重算后逐byte相等。
 
 ### 6.2 callable body v1
 
@@ -1473,7 +1473,7 @@ QualifiedPointerLayoutV1 {
 
 `DarwinAarch64V1`的field 1…15精确取：`"aarch64-apple-darwin"`；`"e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"`；`org.scoop-lang.object-format/mach-o-relocatable/1`；`Little=1`；按kind严格递增的`I1=1:(1,1), I8=2:(1,1), I16=3:(2,2), I32=4:(4,4), I64=5:(8,8)`；`(8,8)`；`(8,8, AllZeroBits=1, BitPreservingU64=1)`；同前；`(8,8)`；`16`；`16`；`9,223,372,036,854,775,807`；`ElideZeroSizedDirectScalarIndirectAggregate=1`；`GeneratedBridgeSystemCCompiler=1`；`MachOExternalUnderscore=1`。array不得遗漏、重复或改变scalar顺序。Float/Double尚未进入当前编译器实现子集，也不是M23 C-FFI-safe storage，因此不得伪装成I32/I64；未来启用F32/F64必须扩展scalar/storage contract并提升target profile major。
 
-`NativeSymbolNormalizationV1::MachOExternalUnderscore`把1…4095 byte、无NUL且不以LLVM escape byte `0x01`开头的logical symbol逐byte映射为`0x5f || logical`，输出恰为2…4096 byte；不做Unicode、大小写或已有underscore折叠。固定向量是`foo → _foo`、`_foo → __foo`、`scoop$1$cb$<64hex> → _scoop$1$cb$<64hex>`。Scoop LLVM object与generated-C bridge object verifier都必须应用同一policy；`NativeExternalSymbolKey.native_link_symbol`保存输出bytes，不能一个保存logical C name、另一个保存Mach-O `nlist` name。第7章的`MangledSymbol`语法描述logical Scoop symbol；codegen/object verifier以本field唯一映射到真实object symbol。
+`NativeSymbolNormalizationV1::MachOExternalUnderscore`把非空、无NUL且不以LLVM escape byte `0x01`开头的logical symbol逐byte映射为`0x5f || logical`，输出长度为输入长度加一，使用 checked 长度计算与实际分配错误处理；不做Unicode、大小写或已有underscore折叠。固定向量是`foo → _foo`、`_foo → __foo`、`scoop$1$cb$<64hex> → _scoop$1$cb$<64hex>`。Scoop LLVM object与generated-C bridge object verifier都必须应用同一policy；`NativeExternalSymbolKey.native_link_symbol`保存输出bytes，不能一个保存logical C name、另一个保存Mach-O `nlist` name。第7章的`MangledSymbol`语法描述logical Scoop symbol；codegen/object verifier以本field唯一映射到真实object symbol。
 
 该contract的Wire CBOR v1为：
 
@@ -1562,7 +1562,7 @@ M23-2不在bootstrap中为未实现的public index、ODR、image等字段留null
 
 `SlibMemberRecordV1`、`MemberStableKey`、`SlibMemberRole`、`CapabilityId`与`MemberPurposeSet`的wire完全采用M23总设计4.1表格：record field是`1=id, 2=stable_key, 3=role, 4=byte_length, 5=sha256`；stable-key/role tag都为`HirMetadata=1, MirMetadata=2, LirMetadata=3, LinkObject=4, DiagnosticAttachment=5, ExtensionBlob=6`；purpose bit为`Graph=0x1, Compile=0x2, Link=0x4, Diagnostics=0x8`。
 
-metadata stable key无payload，必须与同tag role配对，且三种metadata各恰好一个。其他stable key的capability必须与role中capability逐byte相等；`logical_key`是1…4,096 byte的capability-owned canonical bytes。`byte_length`是payload原始byte数的checked u64，`sha256 = SHA-256(raw payload bytes)`。manifest的`members` array与所有后续处理统一按raw `SlibMemberId` bytes严格递增并拒绝重复；reader不得先sort再接受。manifest不在directory中，也不包含自身member record/hash。`SlibMemberId`、`MemberFingerprint`和`LinkMemberFingerprint`按第3.3节重算。
+metadata stable key无payload，必须与同tag role配对，且三种metadata各恰好一个。其他stable key的capability必须与role中capability逐byte相等；`logical_key`是非空capability-owned canonical bytes。`byte_length`是payload原始byte数的checked u64，`sha256 = SHA-256(raw payload bytes)`。manifest的`members` array与所有后续处理统一按raw `SlibMemberId` bytes严格递增并拒绝重复；reader不得先sort再接受。manifest不在directory中，也不包含自身member record/hash。`SlibMemberId`、`MemberFingerprint`和`LinkMemberFingerprint`按第3.3节重算。
 
 `CapabilityId={1=namespace,2=name,3=major_version}`的grammar与总设计相同：单个小写label精确匹配`[a-z][a-z0-9-]{0,62}`；namespace是1…255 ASCII byte、由一个或多个该label以`.`分隔，name是1…63 byte的单个label，major是nonzero u32。全协议唯一排序键为`CapabilitySortKey = (namespace raw ASCII bytes, name raw ASCII bytes, major_version numeric)`；manifest section、metadata section、profile inventory、fingerprint contribution与诊断都使用它，不能改用CBOR编码bytes或display `namespace/name/version`排序。
 
@@ -1573,7 +1573,7 @@ M23-2 registry识别：
 - `org.scoop-lang.target-profile/darwin-aarch64/1`；
 - `org.scoop-lang.backend-profile/llvm-22-1/1`；
 - `org.scoop-lang.object-format/mach-o-relocatable/1`；
-- artifact profile `org.scoop-lang.slib-profile/identity-foundation/1`；
+- artifact profile `org.scoop-lang.slib-profile/identity-foundation/2`；
 - metadata foundation capabilities `org.scoop-lang.hir/identity-foundation/1`、`org.scoop-lang.mir/identity-foundation/1`、`org.scoop-lang.lir/identity-foundation/1`。
 
 上述两个contract DTO、singleton值、canonical bytes与digest是registry定义本身，不由host `llvm-config`、inkwell runtime枚举或TargetMachine默认值反推。`org.scoop-lang.link-object/scoop-lir/1`与`.../generated-c-bridge/1`的id/logical-key schema也按总设计冻结，但M23-2不声称识别其payload、不运行object verifier；Graph/Compile只保存hash-valid opaque member。
@@ -1607,16 +1607,11 @@ ArtifactCapabilityProfileFingerprint =
 
 所有capability array按`CapabilitySortKey`排序去重；它们精确列出与该profile所请求purpose相交的mandatory required set，而不是实际envelope inventory的全集。与requested purpose相交的每条required section必须出现在对应descriptor array，array中的每项也必须实际存在；与requested purpose不相交的known/unknown section只验证envelope/hash并保持opaque。实际envelope还可以包含registry允许的EnvelopeOnly optional section。availability为`MustBeUnavailable=1`或`MustBeAvailable=2`，publication为`FoundationOnly=1`或`Publishable=2`。
 
-`ArtifactValidationPolicyV1`是closed product `1=OdrValidationPolicyV1, 2=ExtraSectionPolicyV1, 3=SlibDecodeCostModelV1, 4=LinkProofPolicyV1`。ODR policy为`IdentityOnlyNonPublishable=1, RejectAll=2, RequireCompleteDefinitionProof=3`；extra section policy的v1唯一值为`AllowPurposeDisjointOpaqueAndEnvelopeOptional=1`；decode cost model的v1唯一值为`DeterministicLogicalCostV1=1`；Link policy为`Forbidden=1, Required=2`。这些predicate直接进入profile fingerprint，不是profile id背后的未哈希代码约定；改变门禁、cost model或optional inventory规则必须换profile major/descriptor并得到新fingerprint。
+`ArtifactValidationPolicyV1` 只编码实际格式规则：field 1 为 `OdrValidationPolicyV1`、field 2 为 `ExtraSectionPolicyV1`、field 4 为 `LinkProofPolicyV1`。原 field 3 的 `SlibDecodeCostModelV1` 退役且不得复用，不再保存计量策略或成本常量。ODR policy 的既有 tag 为 `IdentityOnlyNonPublishable=1, RejectAll=2, RequireCompleteDefinitionProof=3`；extra section policy 的唯一值为 `AllowPurposeDisjointOpaqueAndEnvelopeOptional=1`；Link policy 为 `Forbidden=1, Required=2`。M23-6 使用 RejectAll，不提前提供 M23-7 的 ODR 能力。
 
-`identity-foundation/1`的mandatory manifest清单为空，HIR/MIR/LIR数组分别只含对应foundation，code/runtime均Unavailable、publication为FoundationOnly，validation policy精确为`{IdentityOnlyNonPublishable, AllowPurposeDisjointOpaqueAndEnvelopeOptional, DeterministicLogicalCostV1, Forbidden}`。reader先由实际envelope反证mandatory subset及所有extra section合法性，再返回`ValidatedCompileArtifact<IdentityFoundationProfile>`；缺一条mandatory section即使producer未在`required_for`声明也失败。M23-3必须注册新的strong-only production profile，要求其完整Compile/Link mandatory set、Available fingerprints、Publishable以及`RejectAll/Required` policy；该profile发现任意ODR group/member/body/symbol立即失败。M23-7再注册使用`RequireCompleteDefinitionProof/Required`的profile版本。任何阶段都不能把foundation proof cast成publishable artifact。
+删除成本字段后，四个现有 profile（`identity-foundation`、`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong`）的 major 升为 2，使用新的 descriptor fingerprint。版本 1 的旧产物须重建；不保留旧成本模型或双版本 reader。内容哈希仍覆盖实际 section、对象和依赖信息，runtime C ABI 不因计量清理而改变。
 
-按第3.2节pure enum规则，该foundation descriptor的Wire CBOR v1与profile fingerprint golden固定为：
-
-```text
-a901a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c6502736964656e746974792d666f756e646174696f6e030102800381a301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03010481a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03010581a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e030106010701080109a40101020103010401
-ArtifactCapabilityProfileFingerprint = 6461601c81a77ecbd34698c708d9035732f0a75f6e5ec98d2c561250ab0111f9
-```
+`identity-foundation/2` 的 mandatory manifest 清单为空，HIR/MIR/LIR 分别只含对应 foundation，Code/RuntimeImage 为 Unavailable，publication 为 FoundationOnly。生产 profile 要求各自完整的 Compile/Link 数据和 Available fingerprints。reader 检查实际 inventory 中的必需 section、格式、引用、符号与 ABI，不能把只有 identity 数据的产物当作完整生产产物。profile canonical bytes 与 fingerprint 的固定向量由 `compiler/slib/src/profile/tests.rs` 验证。
 
 v1 `ExtensionBlob.required_for`只允许0或恰好`Link(0x4)`；Graph/Compile/Diagnostics bit、多bit或unknown bit都是目录错误。`DiagnosticAttachment`对语义purpose总是optional。`LinkObject`隐含Link required，但不得因Graph/Compile reader不认识verifier而失败；它只能在请求Link proof时fail closed。
 
@@ -1832,7 +1827,7 @@ SlibInputBytes
        `-> ValidatedLinkArtifact         // M23-3首次实现
 ```
 
-`DecodedSlibEnvelope`证明canonical ar、canonical bootstrap CBOR、directory/id/order、每个member的length/hash、artifact fingerprint和基础资源上限。它保留immutable backing bytes及checked member ranges，不提供IR、object或语义查询。
+`DecodedSlibEnvelope`证明canonical ar、canonical bootstrap CBOR、directory/id/order、每个member的length/hash、artifact fingerprint和实际输入范围。它保留immutable backing bytes及checked member ranges，不提供IR、object或语义查询。
 
 `ValidatedGraphArtifact`在envelope上追加magic/schema/ABI/profile exact match、Cone coordinate/id、kind/source form、direct dependency record与member role/purpose/capability envelope验证。它只是一个artifact graph node proof，不说dependency artifact存在、唯一、无环或已形成closure。
 
@@ -1844,7 +1839,7 @@ M23-2不定义public `validate_link`，也不定义伪`ValidatedLinkArtifact`。
 
 Compile validation严格分为四步：
 
-1. **wire decode**：在budgeted cursor上解码为不持有semantic arena的DTO，保留field/index path；
+1. **wire decode**：在检查实际输入范围的cursor上解码为不持有semantic arena的DTO，保留field/index path；
 2. **structural validation**：检查canonical order、id/key重算、owner/edge、arity、non-empty、cycle、span、kind和跨层覆盖，得到不可再变的validated wire graph；
 3. **typed remap**：对每个kind按raw persistent id顺序为`PendingSemanticWorld`分酌fresh imported id，然后解析全部edge；
 4. **atomic commit**：三层及所有cross-layer bridge全部成功后，一次性将pending world并入session，返回Compile proof。
@@ -1880,7 +1875,9 @@ Compile proof至少检查：
 
 旧版的单产物和跨产物累计预算、逻辑成本公式、handler 固定费用及 cost-model profile 字段已退役，不再决定程序或产物是否合法。不得以提高额度、unlimited、改名或空计量接口保留它们。
 
-容器、manifest、section 和内层 CBOR 都按实际输入长度检查范围；长度、偏移、元素数量及其乘积使用 checked 运算，通过表示范围和剩余输入检查后才转换为 `usize` 或分配。直接来源于输入的集合容量使用 fallible reserve，分配失败报告真实请求的容量。正常的格式位宽和索引范围仍须满足，不引入额外逻辑字节、节点、边或 work units 配额。
+容器、manifest、section 和内层 CBOR 都按实际输入长度检查范围；长度、偏移、元素数量及其乘积使用 checked 运算，通过表示范围和剩余输入检查后才转换为 `usize` 或分配。直接来源于输入的集合容量使用 fallible reserve，分配失败报告分配错误。容器、manifest、metadata payload 与成员数量不设置额外配额；ar 字段宽度、成员名的八位十进制 ordinal 和整数表示范围仍属于格式约束。正常的格式位宽和索引范围仍须满足，不引入额外逻辑字节、节点、边或 work units 配额。
+
+Mach-O reader 按实际对象字节范围、文件格式的整数字段宽度和 checked 算术解释 load command、section、symbol、string table 与 relocation；不另设对象字节、命令数量或表项数量配额。
 
 canonical CBOR 的字段顺序、唯一性、tag、类型、最短表示和完整消费规则保持；reader 不通过排序修复非 canonical 输入。foundation 的来源、owner、typed 引用和依赖关系在所属边界检查。循环引用由相应图的局部 visited/active 集合识别，遍历使用显式栈或按实际递归结构处理，不靠累计计费提供终止性。
 
@@ -1896,7 +1893,7 @@ public error是封闭大类加typed detail，不传出第三方库错误文本�
 | --- | --- |
 | `Container` | bad magic/header/name/order/pad, thin/special/trailing member |
 | `CanonicalWire` | non-minimal CBOR, wrong major type, duplicate/extra/missing field, unknown tag |
-| `Allocation` | fallible allocation 失败及实际请求容量；不包含逻辑预算或计费错误 |
+| `Allocation` | fallible allocation 失败；不包含逻辑预算或计费错误 |
 | `Fingerprint` | member/artifact/layer fingerprint mismatch |
 | `Compatibility` | schema/ABI/mangler/identity/target/backend mismatch |
 | `Directory` | duplicate/missing member, id/stable-key/role/purpose mismatch |
@@ -2039,27 +2036,27 @@ golden文件包含schema/domain/tag版本说明。更新golden必须在review中
 - 三层分别做`encode -> decode -> validate -> typed remap -> re-encode`，在consumer arena初始状态不同时仍逐byte一致；
 - 重复从diamond路径导入同artifact得到同world id，但冲突fingerprint在commit前失败。
 
-### 16.3 negative/corruption/budget
+### 16.3 negative/corruption/boundaries
 
 对每个closed record做缺field、多field、重复field、错major type、unknown/reserved tag、非最短integer与乱序table用例。对archive做bit flip、truncation、错size/pad/name/order、thin/special member、重复/缺失/未声明member和hash/fingerprint错配。对identity graph做错kind、错owner、cycle、binder/index/arity/path/span越界与cross-layer bridge漏项；另覆盖tag 4 initialization owner指向别的property/unit、nominal exact type误造StructuralType group、`StaticAssertSupport`产生plan、以及同bridge unit跨两个Cone复用unit/recipe但atom/symbol必须不同的正反对照。
 
 native-boundary witness另有三组Compile测试：当前Cone加trusted core能闭合时成功；缺少本地传递record或夹带无关record时失败；边跨direct dependency时Graph仍成功而M23-2 Compile稳定返回`SLIB_CAPABILITY_NATIVE_BOUNDARY_CLOSURE_REQUIRED`，待M23-6 closure profile提供完整proof后成功。C/Scoop extern还需覆盖Managed与NoGc产生不同fingerprint、却都保持NativeBorrowed caller-root publication的断言。
 
-每项budget都测试`limit-1`、`limit`、`limit+1`，并覆盖多个各自未超限但累计超限的输入。fuzz/property test向raw archive、CBOR、identity graph与remap输入任意bytes，验收条件是有界返回、不panic、不提交部分world，同bytes/同limit产生同error code/path。
+fuzz/property test向raw archive、CBOR、identity graph与remap输入任意bytes，验证截断、非法字段、引用环与实际整数溢出被拒绝，失败不panic、不提交部分world，同bytes产生同error code/path。较深或较大的合法输入不因任意成本配额被拒绝。
 
 unknown optional capability在完整envelope/hash验证后可跳过；unknown Compile-required capability只允许Graph，Compile失败；unknown Link-required object/blob允许Graph/Compile保持opaque，不存在M23-2 Link API可将它误提升。
 
 ### 16.4 fixture分层
 
-- `scoop-wire`：codec/hash/budget unit golden和fuzz corpus；
+- `scoop-wire`：codec/hash/allocation unit golden和fuzz corpus；
 - `scoop-identity`：每个kind/key/mangler/runtime id unit golden；
 - HIR/MIR/LIR：foundation projection/wire/remap/cross-reference golden；
-- `scoop-slib`：container/directory/manifest/view/corruption/budget测试；
+- `scoop-slib`：container/directory/manifest/view/corruption测试；
 - `tests/fixtures/`：source order/path independence、组合language feature与现有运行行为回归；每条新编译错误规则有独立negative fixture并断言位置/error code/message。
 
 ## 17. 实现顺序
 
-1. 建立`scoop-wire`，用固定CBOR/hash/budget/error-path vector锁定最底层；
+1. 建立`scoop-wire`，用固定CBOR/hash/error-path vector锁定最底层；
 2. 建立`scoop-identity`，先落Cone/source/kind-specific id/exact type，再落callable/safepoint/runtime/mangler；
 3. 同步迁移parser输入、HIR source/origin/visibility与driver reserved source adapter，消除request-local handle渗透；
 4. 让HIR lowering产生完整identity foundation，并将current/imported/LocalConcrete id family分开；
@@ -2081,6 +2078,6 @@ M23-2只在以下条件同时成立时完成：
 4. canonical `.slib`在隔离目录与乱序输入下bitwise reproducible，raw reader会拒绝所有等价但非canonical的CBOR/ar spelling；
 5. typed directory覆盖0/1/N个LinkObject、diagnostic、optional blob与Link-required blob，任何角色都不由文件名、扩展名或member数量推断；
 6. `DecodedSlibEnvelope`、Graph、Compile API不能在类型上当作Link proof，foundation artifact不能发布或作dependency；
-7. 任意corruption、unknown required capability、超budget、identity/reference/bridge冲突都在原子commit前产生确定性typed error，不panic、不越界、不留部分状态；
+7. 任意corruption、unknown required capability、实际范围越界、identity/reference/bridge冲突都在原子commit前产生确定性typed error，不panic、不越界、不留部分状态；
 8. 现有workspace的format、lint、test、stage dump golden和运行fixture全部通过，新增的identity/wire/slib negative matrix全部通过；
 9. M23-3能只通过新section/capability、object/image verifier与production orchestration向前扩展，无需修改本文的identity domain、tag、mangler、bootstrap、directory、container或proof顺序。

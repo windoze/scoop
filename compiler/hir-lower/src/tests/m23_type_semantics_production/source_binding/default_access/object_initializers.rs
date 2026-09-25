@@ -32,11 +32,7 @@ fn default_access_rejects_object_initializers_despite_actual_constructor_keys_an
                 assert!(!required.contains(&subject));
                 assert!(table.get(subject).is_none());
                 assert!(matches!(
-                    Table::from_export_hir(
-                        &output.output().export,
-                        &BTreeSet::from([subject]),
-                        &mut meter()
-                    ),
+                    Table::from_export_hir(&output.output().export, &BTreeSet::from([subject])),
                     Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
                 ));
                 let owner_access = table
@@ -61,11 +57,11 @@ fn default_access_rejects_object_initializers_despite_actual_constructor_keys_an
                 let mut records = table.records().to_vec();
                 records.push(Record::try_new(subject, access).unwrap());
                 records.sort_by_key(Record::subject);
-                let forged = Table::try_new(records, &mut meter()).unwrap();
+                let forged = Table::try_new(records).unwrap();
                 let mut demand = required.clone();
                 demand.insert(subject);
                 assert!(matches!(
-                    foundation.bind_default_access_declarations(&forged, &demand, &mut meter()),
+                    foundation.bind_default_access_declarations(&forged, &demand),
                     Err(Error::ConstructorOwner(id)) if id == subject
                 ));
                 checked += 1;

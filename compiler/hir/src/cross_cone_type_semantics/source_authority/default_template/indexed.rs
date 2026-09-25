@@ -9,11 +9,8 @@ use crate::{
 impl DefaultSourceTemplateV1 {
     pub fn index_locals(
         &self,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<IndexedDefaultSourceTemplateV1<'_>, DefaultSourceTemplateIndexError> {
-        resources::preflight(&self.body, &self.value_parameters, meter)
-            .map_err(DefaultSourceTemplateIndexError::Resource)?;
-        let mut locals = resources::LocalIndex::new(&self.locals, meter);
+        let mut locals = resources::LocalIndex::new(&self.locals);
         let body = self
             .body
             .index_locals(&mut locals)

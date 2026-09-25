@@ -18,8 +18,8 @@ use scoop_identity::{
 };
 use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::CanonicalMirFoundation;
-use scoop_wire::budget::PENDING_REMAP_ENTRY_BYTES;
-use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind, encode};
+
+use scoop_wire::encode;
 
 use super::*;
 use crate::{
@@ -66,10 +66,8 @@ fn graph_decodes_identity_checks_and_structurally_validates_all_foundation_layer
         &lir,
     ))
     .unwrap();
-    let envelope =
-        crate::DecodedSlibEnvelope::open(artifact.as_bytes(), DecodeLimits::default(), selection)
-            .unwrap();
-    let envelope_usage = envelope.decode_usage();
+    let envelope = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), selection).unwrap();
+
     let decoded = envelope
         .validate_graph()
         .unwrap()
@@ -80,8 +78,6 @@ fn graph_decodes_identity_checks_and_structurally_validates_all_foundation_layer
     assert_eq!(encode(decoded.hir_wire()).unwrap(), encode(&hir).unwrap());
     assert_eq!(encode(decoded.mir_wire()).unwrap(), encode(&mir).unwrap());
     assert_eq!(encode(decoded.lir_wire()).unwrap(), encode(&lir).unwrap());
-    assert!(decoded.decode_usage().decoded_nodes > envelope_usage.decoded_nodes);
-    assert!(decoded.decode_usage().logical_heap_bytes > envelope_usage.logical_heap_bytes);
 
     let checked = decoded.validate_identities().unwrap();
     assert_eq!(checked.identity(), cone.identity());
@@ -169,20 +165,19 @@ fn native_boundary_source_validation_rejects_an_unrelated_witness() {
     ))
     .unwrap();
 
-    let error =
-        crate::DecodedSlibEnvelope::open(artifact.as_bytes(), DecodeLimits::default(), selection)
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_identity_foundations()
-            .unwrap()
-            .validate_identities()
-            .unwrap()
-            .validate_structure()
-            .unwrap()
-            .validate_native_boundary_source()
-            .err()
-            .expect("unrelated witness must be rejected");
+    let error = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), selection)
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_identity_foundations()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_structure()
+        .unwrap()
+        .validate_native_boundary_source()
+        .err()
+        .expect("unrelated witness must be rejected");
 
     assert!(matches!(
         error,
@@ -197,11 +192,10 @@ fn direct_dependency_native_boundary_requires_the_closure_capability() {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let (artifact, _) = scoop_native_function_artifact_with_options(GcEffect::Managed, false, true);
 
-    let graph =
-        crate::DecodedSlibEnvelope::open(artifact.as_bytes(), DecodeLimits::default(), selection)
-            .unwrap()
-            .validate_graph()
-            .unwrap();
+    let graph = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), selection)
+        .unwrap()
+        .validate_graph()
+        .unwrap();
     assert_eq!(
         graph.direct_dependencies()[0].coordinate(),
         &ConeCoordinate::reserved_core()
@@ -246,12 +240,11 @@ fn compile_recomputes_a_target_native_function_contract() {
     assert_eq!(compiled.lir().counts().c_abi_signatures, 1);
 }
 
-fn validate_native_boundary_with_limits(
-    artifact: &IdentityFoundationArtifact,
-    limits: DecodeLimits,
-) -> Result<NativeBoundaryValidatedFoundations<'_>, NativeBoundaryCompileError> {
+#[test]
+fn compile_rejects_a_structurally_valid_but_wrong_target_symbol() {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let structured = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), limits, selection)
+    let artifact = native_function_artifact("different_target_symbol");
+    let error = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), selection)
         .unwrap()
         .validate_graph()
         .unwrap()
@@ -260,172 +253,12 @@ fn validate_native_boundary_with_limits(
         .validate_identities()
         .unwrap()
         .validate_structure()
-        .unwrap();
-    structured
+        .unwrap()
         .validate_native_boundary_source()
-        .and_then(NativeBoundarySourceValidatedFoundations::validate_target)
-}
-
-#[test]
-fn native_boundary_validation_heap_cost_has_inclusive_boundaries() {
-    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
-    let expected = validate_native_boundary_with_limits(&artifact, DecodeLimits::default())
         .unwrap()
-        .foundations()
-        .decode_usage()
-        .logical_heap_bytes;
-
-    for (limit, accepted) in [
-        (expected - 1, false),
-        (expected, true),
-        (expected + 1, true),
-    ] {
-        let result = validate_native_boundary_with_limits(
-            &artifact,
-            DecodeLimits {
-                logical_heap_bytes: limit,
-                ..DecodeLimits::default()
-            },
-        );
-        assert_eq!(result.is_ok(), accepted);
-        if accepted {
-            assert_eq!(
-                result
-                    .unwrap()
-                    .foundations()
-                    .decode_usage()
-                    .logical_heap_bytes,
-                expected
-            );
-        } else {
-            assert!(matches!(
-                result,
-                Err(NativeBoundaryCompileError::Resource(ref error))
-                    if matches!(
-                        error.kind(),
-                        WireErrorKind::LimitExceeded {
-                            resource: ResourceKind::LogicalHeapBytes,
-                            limit: actual_limit,
-                            observed,
-                        } if *actual_limit == limit && *observed == expected
-                    )
-            ));
-        }
-    }
-}
-
-#[test]
-fn native_boundary_validation_hash_work_has_inclusive_boundaries() {
-    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
-    let expected = validate_native_boundary_with_limits(&artifact, DecodeLimits::default())
-        .unwrap()
-        .foundations()
-        .decode_usage()
-        .validation_work_units;
-
-    for (limit, accepted) in [
-        (expected - 1, false),
-        (expected, true),
-        (expected + 1, true),
-    ] {
-        let result = validate_native_boundary_with_limits(
-            &artifact,
-            DecodeLimits {
-                validation_work_units: limit,
-                ..DecodeLimits::default()
-            },
-        );
-        assert_eq!(result.is_ok(), accepted);
-        if accepted {
-            assert_eq!(
-                result
-                    .unwrap()
-                    .foundations()
-                    .decode_usage()
-                    .validation_work_units,
-                expected
-            );
-        } else {
-            assert!(matches!(
-                result,
-                Err(NativeBoundaryCompileError::Resource(ref error))
-                    if matches!(
-                        error.kind(),
-                        WireErrorKind::LimitExceeded {
-                            resource: ResourceKind::ValidationWorkUnits,
-                            limit: actual_limit,
-                            observed,
-                        } if *actual_limit == limit && *observed == expected
-                    )
-            ));
-        }
-    }
-}
-
-#[test]
-fn native_boundary_validation_relation_cost_has_inclusive_boundaries() {
-    let (artifact, _) = scoop_native_function_artifact(GcEffect::Managed);
-    let expected = validate_native_boundary_with_limits(&artifact, DecodeLimits::default())
-        .unwrap()
-        .foundations()
-        .decode_usage()
-        .decoded_edges;
-
-    for (limit, accepted) in [
-        (expected - 1, false),
-        (expected, true),
-        (expected + 1, true),
-    ] {
-        let result = validate_native_boundary_with_limits(
-            &artifact,
-            DecodeLimits {
-                decoded_edges: limit,
-                ..DecodeLimits::default()
-            },
-        );
-        assert_eq!(result.is_ok(), accepted);
-        if accepted {
-            assert_eq!(
-                result.unwrap().foundations().decode_usage().decoded_edges,
-                expected
-            );
-        } else {
-            assert!(matches!(
-                result,
-                Err(NativeBoundaryCompileError::Resource(ref error))
-                    if matches!(
-                        error.kind(),
-                        WireErrorKind::LimitExceeded {
-                            resource: ResourceKind::DecodedEdges,
-                            limit: actual_limit,
-                            observed,
-                        } if *actual_limit == limit && *observed == expected
-                    )
-            ));
-        }
-    }
-}
-
-#[test]
-fn compile_rejects_a_structurally_valid_but_wrong_target_symbol() {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let artifact = native_function_artifact("different_target_symbol");
-    let error =
-        crate::DecodedSlibEnvelope::open(artifact.as_bytes(), DecodeLimits::default(), selection)
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_identity_foundations()
-            .unwrap()
-            .validate_identities()
-            .unwrap()
-            .validate_structure()
-            .unwrap()
-            .validate_native_boundary_source()
-            .unwrap()
-            .validate_target()
-            .err()
-            .expect("target symbol must be derived from the source contract");
+        .validate_target()
+        .err()
+        .expect("target symbol must be derived from the source contract");
 
     assert!(matches!(
         error,
@@ -466,22 +299,21 @@ fn compile_commit_reuses_world_ids_and_rejects_origin_conflicts_atomically() {
     assert_eq!(session.origin_count(), origins);
     assert_eq!(session.entity_count(), entities);
 
-    let result =
-        crate::DecodedSlibEnvelope::open(changed.as_bytes(), DecodeLimits::default(), selection)
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_identity_foundations()
-            .unwrap()
-            .validate_identities()
-            .unwrap()
-            .validate_structure()
-            .unwrap()
-            .validate_native_boundary_source()
-            .unwrap()
-            .validate_target()
-            .unwrap()
-            .commit(&mut session);
+    let result = crate::DecodedSlibEnvelope::open(changed.as_bytes(), selection)
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_identity_foundations()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_structure()
+        .unwrap()
+        .validate_native_boundary_source()
+        .unwrap()
+        .validate_target()
+        .unwrap()
+        .commit(&mut session);
     let error = match result {
         Ok(_) => panic!("changed fingerprints must not commit under an existing origin"),
         Err(error) => error,
@@ -495,63 +327,6 @@ fn compile_commit_reuses_world_ids_and_rejects_origin_conflicts_atomically() {
     ));
     assert_eq!(session.origin_count(), origins);
     assert_eq!(session.entity_count(), entities);
-}
-
-#[test]
-fn compile_commit_charges_pending_remap_at_inclusive_heap_boundary() {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let artifact = foundation_artifact(
-        ConeRecord::new(
-            ConeCoordinate::reserved_core(),
-            ConeKind::Library,
-            ConeSourceForm::Manifest,
-        )
-        .unwrap(),
-        None,
-    );
-    let baseline =
-        foundations_ready_to_commit(artifact.as_bytes(), selection, DecodeLimits::default());
-    let before_commit = baseline.foundations().decode_usage().logical_heap_bytes;
-    let remap_count = u64::try_from(baseline.foundations().declared_identity_count()).unwrap();
-    let expected = before_commit + remap_count * PENDING_REMAP_ENTRY_BYTES;
-
-    for (limit, accepted) in [
-        (expected - 1, false),
-        (expected, true),
-        (expected + 1, true),
-    ] {
-        let ready = foundations_ready_to_commit(
-            artifact.as_bytes(),
-            selection,
-            DecodeLimits {
-                logical_heap_bytes: limit,
-                ..DecodeLimits::default()
-            },
-        );
-        let mut session = SemanticIdentitySession::new();
-        match ready.commit(&mut session) {
-            Ok(compiled) => {
-                assert!(accepted);
-                assert_eq!(compiled.decode_usage().logical_heap_bytes, expected);
-                assert_eq!(session.origin_count(), 1);
-                assert_eq!(session.entity_count(), remap_count as usize);
-            }
-            Err(error) => {
-                assert!(!accepted);
-                assert!(matches!(
-                    error,
-                    CompileCommitError::Resource(ref error)
-                        if error.kind() == &(WireErrorKind::LimitExceeded {
-                            resource: ResourceKind::LogicalHeapBytes,
-                            limit,
-                            observed: expected,
-                        })
-                ));
-                assert_eq!(session.origin_count(), 0);
-                assert_eq!(session.entity_count(), 0);
-            }
-        }
-    }
 }
 
 #[test]
@@ -937,7 +712,7 @@ fn compile<'input>(
     selection: ValidatedLirTargetSelection,
     session: &mut SemanticIdentitySession,
 ) -> ValidatedCompileArtifact<'input, IdentityFoundationProfile> {
-    crate::DecodedSlibEnvelope::open(bytes, DecodeLimits::default(), selection)
+    crate::DecodedSlibEnvelope::open(bytes, selection)
         .unwrap()
         .validate_graph()
         .unwrap()
@@ -952,27 +727,6 @@ fn compile<'input>(
         .validate_target()
         .unwrap()
         .commit(session)
-        .unwrap()
-}
-
-fn foundations_ready_to_commit<'input>(
-    bytes: &'input [u8],
-    selection: ValidatedLirTargetSelection,
-    limits: DecodeLimits,
-) -> NativeBoundaryValidatedFoundations<'input> {
-    crate::DecodedSlibEnvelope::open(bytes, limits, selection)
-        .unwrap()
-        .validate_graph()
-        .unwrap()
-        .decode_identity_foundations()
-        .unwrap()
-        .validate_identities()
-        .unwrap()
-        .validate_structure()
-        .unwrap()
-        .validate_native_boundary_source()
-        .unwrap()
-        .validate_target()
         .unwrap()
 }
 
@@ -997,15 +751,14 @@ fn structural_validation_reports_the_failing_layer() {
         &lir,
     ))
     .unwrap();
-    let checked =
-        crate::DecodedSlibEnvelope::open(artifact.as_bytes(), DecodeLimits::default(), selection)
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_identity_foundations()
-            .unwrap()
-            .validate_identities()
-            .unwrap();
+    let checked = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), selection)
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_identity_foundations()
+        .unwrap()
+        .validate_identities()
+        .unwrap();
 
     assert!(matches!(
         checked.validate_structure(),
@@ -1055,11 +808,10 @@ fn unknown_compile_required_manifest_capability_stops_foundation_decode() {
     )
     .unwrap();
     let archive = crate::CanonicalSlibArchive::write_bootstrap(&manifest, members).unwrap();
-    let graph =
-        crate::DecodedSlibEnvelope::open(archive.as_bytes(), DecodeLimits::default(), selection)
-            .unwrap()
-            .validate_graph()
-            .unwrap();
+    let graph = crate::DecodedSlibEnvelope::open(archive.as_bytes(), selection)
+        .unwrap()
+        .validate_graph()
+        .unwrap();
 
     assert!(matches!(
         graph.decode_identity_foundations(),

@@ -5,7 +5,7 @@ use std::fmt::Write;
 fn source_reference_closure_golden_preserves_occurrence_positions() {
     with_template(|template| {
         let bound = template
-            .bind_reference_occurrences(&mut meter(), &WirePath::root())
+            .bind_reference_occurrences(&WirePath::root())
             .unwrap();
         let mut actual = String::new();
         for occurrence in bound.occurrences() {

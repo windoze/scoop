@@ -31,7 +31,6 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
         boolean.identity,
         ScalarRepresentationKindV1::Boolean,
         &boolean.foundation,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(boolean.value().storage().byte_size(), 1);
@@ -55,13 +54,8 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
         ),
     ] {
         let bound = Bound::value(CborIdentityRecord::from_key(key).unwrap());
-        let pointer = ExactValueLayoutV1::qualified_pointer(
-            bound.identity,
-            kind,
-            &bound.foundation,
-            &mut meter(),
-        )
-        .unwrap();
+        let pointer =
+            ExactValueLayoutV1::qualified_pointer(bound.identity, kind, &bound.foundation).unwrap();
         assert_eq!(scan(&pointer), &RefScan::None);
         assert_wire_roundtrip(pointer);
     }
@@ -85,14 +79,9 @@ fn ordinary_struct_and_tuple_replay_typed_dependencies_and_field_order() {
         .map(|(field, value)| NominalLayoutFieldInputV1 { field, value })
         .collect();
     let bound = Bound::value(exact(&owner));
-    let structure = ExactValueLayoutV1::ordinary_struct(
-        bound.identity,
-        true,
-        &inputs,
-        &bound.foundation,
-        &mut meter(),
-    )
-    .unwrap();
+    let structure =
+        ExactValueLayoutV1::ordinary_struct(bound.identity, true, &inputs, &bound.foundation)
+            .unwrap();
     assert_eq!(structure.value().storage().byte_size(), 16);
     assert_eq!(scan(&structure), &RefScan::References(vec![8]));
     let ExactRepresentationKindV1::Struct(representation) = structure.representation().kind()
@@ -120,8 +109,7 @@ fn ordinary_struct_and_tuple_replay_typed_dependencies_and_field_order() {
         ))
         .unwrap(),
     );
-    let tuple = ExactValueLayoutV1::tuple(tuple.identity, &values, &tuple.foundation, &mut meter())
-        .unwrap();
+    let tuple = ExactValueLayoutV1::tuple(tuple.identity, &values, &tuple.foundation).unwrap();
     assert_eq!(tuple.value().storage(), structure.value().storage());
     assert_eq!(encode(tuple.representation()).unwrap()[2], 4);
     assert_wire_roundtrip(structure);
@@ -133,7 +121,7 @@ fn records_reject_wrong_role_identity_kind_owner_and_missing_scan_relation() {
     let owner = source("Owner", SourceNominalKind::Struct, 0);
     let bound = Bound::instance(exact(&owner));
     assert!(matches!(
-        ExactValueLayoutV1::unit(bound.identity, &bound.foundation, &mut meter()),
+        ExactValueLayoutV1::unit(bound.identity, &bound.foundation),
         Err(ExactLayoutReplayError::RepresentationRole)
     ));
     let bound = Bound::value(exact(&owner));
@@ -141,8 +129,7 @@ fn records_reject_wrong_role_identity_kind_owner_and_missing_scan_relation() {
         ExactValueLayoutV1::qualified_pointer(
             bound.identity.clone(),
             NichePointerKind::Raw,
-            &bound.foundation,
-            &mut meter()
+            &bound.foundation
         ),
         Err(ExactLayoutReplayError::IdentityKind)
     ));
@@ -156,13 +143,12 @@ fn records_reject_wrong_role_identity_kind_owner_and_missing_scan_relation() {
                 field: &foreign,
                 value: &value
             }],
-            &bound.foundation,
-            &mut meter()
+            &bound.foundation
         ),
         Err(ExactLayoutReplayError::FieldOwner)
     ));
     assert!(matches!(
-        ExactValueLayoutV1::unit(bound.identity, &bound.foundation, &mut meter()),
+        ExactValueLayoutV1::unit(bound.identity, &bound.foundation),
         Err(ExactLayoutReplayError::IdentityKind)
     ));
     let bound = Bound::value(exact(&CoreBuiltinNominal::Unit.declaration_key()));
@@ -170,7 +156,7 @@ fn records_reject_wrong_role_identity_kind_owner_and_missing_scan_relation() {
     canonical.set_scans(Vec::new()).unwrap();
     let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     assert!(matches!(
-        ExactValueLayoutV1::unit(bound.identity, &foundation, &mut meter()),
+        ExactValueLayoutV1::unit(bound.identity, &foundation),
         Err(ExactLayoutReplayError::MissingScan)
     ));
 }
@@ -183,45 +169,29 @@ fn fixed_unit_identity_cannot_claim_another_representation() {
         ScalarRepresentationKindV1::Boolean,
     ] {
         assert!(matches!(
-            ExactValueLayoutV1::scalar(
-                bound.identity.clone(),
-                kind,
-                &bound.foundation,
-                &mut meter()
-            ),
+            ExactValueLayoutV1::scalar(bound.identity.clone(), kind, &bound.foundation),
             Err(ExactLayoutReplayError::IdentityKind)
         ));
     }
     assert!(matches!(
-        ExactValueLayoutV1::ordinary_struct(
-            bound.identity.clone(),
-            false,
-            &[],
-            &bound.foundation,
-            &mut meter()
-        ),
+        ExactValueLayoutV1::ordinary_struct(bound.identity.clone(), false, &[], &bound.foundation),
         Err(ExactLayoutReplayError::IdentityKind)
     ));
     assert!(matches!(
         ExactValueLayoutV1::qualified_pointer(
             bound.identity,
             NichePointerKind::Managed,
-            &bound.foundation,
-            &mut meter()
+            &bound.foundation
         ),
         Err(ExactLayoutReplayError::IdentityKind)
     ));
     let bound = Bound::instance(exact(&CoreBuiltinNominal::Unit.declaration_key()));
     assert!(matches!(
-        ExactInstanceLayoutV1::inline_bytes(
-            bound.identity.clone(),
-            &bound.foundation,
-            &mut meter()
-        ),
+        ExactInstanceLayoutV1::inline_bytes(bound.identity.clone(), &bound.foundation),
         Err(ExactLayoutReplayError::IdentityKind)
     ));
     assert!(matches!(
-        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation, &mut meter()),
+        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation),
         Err(ExactLayoutReplayError::IdentityKind)
     ));
 }

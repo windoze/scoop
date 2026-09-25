@@ -6,15 +6,12 @@ use crate::{
     StrongInitializationUnitDefinitionRefV2 as Definition,
 };
 use scoop_identity::DecodedPersistentId;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn decoded(
     unit: PersistentInitializationUnitId,
 ) -> DecodedPersistentId<PersistentInitializationUnitId> {
-    decode_canonical(&encode(&unit).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(&unit).unwrap()).unwrap()
 }
 fn source_unit() -> PersistentInitializationUnitId {
     PersistentInitializationUnitId::from_key(&InitializationUnitKey::TopLevelProperty(property(
@@ -70,9 +67,9 @@ fn local_and_dependency_roles_keep_the_same_frozen_id_sequence_wire() {
     let mut expected = vec![0x81];
     expected.extend(encode(&fixture.unit).unwrap());
     for consumer in [ConeIdentity::SINGLE_FILE, ConeIdentity::CORE] {
-        let catalog = Catalog::new(consumer, &[definition], &mut meter()).unwrap();
+        let catalog = Catalog::new(consumer, &[definition]).unwrap();
         let resolved = catalog
-            .resolve(source_unit(), &[decoded(fixture.unit)], &mut meter())
+            .resolve(source_unit(), &[decoded(fixture.unit)])
             .unwrap();
         assert_eq!(resolved.local_unit(), source_unit());
         assert_eq!(encode(&resolved).unwrap(), expected);
@@ -97,12 +94,12 @@ fn missing_duplicate_self_and_noncanonical_dependencies_are_rejected() {
     let plans = fixture.build().unwrap();
     let definition = Definition::from_registrations(&plans, fixture.unit).unwrap();
     assert!(
-        matches!(Catalog::new(ConeIdentity::CORE, &[definition, definition], &mut meter()),
+        matches!(Catalog::new(ConeIdentity::CORE, &[definition, definition]),
         Err(Error::DuplicateDefinition(unit)) if unit == fixture.unit)
     );
-    let catalog = Catalog::new(ConeIdentity::CORE, &[definition], &mut meter()).unwrap();
+    let catalog = Catalog::new(ConeIdentity::CORE, &[definition]).unwrap();
     assert!(
-        matches!(catalog.resolve(fixture.unit, &[decoded(fixture.unit)], &mut meter()),
+        matches!(catalog.resolve(fixture.unit, &[decoded(fixture.unit)]),
         Err(Error::SelfDependency(unit)) if unit == fixture.unit)
     );
     let unknown = PersistentInitializationUnitId::from_key(
@@ -110,24 +107,15 @@ fn missing_duplicate_self_and_noncanonical_dependencies_are_rejected() {
     )
     .unwrap();
     assert!(
-        matches!(catalog.resolve(source_unit(), &[decoded(unknown)], &mut meter()),
+        matches!(catalog.resolve(source_unit(), &[decoded(unknown)]),
         Err(Error::UnknownUnit(unit)) if unit == decoded(unknown))
     );
     assert!(matches!(
         catalog.resolve(
             source_unit(),
-            &[decoded(fixture.unit), decoded(fixture.unit)],
-            &mut meter()
+            &[decoded(fixture.unit), decoded(fixture.unit)]
         ),
         Err(Error::NonCanonicalOrder { index: 1 })
-    ));
-    let mut budget = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        catalog.resolve(source_unit(), &[decoded(fixture.unit)], &mut budget),
-        Err(Error::Resource(_))
     ));
 }
 
@@ -148,7 +136,6 @@ fn unit_definitions_resolve_before_dependency_semantics_for_both_schedules() {
                 &fixture.foundation,
                 &fixture.identities,
                 &fixture.digests,
-                &mut meter(),
             )
             .unwrap();
             let complete = fixture.build().unwrap();
@@ -170,8 +157,7 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
             source_unit(),
             &fixture.foundation,
             &fixture.identities,
-            &fixture.digests,
-            &mut meter()
+            &fixture.digests
         ),
         Err(DefinitionError::MissingRegistrationIdentity(_))
     ));
@@ -184,8 +170,7 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
             missing_registration.unit,
             &missing_registration.foundation,
             &missing_registration.identities,
-            &missing_registration.digests,
-            &mut meter()
+            &missing_registration.digests
         ),
         Err(DefinitionError::MissingRegistrationIdentity(_))
     ));
@@ -218,7 +203,6 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
             &fixture.foundation,
             &fixture.identities,
             &fixture.digests,
-            &mut meter(),
         )
         .unwrap_err();
         assert!(matches!(
@@ -228,42 +212,4 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
                 | (DefinitionError::AssociatedAtoms(_), "associated")
         ));
     }
-}
-
-#[test]
-fn definition_search_has_no_collection_allocation_and_shares_work_limits() {
-    use crate::InitializationDefinitionResolutionErrorV2 as DefinitionError;
-    let fixture = Fixture::new(Options::default());
-    let resolve = |meter: &mut BudgetMeter| {
-        Definition::from_foundation(
-            fixture.unit,
-            &fixture.foundation,
-            &fixture.identities,
-            &fixture.digests,
-            meter,
-        )
-    };
-    let mut baseline = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: 0,
-        ..DecodeLimits::default()
-    });
-    resolve(&mut baseline).unwrap();
-    let limits = DecodeLimits {
-        validation_work_units: baseline.usage().validation_work_units,
-        ..DecodeLimits::default()
-    };
-    let mut shared = BudgetMeter::new(limits);
-    resolve(&mut shared).unwrap();
-    assert!(matches!(
-        resolve(&mut shared),
-        Err(DefinitionError::Resource(_))
-    ));
-    let mut zero = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        resolve(&mut zero),
-        Err(DefinitionError::Resource(_))
-    ));
 }

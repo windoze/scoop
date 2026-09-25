@@ -24,9 +24,7 @@ impl ParamFreeMirShapeSupportV1 {
         boxed: MirBoxedShapeSupportV1,
         coroutine_step: PersistentExactTypeId,
         coroutine_slot: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirShapeSupportError> {
-        meter.charge_work(1, &WirePath::root())?;
         let provider = authority
             .identities
             .canonical_key::<_, SourceDeclarationKey>(source)?
@@ -39,7 +37,7 @@ impl ParamFreeMirShapeSupportV1 {
             coroutine_slot,
             provider,
         };
-        authority.validate(&record, meter)?;
+        authority.validate(&record)?;
         Ok(record)
     }
     pub const fn source(&self) -> PersistentTypeId {

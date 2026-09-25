@@ -7,7 +7,7 @@ use crate::{
     StrongExternalLirBridgeBuildError, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongObjectSymbolSurfaceV1,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 #[test]
 fn shared_abi_decodes_with_the_actual_provider_and_rejects_another_provider() {
@@ -125,7 +125,7 @@ fn assert_shared_abi_round_trip(fixture: Fixture) {
         CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, vec![export.clone()], Vec::new())
             .unwrap();
     let decoded: DecodedCrossConeLirBridgeSectionV1 =
-        decode_canonical(&encode(&section).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&section).unwrap()).unwrap();
     let ordinary = decoded
         .validate(&mut fixture.identities(&[]), &fixture.foundation)
         .unwrap();
@@ -152,7 +152,7 @@ fn assert_shared_abi_round_trip(fixture: Fixture) {
     )
     .unwrap();
     let decoded: DecodedStrongExternalLirBridgeSurfaceV1 =
-        decode_canonical(&encode(&external).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&external).unwrap()).unwrap();
     assert_eq!(
         decoded
             .reconstruct(ConeIdentity::SINGLE_FILE, &mut fixture.identities(&[]))
@@ -182,5 +182,5 @@ fn initialization_external_wrapper_rejects_an_abi_record_for_another_provider() 
 }
 
 fn decode_record(bytes: &[u8]) -> DecodedCallableAbiRecordV1 {
-    decode_canonical(bytes, DecodeLimits::default()).unwrap()
+    decode_canonical(bytes).unwrap()
 }

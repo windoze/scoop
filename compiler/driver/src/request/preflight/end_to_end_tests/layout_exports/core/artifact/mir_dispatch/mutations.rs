@@ -138,7 +138,6 @@ fn default_target(replay: &Replay<'_>) {
         owner,
         record.vtable().clone(),
         tables,
-        &mut meter(),
     )
     .unwrap();
     component(
@@ -204,13 +203,10 @@ fn boxing_target(replay: &Replay<'_>) {
             ..replay.authority()
         },
         replay.section.dispatch().records().to_vec(),
-        &mut meter(),
     )
     .unwrap();
     component(
-        replay
-            .validate(&dispatch, &callables, &mut meter())
-            .unwrap_err(),
+        replay.validate(&dispatch, &callables).unwrap_err(),
         Component::CallableRole,
     );
     let missing = mir::CanonicalMirCallableBindingsV1::try_new(
@@ -225,6 +221,6 @@ fn boxing_target(replay: &Replay<'_>) {
     )
     .unwrap();
     assert!(
-        matches!(replay.validate(replay.section.dispatch(), &missing, &mut meter()), Err(Error::MissingCallable(target)) if target == original.implementation())
+        matches!(replay.validate(replay.section.dispatch(), &missing), Err(Error::MissingCallable(target)) if target == original.implementation())
     );
 }

@@ -75,7 +75,6 @@ fn exact_lir_export_projection_records_an_abi_replay_obligation() {
         &fixture.mir,
         &lir,
         &mut expectations,
-        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
     .unwrap();
 
@@ -198,19 +197,18 @@ impl Fixture {
 }
 
 #[test]
-fn core_and_ordinary_providers_reject_the_same_noncanonical_abi_and_budget() {
+fn core_and_ordinary_providers_reject_the_same_noncanonical_abi() {
     for provider in [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE] {
         let fixture = Fixture::for_provider(provider, GcEffect::Managed);
         let lir = fixture.lir_bridge(GcEffect::Managed);
         let mut expectations = Vec::new();
-        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
         validate_local_projection(
             provider,
             &fixture.interface,
             &fixture.mir,
             &lir,
             &mut expectations,
-            &mut meter,
         )
         .unwrap();
         let expected = fixture.abi(GcEffect::Managed);
@@ -234,21 +232,6 @@ fn core_and_ordinary_providers_reject_the_same_noncanonical_abi_and_budget() {
                 declaration: fixture.declaration
             })
         );
-        let mut limited = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
-            owned_bytes: 0,
-            ..scoop_wire::DecodeLimits::default()
-        });
-        assert!(matches!(
-            validate_local_projection(
-                provider,
-                &fixture.interface,
-                &fixture.mir,
-                &lir,
-                &mut Vec::new(),
-                &mut limited
-            ),
-            Err(CrossConeLirClosureRelationError::Resource(_))
-        ));
     }
 }
 
@@ -263,7 +246,6 @@ fn validate(
         &fixture.mir,
         lir,
         &mut expectations,
-        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
 }
 

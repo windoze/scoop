@@ -61,21 +61,17 @@ pub struct CanonicalInheritanceSourceCallablesV1 {
 impl CanonicalInheritanceSourceCallablesV1 {
     pub fn try_new(
         mut records: Vec<InheritanceSourceCallableV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(InheritanceSourceCallableV1::declaration);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
     fn from_ordered(
         records: Vec<InheritanceSourceCallableV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             InheritanceSourceCallableV1::declaration,
             "inheritance source callables",
-            meter,
         )?;
         Ok(Self { records })
     }

@@ -47,7 +47,7 @@ impl WireEncode for DecodedCoreProtocolNominalV1 {
 }
 
 impl WireDecode for DecodedCoreProtocolNominalV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(wire_error(
@@ -106,7 +106,7 @@ impl WireEncode for DecodedCoreProtocolEntryV1 {
 }
 
 impl WireDecode for DecodedCoreProtocolEntryV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(wire_error(
@@ -168,7 +168,7 @@ impl<const N: usize> WireEncode for DecodedCoreProtocolProductV1<N> {
 }
 
 impl<const N: usize> WireDecode for DecodedCoreProtocolProductV1<N> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(N as u64)?;
         let mut entries = Vec::with_capacity(N);
         for index in 0..N {
@@ -200,7 +200,7 @@ macro_rules! wire_protocol_product {
         }
 
         impl WireDecode for $decoded {
-            fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+            fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
                 DecodedCoreProtocolProductV1::decode(decoder).map(Self)
             }
         }
@@ -365,7 +365,7 @@ impl WireEncode for DecodedCoreCompilerProtocolSurfaceV1 {
 }
 
 impl WireDecode for DecodedCoreCompilerProtocolSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Ok(Self {
             fundamental_types: decoder.field(1, DecodedCoreFundamentalTypeProtocolV1::decode)?,
@@ -435,11 +435,7 @@ fn encode_value_sum(
     value.encode(encoder)
 }
 
-fn require_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn require_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -450,6 +446,6 @@ fn require_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

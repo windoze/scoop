@@ -2,7 +2,7 @@ use super::*;
 use hir::{DefaultFieldRefV1 as Field, DefaultSourceFieldAccessSubjectV1 as AccessSubject};
 use scoop_identity::{CoreBuiltinNominal, PersistentTypeId, SignatureTypeKey};
 mod rejection;
-mod resources;
+
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/field-targets.scoop"
@@ -39,7 +39,6 @@ fn reference(
         output,
         hir::ExportParameterOwner::Function(id),
         position,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(body.references().fields().len(), 1, "{name}");
@@ -71,26 +70,25 @@ fn applied_default_field_subjects_match_sealed_source_domains() {
             let mut required = BTreeSet::new();
             for (_, record) in &records {
                 if let AccessSubject::Declaration(subject) = foundation
-                    .default_field_access_subject(record.target(), &mut meter())
+                    .default_field_access_subject(record.target())
                     .unwrap()
                 {
                     required.insert(subject);
                 }
             }
             assert_eq!(required.len(), 3);
-            let table =
-                Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+            let table = Table::from_export_hir(&output.output().export, &required).unwrap();
             let bound = foundation
-                .bind_default_access_declarations(&table, &required, &mut meter())
+                .bind_default_access_declarations(&table, &required)
                 .unwrap();
             let mut snapshot = String::new();
             for (name, record) in &records {
                 match foundation
-                    .default_field_access_subject(record.target(), &mut meter())
+                    .default_field_access_subject(record.target())
                     .unwrap()
                 {
                     AccessSubject::Declaration(subject) => {
-                        let domain = bound.source_lookup_domain(subject, &mut meter()).unwrap();
+                        let domain = bound.source_lookup_domain(subject).unwrap();
                         assert_eq!(&domain, record.witness().target_domain(), "{name}");
                         let role = match subject {
                             Subject::Type(_) => "Type",

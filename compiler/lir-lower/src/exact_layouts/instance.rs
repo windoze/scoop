@@ -2,32 +2,31 @@ use scoop_identity::{GeneratedNominalKey, PersistentTypeId};
 
 use super::*;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn instance(
         &mut self,
         identity: lir::ExactLayoutIdentityV1,
         source: &mir::ParamFreeMirTypeExportV1,
-        depth: u64,
     ) -> Result<lir::ExactInstanceLayoutV1> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let foundation = self.output.foundation();
         if self.physical_type(source.exact())? == mir::Type::Any {
             return Ok(lir::ExactInstanceLayoutV1::abstract_reference(
-                identity, foundation, self.meter,
+                identity, foundation,
             )?);
         }
         Ok(match source.representation() {
             Kind::Intrinsic(Intrinsic::String) => {
-                lir::ExactInstanceLayoutV1::inline_bytes(identity, foundation, self.meter)?
+                lir::ExactInstanceLayoutV1::inline_bytes(identity, foundation)?
             }
             Kind::Interface => {
-                lir::ExactInstanceLayoutV1::abstract_reference(identity, foundation, self.meter)?
+                lir::ExactInstanceLayoutV1::abstract_reference(identity, foundation)?
             }
             Kind::Class {
                 declared_fields, ..
             }
             | Kind::ObjectBacking { declared_fields } => {
-                self.class(identity, source, declared_fields, None, depth)?
+                self.class(identity, source, declared_fields, None)?
             }
             Kind::Object { backing } => {
                 let backing_shape = self.shape(*backing)?;
@@ -38,29 +37,19 @@ impl Projection<'_, '_> {
                 let backing = self
                     .identities
                     .canonical_record::<PersistentTypeId, GeneratedNominalKey>(nominal)?;
-                self.class(
-                    identity,
-                    backing_shape,
-                    declared_fields,
-                    Some(&backing),
-                    depth,
-                )?
+                self.class(identity, backing_shape, declared_fields, Some(&backing))?
             }
             Kind::BoxedValue { payload } => {
-                let payload = self.value_dependency(payload.value, depth)?;
-                lir::ExactInstanceLayoutV1::boxed_payload(
-                    identity, &payload, foundation, self.meter,
-                )?
+                let payload = self.value_dependency(payload.value)?;
+                lir::ExactInstanceLayoutV1::boxed_payload(identity, &payload, foundation)?
             }
             Kind::Intrinsic(Intrinsic::Unit | Intrinsic::Integer(_) | Intrinsic::Boolean)
             | Kind::Struct { .. }
             | Kind::Enum { .. }
             | Kind::CoroutineStep { .. }
             | Kind::CoroutineSlot { .. } => {
-                let payload = self.value_dependency(source.exact(), depth)?;
-                lir::ExactInstanceLayoutV1::boxed_payload(
-                    identity, &payload, foundation, self.meter,
-                )?
+                let payload = self.value_dependency(source.exact())?;
+                lir::ExactInstanceLayoutV1::boxed_payload(identity, &payload, foundation)?
             }
         })
     }
@@ -71,12 +60,11 @@ impl Projection<'_, '_> {
         source: &mir::ParamFreeMirTypeExportV1,
         fields: &[mir::MirRepresentationFieldV1],
         backing: Option<&CborIdentityRecord<PersistentTypeId, GeneratedNominalKey>>,
-        depth: u64,
     ) -> Result<lir::ExactInstanceLayoutV1> {
         let base = match source.base_and_interfaces().base {
             mir::MirBaseClassV1::None => None,
             mir::MirBaseClassV1::Base(exact) => Some(
-                self.layout(exact, RepresentationRole::ManagedObject, depth)?
+                self.layout(exact, RepresentationRole::ManagedObject)?
                     .instance_handle()
                     .ok_or(ExactLayoutLoweringError::DependencyKind(exact))?,
             ),
@@ -85,8 +73,8 @@ impl Projection<'_, '_> {
             None => lir::ClassLayoutBaseV1::NoBase,
             Some(base) => lir::ClassLayoutBaseV1::Base(base),
         };
-        let fields = self.fields(fields, depth)?;
-        let fields = fields.inputs(self.meter)?;
+        let fields = self.fields(fields)?;
+        let fields = fields.inputs()?;
         Ok(match backing {
             Some(backing) => lir::ExactInstanceLayoutV1::object(
                 identity,
@@ -94,14 +82,12 @@ impl Projection<'_, '_> {
                 base,
                 &fields,
                 self.output.foundation(),
-                self.meter,
             )?,
             None => lir::ExactInstanceLayoutV1::class(
                 identity,
                 base,
                 &fields,
                 self.output.foundation(),
-                self.meter,
             )?,
         })
     }

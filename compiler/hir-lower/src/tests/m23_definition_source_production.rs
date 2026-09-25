@@ -1,5 +1,5 @@
 use scoop_identity::{BindingTarget, ConeIdentity, ExportBindingKey, PersistentExportBindingId};
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 
@@ -103,10 +103,7 @@ fn producer_collects_the_exact_deduplicated_definition_source_closure() {
         hir::CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
     );
     section
-        .validate_definition_source_closure(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_definition_source_closure(&WirePath::root())
         .expect("the producer must emit every inline origin exactly once");
 }
 
@@ -133,10 +130,7 @@ fn complete_section_producer_assembles_all_ten_fields_once() {
     assert!(!section.definition_sources().is_empty());
     assert!(section.external_references().is_empty());
     section
-        .validate_definition_source_closure(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_definition_source_closure(&WirePath::root())
         .unwrap();
 }
 
@@ -147,34 +141,19 @@ impl hir::PublicExportBindingClosureAuthority for CurrentConeAuthority {
         1
     }
 
-    fn is_direct_dependency(
-        &self,
-        _provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(false)
+    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
+        false
     }
 
-    fn binding_key(
-        &self,
-        _binding: PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    fn binding_key(&self, _binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        None
     }
 
     fn public_bindings(
         &self,
         _exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&hir::CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    ) -> Option<&hir::CanonicalPublicExportBindingsV1> {
+        None
     }
 }
 

@@ -1,5 +1,5 @@
 use scoop_identity::LocalValueSelector;
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -58,8 +58,7 @@ fn value_parameters_have_fixed_indexed_wire_and_resolve() {
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
     assert_eq!(hex(&bytes), "82a201000201a201010202");
 
-    let decoded: DecodedCanonicalTemplateValueParametersV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalTemplateValueParametersV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut locals).unwrap(), expected);
 }
 
@@ -144,10 +143,9 @@ fn local_lookup_failures_preserve_parameter_positions() {
 
 #[test]
 fn decoder_rejects_non_exact_records_and_u32_overflow() {
-    let extra_field = decode_canonical::<DecodedTemplateValueParameterV1>(
-        &[0xa3, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00],
-        DecodeLimits::default(),
-    )
+    let extra_field = decode_canonical::<DecodedTemplateValueParameterV1>(&[
+        0xa3, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00,
+    ])
     .unwrap_err();
     assert_eq!(
         extra_field.kind(),
@@ -157,12 +155,9 @@ fn decoder_rejects_non_exact_records_and_u32_overflow() {
         }
     );
 
-    let overflow = decode_canonical::<DecodedTemplateValueParameterV1>(
-        &[
-            0xa2, 0x01, 0x1b, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
-        ],
-        DecodeLimits::default(),
-    )
+    let overflow = decode_canonical::<DecodedTemplateValueParameterV1>(&[
+        0xa2, 0x01, 0x1b, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+    ])
     .unwrap_err();
     assert_eq!(overflow.kind(), &WireErrorKind::IntegerOutOfRange);
 }

@@ -86,7 +86,7 @@ pub(crate) struct CanonicalCrossConeHirSurfaceAuthority<'a> {
     current_foundation: &'a OdrFreeHirFoundation,
     current_interface: &'a CrossConeHirInterfaceSectionV1,
     dependencies: Vec<ValidatedNominalProviderView<'a>>,
-    meter: &'a mut scoop_wire::BudgetMeter,
+
     include_nominal_support: bool,
 }
 
@@ -97,7 +97,6 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
         current_foundation: &'a OdrFreeHirFoundation,
         current_interface: &'a CrossConeHirInterfaceSectionV1,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
-        meter: &'a mut scoop_wire::BudgetMeter,
     ) -> Self {
         Self {
             current,
@@ -105,7 +104,7 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             current_foundation,
             current_interface,
             dependencies,
-            meter,
+
             include_nominal_support: false,
         }
     }

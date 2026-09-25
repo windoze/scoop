@@ -34,7 +34,7 @@ impl LoadedExplicitDependencyInputs {
         }
 
         for loaded in &self.artifacts {
-            let summary = loaded.summary(self.limits, target.lir_target_selection())?;
+            let summary = loaded.summary(target.lir_target_selection())?;
 
             let identity = summary.cone().identity();
             if identity == current_identity {
@@ -110,7 +110,6 @@ impl LoadedExplicitDependencyInputs {
                 direct.clone(),
                 dependency_first.clone(),
             ),
-            self.limits,
             target.c_bridge_toolchain().profile(),
             &mut semantic_session,
         )

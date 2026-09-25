@@ -8,11 +8,10 @@ pub(super) fn materialize<'a>(
     external: &la_arena::Arena<ExternalTypeDescriptor>,
     descriptor: crate::ExternalTypeDescriptorId,
     storage_type: crate::LirType,
-    meter: &mut BudgetMeter,
 ) -> Result<BoxedValueDescriptor, LayoutExternalMaterializationError> {
     use LayoutExternalMaterializationError as Error;
     validate_provider(selected, provider)?;
-    meter.charge_work(selected.semantic_count() as u64, &WirePath::root())?;
+
     let Some(LayoutAbiSemanticRecordV1::ShapeSupport(shape)) =
         selected.semantic_record(provider, LayoutAbiSemanticTargetV1::ShapeSupport(source))
     else {
@@ -23,7 +22,7 @@ pub(super) fn materialize<'a>(
         .boxed_value()
         .available()
         .ok_or(Error::UnavailableBoxedValue(source))?;
-    let definition = materialize_type_descriptor(selected, provider, boxed.exact(), meter)?;
+    let definition = materialize_type_descriptor(selected, provider, boxed.exact())?;
     if descriptor.into_raw().into_u32() as usize >= external.len()
         || external[descriptor] != definition
     {
@@ -31,7 +30,7 @@ pub(super) fn materialize<'a>(
             crate::BoxDescriptorError::InvalidDescriptor,
         ));
     }
-    meter.charge_work(selected.semantic_count() as u64, &WirePath::root())?;
+
     let Some(LayoutAbiSemanticRecordV1::Descriptor(record)) = selected.semantic_record(
         provider,
         LayoutAbiSemanticTargetV1::Descriptor(boxed.exact()),
@@ -41,7 +40,7 @@ pub(super) fn materialize<'a>(
             exact: boxed.exact(),
         });
     };
-    crate::exact_descriptor::resources::scan(record.shape().inline_scan(), meter, 1)?;
+
     BoxedValueDescriptor::from_shape(
         BoxedDescriptorReference::External {
             id: descriptor,

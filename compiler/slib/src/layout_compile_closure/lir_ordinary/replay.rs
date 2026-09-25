@@ -2,7 +2,7 @@ use scoop_hir as hir;
 use scoop_identity::{CallableTemplateOrigin, DependencyCallableDeclarationId, GcEffect};
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::super::lir_callable_layouts::Layouts;
 use super::SharedOrdinaryLirBridgeValidationError as Error;
@@ -27,22 +27,15 @@ pub fn replay_shared_ordinary_lir_bridge(
     local: &lir::CanonicalExactLayoutExportsV1,
     dependencies: SharedOrdinaryLirBridgeDependenciesV1<'_>,
     foundation: &lir::OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CrossConeLirBridgeSectionV1, Error> {
     if mir.artifact() != foundation.producer() || source.provider != foundation.producer() {
         return Err(Error::ArtifactProvider);
     }
-    let layouts = Layouts::new(
-        local,
-        dependencies.layouts,
-        target,
-        foundation.producer(),
-        meter,
-    )?;
+    let layouts = Layouts::new(local, dependencies.layouts, target, foundation.producer())?;
     let path = WirePath::root();
-    let selected = selected::replay(mir, dependencies, meter)?;
+    let selected = selected::replay(mir, dependencies)?;
     let mut sources = Vec::new();
-    meter.try_reserve_collection_slots(&mut sources, dependencies.metadata.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut sources, dependencies.metadata.len(), &path)?;
     sources.extend(
         dependencies
             .metadata
@@ -50,10 +43,10 @@ pub fn replay_shared_ordinary_lir_bridge(
             .copied()
             .map(crate::AbiReplayDependency::from),
     );
-    let types = crate::collect_abi_types(source.into(), &sources, meter)?;
-    meter.check_table_entries(mir.exports().len() as u64, &path)?;
+    let types = crate::collect_abi_types(source.into(), &sources)?;
+
     let mut exports = Vec::new();
-    meter.try_reserve_collection_slots(&mut exports, mir.exports().len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut exports, mir.exports().len(), &path)?;
     for callable in mir.exports() {
         let declaration = callable.declaration();
         let origin = match declaration {
@@ -62,18 +55,15 @@ pub fn replay_shared_ordinary_lir_bridge(
                 CallableTemplateOrigin::Accessor(id)
             }
         };
-        meter.charge_work(
-            source.public.callable_interfaces().records().len() as u64 + 1,
-            &path,
-        )?;
+
         let interface = source
             .public
             .callable_interfaces()
             .get(origin)
             .ok_or(Error::CallableInterface(declaration))?;
         let gc = interface.effects().gc_effect();
-        let signature = types.replay(target, callable.signature(), gc, meter)?;
-        layouts::check(declaration, &signature, target, &layouts, meter)?;
+        let signature = types.replay(target, callable.signature(), gc)?;
+        layouts::check(declaration, &signature, target, &layouts)?;
         let root = match gc {
             GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
             GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
@@ -92,7 +82,7 @@ pub fn replay_shared_ordinary_lir_bridge(
         })?;
         exports.push(export);
     }
-    Ok(lir::CrossConeLirBridgeSectionV1::try_new_with_meter(
-        foundation, exports, selected, meter,
+    Ok(lir::CrossConeLirBridgeSectionV1::try_new(
+        foundation, exports, selected,
     )?)
 }

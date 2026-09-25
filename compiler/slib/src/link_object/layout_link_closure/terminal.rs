@@ -7,7 +7,7 @@ use scoop_lir::{
     CrossConeLayoutAbiSectionV1, ExternalShapeLinkImportV1, OdrFreeLirFoundation,
     ShapeLinkProductionV1, ShapeLinkProviderPartsV1, ShapeLinkProviderV1, ShapeLinkSupportLookupV1,
 };
-use scoop_wire::{BudgetMeter, WirePath, encode_canonical_temporary_with_meter};
+use scoop_wire::{WirePath, encode_canonical_temporary};
 
 use crate::CanonicalDefinedLinkSymbolOwnerSetV1;
 
@@ -41,20 +41,16 @@ pub struct CrossConeLayoutTerminalArtifactPartsV1<'a> {
 impl<'a> CrossConeLayoutTerminalArtifactV1<'a> {
     pub fn try_new(
         parts: CrossConeLayoutTerminalArtifactPartsV1<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, CrossConeLayoutTerminalValidationError> {
-        let provider = ShapeLinkProviderV1::try_new(
-            ShapeLinkProviderPartsV1 {
-                foundation: parts.foundation,
-                production: parts.production,
-                ordinary: parts.ordinary,
-                layouts: parts.section.layouts(),
-                callables: parts.section.callables(),
-                descriptors: parts.section.descriptors(),
-                dispatch: parts.section.dispatch(),
-            },
-            meter,
-        )
+        let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
+            foundation: parts.foundation,
+            production: parts.production,
+            ordinary: parts.ordinary,
+            layouts: parts.section.layouts(),
+            callables: parts.section.callables(),
+            descriptors: parts.section.descriptors(),
+            dispatch: parts.section.dispatch(),
+        })
         .map_err(CrossConeLayoutTerminalValidationError::ProviderSection)?;
         let identity = provider.provider();
         if parts.section.provider() != identity || parts.defined_symbols.producer() != identity {
@@ -117,18 +113,14 @@ impl<'closure, 'artifact> ValidatedCrossConeLayoutTerminalClosureV1<'closure, 'a
 
 pub fn validate_cross_cone_layout_terminal_closure_v1<'closure, 'artifact>(
     artifacts: &'closure [CrossConeLayoutTerminalArtifactV1<'artifact>],
-    meter: &mut BudgetMeter,
 ) -> Result<
     ValidatedCrossConeLayoutTerminalClosureV1<'closure, 'artifact>,
     CrossConeLayoutTerminalValidationError,
 > {
-    let path = WirePath::root();
     if artifacts.is_empty() {
         return Err(CrossConeLayoutTerminalValidationError::NoArtifacts);
     }
-    meter.check_table_entries(artifacts.len() as u64, &path)?;
-    meter.charge_nodes(artifacts.len() as u64, &path)?;
-    meter.charge_collection_slots((artifacts.len() as u64).saturating_mul(2), &path)?;
+
     let mut positions = BTreeMap::new();
     for (position, artifact) in artifacts.iter().enumerate() {
         if let Some(previous) = positions.insert(artifact.identity(), position) {
@@ -142,12 +134,11 @@ pub fn validate_cross_cone_layout_terminal_closure_v1<'closure, 'artifact>(
     let mut import_count = 0usize;
     for consumer in artifacts {
         let imports = consumer.section.selected().physical_imports().records();
-        meter.check_table_entries(imports.len() as u64, &path)?;
+
         import_count = import_count
             .checked_add(imports.len())
             .ok_or(CrossConeLayoutTerminalValidationError::ImportCountOverflow)?;
-        meter.check_table_entries(import_count as u64, &path)?;
-        meter.charge_edges(imports.len() as u64, &path)?;
+
         for import in imports {
             let position = positions.get(&import.provider()).copied().ok_or(
                 CrossConeLayoutTerminalValidationError::MissingProvider {
@@ -155,7 +146,7 @@ pub fn validate_cross_cone_layout_terminal_closure_v1<'closure, 'artifact>(
                     provider: import.provider(),
                 },
             )?;
-            validate_import(consumer, import, &artifacts[position], artifacts, meter)?;
+            validate_import(consumer, import, &artifacts[position], artifacts)?;
         }
     }
     Ok(ValidatedCrossConeLayoutTerminalClosureV1 {
@@ -170,7 +161,6 @@ fn validate_import(
     import: &ExternalShapeLinkImportV1<'_>,
     terminal: &CrossConeLayoutTerminalArtifactV1<'_>,
     artifacts: &[CrossConeLayoutTerminalArtifactV1<'_>],
-    meter: &mut BudgetMeter,
 ) -> Result<(), CrossConeLayoutTerminalValidationError> {
     if consumer.section.target_profile() != terminal.section.target_profile() {
         return Err(CrossConeLayoutTerminalValidationError::TargetMismatch {
@@ -184,7 +174,6 @@ fn validate_import(
         consumer.identity(),
         consumer.provider.canonical_definitions(),
         terminal.support,
-        meter,
     )
     .map_err(
         |source| CrossConeLayoutTerminalValidationError::ImportReplay {
@@ -194,14 +183,14 @@ fn validate_import(
     )?;
     validate_header(consumer.identity(), import, &expected)?;
     let path = WirePath::root();
-    if encode_canonical_temporary_with_meter(import.contract(), meter, &path)?
-        != encode_canonical_temporary_with_meter(expected.contract(), meter, &path)?
+    if encode_canonical_temporary(import.contract(), &path)?
+        != encode_canonical_temporary(expected.contract(), &path)?
     {
         return Err(CrossConeLayoutTerminalValidationError::ContractMismatch(
             import_context(consumer.identity(), import),
         ));
     }
-    owner::validate(consumer, import, terminal, artifacts, meter)
+    owner::validate(consumer, import, terminal, artifacts)
 }
 
 fn validate_header(

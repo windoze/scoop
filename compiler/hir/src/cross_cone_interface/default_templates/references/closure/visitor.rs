@@ -1,5 +1,5 @@
 use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::ExportDefaultReferenceOccurrenceSiteV1;
 use crate::{
@@ -78,14 +78,14 @@ pub trait DefaultBodyReferenceVisitorV1<'body> {
         &mut self,
         index: u32,
         expression: &'body DefaultExpressionV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Self::Error>;
 
     fn reference(
         &mut self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'body>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Self::Error>;
 }
@@ -100,12 +100,12 @@ impl ExportDefaultBodyV1 {
         locals: &'body CanonicalTemplateLocalTableV1,
         definition_origin: &'body ExportDefinitionSourceV1,
         visitor: &mut V,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), V::Error> {
         let mut walker = ReferenceWalker {
             visitor,
-            meter,
+
             path,
             next_expression: 0,
             current: DefaultBodyReferenceAttachmentV1::Metadata(
@@ -113,7 +113,6 @@ impl ExportDefaultBodyV1 {
             ),
         };
         for (index, local) in locals.records().iter().enumerate() {
-            walker.enter_node(1)?;
             let origin = match local.definition() {
                 TemplateLocalDefinitionV1::Source(origin) => origin,
                 TemplateLocalDefinitionV1::Synthetic => definition_origin,
@@ -121,7 +120,6 @@ impl ExportDefaultBodyV1 {
             walker.current = DefaultBodyReferenceAttachmentV1::Metadata(
                 DefaultBodyReferenceMetadataV1::TemplateLocal { index, local },
             );
-            walker.enter_leaf()?;
             walker.observe(
                 DefaultBodyReferenceTargetV1::Type(local.value_type()),
                 origin,
@@ -136,7 +134,7 @@ impl ExportDefaultBodyV1 {
 
 pub(super) struct ReferenceWalker<'a, 'body, V> {
     pub(super) visitor: &'a mut V,
-    pub(super) meter: &'a mut BudgetMeter,
+
     pub(super) path: &'a WirePath,
     pub(super) current: DefaultBodyReferenceAttachmentV1<'body>,
     next_expression: u64,

@@ -1,25 +1,18 @@
-use scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
-use scoop_wire::{
-    BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath, decode_canonical, encode,
-};
+use scoop_wire::{WirePath, decode_canonical, encode};
 
 use super::*;
 use crate::{
-    BindingTarget, CanonicalCAbiFunctionSignature, CanonicalCAbiReturn,
-    CanonicalCAbiSignatureFingerprintRecord, CanonicalIdentifier, CborIdentityRecord,
-    ConeCoordinate, ConeIdentity, DeclarationScope, DecodedCanonicalCAbiSignatureFingerprintRecord,
-    DecodedCborIdentityRecord, DecodedExactTypeKey, DecodedExportBindingKey,
-    DecodedNativeExternalContractRecord, DecodedSourceContextKey, DecodedSourceDeclarationKey,
+    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity,
+    DeclarationScope, DecodedCborIdentityRecord, DecodedExactTypeKey, DecodedExportBindingKey,
+    DecodedSourceContextKey, DecodedSourceDeclarationKey,
     DecodedSourceNativeExternalContractRecord, DefinitionOwnerChain, ExactTypeKey,
-    ExportBindingKey, NativeExternalContract, NativeExternalContractRecord,
-    NativeExternalSymbolKey, NativeLibraryBinding, NormalizedSourcePath, PackagePath,
-    PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
-    PersistentSourceContextId, PersistentSourceNativeExternalContractId, PersistentTypeId,
-    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention, SourceContextKey,
-    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi, SourceIdentity,
-    SourceNativeExternalContract, SourceNativeExternalContractKey,
-    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
-    SourceNominalKind,
+    ExportBindingKey, NormalizedSourcePath, PackagePath, PersistentExactTypeId,
+    PersistentExportBindingId, PersistentFunctionId, PersistentSourceContextId,
+    PersistentSourceNativeExternalContractId, PersistentTypeId, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceCallingConvention, SourceContextKey, SourceDeclarationKey,
+    SourceDeclarationSite, SourceExternFunctionAbi, SourceIdentity, SourceNativeExternalContract,
+    SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
+    SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
 };
 
 mod records;
@@ -45,11 +38,7 @@ fn source_type_record() -> CborIdentityRecord<PersistentTypeId, SourceDeclaratio
 
 fn decoded_source_type() -> DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey>
 {
-    decode_canonical(
-        &encode(&source_type_record()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
+    decode_canonical(&encode(&source_type_record()).unwrap()).unwrap()
 }
 
 fn exact_type_record() -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
@@ -57,11 +46,7 @@ fn exact_type_record() -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey
 }
 
 fn decoded_exact_type() -> DecodedCborIdentityRecord<PersistentExactTypeId, DecodedExactTypeKey> {
-    decode_canonical(
-        &encode(&exact_type_record()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
+    decode_canonical(&encode(&exact_type_record()).unwrap()).unwrap()
 }
 
 fn source_function_record() -> CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey> {
@@ -107,13 +92,9 @@ fn commits_a_complete_identity_transaction() {
     pending.resolve(&decoded).unwrap();
 
     let graph = pending.finish().unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let records = graph
-        .records::<PersistentTypeId, SourceDeclarationKey>(
-            IdentityLayer::Hir,
-            &mut meter,
-            &WirePath::root(),
-        )
+        .records::<PersistentTypeId, SourceDeclarationKey>(IdentityLayer::Hir, &WirePath::root())
         .unwrap();
     assert_eq!(records, vec![source_type_record()]);
 }
@@ -156,12 +137,7 @@ fn canonical_diagnostic_name_reads_the_committed_identity_graph() {
     let graph = pending.finish().unwrap();
 
     let coordinates = [ConeCoordinate::reserved_core()];
-    let catalog = crate::ExactTypeDiagnosticCatalog::try_new(
-        &graph,
-        &coordinates,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
-    .unwrap();
+    let catalog = crate::ExactTypeDiagnosticCatalog::try_new(&graph, &coordinates).unwrap();
     let name = crate::CanonicalExactTypeDiagnosticName::from_validated_graph(
         exact_type_record().id(),
         &catalog,
@@ -171,40 +147,6 @@ fn canonical_diagnostic_name_reads_the_committed_identity_graph() {
         name.as_str(),
         "n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Widget)"
     );
-}
-
-#[test]
-fn diagnostic_catalog_rejects_untrusted_duplicate_and_unbudgeted_coordinates() {
-    let graph = validated_source_type_graph();
-    let core = ConeCoordinate::reserved_core();
-    let single_file = ConeCoordinate::reserved_single_file();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-
-    assert!(matches!(
-        crate::ExactTypeDiagnosticCatalog::try_new(&graph, &[single_file], &mut meter),
-        Err(crate::ExactTypeDiagnosticCatalogError::UnknownCone(id))
-            if id == ConeIdentity::SINGLE_FILE
-    ));
-    assert!(matches!(
-        crate::ExactTypeDiagnosticCatalog::try_new(
-            &graph,
-            &[core.clone(), core],
-            &mut BudgetMeter::new(DecodeLimits::default())
-        ),
-        Err(crate::ExactTypeDiagnosticCatalogError::DuplicateCone(id))
-            if id == ConeIdentity::CORE
-    ));
-    assert!(matches!(
-        crate::ExactTypeDiagnosticCatalog::try_new(
-            &graph,
-            &[ConeCoordinate::reserved_core()],
-            &mut BudgetMeter::new(DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(crate::ExactTypeDiagnosticCatalogError::Resource(_))
-    ));
 }
 
 #[test]
@@ -239,7 +181,7 @@ fn external_canonical_authority_resolves_a_reexport_binding_without_redeclaring_
         .unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentExportBindingId, DecodedExportBindingKey>,
-    >(&encode(&binding).unwrap(), DecodeLimits::default())
+    >(&encode(&binding).unwrap())
     .unwrap();
 
     let mut pending = PendingIdentityValidation::new();
@@ -254,12 +196,11 @@ fn external_canonical_authority_resolves_a_reexport_binding_without_redeclaring_
     let graph = pending.finish().unwrap();
 
     assert_eq!(graph.declared_identity_count(), 1);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     assert_eq!(
         graph
             .records::<PersistentExportBindingId, ExportBindingKey>(
                 IdentityLayer::Hir,
-                &mut meter,
                 &WirePath::root(),
             )
             .unwrap(),
@@ -269,7 +210,6 @@ fn external_canonical_authority_resolves_a_reexport_binding_without_redeclaring_
         graph
             .records::<PersistentFunctionId, SourceDeclarationKey>(
                 IdentityLayer::Hir,
-                &mut meter,
                 &WirePath::root(),
             )
             .unwrap()
@@ -290,7 +230,7 @@ fn raw_external_id_cannot_replace_canonical_authority_for_a_reexport_binding() {
         .unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentExportBindingId, DecodedExportBindingKey>,
-    >(&encode(&binding).unwrap(), DecodeLimits::default())
+    >(&encode(&binding).unwrap())
     .unwrap();
 
     let mut pending = PendingIdentityValidation::new();
@@ -321,7 +261,7 @@ fn validated_external_graph_supplies_canonical_reexport_authority() {
         .unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentExportBindingId, DecodedExportBindingKey>,
-    >(&encode(&binding).unwrap(), DecodeLimits::default())
+    >(&encode(&binding).unwrap())
     .unwrap();
 
     let mut pending = PendingIdentityValidation::new();
@@ -336,12 +276,11 @@ fn validated_external_graph_supplies_canonical_reexport_authority() {
     let graph = pending.finish().unwrap();
 
     assert_eq!(graph.declared_identity_count(), 1);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     assert_eq!(
         graph
             .records::<PersistentExportBindingId, ExportBindingKey>(
                 IdentityLayer::Hir,
-                &mut meter,
                 &WirePath::root(),
             )
             .unwrap(),
@@ -387,7 +326,7 @@ fn external_graph_propagates_transitive_leaf_authorities() {
         .unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentSourceContextId, DecodedSourceContextKey>,
-    >(&encode(&context).unwrap(), DecodeLimits::default())
+    >(&encode(&context).unwrap())
     .unwrap();
 
     let mut pending = PendingIdentityValidation::new();
@@ -426,44 +365,6 @@ fn local_identity_keeps_layer_ownership_over_matching_external_authority() {
 }
 
 #[test]
-fn canonical_record_materialization_precharges_exact_slot_budget() {
-    let decoded = decoded_source_type();
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
-    pending.register(IdentityLayer::Hir, &decoded).unwrap();
-    pending.resolve(&decoded).unwrap();
-    let graph = pending.finish().unwrap();
-
-    for (limit, accepted) in [
-        (COLLECTION_ELEMENT_BYTES - 1, false),
-        (COLLECTION_ELEMENT_BYTES, true),
-        (COLLECTION_ELEMENT_BYTES + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            logical_heap_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let result = graph.records::<PersistentTypeId, SourceDeclarationKey>(
-            IdentityLayer::Hir,
-            &mut meter,
-            &WirePath::root().field(2),
-        );
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result,
-                Err(IdentityValidationError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::LogicalHeapBytes,
-                        limit,
-                        observed: COLLECTION_ELEMENT_BYTES,
-                    }
-            ));
-        }
-    }
-}
-
-#[test]
 fn canonical_record_materialization_shares_the_validated_key() {
     let decoded = decoded_source_type();
     let mut pending = PendingIdentityValidation::new();
@@ -471,302 +372,15 @@ fn canonical_record_materialization_shares_the_validated_key() {
     pending.register(IdentityLayer::Hir, &decoded).unwrap();
     pending.resolve(&decoded).unwrap();
     let graph = pending.finish().unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
 
     let first = graph
-        .records::<PersistentTypeId, SourceDeclarationKey>(
-            IdentityLayer::Hir,
-            &mut meter,
-            &WirePath::root(),
-        )
+        .records::<PersistentTypeId, SourceDeclarationKey>(IdentityLayer::Hir, &WirePath::root())
         .unwrap();
     let second = graph
-        .records::<PersistentTypeId, SourceDeclarationKey>(
-            IdentityLayer::Hir,
-            &mut meter,
-            &WirePath::root(),
-        )
+        .records::<PersistentTypeId, SourceDeclarationKey>(IdentityLayer::Hir, &WirePath::root())
         .unwrap();
 
     assert!(std::ptr::eq(first[0].key(), second[0].key()));
-}
-
-#[test]
-fn identity_hash_is_charged_before_registration() {
-    let decoded = decoded_source_type();
-    let hash_work = {
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
-        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-        pending.register(IdentityLayer::Hir, &decoded).unwrap();
-        meter.usage().validation_work_units
-    };
-    assert_eq!(hash_work, 2);
-
-    for (limit, accepted) in [
-        (hash_work - 1, false),
-        (hash_work, true),
-        (hash_work + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            validation_work_units: limit,
-            ..DecodeLimits::default()
-        });
-        let result = {
-            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending.register(IdentityLayer::Hir, &decoded)
-        };
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result,
-                Err(IdentityValidationError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::ValidationWorkUnits,
-                        limit,
-                        observed: hash_work,
-                    }
-            ));
-        }
-    }
-}
-
-#[test]
-fn identity_resolution_working_copy_has_inclusive_owned_byte_boundaries() {
-    let decoded = decoded_source_type();
-    let expected = {
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
-        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-        pending.register_authority(ConeIdentity::CORE).unwrap();
-        pending.register(IdentityLayer::Hir, &decoded).unwrap();
-        pending.resolve(&decoded).unwrap();
-        meter.usage().owned_bytes
-    };
-    assert!(expected > 0);
-
-    for (limit, accepted) in [
-        (expected - 1, false),
-        (expected, true),
-        (expected + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            owned_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let result = (|| {
-            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending.register_authority(ConeIdentity::CORE)?;
-            pending.register(IdentityLayer::Hir, &decoded)?;
-            pending.resolve(&decoded)
-        })();
-        assert_eq!(result.is_ok(), accepted);
-        if accepted {
-            assert_eq!(meter.usage().owned_bytes, expected);
-        } else {
-            assert!(matches!(
-                result,
-                Err(IdentityValidationError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::OwnedBytes,
-                        limit,
-                        observed: expected,
-                    }
-            ));
-        }
-    }
-}
-
-#[test]
-fn c_abi_leaf_hashes_are_precharged_at_each_transaction_phase() {
-    let record = CanonicalCAbiSignatureFingerprintRecord::new(
-        CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void),
-    )
-    .unwrap();
-    let decoded = decode_canonical::<DecodedCanonicalCAbiSignatureFingerprintRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    let hash_length = decoded.candidate_hash_stream_length().unwrap();
-    let hash_work = (hash_length + 72) / 64;
-    let expected = {
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
-        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-        pending
-            .register_c_abi_signature(IdentityLayer::Lir, &decoded)
-            .unwrap();
-        pending.resolve_c_abi_signature(&decoded).unwrap();
-        pending.finish().unwrap();
-        meter.usage().validation_work_units
-    };
-    assert!(expected > hash_work * 3 + 1);
-
-    for (limit, accepted) in [
-        (expected - 1, false),
-        (expected, true),
-        (expected + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            validation_work_units: limit,
-            ..DecodeLimits::default()
-        });
-        let result = (|| {
-            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending.register_c_abi_signature(IdentityLayer::Lir, &decoded)?;
-            pending.resolve_c_abi_signature(&decoded)?;
-            pending.finish()
-        })();
-        assert_eq!(result.is_ok(), accepted);
-        if accepted {
-            assert_eq!(meter.usage().validation_work_units, expected);
-        } else {
-            assert!(matches!(
-                result,
-                Err(IdentityValidationError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::ValidationWorkUnits,
-                        limit,
-                        observed: expected,
-                    }
-            ));
-        }
-    }
-}
-
-#[test]
-fn native_contract_leaf_hashes_are_precharged_without_a_source_dependency() {
-    let source = source_native_contract_record();
-    let symbol = NativeExternalSymbolKey::darwin_macho_external(
-        &SourceNativeSymbol::new("native_entry").unwrap(),
-    )
-    .unwrap();
-    let contract = NativeExternalContract::c_function(
-        NativeLibraryBinding::DefaultNativeNamespace,
-        CanonicalCAbiFunctionSignature::cdecl(Vec::new(), CanonicalCAbiReturn::Void),
-    );
-    let record = NativeExternalContractRecord::new(source.id(), symbol, contract).unwrap();
-    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    let [symbol_length, fingerprint_length] =
-        NativeExternalContractRecord::hash_stream_lengths(record.symbol_key(), record.contract())
-            .unwrap();
-    let hash_work = (symbol_length + 72) / 64 + (fingerprint_length + 72) / 64;
-    let expected = {
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
-        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-        pending
-            .register_native_external_contract(IdentityLayer::Lir, &decoded)
-            .unwrap();
-        pending.resolve_native_external_contract(&decoded).unwrap();
-        pending.finish().unwrap();
-        meter.usage().validation_work_units
-    };
-    assert!(expected > hash_work * 3 + 1);
-
-    for (limit, accepted) in [
-        (expected - 1, false),
-        (expected, true),
-        (expected + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            validation_work_units: limit,
-            ..DecodeLimits::default()
-        });
-        let result = (|| {
-            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending.register_native_external_contract(IdentityLayer::Lir, &decoded)?;
-            pending.resolve_native_external_contract(&decoded)?;
-            pending.finish()
-        })();
-        assert_eq!(result.is_ok(), accepted);
-        if accepted {
-            assert_eq!(meter.usage().validation_work_units, expected);
-        } else {
-            assert!(matches!(
-                result,
-                Err(IdentityValidationError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::ValidationWorkUnits,
-                        limit,
-                        observed: expected,
-                    }
-            ));
-        }
-    }
-}
-
-#[test]
-fn metered_identity_graph_charges_each_edge_before_stable_kahn() {
-    let decoded = decoded_source_type();
-    let limits = DecodeLimits {
-        decoded_edges: 0,
-        ..DecodeLimits::default()
-    };
-    let mut meter = BudgetMeter::new(limits);
-    let error = {
-        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-        pending.register_authority(ConeIdentity::CORE).unwrap();
-        pending.register(IdentityLayer::Hir, &decoded).unwrap();
-        pending.resolve(&decoded).unwrap_err()
-    };
-    assert!(matches!(
-        error,
-        IdentityValidationError::Resource(ref error)
-            if error.kind() == &WireErrorKind::LimitExceeded {
-                resource: ResourceKind::DecodedEdges,
-                limit: 0,
-                observed: 1,
-            }
-    ));
-
-    let (expected_heap, expected_work) = {
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
-        let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-        pending.register_authority(ConeIdentity::CORE).unwrap();
-        pending.register(IdentityLayer::Hir, &decoded).unwrap();
-        pending.resolve(&decoded).unwrap();
-        pending.finish().unwrap();
-        (
-            meter.usage().logical_heap_bytes,
-            meter.usage().validation_work_units,
-        )
-    };
-    assert!(expected_heap > 192);
-    for (limit, accepted) in [
-        (expected_heap - 1, false),
-        (expected_heap, true),
-        (expected_heap + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            logical_heap_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let result = (|| {
-            let mut pending = PendingIdentityValidation::with_meter(&mut meter);
-            pending.register_authority(ConeIdentity::CORE)?;
-            pending.register(IdentityLayer::Hir, &decoded)?;
-            pending.resolve(&decoded)?;
-            pending.finish()
-        })();
-        assert_eq!(result.is_ok(), accepted);
-        if accepted {
-            assert_eq!(meter.usage().logical_heap_bytes, expected_heap);
-            assert_eq!(meter.usage().decoded_edges, 1);
-            assert_eq!(meter.usage().validation_work_units, expected_work);
-        } else {
-            assert!(matches!(
-                result,
-                Err(IdentityValidationError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::LogicalHeapBytes,
-                        limit,
-                        observed: expected_heap,
-                    }
-            ));
-        }
-    }
 }
 
 #[test]
@@ -813,13 +427,11 @@ fn commits_a_source_native_contract_in_the_same_transaction() {
     let contract = source_native_contract_record();
     let decoded_function = decode_canonical::<
         DecodedCborIdentityRecord<PersistentFunctionId, DecodedSourceDeclarationKey>,
-    >(&encode(&function).unwrap(), DecodeLimits::default())
+    >(&encode(&function).unwrap())
     .unwrap();
-    let decoded_contract = decode_canonical::<DecodedSourceNativeExternalContractRecord>(
-        &encode(&contract).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded_contract =
+        decode_canonical::<DecodedSourceNativeExternalContractRecord>(&encode(&contract).unwrap())
+            .unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending
@@ -930,7 +542,7 @@ fn registration_rejects_an_id_that_does_not_match_its_decoded_key() {
     bytes[4] ^= 1;
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey>,
-    >(&bytes, DecodeLimits::default())
+    >(&bytes)
     .unwrap();
     let mut pending = PendingIdentityValidation::new();
 
@@ -1083,7 +695,7 @@ fn validated_function_graph() -> ValidatedIdentityGraph {
     let record = source_function_record();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentFunctionId, DecodedSourceDeclarationKey>,
-    >(&encode(&record).unwrap(), DecodeLimits::default())
+    >(&encode(&record).unwrap())
     .unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();

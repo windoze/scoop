@@ -17,7 +17,6 @@ fn runtime_constructor_source_and_role_reject_wrong_provider_owner_and_target() 
                         provider,
                         dependency.identities,
                         dependency.public,
-                        &mut meter(),
                     )
                 };
                 assert_eq!(
@@ -74,8 +73,7 @@ fn runtime_constructor_source_and_role_reject_wrong_provider_owner_and_target() 
                     changed.validate_runtime_constructor_role(
                         target,
                         *owner,
-                        core.interface.compiler_protocols(),
-                        &mut meter()
+                        core.interface.compiler_protocols()
                     ),
                     Err(Error::RoleTarget)
                 );
@@ -83,8 +81,7 @@ fn runtime_constructor_source_and_role_reject_wrong_provider_owner_and_target() 
                     site.validate_runtime_constructor_role(
                         reference.target(),
                         *owner,
-                        core.interface.compiler_protocols(),
-                        &mut meter()
+                        core.interface.compiler_protocols()
                     ),
                     Err(Error::RoleSignature)
                 );
@@ -101,9 +98,7 @@ fn runtime_constructor_selection_rejects_missing_extra_and_wrong_construction_cl
         |output, core| {
             let public = public_projection::public_interface_with_core(output, core);
             with_metadata(output, &public, core, |metadata, dependency| {
-                let selected = metadata
-                    .materialized_type_uses(&[dependency], &mut meter())
-                    .unwrap();
+                let selected = metadata.materialized_type_uses(&[dependency]).unwrap();
                 let records = selected.records();
                 let index = records
                     .iter()
@@ -115,11 +110,7 @@ fn runtime_constructor_selection_rejects_missing_extra_and_wrong_construction_cl
                     let changed =
                         hir::CanonicalSelectedExternalTypeUsesV1::try_new(records).unwrap();
                     assert!(matches!(
-                        metadata.validate_materialized_type_uses(
-                            &changed,
-                            &[dependency],
-                            &mut meter()
-                        ),
+                        metadata.validate_materialized_type_uses(&changed, &[dependency]),
                         Err(hir::SharedTypeMetadataError::TypeUseInventory)
                     ));
                 };
@@ -136,22 +127,8 @@ fn runtime_constructor_selection_rejects_missing_extra_and_wrong_construction_cl
                     records[index].usage(),
                 ));
                 check(extra);
-                let mut measured = meter();
-                metadata
-                    .materialized_type_uses(&[dependency], &mut measured)
-                    .unwrap();
-                let mut bounded = BudgetMeter::new(DecodeLimits {
-                    validation_work_units: measured.usage().validation_work_units,
-                    ..DecodeLimits::default()
-                });
-                metadata
-                    .materialized_type_uses(&[dependency], &mut bounded)
-                    .unwrap();
-                assert!(
-                    metadata
-                        .materialized_type_uses(&[dependency], &mut bounded)
-                        .is_err()
-                );
+
+                metadata.materialized_type_uses(&[dependency]).unwrap();
             });
         },
     );

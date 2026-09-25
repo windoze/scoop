@@ -17,7 +17,6 @@ impl DispatchResolvedCrossConeLayoutAbiSectionV1 {
     pub fn validate_descriptors(
         self,
         expected: &crate::CanonicalExactDescriptorExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<DescriptorsResolvedCrossConeLayoutAbiSectionV1, crate::ExactDescriptorTableError>
     {
         if self.layouts.provider() != expected.provider() {
@@ -28,7 +27,7 @@ impl DispatchResolvedCrossConeLayoutAbiSectionV1 {
         }
         Ok(DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
             layouts: self.layouts,
-            descriptors: self.descriptors.validate_against(expected, meter)?,
+            descriptors: self.descriptors.validate_against(expected)?,
             dispatch: self.dispatch,
             callables: self.callables,
             shape_support: self.shape_support,
@@ -43,21 +42,18 @@ impl DispatchResolvedCrossConeLayoutAbiSectionV1 {
         physical_imports: Vec<crate::ExternalShapeLinkImportV1<'a>>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
         if self.layouts.provider() != expected.provider()
             || self.layouts.target() != expected.target_profile()
         {
             return Err(LayoutAbiSectionError::LayoutReplayChanged);
         }
-        self.validate_descriptors(expected.descriptors(), meter)?
-            .validate(
-                expected,
-                dependencies,
-                physical_imports,
-                source,
-                identities,
-                meter,
-            )
+        self.validate_descriptors(expected.descriptors())?.validate(
+            expected,
+            dependencies,
+            physical_imports,
+            source,
+            identities,
+        )
     }
 }

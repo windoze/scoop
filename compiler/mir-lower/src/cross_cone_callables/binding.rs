@@ -9,28 +9,11 @@ pub(super) fn project(
     source: SourceContract,
     expected: ExactCallableSignature,
     role: mir::MirCallableLoweringRoleV1,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::ParamFreeMirCallableBindingV1, Error> {
     let implementation = declaration.implementation();
     let roots = input.materialization().callable_roots();
     let signatures = &input.module().meta.callable_signatures;
-    if matches!(role, mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }) {
-        work(
-            (types.record_count() as u64)
-                .saturating_mul(u64::from(types.record_count().checked_ilog2().unwrap_or(0)) + 1),
-            meter,
-        )?;
-    }
-    work(
-        (signatures.len() as u64)
-            .saturating_add(u64::from(roots.len().checked_ilog2().unwrap_or(0)) + 1)
-            .saturating_add(
-                (expected.parameters().len() as u64 * 2 + 8)
-                    * (u64::from(types.record_count().checked_ilog2().unwrap_or(0)) + 1)
-                    + 32,
-            ),
-        meter,
-    )?;
+
     let index = roots
         .binary_search_by_key(&implementation.callable_owner(), |root| {
             root.implementation()

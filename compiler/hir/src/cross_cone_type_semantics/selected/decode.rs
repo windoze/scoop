@@ -3,9 +3,7 @@ use crate::DecodedInheritanceCallableDeclarationV1;
 use scoop_identity::{
     DecodedPersistentId, PersistentFunctionId, PersistentIdResolver, PersistentPropertyAccessorId,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 mod edges;
 mod usage;
@@ -44,19 +42,11 @@ impl DecodedSelectedExternalTypeUseV1 {
     pub fn resolve<R: SelectedTypeUseResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<SelectedExternalTypeUseV1, SelectedTypeUseResolutionError<E>> {
-        meter
-            .check_semantic_depth(1, path)
-            .map_err(SelectedTypeUseResolutionError::Resource)?;
-        charge(meter, path, 2)?;
         let provider = resolver
             .resolve(self.provider)
             .map_err(SelectedTypeUseResolutionError::Reference)?;
-        let usage = self
-            .usage
-            .resolve_at_depth(resolver, meter, &path.clone().field(2), 2)?;
+        let usage = self.usage.resolve_at_depth(resolver)?;
         Ok(SelectedExternalTypeUseV1::new(provider, usage))
     }
 }
@@ -70,26 +60,11 @@ impl WireEncode for DecodedSelectedExternalTypeUseV1 {
     }
 }
 impl WireDecode for DecodedSelectedExternalTypeUseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             provider: decoder.field(1, DecodedPersistentId::decode)?,
             usage: decoder.field(2, DecodedSelectedTypeUseV1::decode)?,
         })
     }
-}
-fn charge<E>(
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-    edges: u64,
-) -> Result<(), SelectedTypeUseResolutionError<E>> {
-    meter
-        .charge_nodes(1, path)
-        .map_err(SelectedTypeUseResolutionError::Resource)?;
-    meter
-        .charge_edges(edges, path)
-        .map_err(SelectedTypeUseResolutionError::Resource)?;
-    meter
-        .charge_work(1 + 32 * edges, path)
-        .map_err(SelectedTypeUseResolutionError::Resource)
 }

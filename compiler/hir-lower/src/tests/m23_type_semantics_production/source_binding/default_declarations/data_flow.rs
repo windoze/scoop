@@ -21,7 +21,6 @@ fn body(t: &Template, statements: Vec<hir::DefaultStatementV1>) -> Template {
         t.value_parameters().clone(),
         t.references().clone(),
         t.definition_origin().clone(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -80,7 +79,7 @@ fn default_source_data_flow_rejects_future_reads_immutable_writes_and_escaping_b
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for (index, first) in [
                 read(original, selector.clone()),
@@ -95,7 +94,7 @@ fn default_source_data_flow_rejects_future_reads_immutable_writes_and_escaping_b
                 statements.extend_from_slice(original.body().statements());
                 let changed = replace(&table, body(original, statements));
                 let Error::Record { key: failed, error } = parameters
-                    .bind_default_declarations(&changed, &[], &mut meter())
+                    .bind_default_declarations(&changed, &[])
                     .unwrap_err()
                 else {
                     panic!("expected a data-flow failure");

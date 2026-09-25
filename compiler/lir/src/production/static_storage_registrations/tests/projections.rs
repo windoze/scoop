@@ -1,6 +1,6 @@
 use super::*;
 use crate::{DecodedStrongStaticStorageSemanticProjectionV1, StrongSemanticProjectionError};
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 fn plan(encoded: bool) -> StrongStaticStorageSemanticPlanV1 {
     let mut structs = crate::StructDefs::default();
@@ -37,14 +37,7 @@ fn plan(encoded: bool) -> StrongStaticStorageSemanticPlanV1 {
 fn decoded(
     plan: &StrongStaticStorageSemanticPlanV1,
 ) -> DecodedStrongStaticStorageSemanticProjectionV1 {
-    decode_canonical(
-        &encode(&plan.semantic_projection()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
-}
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
+    decode_canonical(&encode(&plan.semantic_projection()).unwrap()).unwrap()
 }
 
 #[test]
@@ -57,14 +50,14 @@ fn token_projection_retains_logical_extent_scan_and_initial_state_distinction() 
         let bytes = encode(&plan.semantic_projection()).unwrap();
         assert_eq!(bytes[0], 0xaa);
         assert_eq!(encode(&decoded(plan)).unwrap(), bytes);
-        decoded(plan).validate_against(plan, &mut meter()).unwrap();
+        decoded(plan).validate_against(plan).unwrap();
     }
     assert!(matches!(
-        decoded(&zeroed).validate_against(&encoded, &mut meter()),
+        decoded(&zeroed).validate_against(&encoded),
         Err(StrongSemanticProjectionError::Mismatch)
     ));
     assert!(matches!(
-        decoded(&encoded).validate_against(&zeroed, &mut meter()),
+        decoded(&encoded).validate_against(&zeroed),
         Err(StrongSemanticProjectionError::Mismatch)
     ));
 }
@@ -93,9 +86,7 @@ fn storage_projection_replays_immortal_initializers_and_rejects_wrong_extent() {
     )
     .unwrap();
     let expected = &plans.storages()[0];
-    decoded(expected)
-        .validate_against(expected, &mut meter())
-        .unwrap();
+    decoded(expected).validate_against(expected).unwrap();
     let changed = StrongStaticStorageSemanticPlanV1::from_artifact(
         expected.storage(),
         expected.symbol(),
@@ -109,22 +100,7 @@ fn storage_projection_replays_immortal_initializers_and_rejects_wrong_extent() {
         expected.initial_state().clone(),
     );
     assert!(matches!(
-        decoded(&changed).validate_against(expected, &mut meter()),
+        decoded(&changed).validate_against(expected),
         Err(StrongSemanticProjectionError::Mismatch)
     ));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            owned_bytes: 1,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            decoded(expected).validate_against(expected, &mut BudgetMeter::new(limits)),
-            Err(StrongSemanticProjectionError::Resource(_))
-        ));
-    }
 }

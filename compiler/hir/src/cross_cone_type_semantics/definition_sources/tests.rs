@@ -11,14 +11,14 @@ use scoop_identity::{
     SourceNominalKind, SourceSpan, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment, SyntheticLocalRole,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 mod authority;
 mod defaults;
 mod inheritance;
 mod nested;
 mod representations;
-mod resources;
+
 mod support;
 use authority::{DefaultSite, Expected, UseKey};
 use support::*;
@@ -32,40 +32,10 @@ fn producer_collects_the_same_exact_recursive_origin_set_as_the_reader() {
     ] {
         let sources = fixture
             .inputs()
-            .collect_definition_sources(
-                &mut BudgetMeter::new(DecodeLimits::default()),
-                &WirePath::root(),
-            )
+            .collect_definition_sources(&WirePath::root())
             .unwrap();
         assert_eq!(sources, fixture.declared().sources());
         let declared = CanonicalExportDefinitionSourcesV1::try_new(sources).unwrap();
-        fixture
-            .validate(&declared, DecodeLimits::default())
-            .unwrap();
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(
-                fixture
-                    .inputs()
-                    .collect_definition_sources(&mut BudgetMeter::new(limits), &WirePath::root())
-                    .is_err()
-            );
-        }
+        fixture.validate(&declared).unwrap();
     }
 }

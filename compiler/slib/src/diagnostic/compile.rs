@@ -12,8 +12,7 @@ use crate::{
 };
 
 use super::{
-    SlibDiagnostic, SlibDiagnosticRecord, SlibErrorCode, SlibPrimaryOrigin, SlibResourceFailure,
-    root_diagnostic,
+    SlibDiagnostic, SlibDiagnosticRecord, SlibErrorCode, SlibPrimaryOrigin, root_diagnostic,
 };
 
 impl SlibDiagnostic for IdentityValidationError {
@@ -53,8 +52,8 @@ impl SlibDiagnostic for IdentityReferenceError {
             Self::FutureLayer { kind, id, .. } => {
                 identity_diagnostic(SlibErrorCode::ReferenceFutureLayer, kind, id)
             }
-            Self::ResourceLimit => {
-                SlibDiagnosticRecord::new(SlibErrorCode::LimitExceeded, WirePath::root())
+            Self::StorageFailure => {
+                SlibDiagnosticRecord::new(SlibErrorCode::WireIntegerOutOfRange, WirePath::root())
             }
         }
     }
@@ -181,18 +180,11 @@ impl SlibDiagnostic for SemanticIdentityImportError {
                 SlibDiagnosticRecord::new(SlibErrorCode::IdentityMissing, WirePath::root())
             }
             Self::WorldIdExhausted => {
-                SlibDiagnosticRecord::new(SlibErrorCode::LimitExceeded, WirePath::root())
+                SlibDiagnosticRecord::new(SlibErrorCode::WireIntegerOutOfRange, WirePath::root())
             }
-            Self::Allocation { requested_slots } => SlibDiagnosticRecord {
-                code: SlibErrorCode::LimitAllocation,
-                path: WirePath::root(),
-                byte_offset: None,
-                primary_origin: None,
-                resource: Some(SlibResourceFailure::Allocation {
-                    requested_logical_bytes: 0,
-                    requested_slots: u64::try_from(*requested_slots).unwrap_or(u64::MAX),
-                }),
-            },
+            Self::Allocation { .. } => {
+                SlibDiagnosticRecord::new(SlibErrorCode::Allocation, WirePath::root())
+            }
         }
     }
 }

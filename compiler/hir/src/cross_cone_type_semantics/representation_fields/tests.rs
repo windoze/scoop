@@ -6,7 +6,7 @@ use scoop_identity::{
     PackagePath, PersistentGenericTypeId, PersistentIdResolver, PersistentKeyResolver,
     PersistentPropertyId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -157,17 +157,17 @@ fn field_wire_contains_only_id_and_signature_and_rebuilds_derived_owner() {
         .concat()
     );
     let decoded: DecodedStructRepresentationFieldV1 =
-        decode_canonical(&encode(&field).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&field).unwrap()).unwrap();
     assert_eq!(decoded.clone().resolve(&mut resolver).unwrap(), field);
     resolver.field = class_key();
     assert!(decoded.resolve(&mut resolver).is_err());
     let class = ClassRepresentationFieldV1::try_new(&resolver.field, unit()).unwrap();
     let decoded: DecodedClassRepresentationFieldV1 =
-        decode_canonical(&encode(&class).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&class).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut resolver).unwrap(), class);
     let enumeration = EnumRepresentationFieldV1::try_new(&resolver.enumeration, unit()).unwrap();
     let decoded: DecodedEnumRepresentationFieldV1 =
-        decode_canonical(&encode(&enumeration).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&enumeration).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut resolver).unwrap(), enumeration);
 }
 
@@ -181,7 +181,7 @@ fn reader_rechecks_key_identity_even_if_a_resolver_returns_another_valid_key() {
     )
     .unwrap();
     let decoded: DecodedStructRepresentationFieldV1 =
-        decode_canonical(&encode(&field).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&field).unwrap()).unwrap();
     assert!(matches!(
         decoded.resolve(&mut resolver(other)),
         Err(RepresentationFieldResolutionError::Identity(_))

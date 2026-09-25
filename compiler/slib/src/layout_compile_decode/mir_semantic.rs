@@ -12,7 +12,6 @@ use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError,
     DecodedCrossConeMirTypeBridgeSectionV1, MirProductionValidationError, OdrFreeMirFoundation,
 };
-use scoop_wire::BudgetMeter;
 
 mod materializations;
 
@@ -47,7 +46,7 @@ pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
     pub(crate) mir_core: &'a CoreBootstrapBridgeSectionV1,
     pub(crate) mir_ordinary: &'a CrossConeMirBridgeSectionV1,
     pub(crate) lir_foundation: &'a OdrFreeLirFoundation,
-    pub(crate) meter: &'a mut BudgetMeter,
+
     pub(crate) manifest: &'a crate::BootstrapManifest,
     pub(crate) link_sections: Option<&'a crate::DecodedCrossConeLayoutLinkOnlySections>,
 }
@@ -64,7 +63,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
         CrossConeLayoutMirFrontValidationError,
     > {
         let Self {
-            mut graph,
+            graph,
             view,
             mut identities,
             foundations,
@@ -91,18 +90,12 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
         )
         .map_err(CrossConeLayoutMirFrontValidationError::CrossLayer)?;
         let mir_ordinary = mir_cross_cone_bridge
-            .validate_with_meter(
-                provider,
-                &mut identities,
-                &foundations.mir,
-                graph.envelope.meter_mut(),
-            )
+            .validate(provider, &mut identities, &foundations.mir)
             .map_err(CrossConeLayoutMirFrontValidationError::OrdinaryBridge)?;
         crate::hir_dependency_calls::validate_executable_hir_calls(
             &hir_interface,
             mir_core.strong_callable_bridges(),
             &mir_ordinary,
-            graph.envelope.meter_mut(),
         )
         .map_err(|source| CrossConeLayoutMirFrontValidationError::CallSites(Box::new(source)))?;
         Ok((
@@ -132,10 +125,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
         self.view.link()
     }
 
-    pub(crate) fn decode_usage(&self) -> scoop_wire::DecodeUsage {
-        self.graph.decode_usage()
-    }
-
     pub(crate) fn shared_metadata(&self) -> scoop_hir::SharedTypeMetadataV1<'_> {
         scoop_hir::SharedTypeMetadataV1 {
             provider: self.graph.identity(),
@@ -162,7 +151,7 @@ impl PreparedCrossConeLayoutMirSections<'_> {
     }
 
     pub(crate) fn semantic_parts(&mut self) -> PreparedLayoutMirSemanticParts<'_> {
-        let (manifest, meter) = self.graph.envelope.manifest_and_meter();
+        let manifest = self.graph.envelope.manifest();
         PreparedLayoutMirSemanticParts {
             identities: &mut self.identities,
             hir_foundation: &self.foundations.hir,
@@ -173,7 +162,7 @@ impl PreparedCrossConeLayoutMirSections<'_> {
             mir_core: &self.mir_core,
             mir_ordinary: &self.mir_ordinary,
             lir_foundation: &self.foundations.lir,
-            meter,
+
             manifest,
             link_sections: self.view.link(),
         }

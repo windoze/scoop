@@ -1,5 +1,5 @@
 use scoop_identity::{CborIdentityRecord, ExactTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use super::*;
 
@@ -55,17 +55,16 @@ impl TupleStorageLayoutV1 {
         target: LirTargetProfile,
         exact: &CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
         values: &[&ValueLayoutConstituentV1],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, TupleStorageReplayError> {
         let path = WirePath::root();
-        meter.charge_work(1, &path)?;
+
         let ExactTypeKey::Tuple(expected) = exact.key() else {
             return Err(TupleStorageReplayError::ExpectedTuple);
         };
         if expected.as_slice().len() != values.len() {
             return Err(TupleStorageReplayError::ArityMismatch);
         }
-        meter.charge_work(values.len() as u64, &path)?;
+
         let mut cursor = cursor(target)?;
         for (expected, value) in expected.as_slice().iter().zip(values) {
             if *expected != value.exact() {
@@ -79,15 +78,11 @@ impl TupleStorageLayoutV1 {
                 .map_err(StorageReplayError::Shape)?;
         }
         let whole = cursor.finish().map_err(StorageReplayError::Shape)?;
-        meter.charge_work(values.len() as u64, &path)?;
-        meter.charge_collection_slots(values.len() as u64, &path)?;
+
         let mut elements = Vec::new();
         elements.try_reserve_exact(values.len()).map_err(|_| {
             TupleStorageReplayError::Resource(WireError::new(
-                WireErrorKind::ResourceAllocation {
-                    requested_logical_bytes: (values.len() as u64).saturating_mul(16),
-                    requested_slots: values.len() as u64,
-                },
+                WireErrorKind::Allocation,
                 path.clone(),
                 None,
             ))

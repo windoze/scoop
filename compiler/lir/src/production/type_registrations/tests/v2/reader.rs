@@ -5,7 +5,6 @@ use crate::{
     StrongRegistrationProductionValidationError as Error,
     StrongTypeReferenceResolutionErrorV2 as RefError,
 };
-use scoop_wire::BudgetMeter;
 
 mod fixture;
 use fixture::*;
@@ -22,14 +21,14 @@ fn v2_reader_replays_legacy_and_foreign_complete_registration_records() {
         let expected = semantics(&fixture, None);
         let plans = build(&fixture, None).unwrap();
         assert_eq!(
-            validate(&fixture, decoded(&plans), &catalog(&expected), &mut meter()).unwrap(),
+            validate(&fixture, decoded(&plans), &catalog(&expected)).unwrap(),
             expected
         );
     }
     let fixture = foreign_fixture();
     let expected = semantics(&fixture, Some(ConeIdentity::CORE));
     let plans = build(&fixture, Some(ConeIdentity::CORE)).unwrap();
-    let actual = validate(&fixture, decoded(&plans), &catalog(&expected), &mut meter()).unwrap();
+    let actual = validate(&fixture, decoded(&plans), &catalog(&expected)).unwrap();
     assert_eq!(actual, expected);
     let replayed = StrongTypeRegistrationPlanSetV2::new(
         crate::LirTargetProfile::DARWIN_AARCH64,
@@ -50,11 +49,10 @@ fn foreign_parent_and_dispatch_require_the_same_available_provider() {
     let expected = semantics(&fixture, Some(ConeIdentity::CORE));
     let definitions = catalog(&expected);
     let empty =
-        crate::StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[], &mut meter())
-            .unwrap();
+        crate::StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap();
     let plans = build(&fixture, Some(ConeIdentity::CORE)).unwrap();
     assert!(matches!(
-        validate(&fixture, decoded(&plans), &empty, &mut meter()),
+        validate(&fixture, decoded(&plans), &empty),
         Err(Error::TypeReference(
             RefError::UnknownDependencyDescriptor { .. }
         ))
@@ -66,7 +64,7 @@ fn foreign_parent_and_dispatch_require_the_same_available_provider() {
             .unwrap();
     let changed = build(&fixture, Some(changed_provider)).unwrap();
     assert!(matches!(
-        validate(&fixture, decoded(&changed), &definitions, &mut meter()),
+        validate(&fixture, decoded(&changed), &definitions),
         Err(Error::TypeReference(
             RefError::UnknownDependencyDescriptor { .. }
         ))
@@ -74,11 +72,10 @@ fn foreign_parent_and_dispatch_require_the_same_available_provider() {
     let descriptors_only = crate::StrongTypeReferenceDefinitionsV2::new(
         ConeIdentity::SINGLE_FILE,
         definitions.descriptor_definitions(),
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
-        validate(&fixture, decoded(&plans), &descriptors_only, &mut meter()),
+        validate(&fixture, decoded(&plans), &descriptors_only),
         Err(Error::TypeReference(
             RefError::UnknownDependencyCallable { .. }
         ))
@@ -94,12 +91,7 @@ fn a_foreign_itable_reference_cannot_alias_a_local_descriptor_definition() {
     let semantics = semantics(&fixture, Some(ConeIdentity::CORE));
     let plans = build(&fixture, Some(ConeIdentity::CORE)).unwrap();
     assert!(matches!(
-        validate(
-            &fixture,
-            decoded(&plans),
-            &catalog(&semantics),
-            &mut meter()
-        ),
+        validate(&fixture, decoded(&plans), &catalog(&semantics)),
         Err(Error::TypeReference(RefError::LocalDescriptorPartition(_)))
     ));
 }
@@ -113,7 +105,7 @@ fn type_reader_recomputes_definition_fields_and_requires_complete_coverage() {
     let mut records = decoded(&plans);
     records.pop();
     assert!(matches!(
-        validate(&fixture, records, &definitions, &mut meter()),
+        validate(&fixture, records, &definitions),
         Err(Error::TableLength { .. })
     ));
     let mut bytes = encode(&plans.registrations()[0]).unwrap();
@@ -124,48 +116,9 @@ fn type_reader_recomputes_definition_fields_and_requires_complete_coverage() {
         .unwrap();
     bytes[position] ^= 1;
     let mut records = decoded(&plans);
-    records[0] = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    records[0] = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        validate(&fixture, records, &definitions, &mut meter()),
+        validate(&fixture, records, &definitions),
         Err(Error::EntryMismatch { index: 0, .. })
-    ));
-}
-
-#[test]
-fn complete_type_replay_charges_shared_work_and_heap_before_allocating() {
-    let fixture = foreign_fixture();
-    let semantics = semantics(&fixture, Some(ConeIdentity::CORE));
-    let definitions = catalog(&semantics);
-    let plans = build(&fixture, Some(ConeIdentity::CORE)).unwrap();
-    for limits in [
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            validate(
-                &fixture,
-                decoded(&plans),
-                &definitions,
-                &mut BudgetMeter::new(limits)
-            ),
-            Err(Error::Resource(_))
-        ));
-    }
-    let mut baseline = meter();
-    validate(&fixture, decoded(&plans), &definitions, &mut baseline).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: baseline.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    validate(&fixture, decoded(&plans), &definitions, &mut shared).unwrap();
-    assert!(matches!(
-        validate(&fixture, decoded(&plans), &definitions, &mut shared),
-        Err(Error::Resource(_))
     ));
 }

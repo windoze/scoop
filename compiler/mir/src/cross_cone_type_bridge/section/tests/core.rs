@@ -65,16 +65,9 @@ fn core_shape_selection_uses_the_common_table_and_round_trips() {
     let section = consumer.section(&[&core], &graph).unwrap();
     assert_eq!(section.selected().len(), 5);
     let bytes = encode(&core).unwrap();
-    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
     let replayed = decoded
-        .validate(
-            provider.authority(),
-            &[],
-            &provider.source,
-            &mut graph,
-            &mut meter(),
-        )
+        .validate(provider.authority(), &[], &provider.source, &mut graph)
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);
 }
@@ -151,15 +144,13 @@ fn mixed_core_and_ordinary_shape_selections_keep_their_terminal_records() {
         assert_eq!(selected.source(), provider.types.empty.id());
     }
     let bytes = encode(&section).unwrap();
-    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
     let replayed = decoded
         .validate(
             consumer.authority(),
             &[&core, &ordinary],
             &consumer.source,
             &mut graph,
-            &mut meter(),
         )
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);

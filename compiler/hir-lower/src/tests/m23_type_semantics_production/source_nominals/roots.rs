@@ -22,11 +22,8 @@ fn names(
 #[test]
 fn nominal_source_roots_close_protected_support_without_unrelated_private_types() {
     with_source(ROOTS, |output, _| {
-        let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(
-            &output.output().export,
-            &mut meter(),
-        )
-        .unwrap();
+        let roots =
+            hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export).unwrap();
         assert_eq!(
             names(output, &roots),
             [
@@ -52,7 +49,7 @@ fn nominal_source_roots_close_protected_support_without_unrelated_private_types(
                 "Value",
             ]
         );
-        let table = Table::from_export_hir(&output.output().export, &roots, &mut meter()).unwrap();
+        let table = Table::from_export_hir(&output.output().export, &roots).unwrap();
         assert_eq!(table.records().len(), roots.values().len());
         let identities = sources(output.output().export.module());
         for record in table.records() {
@@ -64,10 +61,9 @@ fn nominal_source_roots_close_protected_support_without_unrelated_private_types(
             }
         }
         let bytes = encode(&roots).unwrap();
-        let decoded: hir::DecodedCanonicalSourceNominalIdsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: hir::DecodedCanonicalSourceNominalIdsV1 = decode_canonical(&bytes).unwrap();
         let mut identities = super::super::source_inventory::identity_closure(output);
-        let restored = decoded.resolve(&mut identities, &mut meter()).unwrap();
+        let restored = decoded.resolve(&mut identities).unwrap();
         assert_eq!(restored, roots);
         assert_eq!(encode(&restored).unwrap(), bytes);
     });
@@ -76,11 +72,8 @@ fn nominal_source_roots_close_protected_support_without_unrelated_private_types(
 #[test]
 fn nominal_source_roots_keep_generic_and_static_nested_support_distinct() {
     with_source(NESTED, |output, _| {
-        let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(
-            &output.output().export,
-            &mut meter(),
-        )
-        .unwrap();
+        let roots =
+            hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export).unwrap();
         assert_eq!(
             names(output, &roots),
             [
@@ -102,7 +95,7 @@ fn nominal_source_roots_keep_generic_and_static_nested_support_distinct() {
                 "View",
             ]
         );
-        let table = Table::from_export_hir(&output.output().export, &roots, &mut meter()).unwrap();
+        let table = Table::from_export_hir(&output.output().export, &roots).unwrap();
         let identities = sources(output.output().export.module());
         let concrete = table
             .records()
@@ -123,11 +116,8 @@ fn nominal_source_roots_can_be_empty_despite_private_protected_declarations() {
     with_source(
         "private open class Hidden { protected class Nested {} }",
         |output, _| {
-            let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(
-                &output.output().export,
-                &mut meter(),
-            )
-            .unwrap();
+            let roots =
+                hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export).unwrap();
             assert!(roots.values().is_empty());
         },
     );
@@ -142,17 +132,13 @@ fn nominal_source_roots_close_private_storage_dependencies_without_private_sibli
     with_source(
         &format!("private struct Unrelated() {{}}\n{source}"),
         |output, _| {
-            let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(
-                &output.output().export,
-                &mut meter(),
-            )
-            .unwrap();
+            let roots =
+                hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export).unwrap();
             assert_eq!(
                 names(output, &roots),
                 ["Deep", "Exposed", "Hidden", "Token"]
             );
-            let source =
-                Table::from_export_hir(&output.output().export, &roots, &mut meter()).unwrap();
+            let source = Table::from_export_hir(&output.output().export, &roots).unwrap();
             assert_eq!(source.records().len(), roots.values().len());
         },
     );
@@ -169,7 +155,7 @@ fn nominal_source_roots_close_object_enum_and_compound_storage() {
     let output = crate::tests::lower_core_with_additional_declarations(
         scoop_parser::parse(source).unwrap().declarations,
     );
-    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(&output, &mut meter()).unwrap();
+    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(&output).unwrap();
     let identities = sources(output.module());
     let expected = [
         "Box",
@@ -188,74 +174,6 @@ fn nominal_source_roots_close_object_enum_and_compound_storage() {
         .collect::<Vec<_>>();
     actual.sort();
     assert_eq!(actual, expected);
-    let source = Table::from_export_hir(&output, &roots, &mut meter()).unwrap();
+    let source = Table::from_export_hir(&output, &roots).unwrap();
     assert_eq!(source.records().len(), roots.values().len());
-}
-
-#[test]
-fn nominal_source_root_discovery_obeys_shared_resource_limits() {
-    with_source(ROOTS, |output, _| {
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            let result = hir::CanonicalSourceNominalIdsV1::from_export_hir(
-                &output.output().export,
-                &mut BudgetMeter::new(limits),
-            );
-            assert!(
-                matches!(
-                    result,
-                    Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                        hir::SourceInventoryError::Resource(_)
-                    ))
-                ),
-                "{limits:?}: {result:?}"
-            );
-        }
-    });
-}
-
-#[test]
-fn source_root_budget_includes_object_scans_for_each_class_base() {
-    let mut source = String::from("public open class Base {}\n");
-    const COUNT: u64 = 40;
-    for index in 0..COUNT {
-        source.push_str(&format!(
-            "public class Derived{index} : Base() {{}}\nprivate object Hidden{index} {{}}\n"
-        ));
-    }
-    let usage = |source: &str| {
-        with_source(source, |output, _| {
-            let mut budget = meter();
-            let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(
-                &output.output().export,
-                &mut budget,
-            )
-            .unwrap();
-            assert_eq!(roots.values().len() as u64, COUNT + 1);
-            budget.usage().validation_work_units
-        })
-    };
-    let with_bases = usage(&source);
-    let without_bases = usage(&source.replace(" : Base()", ""));
-    assert!(with_bases - without_bases >= COUNT * COUNT);
 }

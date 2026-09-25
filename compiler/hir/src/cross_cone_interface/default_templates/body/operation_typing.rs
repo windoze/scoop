@@ -6,7 +6,7 @@ use scoop_identity::{
     Effect, PersistentCallbackRegistrationId, PersistentObjectValueId, PersistentPropertyId,
     SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::{
     CanonicalBooleanV1, DefaultCallableDeclarationV1, DefaultCallableRefV1,
@@ -663,7 +663,7 @@ impl<E: std::error::Error + 'static> std::error::Error
 struct Validator<'a, A, E> {
     template: DefaultBodyValidationInputV1<'a>,
     authority: &'a mut A,
-    meter: &'a mut BudgetMeter,
+
     path: &'a WirePath,
     error: std::marker::PhantomData<fn() -> E>,
 }
@@ -679,58 +679,13 @@ where
         DefaultOperationTypingSiteV1 { operation, role }
     }
 
-    fn enter_node(
-        &mut self,
-        depth: u64,
-    ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        self.meter
-            .charge_nodes(1, self.path)
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)
-    }
-
-    fn child_depth(
-        &mut self,
-        parent: u64,
-    ) -> Result<u64, ExportDefaultOperationTypingValidationError<E>> {
-        let depth = parent.checked_add(1).ok_or_else(|| {
-            ExportDefaultOperationTypingValidationError::Resource(WireError::new(
-                WireErrorKind::IntegerOutOfRange,
-                self.path.clone(),
-                None,
-            ))
-        })?;
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        self.meter
-            .charge_edges(1, self.path)
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        Ok(depth)
-    }
-
-    fn charge_work(&mut self) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)
-    }
-
     fn core_type(
         &mut self,
         role: DefaultOperationCoreTypeV1,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<SignatureTypeKey, ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         self.authority
-            .canonical_default_operation_type(role, self.meter, self.path)
+            .canonical_default_operation_type(role, self.path)
             .map_err(|error| ExportDefaultOperationTypingValidationError::Authority { site, error })
     }
 
@@ -740,10 +695,9 @@ where
         expected: DefaultOperationExpectedTypeShapeV1,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<DefaultCoreApplicationV1, ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         let actual = self
             .authority
-            .classify_default_core_application(value, self.meter, self.path)
+            .classify_default_core_application(value, self.path)
             .map_err(
                 |error| ExportDefaultOperationTypingValidationError::Authority { site, error },
             )?;
@@ -767,9 +721,8 @@ where
         entity: DefaultOperationEntityV1<'_>,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<DefaultOperationEntityShapeV1, ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         self.authority
-            .default_operation_entity_shape(entity, self.meter, self.path)
+            .default_operation_entity_shape(entity, self.path)
             .map_err(|error| ExportDefaultOperationTypingValidationError::Authority { site, error })
     }
 
@@ -779,7 +732,6 @@ where
         expected: &SignatureTypeKey,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if actual == expected {
             Ok(())
         } else {
@@ -801,8 +753,9 @@ where
         let site = Self::site(operation, DefaultOperationValueRoleV1::Result);
         let result = expression.result_type();
         if result == principal {
-            return self.charge_work();
+            return Ok(());
         }
+
         if !allow_reference_retype {
             return self.expect_type(result, principal, site);
         }
@@ -829,10 +782,9 @@ where
         target: &SignatureTypeKey,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         let valid = self
             .authority
-            .default_operation_type_relation(relation, source, target, self.meter, self.path)
+            .default_operation_type_relation(relation, source, target, self.path)
             .map_err(
                 |error| ExportDefaultOperationTypingValidationError::Authority { site, error },
             )?;
@@ -854,7 +806,6 @@ where
         expected: usize,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if actual == expected {
             Ok(())
         } else {
@@ -874,7 +825,6 @@ where
         (&'type_ [SignatureTypeKey], &'type_ SignatureTypeKey, Effect),
         ExportDefaultOperationTypingValidationError<E>,
     > {
-        self.charge_work()?;
         match value {
             SignatureTypeKey::Function {
                 effect,
@@ -894,7 +844,6 @@ where
         value: &'type_ SignatureTypeKey,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<&'type_ SignatureTypeKey, ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         match value {
             SignatureTypeKey::RawPointer(pointee) => Ok(pointee),
             _ => Err(ExportDefaultOperationTypingValidationError::TypeShape {
@@ -910,7 +859,6 @@ where
         value: &SignatureTypeKey,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if matches!(value, SignatureTypeKey::NativeFunctionPointer { .. }) {
             Ok(())
         } else {
@@ -927,9 +875,8 @@ where
         intrinsic: DefaultOperationIntrinsicV1<'_>,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         self.authority
-            .validate_default_operation_intrinsic(intrinsic, self.meter, self.path)
+            .validate_default_operation_intrinsic(intrinsic, self.path)
             .map_err(|error| ExportDefaultOperationTypingValidationError::Authority { site, error })
     }
 
@@ -938,7 +885,6 @@ where
         shape: &DefaultCallableOperationShapeV1,
         site: DefaultOperationTypingSiteV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if shape.effect() == Effect::Suspend && !self.template.allows_suspend().value() {
             Err(ExportDefaultOperationTypingValidationError::Problem {
                 site,

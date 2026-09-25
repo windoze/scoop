@@ -1,10 +1,9 @@
 use super::*;
 use scoop_identity::DuplicateSignatureKey;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn functions(&mut self) -> Result<(), Error> {
         for (id, function) in self.export.functions.iter() {
-            work(self.meter, 1)?;
             let HirFunctionIdentity::Source(identity) = &self.export.function_identities[id] else {
                 continue;
             };
@@ -18,7 +17,7 @@ impl Projection<'_, '_> {
                     DefinitionOriginSubject::GenericFunction(record.id()),
                 ),
             };
-            if !self.take(declaration)? {
+            if !self.take(declaration) {
                 continue;
             }
             let method = function
@@ -35,21 +34,7 @@ impl Projection<'_, '_> {
                     "nominal source member has an incompatible source signature key",
                 ));
             };
-            let visible = function.type_param_count();
-            self.meter
-                .check_table_entries(visible as u64, &WirePath::root())
-                .map_err(resource)?;
-            self.meter
-                .charge_collection_slots(visible as u64, &WirePath::root())
-                .map_err(resource)?;
-            for parameter in function.type_params() {
-                resources::binders(
-                    self.export,
-                    std::slice::from_ref(parameter),
-                    visible,
-                    self.meter,
-                )?;
-            }
+
             let binders = self
                 .signatures
                 .function_binders(function)
@@ -70,7 +55,7 @@ impl Projection<'_, '_> {
             .map_err(invalid)?;
             let parameters =
                 self.parameters(ExportParameterOwner::Function(id), &binders, expected)?;
-            resources::ty(self.export, function.return_ty, visible, 3, self.meter)?;
+
             let result = self
                 .signatures
                 .map_type(function.return_ty, &binders)

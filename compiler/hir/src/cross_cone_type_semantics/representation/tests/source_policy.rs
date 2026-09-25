@@ -35,11 +35,7 @@ fn intrinsic_representation_requires_its_exact_source_family_in_both_join_paths(
             assert_eq!(record.validate_public_source_shape(&source).is_ok(), agrees);
             assert_eq!(
                 record
-                    .public_source_shape_matches(
-                        &source,
-                        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-                        &scoop_wire::WirePath::root()
-                    )
+                    .public_source_shape_matches(&source, &scoop_wire::WirePath::root())
                     .unwrap(),
                 agrees
             );

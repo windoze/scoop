@@ -34,17 +34,13 @@ fn inheritance_property_sources_reject_const_payloads_in_builder_and_reader() {
         )
         .unwrap();
         assert!(matches!(
-            Table::try_new(vec![record.clone()], &mut meter()),
+            Table::try_new(vec![record.clone()]),
             Err(hir::SourceInventoryError::NonRuntimeProperty(id)) if id == value.property()
         ));
-        let decoded: Decoded = decode_canonical(
-            &encode(&Records(&[record])).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded: Decoded = decode_canonical(&encode(&Records(&[record])).unwrap()).unwrap();
         let mut identities = source_inventory::identity_closure(output);
         assert!(matches!(
-            decoded.resolve(&mut identities, &mut meter()),
+            decoded.resolve(&mut identities),
             Err(Error::Inventory(hir::SourceInventoryError::NonRuntimeProperty(id)))
                 if id == value.property()
         ));

@@ -15,20 +15,28 @@ impl OptionalTemplateReceiverV1 {
         callable: &CallableInterfaceRecordV1,
         locals: &CanonicalTemplateLocalTableV1,
         provider: DefaultTemplateProviderShapeV1,
-        type_parameters: &CanonicalBinderUseListV1,
+        mapping: &CanonicalBinderUseListV1,
     ) -> Result<(), TemplateReceiverSemanticValidationError> {
-        let Some((receiver, expected_type)) =
-            self.checked_receiver_unmetered(callable.receiver(), locals)?
-        else {
+        self.validate_expected_semantics(callable.receiver(), locals, provider, mapping)
+    }
+
+    pub fn validate_expected_semantics(
+        &self,
+        expected: Option<&SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+        provider: DefaultTemplateProviderShapeV1,
+        mapping: &CanonicalBinderUseListV1,
+    ) -> Result<(), TemplateReceiverSemanticValidationError> {
+        let Some((receiver, expected)) = self.checked_receiver(expected, locals)? else {
             return Ok(());
         };
-        let mapped_type = type_parameters
+        let actual = mapping
             .substitute_provider_type(provider, receiver.value_type())
             .map_err(TemplateReceiverSemanticValidationError::TypeSubstitution)?;
-        if &mapped_type != expected_type {
+        if &actual != expected {
             return Err(TemplateReceiverSemanticValidationError::CallableType {
-                expected: Box::new(expected_type.clone()),
-                actual: Box::new(mapped_type),
+                expected: Box::new(expected.clone()),
+                actual: Box::new(actual),
             });
         }
         Ok(())
@@ -40,7 +48,7 @@ impl OptionalTemplateReceiverV1 {
         expected: Option<&SignatureTypeKey>,
         locals: &CanonicalTemplateLocalTableV1,
     ) -> Result<(), TemplateReceiverSemanticValidationError> {
-        let Some((receiver, expected)) = self.checked_receiver_unmetered(expected, locals)? else {
+        let Some((receiver, expected)) = self.checked_receiver(expected, locals)? else {
             return Ok(());
         };
         if receiver.value_type() != expected {
@@ -52,7 +60,7 @@ impl OptionalTemplateReceiverV1 {
         Ok(())
     }
 
-    fn checked_receiver_unmetered<'r, 'e>(
+    fn checked_receiver<'r, 'e>(
         &'r self,
         expected: Option<&'e SignatureTypeKey>,
         locals: &CanonicalTemplateLocalTableV1,

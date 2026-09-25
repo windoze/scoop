@@ -42,10 +42,9 @@ fn complete_parameter_shapes_require_exact_arity_names_types_and_order() {
                         3 => continue,
                         _ => unreachable!(),
                     }
-                    let forged = sources
-                        .replacing(Record::try_new(owner, parameters, &mut meter()).unwrap());
+                    let forged = sources.replacing(Record::try_new(owner, parameters).unwrap());
                     let Error::Contract(error) = members
-                        .bind_parameter_protocols(constructors, &forged, &mut meter())
+                        .bind_parameter_protocols(constructors, &forged)
                         .unwrap_err()
                     else {
                         panic!("parameter contract rejection");
@@ -86,11 +85,10 @@ fn complete_scalar_and_binder_parameters_cannot_claim_varargs() {
                         kind,
                         first.definition_origin().clone(),
                     );
-                    let forged = sources.replacing(
-                        Record::try_new(record.owner(), parameters, &mut meter()).unwrap(),
-                    );
+                    let forged =
+                        sources.replacing(Record::try_new(record.owner(), parameters).unwrap());
                     let Error::Contract(error) = members
-                        .bind_parameter_protocols(constructors, &forged, &mut meter())
+                        .bind_parameter_protocols(constructors, &forged)
                         .unwrap_err()
                     else {
                         panic!("vararg contract rejection");
@@ -135,10 +133,10 @@ fn complete_parameter_origins_require_real_foundation_endpoints_for_every_role()
                     first.calling_kind(),
                     hir::ExportDefinitionSourceV1::new(invalid),
                 );
-                let forged = sources
-                    .replacing(Record::try_new(record.owner(), parameters, &mut meter()).unwrap());
+                let forged =
+                    sources.replacing(Record::try_new(record.owner(), parameters).unwrap());
                 let Error::Contract(error) = members
-                    .bind_parameter_protocols(constructors, &forged, &mut meter())
+                    .bind_parameter_protocols(constructors, &forged)
                     .unwrap_err()
                 else {
                     panic!("foundation endpoint rejection");

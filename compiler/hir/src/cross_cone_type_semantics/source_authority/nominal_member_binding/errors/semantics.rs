@@ -13,9 +13,9 @@ impl Error {
                 ProtectedCallableSemanticError::Resource(e),
             )
             | NominalSupportCallableSemanticError::Signature(
-                ProtectedCallableSemanticError::Signature(
-                    MeteredSignatureTypeSemanticError::Resource(e),
-                ),
+                ProtectedCallableSemanticError::Signature(SignatureTypeSemanticError::Allocation(
+                    e,
+                )),
             )
             | NominalSupportCallableSemanticError::Signature(
                 ProtectedCallableSemanticError::Source(InheritanceGraphError::Resource(e)),
@@ -40,9 +40,9 @@ impl Error {
                 ProtectedPropertySemanticError::Resource(e),
             )
             | NominalSupportPropertySemanticError::Runtime(
-                ProtectedPropertySemanticError::Signature(
-                    MeteredSignatureTypeSemanticError::Resource(e),
-                ),
+                ProtectedPropertySemanticError::Signature(SignatureTypeSemanticError::Allocation(
+                    e,
+                )),
             )
             | NominalSupportPropertySemanticError::Runtime(
                 ProtectedPropertySemanticError::Source(InheritanceGraphError::Resource(e)),

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{CanonicalNativeLibraryName, CanonicalNativeNameError, SourceNativeSymbol};
 use crate::ids::derive_persistent_id;
@@ -128,10 +128,6 @@ impl PersistentNativeExternalSymbolId {
     pub fn from_key(key: &NativeExternalSymbolKey) -> Result<Self, HashError> {
         derive_persistent_id(NATIVE_LINK_SYMBOL_HASH_DOMAIN, key)
     }
-
-    pub fn hash_stream_length(key: &NativeExternalSymbolKey) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(NATIVE_LINK_SYMBOL_HASH_DOMAIN, key)
-    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -256,10 +252,6 @@ impl NativeLinkRequirementId {
     pub fn from_key(key: &NativeLinkRequirementKey) -> Result<Self, HashError> {
         derive_persistent_id(NATIVE_LINK_REQUIREMENT_HASH_DOMAIN, key)
     }
-
-    pub fn hash_stream_length(key: &NativeLinkRequirementKey) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(NATIVE_LINK_REQUIREMENT_HASH_DOMAIN, key)
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -348,6 +340,15 @@ mod tests {
     }
 
     #[test]
+    fn long_native_symbols_preserve_the_complete_name() {
+        let name = "x".repeat(8_192);
+        let logical = SourceNativeSymbol::new(&name).unwrap();
+        let symbol = NativeLinkSymbol::darwin_macho_external(&logical).unwrap();
+        assert_eq!(symbol.as_bytes()[0], b'_');
+        assert_eq!(&symbol.as_bytes()[1..], name.as_bytes());
+    }
+
+    #[test]
     fn native_symbol_identity_has_fixed_vector() {
         let logical = SourceNativeSymbol::new("foo").unwrap();
         assert_eq!(
@@ -360,10 +361,7 @@ mod tests {
             hex(&encoded),
             "a201a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d61617263683634030102445f666f6f"
         );
-        assert_eq!(
-            PersistentNativeExternalSymbolId::hash_stream_length(&key).unwrap(),
-            8 + "scoop-native-link-symbol-v1".len() as u64 + encoded.len() as u64
-        );
+
         assert_eq!(
             PersistentNativeExternalSymbolId::from_key(&key)
                 .unwrap()
@@ -382,10 +380,7 @@ mod tests {
             hex(&encoded),
             "a401a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301026673616d706c65030104a10001"
         );
-        assert_eq!(
-            NativeLinkRequirementId::hash_stream_length(&key).unwrap(),
-            8 + "scoop-native-link-requirement-v1".len() as u64 + encoded.len() as u64
-        );
+
         assert_eq!(
             NativeLinkRequirementId::from_key(&key).unwrap().to_string(),
             "d89eb1c8a7b896c0af0b968bd772bbf71444df18faabb0b29c9670f12fbc7ae0"

@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 use scoop_lir::CanonicalLirFoundation;
 use scoop_mir::CanonicalMirFoundation;
-use scoop_wire::{DecodeLimits, encode};
+use scoop_wire::encode;
 
 use super::*;
 use crate::{
@@ -683,7 +683,7 @@ fn metadata_member(
 }
 
 pub(crate) fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
-    crate::DecodedSlibEnvelope::open(bytes, DecodeLimits::default(), selection())
+    crate::DecodedSlibEnvelope::open(bytes, selection())
         .unwrap()
         .validate_graph()
         .unwrap()

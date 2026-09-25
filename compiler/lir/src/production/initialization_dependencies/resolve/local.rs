@@ -14,15 +14,14 @@ impl StrongInitializationDefinitionCatalogV2 {
         foundation: &OdrFreeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, StrongRegistrationProductionValidationError> {
         if self.producer != foundation.producer() {
             return Err(StrongRegistrationProductionValidationError::ProducerMismatch);
         }
         let path = WirePath::root();
         let mut definitions = Vec::new();
-        meter.charge_work(self.definitions.len() as u64, &path)?;
-        meter.try_reserve_collection_slots(&mut definitions, self.definitions.len(), &path)?;
+
+        scoop_wire::allocation::try_reserve(&mut definitions, self.definitions.len(), &path)?;
         for definition in &self.definitions {
             if definition.provider() == self.producer {
                 return Err(
@@ -34,7 +33,7 @@ impl StrongInitializationDefinitionCatalogV2 {
             }
             definitions.push(*definition);
         }
-        meter.try_reserve_collection_slots(
+        scoop_wire::allocation::try_reserve(
             &mut definitions,
             identities.initialization_units().len(),
             &path,
@@ -45,9 +44,8 @@ impl StrongInitializationDefinitionCatalogV2 {
                 foundation,
                 identities,
                 digests,
-                meter,
             )?);
         }
-        Ok(Self::new(self.producer, &definitions, meter)?)
+        Ok(Self::new(self.producer, &definitions)?)
     }
 }

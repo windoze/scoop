@@ -1,7 +1,7 @@
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::*;
-use crate::MeteredScanValidationError;
+use crate::RefScanValidationError;
 
 enum ExpectedStorage<'a> {
     Zero(NonZeroPow2),
@@ -16,23 +16,19 @@ impl DecodedValueStorageLayoutV1 {
     pub fn validate_against(
         self,
         expected: &ValueStorageLayoutV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), StorageWireReplayError> {
-        self.0.validate_against(
-            match expected.kind() {
-                ValueStorageKindV1::ZeroSized { alignment } => ExpectedStorage::Zero(alignment),
-                ValueStorageKindV1::Inline {
-                    size,
-                    alignment,
-                    scan,
-                } => ExpectedStorage::Inline {
-                    extent: size.get(),
-                    alignment,
-                    scan,
-                },
+        self.0.validate_against(match expected.kind() {
+            ValueStorageKindV1::ZeroSized { alignment } => ExpectedStorage::Zero(alignment),
+            ValueStorageKindV1::Inline {
+                size,
+                alignment,
+                scan,
+            } => ExpectedStorage::Inline {
+                extent: size.get(),
+                alignment,
+                scan,
             },
-            meter,
-        )
+        })
     }
 }
 
@@ -40,35 +36,24 @@ impl DecodedArrayElementStorageV1 {
     pub fn validate_against(
         self,
         expected: &ArrayElementStorageV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), StorageWireReplayError> {
-        self.0.validate_against(
-            match expected.kind() {
-                ArrayElementStorageKindV1::ZeroSized { alignment } => {
-                    ExpectedStorage::Zero(alignment)
-                }
-                ArrayElementStorageKindV1::Inline {
-                    stride,
-                    alignment,
-                    scan,
-                } => ExpectedStorage::Inline {
-                    extent: stride.get(),
-                    alignment,
-                    scan,
-                },
+        self.0.validate_against(match expected.kind() {
+            ArrayElementStorageKindV1::ZeroSized { alignment } => ExpectedStorage::Zero(alignment),
+            ArrayElementStorageKindV1::Inline {
+                stride,
+                alignment,
+                scan,
+            } => ExpectedStorage::Inline {
+                extent: stride.get(),
+                alignment,
+                scan,
             },
-            meter,
-        )
+        })
     }
 }
 
 impl RawStorage {
-    fn validate_against(
-        self,
-        expected: ExpectedStorage<'_>,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), StorageWireReplayError> {
-        meter.charge_work(3, &WirePath::root())?;
+    fn validate_against(self, expected: ExpectedStorage<'_>) -> Result<(), StorageWireReplayError> {
         match (self, expected) {
             (Self::ZeroSized { alignment }, ExpectedStorage::Zero(expected))
                 if alignment == expected.get() =>
@@ -87,7 +72,7 @@ impl RawStorage {
                     scan: expected_scan,
                 },
             ) if extent == expected_extent && alignment == expected_alignment.get() => {
-                let scan = scan.validate_metered(meter)?;
+                let scan = scan.validate()?;
                 if &scan == expected_scan {
                     Ok(())
                 } else {
@@ -102,11 +87,11 @@ impl RawStorage {
 #[derive(Debug)]
 pub enum StorageWireReplayError {
     StorageMismatch,
-    Scan(MeteredScanValidationError),
+    Scan(RefScanValidationError),
     Resource(WireError),
 }
-impl From<MeteredScanValidationError> for StorageWireReplayError {
-    fn from(error: MeteredScanValidationError) -> Self {
+impl From<RefScanValidationError> for StorageWireReplayError {
+    fn from(error: RefScanValidationError) -> Self {
         Self::Scan(error)
     }
 }

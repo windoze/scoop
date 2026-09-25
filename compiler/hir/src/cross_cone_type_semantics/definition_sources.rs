@@ -4,7 +4,7 @@ use crate::{
     CanonicalNominalRepresentationSupportV1, CanonicalProtectedCallableSourceInterfacesV1,
     CanonicalProtectedDeclarationInterfacesV1, CanonicalProtectedDefaultTemplatesV1,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod collection;
 mod declarations;
@@ -20,7 +20,7 @@ trait SourceVisitor<E> {
         &mut self,
         source: &crate::ExportDefinitionSourceV1,
         source_use: TypeDefinitionSourceUseV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), TypeDefinitionSourceClosureError<E>>;
 }
@@ -42,14 +42,14 @@ impl TypeDefinitionSourceInputsV1<'_> {
         self,
         declared: &CanonicalExportDefinitionSourcesV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
         let mut validator =
-            validation::Validator::new(declared, authority, meter, &path.clone().field(7))?;
-        declarations::visit(self, &mut validator, meter, path)?;
-        defaults::visit(self, &mut validator, meter, path)?;
-        validator.finish(meter, path)
+            validation::Validator::new(declared, authority, &path.clone().field(7))?;
+        declarations::visit(self, &mut validator, path)?;
+        defaults::visit(self, &mut validator, path)?;
+        validator.finish()
     }
 }
 

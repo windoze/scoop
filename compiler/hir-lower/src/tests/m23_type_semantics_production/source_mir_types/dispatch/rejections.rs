@@ -8,7 +8,7 @@ pub(super) fn check(
 ) {
     let empty = CanonicalParamFreeMirTypeExportsV1::default();
     assert!(matches!(
-        lower_dispatch_schemas(hir, input, &empty, authority, &[], &mut meter()),
+        lower_dispatch_schemas(hir, input, &empty, authority, &[]),
         Err(Error::MissingType(_))
     ));
     let callables = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
@@ -21,8 +21,7 @@ pub(super) fn check(
                 callables: &callables,
                 ..authority
             },
-            &[],
-            &mut meter()
+            &[]
         ),
         Err(Error::MissingCallable(_))
     ));
@@ -35,37 +34,12 @@ pub(super) fn check(
                 types: &empty,
                 ..authority
             },
-            &[],
-            &mut meter()
+            &[]
         ),
         Err(Error::Schema(
             scoop_mir::MirDispatchSchemaError::MissingType { .. }
         ))
     ));
-    let mut measured = meter();
-    lower_dispatch_schemas(hir, input, types, authority, &[], &mut measured).unwrap();
-    let usage = measured.usage();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: usage.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    lower_dispatch_schemas(hir, input, types, authority, &[], &mut shared).unwrap();
-    assert!(matches!(
-        lower_dispatch_schemas(hir, input, types, authority, &[], &mut shared),
-        Err(Error::Resource(_))
-    ));
-    assert!(matches!(
-        lower_dispatch_schemas(
-            hir,
-            input,
-            types,
-            authority,
-            &[],
-            &mut BudgetMeter::new(DecodeLimits {
-                owned_bytes: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(Error::Resource(_))
-    ));
+
+    lower_dispatch_schemas(hir, input, types, authority, &[]).unwrap();
 }

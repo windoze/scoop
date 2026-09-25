@@ -9,11 +9,8 @@ pub(super) struct Fixture {
 
 impl Fixture {
     pub fn identities(&self) -> scoop_identity::ValidatedIdentityGraph {
-        let decoded: scoop_hir::DecodedHirFoundation = scoop_wire::decode_canonical(
-            &encode(&self.foundation).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded: scoop_hir::DecodedHirFoundation =
+            scoop_wire::decode_canonical(&encode(&self.foundation).unwrap()).unwrap();
         let mut pending = scoop_identity::PendingIdentityValidation::new();
         pending.register_authority(cone().identity()).unwrap();
         pending

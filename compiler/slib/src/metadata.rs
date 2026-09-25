@@ -2,14 +2,13 @@ use std::fmt;
 
 use scoop_identity::{CapabilityId, CapabilityIdError, DecodedCapabilityId};
 use scoop_wire::{
-    BorrowedWireDecode, BudgetMeter, DecodeLimits, Decoder, Encoder, WireDecode, WireEncode,
-    WireError, decode_canonical_borrowed_with_meter,
+    BorrowedWireDecode, Decoder, Encoder, WireDecode, WireEncode, WireError,
+    decode_canonical_borrowed,
 };
 
 use crate::{CapabilityContractRegistry, MemberPurposeSet, SectionLocation};
 
 const INITIAL_SCHEMA: u32 = 1;
-const MAX_SECTION_PAYLOAD_BYTES: u64 = 268_435_456;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MetadataLocation {
@@ -53,7 +52,7 @@ impl MetadataSection {
         required_for: MemberPurposeSet,
         payload: Vec<u8>,
     ) -> Result<Self, MetadataSectionError> {
-        validate_section(location, &capability, required_for, payload.len())?;
+        validate_section(location, &capability, required_for)?;
         Ok(Self {
             location,
             capability,
@@ -158,21 +157,10 @@ impl<'input> DecodedMetadataEnvelope<'input> {
     pub fn decode(
         input: &'input [u8],
         location: MetadataLocation,
-        limits: DecodeLimits,
     ) -> Result<Self, MetadataReadError> {
-        let mut meter = BudgetMeter::new(limits);
-        Self::decode_with_meter(input, location, &mut meter)
-    }
-
-    pub fn decode_with_meter(
-        input: &'input [u8],
-        location: MetadataLocation,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, MetadataReadError> {
-        let decoded =
-            decode_canonical_borrowed_with_meter::<UnvalidatedMetadataEnvelope<'_>>(input, meter)
-                .map_err(MetadataReadError::CanonicalWire)?;
-        decoded.validate(location, meter)
+        let decoded = decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(input)
+            .map_err(MetadataReadError::CanonicalWire)?;
+        decoded.validate(location)
     }
 
     pub const fn location(&self) -> MetadataLocation {
@@ -220,7 +208,6 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
     fn validate(
         self,
         location: MetadataLocation,
-        meter: &mut BudgetMeter,
     ) -> Result<DecodedMetadataEnvelope<'input>, MetadataReadError> {
         if self.magic != location.magic() {
             return Err(MetadataReadError::BadMagic { expected: location });
@@ -230,21 +217,12 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
                 actual: self.outer_schema,
             });
         }
-        meter
-            .charge_canonical_sequence(self.sections.len() as u64, &Default::default())
-            .map_err(MetadataReadError::Budget)?;
-        meter
-            .charge_collection_slots(self.sections.len() as u64, &Default::default())
-            .map_err(MetadataReadError::Budget)?;
 
         let mut sections = Vec::new();
         sections
             .try_reserve_exact(self.sections.len())
             .map_err(|_| MetadataReadError::Allocation)?;
         for (index, section) in self.sections.into_iter().enumerate() {
-            meter
-                .charge_work(32, &Default::default())
-                .map_err(MetadataReadError::Budget)?;
             sections.push(
                 section
                     .validate(location)
@@ -266,10 +244,10 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
 }
 
 impl<'input> BorrowedWireDecode<'input> for UnvalidatedMetadataEnvelope<'input> {
-    fn decode(decoder: &mut Decoder<'input, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
-            magic: decoder.field(1, Decoder::carrier_bytes)?,
+            magic: decoder.field(1, Decoder::bytes)?,
             outer_schema: decoder.field(2, Decoder::u32)?,
             sections: decoder.field(3, |decoder| {
                 decoder.decode_array(|decoder, _| UnvalidatedMetadataSection::decode(decoder))
@@ -285,12 +263,12 @@ struct UnvalidatedMetadataSection<'input> {
 }
 
 impl<'input> UnvalidatedMetadataSection<'input> {
-    fn decode(decoder: &mut Decoder<'input, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             capability: decoder.field(1, DecodedCapabilityId::decode)?,
             required_for: decoder.field(2, Decoder::u32)?,
-            payload: decoder.field(3, Decoder::carrier_bytes)?,
+            payload: decoder.field(3, Decoder::bytes)?,
         })
     }
 
@@ -303,7 +281,7 @@ impl<'input> UnvalidatedMetadataSection<'input> {
             .validate()
             .map_err(MetadataSectionValidationError::Capability)?;
         let required_for = MemberPurposeSet::from_bits(self.required_for);
-        validate_section(location, &capability, required_for, self.payload.len())
+        validate_section(location, &capability, required_for)
             .map_err(MetadataSectionValidationError::Section)?;
         Ok(DecodedMetadataSection {
             location,
@@ -329,9 +307,6 @@ pub enum MetadataSectionError {
         capability: CapabilityId,
         expected: MemberPurposeSet,
         bits: u32,
-    },
-    PayloadTooLarge {
-        actual: u64,
     },
 }
 
@@ -366,10 +341,6 @@ impl fmt::Display for MetadataSectionError {
                 capability.name(),
                 capability.major_version(),
                 expected.bits(),
-            ),
-            Self::PayloadTooLarge { actual } => write!(
-                formatter,
-                "metadata section payload exceeds 268435456 bytes: found {actual}"
             ),
         }
     }
@@ -433,7 +404,6 @@ impl std::error::Error for MetadataSectionValidationError {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MetadataReadError {
     CanonicalWire(WireError),
-    Budget(WireError),
     BadMagic {
         expected: MetadataLocation,
     },
@@ -454,7 +424,7 @@ pub enum MetadataReadError {
 impl fmt::Display for MetadataReadError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CanonicalWire(error) | Self::Budget(error) => error.fmt(formatter),
+            Self::CanonicalWire(error) => error.fmt(formatter),
             Self::BadMagic { expected } => {
                 write!(formatter, "metadata magic does not match {expected}")
             }
@@ -482,12 +452,7 @@ fn validate_section(
     location: MetadataLocation,
     capability: &CapabilityId,
     required_for: MemberPurposeSet,
-    payload_length: usize,
 ) -> Result<(), MetadataSectionError> {
-    let actual = u64::try_from(payload_length).unwrap_or(u64::MAX);
-    if actual > MAX_SECTION_PAYLOAD_BYTES {
-        return Err(MetadataSectionError::PayloadTooLarge { actual });
-    }
     let bits = required_for.bits();
     let purpose_valid = match location {
         MetadataLocation::Hir | MetadataLocation::Mir => matches!(bits, 0 | 2),

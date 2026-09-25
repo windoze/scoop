@@ -18,13 +18,6 @@ impl<'s, 'p> Selection<'s, 'p> {
         }
     }
 
-    pub(super) fn len(self) -> usize {
-        match self {
-            Self::Complete(value) => value.len(),
-            Self::Replayed(value) => value.selected_relations().len(),
-        }
-    }
-
     pub(super) fn contains(
         self,
         provider: ConeIdentity,

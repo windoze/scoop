@@ -167,7 +167,7 @@ impl WireEncode for DecodedHirOutputContractV1 {
 }
 
 impl WireDecode for DecodedHirOutputContractV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(wire_error(
@@ -344,7 +344,7 @@ impl WireEncode for DecodedCanonicalDirectPublicSurfaceV1 {
 }
 
 impl WireDecode for DecodedCanonicalDirectPublicSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
             .map(|bindings| Self { bindings })
@@ -398,11 +398,7 @@ impl fmt::Display for DirectPublicSurfaceValidationError {
 
 impl std::error::Error for DirectPublicSurfaceValidationError {}
 
-fn require_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn require_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -413,7 +409,7 @@ fn require_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
@@ -437,7 +433,7 @@ mod tests {
         PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
-    use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
+    use scoop_wire::{WireEncode, decode_canonical, encode};
 
     use super::{
         CanonicalDirectPublicSurfaceV1, DecodedCanonicalDirectPublicSurfaceV1,
@@ -472,10 +468,7 @@ mod tests {
             vec![0xa0],
             vec![0xa2, 0x00, 0x01, 0x01, 0x01],
         ] {
-            assert!(
-                decode_canonical::<DecodedHirOutputContractV1>(&bytes, DecodeLimits::default())
-                    .is_err()
-            );
+            assert!(decode_canonical::<DecodedHirOutputContractV1>(&bytes).is_err());
         }
     }
 
@@ -489,18 +482,14 @@ mod tests {
         foundation.set_exact_types(vec![unit]).unwrap();
         let known_contract = executable_contract(&known);
         let known_bytes = encode(&known_contract).unwrap();
-        let known_decoded =
-            decode_canonical::<DecodedHirOutputContractV1>(&known_bytes, DecodeLimits::default())
-                .unwrap();
+        let known_decoded = decode_canonical::<DecodedHirOutputContractV1>(&known_bytes).unwrap();
         assert_eq!(
             known_decoded.validate_against(ConeIdentity::CORE, &foundation),
             Ok(known_contract)
         );
 
         let bytes = encode(&executable_contract(&unknown)).unwrap();
-        let decoded =
-            decode_canonical::<DecodedHirOutputContractV1>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedHirOutputContractV1>(&bytes).unwrap();
 
         assert_eq!(
             decoded.validate_against(ConeIdentity::CORE, &foundation),
@@ -515,10 +504,7 @@ mod tests {
         let (function, _) = function_and_binding("main");
         let mut bytes = vec![0xa2, 0x00, 0x02, 0x01, 0x58, 0x20];
         bytes.extend_from_slice(function.id().as_array());
-        assert!(
-            decode_canonical::<DecodedHirOutputContractV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedHirOutputContractV1>(&bytes).is_err());
     }
 
     #[test]
@@ -531,9 +517,7 @@ mod tests {
             .unwrap();
         let mut bytes = encode(&executable_contract(&function)).unwrap();
         *bytes.last_mut().unwrap() ^= 1;
-        let decoded =
-            decode_canonical::<DecodedHirOutputContractV1>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedHirOutputContractV1>(&bytes).unwrap();
 
         assert_eq!(
             decoded.validate_against(ConeIdentity::CORE, &foundation),
@@ -551,7 +535,6 @@ mod tests {
             .unwrap();
         let decoded = decode_canonical::<DecodedHirOutputContractV1>(
             &encode(&executable_contract(&function)).unwrap(),
-            DecodeLimits::default(),
         )
         .unwrap();
 
@@ -654,7 +637,7 @@ mod tests {
         bindings: &[PersistentExportBindingId],
     ) -> DecodedCanonicalDirectPublicSurfaceV1 {
         let bytes = encode(&RawSurface(bindings)).unwrap();
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap()
+        decode_canonical(&bytes).unwrap()
     }
 
     struct RawSurface<'a>(&'a [PersistentExportBindingId]);

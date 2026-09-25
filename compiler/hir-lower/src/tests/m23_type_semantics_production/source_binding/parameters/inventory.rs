@@ -28,17 +28,13 @@ fn parameter_protocols_require_exact_owned_declaration_inventory() {
             let mut forged = sources.clone();
             let mut records = sources.protocols.records().to_vec();
             if extra {
-                records.push(Record::try_new(unused, vec![], &mut meter()).unwrap());
+                records.push(Record::try_new(unused, vec![]).unwrap());
             } else {
                 records.pop().unwrap();
             }
-            forged.protocols = Table::try_new(records, &mut meter()).unwrap();
+            forged.protocols = Table::try_new(records).unwrap();
             assert!(matches!(
-                forged.bind(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter()
-                ),
+                forged.bind(&foundation, inputs.protocols().fundamental_types()),
                 Err(Error::Inventory)
             ));
         }
@@ -59,16 +55,10 @@ fn parameter_sources_cannot_mix_distinct_bound_foundations() {
             .bind_inheritance_constructor_sources(
                 &sources.properties.dispatch.inventory,
                 &sources.constructors,
-                &mut meter(),
             )
             .unwrap();
         assert!(matches!(
-            protected.bind_parameter_protocols(
-                &constructors,
-                &sources.protocols,
-                core,
-                &mut meter()
-            ),
+            protected.bind_parameter_protocols(&constructors, &sources.protocols, core),
             Err(Error::FoundationMismatch)
         ));
     });
@@ -93,21 +83,14 @@ fn constructor_and_protected_source_inventories_must_agree() {
             owner.constructors().clone(),
             hir::CanonicalProtectedDeclarationRefsV1::try_new(vec![]).unwrap(),
             owner.slot_schemas().clone(),
-            &mut meter(),
         )
         .unwrap();
-        let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter()).unwrap();
+        let inventory = hir::CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap();
         let constructors = foundation
-            .bind_inheritance_constructor_sources(&inventory, &sources.constructors, &mut meter())
+            .bind_inheritance_constructor_sources(&inventory, &sources.constructors)
             .unwrap();
         assert!(matches!(
-            protected.bind_parameter_protocols(
-                &constructors,
-                &sources.protocols,
-                core,
-                &mut meter()
-            ),
+            protected.bind_parameter_protocols(&constructors, &sources.protocols, core),
             Err(Error::Inventory)
         ));
     });

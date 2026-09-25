@@ -9,7 +9,7 @@ use scoop_identity::{
 };
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod error;
 mod fields;
@@ -32,7 +32,6 @@ pub fn lower_exact_layout_exports(
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
     identities: &ValidatedIdentityGraph,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactLayoutExportsV1> {
     if input.module().cone != output.foundation().producer() {
         return Err(ExactLayoutLoweringError::Provider);
@@ -43,7 +42,7 @@ pub fn lower_exact_layout_exports(
         types,
         identities,
         dependencies,
-        meter,
+
         roots: BTreeMap::new(),
         completed: BTreeMap::new(),
         active: BTreeSet::new(),
@@ -52,7 +51,7 @@ pub fn lower_exact_layout_exports(
     let mut roots = projection.reserve(projection.roots.len())?;
     roots.extend(projection.roots.values().cloned());
     for root in roots {
-        projection.layout(root.exact_type(), root.representation(), 1)?;
+        projection.layout(root.exact_type(), root.representation())?;
     }
     let mut records = projection.reserve(projection.completed.len())?;
     records.extend(projection.completed.into_values());
@@ -60,32 +59,29 @@ pub fn lower_exact_layout_exports(
         output.module().meta.target_profile,
         output.foundation(),
         records,
-        meter,
     )?)
 }
 
-struct Projection<'a, 'meter> {
+struct Projection<'a> {
     module: &'a mir::Module,
     output: &'a lir::SingleConeStrongLirOutput,
     types: &'a mir::CanonicalParamFreeMirTypeExportsV1,
     identities: &'a ValidatedIdentityGraph,
     dependencies: &'a [&'a lir::CanonicalExactLayoutExportsV1],
-    meter: &'meter mut BudgetMeter,
+
     roots: BTreeMap<PersistentLayoutId, LayoutKey>,
     completed: BTreeMap<PersistentLayoutId, lir::ExactLayoutExportV1>,
     active: BTreeSet<PersistentLayoutId>,
 }
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     fn add_root(&mut self, root: &CborIdentityRecord<PersistentLayoutId, LayoutKey>) -> Result<()> {
-        self.lookup(self.roots.len())?;
         if root.key().target_profile() != &self.output.module().meta.target_profile.wire_id() {
             return Err(ExactLayoutLoweringError::Target);
         }
-        if !self.roots.contains_key(&root.id()) {
-            self.meter.charge_collection_slots(1, &WirePath::root())?;
-            self.roots.insert(root.id(), root.key().clone());
-        }
+        self.roots
+            .entry(root.id())
+            .or_insert_with(|| root.key().clone());
         Ok(())
     }
 
@@ -93,29 +89,26 @@ impl Projection<'_, '_> {
         &mut self,
         exact: PersistentExactTypeId,
         role: RepresentationRole,
-        depth: u64,
     ) -> Result<lir::ExactLayoutExportV1> {
-        self.meter.check_semantic_depth(depth, &WirePath::root())?;
-        self.meter.charge_work(1, &WirePath::root())?;
         let key = LayoutKey::new(
             exact,
             self.output.module().meta.target_profile.wire_id(),
             role,
         );
         let id = PersistentLayoutId::from_key(&key)?;
-        self.lookup(self.completed.len())?;
+
         if let Some(value) = self.completed.get(&id) {
             return Ok(value.clone());
         }
-        self.lookup(self.roots.len())?;
+
         if !self.roots.contains_key(&id) {
             return self.dependency(id);
         }
-        self.lookup(self.active.len())?;
+
         if self.active.contains(&id) {
             return Err(ExactLayoutLoweringError::Cycle(id));
         }
-        self.meter.charge_collection_slots(1, &WirePath::root())?;
+
         self.active.insert(id);
         let shape = self.shape(exact)?;
         let ty = self.physical_type(exact)?;
@@ -125,17 +118,16 @@ impl Projection<'_, '_> {
             self.identities.canonical_record(exact)?,
             role,
             self.output.foundation(),
-            self.meter,
         )?;
         let record = match role {
             RepresentationRole::ManagedValue | RepresentationRole::CValue => {
-                self.value(identity, shape, depth + 1)?.into()
+                self.value(identity, shape)?.into()
             }
-            RepresentationRole::ManagedObject => self.instance(identity, shape, depth + 1)?.into(),
+            RepresentationRole::ManagedObject => self.instance(identity, shape)?.into(),
             _ => return Err(ExactLayoutLoweringError::Role(id)),
         };
         self.validate_physical(&record, shape, &ty)?;
-        self.meter.charge_collection_slots(1, &WirePath::root())?;
+
         self.completed.insert(id, record.clone());
         self.active.remove(&id);
         Ok(record)
@@ -144,7 +136,6 @@ impl Projection<'_, '_> {
     fn dependency(&mut self, id: PersistentLayoutId) -> Result<lir::ExactLayoutExportV1> {
         let mut found = None;
         for table in self.dependencies {
-            self.lookup(table.records().len())?;
             if let Some(record) = table.get(id) {
                 if table.target() != self.output.module().meta.target_profile {
                     return Err(ExactLayoutLoweringError::Target);
@@ -161,21 +152,14 @@ impl Projection<'_, '_> {
     fn value_dependency(
         &mut self,
         exact: PersistentExactTypeId,
-        depth: u64,
     ) -> Result<Arc<lir::ExactValueLayoutV1>> {
-        self.layout(exact, RepresentationRole::ManagedValue, depth)?
+        self.layout(exact, RepresentationRole::ManagedValue)?
             .value_handle()
             .ok_or(ExactLayoutLoweringError::DependencyKind(exact))
     }
     fn reserve<T>(&mut self, count: usize) -> Result<Vec<T>> {
         let mut values = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut values, count, &WirePath::root())?;
+        scoop_wire::allocation::try_reserve(&mut values, count, &WirePath::root())?;
         Ok(values)
-    }
-    fn lookup(&mut self, count: usize) -> Result<()> {
-        self.meter
-            .charge_work(u64::from(count.max(1).ilog2()) + 1, &WirePath::root())?;
-        Ok(())
     }
 }

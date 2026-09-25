@@ -3,7 +3,6 @@ use crate::{
     ExternalStrongShapeSubjectV1 as Subject, LayoutAbiSemanticTargetV1 as Target,
     StrongInitializationDependencyKindV2,
 };
-use scoop_wire::WirePath;
 
 mod view;
 pub(super) use view::Selection;
@@ -11,9 +10,7 @@ pub(super) use view::Selection;
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
     selected: Selection<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    meter.charge_work(1, &WirePath::root())?;
     if selected.consumer() != production.type_registrations().producer() {
         return Err(StrongProductionLayoutJoinError::Provider {
             expected: production.type_registrations().producer(),
@@ -23,21 +20,12 @@ pub(super) fn validate(
     }
     for registration in production.type_registrations().registrations() {
         let semantic = registration.semantic();
-        let itable_slots = semantic.itables().iter().fold(0_u64, |count, table| {
-            count.saturating_add(table.slots().len() as u64)
-        });
-        meter.charge_work(
-            (semantic.itables().len() as u64)
-                .saturating_add(semantic.vtable().slots().len() as u64)
-                .saturating_add(itable_slots)
-                .saturating_add(1),
-            &WirePath::root(),
-        )?;
+
         if let Some(reference) = semantic.parent() {
-            descriptor(reference, selected, meter)?;
+            descriptor(reference, selected)?;
         }
         for table in semantic.itables() {
-            descriptor(table.interface(), selected, meter)?;
+            descriptor(table.interface(), selected)?;
         }
         for reference in semantic
             .vtable()
@@ -45,16 +33,12 @@ pub(super) fn validate(
             .iter()
             .chain(semantic.itables().iter().flat_map(|table| table.slots()))
         {
-            callable(*reference, selected, meter)?;
+            callable(*reference, selected)?;
         }
     }
     for registration in production.initialization_registrations().registrations() {
-        meter.charge_work(
-            (registration.semantic().dependencies().len() as u64).saturating_add(1),
-            &WirePath::root(),
-        )?;
         for dependency in registration.semantic().dependencies() {
-            initialization(dependency, selected, meter)?;
+            initialization(dependency, selected)?;
         }
     }
     Ok(())
@@ -63,19 +47,15 @@ pub(super) fn validate(
 fn descriptor(
     reference: crate::StrongTypeDescriptorRefV2,
     selected: Selection<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let crate::StrongTypeDescriptorRefV2::DependencyExternal { provider, exact } = reference else {
         return Ok(());
     };
-    meter.charge_work(selected.len() as u64, &WirePath::root())?;
+
     if !selected.contains(provider, Target::Descriptor(exact)) {
         return Err(StrongProductionLayoutJoinError::MissingSelectedDescriptor { provider, exact });
     }
-    meter.charge_work(
-        selected.physical().records().len() as u64,
-        &WirePath::root(),
-    )?;
+
     let found = selected.physical().records().iter().any(|import| {
         import.provider() == provider && import.subject() == Subject::TypeDescriptor(exact)
     });
@@ -88,16 +68,12 @@ fn descriptor(
 fn callable(
     reference: crate::StrongTypeDispatchCallableRefV2,
     selected: Selection<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let crate::StrongTypeDispatchCallableRefV2::DependencyExternal { provider, body } = reference
     else {
         return Ok(());
     };
-    meter.charge_work(
-        selected.physical().records().len() as u64,
-        &WirePath::root(),
-    )?;
+
     let mut owner = None;
     let mut matches = 0_u32;
     for import in selected.physical().records() {
@@ -126,7 +102,7 @@ fn callable(
             });
         }
     };
-    meter.charge_work(selected.len() as u64, &WirePath::root())?;
+
     if !selected.contains(provider, Target::Callable(owner)) {
         return Err(StrongProductionLayoutJoinError::MissingSelectedCallable { provider, body });
     }
@@ -136,7 +112,6 @@ fn callable(
 fn initialization(
     reference: &crate::StrongInitializationDependencyRefV2,
     selected: Selection<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let StrongInitializationDependencyKindV2::DependencyExternalUnit { provider, unit_ref } =
         reference.kind()
@@ -144,10 +119,7 @@ fn initialization(
         return Ok(());
     };
     let unit = unit_ref.unit();
-    meter.charge_work(
-        selected.physical().records().len() as u64,
-        &WirePath::root(),
-    )?;
+
     let Some(import) = selected.physical().records().iter().find(|import| {
         import.provider() == provider && import.subject() == Subject::InitializationDescriptor(unit)
     }) else {

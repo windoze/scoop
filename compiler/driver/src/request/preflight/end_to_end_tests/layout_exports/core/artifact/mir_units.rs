@@ -12,10 +12,9 @@ pub(super) fn check(
 ) -> Vec<mir::MirTypeBridgeInitializationUnitV1> {
     let metadata = source.metadata();
     let unit_result = metadata
-        .signature_exact_type(
-            &SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
-            &mut meter(),
-        )
+        .signature_exact_type(&SignatureTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
         .unwrap();
     let replay = Replay {
         metadata,
@@ -23,7 +22,7 @@ pub(super) fn check(
         strong,
         unit_result,
     };
-    let units = replay.run(&mut meter()).unwrap();
+    let units = replay.run().unwrap();
     assert_eq!(units.len(), section.initialization_units().len());
     for (unit, producer) in units.iter().zip(section.initialization_units()) {
         assert_eq!(unit.unit(), producer.unit());
@@ -83,7 +82,6 @@ struct Replay<'a> {
 impl Replay<'_> {
     fn run(
         &self,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<
         Vec<mir::MirTypeBridgeInitializationUnitV1>,
         mir::MirTypeBridgeSectionError<std::convert::Infallible>,
@@ -95,7 +93,6 @@ impl Replay<'_> {
             self.strong,
             self.metadata.identities,
             self.unit_result,
-            meter,
         )
     }
 }

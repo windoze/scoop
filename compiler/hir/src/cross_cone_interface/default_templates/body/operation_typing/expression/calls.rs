@@ -11,7 +11,7 @@ where
         shape: &DefaultCallableOperationShapeV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         use crate::SourceCallReceiver;
-        self.charge_work()?;
+
         let role = DefaultOperationValueRoleV1::Receiver;
         match (receiver, shape.receiver()) {
             (SourceCallReceiver::NoReceiver, None) => Ok(()),

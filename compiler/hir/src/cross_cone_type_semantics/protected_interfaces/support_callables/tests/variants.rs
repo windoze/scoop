@@ -67,27 +67,17 @@ fn variant_support_uses_its_own_identity_and_source_protocol_for_all_field_style
     ] {
         let (mut fixture, record) = fixture(style);
         let bytes = encode(&record).unwrap();
-        let decoded: DecodedNominalSupportCallableInterfaceV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedNominalSupportCallableInterfaceV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
-        assert!(
-            decode_canonical::<DecodedProtectedCallableInterfaceV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
+        assert!(decode_canonical::<DecodedProtectedCallableInterfaceV1>(&bytes).is_err());
         let graph_source = fixture.graph.clone();
         let graph = CheckedNominalInheritanceGraphV1::validate(
             graph_source.records.values(),
             &graph_source,
-            &mut meter(),
         )
         .unwrap();
-        let checked = record
-            .validate_source(&graph, &mut fixture, &mut meter())
-            .unwrap();
+        let checked = record.validate_source(&graph, &mut fixture).unwrap();
         assert!(matches!(
             checked.declaration_access(),
             CheckedNominalSupportAccessSourceV1::Variant(_)
@@ -95,7 +85,7 @@ fn variant_support_uses_its_own_identity_and_source_protocol_for_all_field_style
         assert!(
             checked
                 .declaration_access()
-                .replay(&graph, &mut meter())
+                .replay(&graph)
                 .unwrap()
                 .lookup()
                 .domain()
@@ -108,12 +98,9 @@ fn variant_support_uses_its_own_identity_and_source_protocol_for_all_field_style
 fn variant_source_validation_rejects_wrong_field_role_result_and_origin() {
     let (fixture, record) = fixture(EnumSourceVariantStyleV1::Constructor);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let mut changed = fixture.clone();
     let field = *changed.variant_fields.keys().next().unwrap();
     let key = changed.variant_fields[&field].clone();
@@ -127,7 +114,7 @@ fn variant_source_validation_rejects_wrong_field_role_result_and_origin() {
         ),
     );
     assert!(matches!(
-        record.validate_source(&graph, &mut changed, &mut meter()),
+        record.validate_source(&graph, &mut changed),
         Err(NominalSupportCallableSemanticError::Variant(
             NominalSupportVariantError::Parameters
         ))
@@ -135,7 +122,7 @@ fn variant_source_validation_rejects_wrong_field_role_result_and_origin() {
     let mut bad = record.clone();
     bad.payload.result = SignatureTypeKey::Nominal(nominal(fixture.unit));
     assert!(matches!(
-        bad.validate_source(&graph, &mut fixture.clone(), &mut meter()),
+        bad.validate_source(&graph, &mut fixture.clone()),
         Err(NominalSupportCallableSemanticError::Variant(
             NominalSupportVariantError::Result
         ))
@@ -148,7 +135,7 @@ fn variant_source_validation_rejects_wrong_field_role_result_and_origin() {
     )
     .unwrap();
     assert!(matches!(
-        bad.validate_source(&graph, &mut fixture.clone(), &mut meter()),
+        bad.validate_source(&graph, &mut fixture.clone()),
         Err(NominalSupportCallableSemanticError::Variant(
             NominalSupportVariantError::Access
         ))

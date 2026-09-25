@@ -1,6 +1,6 @@
 use super::super::super::*;
 use scoop_identity::{Effect, GcEffect};
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 #[test]
 fn integer_intrinsic_effects_are_checked_by_both_builder_and_reader() {
@@ -41,8 +41,7 @@ fn integer_intrinsic_effects_are_checked_by_both_builder_and_reader() {
                 8..11,
                 encode(&CallableImplementationV1::Intrinsic(kind)).unwrap(),
             );
-            let decoded: DecodedCallableSourceEffectsV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: DecodedCallableSourceEffectsV1 = decode_canonical(&bytes).unwrap();
             let read = decoded.validate();
             assert_eq!(actual, read, "{kind:?}");
             if execution == Effect::Ordinary && gc_effect == expected {

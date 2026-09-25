@@ -31,7 +31,7 @@ fn restored_inheritance_sources_replay_constructors_and_all_query_roles() {
             let foundation = fixture.bind().unwrap();
 
             sources
-                .with_bound(&foundation, &mut meter(), |bound, graph| {
+                .with_bound(&foundation, |bound, graph| {
                     assert_eq!(bound.provider(), fixture.source.entries().provider);
                     let inventory = &sources.properties.dispatch.inventory;
                     assert_eq!(
@@ -68,10 +68,10 @@ fn restored_inheritance_sources_replay_constructors_and_all_query_roles() {
                                 .unwrap(),
                             record.declaration()
                         );
-                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                        record.validate_source(graph, bound).unwrap();
                     }
                     for record in sources.callables.records() {
-                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                        record.validate_source(graph, bound).unwrap();
                         if let CallableTemplateOrigin::Accessor(id) = record.declaration() {
                             assert_eq!(
                                 bound.property_accessor_key(id).unwrap(),
@@ -85,11 +85,7 @@ fn restored_inheritance_sources_replay_constructors_and_all_query_roles() {
                             source.modality()
                         );
                     }
-                    let dispatch = sources
-                        .properties
-                        .dispatch
-                        .bind(&foundation, &mut meter())
-                        .unwrap();
+                    let dispatch = sources.properties.dispatch.bind(&foundation).unwrap();
                     for row in inventory.records() {
                         for schema in row.slot_schemas().records() {
                             for slot in schema.slots() {

@@ -10,21 +10,14 @@ fn public_intrinsic_declarations_supply_abi_without_an_extern_witness() {
                 .without_native_witness();
         let exact = integer.exact();
         let signature = ExactCallableSignature::new(Effect::Ordinary, None, vec![exact], exact);
-        let mut measured = meter();
-        let actual = replay(&current, &[integer.borrow()], &signature, &mut measured).unwrap();
+
+        let actual = replay(&current, &[integer.borrow()], &signature).unwrap();
         assert!(
             matches!(actual.arguments(), [ScoopAbiArgument::Direct(value)] if value.byte_size() == 4)
         );
         assert!(matches!(actual.result(), ScoopAbiReturn::Direct(value) if value.byte_size() == 4));
-        let mut shared = BudgetMeter::new(DecodeLimits {
-            validation_work_units: measured.usage().validation_work_units,
-            ..DecodeLimits::default()
-        });
-        replay(&current, &[integer.borrow()], &signature, &mut shared).unwrap();
-        assert!(matches!(
-            replay(&current, &[integer.borrow()], &signature, &mut shared),
-            Err(NativeBoundaryCompileError::Resource(_))
-        ));
+
+        replay(&current, &[integer.borrow()], &signature).unwrap();
     }
 }
 
@@ -40,7 +33,7 @@ fn public_intrinsic_projection_rejects_a_foreign_provider_and_conflicting_witnes
     let mut foreign = integer.borrow();
     foreign.identity = ConeIdentity::SINGLE_FILE;
     assert!(matches!(
-        replay(&current, &[foreign], &signature, &mut meter()),
+        replay(&current, &[foreign], &signature),
         Err(NativeBoundaryCompileError::NominalProvider {
             declared: ConeIdentity::CORE,
             provider: ConeIdentity::SINGLE_FILE,
@@ -57,7 +50,7 @@ fn public_intrinsic_projection_rejects_a_foreign_provider_and_conflicting_witnes
         [changed.borrow(), integer.borrow()],
     ] {
         assert!(matches!(
-            replay(&current, &sources, &signature, &mut meter()),
+            replay(&current, &sources, &signature),
             Err(NativeBoundaryCompileError::ConflictingTypeWitness { .. })
         ));
     }
@@ -74,7 +67,7 @@ fn exact_identity_alone_does_not_supply_an_intrinsic_representation() {
     missing.nominals = scoop_hir::CanonicalNominalInterfacesV1::default();
     let signature = ExactCallableSignature::new(Effect::Ordinary, None, vec![], missing.exact());
     assert!(matches!(
-        replay(&current, &[missing.borrow()], &signature, &mut meter()),
+        replay(&current, &[missing.borrow()], &signature),
         Err(NativeBoundaryCompileError::ClosureRequired { .. })
     ));
 }

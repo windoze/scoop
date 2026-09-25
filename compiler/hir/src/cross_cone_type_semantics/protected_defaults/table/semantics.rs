@@ -8,7 +8,7 @@ use crate::{
     ProtectedDefaultOperationTypingSemanticAuthority, ProtectedDefaultOriginSemanticAuthority,
     ProtectedDefaultReferenceAccessSemanticAuthority, ProtectedDefaultRootSemanticAuthority,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod checked;
 mod errors;
@@ -48,7 +48,7 @@ impl CanonicalProtectedDefaultTemplatesV1 {
         inheritance: CheckedNominalInheritanceInterfacesV1<'_>,
         source_authority: &mut S,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CheckedProtectedDefaultTemplatesV1<'a>, ProtectedDefaultTableSemanticError<E>>
     where
@@ -58,29 +58,20 @@ impl CanonicalProtectedDefaultTemplatesV1 {
         use ProtectedDefaultTableSemanticError as Error;
         sources
             .table()
-            .validate_default_closure(self.keys(), meter)
+            .validate_default_closure(self.keys())
             .map_err(Error::SourceClosure)?;
         let mut records = Vec::new();
-        meter
-            .check_table_entries(self.records().len() as u64, path)
-            .map_err(Error::Resource)?;
-        meter
-            .try_reserve_collection_slots(&mut records, self.records().len(), path)
+
+        scoop_wire::allocation::try_reserve(&mut records, self.records().len(), path)
             .map_err(Error::Resource)?;
         for (index, template) in self.records().iter().enumerate() {
-            meter.charge_nodes(1, path).map_err(Error::Resource)?;
             let key = template.key();
-            meter
-                .charge_work(
-                    64 * u64::from(u64::BITS - (sources.entries().len() as u64).leading_zeros()),
-                    path,
-                )
-                .map_err(Error::Resource)?;
+
             let source = sources
                 .get(key.owner())
                 .ok_or(Error::MissingSource { index, key })?;
             let owner = source
-                .validate_owner_source(graph, source_authority, meter)
+                .validate_owner_source(graph, source_authority)
                 .map_err(|error| Error::Source {
                     index,
                     key,
@@ -93,7 +84,6 @@ impl CanonicalProtectedDefaultTemplatesV1 {
                 graph,
                 inheritance,
                 authority,
-                meter,
                 path,
             )
             .map_err(|error| Error::Template {

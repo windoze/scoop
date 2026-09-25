@@ -26,42 +26,16 @@ fn complete_slot_wire_round_trips_abstract_concrete_and_default_targets() {
     for record in records {
         let bytes = encode(&record).unwrap();
         assert_eq!(bytes[0], 0xa7);
-        let decoded: DecodedInheritanceSlotContractV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedInheritanceSlotContractV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(
-            decoded.clone().resolve(&mut fixture, &mut meter()).unwrap(),
-            record
-        );
-        assert!(matches!(
-            decoded.resolve(
-                &mut fixture,
-                &mut BudgetMeter::new(DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                })
-            ),
-            Err(InheritanceSlotResolutionError::Resource(_))
-        ));
+        assert_eq!(decoded.clone().resolve(&mut fixture).unwrap(), record);
     }
     assert_eq!(
         encode(&InheritanceSlotImplementationV1::Abstract).unwrap(),
         [0xa1, 0, 1]
     );
-    assert!(
-        decode_canonical::<DecodedInheritanceSlotImplementationV1>(
-            &[0xa1, 0, 4],
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
-    assert!(
-        decode_canonical::<DecodedInheritanceCallableDeclarationV1>(
-            &[0xa1, 0, 1],
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedInheritanceSlotImplementationV1>(&[0xa1, 0, 4]).is_err());
+    assert!(decode_canonical::<DecodedInheritanceCallableDeclarationV1>(&[0xa1, 0, 1]).is_err());
 }
 
 struct RawTable(Vec<InheritanceSlotContractV1>);
@@ -84,8 +58,8 @@ fn contract_tables_sort_only_at_production_and_reject_wire_reordering_or_duplica
         [a, b].map(|slot| fixture.contract(owner, slot, InheritanceSlotImplementationV1::Abstract));
     let table = CanonicalInheritanceSlotContractsV1::try_new(records.to_vec()).unwrap();
     let decoded: DecodedCanonicalInheritanceSlotContractsV1 =
-        decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), table);
+        decode_canonical(&encode(&table).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), table);
     assert!(
         CanonicalInheritanceSlotContractsV1::try_new(vec![records[0].clone(), records[0].clone()])
             .is_err()
@@ -94,13 +68,10 @@ fn contract_tables_sort_only_at_production_and_reject_wire_reordering_or_duplica
         table.records().iter().rev().cloned().collect(),
         vec![records[0].clone(), records[0].clone()],
     ] {
-        let decoded: DecodedCanonicalInheritanceSlotContractsV1 = decode_canonical(
-            &encode(&RawTable(records)).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded: DecodedCanonicalInheritanceSlotContractsV1 =
+            decode_canonical(&encode(&RawTable(records)).unwrap()).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture, &mut meter()),
+            decoded.resolve(&mut fixture),
             Err(InheritanceSlotResolutionError::Contract(
                 InheritanceSlotContractBuildError::SlotOrder { .. }
             ))

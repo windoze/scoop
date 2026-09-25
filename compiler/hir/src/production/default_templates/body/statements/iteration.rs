@@ -7,7 +7,7 @@ use crate::{
 
 use super::super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_> {
+impl BodyProjection<'_, '_> {
     pub(super) fn for_iteration(
         &mut self,
         plan: &ForIterationPlan,
@@ -49,7 +49,6 @@ impl BodyProjection<'_, '_, '_> {
             self.origin(next.origin().definition())?,
         );
 
-        self.entities.resources.collection::<crate::LoopId>(1)?;
         self.loops.push(plan.target());
         let projected: Result<_, super::super::super::DefaultBodyProjectionError> = (|| {
             Ok((

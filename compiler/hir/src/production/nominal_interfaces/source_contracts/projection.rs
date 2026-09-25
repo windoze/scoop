@@ -5,12 +5,11 @@ pub(super) fn project(
     export: &ExportHir,
     local: LocalNominalId,
     source: &HirSourceNominalIdentity,
-    meter: &mut BudgetMeter,
 ) -> Result<NominalSourceContractV1, Error> {
     let owner = source_nominal_id(source);
     let key = source.declaration();
     let (name, lexical_owner, parameters) = header(export, local);
-    resources::name(name, meter)?;
+
     let name = CanonicalIdentifier::new(name).map_err(invalid)?;
     let lexical_owner = lexical_owner
         .map(|owner| source_owner(export, owner))
@@ -25,21 +24,21 @@ pub(super) fn project(
             "nominal source identity disagrees with its sealed HIR declaration",
         ));
     }
-    resources::binders(export, parameters, parameters.len(), meter)?;
+
     let signatures = HirInterfaceSignatureProjector::new(export);
     let binders = signatures.binder_frame(parameters, 0).map_err(invalid)?;
     let type_parameters = signatures
         .project_binder_list(parameters, &binders)
         .map_err(invalid)?;
-    let (supertypes, shape) = shapes::project(export, local, owner, &binders, meter)?;
+    let (supertypes, shape) = shapes::project(export, local, owner, &binders)?;
     NominalSourceContractV1::try_new(
         owner,
         modality(export, local),
         type_parameters,
         supertypes,
-        constructors::project(export, local, owner, meter)?,
-        members::project(export, local, owner, meter)?,
-        children(export, owner, meter)?,
+        constructors::project(export, local, owner)?,
+        members::project(export, local, owner)?,
+        children(export, owner)?,
         shape,
     )
     .map_err(Error::SourceInventory)

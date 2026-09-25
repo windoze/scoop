@@ -1,4 +1,4 @@
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::collect::DefaultReferenceExpressionIndexV1;
 use crate::{
@@ -25,8 +25,6 @@ pub(crate) fn project_default_reference_context<'a>(
     occurrence: DefaultBodyReferenceOccurrenceV1<'a>,
     template_receiver: &OptionalTemplateReceiverV1,
     expressions: &DefaultReferenceExpressionIndexV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<DefaultReferenceContextV1<'a>, DefaultReferenceReceiverError> {
     use DefaultBodyReferenceTargetV1 as Target;
     use DefaultExpressionKindV1 as Kind;
@@ -37,7 +35,7 @@ pub(crate) fn project_default_reference_context<'a>(
             return Ok(DefaultReferenceContextV1::Metadata(metadata));
         }
     };
-    meter.charge_work(1, path)?;
+
     let member = match (occurrence.target, expression.kind()) {
         (Target::Field(_), Kind::FieldAccess { receiver, .. })
         | (Target::Callable(_), Kind::MethodCall { receiver, .. }) => {
@@ -59,7 +57,7 @@ pub(crate) fn project_default_reference_context<'a>(
             } else {
                 ProtectedDefaultReceiverUseV1::Explicit {
                     receiver_expression_index: expressions
-                        .get(expression, meter, path)?
+                        .get(expression)
                         .ok_or(DefaultReferenceReceiverError::ReceiverOutsideBody)?,
                 }
             };

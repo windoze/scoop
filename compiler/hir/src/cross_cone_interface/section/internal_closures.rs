@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::CrossConeHirInterfaceSectionV1;
 use crate::{
@@ -18,24 +18,23 @@ impl CrossConeHirInterfaceSectionV1 {
     pub fn validate_internal_closures(
         &self,
         direct_surface: &CanonicalDirectPublicSurfaceV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), CrossConeHirInternalClosureValidationError> {
         self.public_bindings()
             .validate_direct_surface(direct_surface)
             .map_err(CrossConeHirInternalClosureValidationError::DirectSurface)?;
         self.property_interfaces()
-            .validate_member_declaration_inventory(self.nominal_interfaces(), meter)
+            .validate_member_declaration_inventory(self.nominal_interfaces())
             .map_err(CrossConeHirInternalClosureValidationError::PropertyDeclarations)?;
         self.callable_interfaces()
             .validate_member_declaration_inventory(
                 self.nominal_interfaces(),
                 self.property_interfaces(),
-                meter,
             )
             .map_err(CrossConeHirInternalClosureValidationError::CallableDeclarations)?;
         self.property_interfaces()
-            .validate_accessor_closure_with_budget(self.callable_interfaces(), meter)
+            .validate_accessor_closure(self.callable_interfaces())
             .map_err(CrossConeHirInternalClosureValidationError::PropertyAccessors)?;
         self.default_templates()
             .validate_source_closure(self.source_interfaces())
@@ -43,7 +42,7 @@ impl CrossConeHirInterfaceSectionV1 {
         self.constants()
             .validate_property_closure(self.property_interfaces())
             .map_err(CrossConeHirInternalClosureValidationError::Constants)?;
-        self.validate_definition_source_closure(meter, path)
+        self.validate_definition_source_closure(path)
             .map_err(CrossConeHirInternalClosureValidationError::DefinitionSources)
     }
 }

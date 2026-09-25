@@ -12,7 +12,7 @@ pub(super) fn capture(
     let cone = manifest.cone();
     let semantic = manifest.semantic_fingerprints();
     let production = link.production_projection();
-    let usage = parts.meter.usage();
+
     PublishableCrossConeArtifact {
         artifact_fingerprint: manifest.artifact_fingerprint(),
         coordinate: cone.coordinate().clone(),
@@ -22,14 +22,13 @@ pub(super) fn capture(
         target_selection: target,
         profile: manifest.compatibility().artifact_profile().clone(),
         direct_dependencies: manifest.direct_dependencies().to_vec(),
-        compile_summary: CompileViewSummaryV1::new(semantic, usage),
+        compile_summary: CompileViewSummaryV1::new(semantic),
         link_summary: LinkViewSummaryV1 {
             distribution: production.distribution(),
             output: production.output().clone(),
             image_owner_member: production.image_owner_member(),
             link_object_count: link.link_objects().members().len(),
             semantic_fingerprints: semantic,
-            decode_usage: usage,
         },
     }
 }

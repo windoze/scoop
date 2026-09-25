@@ -35,7 +35,7 @@ impl WireEncode for DecodedSafepointSiteKey {
 }
 
 impl WireDecode for DecodedSafepointSiteKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
@@ -46,7 +46,7 @@ impl WireDecode for DecodedSafepointSiteKey {
 }
 
 impl WireDecode for SafepointSiteRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ManagedPoll),
             2 => Ok(Self::ManagedCall),
@@ -61,7 +61,7 @@ impl WireDecode for SafepointSiteRole {
 macro_rules! impl_derived_id_decoding {
     ($name:ident) => {
         impl WireDecode for $name {
-            fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+            fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
                 NonZeroU64::new(decoder.unsigned()?)
                     .map(Self)
                     .ok_or_else(|| {
@@ -79,7 +79,7 @@ macro_rules! impl_derived_id_decoding {
 impl_derived_id_decoding!(RuntimeTypeId);
 impl_derived_id_decoding!(SafepointId);
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

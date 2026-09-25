@@ -3,9 +3,8 @@ use super::*;
 pub(super) fn nominal_fields(
     raw: Vec<RawNominalField>,
     expected: &[crate::PlacedFieldStorageV1],
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExactLayoutWireError> {
-    table_length(raw.len(), expected.len(), meter)?;
+    table_length(raw.len(), expected.len())?;
     for (raw, expected) in raw.into_iter().zip(expected) {
         verify(raw.id, expected.field())?;
         if raw.alignment != expected.access_alignment().get() {
@@ -20,10 +19,9 @@ impl RawVariant {
     pub(super) fn validate_against(
         self,
         expected: &EnumVariantLayoutV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactLayoutWireError> {
         verify(self.id, expected.variant())?;
-        table_length(self.fields.len(), expected.fields().len(), meter)?;
+        table_length(self.fields.len(), expected.fields().len())?;
         for (raw, expected) in self.fields.into_iter().zip(expected.fields()) {
             verify(raw.id, expected.field())?;
             if raw.alignment != expected.access_alignment().get() {

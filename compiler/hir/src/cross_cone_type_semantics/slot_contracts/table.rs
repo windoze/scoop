@@ -1,5 +1,5 @@
 use scoop_identity::PersistentDispatchSlotId;
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::*;
 
@@ -43,14 +43,12 @@ impl DecodedCanonicalInheritanceSlotContractsV1 {
     pub fn resolve<R: InheritanceSlotResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalInheritanceSlotContractsV1, InheritanceSlotResolutionError<E>> {
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
             .map_err(InheritanceSlotResolutionError::Resource)?;
         for decoded in self.records {
-            let record = decoded.resolve(resolver, meter)?;
+            let record = decoded.resolve(resolver)?;
             if records
                 .last()
                 .is_some_and(|previous: &InheritanceSlotContractV1| {
@@ -74,7 +72,7 @@ impl WireEncode for DecodedCanonicalInheritanceSlotContractsV1 {
     }
 }
 impl WireDecode for DecodedCanonicalInheritanceSlotContractsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedInheritanceSlotContractV1::decode(decoder))
             .map(|records| Self { records })

@@ -40,7 +40,7 @@ impl WireEncode for DecodedInheritanceSourceSlotSelectionV1 {
 }
 
 impl WireDecode for DecodedInheritanceSourceSlotSelectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -94,7 +94,7 @@ impl WireEncode for DecodedInheritanceSourceSlotSelectionRecordV1 {
 }
 
 impl WireDecode for DecodedInheritanceSourceSlotSelectionRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
@@ -113,7 +113,6 @@ impl DecodedCanonicalInheritanceSourceSlotSelectionsV1 {
     pub fn resolve<R, E: fmt::Display>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalInheritanceSourceSlotSelectionsV1, SourceInventoryError>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
@@ -121,13 +120,8 @@ impl DecodedCanonicalInheritanceSourceSlotSelectionsV1 {
             + PersistentIdResolver<PersistentFunctionId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>,
     {
-        let mut records = reserve(self.records.len(), meter)?;
-        for (index, record) in self.records.into_iter().enumerate() {
-            let path = WirePath::root().index(index as u64);
-            meter.check_semantic_depth(3, &path)?;
-            meter.charge_work(3, &path)?;
-            meter.charge_nodes(3, &path)?;
-            meter.charge_edges(3, &path)?;
+        let mut records = reserve(self.records.len())?;
+        for record in self.records.into_iter() {
             let owner = resolver.resolve(record.owner).map_err(reference)?;
             let slot = resolver.resolve(record.slot).map_err(reference)?;
             let selection = match record.selection {
@@ -149,7 +143,7 @@ impl DecodedCanonicalInheritanceSourceSlotSelectionsV1 {
                 owner, slot, selection,
             ));
         }
-        CanonicalInheritanceSourceSlotSelectionsV1::from_ordered(records, meter)
+        CanonicalInheritanceSourceSlotSelectionsV1::from_ordered(records)
     }
 }
 
@@ -160,7 +154,7 @@ impl WireEncode for DecodedCanonicalInheritanceSourceSlotSelectionsV1 {
 }
 
 impl WireDecode for DecodedCanonicalInheritanceSourceSlotSelectionsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| {
                 DecodedInheritanceSourceSlotSelectionRecordV1::decode(decoder)

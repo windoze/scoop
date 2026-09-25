@@ -1,5 +1,5 @@
 use scoop_identity::{Effect, ExactCallableSignature, GcEffect};
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{

@@ -5,7 +5,7 @@ use scoop_hir::{
     DefinitionSourceLocationValidationError, ExecutableEvaluationValidationError,
     HirDependencyCallReasonV1, HirDependencyCallSignatureError, SharedTypeMetadataV1,
 };
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::*;
 
@@ -16,27 +16,12 @@ impl HirInterfaceValidationInput<'_> {
     pub(crate) fn call_sites(
         self,
         dependencies: &[ValidatedNominalProviderView<'_>],
-        meter: &mut BudgetMeter,
     ) -> Result<(), CrossConeHirCallSiteOriginError> {
-        let path = WirePath::root().field(10);
-        for (index, reference) in self
-            .interface
-            .external_references()
-            .records()
-            .iter()
-            .enumerate()
-        {
-            meter.charge_work(1, &path)?;
-            for (site_index, site) in reference.call_sites().records().iter().enumerate() {
-                let path = path
-                    .clone()
-                    .index(index as u64)
-                    .field(5)
-                    .index(site_index as u64);
-                self.executable_origin(site.position(), site.origin(), dependencies, meter, &path)?;
+        for reference in self.interface.external_references().records() {
+            for site in reference.call_sites().records() {
+                self.executable_origin(site.position(), site.origin(), dependencies)?;
                 match site.reason() {
                     HirDependencyCallReasonV1::SourceBinding(_) => {
-                        meter.charge_work(dependencies.len() as u64 + 1, &path)?;
                         let provider = dependencies
                             .iter()
                             .find(|provider| provider.identity == reference.origin())
@@ -52,8 +37,6 @@ impl HirInterfaceValidationInput<'_> {
                                 foundation: provider.foundation,
                                 public: provider.interface,
                             },
-                            meter,
-                            &path,
                         )
                         .map_err(|source| {
                             CrossConeHirCallSiteOriginError::Signature {
@@ -63,7 +46,7 @@ impl HirInterfaceValidationInput<'_> {
                         })?;
                     }
                     HirDependencyCallReasonV1::CastFailure { .. } => {
-                        self.runtime_call(reference, site, dependencies, meter, &path)
+                        self.runtime_call(reference, site, dependencies)
                             .map_err(|source| CrossConeHirCallSiteOriginError::Runtime {
                                 position: site.position(),
                                 source: Box::new(source),
@@ -80,12 +63,10 @@ impl HirInterfaceValidationInput<'_> {
         position: ExecutableExpressionPosition,
         origin: &scoop_identity::ConcreteExpressionOrigin,
         dependencies: &[ValidatedNominalProviderView<'_>],
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), CrossConeHirCallSiteOriginError> {
         let definition = origin.definition();
         let provider = definition.source().cone();
-        meter.charge_work(dependencies.len() as u64 + 1, path)?;
+
         let foundation = if provider == self.current {
             self.foundation
         } else {
@@ -99,19 +80,13 @@ impl HirInterfaceValidationInput<'_> {
                 })?
         };
         foundation
-            .validate_definition_origin_location(provider, definition, meter, path)
+            .validate_definition_origin_location(provider, definition)
             .map_err(|source| CrossConeHirCallSiteOriginError::Definition {
                 position,
                 source: Box::new(source),
             })?;
         self.foundation
-            .validate_executable_evaluation_origin(
-                self.current,
-                position.root,
-                origin.evaluation(),
-                meter,
-                path,
-            )
+            .validate_executable_evaluation_origin(self.current, position.root, origin.evaluation())
             .map_err(|source| CrossConeHirCallSiteOriginError::Evaluation {
                 position,
                 source: Box::new(source),
@@ -147,12 +122,6 @@ pub enum CrossConeHirCallSiteOriginError {
         position: ExecutableExpressionPosition,
         source: Box<ExecutableEvaluationValidationError>,
     },
-}
-
-impl From<WireError> for CrossConeHirCallSiteOriginError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
 }
 
 impl std::fmt::Display for CrossConeHirCallSiteOriginError {

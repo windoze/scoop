@@ -77,7 +77,7 @@ impl WireEncode for DecodedNativeBoundaryNominalOwner {
 }
 
 impl WireDecode for DecodedNativeBoundaryNominalOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -134,7 +134,7 @@ impl WireEncode for DecodedNativeBoundaryFieldDefinition {
 }
 
 impl WireDecode for DecodedNativeBoundaryFieldDefinition {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             field: decoder.field(1, DecodedPersistentId::decode)?,
@@ -180,7 +180,7 @@ impl WireEncode for DecodedNativeBoundaryVariantFieldDefinition {
 }
 
 impl WireDecode for DecodedNativeBoundaryVariantFieldDefinition {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             field: decoder.field(1, DecodedPersistentId::decode)?,
@@ -223,7 +223,7 @@ impl WireEncode for DecodedNativeBoundaryVariantDefinition {
 }
 
 impl WireDecode for DecodedNativeBoundaryVariantDefinition {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             variant: decoder.field(1, DecodedPersistentId::decode)?,
@@ -267,7 +267,7 @@ impl WireEncode for DecodedNativeBoundaryCLayoutPolicy {
 }
 
 impl WireDecode for DecodedNativeBoundaryCLayoutPolicy {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -354,7 +354,7 @@ impl WireEncode for DecodedNativeBoundaryTypeDefinitionRecord {
 }
 
 impl WireDecode for DecodedNativeBoundaryTypeDefinitionRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             owner: decoder.field(1, DecodedNativeBoundaryNominalOwner::decode)?,
@@ -407,17 +407,13 @@ fn resolve_sequence<T, U, E>(
     Ok(resolved)
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -429,7 +425,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

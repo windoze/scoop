@@ -8,17 +8,17 @@ pub(super) fn validate(
     foundation: &DefaultTargetIdentityQueriesV1<'_>,
     parent: CallableTemplateOwner,
     descriptor: DefaultSourceNestedCallableDescriptorV1<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), Error> {
     let identity = descriptor.identity();
     let expected = Arity {
         foundation,
         identity,
-        meter,
+
         path,
     }
-    .callable(parent, 1)?;
+    .callable(parent)?;
     let actual = descriptor.owner_type_parameter_count();
     if actual != expected {
         return Err(failure(
@@ -41,16 +41,10 @@ pub(super) fn validate(
 struct Arity<'a, 'f> {
     foundation: &'a DefaultTargetIdentityQueriesV1<'f>,
     identity: Identity,
-    meter: &'a mut BudgetMeter,
+
     path: &'a WirePath,
 }
 impl<'f> Arity<'_, 'f> {
-    fn enter(&mut self, depth: u64) -> Result<(), Error> {
-        self.meter.check_semantic_depth(depth, self.path)?;
-        self.meter.charge_nodes(1, self.path)?;
-        self.meter.charge_edges(1, self.path)?;
-        Ok(())
-    }
     fn lookup<I, K>(
         &mut self,
         records: &'f [CborIdentityRecord<I, K>],
@@ -60,17 +54,9 @@ impl<'f> Arity<'_, 'f> {
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Eq + Clone + Send + Sync + 'static,
     {
-        key(
-            self.foundation,
-            records,
-            id,
-            self.identity,
-            self.meter,
-            self.path,
-        )
+        key(self.foundation, records, id, self.identity)
     }
-    fn callable(&mut self, owner: CallableTemplateOwner, depth: u64) -> Result<u32, Error> {
-        self.enter(depth)?;
+    fn callable(&mut self, owner: CallableTemplateOwner) -> Result<u32, Error> {
         let canonical = self.foundation.foundation.as_canonical();
         let source = match owner {
             CallableTemplateOwner::Function(id) => {
@@ -86,30 +72,29 @@ impl<'f> Arity<'_, 'f> {
                 let owner = self
                     .lookup(canonical.type_source_accessor_records(), id)?
                     .owner();
-                return self.property(owner, depth + 1);
+                return self.property(owner);
             }
             CallableTemplateOwner::Generated(id) => {
                 let key = self.lookup(canonical.type_source_generated_callable_records(), id)?;
-                return self.generated(key, depth + 1);
+                return self.generated(key);
             }
             CallableTemplateOwner::VariantConstructor(id) => {
                 let owner = self
                     .lookup(canonical.type_source_enum_variant_records(), id)?
                     .source_owner()
                     .ok_or_else(|| failure(self.identity, Failure::LexicalParent))?;
-                return self.nominal(owner, depth + 1);
+                return self.nominal(owner);
             }
         };
-        self.declaration(source, depth)
+        self.declaration(source)
     }
-    fn declaration(&mut self, key: &SourceDeclarationKey, depth: u64) -> Result<u32, Error> {
-        self.meter.charge_work(1, self.path)?;
+    fn declaration(&mut self, key: &SourceDeclarationKey) -> Result<u32, Error> {
         if key.origin() != self.foundation.provider {
             return Err(failure(self.identity, Failure::LexicalParent));
         }
         let own = key.duplicate_signature().type_parameter_count();
         let inherited = match key.owners().owners().last() {
-            Some(owner) => self.owner(owner, depth + 1)?,
+            Some(owner) => self.owner(owner)?,
             None => 0,
         };
         own.checked_add(inherited).ok_or_else(|| {
@@ -120,8 +105,7 @@ impl<'f> Arity<'_, 'f> {
             ))
         })
     }
-    fn property(&mut self, owner: PropertyOwner, depth: u64) -> Result<u32, Error> {
-        self.enter(depth)?;
+    fn property(&mut self, owner: PropertyOwner) -> Result<u32, Error> {
         let canonical = self.foundation.foundation.as_canonical();
         let source = match owner {
             PropertyOwner::Property(id) => {
@@ -131,10 +115,9 @@ impl<'f> Arity<'_, 'f> {
                 self.lookup(canonical.type_source_extension_property_records(), id)?
             }
         };
-        self.declaration(source, depth)
+        self.declaration(source)
     }
-    fn nominal(&mut self, owner: SourceNominalId, depth: u64) -> Result<u32, Error> {
-        self.enter(depth)?;
+    fn nominal(&mut self, owner: SourceNominalId) -> Result<u32, Error> {
         let canonical = self.foundation.foundation.as_canonical();
         let key = match owner {
             SourceNominalId::Concrete(id) => {

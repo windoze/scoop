@@ -66,11 +66,7 @@ impl DeclaredLayout {
         foundation.set_fields(vec![field]).unwrap();
         current.foundation = OdrFreeHirFoundation::try_new(foundation).unwrap();
         let decoded = [&scalar.foundation, &current.foundation].map(|foundation| {
-            decode_canonical::<DecodedHirFoundation>(
-                &encode(foundation).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap()
+            decode_canonical::<DecodedHirFoundation>(&encode(foundation).unwrap()).unwrap()
         });
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(scalar.identity).unwrap();
@@ -116,7 +112,7 @@ impl DeclaredLayout {
         layouts: &[CanonicalCAbiLayoutFingerprintRecord],
         materialized: bool,
         dependency: bool,
-    ) -> Result<scoop_wire::DecodeUsage, NativeBoundaryCompileError> {
+    ) -> Result<(), NativeBoundaryCompileError> {
         let target = scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
         let artifact =
             crate::IdentityFoundationArtifact::write(crate::IdentityFoundationArtifactInput::new(
@@ -153,7 +149,7 @@ impl DeclaredLayout {
             &view,
             &materialized,
         )?;
-        Ok(graph.decode_usage())
+        Ok(())
     }
 }
 

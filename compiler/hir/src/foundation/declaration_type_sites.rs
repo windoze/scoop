@@ -7,7 +7,6 @@ use scoop_identity::{
     CborIdentityRecord, ConeIdentity, DefinitionOriginSubject, PersistentId, PropertyOwner,
     SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod errors;
 mod signature;
@@ -20,14 +19,10 @@ impl OdrFreeHirFoundation {
         &self,
         current: ConeIdentity,
         position: HirDependencyTypePositionV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), Error> {
         let mut input = Input {
             foundation: self,
             current,
-            meter,
-            path,
         };
         match position {
             HirDependencyTypePositionV1::Expression(..) => Err(Error::ExpressionPosition),
@@ -58,8 +53,6 @@ impl OdrFreeHirFoundation {
 struct Input<'a> {
     foundation: &'a OdrFreeHirFoundation,
     current: ConeIdentity,
-    meter: &'a mut BudgetMeter,
-    path: &'a WirePath,
 }
 
 impl<'a> Input<'a> {
@@ -96,10 +89,7 @@ impl<'a> Input<'a> {
                 // and roles were resolved by the same foundation, and later
                 // MIR joins still check the actual generated signature.
                 let subject = DefinitionOriginSubject::GeneratedCallable(id);
-                self.meter.charge_work(
-                    1 + u64::from(foundation.counts().definition_origins.max(1).ilog2()),
-                    self.path,
-                )?;
+
                 if foundation.definition_origin(subject).is_some() {
                     self.origin(subject)?;
                 }
@@ -143,20 +133,12 @@ impl<'a> Input<'a> {
 
     fn origin(&mut self, subject: DefinitionOriginSubject) -> Result<(), Error> {
         let foundation: &CanonicalHirFoundation = self.foundation.as_canonical();
-        self.meter.charge_work(
-            1 + u64::from(foundation.counts().definition_origins.max(1).ilog2()),
-            self.path,
-        )?;
+
         let origin = foundation
             .definition_origin(subject)
             .ok_or(Error::MissingOrigin(subject))?;
         self.foundation
-            .validate_definition_origin_location(
-                self.current,
-                origin.origin(),
-                self.meter,
-                self.path,
-            )
+            .validate_definition_origin_location(self.current, origin.origin())
             .map_err(|source| Error::Origin(Box::new(source)))
     }
 
@@ -165,7 +147,6 @@ impl<'a> Input<'a> {
         records: &'b [CborIdentityRecord<I, K>],
         id: I,
     ) -> Result<&'b K, Error> {
-        self.meter.charge_work(records.len() as u64, self.path)?;
         records
             .iter()
             .find(|record| record.id() == id)

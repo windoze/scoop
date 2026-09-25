@@ -1,5 +1,5 @@
 //! Exact body occurrence closure, separate from target publication authority.
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::ProtectedDefaultReferenceSetV1;
 use crate::{
@@ -36,7 +36,7 @@ pub trait ProtectedDefaultReferenceBodySemanticAuthority<E> {
         occurrence: DefaultBodyReferenceOccurrenceV1<'_>,
         witness: &ProtectedDefaultAccessWitnessV1,
         receiver: ProtectedDefaultReferenceReceiverV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), E>;
 }
@@ -64,18 +64,16 @@ impl ProtectedDefaultReferenceSetV1 {
         definition_origin: &ExportDefinitionSourceV1,
         receiver: &OptionalTemplateReceiverV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CheckedProtectedDefaultReferenceBodyV1<'a>, ProtectedDefaultBodyClosureError<E>>
     {
-        let collected = collect::collect(body, locals, definition_origin, meter, path)?;
-        let mut domains = domains::Domains::new(self, meter, path)?;
+        let collected = collect::collect(body, locals, definition_origin, path)?;
+        let mut domains = domains::Domains::new(self, path)?;
         for occurrence in collected.occurrences.iter().copied() {
-            domains.observe(
-                key, occurrence, receiver, &collected, authority, meter, path,
-            )?;
+            domains.observe(key, occurrence, receiver, &collected, authority, path)?;
         }
-        domains.finish(meter, path)?;
+        domains.finish()?;
         Ok(CheckedProtectedDefaultReferenceBodyV1 { references: self })
     }
 }

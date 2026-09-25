@@ -22,7 +22,7 @@ pub(super) fn check(
         section,
     };
     replay
-        .validate(section.dispatch(), section.callables(), &mut meter())
+        .validate(section.dispatch(), section.callables())
         .unwrap_or_else(|error| panic!("{name}: {error}"));
     if !name.starts_with("shared-dispatch-") {
         return;
@@ -48,40 +48,10 @@ pub(super) fn check(
         matches!(error, Error::Missing(owner) if owner == missing),
         "{error:?}"
     );
-    let mut measured = meter();
+
     replay
-        .validate(section.dispatch(), section.callables(), &mut measured)
+        .validate(section.dispatch(), section.callables())
         .unwrap();
-    let mut shared = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay
-        .validate(section.dispatch(), section.callables(), &mut shared)
-        .unwrap();
-    assert!(matches!(
-        replay.validate(section.dispatch(), section.callables(), &mut shared),
-        Err(Error::Resource(_))
-    ));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            replay.validate(
-                section.dispatch(),
-                section.callables(),
-                &mut scoop_wire::BudgetMeter::new(limits)
-            ),
-            Err(Error::Resource(_))
-        ));
-    }
 }
 
 struct Replay<'a> {
@@ -95,9 +65,8 @@ impl Replay<'_> {
         &self,
         dispatch: &mir::CanonicalMirDispatchSchemasV1,
         callables: &mir::CanonicalMirCallableBindingsV1,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<(), Error> {
-        scoop_slib::validate_shared_mir_dispatch(self.source, &[], callables, &[], dispatch, meter)
+        scoop_slib::validate_shared_mir_dispatch(self.source, &[], callables, &[], dispatch)
     }
     fn authority(&self) -> mir::MirDispatchSchemaAuthority<'_> {
         mir::MirDispatchSchemaAuthority {
@@ -107,12 +76,9 @@ impl Replay<'_> {
         }
     }
     fn reject(&self, records: Vec<mir::ParamFreeMirDispatchSchemaV1>) -> Error {
-        let table =
-            mir::CanonicalMirDispatchSchemasV1::try_new(self.authority(), records, &mut meter())
-                .expect(
-                    "the changed table retains all MIR identity, signature and receiver relations",
-                );
-        self.validate(&table, self.section.callables(), &mut meter())
+        let table = mir::CanonicalMirDispatchSchemasV1::try_new(self.authority(), records)
+            .expect("the changed table retains all MIR identity, signature and receiver relations");
+        self.validate(&table, self.section.callables())
             .expect_err("shared HIR must reject a different source dispatch choice")
     }
     fn replace(
@@ -151,7 +117,7 @@ impl Replay<'_> {
             })
             .unwrap();
         metadata
-            .signature_exact_type(&SignatureTypeKey::Nominal(owner), &mut meter())
+            .signature_exact_type(&SignatureTypeKey::Nominal(owner))
             .unwrap()
     }
     fn vtable(
@@ -165,7 +131,6 @@ impl Replay<'_> {
             owner,
             mir::MirClassVtableSchemaV1::ClassVtable(entries),
             original.itables().to_vec(),
-            &mut meter(),
         )
         .unwrap()
     }

@@ -10,7 +10,6 @@ use scoop_slib::{
     PrebuiltManifestSummaryError, PublishableCrossConeArtifact,
     validate_cross_cone_artifact_closure,
 };
-use scoop_wire::DecodeLimits;
 
 use super::{ArtifactClosurePlan, ArtifactClosureValidationError};
 
@@ -20,7 +19,7 @@ use super::{ArtifactClosurePlan, ArtifactClosureValidationError};
 pub struct ValidatedCrossConeArtifactHandle {
     snapshot: Arc<ArtifactSnapshot>,
     publication: PublishableCrossConeArtifact,
-    limits: DecodeLimits,
+
     c_bridge_profile: CBridgeToolchainProfileV1,
 }
 
@@ -36,19 +35,15 @@ impl ValidatedCrossConeArtifactHandle {
     fn new(
         snapshot: Arc<ArtifactSnapshot>,
         publication: PublishableCrossConeArtifact,
-        limits: DecodeLimits,
+
         c_bridge_profile: CBridgeToolchainProfileV1,
     ) -> Self {
         Self {
             snapshot,
             publication,
-            limits,
+
             c_bridge_profile,
         }
-    }
-
-    pub(crate) const fn decode_limits(&self) -> DecodeLimits {
-        self.limits
     }
 
     pub(crate) const fn c_bridge_profile(&self) -> &CBridgeToolchainProfileV1 {
@@ -91,10 +86,6 @@ impl<P> CrossConePurposeArtifactHandle<P> {
         self.artifact.snapshot()
     }
 
-    pub(crate) fn decode_limits(&self) -> DecodeLimits {
-        self.artifact.decode_limits()
-    }
-
     pub(crate) fn c_bridge_profile(&self) -> &CBridgeToolchainProfileV1 {
         self.artifact.c_bridge_profile()
     }
@@ -107,7 +98,7 @@ impl ArtifactClosurePlan {
         current: ConeIdentity,
         snapshot: Arc<ArtifactSnapshot>,
         completed: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
-        limits: DecodeLimits,
+
         c_bridge_profile: &CBridgeToolchainProfileV1,
     ) -> Result<Arc<ValidatedCrossConeArtifactHandle>, CrossConeArtifactValidationError> {
         if !self.nodes.contains_key(&current) {
@@ -149,13 +140,10 @@ impl ArtifactClosurePlan {
             let artifact = &completed[identity];
             summaries.push((
                 *identity,
-                probe_summary(*identity, artifact.snapshot(), self.target, limits)?,
+                probe_summary(*identity, artifact.snapshot(), self.target)?,
             ));
         }
-        summaries.push((
-            current,
-            probe_summary(current, &snapshot, self.target, limits)?,
-        ));
+        summaries.push((current, probe_summary(current, &snapshot, self.target)?));
 
         let mut session = SemanticIdentitySession::new();
         let closure = validate_cross_cone_artifact_closure(
@@ -166,7 +154,6 @@ impl ArtifactClosurePlan {
                 dependency_bytes,
                 snapshot.as_bytes(),
             ),
-            limits,
             c_bridge_profile,
             &mut session,
         )
@@ -189,7 +176,6 @@ impl ArtifactClosurePlan {
         Ok(Arc::new(ValidatedCrossConeArtifactHandle::new(
             snapshot,
             publication,
-            limits,
             c_bridge_profile.clone(),
         )))
     }
@@ -199,14 +185,13 @@ fn probe_summary(
     identity: ConeIdentity,
     snapshot: &ArtifactSnapshot,
     target: scoop_lir::ValidatedLirTargetSelection,
-    limits: DecodeLimits,
 ) -> Result<scoop_slib::PrebuiltManifestSummaryV1, CrossConeArtifactValidationError> {
-    let summary = snapshot
-        .probe_prebuilt_summary(limits, target)
-        .map_err(|source| CrossConeArtifactValidationError::Summary {
+    let summary = snapshot.probe_prebuilt_summary(target).map_err(|source| {
+        CrossConeArtifactValidationError::Summary {
             identity,
             source: Box::new(source),
-        })?;
+        }
+    })?;
 
     Ok(summary)
 }

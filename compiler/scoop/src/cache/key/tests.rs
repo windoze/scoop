@@ -12,7 +12,7 @@ use scoop_slib::{
     IdentityFoundationArtifact, IdentityFoundationArtifactInput, PrebuiltManifestSummaryV1,
     ProducerRecord, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::{DecodeLimits, encode, sha256};
+use scoop_wire::{encode, sha256};
 
 use super::*;
 
@@ -98,9 +98,7 @@ fn dependency_summaries() -> (PrebuiltManifestSummaryV1, PrebuiltManifestSummary
         &lir,
     ))
     .unwrap();
-    let core =
-        probe_prebuilt_manifest_summary(core.as_bytes(), DecodeLimits::M23_DEFAULT, selection)
-            .unwrap();
+    let core = probe_prebuilt_manifest_summary(core.as_bytes(), selection).unwrap();
     let core_semantic = core.semantic_fingerprints();
     let core_dependency = DependencyRecord::new(
         core.cone().coordinate().clone(),
@@ -127,12 +125,7 @@ fn dependency_summaries() -> (PrebuiltManifestSummaryV1, PrebuiltManifestSummary
         .with_direct_dependencies(vec![core_dependency]),
     )
     .unwrap();
-    let dependency = probe_prebuilt_manifest_summary(
-        dependency.as_bytes(),
-        DecodeLimits::M23_DEFAULT,
-        selection,
-    )
-    .unwrap();
+    let dependency = probe_prebuilt_manifest_summary(dependency.as_bytes(), selection).unwrap();
     (core, dependency)
 }
 
@@ -200,7 +193,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "cd082e9b4d109e64a36595c1074b814f6da6198af05f2d8d2b4907551c82c84b"
+        "0df8e213def31607af93228920c795e2b281be03982952ca2b9d44ef1c6432fd"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xac));
 }

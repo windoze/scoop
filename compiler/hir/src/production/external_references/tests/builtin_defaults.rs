@@ -22,9 +22,7 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
         ] {
             assert!(accumulator.observe(target, role).unwrap());
         }
-        let references = accumulator
-            .finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default()))
-            .unwrap();
+        let references = accumulator.finish::<AuthorityError>().unwrap();
         assert_eq!(references.records().len(), 1);
         let record = references.get(target).unwrap();
         assert_eq!(record.origin(), provider);
@@ -37,13 +35,7 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
             ]
         );
         assert!(record.witnesses().is_empty());
-        record
-            .validate_semantics(
-                &mut authority,
-                &mut route_meter(),
-                &scoop_wire::WirePath::root(),
-            )
-            .unwrap();
+        record.validate_semantics(&mut authority).unwrap();
 
         let forged = ExternalHirReferenceV1::try_new(
             cone("false-provider"),
@@ -55,7 +47,7 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
         )
         .unwrap();
         assert!(matches!(
-            forged.validate_semantics(&mut authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            forged.validate_semantics(&mut authority),
             Err(ExternalHirReferenceSemanticValidationError::OriginMismatch {
                 target: actual, expected, ..
             }) if actual == target && expected == provider
@@ -88,7 +80,7 @@ fn builtin_default_dependencies_still_require_an_actual_provider() {
     )
     .unwrap();
     assert!(matches!(
-        record.validate_semantics(&mut authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+        record.validate_semantics(&mut authority),
         Err(ExternalHirReferenceSemanticValidationError::TargetOrigin { target: actual, .. })
             if actual == target
     ));
@@ -110,7 +102,7 @@ fn builtin_default_dependencies_do_not_grant_same_name_or_provider_exemptions() 
             .observe(target, ExternalHirReferenceRoleV1::DefaultDependency)
             .unwrap();
         assert!(matches!(
-            accumulator.finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default())),
+            accumulator.finish::<AuthorityError>(),
             Err(ExternalHirReferenceProductionError::MissingWitnessUse {
                 target: actual, role: ExternalHirReferenceRoleV1::DefaultDependency,
             }) if actual == target
@@ -130,8 +122,4 @@ fn builtin_default_dependencies_do_not_grant_same_name_or_provider_exemptions() 
             Err(crate::ExternalHirReferenceBuildError::MissingWitness)
         );
     }
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

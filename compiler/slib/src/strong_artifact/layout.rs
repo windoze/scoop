@@ -13,7 +13,7 @@ use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
     OdrFreeMirFoundation,
 };
-use scoop_wire::{BudgetMeter, encode};
+use scoop_wire::encode;
 
 use super::{StrongArtifactSectionV1, verify_layout_link_objects};
 use crate::{
@@ -107,7 +107,6 @@ pub struct AssembledCrossConeLayoutStrongArtifactV1 {
 impl AssembledCrossConeLayoutStrongArtifactV1 {
     pub fn write(
         input: CrossConeLayoutStrongArtifactInputV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, CrossConeLayoutStrongArtifactWriteError> {
         let CrossConeLayoutStrongArtifactInputV1 {
             producer,
@@ -162,26 +161,23 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
         let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_layout_code(&code)
             .map_err(CrossConeLayoutStrongArtifactWriteError::LinkIdentityClosure)?;
 
-        let metadata = assemble_metadata(
-            LayoutMetadataInput {
-                hir_foundation,
-                hir_production,
-                hir_cross_cone,
-                hir_type_semantics,
-                mir_foundation,
-                mir_production,
-                mir_cross_cone,
-                mir_type_bridge,
-                lir_foundation,
-                lir_cross_cone,
-                lir_layout_abi,
-                code: &code,
-                link_identity_closure: &link_identity_closure,
-                callable_link_closure: &callable_link_closure,
-                layout_link_closure: &layout_link_closure,
-            },
-            meter,
-        )?;
+        let metadata = assemble_metadata(LayoutMetadataInput {
+            hir_foundation,
+            hir_production,
+            hir_cross_cone,
+            hir_type_semantics,
+            mir_foundation,
+            mir_production,
+            mir_cross_cone,
+            mir_type_bridge,
+            lir_foundation,
+            lir_cross_cone,
+            lir_layout_abi,
+            code: &code,
+            link_identity_closure: &link_identity_closure,
+            callable_link_closure: &callable_link_closure,
+            layout_link_closure: &layout_link_closure,
+        })?;
 
         let production_manifest = CrossConeLayoutProductionManifestV1::from_verified_code(code);
         let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(

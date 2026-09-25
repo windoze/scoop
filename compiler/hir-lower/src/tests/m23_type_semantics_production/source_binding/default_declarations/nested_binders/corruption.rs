@@ -8,7 +8,7 @@ fn nested_owner_binders_reject_forged_counts_for_all_four_descriptor_kinds() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for name in [
                 "BinderHost.lambda",
@@ -19,16 +19,14 @@ fn nested_owner_binders_reject_forged_counts_for_all_four_descriptor_kinds() {
                 "BinderHost.Generic.callback",
             ] {
                 let original = table.get(key(output, name, 0)).unwrap();
-                let index = original
-                    .index_nested_callables(&mut meter(), &WirePath::root())
-                    .unwrap();
+                let index = original.index_nested_callables(&WirePath::root()).unwrap();
                 let descriptor = index.occurrences()[0].descriptor();
                 let expected = descriptor.owner_type_parameter_count();
                 for actual in [0, expected + 1] {
                     let changed = round_trip(corrupt(original, actual, None), output);
                     let changed = replace(&table, changed);
                     let error = parameters
-                        .bind_default_declarations(&changed, &[], &mut meter())
+                        .bind_default_declarations(&changed, &[])
                         .unwrap_err();
                     assert_failure(
                         error,
@@ -48,16 +46,14 @@ fn expanded_nested_binders_reject_missing_and_extra_explicit_body_arguments() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for name in [
                 "BinderCombinationHost.expanded",
                 "BinderCombinationHost.anonymous",
             ] {
                 let original = table.get(key(output, name, 0)).unwrap();
-                let index = original
-                    .index_nested_callables(&mut meter(), &WirePath::root())
-                    .unwrap();
+                let index = original.index_nested_callables(&WirePath::root()).unwrap();
                 let descriptor = index.occurrences()[0].descriptor();
                 let hir::DefaultNestedCallableBodyArgumentsV1::Explicit(args) =
                     descriptor.body_arguments()
@@ -81,7 +77,7 @@ fn expanded_nested_binders_reject_missing_and_extra_explicit_body_arguments() {
                     );
                     let changed = replace(&table, changed);
                     let error = parameters
-                        .bind_default_declarations(&changed, &[], &mut meter())
+                        .bind_default_declarations(&changed, &[])
                         .unwrap_err();
                     assert_failure(
                         error,
@@ -98,9 +94,7 @@ fn expanded_nested_binders_reject_missing_and_extra_explicit_body_arguments() {
 }
 
 fn corrupt(t: &Template, count: u32, arguments: Option<Arguments>) -> Template {
-    let index = t
-        .index_nested_callables(&mut meter(), &WirePath::root())
-        .unwrap();
+    let index = t.index_nested_callables(&WirePath::root()).unwrap();
     let occurrence = &index.occurrences()[0];
     let mut statements = t.body().statements().to_vec();
     let kind = match occurrence.descriptor() {
@@ -170,12 +164,9 @@ fn corrupt(t: &Template, count: u32, arguments: Option<Arguments>) -> Template {
     envelope::rebuild(t, t.locals().records().to_vec(), body)
 }
 fn round_trip(template: Template, output: &hir::DependencyHirOutput) -> Template {
-    let bytes = encode(&template.index_locals(&mut meter()).unwrap()).unwrap();
-    let decoded: hir::DecodedDefaultSourceTemplateV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    decoded
-        .resolve(&mut identity_closure(output), &mut meter())
-        .unwrap()
+    let bytes = encode(&template.index_locals().unwrap()).unwrap();
+    let decoded: hir::DecodedDefaultSourceTemplateV1 = decode_canonical(&bytes).unwrap();
+    decoded.resolve(&mut identity_closure(output)).unwrap()
 }
 
 fn assert_failure(

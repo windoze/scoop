@@ -3,7 +3,6 @@ use scoop_lir_lower::{LayoutAbiExportDependenciesV1, LayoutAbiExportInputV1};
 use scoop_slib::{SharedLirDispatchAbiInputsV1, SharedLirDispatchValidationError as Error};
 
 mod corruption;
-mod resources;
 
 pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
@@ -16,13 +15,10 @@ pub(super) fn check(
         dependency_layouts: dependencies.layouts,
         dependency_callables: dependencies.callables,
     };
-    let dispatch = replay(input, inputs, &mut meter()).unwrap();
+    let dispatch = replay(input, inputs).unwrap();
     assert_eq!(&dispatch, expected.dispatch());
     let wire: lir::DecodedCanonicalExactDispatchExportsV1 = decoded(expected.dispatch());
-    assert_eq!(
-        wire.validate_against(&dispatch, &mut meter()).unwrap(),
-        dispatch
-    );
+    assert_eq!(wire.validate_against(&dispatch).unwrap(), dispatch);
     for ty in input.bridge.types().records() {
         let tables: Vec<_> = dispatch
             .records()
@@ -59,8 +55,7 @@ pub(super) fn check(
             SharedLirDispatchAbiInputsV1 {
                 dependency_layouts: &[expected.layouts()],
                 ..inputs
-            },
-            &mut meter()
+            }
         ),
         Err(Error::DependencyProvider(_))
     ));
@@ -70,8 +65,7 @@ pub(super) fn check(
             SharedLirDispatchAbiInputsV1 {
                 dependency_callables: &[expected.callables()],
                 ..inputs
-            },
-            &mut meter()
+            }
         ),
         Err(Error::DependencyProvider(_))
     ));
@@ -82,8 +76,7 @@ pub(super) fn check(
                 SharedLirDispatchAbiInputsV1 {
                     local_layouts: dependency,
                     ..inputs
-                },
-                &mut meter()
+                }
             ),
             Err(Error::LocalProvider)
         ));
@@ -93,8 +86,7 @@ pub(super) fn check(
                 SharedLirDispatchAbiInputsV1 {
                     dependency_layouts: &[dependency, dependency],
                     ..inputs
-                },
-                &mut meter()
+                }
             ),
             Err(Error::DependencyProvider(_))
         ));
@@ -112,13 +104,11 @@ pub(super) fn probe(
         dependency_callables: &[],
     };
     corruption::check(input, expected, inputs);
-    resources::check(input, inputs);
 }
 
 fn replay(
     input: LayoutAbiExportInputV1<'_>,
     abis: SharedLirDispatchAbiInputsV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactDispatchExportsV1, Error> {
     scoop_slib::replay_shared_mir_dispatch(
         input.lir.module().meta.target_profile,
@@ -126,6 +116,5 @@ fn replay(
         input.bridge.dispatch(),
         abis,
         input.lir.foundation(),
-        meter,
     )
 }

@@ -212,7 +212,7 @@ impl WireEncode for DecodedExecutableEntryPlanV1 {
 }
 
 impl WireDecode for DecodedExecutableEntryPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(11)?;
         Ok(Self {
             root_cone: decoder.field(1, DecodedPersistentId::decode)?,
@@ -266,7 +266,7 @@ impl WireEncode for DecodedEntryProductionPlanV1 {
 }
 
 impl WireDecode for DecodedEntryProductionPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_sum(decoder, |tag, decoder| match tag {
             1 => Ok(Self::Library),
             2 => DecodedExecutableEntryPlanV1::decode(decoder)
@@ -278,8 +278,8 @@ impl WireDecode for DecodedEntryProductionPlanV1 {
 }
 
 fn decode_sum<T>(
-    decoder: &mut Decoder<'_, '_>,
-    decode: impl FnOnce(u64, &mut Decoder<'_, '_>) -> Result<T, WireError>,
+    decoder: &mut Decoder<'_>,
+    decode: impl FnOnce(u64, &mut Decoder<'_>) -> Result<T, WireError>,
 ) -> Result<T, WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
@@ -316,7 +316,7 @@ fn encode_value_sum(
     value.encode(encoder)
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         scoop_wire::WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

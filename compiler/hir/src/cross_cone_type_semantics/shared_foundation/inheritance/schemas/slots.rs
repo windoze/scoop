@@ -18,21 +18,19 @@ pub(super) fn validate<'a>(
     sources: &Context<'_>,
     schemas: &mut SchemaDeclarations<'a>,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let mut data = Data::default();
     for provider in std::iter::once(current).chain(dependencies.iter().copied()) {
-        declarations::collect(&mut data, schemas, provider, meter)?;
+        declarations::collect(&mut data, schemas, provider)?;
     }
     for provider in std::iter::once(current).chain(dependencies.iter().copied()) {
         for nominal in provider.section.inheritance().records() {
-            contracts::lookup(schemas.selections.len(), meter)?;
             let choices = schemas
                 .selections
                 .get(&nominal.owner())
                 .ok_or(Error::SlotSelectionInventory(nominal.owner()))?;
             let slots = nominal.slots().records();
-            meter.charge_work(slots.len() as u64, &WirePath::root())?;
+
             if choices.records().len() != slots.len()
                 || !choices
                     .records()
@@ -43,9 +41,9 @@ pub(super) fn validate<'a>(
                 return Err(Error::SlotSelectionInventory(nominal.owner()));
             }
             for slot in slots {
-                signatures::project(&mut data, slot.declaration(), dependencies, meter)?;
+                signatures::project(&mut data, slot.declaration(), dependencies)?;
                 if let Some(target) = slot.implementation().target() {
-                    signatures::project(&mut data, target.declaration(), dependencies, meter)?;
+                    signatures::project(&mut data, target.declaration(), dependencies)?;
                 }
             }
         }
@@ -58,7 +56,6 @@ pub(super) fn validate<'a>(
         scoop_identity::CoreBuiltinNominal::Unit
             .identity_record()
             .id(),
-        meter,
     )?;
     let replay = authority::Replay {
         data: &data,
@@ -70,7 +67,7 @@ pub(super) fn validate<'a>(
         for nominal in provider.section.inheritance().records() {
             for slot in nominal.slots().records() {
                 graph
-                    .validate_slot_source_contract(nominal.owner(), slot, &replay, meter)
+                    .validate_slot_source_contract(nominal.owner(), slot, &replay)
                     .map_err(|error| Error::SlotContracts(Box::new(error)))?;
             }
         }

@@ -6,16 +6,14 @@ use scoop_identity::{
 pub(super) fn index<'f, I, K>(
     records: &'f [CborIdentityRecord<I, K>],
     foundation: &BoundTypeFoundationSourcesV1<'f>,
-    meter: &mut BudgetMeter,
 ) -> Result<BTreeMap<I, &'f K>, InheritanceDispatchBindingError>
 where
     I: PersistentId + 'static,
     K: CborIdentityKey<I> + Eq + Clone + Send + Sync + 'static,
 {
-    let path = WirePath::root();
-    let keys = binding_keys::index(records, meter, &path)?;
+    let keys = binding_keys::index(records)?;
     for (id, key) in &keys {
-        binding_keys::verify(*id, *key, foundation.identities, meter, &path)?;
+        binding_keys::verify(*id, *key, foundation.identities)?;
     }
     Ok(keys)
 }

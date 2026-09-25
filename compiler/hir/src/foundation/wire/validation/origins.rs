@@ -6,7 +6,7 @@ use scoop_identity::{
     SourceDeclarationKey, SourceIdentity, SourceNativeExternalContractRecord,
     SourceNativeExternalOwner,
 };
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use super::super::super::{
     CallbackRegistrationRecord, ConstructorRecord, EnumVariantFieldRecord, EnumVariantRecord,
@@ -73,7 +73,6 @@ pub(super) fn validate(
     callback_registrations: &[CallbackRegistrationRecord],
     native_contracts: &[SourceNativeExternalContractRecord],
     origins: &[DefinitionOriginRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<(), HirFoundationValidationError> {
     let path = WirePath::root().field(29);
     let mut source_variants = HashSet::new();
@@ -81,8 +80,7 @@ pub(super) fn validate(
         .iter()
         .filter(|record| record.key().source_owner().is_some())
         .count();
-    meter
-        .try_reserve_set_slots(&mut source_variants, source_variant_count, &path)
+    scoop_wire::allocation::try_reserve_set(&mut source_variants, source_variant_count, &path)
         .map_err(HirFoundationValidationError::Resource)?;
     source_variants.extend(
         enum_variants
@@ -133,8 +131,7 @@ pub(super) fn validate(
         ],
         &path,
     )?;
-    let mut requirements =
-        OriginRequirements::new(generated_callables, required_count, meter, &path)?;
+    let mut requirements = OriginRequirements::new(generated_callables, required_count, &path)?;
 
     for record in types {
         if type_requires_definition_origin(record) {
@@ -210,12 +207,12 @@ pub(super) fn validate(
         )?;
     }
     for record in local_values {
-        requirements.local_value(record, meter, &path)?;
+        requirements.local_value(record, &path)?;
     }
     for record in callback_registrations {
         let subject = DefinitionOriginSubject::CallbackRegistration(record.id());
         let anchor = requirements
-            .callable_subject(record.key().parent().template(), meter, &path)?
+            .callable_subject(record.key().parent().template(), &path)?
             .ok_or(DefinitionOriginValidationError::MissingSourceAnchor { subject })?;
         requirements.require(subject, OriginExpectation::SameSource(anchor))?;
     }
@@ -227,12 +224,12 @@ pub(super) fn validate(
     }
     for record in generated_callables {
         let subject = DefinitionOriginSubject::GeneratedCallable(record.id());
-        if let Some(anchor) = requirements.generated_subject(record.id(), meter, &path)? {
+        if let Some(anchor) = requirements.generated_subject(record.id(), &path)? {
             requirements.allow(subject, OriginExpectation::SameSource(anchor))?;
         }
     }
 
-    validate_records(artifact, sources, requirements, origins, meter)
+    validate_records(artifact, sources, requirements, origins)
 }
 
 fn checked_sum(

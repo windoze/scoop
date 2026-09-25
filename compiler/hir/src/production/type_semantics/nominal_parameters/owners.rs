@@ -44,30 +44,7 @@ pub(super) fn binders(
     export: &ExportHir,
     signatures: &HirInterfaceSignatureProjector<'_>,
     owner: ExportParameterOwner,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<HirSignatureBinder>, Error> {
-    let count = match owner {
-        ExportParameterOwner::Function(id) => export.functions[id].type_param_count(),
-        ExportParameterOwner::ClassConstructor(id) => export.classes
-            [export.class_constructors[id].owner]
-            .type_params
-            .len(),
-        ExportParameterOwner::StructConstructor(id) => export.structs
-            [export.struct_constructors[id].owner]
-            .type_params
-            .len(),
-        ExportParameterOwner::VariantConstructor(reference) => {
-            export.enums[reference.enumeration()].type_params.len()
-        }
-    };
-    let path = WirePath::root();
-    meter
-        .check_table_entries(count as u64, &path)
-        .map_err(resource)?;
-    meter
-        .charge_collection_slots(count as u64, &path)
-        .map_err(resource)?;
-    meter.charge_work(count as u64, &path).map_err(resource)?;
     match owner {
         ExportParameterOwner::Function(id) => signatures.function_binders(&export.functions[id]),
         ExportParameterOwner::ClassConstructor(id) => signatures.binder_frame(

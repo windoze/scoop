@@ -4,7 +4,7 @@ use super::*;
 fn actual_default_publication_reuses_source_profiles_for_generic_static_and_inherited_members() {
     let (root, source) = fixture("publication");
     with_hir_source(&source, |output, _| {
-        let source = Production::from_dependency_hir(output, &mut meter()).unwrap();
+        let source = Production::from_dependency_hir(output).unwrap();
         assert_eq!(
             published_profiles(output, source.profiles()),
             std::fs::read_to_string(root.join("publication.snap")).unwrap()

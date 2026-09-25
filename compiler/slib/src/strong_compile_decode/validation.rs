@@ -293,19 +293,19 @@ fn validate_strong_profile_foundations_with_source_authority(
 ) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
     let coordinate = graph.coordinate().clone();
     let producer = graph.identity();
-    let meter = graph.envelope.meter_mut();
+
     let hir = match source_authority {
-        HirSourceAuthority::CurrentArtifact => hir.validate(&coordinate, identities, meter),
+        HirSourceAuthority::CurrentArtifact => hir.validate(&coordinate, identities),
         HirSourceAuthority::DependencyClosure => {
-            hir.validate_with_dependency_sources(&coordinate, identities, meter)
+            hir.validate_with_dependency_sources(&coordinate, identities)
         }
     }
     .map_err(StrongProfileFoundationError::HirStructure)?;
     let mir = mir
-        .validate(identities, meter)
+        .validate(identities)
         .map_err(StrongProfileFoundationError::MirStructure)?;
     let lir = lir
-        .validate(producer, identities, meter)
+        .validate(producer, identities)
         .map_err(StrongProfileFoundationError::LirStructure)?;
 
     Ok(OdrFreeStrongFoundationSet {

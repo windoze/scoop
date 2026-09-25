@@ -21,15 +21,14 @@ pub(super) fn check(
             })
         }
     };
-    let changed =
-        DecodedSlibEnvelope::open(&bytes, DecodeLimits::default(), artifact.target_selection())
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_cross_cone_layout_link_sections()
-            .unwrap()
-            .into_shared_sections()
-            .unwrap();
+    let changed = DecodedSlibEnvelope::open(&bytes, artifact.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_link_sections()
+        .unwrap()
+        .into_shared_sections()
+        .unwrap();
     let shared = reader::read_sections(
         reader::open_link(core).into_shared_sections().unwrap(),
         changed,

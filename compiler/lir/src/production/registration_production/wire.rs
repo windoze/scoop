@@ -69,9 +69,9 @@ fn encode_array_field<T: WireEncode>(
 }
 
 fn decode_array_field<T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
-    decode: impl Fn(&mut Decoder<'_, '_>) -> Result<T, WireError>,
+    decode: impl Fn(&mut Decoder<'_>) -> Result<T, WireError>,
 ) -> Result<Vec<T>, WireError> {
     decoder.field(field, |decoder| {
         decoder.decode_array(|decoder, _| decode(decoder))
@@ -93,7 +93,7 @@ fn encode_value_sum(
     encode_field(encoder, 1, value)
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         scoop_wire::WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),
@@ -101,11 +101,7 @@ fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
     )
 }
 
-fn require_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn require_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -123,11 +119,11 @@ mod tests {
 
     #[test]
     fn rejects_the_obsolete_seven_field_registration_surface() {
-        let error = scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(
-            &[0xa7],
-            scoop_wire::DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error =
+            scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(&[
+                0xa7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ])
+            .unwrap_err();
         assert!(matches!(
             error.kind(),
             scoop_wire::WireErrorKind::InvalidLength {

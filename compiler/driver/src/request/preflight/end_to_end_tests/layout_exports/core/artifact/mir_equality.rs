@@ -21,41 +21,14 @@ pub(super) fn check(
         strong,
         section,
     };
-    replay.validate(section.callables(), &mut meter()).unwrap();
+    replay.validate(section.callables()).unwrap();
     if !name.starts_with("shared-equality-") {
         return;
     }
     dump::check(&replay, name);
     mutations::check(&replay);
-    let mut measured = meter();
-    replay.validate(section.callables(), &mut measured).unwrap();
-    let mut shared = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay.validate(section.callables(), &mut shared).unwrap();
-    assert!(matches!(
-        replay.validate(section.callables(), &mut shared),
-        Err(Error::Resource(_))
-    ));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            replay.validate(
-                section.callables(),
-                &mut scoop_wire::BudgetMeter::new(limits)
-            ),
-            Err(Error::Resource(_))
-        ));
-    }
+
+    replay.validate(section.callables()).unwrap();
 }
 
 struct Replay<'a> {
@@ -66,12 +39,8 @@ struct Replay<'a> {
 }
 
 impl Replay<'_> {
-    fn validate(
-        &self,
-        callables: &mir::CanonicalMirCallableBindingsV1,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<(), Error> {
-        scoop_slib::validate_shared_mir_equality(self.source, &[], self.strong, callables, meter)
+    fn validate(&self, callables: &mir::CanonicalMirCallableBindingsV1) -> Result<(), Error> {
+        scoop_slib::validate_shared_mir_equality(self.source, &[], self.strong, callables)
     }
 
     fn resolve(
@@ -86,12 +55,7 @@ impl Replay<'_> {
             .unwrap();
         let mut identities = pending.finish().unwrap();
         decoded
-            .validate(
-                &mut identities,
-                self.foundation,
-                self.section.types(),
-                &mut meter(),
-            )
+            .validate(&mut identities, self.foundation, self.section.types())
             .expect("the mutation preserves MIR-local identity, signature and type validation")
     }
 }

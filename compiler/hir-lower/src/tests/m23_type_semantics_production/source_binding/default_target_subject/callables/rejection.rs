@@ -47,7 +47,7 @@ fn default_callable_roles_cannot_confuse_nested_bodies_or_source_declarations() 
             },
         ] {
             assert!(matches!(
-                foundation.default_callable_access_subject(&wrong, &mut meter()),
+                foundation.default_callable_access_subject(&wrong),
                 Err(Error::NestedRole(_))
             ));
         }
@@ -58,10 +58,7 @@ fn default_callable_roles_cannot_confuse_nested_bodies_or_source_declarations() 
         ] {
             assert_eq!(
                 foundation
-                    .default_callable_access_subject(
-                        &direct(Declaration::Generated(id)),
-                        &mut meter()
-                    )
+                    .default_callable_access_subject(&direct(Declaration::Generated(id)))
                     .unwrap(),
                 Access::Nested(expected)
             );
@@ -69,12 +66,9 @@ fn default_callable_roles_cannot_confuse_nested_bodies_or_source_declarations() 
         // Function-address routing proves identity only, not address eligibility.
         assert_eq!(
             foundation
-                .default_callable_access_subject(
-                    &Callable::FunctionAddress {
-                        declaration: plain.declaration()
-                    },
-                    &mut meter()
-                )
+                .default_callable_access_subject(&Callable::FunctionAddress {
+                    declaration: plain.declaration()
+                })
                 .unwrap(),
             Access::Declaration(Subject::Function(function))
         );
@@ -90,7 +84,7 @@ fn default_callable_roles_cannot_confuse_nested_bodies_or_source_declarations() 
             })
             .unwrap();
         assert!(
-            matches!(foundation.default_callable_access_subject(&direct(Declaration::Generated(generated_equality)), &mut meter()), Err(Error::CallableRole(Declaration::Generated(id))) if id == generated_equality)
+            matches!(foundation.default_callable_access_subject(&direct(Declaration::Generated(generated_equality))), Err(Error::CallableRole(Declaration::Generated(id))) if id == generated_equality)
         );
     });
 }
@@ -106,7 +100,7 @@ fn default_global_targets_reject_member_properties_and_absent_storage_declaratio
             .ordinary_id()
             .unwrap();
         assert!(
-            matches!(foundation.default_global_access_subject(member, &mut meter()), Err(Error::GlobalScope(id)) if id == member)
+            matches!(foundation.default_global_access_subject(member), Err(Error::GlobalScope(id)) if id == member)
         );
         let source = template(output, "global", 0);
         let id = *source.references().globals()[0].target();
@@ -115,10 +109,10 @@ fn default_global_targets_reject_member_properties_and_absent_storage_declaratio
         let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&artifact, &fixture.identities, &mut meter())
+            .bind_to_foundation(&artifact, &fixture.identities)
             .unwrap();
         assert!(
-            matches!(foundation.default_global_access_subject(id, &mut meter()), Err(Error::MissingDeclaration(Subject::Property(actual))) if actual == id)
+            matches!(foundation.default_global_access_subject(id), Err(Error::MissingDeclaration(Subject::Property(actual))) if actual == id)
         );
     });
 }

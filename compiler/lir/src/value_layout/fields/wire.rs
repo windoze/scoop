@@ -71,7 +71,7 @@ impl DecodedFieldStorageV1 {
 }
 
 impl WireDecode for DecodedFieldStorageV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let field = match tag {

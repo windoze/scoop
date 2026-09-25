@@ -11,7 +11,7 @@ use scoop_identity::{
     PersistentPropertyId, PersistentTypeId, PropertyAccessorKey, PropertyOwner, SignatureTypeKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -303,7 +303,7 @@ impl PropertyInterfaceSemanticAuthority<SemanticAuthorityError> for SemanticAuth
 }
 
 fn decode_table<T: WireEncode>(value: &T) -> DecodedCanonicalPropertyInterfacesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn top_level_site() -> SourceDeclarationSite {

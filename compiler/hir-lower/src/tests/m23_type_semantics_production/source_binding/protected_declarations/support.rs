@@ -41,17 +41,13 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn restore(
 ) {
     let bytes = encode(produced.required()).unwrap();
     let decoded: hir::DecodedCanonicalProtectedDeclarationRefsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let restored = decoded
-        .resolve(&mut fixture.identities, &mut meter())
-        .unwrap();
+        decode_canonical(&bytes).unwrap();
+    let restored = decoded.resolve(&mut fixture.identities).unwrap();
     assert_eq!(encode(&restored).unwrap(), bytes);
     let bytes = encode(produced.declarations()).unwrap();
     let decoded: hir::DecodedCanonicalProtectedDeclarationInterfacesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let declarations = decoded
-        .resolve(&mut fixture.identities, &mut meter())
-        .unwrap();
+        decode_canonical(&bytes).unwrap();
+    let declarations = decoded.resolve(&mut fixture.identities).unwrap();
     assert_eq!(encode(&declarations).unwrap(), bytes);
     let keys = hir::ProtectedDefaultKeyIndexV1::try_new(
         produced
@@ -63,20 +59,12 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn restore(
             .collect(),
     )
     .unwrap();
-    let bytes = encode(
-        &produced
-            .protocols()
-            .index_templates(&keys, &mut meter())
-            .unwrap(),
-    )
-    .unwrap();
+    let bytes = encode(&produced.protocols().index_templates(&keys).unwrap()).unwrap();
     let decoded: hir::DecodedCanonicalProtectedCallableSourceInterfacesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let protocols = decoded
-        .resolve(&mut fixture.identities, &keys, &mut meter())
-        .unwrap();
+        decode_canonical(&bytes).unwrap();
+    let protocols = decoded.resolve(&mut fixture.identities, &keys).unwrap();
     assert_eq!(
-        encode(&protocols.index_templates(&keys, &mut meter()).unwrap()).unwrap(),
+        encode(&protocols.index_templates(&keys).unwrap()).unwrap(),
         bytes
     );
     (declarations, protocols)

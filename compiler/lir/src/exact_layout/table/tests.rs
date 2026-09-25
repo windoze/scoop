@@ -1,8 +1,8 @@
 use scoop_identity::*;
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
-use crate::exact_layout::tests::{Bound, meter, unit};
+use crate::exact_layout::tests::{Bound, unit};
 use crate::*;
 
 fn fixture() -> (OdrFreeLirFoundation, Vec<ExactLayoutExportV1>) {
@@ -13,7 +13,6 @@ fn fixture() -> (OdrFreeLirFoundation, Vec<ExactLayoutExportV1>) {
         instance_bound.identity,
         &value,
         &instance_bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     let sources = [&value_bound.foundation, &instance_bound.foundation];
@@ -67,13 +66,8 @@ fn fixture() -> (OdrFreeLirFoundation, Vec<ExactLayoutExportV1>) {
 
 fn table() -> CanonicalExactLayoutExportsV1 {
     let (foundation, records) = fixture();
-    CanonicalExactLayoutExportsV1::try_new(
-        LirTargetProfile::DARWIN_AARCH64,
-        &foundation,
-        records,
-        &mut meter(),
-    )
-    .unwrap()
+    CanonicalExactLayoutExportsV1::try_new(LirTargetProfile::DARWIN_AARCH64, &foundation, records)
+        .unwrap()
 }
 
 fn decode_records(records: &[&ExactLayoutExportV1]) -> DecodedCanonicalExactLayoutExportsV1 {
@@ -87,7 +81,7 @@ fn decode_records(records: &[&ExactLayoutExportV1]) -> DecodedCanonicalExactLayo
             Ok(())
         }
     }
-    decode_canonical(&encode(&Records(records)).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(&Records(records)).unwrap()).unwrap()
 }
 
 #[test]
@@ -99,7 +93,6 @@ fn layout_table_canonicalizes_roles_without_collapsing_exact_identity() {
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
         records,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(expected, actual);
@@ -109,13 +102,10 @@ fn layout_table_canonicalizes_roles_without_collapsing_exact_identity() {
     for record in expected.records() {
         assert_eq!(expected.get(record.identity().layout()), Some(record));
     }
-    let raw = decode_canonical::<DecodedCanonicalExactLayoutExportsV1>(
-        &encode(&expected).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let raw = decode_canonical::<DecodedCanonicalExactLayoutExportsV1>(&encode(&expected).unwrap())
+        .unwrap();
     assert_eq!(encode(&raw).unwrap(), encode(&expected).unwrap());
-    let validated = raw.validate_against(&expected, &mut meter()).unwrap();
+    let validated = raw.validate_against(&expected).unwrap();
     assert!(Arc::ptr_eq(&validated.0, &expected.0));
 }
 
@@ -126,8 +116,7 @@ fn layout_table_rejects_duplicate_keys_and_foreign_or_incomplete_foundation() {
         CanonicalExactLayoutExportsV1::try_new(
             LirTargetProfile::DARWIN_AARCH64,
             &foundation,
-            vec![records[0].clone(), records[0].clone()],
-            &mut meter()
+            vec![records[0].clone(), records[0].clone()]
         ),
         Err(ExactLayoutTableError::Duplicate(_))
     ));
@@ -141,7 +130,6 @@ fn layout_table_rejects_duplicate_keys_and_foreign_or_incomplete_foundation() {
             LirTargetProfile::DARWIN_AARCH64,
             &empty,
             records.clone(),
-            &mut meter(),
         )
         .unwrap_err();
         assert_eq!(matches!(error, ExactLayoutTableError::Provider(_)), foreign);
@@ -158,12 +146,12 @@ fn layout_table_reader_rejects_reordering_duplication_and_omission() {
         decode_records(&[&records[0], &records[0]]),
         decode_records(&[&records[0]]),
     ] {
-        assert!(raw.validate_against(&expected, &mut meter()).is_err());
+        assert!(raw.validate_against(&expected).is_err());
     }
 }
 
 #[test]
-fn layout_table_preserves_empty_wire_and_charges_shared_work_before_sorting() {
+fn layout_table_preserves_empty_wire() {
     let foundation =
         OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
             .unwrap();
@@ -171,32 +159,9 @@ fn layout_table_preserves_empty_wire_and_charges_shared_work_before_sorting() {
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
         vec![],
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(encode(&empty).unwrap(), [0x80]);
-    let raw =
-        decode_canonical::<DecodedCanonicalExactLayoutExportsV1>(&[0x80], DecodeLimits::default())
-            .unwrap();
-    assert_eq!(raw.validate_against(&empty, &mut meter()).unwrap(), empty);
-    let (foundation, records) = fixture();
-    let limits = DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        CanonicalExactLayoutExportsV1::try_new(
-            LirTargetProfile::DARWIN_AARCH64,
-            &foundation,
-            records,
-            &mut BudgetMeter::new(limits)
-        ),
-        Err(ExactLayoutTableError::Resource(_))
-    ));
-    let expected = table();
-    let raw = decode_records(&expected.records().iter().collect::<Vec<_>>());
-    assert!(matches!(
-        raw.validate_against(&expected, &mut BudgetMeter::new(limits)),
-        Err(ExactLayoutTableError::Resource(_))
-    ));
+    let raw = decode_canonical::<DecodedCanonicalExactLayoutExportsV1>(&[0x80]).unwrap();
+    assert_eq!(raw.validate_against(&empty).unwrap(), empty);
 }

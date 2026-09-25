@@ -9,7 +9,7 @@ use scoop_identity::{
     SourceDeclarationSite, StaticStorageKey, StrongCallableDefinitionOwner, StrongDefinitionEntity,
     StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     DecodedEntryProductionPlanV1, EntryProductionPlanBuildError, EntryProductionPlanV1,
@@ -44,8 +44,7 @@ fn executable_plan_derives_the_complete_root_surface_and_round_trips() {
     );
 
     let bytes = encode(&plan).unwrap();
-    let decoded: DecodedEntryProductionPlanV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedEntryProductionPlanV1 = decode_canonical(&bytes).unwrap();
     let validated = decoded
         .validate(
             fixture.source,
@@ -76,8 +75,7 @@ fn library_plan_has_a_closed_empty_wire_branch() {
     .unwrap();
     assert_eq!(encode(&plan).unwrap(), b"\xa1\x00\x01");
 
-    let decoded: DecodedEntryProductionPlanV1 =
-        decode_canonical(b"\xa1\x00\x01", DecodeLimits::default()).unwrap();
+    let decoded: DecodedEntryProductionPlanV1 = decode_canonical(b"\xa1\x00\x01").unwrap();
     assert_eq!(
         decoded
             .validate(
@@ -133,7 +131,7 @@ fn reader_rebuilds_the_whole_branch_instead_of_promoting_ids() {
     )
     .unwrap();
     let mut decoded: DecodedEntryProductionPlanV1 =
-        decode_canonical(&encode(&plan).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&plan).unwrap()).unwrap();
     let DecodedEntryProductionPlanV1::Executable(entry) = &mut decoded else {
         panic!("fixture is executable")
     };

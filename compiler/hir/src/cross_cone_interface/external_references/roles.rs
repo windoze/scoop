@@ -65,7 +65,7 @@ impl WireEncode for ExternalHirReferenceRoleV1 {
 }
 
 impl WireDecode for ExternalHirReferenceRoleV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ReexportTarget),
             2 => Ok(Self::SignatureDependency),
@@ -173,7 +173,7 @@ impl WireEncode for DecodedCanonicalExternalHirReferenceRolesV1 {
 }
 
 impl WireDecode for DecodedCanonicalExternalHirReferenceRolesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| ExternalHirReferenceRoleV1::decode(decoder))
             .map(|roles| Self { roles })

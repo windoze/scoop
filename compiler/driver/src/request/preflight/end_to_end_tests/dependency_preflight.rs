@@ -36,7 +36,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         vec![dependency_path.clone()],
         Vec::new(),
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap_err();
     assert!(matches!(
         error,
@@ -60,7 +60,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         vec![malformed],
         Vec::new(),
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap_err();
     assert!(matches!(
         error,
@@ -87,7 +87,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         Vec::new(),
         Vec::new(),
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap_err();
     assert!(matches!(
         error,
@@ -114,7 +114,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         vec![dependency_path.clone(), dependency_path.clone()],
         Vec::new(),
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap_err();
     assert!(matches!(
         error,
@@ -140,7 +140,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         Vec::new(),
         vec![dependency_path],
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap_err();
     assert!(matches!(
         error,
@@ -163,7 +163,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         Vec::new(),
         vec![core.artifact().path().to_path_buf()],
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap_err();
     assert!(
         matches!(
@@ -211,7 +211,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         vec![executable.artifact().path().to_path_buf()],
         Vec::new(),
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap_err();
     assert!(matches!(
         error,

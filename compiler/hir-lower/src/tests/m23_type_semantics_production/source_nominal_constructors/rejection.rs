@@ -48,7 +48,7 @@ fn nominal_constructor_projection_rejects_missing_or_inconsistent_parameters() {
                 hir::ExportHirOutput::try_new(module, export.output_kind().clone()).unwrap();
             assert!(
                 matches!(
-                    Table::from_export_hir(&forged, &required, &mut meter()),
+                    Table::from_export_hir(&forged, &required),
                     Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
                 ),
                 "{corruption}"
@@ -66,7 +66,7 @@ fn nominal_constructor_projection_rejects_missing_required_declarations() {
         let mut required = required(output);
         required.insert(foreign);
         assert!(
-            matches!(Table::from_export_hir(&output.output().export, &required, &mut meter()),
+            matches!(Table::from_export_hir(&output.output().export, &required),
             Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(message))
                 if message == "required nominal source constructor has no sealed declaration")
         );
@@ -90,9 +90,7 @@ fn nominal_constructor_varargs_keep_the_array_value_type_and_host_binder() {
         .source_record()
         .unwrap()
         .id();
-    let source =
-        Table::from_export_hir(&output.export, &BTreeSet::from([declaration]), &mut meter())
-            .unwrap();
+    let source = Table::from_export_hir(&output.export, &BTreeSet::from([declaration])).unwrap();
     let record = source.get(declaration).unwrap();
     let value = record.payload().parameters().parameters()[0].value_type();
     let SignatureTypeKey::NominalApplication { origin, arguments } = value else {
@@ -151,7 +149,7 @@ fn nominal_constructor_projection_rejects_a_different_owner_or_self_result() {
             let forged =
                 hir::ExportHirOutput::try_new(module, export.output_kind().clone()).unwrap();
             assert!(matches!(
-                Table::from_export_hir(&forged, &required, &mut meter()),
+                Table::from_export_hir(&forged, &required),
                 Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
             ));
         }

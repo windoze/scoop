@@ -4,10 +4,7 @@ use scoop_identity::{
     CapabilityIdError, CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId,
     TargetProfileWireId,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError, WireErrorKind,
-    WirePath,
-};
+use scoop_wire::{Decoder, Digest256, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
     ExtensionRequirement, LogicalMemberKey, LogicalMemberKeyError, MemberStableKey, SlibMemberId,
@@ -30,7 +27,7 @@ impl WireEncode for DecodedLogicalMemberKey {
 }
 
 impl WireDecode for DecodedLogicalMemberKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.owned_bytes().map(Self)
     }
 }
@@ -120,7 +117,7 @@ impl WireEncode for DecodedMemberStableKey {
 }
 
 impl WireDecode for DecodedMemberStableKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -301,7 +298,7 @@ impl WireEncode for DecodedSlibMemberRole {
 }
 
 impl WireDecode for DecodedSlibMemberRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -359,7 +356,7 @@ impl WireEncode for DecodedSlibMemberId {
 }
 
 impl WireDecode for DecodedSlibMemberId {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let bytes = decoder.bytes()?;
         let fixed = <&[u8; 32]>::try_from(bytes).map_err(|_| {
             wire_error(
@@ -387,8 +384,6 @@ impl DecodedSlibMemberRecord {
     pub fn validate(
         self,
         cone: scoop_identity::ConeIdentity,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<SlibMemberRecord, SlibMemberRecordValidationError> {
         let stable_key = self
             .stable_key
@@ -399,11 +394,7 @@ impl DecodedSlibMemberRecord {
             .validate()
             .map_err(SlibMemberRecordValidationError::Role)?;
         validate_key_role(&stable_key, &role).map_err(SlibMemberRecordValidationError::KeyRole)?;
-        let stream_length = SlibMemberId::hash_stream_length(&stable_key)
-            .map_err(SlibMemberRecordValidationError::Hash)?;
-        meter
-            .charge_sha256(stream_length, path)
-            .map_err(SlibMemberRecordValidationError::Resource)?;
+
         let expected = SlibMemberId::from_stable_key(cone, &stable_key)
             .map_err(SlibMemberRecordValidationError::Hash)?;
         if self.id.0 != *expected.as_array() {
@@ -439,7 +430,7 @@ impl WireEncode for DecodedSlibMemberRecord {
 }
 
 impl WireDecode for DecodedSlibMemberRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             id: decoder.field(1, DecodedSlibMemberId::decode)?,
@@ -543,11 +534,7 @@ fn validate_wire_schema(wire_schema: u32) -> Result<(), SlibMemberRoleValidation
     }
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -558,7 +545,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

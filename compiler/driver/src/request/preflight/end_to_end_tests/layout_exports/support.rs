@@ -73,7 +73,7 @@ pub(super) fn with_pair(
         vec![],
         vec![],
     )
-    .load_preflight(DecodeLimits::default())
+    .load_preflight()
     .unwrap();
     let request = loaded.validate().unwrap();
     let parsed = request.parse_current_sources().unwrap();
@@ -120,31 +120,22 @@ pub(super) fn with_pair(
     let string = closure
         .project_source_type_descriptor(source_string.provider(), source_string.persistent())
         .unwrap();
-    let front = DecodedSlibEnvelope::open(
-        core_bytes,
-        DecodeLimits::default(),
-        target.lir_target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap()
-    .decode_cross_cone_hir_front_sections()
-    .unwrap();
+    let front = DecodedSlibEnvelope::open(core_bytes, target.lir_target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
     let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
     let coordinates = [front.coordinate().clone(), coordinate.clone()];
     let (source_graph, _, _) = identities(&hir.hir, &mir.strong, None, &front);
-    let diagnostics = scoop_identity::ExactTypeDiagnosticCatalog::try_new(
-        &source_graph,
-        &coordinates,
-        &mut meter(),
-    )
-    .unwrap();
+    let diagnostics =
+        scoop_identity::ExactTypeDiagnosticCatalog::try_new(&source_graph, &coordinates).unwrap();
     let dependency_layouts = match (provider_exports, layout_provider) {
         (Some((_, layout)), Some(provider)) => physical::select(&mir.strong, layout, provider),
         _ => lir::StrongProductionDependencySelectionV2::empty(
             mir.strong.module().cone,
             target.lir_target(),
-            &mut meter(),
         )
         .unwrap(),
     };
@@ -157,7 +148,6 @@ pub(super) fn with_pair(
             target.lir_target(),
             &dependency_layouts,
             &diagnostics,
-            &mut meter(),
         ),
         None => scoop_lir_lower::lower_with_diagnostics(
             &mir.strong,
@@ -165,7 +155,6 @@ pub(super) fn with_pair(
             &selected,
             target.lir_target(),
             &diagnostics,
-            &mut meter(),
         ),
     }
     .unwrap();
@@ -189,7 +178,6 @@ pub(super) fn with_pair(
             foundation: &core_hir,
             public: core.production().hir_interface(),
         }],
-        &mut meter(),
     )
     .unwrap();
     let types = match provider_exports {
@@ -218,16 +206,11 @@ pub(super) fn with_pair(
         callables: &mir_callables,
         dispatch: &dispatch,
     };
-    let bridge =
-        scoop_mir_lower::lower_type_bridge_exports(input, dependencies, &mut meter()).unwrap();
-    let projected = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-        input,
-        dependencies,
-        &mut meter(),
-    )
-    .unwrap();
+    let bridge = scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
+    let projected =
+        scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(input, dependencies).unwrap();
     bridge
-        .validate_sources(mir.strong.module().cone, &graph, &projected, &mut meter())
+        .validate_sources(mir.strong.module().cone, &graph, &projected)
         .unwrap();
     let uses =
         mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&projected).unwrap();
@@ -263,7 +246,6 @@ pub(super) fn with_pair(
             lir::EntryProductionSourceV1::Library,
             &dependency_layouts,
             &[],
-            &mut meter(),
         )
         .unwrap();
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {
@@ -286,7 +268,6 @@ pub(super) fn with_pair(
             input,
             dependencies,
             &projected,
-            &mut meter(),
         )
         .err()
         .unwrap();

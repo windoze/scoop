@@ -4,7 +4,7 @@ use crate::{
     DecodedCanonicalProtectedDeclarationRefsV1, DecodedNominalAccessDomainsV1,
     DecodedNominalInheritanceEdgesV1, InheritanceSlotResolver, NestedSourceInterfaceResolver,
 };
-use scoop_wire::{BudgetMeter, Decoder, WireDecode, WireError, WirePath};
+use scoop_wire::{Decoder, WireDecode, WireError};
 
 pub trait NominalInheritanceInterfaceResolver<E>:
     InheritanceSlotResolver<E> + NestedSourceInterfaceResolver<E>
@@ -28,45 +28,22 @@ impl DecodedNominalInheritanceInterfaceV1 {
     pub fn resolve<R: NominalInheritanceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalInheritanceInterfaceV1, InheritanceInterfaceResolutionError<E>> {
         use InheritanceInterfaceResolutionError as Error;
-        let path = WirePath::root();
-        meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-        let edges = self
-            .edges
-            .resolve_metered(resolver, meter)
-            .map_err(Error::Edges)?;
-        let domains = self
-            .domains
-            .resolve_metered(resolver, meter)
-            .map_err(Error::Domains)?;
-        let constructors = self.constructors.resolve(resolver, meter)?;
-        let slots = self.slots.resolve(resolver, meter).map_err(Error::Slots)?;
+
+        let edges = self.edges.resolve(resolver).map_err(Error::Edges)?;
+        let domains = self.domains.resolve(resolver).map_err(Error::Domains)?;
+        let constructors = self.constructors.resolve(resolver)?;
+        let slots = self.slots.resolve(resolver).map_err(Error::Slots)?;
         let members = self
             .protected_members
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Members)?;
         let schemas = self
             .slot_schemas
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Schemas)?;
-        let count = schemas.records().iter().fold(0_u64, |count, schema| {
-            count.saturating_add(schema.slots().len() as u64)
-        });
-        meter
-            .charge_collection_slots(count, &path)
-            .map_err(Error::Resource)?;
-        let comparisons = (u64::BITS - count.leading_zeros()) as u64;
-        meter
-            .charge_work(
-                count
-                    .saturating_mul(comparisons.saturating_add(1))
-                    .saturating_add(members.values().len() as u64)
-                    .saturating_add(slots.records().len() as u64),
-                &path,
-            )
-            .map_err(Error::Resource)?;
+
         NominalInheritanceInterfaceV1::try_new(
             edges,
             domains,
@@ -79,7 +56,7 @@ impl DecodedNominalInheritanceInterfaceV1 {
     }
 }
 impl WireDecode for DecodedNominalInheritanceInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(9)?;
         Ok(Self {
             edges: DecodedNominalInheritanceEdgesV1::decode_fields(decoder)?,

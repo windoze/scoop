@@ -28,7 +28,7 @@ fn value_access_uses_the_actual_provider_even_when_local_name_and_shape_match() 
     let identities = decoded
         .validate_foundation_identities([&provider.identities])
         .unwrap();
-    let mut front = decoded
+    let front = decoded
         .validate_foundation_structure(identities)
         .unwrap()
         .resolve_hir_interface()
@@ -53,7 +53,6 @@ fn value_access_uses_the_actual_provider_even_when_local_name_and_shape_match() 
             &front.foundations.hir,
             &front.hir_interface,
             dependencies,
-            front.graph.envelope.meter_mut(),
         )
         .validate_default_value_access();
         if supplied {

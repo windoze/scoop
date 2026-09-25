@@ -5,7 +5,7 @@ use scoop_identity::{
     ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode, encode_runtime};
+use scoop_wire::{decode_canonical, encode, encode_runtime};
 
 use super::{ConeImagePlanBuildError, ConeImagePlanV1, ConeRecordV1, DecodedConeImagePlanV1};
 use crate::{
@@ -44,8 +44,7 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     );
 
     let bytes = encode(&plan).unwrap();
-    let decoded: DecodedConeImagePlanV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedConeImagePlanV1 = decode_canonical(&bytes).unwrap();
     let validated = decoded
         .validate(
             &coordinate,
@@ -121,8 +120,7 @@ fn reader_rejects_a_coordinate_from_another_cone() {
         &digest_plan,
     )
     .unwrap();
-    let decoded: DecodedConeImagePlanV1 =
-        decode_canonical(&encode(&plan).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedConeImagePlanV1 = decode_canonical(&encode(&plan).unwrap()).unwrap();
 
     assert!(
         decoded

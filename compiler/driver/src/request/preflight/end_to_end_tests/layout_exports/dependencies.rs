@@ -78,19 +78,17 @@ pub(super) fn layouts(
             graph.canonical_record(ty.exact()).unwrap(),
             RepresentationRole::ManagedValue,
             foundation,
-            &mut meter(),
         )
         .unwrap();
         let record = match ty.representation() {
             mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit) => {
-                lir::ExactValueLayoutV1::unit(identity, foundation, &mut meter())
+                lir::ExactValueLayoutV1::unit(identity, foundation)
             }
             mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Boolean) => {
                 lir::ExactValueLayoutV1::scalar(
                     identity,
                     lir::ScalarRepresentationKindV1::Boolean,
                     foundation,
-                    &mut meter(),
                 )
             }
             mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::String)
@@ -99,7 +97,6 @@ pub(super) fn layouts(
                     identity,
                     lir::NichePointerKind::Managed,
                     foundation,
-                    &mut meter(),
                 )
             }
             _ => panic!("fixture primitive dependency"),
@@ -107,5 +104,5 @@ pub(super) fn layouts(
         .unwrap();
         records.push(record.into());
     }
-    lir::CanonicalExactLayoutExportsV1::try_new(target, foundation, records, &mut meter()).unwrap()
+    lir::CanonicalExactLayoutExportsV1::try_new(target, foundation, records).unwrap()
 }

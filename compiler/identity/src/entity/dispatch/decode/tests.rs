@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,
@@ -75,7 +75,7 @@ fn all_dispatch_slot_records_round_trip_and_resolve() {
         let record = CborIdentityRecord::<PersistentDispatchSlotId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentDispatchSlotId, DecodedDispatchSlotKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap(),
@@ -95,7 +95,7 @@ fn both_dispatch_table_records_round_trip_and_resolve() {
         let record = CborIdentityRecord::<PersistentDispatchTableId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentDispatchTableId, DecodedDispatchTableKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap(),
@@ -108,9 +108,7 @@ fn both_dispatch_table_records_round_trip_and_resolve() {
 fn slot_resolution_rejects_owner_role_mismatches() {
     let mut function_bytes = encode(&DispatchSlotKey::virtual_method(function())).unwrap();
     *function_bytes.last_mut().unwrap() = 3;
-    let function_key =
-        decode_canonical::<DecodedDispatchSlotKey>(&function_bytes, DecodeLimits::default())
-            .unwrap();
+    let function_key = decode_canonical::<DecodedDispatchSlotKey>(&function_bytes).unwrap();
     assert_eq!(
         function_key.resolve(&mut Resolver),
         Err(DispatchIdentityResolutionError::InvalidFunctionRole(
@@ -120,9 +118,7 @@ fn slot_resolution_rejects_owner_role_mismatches() {
 
     let mut accessor_bytes = encode(&DispatchSlotKey::property_getter(accessor())).unwrap();
     *accessor_bytes.last_mut().unwrap() = 1;
-    let accessor_key =
-        decode_canonical::<DecodedDispatchSlotKey>(&accessor_bytes, DecodeLimits::default())
-            .unwrap();
+    let accessor_key = decode_canonical::<DecodedDispatchSlotKey>(&accessor_bytes).unwrap();
     assert_eq!(
         accessor_key.resolve(&mut Resolver),
         Err(DispatchIdentityResolutionError::InvalidAccessorRole(
@@ -136,9 +132,7 @@ fn table_resolution_rejects_role_interface_mismatches() {
     let mut vtable_bytes = encode(&DispatchTableKey::vtable(exact_type())).unwrap();
     assert_eq!(vtable_bytes[37], 1);
     vtable_bytes[37] = 2;
-    let vtable_key =
-        decode_canonical::<DecodedDispatchTableKey>(&vtable_bytes, DecodeLimits::default())
-            .unwrap();
+    let vtable_key = decode_canonical::<DecodedDispatchTableKey>(&vtable_bytes).unwrap();
     assert_eq!(
         vtable_key.resolve(&mut Resolver),
         Err(DispatchIdentityResolutionError::ITableInterfaceAbsent)
@@ -147,9 +141,7 @@ fn table_resolution_rejects_role_interface_mismatches() {
     let mut itable_bytes = encode(&DispatchTableKey::itable(exact_type(), interface())).unwrap();
     assert_eq!(itable_bytes[37], 2);
     itable_bytes[37] = 1;
-    let itable_key =
-        decode_canonical::<DecodedDispatchTableKey>(&itable_bytes, DecodeLimits::default())
-            .unwrap();
+    let itable_key = decode_canonical::<DecodedDispatchTableKey>(&itable_bytes).unwrap();
     assert_eq!(
         itable_key.resolve(&mut Resolver),
         Err(DispatchIdentityResolutionError::VTableInterfacePresent)
@@ -158,16 +150,13 @@ fn table_resolution_rejects_role_interface_mismatches() {
 
 #[test]
 fn dispatch_decoder_rejects_unknown_tags() {
-    let slot_role = decode_canonical::<DispatchRole>(b"\x05", DecodeLimits::default()).unwrap_err();
+    let slot_role = decode_canonical::<DispatchRole>(b"\x05").unwrap_err();
     assert_eq!(slot_role.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let table_role =
-        decode_canonical::<DispatchTableRole>(b"\x03", DecodeLimits::default()).unwrap_err();
+    let table_role = decode_canonical::<DispatchTableRole>(b"\x03").unwrap_err();
     assert_eq!(table_role.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let interface =
-        decode_canonical::<DecodedOptionalExactInterface>(b"\xa1\x00\x03", DecodeLimits::default())
-            .unwrap_err();
+    let interface = decode_canonical::<DecodedOptionalExactInterface>(b"\xa1\x00\x03").unwrap_err();
     assert_eq!(interface.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 

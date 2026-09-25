@@ -13,15 +13,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(super) fn process_expression(
         &mut self,
         expression: &'body DefaultExpressionV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        self.process_expression_kind(
-            expression.kind(),
-            expression.definition_origin(),
-            depth,
-            pending,
-        )?;
+        self.process_expression_kind(expression.kind(), expression.definition_origin(), pending)?;
         self.push_type(
             pending,
             expression.result_type(),
@@ -34,7 +28,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         kind: &'body DefaultExpressionKindV1,
         origin: &'body crate::ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match kind {
@@ -58,7 +51,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             ),
             DefaultExpressionKindV1::TupleLiteral(elements)
             | DefaultExpressionKindV1::ArrayLiteral(elements) => {
-                self.push_expressions(pending, depth, elements)
+                self.push_expressions(pending, elements)
             }
             DefaultExpressionKindV1::StructInit {
                 constructor,
@@ -68,10 +61,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 constructor,
                 arguments,
             } => {
-                self.push_expressions(pending, depth, arguments)?;
+                self.push_expressions(pending, arguments)?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::ConstructorUse {
                         target: ConstructorTargetView::Constructor(constructor),
                         origin,
@@ -80,7 +72,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )
             }
             DefaultExpressionKindV1::StructConstruct { owner_type, fields } => {
-                self.push_expressions(pending, depth, fields)?;
+                self.push_expressions(pending, fields)?;
                 self.push_type(
                     pending,
                     owner_type,
@@ -89,10 +81,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )
             }
             DefaultExpressionKindV1::VariantConstruct { variant, arguments } => {
-                self.push_expressions(pending, depth, arguments)?;
+                self.push_expressions(pending, arguments)?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::ConstructorUse {
                         target: ConstructorTargetView::Variant(variant),
                         origin,
@@ -103,38 +94,34 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             DefaultExpressionKindV1::VariantTest { operand, variant } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::ConstructorUse {
                         target: ConstructorTargetView::Variant(variant),
                         origin,
                         site: ExportDefaultReferenceOccurrenceSiteV1::Expression,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(operand))
+                self.push_child(pending, BodyNode::Expression(operand))
             }
             DefaultExpressionKindV1::VariantPayloadProject { operand, field } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::VariantFieldShape {
                         field,
                         origin,
                         site: DefaultBodyProviderTypeSiteV1::EnumVariantFieldOwner,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(operand))
+                self.push_child(pending, BodyNode::Expression(operand))
             }
             DefaultExpressionKindV1::Lambda(lambda) => {
-                self.push_child(pending, depth, BodyNode::Lambda { lambda, origin })
+                self.push_child(pending, BodyNode::Lambda { lambda, origin })
             }
             DefaultExpressionKindV1::AnonymousFunction(function) => {
-                self.push_child(pending, depth, BodyNode::Anonymous { function, origin })
+                self.push_child(pending, BodyNode::Anonymous { function, origin })
             }
-            DefaultExpressionKindV1::CallableReference(reference) => self.push_child(
-                pending,
-                depth,
-                BodyNode::CallableReference { reference, origin },
-            ),
+            DefaultExpressionKindV1::CallableReference(reference) => {
+                self.push_child(pending, BodyNode::CallableReference { reference, origin })
+            }
             DefaultExpressionKindV1::FunctionCoercion {
                 source,
                 source_function_type,
@@ -152,7 +139,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     DefaultBodyProviderTypeSiteV1::FunctionCoercionSource,
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(source))
+                self.push_child(pending, BodyNode::Expression(source))
             }
             DefaultExpressionKindV1::PtrFromNonZeroULong(operand)
             | DefaultExpressionKindV1::PtrToULong(operand)
@@ -166,20 +153,20 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | DefaultExpressionKindV1::SomeWrap(operand)
             | DefaultExpressionKindV1::IsSome(operand)
             | DefaultExpressionKindV1::Unwrap { operand, .. } => {
-                self.push_child(pending, depth, BodyNode::Expression(operand))
+                self.push_child(pending, BodyNode::Expression(operand))
             }
             DefaultExpressionKindV1::PtrLoad { pointer, offset } => {
-                self.push_optional_expression(pending, depth, offset.as_ref())?;
-                self.push_child(pending, depth, BodyNode::Expression(pointer))
+                self.push_optional_expression(pending, offset.as_ref())?;
+                self.push_child(pending, BodyNode::Expression(pointer))
             }
             DefaultExpressionKindV1::PtrStore {
                 pointer,
                 offset,
                 value,
             } => {
-                self.push_child(pending, depth, BodyNode::Expression(value))?;
-                self.push_optional_expression(pending, depth, offset.as_ref())?;
-                self.push_child(pending, depth, BodyNode::Expression(pointer))
+                self.push_child(pending, BodyNode::Expression(value))?;
+                self.push_optional_expression(pending, offset.as_ref())?;
+                self.push_child(pending, BodyNode::Expression(pointer))
             }
             DefaultExpressionKindV1::PtrOffset {
                 pointer, offset, ..
@@ -189,8 +176,8 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 index: offset,
                 ..
             } => {
-                self.push_child(pending, depth, BodyNode::Expression(offset))?;
-                self.push_child(pending, depth, BodyNode::Expression(pointer))
+                self.push_child(pending, BodyNode::Expression(offset))?;
+                self.push_child(pending, BodyNode::Expression(pointer))
             }
             DefaultExpressionKindV1::AddressOf(place) => match place {
                 DefaultPlaceV1::Local { .. } => Ok(()),
@@ -220,22 +207,21 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 ExportDefaultReferenceOccurrenceSiteV1::Expression,
             ),
             DefaultExpressionKindV1::ForeignCallbackRegister { closure, .. } => {
-                self.push_child(pending, depth, BodyNode::Expression(closure))
+                self.push_child(pending, BodyNode::Expression(closure))
             }
             DefaultExpressionKindV1::ForeignCallbackOperation { callback, .. } => {
-                self.push_child(pending, depth, BodyNode::Expression(callback))
+                self.push_child(pending, BodyNode::Expression(callback))
             }
             DefaultExpressionKindV1::FieldAccess { receiver, field } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::FieldUse {
                         target: super::super::FieldTargetView::Field(field),
                         origin,
                         site: ExportDefaultReferenceOccurrenceSiteV1::Expression,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
             DefaultExpressionKindV1::MethodCall {
                 receiver,
@@ -247,9 +233,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 callee,
                 arguments,
             } => {
-                self.push_expressions(pending, depth, arguments)?;
-                self.push_child(pending, depth, BodyNode::MethodCallee { callee, origin })?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_expressions(pending, arguments)?;
+                self.push_child(pending, BodyNode::MethodCallee { callee, origin })?;
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
             DefaultExpressionKindV1::IsInstance {
                 operand,
@@ -266,10 +252,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     DefaultBodyProviderTypeSiteV1::InstanceCheck,
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(operand))
+                self.push_child(pending, BodyNode::Expression(operand))
             }
             DefaultExpressionKindV1::ArrayAssembly(assembly) => {
-                self.push_child(pending, depth, BodyNode::ArrayAssembly { assembly, origin })
+                self.push_child(pending, BodyNode::ArrayAssembly { assembly, origin })
             }
             DefaultExpressionKindV1::ArraySet {
                 receiver,
@@ -277,9 +263,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 value,
                 ..
             } => {
-                self.push_child(pending, depth, BodyNode::Expression(value))?;
-                self.push_child(pending, depth, BodyNode::Expression(index))?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::Expression(value))?;
+                self.push_child(pending, BodyNode::Expression(index))?;
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
             DefaultExpressionKindV1::Call {
                 callee,
@@ -294,10 +280,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                         DefaultBodyProviderTypeSiteV1::CallReceiver,
                     )?;
                 }
-                self.push_expressions(pending, depth, arguments)?;
+                self.push_expressions(pending, arguments)?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::CallableUse {
                         callable: callee,
                         origin,
@@ -310,11 +295,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 captures,
                 arguments,
             } => {
-                self.push_expressions(pending, depth, arguments)?;
-                self.push_expressions(pending, depth, captures)?;
+                self.push_expressions(pending, arguments)?;
+                self.push_expressions(pending, captures)?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::CallableUse {
                         callable: callee,
                         origin,
@@ -332,25 +316,25 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 function_type,
                 arguments,
             } => {
-                self.push_expressions(pending, depth, arguments)?;
+                self.push_expressions(pending, arguments)?;
                 self.push_type(
                     pending,
                     function_type,
                     origin,
                     DefaultBodyProviderTypeSiteV1::CallableCallFunction,
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(callee))
+                self.push_child(pending, BodyNode::Expression(callee))
             }
             DefaultExpressionKindV1::PrimitiveBinary { lhs, rhs, .. }
             | DefaultExpressionKindV1::Binary { lhs, rhs, .. } => {
-                self.push_child(pending, depth, BodyNode::Expression(rhs))?;
-                self.push_child(pending, depth, BodyNode::Expression(lhs))
+                self.push_child(pending, BodyNode::Expression(rhs))?;
+                self.push_child(pending, BodyNode::Expression(lhs))
             }
             DefaultExpressionKindV1::IntegerOperation { arguments, .. } => {
-                self.push_child(pending, depth, BodyNode::IntegerArguments(arguments))
+                self.push_child(pending, BodyNode::IntegerArguments(arguments))
             }
             DefaultExpressionKindV1::IntegerConversion { operand, .. } => {
-                self.push_child(pending, depth, BodyNode::Expression(operand))
+                self.push_child(pending, BodyNode::Expression(operand))
             }
         }
     }
@@ -358,11 +342,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn push_optional_expression(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         expression: Option<&'body DefaultExpressionV1>,
     ) -> Result<(), V::Error> {
         match expression {
-            Some(expression) => self.push_child(pending, depth, BodyNode::Expression(expression)),
+            Some(expression) => self.push_child(pending, BodyNode::Expression(expression)),
             None => Ok(()),
         }
     }
@@ -370,11 +353,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(super) fn push_expressions(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         expressions: &'body [DefaultExpressionV1],
     ) -> Result<(), V::Error> {
         for expression in expressions.iter().rev() {
-            self.push_child(pending, depth, BodyNode::Expression(expression))?;
+            self.push_child(pending, BodyNode::Expression(expression))?;
         }
         Ok(())
     }
@@ -383,7 +365,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         assembly: &'body DefaultArrayAssemblyV1,
         origin: &'body crate::ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         self.push_type(
@@ -397,7 +378,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 DefaultArrayAssemblyPartV1::Element(expression)
                 | DefaultArrayAssemblyPartV1::CopyArray(expression) => expression,
             };
-            self.push_child(pending, depth, BodyNode::Expression(expression))?;
+            self.push_child(pending, BodyNode::Expression(expression))?;
         }
         self.push_type(
             pending,
@@ -410,16 +391,15 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(super) fn process_integer_arguments(
         &mut self,
         arguments: &'body DefaultIntegerArgumentsV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match arguments {
             DefaultIntegerArgumentsV1::Unary(operand) => {
-                self.push_child(pending, depth, BodyNode::Expression(operand))
+                self.push_child(pending, BodyNode::Expression(operand))
             }
             DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
-                self.push_child(pending, depth, BodyNode::Expression(rhs))?;
-                self.push_child(pending, depth, BodyNode::Expression(lhs))
+                self.push_child(pending, BodyNode::Expression(rhs))?;
+                self.push_child(pending, BodyNode::Expression(lhs))
             }
         }
     }

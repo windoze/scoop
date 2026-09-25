@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use scoop_identity::{ConeIdentity, DefinitionOriginRecord, SourceIdentity};
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_identity::{ConeIdentity, DefinitionOriginRecord};
+use scoop_wire::WirePath;
 
 use super::{
     DefinitionOriginValidationError, HirFoundationValidationError, OriginExpectation,
@@ -15,18 +15,15 @@ pub(super) fn validate_records(
     sources: &[SourceRecord],
     requirements: OriginRequirements<'_>,
     origins: &[DefinitionOriginRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<(), HirFoundationValidationError> {
     let source_path = WirePath::root().field(1);
     let mut source_records = HashMap::new();
-    meter
-        .try_reserve_map_slots(&mut source_records, sources.len(), &source_path)
+    scoop_wire::allocation::try_reserve_map(&mut source_records, sources.len(), &source_path)
         .map_err(HirFoundationValidationError::Resource)?;
     source_records.extend(sources.iter().map(|source| (source.identity(), source)));
     let origin_path = WirePath::root().field(29);
     let mut actual = HashMap::new();
-    meter
-        .try_reserve_map_slots(&mut actual, origins.len(), &origin_path)
+    scoop_wire::allocation::try_reserve_map(&mut actual, origins.len(), &origin_path)
         .map_err(HirFoundationValidationError::Resource)?;
     for record in origins {
         if actual.insert(record.subject(), record).is_some() {
@@ -79,8 +76,8 @@ pub(super) fn validate_records(
                 if let Some(expected) = exact
                     && source != *expected
                 {
-                    let expected = copy_source_for_error(expected, meter, &origin_path)?;
-                    let actual = copy_source_for_error(source, meter, &origin_path)?;
+                    let expected = Box::new((*expected).clone());
+                    let actual = Box::new((source).clone());
                     return Err(DefinitionOriginValidationError::SourceMismatch {
                         subject,
                         expected,
@@ -97,8 +94,8 @@ pub(super) fn validate_records(
                 };
                 let expected = anchor_record.origin().source();
                 if source != expected {
-                    let expected = copy_source_for_error(expected, meter, &origin_path)?;
-                    let actual = copy_source_for_error(source, meter, &origin_path)?;
+                    let expected = Box::new((expected).clone());
+                    let actual = Box::new((source).clone());
                     return Err(DefinitionOriginValidationError::SourceMismatch {
                         subject,
                         expected,
@@ -111,7 +108,7 @@ pub(super) fn validate_records(
         let Some(source_record) = source_records.get(source) else {
             return Err(DefinitionOriginValidationError::UnknownSource {
                 subject,
-                source: copy_source_for_error(source, meter, &origin_path)?,
+                source: Box::new((source).clone()),
             }
             .into());
         };
@@ -119,29 +116,11 @@ pub(super) fn validate_records(
         if let Err(error) = source_record.require_points([span.start_byte(), span.end_byte()]) {
             return Err(DefinitionOriginValidationError::MissingPoint {
                 subject,
-                source: copy_source_for_error(source, meter, &origin_path)?,
+                source: Box::new((source).clone()),
                 byte_offset: error.byte_offset,
             }
             .into());
         }
     }
     Ok(())
-}
-
-fn copy_source_for_error(
-    source: &SourceIdentity,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<Box<SourceIdentity>, HirFoundationValidationError> {
-    let owned_bytes = u64::try_from(source.logical_path().as_str().len()).map_err(|_| {
-        HirFoundationValidationError::Resource(WireError::new(
-            WireErrorKind::IntegerOutOfRange,
-            path.clone(),
-            None,
-        ))
-    })?;
-    meter
-        .charge_owned_bytes(owned_bytes, path)
-        .map_err(HirFoundationValidationError::Resource)?;
-    Ok(Box::new(source.clone()))
 }

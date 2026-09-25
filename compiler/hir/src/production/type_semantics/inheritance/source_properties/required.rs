@@ -6,19 +6,16 @@ pub(super) fn project(
     export: &ExportHir,
     inventory: &CanonicalSourceInheritanceInventoriesV1,
     selections: &CanonicalInheritanceSourceSlotSelectionsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<BTreeSet<PersistentPropertyId>, Error> {
     let mut properties = BTreeSet::new();
     let mut accessors: BTreeSet<PersistentPropertyAccessorId> = BTreeSet::new();
     for owner in inventory.records() {
-        work(meter, 1)?;
         for member in owner.protected_members().values() {
-            work(meter, 1)?;
             match member {
-                ProtectedDeclarationRefV1::Property(id) => insert(&mut properties, *id, meter)?,
+                ProtectedDeclarationRefV1::Property(id) => insert(&mut properties, *id)?,
                 ProtectedDeclarationRefV1::Callable(id) => {
                     if let CallableTemplateOrigin::Accessor(id) = id.declaration() {
-                        insert(&mut accessors, id, meter)?;
+                        insert(&mut accessors, id)?;
                     }
                 }
                 ProtectedDeclarationRefV1::Constructor(_)
@@ -26,21 +23,17 @@ pub(super) fn project(
             }
         }
     }
-    for declaration in
-        super::super::source_callables::required(export, inventory, selections, meter)?
-    {
+    for declaration in super::super::source_callables::required(export, inventory, selections)? {
         match declaration {
             InheritanceCallableDeclarationV1::Function(_) => continue,
             InheritanceCallableDeclarationV1::Getter(id)
-            | InheritanceCallableDeclarationV1::Setter(id) => insert(&mut accessors, id, meter)?,
+            | InheritanceCallableDeclarationV1::Setter(id) => insert(&mut accessors, id)?,
         }
     }
     for (id, property) in export.properties.iter() {
-        work(meter, accessors.len())?;
         let getter = export.property_accessor_identities[property.capability.getter()].id();
         let getter_required = accessors.remove(&getter);
         let setter_required = if let Some(setter) = property.capability.setter() {
-            work(meter, accessors.len())?;
             accessors.remove(&export.property_accessor_identities[setter].id())
         } else {
             false
@@ -51,7 +44,7 @@ pub(super) fn project(
                     "inheritance accessor belongs to an extension property",
                 ));
             };
-            insert(&mut properties, identity.id(), meter)?;
+            insert(&mut properties, identity.id())?;
         }
     }
     if !accessors.is_empty() {
@@ -62,16 +55,8 @@ pub(super) fn project(
     Ok(properties)
 }
 
-fn insert<T: Ord>(set: &mut BTreeSet<T>, value: T, meter: &mut BudgetMeter) -> Result<(), Error> {
-    work(meter, set.len())?;
+fn insert<T: Ord>(set: &mut BTreeSet<T>, value: T) -> Result<(), Error> {
     if !set.contains(&value) {
-        meter
-            .check_table_entries(set.len() as u64 + 1, &WirePath::root())
-            .map_err(resource)?;
-        meter
-            .charge_collection_slots(1, &WirePath::root())
-            .map_err(resource)?;
-        work(meter, set.len())?;
         set.insert(value);
     }
     Ok(())

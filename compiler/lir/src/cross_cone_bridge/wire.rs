@@ -48,7 +48,7 @@ impl WireEncode for DecodedParamFreeLirCallableExportV1 {
 }
 
 impl WireDecode for DecodedParamFreeLirCallableExportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedDependencyCallableDeclarationId::decode)?,
@@ -90,7 +90,7 @@ impl WireEncode for DecodedSelectedDependencyLirCallableV1 {
 }
 
 impl WireDecode for DecodedSelectedDependencyLirCallableV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             provider: decoder.field(1, DecodedPersistentId::decode)?,
@@ -112,17 +112,14 @@ impl DecodedCrossConeLirBridgeSectionV1 {
     pub fn validate_against(
         self,
         expected: CrossConeLirBridgeSectionV1,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError> {
-        use scoop_wire::{WirePath, encode_canonical_temporary_with_meter};
+        use scoop_wire::{WirePath, encode_canonical_temporary};
         let path = WirePath::root();
-        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)
+        let actual = encode_canonical_temporary(&self, &path)
             .map_err(CrossConeLirBridgeValidationError::Resource)?;
-        let bytes = encode_canonical_temporary_with_meter(&expected, meter, &path)
+        let bytes = encode_canonical_temporary(&expected, &path)
             .map_err(CrossConeLirBridgeValidationError::Resource)?;
-        meter
-            .charge_work(actual.len().min(bytes.len()) as u64, &path)
-            .map_err(CrossConeLirBridgeValidationError::Resource)?;
+
         if actual != bytes {
             return Err(CrossConeLirBridgeValidationError::SectionMismatch);
         }
@@ -181,7 +178,7 @@ impl WireEncode for DecodedCrossConeLirBridgeSectionV1 {
 }
 
 impl WireDecode for DecodedCrossConeLirBridgeSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             exports: decoder.field(1, |decoder| {

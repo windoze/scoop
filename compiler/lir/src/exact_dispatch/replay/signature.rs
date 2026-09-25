@@ -5,12 +5,7 @@ use scoop_identity::RepresentationRole;
 pub(super) fn validate(
     input: &ExactDispatchEntryInputV1<'_>,
     target: crate::LirTargetProfile,
-    meter: &mut BudgetMeter,
 ) -> Result<Option<std::sync::Arc<crate::ExactValueLayoutV1>>, ExactDispatchError> {
-    meter.charge_work(
-        input.slot_signature.exact().parameters().len() as u64 + 1,
-        &WirePath::root(),
-    )?;
     let owner = input.implementation.target();
     let target_signature = input.abi.canonical_signature();
     if input.slot_signature.gc_effect() != target_signature.gc_effect() {

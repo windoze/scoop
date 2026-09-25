@@ -6,24 +6,9 @@ impl CanonicalHirFoundation {
     pub fn from_dependency_output(
         output: &crate::DependencyHirOutput,
     ) -> Result<Self, HirFoundationBuildError> {
-        Self::from_dependency_output_with_budget(
-            output,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-    }
-
-    /// Uses one projection budget for ordinary and layout source identities.
-    pub fn from_dependency_output_with_budget(
-        output: &crate::DependencyHirOutput,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, HirFoundationBuildError> {
         let hir = output.output();
-        let mut foundation = Self::from_modules_with_budget(
-            &hir.export,
-            &hir.local,
-            &hir.native_boundary_types,
-            meter,
-        )?;
+        let mut foundation =
+            Self::from_modules(&hir.export, &hir.local, &hir.native_boundary_types)?;
         let declared_source_types = foundation
             .types
             .iter()
@@ -78,7 +63,7 @@ impl CanonicalHirFoundation {
         }
         foundation.set_external_source_types(external_source_types.into_iter().collect())?;
         foundation.set_external_generic_types(external_generic_types.into_iter().collect())?;
-        super::call_points::complete(output, &mut foundation, meter)?;
+        super::call_points::complete(output, &mut foundation)?;
         Ok(foundation)
     }
 }

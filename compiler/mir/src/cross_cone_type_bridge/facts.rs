@@ -59,7 +59,7 @@ impl DecodedMirTypeFactsV1 {
     }
 }
 impl WireDecode for DecodedMirTypeFactsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             kind: decoder.field(1, MirValueKindV1::decode)?,
@@ -90,7 +90,7 @@ impl WireEncode for MirValueKindV1 {
     }
 }
 impl WireDecode for MirValueKindV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::ZeroSizedValue),
@@ -113,7 +113,7 @@ impl WireEncode for MirGcKindV1 {
     }
 }
 impl WireDecode for MirGcKindV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::GcFree),

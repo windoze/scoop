@@ -9,7 +9,7 @@ use scoop_identity::{
     PersistentTypeAliasId, PersistentTypeId, PropertyAccessorKey, SignatureTypeKey,
     SourceDeclarationKey, StructuralDefinitionPath,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -46,7 +46,6 @@ fn complete_validator_accepts_an_empty_interface() {
                 ConeIdentity::SINGLE_FILE,
                 &CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
                 &mut EmptyAuthority(ConeIdentity::SINGLE_FILE),
-                &mut BudgetMeter::new(DecodeLimits::default()),
                 &WirePath::root(),
             )
             .is_ok()
@@ -67,7 +66,7 @@ fn complete_validator_stops_at_the_first_failed_phase() {
             ConeIdentity::SINGLE_FILE,
             &direct_surface,
             &mut EmptyAuthority(ConeIdentity::SINGLE_FILE),
-            &mut BudgetMeter::new(DecodeLimits::default()),
+
             &WirePath::root(),
         ),
         Err(CrossConeHirInterfaceSemanticValidationError::Internal(error))
@@ -479,34 +478,16 @@ impl PublicExportBindingClosureAuthority for EmptyAuthority {
         1
     }
 
-    fn is_direct_dependency(
-        &self,
-        _provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(false)
+    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
+        false
     }
 
-    fn binding_key(
-        &self,
-        _binding: PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    fn binding_key(&self, _binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        None
     }
 
-    fn public_bindings(
-        &self,
-        _exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    fn public_bindings(&self, _exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
+        None
     }
 }
 
@@ -534,8 +515,6 @@ impl crate::DefaultLocalFunctionSignatureAuthority<Infallible> for EmptyAuthorit
     fn default_local_function_own_binder_arity(
         &mut self,
         _declaration: scoop_identity::CallableTemplateOrigin,
-        _meter: &mut scoop_wire::BudgetMeter,
-        _path: &scoop_wire::WirePath,
     ) -> Result<u32, Infallible> {
         panic!("empty fixture has no local function")
     }

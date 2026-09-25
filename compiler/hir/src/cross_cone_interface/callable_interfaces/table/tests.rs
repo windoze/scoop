@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentGenericFunctionId, PersistentGenericTypeId, PersistentTypeId, SignatureTypeKey,
     SourceDeclarationKey, SourceDeclarationSite, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -261,7 +261,7 @@ impl CallableInterfaceSemanticAuthority<SemanticAuthorityError> for SemanticAuth
 }
 
 fn decode_table<T: WireEncode>(value: &T) -> DecodedCanonicalCallableInterfacesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 const fn binder() -> SignatureTypeKey {

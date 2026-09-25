@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::PersistentConstructorId;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod members;
 pub(in crate::production::type_semantics) use members::project as protected_members;
@@ -10,26 +10,20 @@ pub(in crate::production::type_semantics) use members::project as protected_memb
 pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
     nominals: &[ConcreteNominal<'_>],
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalSourceInheritanceInventoriesV1, Error> {
     let path = WirePath::root();
     let mut records = Vec::new();
-    meter
-        .check_table_entries(nominals.len() as u64, &path)
-        .map_err(resource)?;
-    meter
-        .try_reserve_collection_slots(&mut records, nominals.len(), &path)
-        .map_err(resource)?;
-    let protected = members::project(export, meter)?;
+
+    scoop_wire::allocation::try_reserve(&mut records, nominals.len(), &path).map_err(resource)?;
+    let protected = members::project(export)?;
     for nominal in nominals {
-        let constructors = constructors(export, nominal, meter)?;
+        let constructors = constructors(export, nominal)?;
         let required = protected
             .get(&SourceNominalId::Concrete(nominal.owner))
             .map(Vec::as_slice)
             .unwrap_or(&[]);
         let mut member_refs = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut member_refs, required.len(), &path)
+        scoop_wire::allocation::try_reserve(&mut member_refs, required.len(), &path)
             .map_err(resource)?;
         member_refs.extend_from_slice(required);
         let members = CanonicalProtectedDeclarationRefsV1::try_new(member_refs)
@@ -39,24 +33,20 @@ pub(in crate::production::type_semantics) fn project(
                 nominal.exact,
                 constructors,
                 members,
-                schemas::project(export, nominal, meter)?,
-                meter,
+                schemas::project(export, nominal)?,
             )
             .map_err(Error::SourceInventory)?,
         );
     }
-    CanonicalSourceInheritanceInventoriesV1::try_new(records, meter).map_err(Error::SourceInventory)
+    CanonicalSourceInheritanceInventoriesV1::try_new(records).map_err(Error::SourceInventory)
 }
 
 fn constructors(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalPersistentIdsV1<PersistentConstructorId>, Error> {
     let owners = nominal.source.declaration().owners().owners();
-    meter
-        .charge_work(owners.len() as u64, &WirePath::root())
-        .map_err(resource)?;
+
     if owners
         .iter()
         .any(|owner| matches!(owner, scoop_identity::DefinitionOwnerAtom::GenericType(_)))

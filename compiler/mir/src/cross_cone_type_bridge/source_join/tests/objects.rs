@@ -25,7 +25,6 @@ fn exports(fixture: &ObjectFixture) -> MirTypeBridgeExportConstituentsV1 {
             callables: &fixture.callables,
         },
         vec![],
-        &mut meter(),
     )
     .unwrap();
     let shapes = empty_shapes(&fixture.graph, &types);
@@ -33,19 +32,16 @@ fn exports(fixture: &ObjectFixture) -> MirTypeBridgeExportConstituentsV1 {
         types,
         callables,
         dispatch,
-        CanonicalMirObjectValuesV1::try_new(vec![object], &mut meter()).unwrap(),
+        CanonicalMirObjectValuesV1::try_new(vec![object]).unwrap(),
         shapes,
-        CanonicalMirExternalInitializationUsesV1::try_new(
-            vec![
-                fixture
-                    .use_for(
-                        1,
-                        MirExternalInitializationCauseV1::ObjectValue(fixture.values[1].id()),
-                    )
-                    .unwrap(),
-            ],
-            &mut meter(),
-        )
+        CanonicalMirExternalInitializationUsesV1::try_new(vec![
+            fixture
+                .use_for(
+                    1,
+                    MirExternalInitializationCauseV1::ObjectValue(fixture.values[1].id()),
+                )
+                .unwrap(),
+        ])
         .unwrap(),
     )
 }
@@ -89,7 +85,7 @@ fn source_join_rejects_missing_or_changed_committed_initialization_edges() {
     ] {
         let mut candidate = exports(&fixture);
         candidate.initialization_uses =
-            CanonicalMirExternalInitializationUsesV1::try_new(records, &mut meter()).unwrap();
+            CanonicalMirExternalInitializationUsesV1::try_new(records).unwrap();
         assert!(matches!(
             source.check(&candidate, &fixture.graph),
             Err(MirTypeBridgeSourceJoinError::Record(

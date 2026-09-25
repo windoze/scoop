@@ -1,8 +1,5 @@
 use scoop_identity::{ConeIdentity, PersistentExactTypeId};
 use scoop_lir::*;
-use scoop_wire::BudgetMeter;
-
-use super::meter;
 
 /// Test source uses taken from real producer shape records. It authorizes
 /// only the LIR harness; it does not stand in for a Compile source reader.
@@ -88,7 +85,6 @@ impl Source {
                     consumer,
                     definitions,
                     &NoShapeLinkSupportV1,
-                    &mut meter(),
                 )
                 .unwrap()
             })
@@ -120,17 +116,12 @@ pub(super) fn select<'a>(
         &[layout],
         source.imports(provider, input.module().cone, &definitions),
         &source,
-        &mut meter(),
     )
     .unwrap()
 }
 
 impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(
-        &self,
-        exports: &LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, exports: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         (exports.layouts().records().is_empty()
             && exports.descriptors().records().is_empty()
             && exports.dispatch().records().is_empty()
@@ -147,7 +138,6 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
     fn validate_physical_imports(
         &self,
         imports: &[ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
     ) -> Result<(), ()> {
         let actual = imports
             .iter()

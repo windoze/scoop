@@ -4,7 +4,7 @@ use crate::{
     DecodedNominalSourcePropertyPayloadV1, ProtectedPropertyInterfaceResolver,
 };
 use scoop_identity::DecodedPersistentId;
-use scoop_wire::{BudgetMeter, Decoder, WireDecode, WireError, WireErrorKind, WirePath};
+use scoop_wire::{Decoder, WireDecode, WireError, WireErrorKind};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedNominalSupportPropertyPayloadV1 {
@@ -19,17 +19,14 @@ impl DecodedNominalSupportPropertyPayloadV1 {
     pub fn resolve<R: ProtectedPropertyInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSupportPropertyPayloadV1, NominalSupportPropertyResolutionError<E>> {
         use NominalSupportPropertyResolutionError as Error;
         Ok(match self {
             Self::Runtime { interface } => NominalSupportPropertyPayloadV1::Runtime {
-                interface: interface.resolve(resolver, meter).map_err(Error::Runtime)?,
+                interface: interface.resolve(resolver).map_err(Error::Runtime)?,
             },
             Self::Const { value } => NominalSupportPropertyPayloadV1::Const {
-                value: value
-                    .resolve_metered(resolver, meter)
-                    .map_err(Error::Const)?,
+                value: value.resolve(resolver).map_err(Error::Const)?,
             },
         })
     }
@@ -51,7 +48,7 @@ impl WireEncode for DecodedNominalSupportPropertyPayloadV1 {
     }
 }
 impl WireDecode for DecodedNominalSupportPropertyPayloadV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => decoder
@@ -75,20 +72,17 @@ impl DecodedNominalSupportPropertyInterfaceV1 {
     pub fn resolve<R: ProtectedPropertyInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSupportPropertyInterfaceV1, NominalSupportPropertyResolutionError<E>> {
         use NominalSupportPropertyResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let declaration = resolver
             .resolve(self.declaration)
             .map_err(Error::Identity)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Source)?;
-        let payload = self.payload.resolve(resolver, meter)?;
+        let payload = self.payload.resolve(resolver)?;
         NominalSupportPropertyInterfaceV1::try_new(declaration, access, payload)
             .map_err(Error::Property)
     }
@@ -113,14 +107,14 @@ impl DecodedNominalSupportPropertyInterfaceV1 {
     }
 }
 impl WireDecode for DecodedNominalSupportPropertyInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Self::decode_fields(decoder)
     }
 }
 impl DecodedNominalSupportPropertyInterfaceV1 {
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
-        decoder: &mut Decoder<'_, '_>,
+        decoder: &mut Decoder<'_>,
     ) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedPersistentId::decode)?,

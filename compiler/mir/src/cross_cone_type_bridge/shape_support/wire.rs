@@ -25,7 +25,7 @@ macro_rules! encode_boxed {
 encode_boxed!(MirBoxedShapeSupportV1);
 encode_boxed!(DecodedBoxed);
 impl WireDecode for DecodedBoxed {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -56,9 +56,7 @@ impl DecodedParamFreeMirShapeSupportV1 {
         self,
         identities: &mut ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirShapeSupportV1, MirShapeSupportError> {
-        meter.charge_work(5, &WirePath::root())?;
         let source = identities.resolve(self.source)?;
         let exact = identities.resolve(self.exact)?;
         let boxed = match self.boxed {
@@ -78,7 +76,6 @@ impl DecodedParamFreeMirShapeSupportV1 {
             boxed,
             coroutine_step,
             coroutine_slot,
-            meter,
         )
     }
 }
@@ -104,7 +101,7 @@ macro_rules! encode_record {
 encode_record!(ParamFreeMirShapeSupportV1);
 encode_record!(DecodedParamFreeMirShapeSupportV1);
 impl WireDecode for DecodedParamFreeMirShapeSupportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             source: decoder.field(1, DecodedPersistentId::decode)?,

@@ -509,7 +509,6 @@ impl<P> ValidatedArtifactClosure<P> {
             direct,
             dependency_first,
             current.snapshot().as_bytes(),
-            current.decode_limits(),
             current.c_bridge_profile(),
             &mut session,
         )?;

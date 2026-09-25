@@ -1,9 +1,7 @@
 use super::*;
 use crate::{IntegerKind, IntegerSignedness, IntegerWidth};
 
-pub(super) fn decode(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<ScalarRepresentationKindV1, WireError> {
+pub(super) fn decode(decoder: &mut Decoder<'_>) -> Result<ScalarRepresentationKindV1, WireError> {
     let fields = decoder.map()?;
     match decoder.field(0, Decoder::unsigned)? {
         1 => {
@@ -32,7 +30,7 @@ pub(super) fn decode(
     }
 }
 
-pub(super) fn alignment(decoder: &mut Decoder<'_, '_>) -> Result<CLayoutOverride, WireError> {
+pub(super) fn alignment(decoder: &mut Decoder<'_>) -> Result<CLayoutOverride, WireError> {
     use scoop_identity::CLayoutByteAlignment as A;
     let alignment = match tag(decoder)? {
         1 => return Ok(CLayoutOverride::Natural),
@@ -46,7 +44,7 @@ pub(super) fn alignment(decoder: &mut Decoder<'_, '_>) -> Result<CLayoutOverride
     Ok(CLayoutOverride::Bytes(alignment))
 }
 
-fn tag(decoder: &mut Decoder<'_, '_>) -> Result<u64, WireError> {
+fn tag(decoder: &mut Decoder<'_>) -> Result<u64, WireError> {
     decoder.expect_map(1)?;
     decoder.field(0, Decoder::unsigned)
 }

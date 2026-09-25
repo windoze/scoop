@@ -1,5 +1,4 @@
 use super::*;
-use scoop_wire::BudgetMeter;
 
 #[test]
 fn descriptor_exports_require_exact_dispatch_coverage() {
@@ -10,7 +9,6 @@ fn descriptor_exports_require_exact_dispatch_coverage() {
             &[],
             Vec::new(),
             &NoDependencies,
-            &mut fixture.meter(),
         );
         match (descriptor, dispatch) {
             (true, true) | (false, false) => {
@@ -43,7 +41,7 @@ fn descriptor_exports_require_exact_dispatch_coverage() {
 fn exports(fixture: &Fixture, descriptor: bool, dispatch: bool) -> LayoutAbiExportConstituentsV1 {
     let target = LirTargetProfile::DARWIN_AARCH64;
     let foundation = fixture.foundation();
-    let mut meter = fixture.meter();
+
     let record = fixture.replay(fixture.semantic()).unwrap();
     let layouts = CanonicalExactLayoutExportsV1::try_new(
         target,
@@ -52,14 +50,12 @@ fn exports(fixture: &Fixture, descriptor: bool, dispatch: bool) -> LayoutAbiExpo
             record.value_layout().clone().into(),
             record.instance_layout().clone().into(),
         ],
-        &mut meter,
     )
     .unwrap();
     let descriptors = CanonicalExactDescriptorExportsV1::try_new(
         target,
         foundation,
         descriptor.then_some(record).into_iter().collect(),
-        &mut meter,
     )
     .unwrap();
     let identity = TypeDescriptorIdentity::new(
@@ -68,31 +64,22 @@ fn exports(fixture: &Fixture, descriptor: bool, dispatch: bool) -> LayoutAbiExpo
     )
     .unwrap();
     let vtable = VtableRecord::new(&identity, Vec::new()).unwrap();
-    let record = ExactDispatchExportV1::replay(
-        target,
-        (&vtable).into(),
-        &[],
-        foundation,
-        &mut |_, _: &mut BudgetMeter| Ok(None),
-        &mut meter,
-    )
-    .unwrap();
+    let record =
+        ExactDispatchExportV1::replay(target, (&vtable).into(), &[], foundation, &mut |_| Ok(None))
+            .unwrap();
     let dispatch = CanonicalExactDispatchExportsV1::try_new(
         target,
         foundation,
         dispatch.then_some(record).into_iter().collect(),
-        &mut meter,
     )
     .unwrap();
     let callables =
-        CanonicalExactCallableAbiExportsV1::try_new(target, foundation, Vec::new(), &mut meter)
-            .unwrap();
+        CanonicalExactCallableAbiExportsV1::try_new(target, foundation, Vec::new()).unwrap();
     let shapes = CanonicalParamFreeShapeSupportExportsV1::from_sources(
         &[],
         &layouts,
         &descriptors,
         foundation,
-        &mut meter,
     )
     .unwrap();
     LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shapes)
@@ -102,11 +89,7 @@ fn exports(fixture: &Fixture, descriptor: bool, dispatch: bool) -> LayoutAbiExpo
 struct NoDependencies;
 
 impl LayoutAbiSectionSourceAuthorityV1<()> for NoDependencies {
-    fn validate_local_exports(
-        &self,
-        _: &LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         Ok(())
     }
     fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
@@ -115,7 +98,6 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for NoDependencies {
     fn validate_physical_imports(
         &self,
         imports: &[ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
     ) -> Result<(), ()> {
         imports.is_empty().then_some(()).ok_or(())
     }

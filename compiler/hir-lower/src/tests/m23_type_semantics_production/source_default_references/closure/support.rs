@@ -10,16 +10,12 @@ pub(super) fn with_template(run: impl FnOnce(&Template)) {
             output,
             function(output.output().export.module(), "ReferenceClosureHost.all"),
             0,
-            &mut meter(),
         )
         .unwrap();
-        let template = body.into_source_template(&mut meter()).unwrap();
-        let bytes = encode(&template.index_locals(&mut meter()).unwrap()).unwrap();
-        let decoded: hir::DecodedDefaultSourceTemplateV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let restored = decoded
-            .resolve(&mut identity_closure(output), &mut meter())
-            .unwrap();
+        let template = body.into_source_template().unwrap();
+        let bytes = encode(&template.index_locals().unwrap()).unwrap();
+        let decoded: hir::DecodedDefaultSourceTemplateV1 = decode_canonical(&bytes).unwrap();
+        let restored = decoded.resolve(&mut identity_closure(output)).unwrap();
         run(&restored);
     });
 }
@@ -37,7 +33,6 @@ pub(super) fn rebuild(t: &Template, references: References) -> Template {
         t.value_parameters().clone(),
         references,
         t.definition_origin().clone(),
-        &mut meter(),
     )
     .unwrap()
 }

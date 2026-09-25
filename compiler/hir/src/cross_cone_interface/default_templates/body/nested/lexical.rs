@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::{
@@ -267,7 +265,7 @@ impl WireEncode for DecodedDefaultLexicalCallableV1 {
 }
 
 impl WireDecode for DecodedDefaultLexicalCallableV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,
@@ -307,7 +305,7 @@ impl WireEncode for DecodedDefaultLambdaV1 {
 }
 
 impl WireDecode for DecodedDefaultLambdaV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedDefaultLexicalCallableV1::decode(decoder).map(Self)
     }
 }
@@ -338,7 +336,7 @@ impl WireEncode for DecodedDefaultAnonymousFunctionV1 {
 }
 
 impl WireDecode for DecodedDefaultAnonymousFunctionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedDefaultLexicalCallableV1::decode(decoder).map(Self)
     }
 }

@@ -157,12 +157,7 @@ fn standalone_validation_is_distinct_from_body_ordinal_zero_and_each_body_restar
     );
     let mut authority = authority(&reference, vec![ty]);
     reference
-        .validate_nested_callable_abi_semantics(
-            &template,
-            &mut authority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_nested_callable_abi_semantics(&template, &mut authority, &WirePath::root())
         .unwrap();
     validate_body(&template, &mut authority).unwrap();
     validate_body(&template, &mut authority).unwrap();
@@ -214,15 +209,9 @@ pub(super) fn assert_source_index_order(
         )
         .unwrap(),
         template.definition_origin().clone(),
-        &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
-    let index = source
-        .index_nested_callables(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
-        .unwrap();
+    let index = source.index_nested_callables(&WirePath::root()).unwrap();
     let queried = authority
         .sites
         .iter()

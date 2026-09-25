@@ -89,7 +89,6 @@ pub(crate) fn validate_local_projection(
     mir: &CrossConeMirBridgeSectionV1,
     lir: &CrossConeLirBridgeSectionV1,
     abi_expectations: &mut Vec<AbiExpectation>,
-    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<(), CrossConeLirClosureRelationError> {
     for expected in mir.exports() {
         let declaration = expected.declaration();
@@ -121,26 +120,10 @@ pub(crate) fn validate_local_projection(
                 CrossConeLirClosureRelationError::ExportCallingConventionMismatch { declaration },
             );
         }
-        let parameters = expected.signature().parameters().len() as u64;
-        let arguments = actual.abi_signature().arguments().len() as u64;
+
         let path = scoop_wire::WirePath::root();
-        meter
-            .charge_work(2 * parameters + arguments + 1, &path)
-            .map_err(CrossConeLirClosureRelationError::Resource)?;
-        meter
-            .charge_collection_slots(2 * parameters + arguments, &path)
-            .map_err(CrossConeLirClosureRelationError::Resource)?;
-        meter
-            .charge_owned_bytes(
-                std::mem::size_of::<AbiExpectation>() as u64
-                    + 2 * parameters
-                        * std::mem::size_of::<scoop_identity::PersistentExactTypeId>() as u64
-                    + arguments * std::mem::size_of::<scoop_identity::ScoopAbiArgument>() as u64,
-                &path,
-            )
-            .map_err(CrossConeLirClosureRelationError::Resource)?;
-        meter
-            .try_reserve_collection_slots(abi_expectations, 1, &path)
+
+        scoop_wire::allocation::try_reserve(abi_expectations, 1, &path)
             .map_err(CrossConeLirClosureRelationError::Resource)?;
         abi_expectations.push(AbiExpectation {
             artifact,

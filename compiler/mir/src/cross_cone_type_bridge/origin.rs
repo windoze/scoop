@@ -79,7 +79,7 @@ impl DecodedMirTypeOriginV1 {
     }
 }
 impl WireDecode for DecodedMirTypeOriginV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {

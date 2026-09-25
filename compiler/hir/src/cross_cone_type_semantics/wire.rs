@@ -11,7 +11,7 @@ pub(super) fn tag(
 }
 
 pub(super) fn expect_fields(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     actual: u64,
     expected: u64,
 ) -> Result<(), WireError> {
@@ -25,7 +25,7 @@ pub(super) fn expect_fields(
     }
 }
 
-pub(super) fn error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+pub(super) fn error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

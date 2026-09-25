@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, Decoder, WireDecode, WireError, WirePath};
+use scoop_wire::{Decoder, WireDecode, WireError, WirePath};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalNominalInheritanceInterfacesV1 {
@@ -47,25 +47,21 @@ impl DecodedCanonicalNominalInheritanceInterfacesV1 {
     pub fn resolve<R: NominalInheritanceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalNominalInheritanceInterfacesV1, InheritanceInterfaceResolutionError<E>>
     {
         use InheritanceInterfaceResolutionError as Error;
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
             .map_err(Error::Resource)?;
-        meter
-            .charge_work(self.records.len() as u64, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         for record in self.records {
-            records.push(record.resolve(resolver, meter)?);
+            records.push(record.resolve(resolver)?);
         }
         CanonicalNominalInheritanceInterfacesV1::from_ordered(records).map_err(Error::Build)
     }
 }
 impl WireDecode for DecodedCanonicalNominalInheritanceInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedNominalInheritanceInterfaceV1::decode(d))
             .map(|records| Self { records })

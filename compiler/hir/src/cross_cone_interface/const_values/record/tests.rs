@@ -5,7 +5,7 @@ use scoop_identity::{
     SignatureTypeKey, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
     SourceIdentity, SourceNominalKind, SourceSpan, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{CanonicalBooleanV1, CanonicalConstValueV1, ExportDefinitionSourceV1};
@@ -54,8 +54,7 @@ fn decoded_record_resolves_every_typed_reference() {
 
 #[test]
 fn reader_requires_the_exact_four_field_shape() {
-    let error = decode_canonical::<DecodedExportConstValueV1>(&[0xa0], DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedExportConstValueV1>(&[0xa0]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -162,7 +161,7 @@ impl Fixture {
 }
 
 fn decode_record(record: &ExportConstValueV1) -> DecodedExportConstValueV1 {
-    decode_canonical(&encode(record).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(record).unwrap()).unwrap()
 }
 
 fn site() -> SourceDeclarationSite {

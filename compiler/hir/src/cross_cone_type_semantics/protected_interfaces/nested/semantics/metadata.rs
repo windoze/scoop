@@ -8,7 +8,6 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
     owner: SourceNominalId,
     source: &ProtectedNestedSourceInterfaceV1,
     authority: &mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<(), NestedSourceSemanticError<E>> {
     use NestedSourceSemanticError as Error;
     compare(
@@ -16,47 +15,40 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
         authority
             .nominal_source_binders(owner)
             .map_err(Error::Foundation)?,
-        meter,
     )?;
     compare(
         source.supertypes(),
         authority
             .nominal_source_supertypes(owner)
             .map_err(Error::Foundation)?,
-        meter,
     )?;
     compare(
         source.constructors(),
         authority
             .nominal_source_constructors(owner)
             .map_err(Error::Foundation)?,
-        meter,
     )?;
     compare(
         source.members(),
         authority
             .nominal_source_members(owner)
             .map_err(Error::Foundation)?,
-        meter,
     )?;
     compare(
         source.children(),
         authority
             .nominal_source_children(owner)
             .map_err(Error::Foundation)?,
-        meter,
     )?;
     compare(
         source.source_shape(),
         authority
             .nominal_source_shape(owner)
             .map_err(Error::Foundation)?,
-        meter,
     )?;
     let scope = source.type_parameters().signature_scope(None);
-    let path = WirePath::root();
+
     for binder in source.type_parameters().binders() {
-        meter.charge_nodes(1, &path).map_err(Error::Resource)?;
         if let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() {
             for bound in bounds
                 .class()
@@ -64,7 +56,7 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
                 .chain(bounds.interfaces().values())
             {
                 scope
-                    .validate_signature_semantics_metered(bound, authority, meter, &path)
+                    .validate_signature_semantics(bound, authority)
                     .map_err(Error::Signature)?;
             }
         }
@@ -76,7 +68,7 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
     let mut class_seen = false;
     for supertype in source.supertypes().values() {
         scope
-            .validate_signature_semantics_metered(supertype, authority, meter, &path)
+            .validate_signature_semantics(supertype, authority)
             .map_err(Error::Signature)?;
         let kind = match supertype {
             SignatureTypeKey::Nominal(id) => authority
@@ -103,5 +95,5 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
             _ => return Err(Error::Supertypes),
         }
     }
-    shape::validate(owner, source, authority, meter)
+    shape::validate(owner, source, authority)
 }

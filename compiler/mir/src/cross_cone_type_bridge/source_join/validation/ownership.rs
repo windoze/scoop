@@ -7,13 +7,10 @@ pub(super) fn type_record<E>(
     record: &ParamFreeMirTypeExportV1,
     expected: ConeIdentity,
     graph: &ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<(), MirTypeBridgeSourceJoinError<E>> {
     use MirTypeBridgeSourceJoinError as Error;
     let subject = MirTypeBridgeSourceRecordV1::Type(record.exact());
-    meter
-        .charge_work(3, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     let owner = match record.origin() {
         MirTypeOriginV1::SourceNominal(nominal) => nominal_owner(*nominal, graph)?,
         MirTypeOriginV1::GeneratedNominal { role, .. } => match role {
@@ -34,13 +31,10 @@ pub(super) fn callable<E>(
     record: &ParamFreeMirCallableBindingV1,
     expected: ConeIdentity,
     graph: &ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<(), MirTypeBridgeSourceJoinError<E>> {
     use MirTypeBridgeSourceJoinError as Error;
     let subject = MirTypeBridgeSourceRecordV1::Callable(record.implementation());
-    meter
-        .charge_work(4, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     let owner = match record.origin() {
         MirCallableOriginV1::Function(id) => graph
             .canonical_key::<_, SourceDeclarationKey>(*id)

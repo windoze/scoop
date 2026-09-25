@@ -1,5 +1,5 @@
 use scoop_identity::{ExactTypeKey, RepresentationRole, ScanKey, ScanRole};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -42,14 +42,12 @@ fn scan_binding(
     identity: &ExactLayoutIdentityV1,
     role: ScanRole,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<ScanBinding, ExactLayoutReplayError> {
-    let path = WirePath::root();
     if identity.physical_definition().provider() != foundation.producer() {
         return Err(ExactLayoutReplayError::ProviderMismatch);
     }
     let key = ScanKey::new(identity.layout(), role);
-    meter.charge_work(foundation.scans().len() as u64, &path)?;
+
     let scan = foundation
         .scans()
         .iter()
@@ -58,7 +56,6 @@ fn scan_binding(
     let physical = StrongShapeDefinitionRefV1::from_foundation(
         ExternalStrongShapeSubjectV1::Scan(scan.id()),
         foundation,
-        meter,
     )?;
     Ok(ScanBinding {
         id: scan.id(),
@@ -71,9 +68,8 @@ fn finish_value(
     storage: ValueStorageLayoutV1,
     representation: ValueRepresentation,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<ExactValueLayoutV1, ExactLayoutReplayError> {
-    let scan = scan_binding(&identity, ScanRole::InlineValue, foundation, meter)?;
+    let scan = scan_binding(&identity, ScanRole::InlineValue, foundation)?;
     let value =
         ValueLayoutConstituentV1::new(identity.target(), identity.layout_key().clone(), storage)?;
     Ok(ExactValueLayoutV1 {
@@ -95,9 +91,9 @@ fn require_roles(
     }
 }
 
-fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, ExactLayoutReplayError> {
+fn reserve<T>(count: usize) -> Result<Vec<T>, ExactLayoutReplayError> {
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, &WirePath::root())?;
+    scoop_wire::allocation::try_reserve(&mut values, count, &WirePath::root())?;
     Ok(values)
 }
 

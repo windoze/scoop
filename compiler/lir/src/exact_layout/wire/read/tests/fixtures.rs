@@ -10,15 +10,9 @@ pub(super) fn aggregate() -> ExactLayoutExportV1 {
         .map(|(field, value)| NominalLayoutFieldInputV1 { field, value })
         .collect();
     let bound = Bound::value(exact(&owner));
-    ExactValueLayoutV1::ordinary_struct(
-        bound.identity,
-        true,
-        &inputs,
-        &bound.foundation,
-        &mut meter(),
-    )
-    .unwrap()
-    .into()
+    ExactValueLayoutV1::ordinary_struct(bound.identity, true, &inputs, &bound.foundation)
+        .unwrap()
+        .into()
 }
 
 pub(super) fn tuple() -> ExactLayoutExportV1 {
@@ -35,14 +29,9 @@ pub(super) fn tuple() -> ExactLayoutExportV1 {
         ))
         .unwrap(),
     );
-    ExactValueLayoutV1::tuple(
-        bound.identity,
-        &[&values[0], &values[1]],
-        &bound.foundation,
-        &mut meter(),
-    )
-    .unwrap()
-    .into()
+    ExactValueLayoutV1::tuple(bound.identity, &[&values[0], &values[1]], &bound.foundation)
+        .unwrap()
+        .into()
 }
 
 pub(super) fn enumeration(niche: bool) -> ExactLayoutExportV1 {
@@ -85,14 +74,14 @@ pub(super) fn enumeration(niche: bool) -> ExactLayoutExportV1 {
         },
     ];
     let bound = Bound::value(exact(&owner));
-    ExactValueLayoutV1::enumeration(bound.identity, &variants, &bound.foundation, &mut meter())
+    ExactValueLayoutV1::enumeration(bound.identity, &variants, &bound.foundation)
         .unwrap()
         .into()
 }
 
 pub(super) fn bytes() -> ExactLayoutExportV1 {
     let bound = Bound::instance(exact(&source("String", SourceNominalKind::Class, 0)));
-    ExactInstanceLayoutV1::inline_bytes(bound.identity, &bound.foundation, &mut meter())
+    ExactInstanceLayoutV1::inline_bytes(bound.identity, &bound.foundation)
         .unwrap()
         .into()
 }
@@ -115,7 +104,7 @@ pub(super) fn array(zst: bool) -> ExactLayoutExportV1 {
         RepresentationRole::ManagedObject,
         ScanRole::ArrayElement,
     );
-    ExactInstanceLayoutV1::inline_array(bound.identity, &element, &bound.foundation, &mut meter())
+    ExactInstanceLayoutV1::inline_array(bound.identity, &element, &bound.foundation)
         .unwrap()
         .into()
 }
@@ -128,7 +117,7 @@ pub(super) fn boxed() -> ExactLayoutExportV1 {
     .unwrap();
     let bound =
         Bound::instance(CborIdentityRecord::from_key(ExactTypeKey::Nominal(boxed)).unwrap());
-    ExactInstanceLayoutV1::boxed_payload(bound.identity, &value, &bound.foundation, &mut meter())
+    ExactInstanceLayoutV1::boxed_payload(bound.identity, &value, &bound.foundation)
         .unwrap()
         .into()
 }
@@ -140,7 +129,6 @@ pub(super) fn class() -> ExactLayoutExportV1 {
         ClassLayoutBaseV1::NoBase,
         &[],
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     let bound = Bound::instance(exact(&source("Derived", SourceNominalKind::Class, 0)));
@@ -149,7 +137,6 @@ pub(super) fn class() -> ExactLayoutExportV1 {
         ClassLayoutBaseV1::Base(&base),
         &[],
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap()
     .into()

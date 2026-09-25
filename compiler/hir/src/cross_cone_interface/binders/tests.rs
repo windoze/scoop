@@ -4,7 +4,7 @@ use scoop_identity::{
     PendingIdentityValidation, PersistentTypeId, SignatureTypeKey, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -139,11 +139,7 @@ fn reader_rejects_duplicate_and_noncanonical_binder_names() {
 
 #[test]
 fn reader_rejects_unknown_bound_tags() {
-    let error = decode_canonical::<DecodedTypeParameterBoundsV1>(
-        &[0xa1, 0x00, 0x05],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedTypeParameterBoundsV1>(&[0xa1, 0x00, 0x05]).unwrap_err();
 
     assert!(matches!(error.kind(), WireErrorKind::UnknownTag { tag: 5 }));
 }
@@ -240,11 +236,11 @@ fn binder(name: &str, bounds: TypeParameterBoundsV1) -> TypeParameterBinderV1 {
 }
 
 fn decode_binders<T: WireEncode>(value: &T) -> DecodedCanonicalBinderListV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn decode_signatures<T: WireEncode>(value: &T) -> DecodedCanonicalSignatureTypesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 struct SignatureSequence(Vec<SignatureTypeKey>);

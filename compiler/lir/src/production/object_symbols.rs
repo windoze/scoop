@@ -239,7 +239,7 @@ impl WireEncode for DecodedStrongAtomBoundarySymbolsV1 {
 }
 
 impl WireDecode for DecodedStrongAtomBoundarySymbolsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             atom: decoder.field(1, DecodedPersistentId::decode)?,
@@ -279,7 +279,7 @@ impl WireEncode for DecodedStrongDefinitionSymbolPlanV1 {
 }
 
 impl WireDecode for DecodedStrongDefinitionSymbolPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             definition_plan: decoder.field(1, DecodedPersistentId::decode)?,
@@ -324,7 +324,7 @@ impl WireEncode for DecodedStrongObjectSymbolSurfaceV1 {
 }
 
 impl WireDecode for DecodedStrongObjectSymbolSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedStrongDefinitionSymbolPlanV1::decode(decoder))
             .map(|plans| Self { plans })

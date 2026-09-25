@@ -2,13 +2,11 @@ use super::*;
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::{Fixture, nominal};
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 mod coverage;
 mod profiles;
 mod wire_tests;
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn lookup(domain: PersistentAccessDomainV1) -> PersistentLookupDomainV1 {
     PersistentLookupDomainV1::new(domain)
 }
@@ -32,7 +30,6 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<&'static str> for ExpectedPr
     fn default_access_profile(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
-        _meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, &'static str> {
         if self.key == key {
             Ok(self.profile)

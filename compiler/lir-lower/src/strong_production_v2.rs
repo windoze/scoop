@@ -1,7 +1,7 @@
 use scoop_identity::{ConeIdentity, PersistentInitializationUnitId};
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 /// Projects every checked MIR initialization use into the typed LIR input for
 /// `strong-production/4`. Multiple causes may point at the same dependency;
@@ -11,7 +11,6 @@ pub fn project_external_initialization_uses_v2(
     bridge: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     definitions: &[lir::StrongInitializationUnitDefinitionRefV2],
     selected: &lir::StrongProductionDependencySelectionV2<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<lir::StrongExternalInitializationUseV2>, StrongProductionV2ProjectionError> {
     if bridge.provider() != selected.consumer() {
         return Err(StrongProductionV2ProjectionError::ConsumerMismatch {
@@ -21,9 +20,8 @@ pub fn project_external_initialization_uses_v2(
     }
     let records = bridge.initialization_uses().records();
     let mut projected = Vec::new();
-    meter.try_reserve_collection_slots(&mut projected, records.len(), &WirePath::root())?;
+    scoop_wire::allocation::try_reserve(&mut projected, records.len(), &WirePath::root())?;
     for record in records {
-        meter.charge_work(definitions.len() as u64, &WirePath::root())?;
         let mut matches = definitions.iter().copied().filter(|definition| {
             definition.provider() == record.provider()
                 && definition.unit() == record.dependency_unit()
@@ -45,7 +43,6 @@ pub fn project_external_initialization_uses_v2(
                 record.local_unit(),
                 definition,
                 selected,
-                meter,
             )
             .map_err(StrongProductionV2ProjectionError::Use)?,
         );

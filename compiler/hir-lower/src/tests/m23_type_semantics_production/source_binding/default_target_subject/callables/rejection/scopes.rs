@@ -66,7 +66,7 @@ fn default_callable_scope_checks_use_actual_keys_from_the_same_identity_graph() 
             let decoded: DecodedCborIdentityRecord<
                 PersistentFunctionId,
                 DecodedSourceDeclarationKey,
-            > = decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
+            > = decode_canonical(&encode(&record).unwrap()).unwrap();
             let mut validation = PendingIdentityValidation::new();
             validation
                 .register_external_graph_authorities(&fixture.identities)
@@ -80,20 +80,20 @@ fn default_callable_scope_checks_use_actual_keys_from_the_same_identity_graph() 
             let target = direct(Declaration::Function(record.id()));
             let wrong_graph = fixture
                 .source
-                .bind_to_foundation(&artifact, &fixture.identities, &mut meter())
+                .bind_to_foundation(&artifact, &fixture.identities)
                 .unwrap();
             assert!(matches!(
-                wrong_graph.default_callable_access_subject(&target, &mut meter()),
+                wrong_graph.default_callable_access_subject(&target),
                 Err(Error::Foundation(
                     hir::TypeFoundationBindingError::Identity(_)
                 ))
             ));
             let foundation = fixture
                 .source
-                .bind_to_foundation(&artifact, &identities, &mut meter())
+                .bind_to_foundation(&artifact, &identities)
                 .unwrap();
             let error = foundation
-                .default_callable_access_subject(&target, &mut meter())
+                .default_callable_access_subject(&target)
                 .unwrap_err();
             if origin == key.origin() {
                 assert!(

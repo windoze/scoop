@@ -407,16 +407,9 @@ impl PreparedBuildGraph {
             _ => return Err(PrebuiltCompletionError::NotPrebuilt(identity)),
         };
         let plan = self.artifact_closure_plan();
-        let limits = self.context.limits.artifact_decode();
+
         let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
-        complete_prebuilt_candidates(
-            &plan,
-            identity,
-            candidates,
-            completed,
-            limits,
-            &c_bridge_profile,
-        )
+        complete_prebuilt_candidates(&plan, identity, candidates, completed, &c_bridge_profile)
     }
 }
 

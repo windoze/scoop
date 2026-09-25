@@ -7,15 +7,8 @@ impl<'f> DefaultTargetIdentityQueriesV1<'f> {
     pub fn source_dispatch_slot_key(
         &self,
         slot: PersistentDispatchSlotId,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<&'f DispatchSlotKey, Error> {
-        Query {
-            foundation: self,
-            meter,
-            path: path.clone(),
-        }
-        .key(
+        Query { foundation: self }.key(
             self.foundation
                 .as_canonical()
                 .type_source_dispatch_records(),
@@ -30,13 +23,8 @@ impl<'f> DefaultTargetIdentityQueriesV1<'f> {
     pub fn source_declaration_key(
         &self,
         subject: Subject,
-        meter: &mut BudgetMeter,
     ) -> Result<&'f SourceDeclarationKey, Error> {
-        let mut query = Query {
-            foundation: self,
-            meter,
-            path: WirePath::root(),
-        };
+        let mut query = Query { foundation: self };
         let lexical_subject = match subject {
             Subject::PropertyAccessor(id) => query.accessor_property(id)?,
             _ => subject,
@@ -45,7 +33,7 @@ impl<'f> DefaultTargetIdentityQueriesV1<'f> {
     }
 }
 
-impl<'f> Query<'_, 'f, '_> {
+impl<'f> Query<'_, 'f> {
     pub(super) fn accessor_property(
         &mut self,
         id: PersistentPropertyAccessorId,
@@ -59,7 +47,7 @@ impl<'f> Query<'_, 'f, '_> {
             id,
             || Error::MissingDeclaration(subject),
         )?;
-        self.meter.charge_edges(1, &self.path)?;
+
         Ok(match key.owner() {
             PropertyOwner::Property(id) => Subject::Property(id),
             PropertyOwner::ExtensionProperty(id) => Subject::ExtensionProperty(id),
@@ -76,18 +64,14 @@ impl<'f> Query<'_, 'f, '_> {
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Eq + Clone + Send + Sync + 'static,
     {
-        self.meter
-            .check_table_entries(records.len() as u64, &self.path)?;
         // Foundation records may be dependency-first rather than ID-sorted.
-        // Charge the complete scan without copying or reordering the artifact.
-        self.meter
-            .charge_work((records.len() as u64).saturating_mul(65), &self.path)?;
+
         let record = records
             .iter()
             .find(|record| record.id() == id)
             .ok_or_else(missing)?;
         let key = record.key();
-        binding_keys::verify(id, key, self.foundation.identities, self.meter, &self.path)?;
+        binding_keys::verify(id, key, self.foundation.identities)?;
         Ok(key)
     }
 
@@ -129,7 +113,7 @@ impl<'f> Query<'_, 'f, '_> {
             )?,
             other => return Err(Error::DeclarationRole(other)),
         };
-        NominalRepresentationSupportV1::charge_source_key_resources(key, self.meter, &self.path)?;
+
         if key.origin() != self.foundation.provider {
             return Err(Error::ForeignDeclaration(id));
         }

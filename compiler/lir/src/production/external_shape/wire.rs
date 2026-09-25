@@ -3,9 +3,7 @@ use scoop_identity::{
     DecodedPersistentId, DecodedStrongCallableDefinitionOwner, IdentityReferenceError,
     PersistentIdResolver, ValidatedIdentityGraph,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DecodedExternalStrongShapeSubjectV1 {
@@ -25,11 +23,7 @@ impl DecodedExternalStrongShapeSubjectV1 {
     pub fn resolve(
         self,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalStrongShapeSubjectV1, ExternalShapeSubjectResolutionError> {
-        meter
-            .charge_work(1, &WirePath::root())
-            .map_err(ExternalShapeSubjectResolutionError::Resource)?;
         Ok(match self {
             Self::Callable(id) => ExternalStrongShapeSubjectV1::Callable(
                 id.resolve(identities)
@@ -135,7 +129,7 @@ fn encode_subject(
 }
 
 impl WireDecode for DecodedExternalStrongShapeSubjectV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {

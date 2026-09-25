@@ -4,7 +4,7 @@ use scoop_identity::{
     GcEffect as CanonicalGcEffect, PackagePath, PersistentExactTypeId, PersistentFunctionId,
     ScoopAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{CallableAbiBuildError, CallingConvention, ExternalCallableRootPlan};
@@ -22,7 +22,7 @@ impl<T: WireEncode> WireEncode for AbiEntry<T> {
 }
 
 impl WireDecode for AbiEntry<DecodedCallableAbiRecordV1> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_initialization_abi(decoder).map(Self)
     }
 }
@@ -38,8 +38,7 @@ fn initialization_abi_has_no_qualification_or_bridge_product() {
     expected.extend(encode(&abi).unwrap());
     let bytes = encode(&AbiEntry(Some(Box::new(abi)))).unwrap();
     assert_eq!(bytes, expected);
-    let decoded: AbiEntry<DecodedCallableAbiRecordV1> =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: AbiEntry<DecodedCallableAbiRecordV1> = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
@@ -50,17 +49,10 @@ fn initialization_abi_rejects_retired_sums_and_multiple_records() {
         vec![0xa2, 0x00, 0x02, 0x01, 0xa1, 0x02],
         vec![0x81, 0xa1, 0x02],
     ] {
-        assert!(
-            decode_canonical::<AbiEntry<DecodedCallableAbiRecordV1>>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<AbiEntry<DecodedCallableAbiRecordV1>>(&bytes,).is_err());
     }
     let error =
-        decode_canonical::<AbiEntry<DecodedCallableAbiRecordV1>>(&[0x82], DecodeLimits::default())
-            .unwrap_err();
+        decode_canonical::<AbiEntry<DecodedCallableAbiRecordV1>>(&[0x82, 0, 0]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

@@ -17,7 +17,6 @@ const CHILD_TRANSPORT_FAILURE_EXIT: u8 = 2;
 const CHILD_REQUEST_ERROR_CODE: &str = "SCOOPC_CHILD_REQUEST_INVALID";
 const CHILD_BUILD_ERROR_CODE: &str = "SCOOPC_BUILD_FAILED";
 const CHILD_WARNING_CODE: &str = "SCOOPC_COMPILER_WARNING";
-const FRAME_PREFIX_BYTES: usize = 8;
 
 pub(crate) fn run(version: u32) -> ExitCode {
     let stdin = io::stdin();
@@ -58,24 +57,10 @@ fn run_transport(
 }
 
 fn read_one_frame(input: &mut impl Read) -> Result<Vec<u8>, ChildProtocolError> {
-    let maximum = scoop_protocol::PROTOCOL_MAX_FRAME_BYTES
-        .checked_add(FRAME_PREFIX_BYTES)
-        .ok_or(ChildProtocolError::FrameLimitOverflow)?;
-    let read_limit = u64::try_from(maximum)
-        .map_err(|_| ChildProtocolError::FrameLimitOverflow)?
-        .checked_add(1)
-        .ok_or(ChildProtocolError::FrameLimitOverflow)?;
     let mut frame = Vec::new();
     input
-        .take(read_limit)
         .read_to_end(&mut frame)
         .map_err(ChildProtocolError::ReadRequest)?;
-    if frame.len() > maximum {
-        return Err(ChildProtocolError::RequestTooLarge {
-            maximum,
-            actual: frame.len(),
-        });
-    }
     Ok(frame)
 }
 
@@ -98,7 +83,7 @@ fn execute_request(
             return failure_response(request_id, CHILD_REQUEST_ERROR_CODE, error.to_string());
         }
     };
-    match build.build_and_publish(scoop_wire::DecodeLimits::default()) {
+    match build.build_and_publish() {
         Ok(success) => success_response(request_id, &success),
         Err(error) => production_failure_response(request_id, &error),
     }
@@ -224,9 +209,7 @@ enum ChildProtocolExit {
 #[derive(Debug)]
 enum ChildProtocolError {
     UnsupportedVersion(u32),
-    FrameLimitOverflow,
     ReadRequest(io::Error),
-    RequestTooLarge { maximum: usize, actual: usize },
     DecodeRequest(scoop_protocol::ProtocolReadError),
     ConstructResponse(ProtocolValidationError),
     MissingStrongFingerprint(&'static str),
@@ -241,12 +224,7 @@ impl fmt::Display for ChildProtocolError {
             Self::UnsupportedVersion(version) => {
                 write!(formatter, "unsupported child protocol version {version}")
             }
-            Self::FrameLimitOverflow => formatter.write_str("child frame byte limit overflowed"),
             Self::ReadRequest(source) => write!(formatter, "cannot read request frame: {source}"),
-            Self::RequestTooLarge { maximum, actual } => write!(
-                formatter,
-                "request frame exceeds {maximum} bytes: found {actual}"
-            ),
             Self::DecodeRequest(source) => write!(formatter, "invalid request frame: {source}"),
             Self::ConstructResponse(source) => {
                 write!(formatter, "cannot construct response: {source}")
@@ -274,8 +252,6 @@ impl std::error::Error for ChildProtocolError {
             Self::ConstructResponse(source) => Some(source),
             Self::EncodeResponse(source) => Some(source),
             Self::UnsupportedVersion(_)
-            | Self::FrameLimitOverflow
-            | Self::RequestTooLarge { .. }
             | Self::MissingStrongFingerprint(_)
             | Self::UnexpectedDump => None,
         }
@@ -378,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn transport_rejects_trailing_or_oversized_frames_without_a_response() {
+    fn transport_rejects_trailing_frames_without_a_response() {
         let mut trailing = scoop_protocol::encode_request_frame(&non_machine_request()).unwrap();
         trailing.push(0);
         let mut response = Vec::new();
@@ -389,17 +365,6 @@ mod tests {
                 &mut response,
             ),
             Err(ChildProtocolError::DecodeRequest(_))
-        ));
-        assert!(response.is_empty());
-
-        let oversized = vec![0; scoop_protocol::PROTOCOL_MAX_FRAME_BYTES + FRAME_PREFIX_BYTES + 1];
-        assert!(matches!(
-            run_transport(
-                scoop_protocol::PROTOCOL_VERSION,
-                Cursor::new(oversized),
-                &mut response,
-            ),
-            Err(ChildProtocolError::RequestTooLarge { .. })
         ));
         assert!(response.is_empty());
     }

@@ -33,18 +33,15 @@ pub(super) fn check(
         producer,
     )
     .unwrap();
-    let provider = lir::ShapeLinkProviderV1::try_new(
-        lir::ShapeLinkProviderPartsV1 {
-            foundation: &prepared.foundation,
-            production: lir::ShapeLinkProductionV1::Reader(&prepared.production),
-            ordinary: &ordinary,
-            layouts: core_lir.layouts(),
-            callables: core_lir.callables(),
-            descriptors: core_lir.descriptors(),
-            dispatch: core_lir.dispatch(),
-        },
-        &mut meter(),
-    )
+    let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
+        foundation: &prepared.foundation,
+        production: lir::ShapeLinkProductionV1::Reader(&prepared.production),
+        ordinary: &ordinary,
+        layouts: core_lir.layouts(),
+        callables: core_lir.callables(),
+        descriptors: core_lir.descriptors(),
+        dispatch: core_lir.dispatch(),
+    })
     .unwrap();
     let core = bootstrap_core(directory, target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
@@ -77,12 +74,10 @@ pub(super) fn check(
                     dispatch: &[core_mir.dispatch()],
                 };
                 let exports =
-                    scoop_mir_lower::lower_type_bridge_exports(input, dependencies, &mut meter())
-                        .unwrap();
+                    scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
                 let projected = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
                     input,
                     dependencies,
-                    &mut meter(),
                 )
                 .unwrap();
                 let mir = mir::CrossConeMirTypeBridgeSectionV1::try_new(
@@ -95,7 +90,6 @@ pub(super) fn check(
                     &[core_mir],
                     &projected,
                     input.identities,
-                    &mut meter(),
                 )
                 .unwrap();
                 assert_eq!(mir.initialization_uses().records().len(), count);
@@ -116,7 +110,6 @@ pub(super) fn check(
                         lir::EntryProductionSourceV1::Library,
                         &selected,
                         &initialization,
-                        &mut meter(),
                     )
                     .unwrap();
                 let input_lir = scoop_lir_lower::LayoutAbiExportInputV1 {
@@ -135,17 +128,12 @@ pub(super) fn check(
                     &selected,
                     &initialization,
                 );
-                let exports = scoop_lir_lower::lower_layout_abi_exports(
-                    input_lir,
-                    dependencies,
-                    &mut meter(),
-                )
-                .unwrap();
+                let exports =
+                    scoop_lir_lower::lower_layout_abi_exports(input_lir, dependencies).unwrap();
                 let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
                     input_lir,
                     dependencies,
                     &projected,
-                    &mut meter(),
                 )
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(
@@ -153,12 +141,9 @@ pub(super) fn check(
                     &[core_lir],
                     selected.physical_imports().records().to_vec(),
                     &source,
-                    &mut meter(),
                 )
                 .unwrap();
-                let production = registration
-                    .validate_layout_abi(&layout, &mut meter())
-                    .unwrap();
+                let production = registration.validate_layout_abi(&layout).unwrap();
                 snapshot(
                     &fixtures.join(format!("{name}.mir.snap")),
                     &mir::dump(input.mir.module()),

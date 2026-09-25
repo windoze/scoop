@@ -7,7 +7,7 @@ use hir::NominalDispatchBindingError as Error;
 mod contracts;
 mod declaration_entry;
 mod inventory;
-mod resources;
+
 mod selections;
 
 const SOURCE: &str = include_str!(concat!(
@@ -56,15 +56,13 @@ fn complete_nominal_sources_join_restored_dispatch_contracts_and_inventory() {
     ] {
         with_sources(source, |fixture, sources, dispatch, core| {
             let foundation = fixture.bind().unwrap();
-            let bound = dispatch.bind(&foundation, &mut meter()).unwrap();
-            let slots = bound.bind_slot_sources(&mut meter()).unwrap();
+            let bound = dispatch.bind(&foundation).unwrap();
+            let slots = bound.bind_slot_sources().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
-                let joined = parameters
-                    .bind_dispatch_sources(&slots, &mut meter())
-                    .unwrap();
+                let joined = parameters.bind_dispatch_sources(&slots).unwrap();
                 assert_eq!(joined.provider(), fixture.source.entries().provider);
                 assert!(std::ptr::eq(joined.parameters(), &parameters));
                 assert!(std::ptr::eq(joined.slots(), &slots));

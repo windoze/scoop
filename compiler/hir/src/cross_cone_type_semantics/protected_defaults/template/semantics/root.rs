@@ -4,7 +4,6 @@ use crate::{
     ProtectedDefaultTemplateKeyV1,
 };
 use scoop_identity::{SignatureTypeKey, StructuralDefinitionPath};
-use scoop_wire::BudgetMeter;
 
 /// Supplies the independently established provider and override relation for
 /// the protected default key space.
@@ -13,7 +12,6 @@ pub trait ProtectedDefaultRootSemanticAuthority<E> {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultTemplateProviderShapeV1, E>;
 
     /// Returns the true provider's source receiver in its original binder
@@ -22,7 +20,6 @@ pub trait ProtectedDefaultRootSemanticAuthority<E> {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<SignatureTypeKey>, E>;
 
     /// Borrows the independently declared parameters and the exact parameter
@@ -31,7 +28,6 @@ pub trait ProtectedDefaultRootSemanticAuthority<E> {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, E>;
 
     /// Replays the actual override relation, its complete binder substitution
@@ -42,7 +38,6 @@ pub trait ProtectedDefaultRootSemanticAuthority<E> {
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
         mapping: &CanonicalBinderUseListV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), E>;
 }
 pub(super) fn validate<A: ProtectedDefaultRootSemanticAuthority<E>, E>(
@@ -51,7 +46,6 @@ pub(super) fn validate<A: ProtectedDefaultRootSemanticAuthority<E>, E>(
     path: &StructuralDefinitionPath,
     mapping: &CanonicalBinderUseListV1,
     authority: &mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticValidationError<E>> {
     use DefaultTemplateRootSemanticValidationError as Error;
     let last = path.segments().last().ok_or(Error::EmptyDefinitionPath)?;
@@ -61,11 +55,11 @@ pub(super) fn validate<A: ProtectedDefaultRootSemanticAuthority<E>, E>(
         });
     }
     let provider = authority
-        .protected_default_provider_shape(root, path, meter)
+        .protected_default_provider_shape(root, path)
         .map_err(Error::Provider)?;
     if root.declaration() != key.owner() {
         authority
-            .validate_inherited_protected_default_provider(key, root, path, mapping, meter)
+            .validate_inherited_protected_default_provider(key, root, path, mapping)
             .map_err(Error::InheritedRelation)?;
     }
     Ok(provider)

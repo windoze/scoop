@@ -82,15 +82,9 @@ impl ExternalCallable {
         required_definition: ObjectDefinitionPlanId,
         signature: ScoopAbiSignature,
         enums: &crate::EnumDefs,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, crate::LayoutExternalMaterializationError> {
         record
-            .validate_physical_signature(
-                enums,
-                &signature,
-                protocol_effect(record.call_protocol()),
-                meter,
-            )
+            .validate_physical_signature(enums, &signature, protocol_effect(record.call_protocol()))
             .map_err(crate::LayoutExternalMaterializationError::CallableAbi)?;
         let physical = record.physical_definition();
         if physical.provider() != provider

@@ -3,7 +3,7 @@ use crate::cross_cone_type_semantics::inheritance::tests::support::{Node, site};
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::{Fixture, nominal};
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, SignatureTypeKey, SourceNominalKind};
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 mod authority;
 mod generic;
 mod generic_properties;
@@ -12,9 +12,6 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) mod support;
 mod variants;
 mod wire_tests;
 use support::*;
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn protected_nested_closes_recursive_children_constructors_and_private_members() {
@@ -95,30 +92,18 @@ fn protected_nested_closes_recursive_children_constructors_and_private_members()
     )
     .unwrap();
     let bytes = encode(&record).unwrap();
-    let decoded: DecodedProtectedNestedNominalInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedProtectedNestedNominalInterfaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let table = representations(&fixture);
     let checked = record
-        .validate_source(&graph, &table, &mut fixture, &mut meter())
+        .validate_source(&graph, &table, &mut fixture)
         .unwrap();
     assert_eq!(checked.record().declaration(), owner.source);
-    let short = DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    };
-    let error = record
-        .validate_source(&graph, &table, &mut fixture, &mut BudgetMeter::new(short))
-        .unwrap_err();
-    assert!(format!("{error:?}").contains("Resource("));
 }
 
 #[test]
@@ -155,15 +140,12 @@ fn source_inventory_rejects_self_consistent_omission_and_wrong_concrete_join() {
     )
     .unwrap();
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let table = representations(&fixture);
     assert!(matches!(
-        record.validate_source(&graph, &table, &mut fixture, &mut meter()),
+        record.validate_source(&graph, &table, &mut fixture),
         Err(NestedSourceSemanticError::Inventory)
     ));
     let wrong = ProtectedNestedNominalPayloadV1::try_new(
@@ -182,7 +164,7 @@ fn source_inventory_rejects_self_consistent_omission_and_wrong_concrete_join() {
     )
     .unwrap();
     assert!(matches!(
-        record.validate_source(&graph, &table, &mut fixture, &mut meter()),
+        record.validate_source(&graph, &table, &mut fixture),
         Err(NestedSourceSemanticError::ConcreteSupport)
     ));
 }

@@ -1,10 +1,10 @@
 //! Recursive nominal candidates projected independently from sealed source HIR.
 use super::CrossConeTypeSemanticsProductionError as Error;
-use super::inheritance::source_resources::{invalid, resource, work};
+use super::inheritance::source_errors::{invalid, resource};
 use crate::production::nominal_interfaces::{NestedSourceNode, project_nested_sources};
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, PersistentConstructorId, PersistentPropertyId};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod assemble;
@@ -21,13 +21,9 @@ pub struct NestedNominalSourceProductionV1 {
     protocols: CanonicalProtectedCallableSourceInterfacesV1,
 }
 impl NestedNominalSourceProductionV1 {
-    pub fn from_export_hir(
-        output: &ExportHirOutput,
-        root: SourceNominalId,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
-        let (record, owners) = project_record(output, root, meter)?;
-        let protocols = project_protocols(output.module(), owners, meter)?;
+    pub fn from_export_hir(output: &ExportHirOutput, root: SourceNominalId) -> Result<Self, Error> {
+        let (record, owners) = project_record(output, root)?;
+        let protocols = project_protocols(output.module(), owners)?;
         Ok(Self { record, protocols })
     }
     pub const fn record(&self) -> &NominalSupportNestedInterfaceV1 {
@@ -49,7 +45,6 @@ impl NestedNominalSourceProductionV1 {
 pub(super) fn project_record(
     output: &ExportHirOutput,
     root: SourceNominalId,
-    meter: &mut BudgetMeter,
 ) -> Result<
     (
         NominalSupportNestedInterfaceV1,
@@ -57,46 +52,36 @@ pub(super) fn project_record(
     ),
     Error,
 > {
-    let nodes = project_nested_sources(output, root, meter)?;
-    let mut required = inventory::collect(nodes.iter().map(|node| &node.contract), meter)?;
+    let nodes = project_nested_sources(output, root)?;
+    let mut required = inventory::collect(nodes.iter().map(|node| &node.contract))?;
     let properties = super::inheritance::source_properties::project_nominal(
         output.module(),
-        &required.properties(meter)?,
-        meter,
+        &required.properties()?,
     )?;
-    required.accessors(&properties, meter)?;
-    let protocol_owners = required.protocols(meter)?;
+    required.accessors(&properties)?;
+    let protocol_owners = required.protocols()?;
     let constructors =
-        super::nominal_constructors::project(output.module(), required.constructors, meter)?;
-    let callables = super::nominal_callables::project(output.module(), required.callables, meter)?;
-    let mut assembly = assemble::Assembly::new(nodes, meter)?;
+        super::nominal_constructors::project(output.module(), required.constructors)?;
+    let callables = super::nominal_callables::project(output.module(), required.callables)?;
+    let mut assembly = assemble::Assembly::new(nodes)?;
     for property in properties {
         let owner = property.owner();
-        resources::boxed(&property, meter)?;
-        assembly.push(
-            owner,
-            NestedSourceSupportV1::Property(Box::new(property)),
-            meter,
-        )?;
+
+        assembly.push(owner, NestedSourceSupportV1::Property(Box::new(property)))?;
     }
     for constructor in constructors {
         let owner = constructor.payload().owner();
-        resources::boxed(&constructor, meter)?;
+
         assembly.push(
             owner,
             NestedSourceSupportV1::Constructor(Box::new(constructor)),
-            meter,
         )?;
     }
     for callable in callables {
         let owner = callable.payload().owner();
-        resources::boxed(&callable, meter)?;
-        assembly.push(
-            owner,
-            NestedSourceSupportV1::Callable(Box::new(callable)),
-            meter,
-        )?;
+
+        assembly.push(owner, NestedSourceSupportV1::Callable(Box::new(callable)))?;
     }
-    let record = assembly.finish(root, meter)?;
+    let record = assembly.finish(root)?;
     Ok((record, protocol_owners))
 }

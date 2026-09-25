@@ -3,7 +3,6 @@ use crate::{
     CheckedProtectedSourceProtocolV1, DefaultTemplateProviderShapeV1,
     NominalInterfaceShapeAuthority, ProtectedDefaultOwnerSourceV1,
 };
-use scoop_wire::BudgetMeter;
 
 mod contract;
 mod errors;
@@ -27,12 +26,11 @@ impl ProtectedDefaultTemplateV1 {
         owner: ProtectedDefaultOwnerSourceV1<'_>,
         protocol: CheckedProtectedSourceProtocolV1<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedDefaultTemplateContractSemanticError<E>>
     where
         A: NominalInterfaceShapeAuthority<E> + ProtectedDefaultRootSemanticAuthority<E>,
     {
-        self.validate_contract_semantics_with_provider(owner, protocol, authority, meter)
+        self.validate_contract_semantics_with_provider(owner, protocol, authority)
             .map(|_| ())
     }
 
@@ -41,11 +39,10 @@ impl ProtectedDefaultTemplateV1 {
         owner: ProtectedDefaultOwnerSourceV1<'_>,
         protocol: CheckedProtectedSourceProtocolV1<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultTemplateProviderShapeV1, ProtectedDefaultTemplateContractSemanticError<E>>
     where
         A: NominalInterfaceShapeAuthority<E> + ProtectedDefaultRootSemanticAuthority<E>,
     {
-        contract::validate(self, owner, protocol, authority, meter)
+        contract::validate(self, owner, protocol, authority)
     }
 }

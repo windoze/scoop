@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::PersistentTypeId;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::{CanonicalCallableInterfacesV1, CanonicalNominalInterfacesV1, SourceNominalId};
 
@@ -21,21 +21,19 @@ impl NominalMaterializationClosure {
     pub fn from_declarations(
         nominals: &CanonicalNominalInterfacesV1,
         callables: &CanonicalCallableInterfacesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, NominalMaterializationClosureError> {
-        let mut graph = Graph::new(nominals, meter)?;
-        nominals.visit_materialization_requirements(callables, meter, |requirement, meter| {
-            graph.requirement(requirement, meter)
+        let mut graph = Graph::new(nominals)?;
+        nominals.visit_materialization_requirements(callables, |requirement| {
+            graph.requirement(requirement)
         })?;
-        graph.propagate(meter)?;
+        graph.propagate()?;
         let mut sources = Vec::new();
-        meter.try_reserve_collection_slots(
+        scoop_wire::allocation::try_reserve(
             &mut sources,
             graph.positions.len(),
             &WirePath::root(),
         )?;
         for (source, position) in graph.positions {
-            meter.charge_work(1, &WirePath::root())?;
             if !graph.blocked[position] {
                 sources.push(source);
             }
@@ -62,24 +60,20 @@ struct Graph {
 impl Graph {
     fn new(
         nominals: &CanonicalNominalInterfacesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, NominalMaterializationClosureError> {
         let path = WirePath::root();
-        let count = nominals.declaration_count();
-        meter.check_table_entries(count as u64, &path)?;
+
         let mut positions = BTreeMap::new();
         for record in nominals.all_records() {
-            meter.charge_work(1 + u64::from(positions.len().max(1).ilog2()), &path)?;
             if let SourceNominalId::Concrete(source) = record.declaration() {
-                meter.charge_collection_slots(1, &path)?;
                 let position = positions.len();
                 positions.insert(source, position);
             }
         }
         let mut dependents = Vec::new();
         let mut blocked = Vec::new();
-        meter.try_reserve_collection_slots(&mut dependents, positions.len(), &path)?;
-        meter.try_reserve_collection_slots(&mut blocked, positions.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut dependents, positions.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut blocked, positions.len(), &path)?;
         dependents.resize_with(positions.len(), BTreeSet::new);
         blocked.resize(positions.len(), false);
         Ok(Self {
@@ -90,53 +84,35 @@ impl Graph {
         })
     }
 
-    fn position(
-        &self,
-        source: SourceNominalId,
-        meter: &mut BudgetMeter,
-    ) -> Result<Option<usize>, WireError> {
-        meter.charge_work(
-            1 + u64::from(self.positions.len().max(1).ilog2()),
-            &WirePath::root(),
-        )?;
-        Ok(match source {
+    fn position(&self, source: SourceNominalId) -> Option<usize> {
+        match source {
             SourceNominalId::Concrete(source) => self.positions.get(&source).copied(),
             SourceNominalId::GenericTemplate(_) => None,
-        })
+        }
     }
 
-    fn edge(
-        &mut self,
-        dependency: usize,
-        owner: usize,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), WireError> {
-        let path = WirePath::root();
+    fn edge(&mut self, dependency: usize, owner: usize) -> Result<(), WireError> {
         let dependents = &mut self.dependents[dependency];
-        meter.charge_work(1 + u64::from(dependents.len().max(1).ilog2()), &path)?;
+
         if !dependents.contains(&owner) {
-            meter.check_table_entries(dependents.len() as u64 + 1, &path)?;
-            meter.charge_edges(1, &path)?;
-            meter.charge_collection_slots(1, &path)?;
             dependents.insert(owner);
         }
         Ok(())
     }
 
-    fn block(&mut self, owner: usize, meter: &mut BudgetMeter) -> Result<(), WireError> {
+    fn block(&mut self, owner: usize) -> Result<(), WireError> {
         if !self.blocked[owner] {
-            meter.try_reserve_collection_slots(&mut self.pending, 1, &WirePath::root())?;
+            scoop_wire::allocation::try_reserve(&mut self.pending, 1, &WirePath::root())?;
             self.blocked[owner] = true;
             self.pending.push(owner);
         }
         Ok(())
     }
 
-    fn propagate(&mut self, meter: &mut BudgetMeter) -> Result<(), WireError> {
+    fn propagate(&mut self) -> Result<(), WireError> {
         while let Some(owner) = self.pending.pop() {
             for dependent in std::mem::take(&mut self.dependents[owner]) {
-                meter.charge_work(1, &WirePath::root())?;
-                self.block(dependent, meter)?;
+                self.block(dependent)?;
             }
         }
         Ok(())

@@ -63,34 +63,18 @@ impl<'input> LirInitializationAbiValidatedCrossConeLayoutClosure<'input> {
                     ordinary,
                     layout,
                 } = artifact;
-                let coordinate = prepared.coordinate();
-                let coordinate_bytes = coordinate
-                    .group()
-                    .len()
-                    .saturating_add(coordinate.name().len())
-                    .saturating_add(coordinate.version().len());
+
                 let path = WirePath::root();
-                prepared
-                    .semantic_parts()
-                    .meter
-                    .charge_owned_bytes(coordinate_bytes as u64, &path)?;
-                prepared
-                    .semantic_parts()
-                    .meter
-                    .charge_work(coordinate_bytes as u64, &path)?;
+
                 let coordinate = prepared.coordinate();
                 let coordinate = coordinate.clone();
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
                 let mut dependencies = Vec::new();
-                parts.meter.try_reserve_collection_slots(
-                    &mut dependencies,
-                    reachable.len(),
-                    &path,
-                )?;
+                scoop_wire::allocation::try_reserve(&mut dependencies, reachable.len(), &path)?;
                 dependencies.extend(reachable.iter().map(|&index| &complete[index]));
                 let mut direct_providers = Vec::new();
-                parts.meter.try_reserve_collection_slots(
+                scoop_wire::allocation::try_reserve(
                     &mut direct_providers,
                     dependency_positions[position].len(),
                     &path,
@@ -108,10 +92,7 @@ impl<'input> LirInitializationAbiValidatedCrossConeLayoutClosure<'input> {
                     parts,
                     &dependencies,
                 )?;
-                prepared
-                    .semantic_parts()
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &path)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
                 Ok(LirStrongProductionReplayedCrossConeLayoutSections {
                     prepared,
                     mir,

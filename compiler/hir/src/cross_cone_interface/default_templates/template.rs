@@ -234,17 +234,13 @@ impl DecodedExportDefaultTemplateV1 {
     where
         R: DefaultStatementReferenceResolver<E>,
     {
-        self.resolve_metered(
-            resolver,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-            &scoop_wire::WirePath::root(),
-        )
+        self.resolve_at(resolver, &scoop_wire::WirePath::root())
     }
 
-    pub fn resolve_metered<R, E>(
+    pub fn resolve_at<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
+
         path: &scoop_wire::WirePath,
     ) -> Result<ExportDefaultTemplateV1, ExportDefaultTemplateResolutionError<E>>
     where
@@ -284,7 +280,7 @@ impl DecodedExportDefaultTemplateV1 {
             .map_err(ExportDefaultTemplateResolutionError::ValueParameters)?;
         let references = self
             .references
-            .resolve_metered(resolver, meter, &path.clone().field(11))
+            .resolve_at(resolver, &path.clone().field(11))
             .map_err(ExportDefaultTemplateResolutionError::References)?;
         let definition_origin = self
             .definition_origin
@@ -339,7 +335,7 @@ impl WireEncode for DecodedExportDefaultTemplateV1 {
 }
 
 impl WireDecode for DecodedExportDefaultTemplateV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(12)?;
         Ok(Self {
             key: decoder.field(1, DecodedExportDefaultTemplateKeyV1::decode)?,

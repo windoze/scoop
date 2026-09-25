@@ -33,9 +33,8 @@ impl<'a> CrossConeLayoutAbiSectionV1<'a> {
         dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
         physical_imports: Vec<crate::ExternalShapeLinkImportV1<'a>>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
-        build::producer(exports, dependencies, physical_imports, source, meter)
+        build::producer(exports, dependencies, physical_imports, source)
     }
 
     pub fn provider(&self) -> ConeIdentity {
@@ -82,23 +81,10 @@ impl<'a> CrossConeLayoutAbiSectionV1<'a> {
     }
 }
 
-fn reserve<T, E>(
-    count: usize,
-    meter: &mut BudgetMeter,
-) -> Result<Vec<T>, LayoutAbiSectionError<E>> {
-    meter.check_table_entries(count as u64, &WirePath::root())?;
+fn reserve<T, E>(count: usize) -> Result<Vec<T>, LayoutAbiSectionError<E>> {
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, &WirePath::root())?;
+    scoop_wire::allocation::try_reserve(&mut values, count, &WirePath::root())?;
     Ok(values)
-}
-
-fn sort_work<E>(count: usize, meter: &mut BudgetMeter) -> Result<(), LayoutAbiSectionError<E>> {
-    meter.check_table_entries(count as u64, &WirePath::root())?;
-    let levels = usize::BITS - count.max(1).saturating_sub(1).leading_zeros();
-    for _ in 0..levels {
-        meter.charge_work(count as u64, &WirePath::root())?;
-    }
-    Ok(())
 }
 
 #[cfg(test)]

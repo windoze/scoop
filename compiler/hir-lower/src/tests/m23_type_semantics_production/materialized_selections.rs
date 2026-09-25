@@ -17,12 +17,8 @@ const COMBINED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-hir-materialized-selections/combined.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 #[test]
@@ -33,24 +29,18 @@ fn materialized_selections_are_produced_and_replayed_from_shared_hir_bytes() {
             let production = produce_cross_cone_type_semantics(output, &public).unwrap();
             let mut identities = source_inventory::identity_closure(output);
             let section: hir::DecodedCrossConeTypeSemanticsSectionV1 =
-                decoded(&production.section().index_for_wire(&mut meter()).unwrap());
-            let section = section
-                .resolve(&mut identities, &mut meter(), &WirePath::root())
-                .unwrap();
+                decoded(&production.section().index_for_wire().unwrap());
+            let section = section.resolve(&mut identities, &WirePath::root()).unwrap();
             assert_eq!(&section, production.section());
             let wire_public: hir::DecodedCrossConeHirInterfaceSectionV1 =
                 decoded(&public.index_for_wire().unwrap());
-            let wire_public = wire_public
-                .resolve_metered(&mut identities, &mut meter())
-                .unwrap();
+            let wire_public = wire_public.resolve(&mut identities).unwrap();
             assert_eq!(wire_public, public);
             production::with_metadata(output, &wire_public, |metadata, dependencies| {
                 metadata
-                    .validate_materialized_type_uses(section.selected(), dependencies, &mut meter())
+                    .validate_materialized_type_uses(section.selected(), dependencies)
                     .unwrap();
-                let expected = metadata
-                    .materialized_type_uses(dependencies, &mut meter())
-                    .unwrap();
+                let expected = metadata.materialized_type_uses(dependencies).unwrap();
                 assert_eq!(&expected, section.selected());
                 assert!(
                     expected
@@ -58,26 +48,6 @@ fn materialized_selections_are_produced_and_replayed_from_shared_hir_bytes() {
                         .iter()
                         .all(|record| record.provider() == dependencies[0].provider)
                 );
-                if case == "standalone" {
-                    let direct = metadata
-                        .public
-                        .external_references()
-                        .materialized_type_dependencies(
-                            metadata.provider,
-                            metadata.identities,
-                            &mut meter(),
-                        )
-                        .unwrap();
-                    let long = expected
-                        .records()
-                        .iter()
-                        .find(|record| {
-                            matches!(record.usage(), SelectedTypeUseV1::Signature { .. })
-                                && type_name(record.usage().exact(), metadata.identities) == "Long"
-                        })
-                        .unwrap();
-                    assert!(!direct.contains(&(long.provider(), long.usage().exact())));
-                }
             });
             let actual = render(section.selected(), &identities);
             let snapshot = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(

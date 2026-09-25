@@ -20,8 +20,8 @@ fn callable_domains_reject_each_changed_witness_including_repeated_and_nested_us
                             inputs.output,
                         );
                         let table = super::super::default_origins::replace(&inputs.templates, changed);
-                        let declarations = parameters.bind_default_declarations(&table, &[], &mut meter()).unwrap();
-                        let error = domains.bind_nominal_default_callable_domains(&declarations, &mut meter()).unwrap_err();
+                        let declarations = parameters.bind_default_declarations(&table, &[]).unwrap();
+                        let error = domains.bind_nominal_default_callable_domains(&declarations).unwrap_err();
                         assert!(matches!(error, Error::Witness { key, index: actual } if key == original.key() && actual == index as u32), "{error:?}");
                         kinds.insert(kind(record.target()));
                         rejected += 1;
@@ -39,14 +39,14 @@ fn callable_domains_require_the_same_foundation_and_complete_access_sources() {
     with_inputs(SOURCE, |inputs| {
         let foundation = inputs.fixture.bind().unwrap();
         inputs.with_bound(|_, parameters, current| {
-            let declarations = parameters.bind_default_declarations(&inputs.templates, &[], &mut meter()).unwrap();
-            let access = foundation.bind_default_access_declarations(&inputs.access, &inputs.required, &mut meter()).unwrap();
-            let domains = Domains::new(&access, &[], inputs.core_types, &mut meter()).unwrap();
-            assert!(matches!(domains.bind_nominal_default_callable_domains(&declarations, &mut meter()), Err(Error::Foundation { expected, actual }) if expected == actual));
-            let empty = hir::CanonicalDefaultSourceAccessDeclarationsV1::try_new(vec![], &mut meter()).unwrap();
-            let access = current.bind_default_access_declarations(&empty, &BTreeSet::new(), &mut meter()).unwrap();
-            let domains = Domains::new(&access, &[], inputs.core_types, &mut meter()).unwrap();
-            assert!(matches!(domains.bind_nominal_default_callable_domains(&declarations, &mut meter()), Err(Error::Target { error, .. }) if matches!(*error, hir::DefaultSourceDomainError::Access(_))));
+            let declarations = parameters.bind_default_declarations(&inputs.templates, &[]).unwrap();
+            let access = foundation.bind_default_access_declarations(&inputs.access, &inputs.required).unwrap();
+            let domains = Domains::new(&access, &[], inputs.core_types).unwrap();
+            assert!(matches!(domains.bind_nominal_default_callable_domains(&declarations), Err(Error::Foundation { expected, actual }) if expected == actual));
+            let empty = hir::CanonicalDefaultSourceAccessDeclarationsV1::try_new(vec![]).unwrap();
+            let access = current.bind_default_access_declarations(&empty, &BTreeSet::new()).unwrap();
+            let domains = Domains::new(&access, &[], inputs.core_types).unwrap();
+            assert!(matches!(domains.bind_nominal_default_callable_domains(&declarations), Err(Error::Target { error, .. }) if matches!(*error, hir::DefaultSourceDomainError::Access(_))));
         });
     });
 }

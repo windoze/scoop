@@ -4,7 +4,7 @@ use scoop_identity::{
     ConeIdentity, ExactTypeKey, PersistentExactTypeId, PersistentPropertyAccessorId,
     PersistentTypeId,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::*;
 
@@ -43,9 +43,8 @@ pub struct TypeFoundationSourceAuthorityV1 {
 impl TypeFoundationSourceAuthorityV1 {
     pub fn try_new(
         entries: TypeFoundationSourceEntriesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, TypeFoundationSourceError> {
-        validation::validate(&entries, meter)?;
+        validation::validate(&entries)?;
         Ok(Self { entries })
     }
 

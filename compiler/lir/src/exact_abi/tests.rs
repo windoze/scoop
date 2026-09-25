@@ -1,8 +1,8 @@
 use scoop_identity::*;
-use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
+use scoop_wire::{WireEncode, decode_canonical, encode};
 
 use super::*;
-use crate::exact_layout::tests::{Bound, exact, field, integer, managed, meter, source, unit};
+use crate::exact_layout::tests::{Bound, exact, field, integer, managed, source, unit};
 use crate::*;
 
 mod common;
@@ -43,7 +43,6 @@ fn abi_replays_receiver_order_repeated_layouts_and_all_pass_modes() {
             result: &aggregate,
         },
         &foundation,
-        &mut meter(),
     )
     .unwrap();
     let arguments = value.canonical_signature().arguments();
@@ -126,7 +125,7 @@ fn abi_classifies_tagged_enum_as_indirect_and_pointer_niche_as_direct_at_equal_s
 }
 
 #[test]
-fn abi_rejects_missing_receiver_wrong_exact_role_body_and_budget() {
+fn abi_rejects_missing_receiver_wrong_exact_role_and_body() {
     let unit: ExactLayoutExportV1 = unit().into();
     let byte: ExactLayoutExportV1 = integer("Byte", IntegerKind::SIGNED_8).into();
     let (target, foundation) = fixtures::foundation("invoke", true);
@@ -147,8 +146,7 @@ fn abi_rejects_missing_receiver_wrong_exact_role_body_and_budget() {
                 parameters: &[],
                 result: &unit
             },
-            &foundation,
-            &mut meter()
+            &foundation
         ),
         Err(ExactCallableAbiError::Receiver)
     ));
@@ -169,14 +167,13 @@ fn abi_rejects_missing_receiver_wrong_exact_role_body_and_budget() {
                 parameters: &[&unit],
                 result: &unit
             },
-            &foundation,
-            &mut meter()
+            &foundation
         ),
         Err(ExactCallableAbiError::ExactType)
     ));
     let bound = Bound::instance(exact(&source("Class", SourceNominalKind::Class, 0)));
     let instance: ExactLayoutExportV1 =
-        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation, &mut meter())
+        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation)
             .unwrap()
             .into();
     let signature =
@@ -192,8 +189,7 @@ fn abi_rejects_missing_receiver_wrong_exact_role_body_and_budget() {
                 parameters: &[],
                 result: &instance
             },
-            &foundation,
-            &mut meter()
+            &foundation
         ),
         Err(ExactCallableAbiError::LayoutRole)
     ));
@@ -211,29 +207,8 @@ fn abi_rejects_missing_receiver_wrong_exact_role_body_and_budget() {
                 parameters: &[],
                 result: &unit
             },
-            &missing,
-            &mut meter()
+            &missing
         ),
         Err(ExactCallableAbiError::MissingCallableBody)
-    ));
-    let limits = DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        ExactCallableAbiExportV1::replay(
-            TARGET,
-            target,
-            signature,
-            ExactCallableProtocolV1::OrdinaryNoGc,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &unit
-            },
-            &foundation,
-            &mut BudgetMeter::new(limits)
-        ),
-        Err(ExactCallableAbiError::Resource(_))
     ));
 }

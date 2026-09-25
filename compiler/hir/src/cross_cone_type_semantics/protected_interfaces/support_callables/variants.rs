@@ -7,7 +7,6 @@ use scoop_identity::{
     EnumVariantIdentityKey, PersistentEnumVariantId, SignatureTypeKey, SourceDeclarationKey,
     SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 use std::fmt;
 
 mod fields;
@@ -27,11 +26,10 @@ impl<'s> CheckedNominalSupportAccessSourceV1<'s> {
     pub fn replay<'g, 'a>(
         &self,
         graph: &'g CheckedNominalInheritanceGraphV1<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedDeclarationAccessDomainsV1<'g, 'a>, AccessDomainSemanticError> {
         match self {
-            Self::Declaration(source) => graph.replay_declaration_access(*source, meter),
-            Self::Variant(source) => graph.replay_variant_access(*source, meter),
+            Self::Declaration(source) => graph.replay_declaration_access(*source),
+            Self::Variant(source) => graph.replay_variant_access(*source),
         }
     }
 }
@@ -55,7 +53,6 @@ pub(super) fn validate<'a, A: NominalSupportCallableSemanticAuthority<E>, E>(
     source: &'a DeclarationAccessSourceV1,
     owner: &SourceDeclarationKey,
     authority: &'a mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedEnumVariantAccessSourceV1<'a>, NominalSupportCallableSemanticError<E>> {
     use NominalSupportCallableSemanticError as Error;
     use NominalSupportVariantError as VariantError;
@@ -71,20 +68,14 @@ pub(super) fn validate<'a, A: NominalSupportCallableSemanticAuthority<E>, E>(
         payload,
         owner.duplicate_signature().type_parameter_count(),
         authority,
-        meter,
     )
     .map_err(Error::Signature)?;
     let key = authority
         .source_enum_variant_key(variant)
         .map_err(Error::Foundation)?;
-    let path = WirePath::root();
+
     let fail = Error::Variant;
-    meter
-        .charge_sha256(
-            scoop_wire::encoded_length(key).map_err(|error| fail(VariantError::Encoding(error)))?,
-            &path,
-        )
-        .map_err(|error| fail(VariantError::Resource(error)))?;
+
     if PersistentEnumVariantId::from_key(key).ok() != Some(variant)
         || key.source_owner() != Some(payload.owner())
     {
@@ -97,9 +88,7 @@ pub(super) fn validate<'a, A: NominalSupportCallableSemanticAuthority<E>, E>(
         .lexical_owners()
         .split_last()
         .ok_or_else(|| fail(VariantError::Access))?;
-    meter
-        .charge_work(source.lexical_owners().len() as u64, &path)
-        .map_err(|error| fail(VariantError::Resource(error)))?;
+
     if source.declared_visibility() != DeclaredVisibilityV1::Public
         || *last != payload.owner()
         || outer != owner_source.lexical_owners()
@@ -118,7 +107,7 @@ pub(super) fn validate<'a, A: NominalSupportCallableSemanticAuthority<E>, E>(
     let shape = authority
         .source_enum_variant_shape(variant)
         .map_err(Error::Foundation)?;
-    fields::validate(variant, payload, shape, authority, meter)?;
+    fields::validate(variant, payload, shape, authority)?;
     let result_matches = match (payload.owner(), payload.result()) {
         (SourceNominalId::Concrete(owner), SignatureTypeKey::Nominal(result)) => owner == *result,
         (SourceNominalId::GenericTemplate(owner), SignatureTypeKey::NominalApplication { origin, arguments }) => owner == *origin && arguments.as_slice().iter().enumerate().all(|(index, value)| matches!(value, SignatureTypeKey::Binder { depth: 0, index: actual } if *actual as usize == index)),

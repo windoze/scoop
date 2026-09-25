@@ -65,21 +65,17 @@ pub struct CanonicalDefaultSourceAccessDeclarationsV1 {
 impl CanonicalDefaultSourceAccessDeclarationsV1 {
     pub fn try_new(
         mut records: Vec<DefaultSourceAccessDeclarationV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(DefaultSourceAccessDeclarationV1::subject);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
     fn from_ordered(
         records: Vec<DefaultSourceAccessDeclarationV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             DefaultSourceAccessDeclarationV1::subject,
             "default access declarations",
-            meter,
         )?;
         Ok(Self { records })
     }

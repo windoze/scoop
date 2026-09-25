@@ -3,7 +3,7 @@ use hir::{
     DefaultSourceCallableAccessSubjectV1 as Access, ExportDefaultCallableTargetV1 as Callable,
 };
 mod rejection;
-mod resources;
+
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/callable-targets.scoop"
@@ -51,10 +51,9 @@ fn template(
         output,
         hir::ExportParameterOwner::Function(id),
         position,
-        &mut meter(),
     )
     .unwrap()
-    .into_source_template(&mut meter())
+    .into_source_template()
     .unwrap()
 }
 fn label(subject: Subject) -> &'static str {
@@ -80,7 +79,7 @@ fn callable_and_global_targets_replay_sealed_domains_and_preserve_nested_demands
             for (_, template) in &templates {
                 for record in template.references().callables() {
                     if let Access::Declaration(subject) = foundation
-                        .default_callable_access_subject(record.target(), &mut meter())
+                        .default_callable_access_subject(record.target())
                         .unwrap()
                     {
                         required.insert(subject);
@@ -89,20 +88,19 @@ fn callable_and_global_targets_replay_sealed_domains_and_preserve_nested_demands
                 for record in template.references().globals() {
                     required.insert(
                         foundation
-                            .default_global_access_subject(*record.target(), &mut meter())
+                            .default_global_access_subject(*record.target())
                             .unwrap(),
                     );
                 }
             }
-            let table =
-                Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+            let table = Table::from_export_hir(&output.output().export, &required).unwrap();
             let bound = foundation
-                .bind_default_access_declarations(&table, &required, &mut meter())
+                .bind_default_access_declarations(&table, &required)
                 .unwrap();
             let mut snapshot = String::new();
             for (name, template) in &templates {
                 let nested = template
-                    .index_nested_callables(&mut meter(), &scoop_wire::WirePath::root())
+                    .index_nested_callables(&scoop_wire::WirePath::root())
                     .unwrap();
                 assert!(
                     !template.references().callables().is_empty()
@@ -111,11 +109,11 @@ fn callable_and_global_targets_replay_sealed_domains_and_preserve_nested_demands
                 );
                 for record in template.references().callables() {
                     match foundation
-                        .default_callable_access_subject(record.target(), &mut meter())
+                        .default_callable_access_subject(record.target())
                         .unwrap()
                     {
                         Access::Declaration(subject) => {
-                            let domain = bound.source_lookup_domain(subject, &mut meter()).unwrap();
+                            let domain = bound.source_lookup_domain(subject).unwrap();
                             assert_eq!(&domain, record.witness().target_domain(), "{name}");
                             snapshot.push_str(&format!(
                                 "{name}: {} {}\n",
@@ -143,9 +141,9 @@ fn callable_and_global_targets_replay_sealed_domains_and_preserve_nested_demands
                 }
                 for record in template.references().globals() {
                     let subject = foundation
-                        .default_global_access_subject(*record.target(), &mut meter())
+                        .default_global_access_subject(*record.target())
                         .unwrap();
-                    let domain = bound.source_lookup_domain(subject, &mut meter()).unwrap();
+                    let domain = bound.source_lookup_domain(subject).unwrap();
                     assert_eq!(&domain, record.witness().target_domain(), "{name}");
                     snapshot.push_str(&format!("{name}: Global {}\n", summary(&domain)));
                 }

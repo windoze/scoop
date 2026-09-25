@@ -20,9 +20,7 @@ const NESTED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-nominals/nested.scoop"
 ));
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn sources<'a>(
     export: &'a hir::ExportHir,
 ) -> BTreeMap<hir::SourceNominalId, &'a SourceDeclarationKey> {
@@ -60,10 +58,9 @@ fn table(output: &hir::DependencyHirOutput) -> Table {
         sources(output.output().export.module())
             .into_keys()
             .collect(),
-        &mut meter(),
     )
     .unwrap();
-    Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap()
+    Table::from_export_hir(&output.output().export, &required).unwrap()
 }
 fn name(key: &SourceDeclarationKey) -> &str {
     let DeclarationName::Named(name) = key.name() else {
@@ -136,13 +133,10 @@ fn nominal_source_contracts_replay_real_foundation_bytes_and_are_deterministic()
             with_source(source, |output, _| {
                 let table = table(output);
                 let bytes = encode(&table).unwrap();
-                let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                let decoded: Decoded = decode_canonical(&bytes).unwrap();
                 assert_eq!(encode(&decoded).unwrap(), bytes);
                 let mut identities = source_inventory::identity_closure(output);
-                assert_eq!(
-                    decoded.resolve(&mut identities, &mut meter()).unwrap(),
-                    table
-                );
+                assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
                 bytes
             })
         };
@@ -160,10 +154,8 @@ fn nominal_source_contracts_select_exact_required_roots_without_adding_children(
             .find(|(_, key)| name(key) == "Envelope")
             .unwrap()
             .0;
-        let required =
-            hir::CanonicalSourceNominalIdsV1::try_new(vec![owner], &mut meter()).unwrap();
-        let table =
-            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let required = hir::CanonicalSourceNominalIdsV1::try_new(vec![owner]).unwrap();
+        let table = Table::from_export_hir(&output.output().export, &required).unwrap();
         assert_eq!(
             table
                 .records()
@@ -177,8 +169,7 @@ fn nominal_source_contracts_select_exact_required_roots_without_adding_children(
         assert!(
             Table::from_export_hir(
                 &output.output().export,
-                &hir::CanonicalSourceNominalIdsV1::default(),
-                &mut meter()
+                &hir::CanonicalSourceNominalIdsV1::default()
             )
             .unwrap()
             .records()
@@ -231,8 +222,8 @@ fn nominal_source_contracts_exclude_real_core_constructor_adapters() {
             .declaration(),
     )
     .unwrap();
-    let required = hir::CanonicalSourceNominalIdsV1::try_new(vec![owner], &mut meter()).unwrap();
-    let table = Table::from_export_hir(&output.export, &required, &mut meter()).unwrap();
+    let required = hir::CanonicalSourceNominalIdsV1::try_new(vec![owner]).unwrap();
+    let table = Table::from_export_hir(&output.export, &required).unwrap();
     assert!(
         export.classes[constructor.owner]
             .constructors

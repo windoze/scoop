@@ -1,5 +1,5 @@
 use scoop_identity::{CborIdentityRecord, CoreBuiltinNominal, ExactTypeKey};
-use scoop_wire::{DecodeLimits, WireDecode, decode_canonical, encode};
+use scoop_wire::{WireDecode, decode_canonical, encode};
 
 use super::*;
 
@@ -29,7 +29,7 @@ fn reference_bytes(tag: u8, provider: Option<[u8; 32]>, target: [u8; 32]) -> Vec
 }
 
 fn round_trip<T: WireDecode + WireEncode>(bytes: &[u8]) {
-    let decoded: T = decode_canonical(bytes, DecodeLimits::default()).unwrap();
+    let decoded: T = decode_canonical(bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
@@ -103,25 +103,15 @@ fn each_new_dependency_branch_is_a_closed_product() {
     cases.push(extra);
     cases.push(reference_bytes(4, Some([0x11; 32]), [0x22; 32]));
     for bytes in cases {
-        assert!(
-            decode_canonical::<DecodedStrongTypeDescriptorRefV2>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedStrongTypeDescriptorRefV2>(&bytes).is_err());
     }
     for bytes in [&[0xa1, 0, 1][..], &[0xa2, 0, 1, 1, 1][..]] {
-        assert!(
-            decode_canonical::<DecodedOptionalStrongTypeDescriptorRefV2>(
-                bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedOptionalStrongTypeDescriptorRefV2>(bytes).is_err());
     }
     assert!(
-        decode_canonical::<DecodedStrongTypeDispatchCallableRefV2>(
-            &[0xa2, 0, 3, 1, 0xa2, 1, 2, 2, 0x18, 0xff],
-            DecodeLimits::default()
-        )
+        decode_canonical::<DecodedStrongTypeDispatchCallableRefV2>(&[
+            0xa2, 0, 3, 1, 0xa2, 1, 2, 2, 0x18, 0xff
+        ])
         .is_err()
     );
 }
@@ -148,30 +138,21 @@ fn unknown_provider_is_not_promoted_by_identity_resolution() {
         }
     }
     let bytes = reference_bytes(3, Some([0x11; 32]), *exact().as_array());
-    let decoded: DecodedStrongTypeDescriptorRefV2 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongTypeDescriptorRefV2 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut Reject), Err("provider absent"));
 }
 
 #[test]
 fn retired_core_reference_tags_are_rejected() {
     let retired = reference_bytes(2, None, *exact().as_array());
+    assert!(decode_canonical::<DecodedStrongTypeDescriptorRefV2>(&retired).is_err());
+    assert!(decode_canonical::<DecodedStrongTypeDispatchCallableRefV2>(&retired).is_err());
     assert!(
-        decode_canonical::<DecodedStrongTypeDescriptorRefV2>(&retired, DecodeLimits::default())
-            .is_err()
-    );
-    assert!(
-        decode_canonical::<DecodedStrongTypeDispatchCallableRefV2>(
-            &retired,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
-    assert!(
-        decode_canonical::<DecodedOptionalStrongTypeDescriptorRefV2>(
-            &reference_bytes(3, None, *exact().as_array()),
-            DecodeLimits::default()
-        )
+        decode_canonical::<DecodedOptionalStrongTypeDescriptorRefV2>(&reference_bytes(
+            3,
+            None,
+            *exact().as_array()
+        ))
         .is_err()
     );
 }

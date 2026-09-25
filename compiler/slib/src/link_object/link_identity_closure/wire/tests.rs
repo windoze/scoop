@@ -1,5 +1,5 @@
 use scoop_identity::{DigestPatchIntentKey, DigestSemanticFieldRole};
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -21,14 +21,10 @@ fn closure_wire_round_trips_only_against_the_rebuilt_projection() {
     let bytes = encode(&expected).unwrap();
     assert_eq!(bytes[0], 0xa8);
 
-    let decoded =
-        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     assert_eq!(validate_against(decoded, &expected).unwrap(), expected);
 
-    let decoded =
-        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     let mut changed = expected.clone();
     changed.image_owner.checked_offset += 1;
     assert!(matches!(
@@ -40,53 +36,32 @@ fn closure_wire_round_trips_only_against_the_rebuilt_projection() {
 #[test]
 fn closure_reader_rejects_old_extended_and_unknown_sum_shapes() {
     for bytes in [vec![0xa7], vec![0xa9]] {
-        assert!(
-            decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).is_err());
     }
 
     let expected = closure();
     let mut materialization = encode(&expected.materializations[0]).unwrap();
     assert_eq!(&materialization[..3], &[0xa3, 0x00, 0x01]);
     materialization[2] = 3;
-    assert!(
-        decode_canonical::<DecodedLinkObjectMaterializationV1>(
-            &materialization,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedLinkObjectMaterializationV1>(&materialization).is_err());
 
-    assert!(
-        decode_canonical::<DecodedEntryOwnerBranchV1>(&[0xa1, 0x00, 0x03], DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedEntryOwnerBranchV1>(&[0xa1, 0x00, 0x03]).is_err());
 }
 
 #[test]
 fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     let (partition, plan) = materialization_plan();
     let bytes = encoded_link_identity_closure_for_member_plan_test(&plan);
-    let decoded =
-        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
-    let checked = decoded
-        .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
-        .unwrap();
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
+    let checked = decoded.validate_materializations(&partition).unwrap();
     assert_eq!(checked.member_plan(), &plan);
 
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
         &encoded_link_identity_closure_for_test(),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert!(matches!(
-        decoded
-            .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default())),
+        decoded.validate_materializations(&partition),
         Err(LinkObjectMaterializationValidationError::UnknownScoopLirDefinition(_))
     ));
 
@@ -96,14 +71,11 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
         member: stale_member_id,
         units: plan.scoop_lir_members()[0].units().clone(),
     }];
-    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
-        &encode(&stale_member).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&encode(&stale_member).unwrap())
+            .unwrap();
     assert!(matches!(
-        decoded
-            .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default())),
+        decoded.validate_materializations(&partition),
         Err(LinkObjectMaterializationValidationError::ProjectionMismatch)
     ));
 }
@@ -131,13 +103,11 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         )
         .unwrap();
     let bytes = encoded_link_identity_closure_for_patch_test(&plan, None, intent, member, 144);
-    let decoded =
-        decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     let checked = decoded
-        .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
+        .validate_materializations(&partition)
         .unwrap()
-        .validate_digest_patch_inputs(digest_plan, &mut BudgetMeter::new(DecodeLimits::default()))
+        .validate_digest_patch_inputs(digest_plan)
         .unwrap();
     assert_eq!(checked.member_plan(), &plan);
     assert_eq!(checked.provisional_patch_sites().len(), 1);
@@ -148,16 +118,12 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
 
     let missing = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
         &encoded_link_identity_closure_for_member_plan_test(&plan),
-        DecodeLimits::default(),
     )
     .unwrap()
-    .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
+    .validate_materializations(&partition)
     .unwrap();
     assert_eq!(
-        missing.validate_digest_patch_inputs(
-            digest_plan,
-            &mut BudgetMeter::new(DecodeLimits::default())
-        ),
+        missing.validate_digest_patch_inputs(digest_plan),
         Err(LinkDigestPatchInputValidationError::MissingPatchIntent(
             intent
         ))
@@ -174,16 +140,12 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     assert_ne!(unknown_intent, intent);
     let unknown = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
         &encoded_link_identity_closure_for_patch_test(&plan, None, unknown_intent, member, 144),
-        DecodeLimits::default(),
     )
     .unwrap()
-    .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
+    .validate_materializations(&partition)
     .unwrap();
     assert_eq!(
-        unknown.validate_digest_patch_inputs(
-            digest_plan,
-            &mut BudgetMeter::new(DecodeLimits::default())
-        ),
+        unknown.validate_digest_patch_inputs(digest_plan),
         Err(LinkDigestPatchInputValidationError::UnknownPatchIntent(
             *unknown_intent.as_array()
         ))
@@ -263,31 +225,24 @@ pub(crate) fn encoded_link_identity_closure_for_patch_test(
 ) -> Vec<u8> {
     let mut projection = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
         &encoded_link_identity_closure_for_member_plan_test(plan),
-        DecodeLimits::default(),
     )
     .unwrap();
     if let Some(builtins) = builtins {
         projection.definition_indexes = super::super::definition_indexes(builtins)
             .iter()
-            .map(|index| {
-                decode_canonical(&encode(index).unwrap(), DecodeLimits::default()).unwrap()
-            })
+            .map(|index| decode_canonical(&encode(index).unwrap()).unwrap())
             .collect();
         let strong = builtins.strong_relocations().clone();
         let defined_symbols =
             CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
         let undefined_symbols = empty_final_requirements_for_strong(strong);
-        projection.defined_symbols =
-            decode_canonical(&encode(&defined_symbols).unwrap(), DecodeLimits::default()).unwrap();
-        projection.undefined_symbols = decode_canonical(
-            &encode(&undefined_symbols).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        projection.defined_symbols = decode_canonical(&encode(&defined_symbols).unwrap()).unwrap();
+        projection.undefined_symbols =
+            decode_canonical(&encode(&undefined_symbols).unwrap()).unwrap();
     }
     projection.patch_sites = vec![DecodedMaterializedPatchSiteV1 {
-        intent: decode_canonical(&encode(&intent).unwrap(), DecodeLimits::default()).unwrap(),
-        member: decode_canonical(&encode(&member).unwrap(), DecodeLimits::default()).unwrap(),
+        intent: decode_canonical(&encode(&intent).unwrap()).unwrap(),
+        member: decode_canonical(&encode(&member).unwrap()).unwrap(),
         checked_offset,
     }];
     encode(&projection).unwrap()
@@ -308,14 +263,10 @@ pub(crate) fn encoded_link_identity_closure_without_symbol_projection_for_test(
             member,
             checked_offset,
         ),
-        DecodeLimits::default(),
     )
     .unwrap();
-    projection.defined_symbols = decode_canonical(
-        &encode(closure().defined_symbols()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    projection.defined_symbols =
+        decode_canonical(&encode(closure().defined_symbols()).unwrap()).unwrap();
     encode(&projection).unwrap()
 }
 

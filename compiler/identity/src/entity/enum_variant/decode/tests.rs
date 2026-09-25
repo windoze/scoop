@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedEnumVariantFieldKey, DecodedEnumVariantFieldSelector, DecodedEnumVariantIdentityKey,
@@ -141,7 +141,7 @@ fn source_and_generated_variant_records_resolve_through_owner_keys() {
         let record = CborIdentityRecord::<PersistentEnumVariantId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentEnumVariantId, DecodedEnumVariantIdentityKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut resolver)).unwrap(),
@@ -202,7 +202,7 @@ fn named_and_positional_variant_field_records_resolve() {
         let record = CborIdentityRecord::<PersistentEnumVariantFieldId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentEnumVariantFieldId, DecodedEnumVariantFieldKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut resolver)).unwrap(),
@@ -213,22 +213,15 @@ fn named_and_positional_variant_field_records_resolve() {
 
 #[test]
 fn enum_variant_decoder_rejects_unknown_tags() {
-    let outer = decode_canonical::<DecodedEnumVariantIdentityKey>(
-        b"\xa3\x00\x03\x01\x00\x02\x00",
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let outer = decode_canonical::<DecodedEnumVariantIdentityKey>(b"\xa3\x00\x03\x01\x00\x02\x00")
+        .unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let selector = decode_canonical::<DecodedEnumVariantFieldSelector>(
-        b"\xa2\x00\x03\x01\x00",
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let selector =
+        decode_canonical::<DecodedEnumVariantFieldSelector>(b"\xa2\x00\x03\x01\x00").unwrap_err();
     assert_eq!(selector.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let role =
-        decode_canonical::<GeneratedEnumVariantRole>(b"\x05", DecodeLimits::default()).unwrap_err();
+    let role = decode_canonical::<GeneratedEnumVariantRole>(b"\x05").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 }
 

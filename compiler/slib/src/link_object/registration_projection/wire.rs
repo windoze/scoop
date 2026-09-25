@@ -29,7 +29,7 @@ impl<I: PersistentId> WireEncode for DecodedStrongRegistrationFingerprintEntryV1
 }
 
 impl<I: PersistentId> WireDecode for DecodedStrongRegistrationFingerprintEntryV1<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -91,7 +91,7 @@ impl WireEncode for DecodedCanonicalStrongRegistrationFingerprintSetV1 {
 }
 
 impl WireDecode for DecodedCanonicalStrongRegistrationFingerprintSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             static_storages: decode_array_field(decoder, 1)?,
@@ -129,7 +129,7 @@ impl std::error::Error for StrongRegistrationFingerprintSetValidationError {
 }
 
 fn decode_array_field<I: PersistentId>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
 ) -> Result<Vec<DecodedStrongRegistrationFingerprintEntryV1<I>>, WireError> {
     decoder.field(field, |decoder| {

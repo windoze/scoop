@@ -5,9 +5,6 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{ExactCallableSignature, OptionalExactOwner};
 use crate::{DecodedPersistentId, Effect, PersistentExactTypeId, PersistentIdResolver};
 
-#[cfg(test)]
-mod metered_tests;
-
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DecodedOptionalExactOwner {
     Absent,
@@ -36,7 +33,7 @@ impl WireEncode for DecodedOptionalExactOwner {
 }
 
 impl WireDecode for DecodedOptionalExactOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -68,32 +65,6 @@ impl DecodedExactCallableSignature {
         self.parameters.len()
     }
 
-    /// Charges the shared semantic budget before allocating resolved parameters.
-    pub fn resolve_metered<R, E>(
-        self,
-        resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<ExactCallableSignature, MeteredExactCallableSignatureResolutionError<E>>
-    where
-        R: PersistentIdResolver<PersistentExactTypeId, Error = E>,
-    {
-        let path = scoop_wire::WirePath::root();
-        meter
-            .charge_nodes(1, &path)
-            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
-        meter
-            .charge_collection_slots(self.parameters.len() as u64, &path)
-            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
-        meter
-            .charge_edges(self.parameters.len() as u64 + 2, &path)
-            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
-        meter
-            .charge_work(self.parameters.len() as u64 + 2, &path)
-            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
-        self.resolve(resolver)
-            .map_err(MeteredExactCallableSignatureResolutionError::Signature)
-    }
-
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -122,24 +93,6 @@ impl DecodedExactCallableSignature {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MeteredExactCallableSignatureResolutionError<E> {
-    Resource(WireError),
-    Signature(ExactCallableSignatureResolutionError<E>),
-}
-impl<E: fmt::Display> fmt::Display for MeteredExactCallableSignatureResolutionError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Resource(error) => error.fmt(formatter),
-            Self::Signature(error) => error.fmt(formatter),
-        }
-    }
-}
-impl<E: std::error::Error + 'static> std::error::Error
-    for MeteredExactCallableSignatureResolutionError<E>
-{
-}
-
 impl WireEncode for DecodedExactCallableSignature {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
@@ -155,7 +108,7 @@ impl WireEncode for DecodedExactCallableSignature {
 }
 
 impl WireDecode for DecodedExactCallableSignature {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             effect: decoder.field(1, decode_effect)?,
@@ -210,12 +163,12 @@ where
 }
 
 fn decode_exact_ids(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedPersistentId<PersistentExactTypeId>>, WireError> {
     decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
 }
 
-fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
+fn decode_effect(decoder: &mut Decoder<'_>) -> Result<Effect, WireError> {
     match decoder.unsigned()? {
         1 => Ok(Effect::Ordinary),
         2 => Ok(Effect::Suspend),
@@ -223,11 +176,7 @@ fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
     }
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -238,7 +187,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
@@ -276,7 +225,7 @@ fn encode_sequence<T: WireEncode>(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::{DecodedExactCallableSignature, ExactCallableSignatureResolutionError};
     use crate::{
@@ -316,11 +265,9 @@ mod tests {
             ExactCallableSignature::new(Effect::Ordinary, None, vec![], exact),
             ExactCallableSignature::new(Effect::Suspend, Some(exact), vec![exact], exact),
         ] {
-            let decoded = decode_canonical::<DecodedExactCallableSignature>(
-                &encode(&signature).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                decode_canonical::<DecodedExactCallableSignature>(&encode(&signature).unwrap())
+                    .unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), signature);
         }
     }
@@ -333,11 +280,9 @@ mod tests {
             vec![],
             PersistentExactTypeId([8; 32]),
         );
-        let decoded = decode_canonical::<DecodedExactCallableSignature>(
-            &encode(&signature).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedExactCallableSignature>(&encode(&signature).unwrap())
+                .unwrap();
         assert_eq!(
             decoded.resolve(&mut Resolver),
             Err(ExactCallableSignatureResolutionError::Reference(
@@ -353,16 +298,12 @@ mod tests {
 
         let mut bad_effect = encode(&signature).unwrap();
         bad_effect[2] = 3;
-        let error =
-            decode_canonical::<DecodedExactCallableSignature>(&bad_effect, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<DecodedExactCallableSignature>(&bad_effect).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
         let mut bad_owner = encode(&signature).unwrap();
         bad_owner[6] = 3;
-        let error =
-            decode_canonical::<DecodedExactCallableSignature>(&bad_owner, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<DecodedExactCallableSignature>(&bad_owner).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
     }
 }

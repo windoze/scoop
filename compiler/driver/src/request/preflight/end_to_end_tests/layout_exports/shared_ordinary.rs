@@ -6,7 +6,7 @@ use scoop_slib::{
 mod corruption;
 mod dependencies;
 mod layouts;
-mod resources;
+
 pub(super) use dependencies::check_dependency_uses;
 
 pub(super) fn check(
@@ -23,7 +23,7 @@ pub(super) fn check(
         foundation,
         public: input.public,
     };
-    let replay = |layouts: &lir::CanonicalExactLayoutExportsV1, meter: &mut BudgetMeter| {
+    let replay = |layouts: &lir::CanonicalExactLayoutExportsV1| {
         scoop_slib::replay_shared_ordinary_lir_bridge(
             lir.module().meta.target_profile,
             source,
@@ -35,17 +35,12 @@ pub(super) fn check(
                 callables: &[],
             },
             lir.foundation(),
-            meter,
         )
     };
-    let actual =
-        replay(layout.layouts(), &mut meter()).unwrap_or_else(|error| panic!("{name}: {error}"));
+    let actual = replay(layout.layouts()).unwrap_or_else(|error| panic!("{name}: {error}"));
     assert_eq!(&actual, expected);
     let wire: lir::DecodedCrossConeLirBridgeSectionV1 = decoded(expected);
-    assert_eq!(
-        &wire.validate_against(actual, &mut meter()).unwrap(),
-        expected
-    );
+    assert_eq!(&wire.validate_against(actual).unwrap(), expected);
     if name.starts_with("shared-ordinary-") {
         assert!(expected.exports().iter().any(|record| matches!(
             record.declaration(),
@@ -53,7 +48,7 @@ pub(super) fn check(
         )));
         corruption::check(expected);
         layouts::check(layout.layouts(), lir.foundation(), replay);
-        resources::check(|meter| replay(layout.layouts(), meter));
+
         let absent = PendingIdentityValidation::new().finish().unwrap();
         assert!(matches!(
             scoop_slib::replay_shared_ordinary_lir_bridge(
@@ -70,7 +65,6 @@ pub(super) fn check(
                     callables: &[]
                 },
                 lir.foundation(),
-                &mut meter(),
             ),
             Err(Error::SourceAbi(_))
         ));

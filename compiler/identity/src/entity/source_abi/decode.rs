@@ -44,7 +44,7 @@ impl WireEncode for DecodedSourceNativeLibraryBinding {
 }
 
 impl WireDecode for DecodedSourceNativeLibraryBinding {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -91,7 +91,7 @@ impl WireEncode for DecodedSourceCAbiReturn {
 }
 
 impl WireDecode for DecodedSourceCAbiReturn {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -138,7 +138,7 @@ impl WireEncode for DecodedSourceCAbiFunctionSignature {
 }
 
 impl WireDecode for DecodedSourceCAbiFunctionSignature {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             parameters: decoder.field(1, decode_signatures)?,
@@ -176,7 +176,7 @@ impl WireEncode for DecodedSourceScoopAbiFunctionSignature {
 }
 
 impl WireDecode for DecodedSourceScoopAbiFunctionSignature {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             parameters: decoder.field(1, decode_signatures)?,
@@ -226,7 +226,7 @@ impl WireEncode for DecodedSourceExternFunctionAbi {
 }
 
 impl WireDecode for DecodedSourceExternFunctionAbi {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -248,7 +248,7 @@ impl WireDecode for DecodedSourceExternFunctionAbi {
 }
 
 impl WireDecode for GcEffect {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Managed),
             2 => Ok(Self::NoGc),
@@ -258,7 +258,7 @@ impl WireDecode for GcEffect {
 }
 
 impl WireDecode for SourceCallingConvention {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Cdecl),
             tag => Err(unknown_tag(decoder, tag)),
@@ -267,7 +267,7 @@ impl WireDecode for SourceCallingConvention {
 }
 
 impl WireDecode for CallbackMode {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Reusable),
             2 => Ok(Self::OneShot),
@@ -290,23 +290,17 @@ where
         .collect()
 }
 
-fn decode_signatures(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<Vec<DecodedSignatureTypeKey>, WireError> {
+fn decode_signatures(decoder: &mut Decoder<'_>) -> Result<Vec<DecodedSignatureTypeKey>, WireError> {
     decoder.decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -318,7 +312,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

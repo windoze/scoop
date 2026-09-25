@@ -75,11 +75,8 @@ fn reader_rejects_legacy_table_and_missing_visibility_or_slot_fields() {
     legacy_record.push(9);
     legacy_record.extend(encode(&fixture.record.access()).unwrap());
     let legacy_table = [b"\x81".as_slice(), &legacy_record].concat();
-    let error = decode_canonical::<DecodedCanonicalCallableInterfacesV1>(
-        &legacy_table,
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedCanonicalCallableInterfacesV1>(&legacy_table).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::WrongType {
@@ -88,11 +85,8 @@ fn reader_rejects_legacy_table_and_missing_visibility_or_slot_fields() {
     );
     assert_eq!(error.path(), &WirePath::root());
     for (actual, bytes) in [(9, legacy_record), (8, eight_fields)] {
-        let error = decode_canonical::<crate::DecodedCallableDeclarationRecordV1>(
-            &bytes,
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error =
+            decode_canonical::<crate::DecodedCallableDeclarationRecordV1>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {

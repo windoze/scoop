@@ -11,16 +11,13 @@ fn logical_key(bytes: &[u8]) -> LogicalMemberKey {
 }
 
 #[test]
-fn logical_keys_enforce_the_closed_size_range() {
+fn logical_keys_require_nonempty_bytes() {
     assert_eq!(
         LogicalMemberKey::new(Vec::new()),
         Err(LogicalMemberKeyError::Empty)
     );
-    assert!(LogicalMemberKey::new(vec![0; 4_096]).is_ok());
-    assert_eq!(
-        LogicalMemberKey::new(vec![0; 4_097]),
-        Err(LogicalMemberKeyError::TooLong { actual: 4_097 })
-    );
+    let key = vec![0; 8_192];
+    assert_eq!(LogicalMemberKey::new(key.clone()).unwrap().as_bytes(), key);
 }
 
 #[test]

@@ -18,21 +18,20 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
         dependencies: &[ShapeLinkProviderV1<'a>],
         support: &dyn ShapeLinkSupportLookupV1<'a>,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<PhysicalImportsReplayedLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
         let path = WirePath::root();
         let mut providers = std::collections::HashSet::new();
-        meter.check_table_entries(dependencies.len() as u64, &path)?;
+
         for dependency in dependencies {
             let provider = dependency.provider();
-            meter.charge_work(1, &path)?;
+
             if provider == self.exports.provider() || providers.contains(&provider) {
                 return Err(LayoutAbiSectionError::DuplicateProvider(provider));
             }
             if dependency.target_profile() != self.exports.target_profile() {
                 return Err(LayoutAbiSectionError::DependencyTarget { provider });
             }
-            meter.try_reserve_set_slots(&mut providers, 1, &path)?;
+            scoop_wire::allocation::try_reserve_set(&mut providers, 1, &path)?;
             providers.insert(provider);
         }
         let physical = self.physical.replay(
@@ -41,19 +40,17 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
             dependencies,
             support,
             identities,
-            meter,
         )?;
         for import in physical.records() {
-            meter.charge_work(dependencies.len() as u64, &path)?;
             let terminal = dependencies
                 .iter()
                 .find(|view| view.provider() == import.provider())
                 .ok_or(LayoutAbiSectionError::MissingPhysicalProvider(
                     import.provider(),
                 ))?;
-            if let Some(target) = terminal.semantic_target(import.subject(), meter)? {
+            if let Some(target) = terminal.semantic_target(import.subject())? {
                 let relation = LayoutAbiDependencyV1::new(import.provider(), target);
-                meter.charge_work(u64::from(self.semantic.len().max(1).ilog2()) + 1, &path)?;
+
                 if self.semantic.binary_search(&relation).is_err() {
                     return Err(LayoutAbiSectionError::MissingPhysicalSemantic(relation));
                 }

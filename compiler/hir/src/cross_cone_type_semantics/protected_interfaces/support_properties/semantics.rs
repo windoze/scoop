@@ -5,7 +5,6 @@ use crate::{
     PropertyRepresentationV1, ProtectedPropertySemanticAuthority,
 };
 use scoop_identity::{PersistentTypeId, SignatureTypeKey, SourceDeclarationKind};
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod accessors;
 mod errors;
@@ -78,7 +77,6 @@ impl NominalSupportPropertyInterfaceV1 {
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'a mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedNominalSupportPropertySourceV1<'a>, NominalSupportPropertySemanticError<E>>
     {
         use NominalSupportPropertySemanticError as Error;
@@ -125,7 +123,6 @@ impl NominalSupportPropertyInterfaceV1 {
                     interface,
                     graph,
                     authority,
-                    meter,
                 )
                 .map_err(Error::Runtime)?;
                 Ok(CheckedNominalSupportPropertySourceV1::Runtime(
@@ -150,12 +147,7 @@ impl NominalSupportPropertyInterfaceV1 {
                     .const_source(self.declaration())
                     .map_err(Error::Foundation)?;
                 let key = source.declaration();
-                meter
-                    .charge_sha256(
-                        scoop_wire::encoded_length(key).map_err(Error::Encoding)?,
-                        &WirePath::root(),
-                    )
-                    .map_err(Error::Resource)?;
+
                 if PersistentPropertyId::from_source_declaration(key).ok()
                     != Some(self.declaration())
                     || key.origin() != owner.key.origin()
@@ -173,7 +165,7 @@ impl NominalSupportPropertyInterfaceV1 {
                     return Err(Error::ConstType);
                 }
                 let access = graph
-                    .check_declaration_source(self.declaration_access(), key, authority, meter)
+                    .check_declaration_source(self.declaration_access(), key, authority)
                     .map_err(Error::Source)?;
                 Ok(CheckedNominalSupportPropertySourceV1::Const(
                     CheckedNominalSupportConstSourceV1 { value, access },

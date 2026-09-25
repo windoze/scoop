@@ -2,7 +2,7 @@ use scoop_identity::{
     DecodedPersistentId, LocalValueSelector, PersistentGenericTypeId, PersistentIdResolver,
     PersistentTypeId, SignatureTypeKey,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -38,8 +38,7 @@ fn optional_receiver_has_fixed_indexed_wire_and_resolves() {
     let bytes = encode(&expected.index_local(&mut locals).unwrap()).unwrap();
     assert_eq!(hex(&bytes), "a2000201a2010002a3000701000200");
 
-    let decoded: DecodedOptionalTemplateReceiverV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedOptionalTemplateReceiverV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut TypeResolver, &mut locals).unwrap(),
         expected
@@ -58,11 +57,8 @@ fn optional_receiver_has_fixed_indexed_wire_and_resolves() {
 
 #[test]
 fn receiver_resolution_and_indexing_report_local_failures() {
-    let decoded: DecodedOptionalTemplateReceiverV1 = decode_canonical(
-        &hex_bytes("a2000201a2010002a3000701000200"),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedOptionalTemplateReceiverV1 =
+        decode_canonical(&hex_bytes("a2000201a2010002a3000701000200")).unwrap();
     let mut wrong_local = LocalResolver::new(vec![LocalValueSelector::Parameter {
         declaration_index: 0,
     }]);
@@ -87,18 +83,13 @@ fn receiver_resolution_and_indexing_report_local_failures() {
 
 #[test]
 fn optional_receiver_decoder_rejects_unknown_tags_and_wrong_shapes() {
-    let unknown = decode_canonical::<DecodedOptionalTemplateReceiverV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown =
+        decode_canonical::<DecodedOptionalTemplateReceiverV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let wrong_shape = decode_canonical::<DecodedOptionalTemplateReceiverV1>(
-        &[0xa2, 0x00, 0x01, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let wrong_shape =
+        decode_canonical::<DecodedOptionalTemplateReceiverV1>(&[0xa2, 0x00, 0x01, 0x01, 0x00])
+            .unwrap_err();
     assert_eq!(
         wrong_shape.kind(),
         &WireErrorKind::InvalidLength {

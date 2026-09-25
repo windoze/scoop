@@ -51,7 +51,7 @@ fn callable_access_uses_actual_foreign_declarations_despite_matching_local_names
     let identities = decoded
         .validate_foundation_identities([&provider.identities])
         .unwrap();
-    let mut front = decoded
+    let front = decoded
         .validate_foundation_structure(identities)
         .unwrap()
         .resolve_hir_interface()
@@ -83,7 +83,6 @@ fn callable_access_uses_actual_foreign_declarations_despite_matching_local_names
             &front.foundations.hir,
             &front.hir_interface,
             dependencies,
-            front.graph.envelope.meter_mut(),
         )
         .validate_default_callable_access(&front.hir_core_production);
         if mode == 0 {

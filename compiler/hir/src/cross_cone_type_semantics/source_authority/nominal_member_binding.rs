@@ -4,7 +4,7 @@ use crate::*;
 use scoop_identity::{
     CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod access;
@@ -41,14 +41,10 @@ impl<'a, 'f> BoundNominalSourceContractsV1<'a, 'f> {
         properties: &'s CanonicalNominalSourcePropertiesV1,
         callables: &'s CanonicalNominalSourceCallablesV1,
         core: &'s ImportedCoreFundamentalTypeProtocol,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNominalMemberSourcesV1<'s, 'a, 'f>, Error> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        inventory::validate(self, properties, callables, meter)?;
-        let property_keys = keys::properties(self, properties, meter)?;
-        let callable_keys = keys::callables(self, &property_keys, callables, meter)?;
+        inventory::validate(self, properties, callables)?;
+        let property_keys = keys::properties(self, properties)?;
+        let callable_keys = keys::callables(self, &property_keys, callables)?;
         let mut bound = BoundNominalMemberSourcesV1 {
             nominals: self,
             properties,
@@ -59,21 +55,20 @@ impl<'a, 'f> BoundNominalSourceContractsV1<'a, 'f> {
             proofs: BTreeMap::new(),
             core,
         };
-        contracts::prepare(&mut bound, meter)?;
+        contracts::prepare(&mut bound)?;
         let entries = self.foundation.source().entries();
         let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
             entries.local_inheritance_edges.records().iter(),
             entries.source_roots.values().iter().copied(),
             self.foundation,
-            meter,
         )
         .map_err(Error::Inheritance)?;
         for record in callables.records() {
             record
-                .validate_source(&graph, &mut bound, meter)
+                .validate_source(&graph, &mut bound)
                 .map_err(Error::from_callable)?;
         }
-        contracts::properties(&mut bound, &graph, meter)?;
+        contracts::properties(&mut bound, &graph)?;
         Ok(bound)
     }
 }
@@ -126,8 +121,4 @@ impl<'s, 'a, 'f> BoundNominalMemberSourcesV1<'s, 'a, 'f> {
             .copied()
             .ok_or(Error::MissingProperty(id))
     }
-}
-fn query(count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    meter.charge_work(u64::from(count.max(1).ilog2()) + 1, &WirePath::root())?;
-    Ok(())
 }

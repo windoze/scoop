@@ -152,7 +152,7 @@ impl WireEncode for DecodedFinalUndefinedSymbolRequirementV1 {
 }
 
 impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -246,7 +246,7 @@ impl WireEncode for DecodedCanonicalUndefinedRelocationUseV1 {
 }
 
 impl WireDecode for DecodedCanonicalUndefinedRelocationUseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
             source_member: decoder.field(1, DecodedFixedBytesV1::decode)?,
@@ -280,7 +280,7 @@ impl WireEncode for DecodedCanonicalUndefinedSymbolRequirementV1 {
 }
 
 impl WireDecode for DecodedCanonicalUndefinedSymbolRequirementV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             use_site: decoder.field(1, DecodedCanonicalUndefinedRelocationUseV1::decode)?,
@@ -323,7 +323,7 @@ impl WireEncode for DecodedCanonicalUndefinedSymbolRequirementSetV1 {
 }
 
 impl WireDecode for DecodedCanonicalUndefinedSymbolRequirementSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| {
                 DecodedCanonicalUndefinedSymbolRequirementV1::decode(decoder)
@@ -373,9 +373,7 @@ fn encode_section_role(
     })
 }
 
-fn decode_section_role(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<BuiltinObjectSectionRoleV1, WireError> {
+fn decode_section_role(decoder: &mut Decoder<'_>) -> Result<BuiltinObjectSectionRoleV1, WireError> {
     match decoder.unsigned()? {
         1 => Ok(BuiltinObjectSectionRoleV1::Text),
         2 => Ok(BuiltinObjectSectionRoleV1::ReadOnlyData),
@@ -401,7 +399,7 @@ fn encode_target_slot(
     })
 }
 
-fn decode_target_slot(decoder: &mut Decoder<'_, '_>) -> Result<RelocationTargetSlotV1, WireError> {
+fn decode_target_slot(decoder: &mut Decoder<'_>) -> Result<RelocationTargetSlotV1, WireError> {
     match decoder.unsigned()? {
         1 => Ok(RelocationTargetSlotV1::Single),
         2 => Ok(RelocationTargetSlotV1::Minuend),
@@ -433,7 +431,7 @@ fn encode_relocation_form(
 }
 
 fn decode_relocation_form(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<VerifiedDarwinArm64RelocationFormV1, WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
@@ -489,7 +487,7 @@ fn decode_relocation_form(
 }
 
 fn closed_relocation_form(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     fields: u64,
     form: VerifiedDarwinArm64RelocationFormV1,
 ) -> Result<VerifiedDarwinArm64RelocationFormV1, WireError> {
@@ -498,7 +496,7 @@ fn closed_relocation_form(
 }
 
 fn decode_addend_relocation_form(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     constructor: impl FnOnce(Option<i32>) -> VerifiedDarwinArm64RelocationFormV1,
 ) -> Result<VerifiedDarwinArm64RelocationFormV1, WireError> {
@@ -506,7 +504,7 @@ fn decode_addend_relocation_form(
     decoder.field(1, decode_optional_addend).map(constructor)
 }
 
-fn decode_optional_addend(decoder: &mut Decoder<'_, '_>) -> Result<Option<i32>, WireError> {
+fn decode_optional_addend(decoder: &mut Decoder<'_>) -> Result<Option<i32>, WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     match tag {
@@ -582,16 +580,12 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn decode_u8(decoder: &mut Decoder<'_, '_>) -> Result<u8, WireError> {
+fn decode_u8(decoder: &mut Decoder<'_>) -> Result<u8, WireError> {
     let value = decoder.unsigned()?;
     u8::try_from(value).map_err(|_| wire_error(decoder, WireErrorKind::IntegerOutOfRange))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -602,6 +596,6 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

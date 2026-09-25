@@ -35,7 +35,7 @@ impl<T: WireEncode> WireEncode for DecodedStrongRegistrationProductionSurface<T>
 }
 
 impl<T: WireDecode> WireDecode for DecodedStrongRegistrationProductionSurface<T> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Ok(Self {
             identities: decoder.field(1, DecodedStrongRegistrationIdentitySurfaceV1::decode)?,

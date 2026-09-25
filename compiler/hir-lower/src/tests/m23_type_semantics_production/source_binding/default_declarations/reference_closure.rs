@@ -12,11 +12,9 @@ fn reference_closure_is_part_of_the_atomic_source_declaration_transaction() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let contract = &bound.declarations()[0];
             let template = table.get(contract.key()).unwrap();
             assert_eq!(contract.references().template(), contract.key());
@@ -31,7 +29,7 @@ fn reference_closure_is_part_of_the_atomic_source_declaration_transaction() {
             let incomplete = without_last_callable(template);
             let changed = replace(&table, incomplete);
             let Error::Record { key, error } = parameters
-                .bind_default_declarations(&changed, &[], &mut meter())
+                .bind_default_declarations(&changed, &[])
                 .unwrap_err()
             else {
                 panic!("expected record error")
@@ -71,7 +69,6 @@ fn without_last_callable(t: &Template) -> Template {
         t.value_parameters().clone(),
         refs,
         t.definition_origin().clone(),
-        &mut meter(),
     )
     .unwrap()
 }

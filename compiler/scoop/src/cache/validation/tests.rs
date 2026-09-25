@@ -10,7 +10,7 @@ use scoop_slib::{
     ConeKind, ConeSourceForm, IdentityFoundationArtifact, IdentityFoundationArtifactInput,
     ProducerRecord, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::{DecodeLimits, sha256};
+use scoop_wire::sha256;
 
 use super::*;
 
@@ -154,7 +154,6 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
     let artifact = foundation("cache-binding-dependency");
     let summary = probe_prebuilt_manifest_summary(
         artifact.as_bytes(),
-        DecodeLimits::M23_DEFAULT,
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();

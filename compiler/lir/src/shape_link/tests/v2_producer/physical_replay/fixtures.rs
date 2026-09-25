@@ -2,9 +2,7 @@ use super::*;
 use scoop_identity::*;
 
 pub(super) fn replayed_provider(provider: &Provider) -> ReplayedStrongProductionSectionV2 {
-    let selected =
-        StrongProductionDependencySelectionV2::empty(provider.identity, TARGET, &mut meter())
-            .unwrap();
+    let selected = StrongProductionDependencySelectionV2::empty(provider.identity, TARGET).unwrap();
     let raw = provider
         .output
         .build_production_section_v2(
@@ -13,14 +11,13 @@ pub(super) fn replayed_provider(provider: &Provider) -> ReplayedStrongProduction
             EntryProductionSourceV1::Library,
             &selected,
             &[],
-            &mut meter(),
         )
         .unwrap()
-        .validate_layout_abi(&provider.layout_section(), &mut meter())
+        .validate_layout_abi(&provider.layout_section())
         .unwrap()
         .into_section();
     let decoded: DecodedStrongProductionSectionV2 =
-        decode_canonical(&encode(&raw).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&raw).unwrap()).unwrap();
     decoded
         .replay(
             provider.coordinate.clone(),
@@ -31,10 +28,8 @@ pub(super) fn replayed_provider(provider: &Provider) -> ReplayedStrongProduction
             EntryProductionSourceV1::Library,
             &[],
             raw.initialization_cycle_abi().cloned().map(Box::new),
-            &StrongTypeReferenceDefinitionsV2::new(provider.identity, &[], &mut meter()).unwrap(),
-            &StrongInitializationDefinitionCatalogV2::new(provider.identity, &[], &mut meter())
-                .unwrap(),
-            &mut meter(),
+            &StrongTypeReferenceDefinitionsV2::new(provider.identity, &[]).unwrap(),
+            &StrongInitializationDefinitionCatalogV2::new(provider.identity, &[]).unwrap(),
         )
         .unwrap()
 }
@@ -47,10 +42,7 @@ pub(super) fn view<'a>(
     ShapeLinkProviderV1::from_replayed(
         provider.output.foundation(),
         &provider.ordinary,
-        production
-            .replay_layout_exports(exports, &mut meter())
-            .unwrap(),
-        &mut meter(),
+        production.replay_layout_exports(exports).unwrap(),
     )
     .unwrap()
 }
@@ -103,7 +95,6 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for UnitSupport<'a> {
         &self,
         provider: ConeIdentity,
         subject: ExternalStrongShapeSubjectV1,
-        _: &mut BudgetMeter,
     ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
         assert_eq!(provider, self.0.identity);
         let unit = self
@@ -167,18 +158,10 @@ pub(super) fn imports<'a>(
         subjects
             .into_iter()
             .map(|subject| {
-                ExternalShapeLinkImportV1::replay(
-                    view,
-                    subject,
-                    consumer,
-                    definitions,
-                    support,
-                    &mut meter(),
-                )
-                .unwrap()
+                ExternalShapeLinkImportV1::replay(view, subject, consumer, definitions, support)
+                    .unwrap()
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap()
 }

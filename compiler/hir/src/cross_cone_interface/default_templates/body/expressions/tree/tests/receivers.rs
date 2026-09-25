@@ -20,14 +20,13 @@ fn default_call_receiver_is_preserved_by_the_shared_expression_codec() {
         );
         let bytes = encode(&value.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(expression_tag(&bytes), 57);
-        let decoded: DecodedDefaultExpressionV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultExpressionV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         let mut missing = bytes.clone();
         assert_eq!(missing[2], 0xa4);
         missing[2] = 0xa3;
         assert!(matches!(
-            decode_canonical::<DecodedDefaultExpressionV1>(&missing, DecodeLimits::default())
+            decode_canonical::<DecodedDefaultExpressionV1>(&missing)
                 .unwrap_err()
                 .kind(),
             WireErrorKind::InvalidLength {
@@ -39,7 +38,7 @@ fn default_call_receiver_is_preserved_by_the_shared_expression_codec() {
         assert_eq!(retired[5], 57);
         retired[5] = 44;
         assert_eq!(
-            decode_canonical::<DecodedDefaultExpressionV1>(&retired, DecodeLimits::default())
+            decode_canonical::<DecodedDefaultExpressionV1>(&retired)
                 .unwrap_err()
                 .kind(),
             &WireErrorKind::UnknownTag { tag: 44 }

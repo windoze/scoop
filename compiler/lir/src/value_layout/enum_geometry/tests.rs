@@ -1,13 +1,9 @@
 use super::*;
-use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 fn geometry(size: u64, alignment: u64) -> StorageGeometryV1 {
     StorageGeometryV1::new(TARGET, size, alignment).unwrap()
-}
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 #[test]
@@ -31,7 +27,6 @@ fn independent_pure_maxima_do_not_pad_the_shared_region_before_dedicated_slots()
                 gc_free: false,
             },
         ],
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(value.storage(), geometry(48, 16));
@@ -84,7 +79,6 @@ fn zero_sized_fields_are_elided_in_shared_and_dedicated_variants() {
                 gc_free: false,
             },
         ],
-        &mut meter(),
     )
     .unwrap();
     let offsets = value
@@ -121,7 +115,6 @@ fn empty_variants_keep_the_tag_and_do_not_allocate_payload_bytes() {
                 gc_free: true,
             },
         ],
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(value.storage(), geometry(16, 16));
@@ -129,7 +122,7 @@ fn empty_variants_keep_the_tag_and_do_not_allocate_payload_bytes() {
     assert_eq!(value.pure_region().byte_size(), 0);
     assert_eq!(value.variants()[1].fields()[0].offset(), 0);
     assert_eq!(
-        EnumStorageGeometryV1::tagged(TARGET, &[], &mut meter())
+        EnumStorageGeometryV1::tagged(TARGET, &[])
             .unwrap()
             .storage(),
         geometry(8, 8)
@@ -145,64 +138,10 @@ fn tagged_geometry_propagates_extent_overflow() {
             &[EnumVariantGeometryInputV1 {
                 fields: &huge,
                 gc_free: true
-            }],
-            &mut meter()
+            }]
         ),
         Err(EnumStorageGeometryErrorV1::Shape(
             TypeInstanceShapeError::ManagedObjectTooLarge { .. }
         ))
     ));
-}
-
-#[test]
-fn geometry_uses_inclusive_shared_allocation_and_work_limits() {
-    let fields = [geometry(8, 8); 2];
-    let inputs = [EnumVariantGeometryInputV1 {
-        fields: &fields,
-        gc_free: false,
-    }];
-    let mut initial = meter();
-    let expected = EnumStorageGeometryV1::tagged(TARGET, &inputs, &mut initial).unwrap();
-    let required = initial.usage();
-    let mut exact = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: required.logical_heap_bytes,
-        validation_work_units: required.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    assert_eq!(
-        EnumStorageGeometryV1::tagged(TARGET, &inputs, &mut exact).unwrap(),
-        expected
-    );
-    for limits in [
-        DecodeLimits {
-            logical_heap_bytes: required.logical_heap_bytes - 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: required.validation_work_units - 1,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            EnumStorageGeometryV1::tagged(TARGET, &inputs, &mut BudgetMeter::new(limits)),
-            Err(EnumStorageGeometryErrorV1::Resource(_))
-        ));
-    }
-    let mut limit = BudgetMeter::new(DecodeLimits {
-        semantic_table_entries: 0,
-        ..DecodeLimits::default()
-    });
-    let Err(EnumStorageGeometryErrorV1::Resource(error)) =
-        EnumStorageGeometryV1::tagged(TARGET, &inputs, &mut limit)
-    else {
-        panic!("reject before table allocation");
-    };
-    assert!(matches!(
-        error.kind(),
-        WireErrorKind::LimitExceeded {
-            resource: ResourceKind::SemanticTableEntries,
-            ..
-        }
-    ));
-    assert_eq!(limit.usage(), scoop_wire::DecodeUsage::default());
 }

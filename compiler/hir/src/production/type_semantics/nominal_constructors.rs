@@ -1,9 +1,9 @@
 use super::CrossConeTypeSemanticsProductionError as Error;
-use super::inheritance::source_resources::{self as resources, invalid, resource, work};
+use super::inheritance::source_errors::{invalid, resource};
 use crate::production::{callable_interfaces, signatures::HirInterfaceSignatureProjector};
 use crate::*;
 use scoop_identity::{PersistentConstructorId, SourceDeclarationKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 use std::collections::BTreeSet;
 
 mod contract;
@@ -14,20 +14,8 @@ impl CanonicalNominalSourceConstructorsV1 {
     pub fn from_export_hir(
         output: &ExportHirOutput,
         required: &BTreeSet<PersistentConstructorId>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let path = WirePath::root();
-        meter
-            .check_table_entries(required.len() as u64, &path)
-            .map_err(resource)?;
-        meter
-            .charge_work(required.len() as u64, &path)
-            .map_err(resource)?;
-        meter
-            .charge_collection_slots(required.len() as u64, &path)
-            .map_err(resource)?;
-        Self::try_new(project(output.module(), required.clone(), meter)?, meter)
-            .map_err(Error::SourceInventory)
+        Self::try_new(project(output.module(), required.clone())?).map_err(Error::SourceInventory)
     }
 }
 
@@ -46,19 +34,12 @@ struct Constructor<'a> {
 pub(super) fn project(
     export: &ExportHir,
     mut required: BTreeSet<PersistentConstructorId>,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<NominalSupportConstructorInterfaceV1>, Error> {
     let path = WirePath::root();
-    meter.check_semantic_depth(1, &path).map_err(resource)?;
-    meter
-        .check_table_entries(required.len() as u64, &path)
-        .map_err(resource)?;
+
     let mut records = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut records, required.len(), &path)
-        .map_err(resource)?;
+    scoop_wire::allocation::try_reserve(&mut records, required.len(), &path).map_err(resource)?;
     for (id, source) in export.struct_constructors.iter() {
-        work(meter, required.len())?;
         let identity = &export.constructor_identities[id];
         if !required.remove(&identity.id()) {
             continue;
@@ -79,11 +60,9 @@ pub(super) fn project(
                 safety: source.safety,
                 gc_effect: source.source_gc_effect(),
             },
-            meter,
         )?);
     }
     for (id, source) in export.class_constructors.iter() {
-        work(meter, required.len())?;
         let Some(identity) = export.constructor_identities[id].source_record() else {
             continue;
         };
@@ -106,7 +85,6 @@ pub(super) fn project(
                 safety: source.safety,
                 gc_effect: GcEffect::Managed,
             },
-            meter,
         )?);
     }
     if !required.is_empty() {

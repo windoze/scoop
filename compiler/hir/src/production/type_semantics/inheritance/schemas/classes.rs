@@ -1,6 +1,6 @@
 use super::*;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn class(
         &mut self,
         class: ClassId,
@@ -13,7 +13,6 @@ impl Projection<'_, '_> {
             let declaration = &self.export.classes[class];
             self.extend(&mut interfaces, &declaration.interfaces)?;
             for function in &declaration.methods {
-                self.work(1)?;
                 let Some(method) = self.export.functions[*function].method else {
                     return Err(self.invalid("class method has no dispatch metadata"));
                 };
@@ -28,7 +27,7 @@ impl Projection<'_, '_> {
                         );
                     }
                 };
-                self.search(seen.len())?;
+
                 if !seen.insert(family) {
                     continue;
                 }
@@ -49,8 +48,8 @@ impl Projection<'_, '_> {
     }
 
     pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassId>, Error> {
-        let result = crate::production::nominal_dispatch::Projection::new(self.export, self.meter)
-            .class_chain(class)?;
+        let result =
+            crate::production::nominal_dispatch::Projection::new(self.export).class_chain(class)?;
         for class in &result {
             if let Some(base) = self.export.classes[*class].base_class {
                 exact(self.export, base)?;

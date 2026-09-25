@@ -94,42 +94,35 @@ pub(super) fn roundtrip(
         .unwrap();
     let mut graph = pending.finish().unwrap();
     let types: mir::DecodedCanonicalParamFreeMirTypeExportsV1 = decoded(exports.types());
-    let types = types
-        .validate(&mut graph, input.mir.foundation(), &mut meter())
-        .unwrap();
+    let types = types.validate(&mut graph, input.mir.foundation()).unwrap();
     assert_eq!(&types, exports.types());
-    let index = MirTypeBridgeTypeIndexV1::try_new(&[&types, dependencies], &mut meter()).unwrap();
+    let index = MirTypeBridgeTypeIndexV1::try_new(&[&types, dependencies]).unwrap();
     let callables: mir::DecodedCanonicalMirCallableBindingsV1 = decoded(exports.callables());
     let callables = callables
-        .validate(&mut graph, input.mir.foundation(), &index, &mut meter())
+        .validate(&mut graph, input.mir.foundation(), &index)
         .unwrap();
     assert_eq!(&callables, exports.callables());
     let dispatch: mir::DecodedCanonicalMirDispatchSchemasV1 = decoded(exports.dispatch());
     assert_eq!(
-        dispatch
-            .validate(&mut graph, &index, &callables, &mut meter())
-            .unwrap(),
+        dispatch.validate(&mut graph, &index, &callables).unwrap(),
         *exports.dispatch()
     );
     let objects: mir::DecodedCanonicalMirObjectValuesV1 = decoded(exports.objects());
     assert_eq!(
-        objects
-            .validate(&mut graph, &index, &callables, &mut meter())
-            .unwrap(),
+        objects.validate(&mut graph, &index, &callables).unwrap(),
         *exports.objects()
     );
     let shapes: mir::DecodedCanonicalMirShapeSupportsV1 = decoded(exports.shapes());
     assert_eq!(
         shapes
-            .validate(input.mir.module().cone, &mut graph, &types, &mut meter())
+            .validate(input.mir.module().cone, &mut graph, &types)
             .unwrap(),
         *exports.shapes()
     );
     let uses: mir::DecodedCanonicalMirExternalInitializationUsesV1 =
         decoded(exports.initialization_uses());
     assert_eq!(
-        uses.validate(input.mir.module().cone, &mut graph, &mut meter())
-            .unwrap(),
+        uses.validate(input.mir.module().cone, &mut graph).unwrap(),
         *exports.initialization_uses()
     );
 }

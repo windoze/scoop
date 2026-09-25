@@ -151,7 +151,6 @@ pub(super) fn validate(
         &front.foundations.hir,
         &front.hir_interface,
         vec![],
-        front.graph.envelope.meter_mut(),
     )
     .validate_default_value_access()
 }

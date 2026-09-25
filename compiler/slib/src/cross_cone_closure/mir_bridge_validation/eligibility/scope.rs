@@ -1,5 +1,4 @@
 use scoop_hir::NominalExactLeafClassifierV1;
-use scoop_wire::WirePath;
 
 use super::super::{CrossConeClosureMirBridgeError, CrossConeMirClosureRelationError};
 use crate::{
@@ -30,8 +29,8 @@ fn validate_provider(
     position: usize,
     dependencies: &[Vec<usize>],
 ) -> Result<(), CrossConeMirClosureRelationError> {
-    let (interface, strong, bridge, meter) = artifact.mir_export_validation_parts();
-    let reachable = transitive_positions(position, dependencies, meter)
+    let (interface, strong, bridge) = artifact.mir_export_validation_parts();
+    let reachable = transitive_positions(position, dependencies)
         .map_err(CrossConeMirClosureRelationError::Resource)?;
     let nominal_records =
         interface
@@ -44,17 +43,12 @@ fn validate_provider(
                     .nominal_interfaces()
                     .records()
             }));
-    let classifier = NominalExactLeafClassifierV1::try_from_nominal_interfaces_metered(
-        nominal_records,
-        meter,
-        &WirePath::root(),
-    )
-    .map_err(CrossConeMirClosureRelationError::NominalClassifier)?;
+    let classifier = NominalExactLeafClassifierV1::try_from_nominal_interfaces(nominal_records)
+        .map_err(CrossConeMirClosureRelationError::NominalClassifier)?;
     super::validate_export_relation(
         interface.callable_interfaces().records(),
         strong,
         bridge,
         &classifier,
-        meter,
     )
 }

@@ -8,7 +8,7 @@ use hir::{
 };
 use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{decode_canonical, encode};
-mod budgets;
+
 mod coverage;
 mod origins;
 mod profiles;
@@ -18,11 +18,9 @@ const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/table.scoop"
 ));
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn bytes(value: &Table) -> Vec<u8> {
-    encode(&value.index_locals(&mut meter()).unwrap()).unwrap()
+    encode(&value.index_locals().unwrap()).unwrap()
 }
 pub(super) fn declaration(
     export: &hir::ExportHir,
@@ -82,15 +80,10 @@ pub(super) fn owner_name(export: &hir::ExportHir, owner: hir::ExportParameterOwn
 }
 fn restored(output: &hir::DependencyHirOutput, table: &Table) -> Table {
     let bytes = bytes(table);
-    let input: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let input: Decoded = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&input).unwrap(), bytes);
-    let table = input
-        .resolve(&mut identity_closure(output), &mut meter())
-        .unwrap();
-    assert_eq!(
-        encode(&table.index_locals(&mut meter()).unwrap()).unwrap(),
-        bytes
-    );
+    let table = input.resolve(&mut identity_closure(output)).unwrap();
+    assert_eq!(encode(&table.index_locals().unwrap()).unwrap(), bytes);
     table
 }
 
@@ -98,7 +91,7 @@ fn restored(output: &hir::DependencyHirOutput, table: &Table) -> Table {
 fn complete_nominal_default_source_production_matches_raw_parameter_omissions() {
     with_hir_source(SOURCE, |output, _| {
         let export = output.output().export.module();
-        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output).unwrap();
         let required = super::source_nominal_parameters::required(&output.output().export);
         let mut expected = BTreeSet::new();
         let mut summary = Vec::new();
@@ -163,27 +156,17 @@ fn complete_nominal_default_source_production_matches_raw_parameter_omissions() 
                 "/../../tests/fixtures/m23-type-source-defaults/table.snap"
             ))
         );
-        let parameters: hir::DecodedCanonicalNominalSourceParameterProtocolsV1 = decode_canonical(
-            &encode(production.parameters()).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
-        let parameters = parameters
-            .resolve(&mut identity_closure(output), &mut meter())
-            .unwrap();
+        let parameters: hir::DecodedCanonicalNominalSourceParameterProtocolsV1 =
+            decode_canonical(&encode(production.parameters()).unwrap()).unwrap();
+        let parameters = parameters.resolve(&mut identity_closure(output)).unwrap();
         let templates = restored(output, production.templates());
         assert_eq!(&templates, production.templates());
-        templates
-            .validate_parameter_coverage(&parameters, &mut meter())
-            .unwrap();
+        templates.validate_parameter_coverage(&parameters).unwrap();
         assert_eq!(
-            Production::from_export_hir(&output.output().export, &mut meter()).unwrap(),
+            Production::from_export_hir(&output.output().export).unwrap(),
             production
         );
-        assert_eq!(
-            Production::from_dependency_hir(output, &mut meter()).unwrap(),
-            production
-        );
+        assert_eq!(Production::from_dependency_hir(output).unwrap(), production);
     });
 }
 
@@ -200,12 +183,12 @@ fn complete_default_sources_cover_nested_generic_static_and_variant_owners() {
         )),
     ] {
         with_hir_source(source, |output, _| {
-            let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
+            let production = Production::from_dependency_hir(output).unwrap();
             assert!(!production.templates().records().is_empty());
             let restored = restored(output, production.templates());
             assert_eq!(&restored, production.templates());
             restored
-                .validate_parameter_coverage(production.parameters(), &mut meter())
+                .validate_parameter_coverage(production.parameters())
                 .unwrap();
             assert!(
                 production
@@ -228,7 +211,7 @@ fn nominal_source_production_retains_empty_protocols_without_fake_defaults() {
     with_hir_source(
         "public class Empty { public fun zero(): Int = 0 }\nprivate fun top(value: Int = 1): Int = value",
         |output, _| {
-            let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
+            let production = Production::from_dependency_hir(output).unwrap();
             assert!(!production.parameters().records().is_empty());
             assert!(
                 production
@@ -241,7 +224,7 @@ fn nominal_source_production_retains_empty_protocols_without_fake_defaults() {
             assert_eq!(bytes(production.templates()), [0x80]);
             let table = restored(output, production.templates());
             table
-                .validate_parameter_coverage(production.parameters(), &mut meter())
+                .validate_parameter_coverage(production.parameters())
                 .unwrap();
         },
     );

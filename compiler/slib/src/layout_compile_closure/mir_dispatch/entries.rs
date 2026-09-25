@@ -10,7 +10,6 @@ impl Replay<'_, '_> {
         role: hir::InheritanceSlotSchemaRoleV1,
         contract: &hir::InheritanceSlotContractV1,
         candidate: &mir::MirDispatchEntryV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
         let source = contract.signature();
         let receiver = match role {
@@ -21,11 +20,8 @@ impl Replay<'_, '_> {
                 Some(interface_exact)
             }
         };
-        let signature = bindings::signature(source, receiver, meter)?;
-        meter.charge_work(
-            signature.exact().parameters().len() as u64 + 6,
-            &WirePath::root(),
-        )?;
+        let signature = bindings::signature(source, receiver)?;
+
         Error::entry(
             owner,
             contract.slot(),
@@ -34,10 +30,10 @@ impl Replay<'_, '_> {
         )?;
         let expected = match contract.implementation() {
             hir::InheritanceSlotImplementationV1::Abstract => {
-                let (target, receiver) = self.abstract_target(owner, contract, meter)?;
-                let expected = bindings::signature(source, Some(receiver), meter)?;
-                self.source_binding(owner, contract.slot(), target, &expected, meter)?;
-                let binding = self.binding(target, meter)?;
+                let (target, receiver) = self.abstract_target(owner, contract)?;
+                let expected = bindings::signature(source, Some(receiver))?;
+                self.source_binding(owner, contract.slot(), target, &expected)?;
+                let binding = self.binding(target)?;
                 Error::entry(
                     owner,
                     contract.slot(),
@@ -50,7 +46,7 @@ impl Replay<'_, '_> {
                 Implementation::AbstractObligation {
                     declaration: declaration(contract.declaration()),
                     trap_target: target,
-                    receiver: adaptation(&signature, &expected, meter)?,
+                    receiver: adaptation(&signature, &expected),
                 }
             }
             hir::InheritanceSlotImplementationV1::Concrete(source)
@@ -68,7 +64,6 @@ impl Replay<'_, '_> {
                         contract.slot(),
                         interface_exact,
                         source,
-                        meter,
                     )?)
                 } else {
                     let expected = bindings::signature(
@@ -78,11 +73,10 @@ impl Replay<'_, '_> {
                             .exact_signature()
                             .receiver()
                             .into_option(),
-                        meter,
                     )?;
                     let target = target(source.declaration());
-                    self.source_binding(owner, contract.slot(), target, &expected, meter)?;
-                    let receiver = adaptation(&signature, &expected, meter)?;
+                    self.source_binding(owner, contract.slot(), target, &expected)?;
+                    let receiver = adaptation(&signature, &expected);
                     if matches!(
                         contract.implementation(),
                         hir::InheritanceSlotImplementationV1::InterfaceDefault(_)
@@ -106,15 +100,10 @@ impl Replay<'_, '_> {
 fn adaptation(
     slot: &mir::MirBridgeCallableSignatureV1,
     target: &mir::MirBridgeCallableSignatureV1,
-    meter: &mut BudgetMeter,
-) -> Result<Receiver, Error> {
-    meter.charge_work(
-        slot.exact().parameters().len() as u64 + 6,
-        &WirePath::root(),
-    )?;
-    Ok(if slot == target {
+) -> Receiver {
+    if slot == target {
         Receiver::Identity
     } else {
         Receiver::ReferenceDispatch
-    })
+    }
 }

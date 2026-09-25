@@ -4,7 +4,6 @@ use scoop_identity::{
     CallableBodyKey, DependencyCallableDeclarationId, PersistentCallableBodyId,
     StrongCallableDefinitionOwner,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 #[test]
 fn ordinary_initialization_and_layout_publication_share_the_materialized_abi() {
@@ -36,7 +35,6 @@ fn ordinary_initialization_and_layout_publication_share_the_materialized_abi() {
             parameters: &[],
             result: &unit,
         },
-        &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
     assert_eq!(layout.canonical_signature(), record.abi_signature());
@@ -73,8 +71,7 @@ fn ordinary_and_layout_publication_reject_a_missing_materialized_body_with_the_s
     let unit = exact_callable_abi::unit_layout(&output);
     assert!(matches!(
         crate::lower_exact_callable_abi_export(&input, &output, target, &signature,
-            lir::CallableAbiLayoutInputsV1 { receiver: lir::CallableAbiReceiverInputV1::NoReceiver, parameters: &[], result: &unit },
-            &mut BudgetMeter::new(DecodeLimits::default())),
+            lir::CallableAbiLayoutInputsV1 { receiver: lir::CallableAbiReceiverInputV1::NoReceiver, parameters: &[], result: &unit }),
         Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MissingLirBody(actual))) if actual == target
     ));
 }
@@ -144,30 +141,6 @@ fn both_publication_roles_reject_physical_gc_and_argument_drift() {
             }
         }
     }
-}
-
-#[test]
-fn layout_publication_keeps_the_shared_materialization_search_metered() {
-    let (input, output, target, signature) = exact_callable_abi::fixture();
-    let unit = exact_callable_abi::unit_layout(&output);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    let error = crate::lower_exact_callable_abi_export(
-        &input,
-        &output,
-        target,
-        &signature,
-        lir::CallableAbiLayoutInputsV1 {
-            receiver: lir::CallableAbiReceiverInputV1::NoReceiver,
-            parameters: &[],
-            result: &unit,
-        },
-        &mut meter,
-    )
-    .unwrap_err();
-    assert!(matches!(error, ExactCallableAbiLoweringError::Resource(_)));
 }
 
 fn mir_bridge(

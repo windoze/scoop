@@ -56,7 +56,7 @@ impl WireEncode for DecodedLayoutKey {
 }
 
 impl WireDecode for DecodedLayoutKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
@@ -67,7 +67,7 @@ impl WireDecode for DecodedLayoutKey {
 }
 
 impl WireDecode for RepresentationRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ManagedValue),
             2 => Ok(Self::ManagedObject),
@@ -106,7 +106,7 @@ impl WireEncode for DecodedScanKey {
 }
 
 impl WireDecode for DecodedScanKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             layout: decoder.field(1, DecodedPersistentId::decode)?,
@@ -116,7 +116,7 @@ impl WireDecode for DecodedScanKey {
 }
 
 impl WireDecode for ScanRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::InlineValue),
             2 => Ok(Self::ManagedObject),
@@ -145,14 +145,14 @@ impl<E: fmt::Display> fmt::Display for LayoutKeyResolutionError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for LayoutKeyResolutionError<E> {}
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -163,20 +163,16 @@ where
 }
 
 fn decode_value_variant<V, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
-    decode: impl FnOnce(&mut Decoder<'_, '_>) -> Result<V, WireError>,
+    decode: impl FnOnce(&mut Decoder<'_>) -> Result<V, WireError>,
     build: impl FnOnce(V) -> T,
 ) -> Result<T, WireError> {
     expect_sum_length(decoder, fields, 2)?;
     decoder.field(1, decode).map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -188,7 +184,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

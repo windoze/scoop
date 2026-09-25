@@ -8,9 +8,7 @@ use scoop_identity::{
     PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
     PersistentFieldId, PersistentTypeId, ValidatedIdentityGraph,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath};
 
 mod callables;
 mod dispatch;
@@ -64,10 +62,10 @@ fn sequence<T: WireEncode>(
     }
     Ok(())
 }
-fn error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
-fn fields(decoder: &Decoder<'_, '_>, actual: u64, expected: u64) -> Result<(), WireError> {
+fn fields(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {

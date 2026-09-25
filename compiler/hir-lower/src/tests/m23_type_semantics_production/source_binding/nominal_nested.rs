@@ -41,12 +41,12 @@ fn restored_nested_sources_replay_complete_recursive_contracts_and_protocols() {
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let mut authority = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
                 let reps = &fixture.source.entries().representations;
                 for record in &candidates.records {
                     let checked = authority
-                        .validate_nested_source(record, &candidates.protocols, reps, &mut meter())
+                        .validate_nested_source(record, &candidates.protocols, reps)
                         .unwrap();
                     assert_eq!(checked.provider(), fixture.source.entries().provider);
                     assert!(std::ptr::eq(checked.members(), members));
@@ -85,50 +85,4 @@ fn restored_nested_sources_replay_complete_recursive_contracts_and_protocols() {
             });
         });
     }
-}
-
-#[test]
-fn nested_source_replay_stops_on_shared_resource_exhaustion() {
-    with_candidates(SOURCE, |fixture, sources, candidates, core| {
-        let foundation = fixture.bind().unwrap();
-        sources.with_bound(&foundation, core, |members, constructors| {
-            let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
-                .unwrap();
-            for limits in [
-                DecodeLimits {
-                    semantic_table_entries: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    decoded_nodes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_recursion: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    authority
-                        .validate_nested_source(
-                            &candidates.records[0],
-                            &candidates.protocols,
-                            &fixture.source.entries().representations,
-                            &mut BudgetMeter::new(limits)
-                        )
-                        .is_err(),
-                    "{limits:?}"
-                );
-            }
-        });
-    });
 }

@@ -6,11 +6,9 @@ fn shared_reference_closure_preserves_restricted_witnesses() {
     let fixture = Fixture::new();
     let origin = fixture.origin();
     let owner = CallableTemplateOrigin::Function(fixture.function);
-    let domain = SourceAccessDomainV1::from_constraints(
-        vec![SourceAccessConstraintV1::Cone(ConeIdentity::CORE)],
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
+    let domain = SourceAccessDomainV1::from_constraints(vec![SourceAccessConstraintV1::Cone(
+        ConeIdentity::CORE,
+    )])
     .unwrap();
     let witness =
         ExportDefaultAccessWitnessV1::try_new(owner, domain.clone(), None, domain).unwrap();
@@ -37,19 +35,9 @@ fn shared_reference_closure_preserves_restricted_witnesses() {
         origin,
     );
     template
-        .validate_source_reference_closure(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .validate_source_reference_closure(&WirePath::root())
         .unwrap();
-    assert!(
-        validate(
-            &template,
-            &fixture,
-            &mut BudgetMeter::new(DecodeLimits::default())
-        )
-        .is_err()
-    );
+    assert!(validate(&template, &fixture).is_err());
 }
 
 #[test]
@@ -81,10 +69,7 @@ fn shared_reference_closure_rejects_multiple_domain_claims_for_one_occurrence() 
         origin,
     );
     assert!(matches!(
-        template.validate_source_reference_closure(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root()
-        ),
+        template.validate_source_reference_closure(&WirePath::root()),
         Err(ExportDefaultReferenceClosureValidationError::Extra {
             kind: ExportDefaultReferenceKindV1::Global,
             ..

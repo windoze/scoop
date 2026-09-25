@@ -2,7 +2,7 @@
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::CanonicalExternalShapeLinkImportsV1;
-use scoop_wire::{BudgetMeter, Encoder, WireEncode};
+use scoop_wire::{Encoder, WireEncode};
 
 use super::{CanonicalUndefinedRelocationUseV1, VerifiedCodeLinkObjectMemberSetV1};
 
@@ -58,13 +58,12 @@ impl<'a> CrossConeLayoutLinkClosureSectionV1<'a> {
     pub fn from_verified_requirements<D, C, I>(
         closure: &'a VerifiedExternalShapeRequirementClosureV1<'a>,
         objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, LayoutLinkClosureError>
     where
         D: scoop_lir::StrongDescriptorReference,
         C: Clone,
     {
-        let object_coverage = coverage::from_verified(closure, objects, meter)?;
+        let object_coverage = coverage::from_verified(closure, objects)?;
         Ok(Self {
             closure,
             object_coverage,

@@ -197,11 +197,7 @@ fn reader_rejects_retired_native_witness_field_thirty() {
         }
         bytes.push(0x80);
     }
-    let error = scoop_wire::decode_canonical::<crate::DecodedHirFoundation>(
-        &bytes,
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = scoop_wire::decode_canonical::<crate::DecodedHirFoundation>(&bytes).unwrap_err();
     assert_eq!(
         error.kind(),
         &scoop_wire::WireErrorKind::UnexpectedField {
@@ -217,11 +213,7 @@ fn reader_rejects_retired_native_witness_without_explicit_c_projection() {
     let end = bytes.len();
     assert_eq!(&bytes[end - 3..], &[0x18, 34, 0x80]);
     bytes[end - 2] = 33;
-    let error = scoop_wire::decode_canonical::<crate::DecodedHirFoundation>(
-        &bytes,
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = scoop_wire::decode_canonical::<crate::DecodedHirFoundation>(&bytes).unwrap_err();
     assert_eq!(
         error.kind(),
         &scoop_wire::WireErrorKind::UnexpectedField {

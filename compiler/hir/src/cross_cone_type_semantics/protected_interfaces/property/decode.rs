@@ -7,7 +7,7 @@ use scoop_identity::{
     ConeIdentity, DecodedPersistentId, DecodedSignatureTypeKey, PersistentIdResolver,
     PersistentKeyResolver, PersistentSourceContextId, SourceContextKey,
 };
-use scoop_wire::{BudgetMeter, Decoder, WireDecode, WireError, WirePath};
+use scoop_wire::{Decoder, WireDecode, WireError};
 
 mod mutability;
 pub use mutability::DecodedProtectedPropertyMutabilityV1;
@@ -44,12 +44,9 @@ impl DecodedProtectedPropertyPayloadV1 {
     pub fn resolve<R: ProtectedPropertyInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedPropertyPayloadV1, ProtectedPropertyResolutionError<E>> {
-        ProtectedPropertyPayloadV1::from_source_payload(
-            self.resolve_source_payload(resolver, meter)?,
-        )
-        .map_err(ProtectedPropertyResolutionError::Property)
+        ProtectedPropertyPayloadV1::from_source_payload(self.resolve_source_payload(resolver)?)
+            .map_err(ProtectedPropertyResolutionError::Property)
     }
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn resolve_source_payload<
         R: ProtectedPropertyInterfaceResolver<E>,
@@ -57,22 +54,17 @@ impl DecodedProtectedPropertyPayloadV1 {
     >(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSourcePropertyPayloadV1, ProtectedPropertyResolutionError<E>> {
         use ProtectedPropertyResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let owner = self.owner.resolve(resolver).map_err(Error::Identity)?;
-        self.value_type
-            .charge_resolution(meter)
-            .map_err(Error::Resource)?;
+
         let value_type = self.value_type.resolve(resolver).map_err(Error::Identity)?;
         let getter = resolver.resolve(self.getter).map_err(Error::Identity)?;
-        let mutability = self.mutability.resolve(resolver, meter)?;
+        let mutability = self.mutability.resolve(resolver)?;
         let slots = self
             .slot_relations
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Slots)?;
         NominalSourcePropertyPayloadV1::try_new(
             owner,
@@ -103,7 +95,7 @@ impl WireEncode for DecodedProtectedPropertyPayloadV1 {
     }
 }
 impl WireDecode for DecodedProtectedPropertyPayloadV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             owner: decoder.field(1, DecodedSourceNominalId::decode)?,
@@ -126,20 +118,17 @@ impl DecodedProtectedPropertyInterfaceV1 {
     pub fn resolve<R: ProtectedPropertyInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedPropertyInterfaceV1, ProtectedPropertyResolutionError<E>> {
         use ProtectedPropertyResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let declaration = resolver
             .resolve(self.declaration)
             .map_err(Error::Identity)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Access)?;
-        let payload = self.payload.resolve(resolver, meter)?;
+        let payload = self.payload.resolve(resolver)?;
         ProtectedPropertyInterfaceV1::try_new(declaration, access, payload).map_err(Error::Property)
     }
 }
@@ -164,7 +153,7 @@ impl WireEncode for DecodedProtectedPropertyInterfaceV1 {
 }
 impl DecodedProtectedPropertyInterfaceV1 {
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
-        decoder: &mut Decoder<'_, '_>,
+        decoder: &mut Decoder<'_>,
     ) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedPersistentId::decode)?,
@@ -174,7 +163,7 @@ impl DecodedProtectedPropertyInterfaceV1 {
     }
 }
 impl WireDecode for DecodedProtectedPropertyInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Self::decode_fields(decoder)
     }

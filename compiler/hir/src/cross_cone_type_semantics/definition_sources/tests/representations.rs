@@ -43,24 +43,18 @@ fn mixed_local_and_foreign_inline_origins_are_preserved_and_exact() {
     let (fixture, _) = fixture(2);
     let declared = fixture.declared();
     assert_eq!(declared.sources().len(), 2);
-    assert_eq!(
-        fixture
-            .validate(&declared, DecodeLimits::default())
-            .unwrap()
-            .0,
-        2
-    );
+    assert_eq!(fixture.validate(&declared).unwrap(), 2);
     let missing =
         CanonicalExportDefinitionSourcesV1::try_new(vec![declared.sources()[0].clone()]).unwrap();
     assert!(matches!(
-        fixture.validate(&missing, DecodeLimits::default()),
+        fixture.validate(&missing),
         Err(TypeDefinitionSourceClosureError::Missing { .. })
     ));
     let mut values = declared.sources().to_vec();
     values.push(origin(ConeIdentity::CORE, 99));
     let extra = CanonicalExportDefinitionSourcesV1::try_new(values).unwrap();
     assert!(matches!(
-        fixture.validate(&extra, DecodeLimits::default()),
+        fixture.validate(&extra),
         Err(TypeDefinitionSourceClosureError::Extra { .. })
     ));
 }
@@ -85,7 +79,7 @@ fn full_origin_span_and_context_are_part_of_the_exact_source_set() {
         assert_ne!(&altered, original);
         let declared = CanonicalExportDefinitionSourcesV1::try_new(vec![altered]).unwrap();
         assert!(matches!(
-            fixture.validate(&declared, DecodeLimits::default()),
+            fixture.validate(&declared),
             Err(TypeDefinitionSourceClosureError::Missing { .. })
         ));
     }
@@ -114,7 +108,7 @@ fn rewriting_foreign_inline_origin_and_field7_together_cannot_replace_provider_t
     ])
     .unwrap();
     assert!(matches!(
-        fixture.validate(&declared, DecodeLimits::default()),
+        fixture.validate(&declared),
         Err(TypeDefinitionSourceClosureError::Source {
             error: "origin disagrees with independent typed provider use",
             ..

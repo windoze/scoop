@@ -11,10 +11,10 @@ pub enum DefaultSourceDeclarationBindingError {
     Shape(DefaultTemplateProviderShapeBuildError),
     ProviderParameter(DefaultTemplateProviderParameterBuildError),
     ReceiverShape(DefaultNominalReceiverBuildError),
-    Signature(Box<MeteredSignatureTypeSemanticError<NominalSourceBindingError>>),
-    Receiver(MeteredTemplateReceiverSemanticValidationError),
-    Prefix(MeteredTemplateValueParameterSemanticValidationError),
-    Substitution(MeteredDefaultTemplateTypeSubstitutionError),
+    Signature(Box<SignatureTypeSemanticError<NominalSourceBindingError>>),
+    Receiver(TemplateReceiverSemanticValidationError),
+    Prefix(TemplateValueParameterSemanticValidationError),
+    Substitution(DefaultTemplateTypeSubstitutionError),
     Contract(Box<DefaultTemplateDeclarationContractError<NominalSourceBindingError>>),
     Record {
         key: ProtectedDefaultTemplateKeyV1,
@@ -45,7 +45,7 @@ pub enum DefaultSourceDeclarationBindingError {
     LocalScope(TemplateLocalScopeValidationError),
     LocalType {
         index: usize,
-        error: Box<MeteredSignatureTypeSemanticError<NominalSourceBindingError>>,
+        error: Box<SignatureTypeSemanticError<NominalSourceBindingError>>,
     },
     BodyEnvelope(
         Box<DefaultBodyProviderEnvelopeSemanticValidationError<NominalSourceBindingError>>,
@@ -68,7 +68,7 @@ boxed_from! {
     DefaultSourceOriginBindingError => Origins, NominalSourceBindingError => Nominal,
     NominalMemberBindingError => Member, NominalConstructorBindingError => Constructor,
     NominalParameterBindingError => Parameter,
-    MeteredSignatureTypeSemanticError<NominalSourceBindingError> => Signature,
+    SignatureTypeSemanticError<NominalSourceBindingError> => Signature,
 }
 macro_rules! direct_from {
     ($($ty:ty => $variant:ident),+ $(,)?) => { $(impl From<$ty> for Error {
@@ -79,9 +79,9 @@ direct_from! {
     DefaultTemplateProviderParameterBuildError => ProviderParameter,
     WireError => Resource, DefaultTemplateProviderShapeBuildError => Shape,
     DefaultNominalReceiverBuildError => ReceiverShape,
-    MeteredTemplateReceiverSemanticValidationError => Receiver,
-    MeteredTemplateValueParameterSemanticValidationError => Prefix,
-    MeteredDefaultTemplateTypeSubstitutionError => Substitution,
+    TemplateReceiverSemanticValidationError => Receiver,
+    TemplateValueParameterSemanticValidationError => Prefix,
+    DefaultTemplateTypeSubstitutionError => Substitution,
 }
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

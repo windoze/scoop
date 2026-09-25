@@ -2,7 +2,7 @@ use scoop_identity::{
     DecodedCanonicalScoopAbiFunctionSignature, DecodedPersistentId,
     DecodedStrongCallableDefinitionOwner, PersistentLayoutId,
 };
-use scoop_wire::{Decoder, WireDecode, WireErrorKind, encode_canonical_temporary_with_meter};
+use scoop_wire::{Decoder, WireDecode, WireErrorKind, encode_canonical_temporary};
 
 use super::*;
 
@@ -28,10 +28,9 @@ impl DecodedExactCallableAbiExportV1 {
     pub fn validate_against(
         self,
         expected: &ExactCallableAbiExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ExactCallableAbiExportV1, ExactCallableAbiWireError> {
         let path = WirePath::root();
-        meter.charge_work(6, &path)?;
+
         if !target_matches(self.target, expected.target()) {
             return Err(ExactCallableAbiWireError::Target);
         }
@@ -40,35 +39,18 @@ impl DecodedExactCallableAbiExportV1 {
         {
             return Err(ExactCallableAbiWireError::Protocol);
         }
-        if !self
-            .definition
-            .matches_definition(expected.definition(), meter)?
-        {
+        if !self.definition.matches_definition(expected.definition())? {
             return Err(ExactCallableAbiWireError::Definition);
         }
         self.layouts
-            .validate_against(expected.layout_dependencies(), meter)?;
+            .validate_against(expected.layout_dependencies())?;
         // Compare the complete frozen signature product: exact receiver and
         // parameters, result, every storage field and pass mode, and GC effect.
         // No raw signature is promoted or repaired through a digest match.
-        meter.charge_work(self.signature.argument_count() as u64, &path)?;
-        meter.charge_work(self.signature.signature_parameter_count() as u64, &path)?;
-        meter.charge_work(
-            expected.canonical_signature().arguments().len() as u64,
-            &path,
-        )?;
-        meter.charge_work(
-            expected
-                .canonical_signature()
-                .signature()
-                .parameters()
-                .len() as u64,
-            &path,
-        )?;
-        let actual = encode_canonical_temporary_with_meter(&self.signature, meter, &path)?;
-        let wanted =
-            encode_canonical_temporary_with_meter(expected.canonical_signature(), meter, &path)?;
-        meter.charge_work(actual.len() as u64, &path)?;
+
+        let actual = encode_canonical_temporary(&self.signature, &path)?;
+        let wanted = encode_canonical_temporary(expected.canonical_signature(), &path)?;
+
         if actual != wanted {
             return Err(ExactCallableAbiWireError::Signature);
         }
@@ -80,9 +62,7 @@ impl DecodedCanonicalExactCallableAbiExportsV1 {
     pub fn validate_against(
         self,
         expected: &CanonicalExactCallableAbiExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalExactCallableAbiExportsV1, ExactCallableAbiTableError> {
-        meter.charge_work(self.records.len() as u64, &WirePath::root())?;
         if self.records.len() != expected.records().len() {
             return Err(ExactCallableAbiTableError::Count);
         }
@@ -90,7 +70,7 @@ impl DecodedCanonicalExactCallableAbiExportsV1 {
             self.records.into_iter().zip(expected.records()).enumerate()
         {
             actual
-                .validate_against(expected, meter)
+                .validate_against(expected)
                 .map_err(|source| ExactCallableAbiTableError::Record { index, source })?;
         }
         Ok(expected.clone())
@@ -113,7 +93,7 @@ fn target_matches(
 }
 
 impl WireDecode for ExactCallableProtocolV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::OrdinaryManaged),
@@ -128,7 +108,7 @@ impl WireDecode for ExactCallableProtocolV1 {
 }
 
 impl WireDecode for DecodedExactCallableAbiExportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
@@ -143,7 +123,7 @@ impl WireDecode for DecodedExactCallableAbiExportV1 {
 }
 
 impl WireDecode for DecodedCanonicalExactCallableAbiExportsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExactCallableAbiExportV1::decode(decoder))
             .map(|records| Self { records })

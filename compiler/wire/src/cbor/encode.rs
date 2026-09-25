@@ -2,7 +2,7 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-use crate::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use crate::{WireError, WireErrorKind, WirePath};
 
 /// A trusted producer for the Wire CBOR v1 subset.
 ///
@@ -101,27 +101,16 @@ pub fn encoded_length(value: &impl WireEncode) -> Result<u64, EncodeError> {
     }
 }
 
-/// Encodes a reader-side canonical comparison buffer after charging its exact
-/// owned byte and logical heap cost to the shared artifact meter.
-pub fn encode_canonical_temporary_with_meter(
+/// Encode a canonical comparison buffer, reporting failure at its input path.
+pub fn encode_canonical_temporary(
     value: &impl WireEncode,
-    meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<Vec<u8>, WireError> {
-    let length = encoded_length(value)
-        .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
-    meter.charge_owned_bytes(length, path)?;
-    let max_length = usize::try_from(length)
-        .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
-    encode_with_limit(value, max_length).map_err(|error| {
+    encode(value).map_err(|error| {
         let kind = match error {
-            EncodeError::Allocation => WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: length,
-                requested_slots: length,
-            },
-            EncodeError::LengthLimit | EncodeError::OutputSinkMismatch => {
-                WireErrorKind::NonCanonicalCbor
-            }
+            EncodeError::Allocation => WireErrorKind::Allocation,
+            EncodeError::LengthLimit => WireErrorKind::IntegerOutOfRange,
+            EncodeError::OutputSinkMismatch => WireErrorKind::NonCanonicalCbor,
         };
         WireError::new(kind, path.clone(), None)
     })
@@ -234,44 +223,5 @@ impl minicbor::encode::Write for FallibleVec {
             .map_err(|_| OutputError::Allocation)?;
         self.bytes.extend_from_slice(bytes);
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
-
-    use super::{Encoder, WireEncode, encode_canonical_temporary_with_meter};
-
-    struct Zero;
-
-    impl WireEncode for Zero {
-        fn encode(&self, encoder: &mut Encoder) -> Result<(), super::EncodeError> {
-            encoder.unsigned(0)
-        }
-    }
-
-    #[test]
-    fn canonical_temporary_precharges_exact_owned_bytes() {
-        let path = WirePath::root().field(3);
-        for (limit, accepted) in [(0, false), (1, true), (2, true)] {
-            let mut meter = BudgetMeter::new(DecodeLimits {
-                owned_bytes: limit,
-                logical_heap_bytes: limit,
-                ..DecodeLimits::default()
-            });
-            let result = encode_canonical_temporary_with_meter(&Zero, &mut meter, &path);
-            assert_eq!(result.is_ok(), accepted);
-            if !accepted {
-                assert_eq!(
-                    result.unwrap_err().kind(),
-                    &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::OwnedBytes,
-                        limit,
-                        observed: 1,
-                    }
-                );
-            }
-        }
     }
 }

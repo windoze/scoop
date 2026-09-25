@@ -21,10 +21,10 @@ fn runtime_call_reason_round_trips_without_a_source_name_witness() {
     let site = cast(&fixture);
     assert!(site.witness_indices().is_empty());
     let decoded: DecodedHirDependencyCallSiteV1 =
-        decode_canonical(&encode(&site).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&site).unwrap()).unwrap();
     assert_eq!(
         decoded
-            .resolve(&mut fixture.graph(), &mut meter(), &WirePath::root())
+            .resolve(&mut fixture.graph(), &WirePath::root())
             .unwrap(),
         site
     );
@@ -53,10 +53,7 @@ fn call_reasons_reject_legacy_arrays_and_unknown_tags() {
         bytes.extend(suffix);
         bytes.push(7);
         bytes.extend(receiver);
-        assert!(
-            decode_canonical::<DecodedHirDependencyCallSiteV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedHirDependencyCallSiteV1>(&bytes).is_err());
     }
 }
 

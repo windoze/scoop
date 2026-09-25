@@ -43,7 +43,6 @@ fn wire_preserves_all_four_dispatch_implementation_branches() {
         &entries,
         &fixture.foundation,
         &mut resolver,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
@@ -63,8 +62,7 @@ fn wire_preserves_all_four_dispatch_implementation_branches() {
         ExactDispatchImplementationV1::AdjustThunkTarget(_)
     ));
     let bytes = encode(&record).unwrap();
-    let decoded =
-        decode_canonical::<DecodedExactDispatchExportV1>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedExactDispatchExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    decoded.validate_against(&record, &mut meter()).unwrap();
+    decoded.validate_against(&record).unwrap();
 }

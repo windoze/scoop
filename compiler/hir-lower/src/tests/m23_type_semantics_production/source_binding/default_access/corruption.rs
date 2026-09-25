@@ -27,11 +27,11 @@ fn default_access_binding_rejects_origin_and_owner_chain_substitution() {
         );
         let foundation = fixture.bind().unwrap();
         assert!(
-            matches!(foundation.bind_default_access_declarations(&replacing(table, wrong_origin), required, &mut meter()),
+            matches!(foundation.bind_default_access_declarations(&replacing(table, wrong_origin), required),
             Err(Error::Origin(id)) if id == subject)
         );
         assert!(
-            matches!(foundation.bind_default_access_declarations(&replacing(table, wrong_chain), required, &mut meter()),
+            matches!(foundation.bind_default_access_declarations(&replacing(table, wrong_chain), required),
             Err(Error::Access { subject: id, error }) if id == subject && matches!(*error, hir::DeclarationAccessSourceSemanticError::OwnerChain))
         );
     });
@@ -56,7 +56,7 @@ fn default_access_binding_checks_protected_class_and_existing_nominal_sources() 
         );
         let foundation = fixture.bind().unwrap();
         assert!(
-            matches!(foundation.bind_default_access_declarations(&replacing(table, changed), required, &mut meter()),
+            matches!(foundation.bind_default_access_declarations(&replacing(table, changed), required),
             Err(Error::NominalOverlap(id)) if id == nominal.owner())
         );
         let export = output.output().export.module();
@@ -77,7 +77,7 @@ fn default_access_binding_checks_protected_class_and_existing_nominal_sources() 
             access.definition_origin().clone(),
         );
         assert!(
-            matches!(foundation.bind_default_access_declarations(&replacing(table, protected), required, &mut meter()),
+            matches!(foundation.bind_default_access_declarations(&replacing(table, protected), required),
             Err(Error::Access { subject: id, error }) if id == subject && matches!(*error, hir::DeclarationAccessSourceSemanticError::ProtectedOwnerNotClass))
         );
     });
@@ -103,9 +103,9 @@ fn default_access_binding_rejects_const_getter_without_independent_source_demand
         // Internal const accessor identity and origin exist, but neither
         // creates an independent runtime accessor demand.
         assert!(export.export_definition_origins.get(subject).is_some());
-        let table = Table::try_new(vec![forged], &mut meter()).unwrap();
+        let table = Table::try_new(vec![forged]).unwrap();
         assert!(
-            matches!(fixture.bind().unwrap().bind_default_access_declarations(&table, &BTreeSet::new(), &mut meter()),
+            matches!(fixture.bind().unwrap().bind_default_access_declarations(&table, &BTreeSet::new()),
             Err(Error::UnexpectedRecord(id)) if id == subject)
         );
     });

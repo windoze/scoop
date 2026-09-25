@@ -8,10 +8,10 @@ use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
     IdentityFoundationArtifactInput, ProducerRecord,
 };
-use scoop_wire::{DecodeLimits, sha256};
+use scoop_wire::sha256;
 
 use super::*;
-use crate::{CacheReceiptBodyV1, PairedCompilerFingerprintV1, SnapshotFileError};
+use crate::{CacheReceiptBodyV1, PairedCompilerFingerprintV1};
 
 struct Fixture {
     artifact: ImmutableInputSnapshot,
@@ -43,7 +43,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
     .unwrap();
     let path = root.join(format!("{producer}.slib"));
     std::fs::write(&path, foundation.as_bytes()).unwrap();
-    let artifact = ImmutableInputSnapshot::capture(&path, u64::MAX).unwrap();
+    let artifact = ImmutableInputSnapshot::capture(&path).unwrap();
     let body = CacheReceiptBodyV1::new(
         key,
         foundation.artifact_fingerprint(),
@@ -77,17 +77,9 @@ fn cache_publishes_and_reads_one_exact_atomic_entry() {
     let fixture = fixture(temp.path(), key, "cache-round-trip");
     let lock = store.acquire_exclusive(key).unwrap();
 
-    assert_eq!(
-        store.lookup(&lock, DecodeLimits::M23_DEFAULT).unwrap(),
-        CompileCacheLookupV1::Miss
-    );
+    assert_eq!(store.lookup(&lock).unwrap(), CompileCacheLookupV1::Miss);
     let published = store
-        .publish(
-            &lock,
-            &fixture.artifact,
-            &fixture.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&lock, &fixture.artifact, &fixture.receipt)
         .unwrap();
     assert!(matches!(published, CompileCachePublishV1::Published(_)));
 
@@ -95,8 +87,7 @@ fn cache_publishes_and_reads_one_exact_atomic_entry() {
     assert_eq!(path.file_name().unwrap().to_string_lossy().len(), 64);
     assert!(path.join(ARTIFACT_FILE_NAME).is_file());
     assert!(path.join(RECEIPT_FILE_NAME).is_file());
-    let CompileCacheLookupV1::Hit(hit) = store.lookup(&lock, DecodeLimits::M23_DEFAULT).unwrap()
-    else {
+    let CompileCacheLookupV1::Hit(hit) = store.lookup(&lock).unwrap() else {
         panic!("published entry must be a hit");
     };
     assert_eq!(hit.key(), key);
@@ -113,21 +104,11 @@ fn cache_never_overwrites_an_existing_winner() {
     let second = fixture(temp.path(), key, "cache-second");
     let lock = store.acquire_exclusive(key).unwrap();
     store
-        .publish(
-            &lock,
-            &first.artifact,
-            &first.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&lock, &first.artifact, &first.receipt)
         .unwrap();
 
     let equivalent = store
-        .publish(
-            &lock,
-            &first.artifact,
-            &first.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&lock, &first.artifact, &first.receipt)
         .unwrap();
     assert!(matches!(
         equivalent,
@@ -135,12 +116,7 @@ fn cache_never_overwrites_an_existing_winner() {
     ));
 
     assert!(matches!(
-        store.publish(
-            &lock,
-            &second.artifact,
-            &second.receipt,
-            DecodeLimits::M23_DEFAULT,
-        ),
+        store.publish(&lock, &second.artifact, &second.receipt,),
         Err(CompileCacheStoreError::NondeterministicProduction(_))
     ));
     assert_eq!(
@@ -149,8 +125,7 @@ fn cache_never_overwrites_an_existing_winner() {
             .count(),
         0
     );
-    let CompileCacheLookupV1::Hit(winner) = store.lookup(&lock, DecodeLimits::M23_DEFAULT).unwrap()
-    else {
+    let CompileCacheLookupV1::Hit(winner) = store.lookup(&lock).unwrap() else {
         panic!("winner must remain visible");
     };
     assert_eq!(winner.artifact().as_bytes(), first.artifact.as_bytes());
@@ -164,25 +139,8 @@ fn cache_payload_reads_are_bounded_and_never_degrade_to_miss() {
     let fixture = fixture(temp.path(), key, "cache-bounded");
     let lock = store.acquire_exclusive(key).unwrap();
     store
-        .publish(
-            &lock,
-            &fixture.artifact,
-            &fixture.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&lock, &fixture.artifact, &fixture.receipt)
         .unwrap();
-    let limits = DecodeLimits {
-        owned_bytes: 1,
-        ..DecodeLimits::M23_DEFAULT
-    };
-
-    assert!(matches!(
-        store.lookup(&lock, limits),
-        Err(CompileCacheStoreError::Snapshot {
-            role: CachePathRole::ReceiptFile,
-            source: SnapshotFileError::TooLarge { .. },
-        })
-    ));
 }
 
 #[test]
@@ -193,17 +151,12 @@ fn exact_key_corruption_is_not_a_miss() {
     let fixture = fixture(temp.path(), key, "cache-corrupt");
     let lock = store.acquire_exclusive(key).unwrap();
     store
-        .publish(
-            &lock,
-            &fixture.artifact,
-            &fixture.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&lock, &fixture.artifact, &fixture.receipt)
         .unwrap();
     std::fs::write(store.entry_path(key).join("unexpected"), b"evidence").unwrap();
 
     assert!(matches!(
-        store.lookup(&lock, DecodeLimits::M23_DEFAULT),
+        store.lookup(&lock),
         Err(CompileCacheStoreError::UnexpectedEntryContents { .. })
     ));
 }
@@ -229,17 +182,12 @@ fn exact_key_missing_or_truncated_files_are_not_misses() {
         let fixture = fixture(temp.path(), key, producer);
         let lock = store.acquire_exclusive(key).unwrap();
         store
-            .publish(
-                &lock,
-                &fixture.artifact,
-                &fixture.receipt,
-                DecodeLimits::M23_DEFAULT,
-            )
+            .publish(&lock, &fixture.artifact, &fixture.receipt)
             .unwrap();
         std::fs::remove_file(store.entry_path(key).join(missing_file)).unwrap();
 
         assert!(matches!(
-            store.lookup(&lock, DecodeLimits::M23_DEFAULT),
+            store.lookup(&lock),
             Err(CompileCacheStoreError::UnexpectedEntryContents { .. })
         ));
     }
@@ -248,19 +196,14 @@ fn exact_key_missing_or_truncated_files_are_not_misses() {
     let fixture = fixture(temp.path(), key, "cache-truncated-receipt");
     let lock = store.acquire_exclusive(key).unwrap();
     store
-        .publish(
-            &lock,
-            &fixture.artifact,
-            &fixture.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&lock, &fixture.artifact, &fixture.receipt)
         .unwrap();
     let receipt_path = store.entry_path(key).join(RECEIPT_FILE_NAME);
     std::fs::remove_file(&receipt_path).unwrap();
     std::fs::write(receipt_path, [0xa1]).unwrap();
 
     assert!(matches!(
-        store.lookup(&lock, DecodeLimits::M23_DEFAULT),
+        store.lookup(&lock),
         Err(CompileCacheStoreError::ReceiptDecode(_))
     ));
 }
@@ -277,18 +220,13 @@ fn cache_rejects_symlinked_payloads_and_lock_files() {
     let lock = store.acquire_exclusive(key).unwrap();
     let lock_path = lock.path().to_path_buf();
     store
-        .publish(
-            &lock,
-            &fixture.artifact,
-            &fixture.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&lock, &fixture.artifact, &fixture.receipt)
         .unwrap();
     let artifact_path = store.entry_path(key).join(ARTIFACT_FILE_NAME);
     std::fs::remove_file(&artifact_path).unwrap();
     symlink(fixture.artifact.source_locator(), &artifact_path).unwrap();
     assert!(matches!(
-        store.lookup(&lock, DecodeLimits::M23_DEFAULT),
+        store.lookup(&lock),
         Err(CompileCacheStoreError::InvalidPathType {
             role: CachePathRole::ArtifactFile,
             ..
@@ -334,19 +272,14 @@ fn receipt_must_name_the_exact_directory_key() {
     let fixture = fixture(temp.path(), first_key, "cache-key-mismatch");
     let first_lock = store.acquire_exclusive(first_key).unwrap();
     store
-        .publish(
-            &first_lock,
-            &fixture.artifact,
-            &fixture.receipt,
-            DecodeLimits::M23_DEFAULT,
-        )
+        .publish(&first_lock, &fixture.artifact, &fixture.receipt)
         .unwrap();
     drop(first_lock);
     std::fs::rename(store.entry_path(first_key), store.entry_path(second_key)).unwrap();
     let second_lock = store.acquire_shared(second_key).unwrap();
 
     assert!(matches!(
-        store.lookup(&second_lock, DecodeLimits::M23_DEFAULT),
+        store.lookup(&second_lock),
         Err(CompileCacheStoreError::ReceiptKeyMismatch {
             expected,
             actual,

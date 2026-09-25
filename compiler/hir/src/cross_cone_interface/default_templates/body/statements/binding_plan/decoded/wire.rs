@@ -37,7 +37,7 @@ impl WireEncode for DecodedDefaultBindingActionV1 {
 }
 
 impl WireDecode for DecodedDefaultBindingActionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -91,7 +91,7 @@ impl WireEncode for DecodedDefaultBindingPlanV1 {
 }
 
 impl WireDecode for DecodedDefaultBindingPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             subject: decoder.field(1, DecodedDefaultBindingTemporaryV1::decode)?,
@@ -118,7 +118,7 @@ impl WireEncode for DecodedDefaultIteratorConformanceV1 {
 }
 
 impl WireDecode for DecodedDefaultIteratorConformanceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             source: decoder.field(1, DecodedDefaultBindingTemporaryV1::decode)?,
@@ -140,7 +140,7 @@ impl WireEncode for DecodedDefaultAppliedOptionV1 {
 }
 
 impl WireDecode for DecodedDefaultAppliedOptionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             some_payload: decoder.field(1, DecodedDefaultEnumVariantFieldRefV1::decode)?,
@@ -166,7 +166,7 @@ impl WireEncode for DecodedDefaultIteratorNextV1 {
 }
 
 impl WireDecode for DecodedDefaultIteratorNextV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             callable: decoder.field(1, DecodedDefaultCallableRefV1::decode)?,
@@ -203,7 +203,7 @@ impl WireEncode for DecodedDefaultForIterationPlanV1 {
 }
 
 impl WireDecode for DecodedDefaultForIterationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(9)?;
         Ok(Self {
             source_setup: decoder.field(1, decode_statements)?,
@@ -224,7 +224,7 @@ impl WireDecode for DecodedDefaultForIterationPlanV1 {
 }
 
 fn decode_statements(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedDefaultStatementV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedDefaultStatementV1::decode(decoder))
 }
@@ -305,11 +305,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -320,10 +316,10 @@ fn expect_sum_length(
     }
 }
 
-fn integer_out_of_range(decoder: &Decoder<'_, '_>) -> WireError {
+fn integer_out_of_range(decoder: &Decoder<'_>) -> WireError {
     wire_error(decoder, WireErrorKind::IntegerOutOfRange)
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

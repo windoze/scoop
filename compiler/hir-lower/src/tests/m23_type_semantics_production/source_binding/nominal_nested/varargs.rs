@@ -44,9 +44,7 @@ fn nested_production_preserves_vararg_arrays_elements_and_default_owners() {
     .unwrap();
     let mut counts = [0; 5];
     for root in [class, enumeration] {
-        let produced =
-            hir::NestedNominalSourceProductionV1::from_export_hir(export, root, &mut meter())
-                .unwrap();
+        let produced = hir::NestedNominalSourceProductionV1::from_export_hir(export, root).unwrap();
         let mut expected = BTreeSet::new();
         collect_protocols(produced.record(), &mut expected);
         assert_eq!(

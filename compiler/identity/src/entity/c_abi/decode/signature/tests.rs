@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedCanonicalCAbiFunctionSignature, DecodedCanonicalCAbiParameter,
@@ -44,11 +44,9 @@ impl PersistentIdResolver<CanonicalCAbiLayoutFingerprint> for Resolver {
 #[test]
 fn c_abi_signature_round_trips_and_resolves() {
     let signature = signature();
-    let decoded = decode_canonical::<DecodedCanonicalCAbiFunctionSignature>(
-        &encode(&signature).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalCAbiFunctionSignature>(&encode(&signature).unwrap())
+            .unwrap();
 
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), signature);
 }
@@ -64,7 +62,6 @@ fn c_abi_parameter_and_return_recheck_storage_exact_type() {
             storage: mismatched_storage,
         })
         .unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert_eq!(
@@ -80,7 +77,6 @@ fn c_abi_parameter_and_return_recheck_storage_exact_type() {
             storage: mismatched_storage,
         })
         .unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert_eq!(
@@ -96,7 +92,6 @@ fn c_abi_signature_fingerprint_record_round_trips_and_verifies_hash() {
     let record = CanonicalCAbiSignatureFingerprintRecord::new(signature()).unwrap();
     let decoded = decode_canonical::<DecodedCanonicalCAbiSignatureFingerprintRecord>(
         &encode(&record).unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert_eq!(
@@ -108,11 +103,8 @@ fn c_abi_signature_fingerprint_record_round_trips_and_verifies_hash() {
     let mut bytes = encode(&record).unwrap();
     assert_eq!(&bytes[..4], &[0xa2, 0x01, 0x58, 0x20]);
     bytes[4] ^= 1;
-    let decoded = decode_canonical::<DecodedCanonicalCAbiSignatureFingerprintRecord>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalCAbiSignatureFingerprintRecord>(&bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut Resolver),
         Err(super::super::CanonicalCAbiResolutionError::SignatureFingerprint(_))
@@ -121,8 +113,7 @@ fn c_abi_signature_fingerprint_record_round_trips_and_verifies_hash() {
 
 #[test]
 fn c_abi_signature_decoder_rejects_unknown_calling_convention() {
-    let error =
-        decode_canonical::<TargetCallingConvention>(b"\x02", DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<TargetCallingConvention>(b"\x02").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 2 });
 }
 

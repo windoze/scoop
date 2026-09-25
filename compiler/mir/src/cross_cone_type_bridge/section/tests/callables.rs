@@ -66,11 +66,9 @@ fn value_method(fixture: &mut Fixture) -> StrongCallableDefinitionOwner {
         fixture.types.payload.id(),
         MirClassVtableSchemaV1::NoClassVtable,
         vec![],
-        &mut meter(),
     )
     .unwrap();
-    let dispatch =
-        CanonicalMirDispatchSchemasV1::try_new(authority, vec![dispatch], &mut meter()).unwrap();
+    let dispatch = CanonicalMirDispatchSchemasV1::try_new(authority, vec![dispatch]).unwrap();
     let previous = &fixture.source.expected;
     fixture.source.expected = MirTypeBridgeExportConstituentsV1::new(
         previous.types().clone(),
@@ -113,16 +111,9 @@ fn value_method_selection_closes_both_signatures_and_preserves_gc_effect() {
         matches!(section.selected().resolve(handle), Some(MirTypeBridgeSemanticRecordV1::Callable(record)) if record.lowered_signature().gc_effect() == crate::GcEffect::NoGc)
     );
     let bytes = encode(&terminal).unwrap();
-    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
     let replayed = decoded
-        .validate(
-            provider.authority(),
-            &[],
-            &provider.source,
-            &mut graph,
-            &mut meter(),
-        )
+        .validate(provider.authority(), &[], &provider.source, &mut graph)
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);
 }

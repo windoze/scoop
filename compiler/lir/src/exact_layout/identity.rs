@@ -2,7 +2,7 @@ use scoop_identity::{
     CborIdentityRecord, ExactTypeKey, LayoutKey, PersistentExactTypeId, PersistentLayoutId,
     RepresentationRole,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use crate::{
     ExternalStrongShapeSubjectV1, LirTargetProfile, OdrFreeLirFoundation,
@@ -26,12 +26,9 @@ impl ExactLayoutIdentityV1 {
         exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
         role: RepresentationRole,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutIdentityError> {
-        let path = WirePath::root();
-        meter.charge_work(1, &path)?;
         let key = LayoutKey::new(exact.id(), target.wire_id(), role);
-        meter.charge_work(foundation.layouts().len() as u64, &path)?;
+
         let layout = foundation
             .layouts()
             .iter()
@@ -40,7 +37,6 @@ impl ExactLayoutIdentityV1 {
         let physical = StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::Layout(layout.id()),
             foundation,
-            meter,
         )?;
         let definition = StrongShapeDefinitionV1::from_layout_definition(layout.id(), physical)
             .ok_or(ExactLayoutIdentityError::DefinitionSubject)?;

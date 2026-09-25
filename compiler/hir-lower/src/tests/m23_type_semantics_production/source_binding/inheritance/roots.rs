@@ -19,7 +19,7 @@ fn nested_inheritance_closure_replays_all_bound_sources_after_byte_restoration()
             let foundation = fixture.bind().unwrap();
 
             sources
-                .with_bound(&foundation, &mut meter(), |bound, graph| {
+                .with_bound(&foundation, |bound, graph| {
                     let entries = fixture.source.entries();
                     assert_eq!(
                         bound.required_inheritance_owners().unwrap().values(),
@@ -31,10 +31,10 @@ fn nested_inheritance_closure_replays_all_bound_sources_after_byte_restoration()
                             .collect::<Vec<_>>()
                     );
                     for record in sources.constructors.records() {
-                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                        record.validate_source(graph, bound).unwrap();
                     }
                     for record in sources.callables.records() {
-                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                        record.validate_source(graph, bound).unwrap();
                     }
                     for nominal in sources.nominals.records() {
                         if let hir::SourceNominalId::Concrete(owner) = nominal.owner() {
@@ -119,20 +119,14 @@ fn nested_generic_edges_are_metadata_before_dispatch_materialization() {
         "public interface Generic<T> {}\npublic open class Host { protected class Nested : Generic<Int> {} }",
         |output, _| {
             let foundation =
-                hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output(), &mut meter())
-                    .unwrap();
+                hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output()).unwrap();
             assert_eq!(foundation.source_roots().len(), 3);
-            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+            let inventory =
+                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
             assert_eq!(inventory.records().len(), 1);
-            let selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+            let selections =
+                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(output)
+                    .unwrap();
             assert!(selections.records().is_empty());
         },
     );

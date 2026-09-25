@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use scoop_identity::{ConeIdentity, PersistentTypeId, SourceDeclarationKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -25,9 +25,8 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ParamFreeShapeSupportTableError> {
-        Self::from_source_refs(sources.iter(), layouts, descriptors, foundation, meter)
+        Self::from_source_refs(sources.iter(), layouts, descriptors, foundation)
     }
 
     pub fn from_source_refs<'a>(
@@ -35,23 +34,21 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ParamFreeShapeSupportTableError> {
         validate_inputs(layouts, descriptors, foundation)?;
         let path = WirePath::root();
-        meter.check_table_entries(sources.len() as u64, &path)?;
+
         let mut records = Vec::new();
-        meter.try_reserve_collection_slots(&mut records, sources.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut records, sources.len(), &path)?;
         for source in sources {
             records.push(ParamFreeShapeSupportExportV1::replay(
                 source,
                 layouts,
                 descriptors,
                 foundation,
-                meter,
             )?);
         }
-        sort_records(&mut records, meter)?;
+        sort_records(&mut records)?;
         for pair in records.windows(2) {
             if pair[0].source_nominal() == pair[1].source_nominal() {
                 return Err(ParamFreeShapeSupportTableError::DuplicateRequiredSource(
@@ -72,10 +69,9 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         descriptors: &CanonicalExactDescriptorExportsV1,
         foundation: &OdrFreeLirFoundation,
         mut records: Vec<ParamFreeShapeSupportExportV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ParamFreeShapeSupportTableError> {
         validate_inputs(layouts, descriptors, foundation)?;
-        sort_records(&mut records, meter)?;
+        sort_records(&mut records)?;
         for pair in records.windows(2) {
             if pair[0].source_nominal() == pair[1].source_nominal() {
                 return Err(ParamFreeShapeSupportTableError::Duplicate(
@@ -83,7 +79,7 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
                 ));
             }
         }
-        let expected = Self::from_sources(sources, layouts, descriptors, foundation, meter)?;
+        let expected = Self::from_sources(sources, layouts, descriptors, foundation)?;
         let expected = expected.records();
         if records.len() != expected.len() {
             return Err(ParamFreeShapeSupportTableError::Coverage);
@@ -151,15 +147,7 @@ fn validate_inputs(
 
 fn sort_records(
     records: &mut [ParamFreeShapeSupportExportV1],
-    meter: &mut BudgetMeter,
 ) -> Result<(), ParamFreeShapeSupportTableError> {
-    let path = WirePath::root();
-    let count = records.len() as u64;
-    meter.check_table_entries(count, &path)?;
-    meter.charge_work(
-        count.saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-        &path,
-    )?;
     records.sort_unstable_by_key(ParamFreeShapeSupportExportV1::source_nominal);
     Ok(())
 }

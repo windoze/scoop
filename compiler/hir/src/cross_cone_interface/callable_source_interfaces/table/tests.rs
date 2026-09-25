@@ -5,7 +5,7 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceSpan,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -57,8 +57,7 @@ fn indexed_table_has_canonical_wire_and_decodes_in_order() {
         .concat()
     );
 
-    let decoded: DecodedCanonicalCallableSourceInterfacesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalCallableSourceInterfacesV1 = decode_canonical(&bytes).unwrap();
     let mut identities = identities([first.owner(), second.owner()]);
     let mut templates = NoTemplates;
     assert_eq!(
@@ -258,5 +257,5 @@ impl WireEncode for SourceInterfaceSequence {
 }
 
 fn decode_table(value: &impl WireEncode) -> DecodedCanonicalCallableSourceInterfacesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

@@ -2,7 +2,7 @@ use scoop_identity::{
     CallableTemplateOrigin, DecodedPersistentId, DefinitionOrigin, PersistentDispatchSlotId,
     PersistentExactTypeId, PersistentIdResolver, SignatureTypeKey, SourceContextKey, SourceSpan,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 pub(super) use super::super::*;
 pub(super) use crate::cross_cone_interface::expression_test_support::{
@@ -34,10 +34,6 @@ macro_rules! absent_identity {
 }
 absent_identity!(PersistentExactTypeId);
 absent_identity!(PersistentDispatchSlotId);
-
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 pub(super) fn uses(index: u32) -> CanonicalProtectedDefaultExpressionUsesV1 {
     CanonicalProtectedDefaultExpressionUsesV1::try_new(vec![ProtectedDefaultExpressionUseV1::new(
@@ -101,7 +97,7 @@ pub(super) fn full_set(f: &Fixture) -> ProtectedDefaultReferenceSetV1 {
 pub(super) fn decoded(
     set: &ProtectedDefaultReferenceSetV1,
 ) -> DecodedProtectedDefaultReferenceSetV1 {
-    decode_canonical(&encode(set).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(set).unwrap()).unwrap()
 }
 pub(super) fn singleton_domains(f: &Fixture) -> Vec<ProtectedDefaultReferenceSetV1> {
     let full = full_set(f);

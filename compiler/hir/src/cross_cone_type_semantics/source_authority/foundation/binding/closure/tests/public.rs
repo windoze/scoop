@@ -26,10 +26,10 @@ fn public_join_requires_source_root_and_equal_value_shape() {
             .unwrap(),
     );
     let public = table(root.owner, shape.clone());
-    super::super::provider::validate_public(&bound, &public, &mut meter()).unwrap();
+    super::super::provider::validate_public(&bound, &public).unwrap();
     let foreign = Artifact::new("foreign", SourceNominalKind::Struct, None).load(None);
     assert!(
-        matches!(super::super::provider::validate_public(&bound, &table(foreign.owner, shape), &mut meter()),
+        matches!(super::super::provider::validate_public(&bound, &table(foreign.owner, shape)),
         Err(TypeFoundationReplayError::PublicNominal(owner)) if owner == SourceNominalId::Concrete(foreign.owner))
     );
     let key = FieldIdentityKey::source_declared(
@@ -52,18 +52,7 @@ fn public_join_requires_source_root_and_equal_value_shape() {
         .unwrap(),
     );
     assert!(
-        matches!(super::super::provider::validate_public(&bound, &table(root.owner, changed), &mut meter()),
+        matches!(super::super::provider::validate_public(&bound, &table(root.owner, changed)),
         Err(TypeFoundationReplayError::PublicSourceShape(owner)) if owner == root.owner)
     );
-    assert!(matches!(
-        super::super::provider::validate_public(
-            &bound,
-            &public,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(TypeFoundationReplayError::Resource(_))
-    ));
 }

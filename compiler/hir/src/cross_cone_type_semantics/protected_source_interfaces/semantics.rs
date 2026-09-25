@@ -5,7 +5,6 @@ use crate::{
     SourceParameterShapeV1,
 };
 use scoop_identity::{PersistentGenericTypeId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WirePath};
 use std::fmt;
 
 /// Definition-side source parameter facts. Implementations resolve the actual
@@ -46,28 +45,24 @@ impl ProtectedCallableSourceInterfaceV1 {
         &'a self,
         callable: CheckedProtectedCallableSourceV1<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedSourceProtocolV1<'a>, ProtectedSourceSemanticError<E>> {
         self.validate(
             callable.declaration(),
             callable.payload(),
             callable.declaration_access().source(),
             authority,
-            meter,
         )
     }
     pub fn validate_nominal_support<'a, A: ProtectedSourceProtocolSemanticAuthority<E>, E>(
         &'a self,
         callable: CheckedNominalSupportCallableSourceV1<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedSourceProtocolV1<'a>, ProtectedSourceSemanticError<E>> {
         self.validate(
             callable.declaration(),
             callable.payload(),
             callable.declaration_access().source(),
             authority,
-            meter,
         )
     }
     pub(in crate::cross_cone_type_semantics) fn validate<
@@ -80,7 +75,6 @@ impl ProtectedCallableSourceInterfaceV1 {
         payload: &NominalSourceCallablePayloadV1,
         access: &DeclarationAccessSourceV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedSourceProtocolV1<'a>, ProtectedSourceSemanticError<E>> {
         use ProtectedSourceSemanticError as Error;
         if self.owner != declaration {
@@ -93,18 +87,10 @@ impl ProtectedCallableSourceInterfaceV1 {
         for (position, (actual, expected)) in
             (0_u32..).zip(self.parameters.parameters().iter().zip(expected))
         {
-            meter
-                .charge_nodes(1, &WirePath::root())
-                .map_err(Error::Resource)?;
             let source = authority
                 .source_parameter_shape(self.owner, position)
                 .map_err(Error::Foundation)?;
-            let bytes = scoop_wire::encoded_length(actual.value_type())
-                .map_err(Error::Encoding)?
-                .saturating_add(actual.name().as_str().len() as u64);
-            meter
-                .charge_work(bytes.saturating_mul(3), &WirePath::root())
-                .map_err(Error::Resource)?;
+
             if actual.name() != expected.name()
                 || actual.name() != source.name()
                 || actual.value_type() != expected.value_type()

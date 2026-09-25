@@ -6,7 +6,7 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, StrongCallableDefinitionOwner,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -71,8 +71,7 @@ fn generated_bridge_units_use_a_distinct_domain_and_capability() {
 fn decoded_logical_key_is_rebuilt_from_the_expected_typed_unit_set() {
     let units = CanonicalScoopLirObjectUnitSetV1::new(vec![definition_plan(3)]).unwrap();
     let bytes = encode(&units.logical_key()).unwrap();
-    let decoded: DecodedScoopLirObjectLogicalKeyV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedScoopLirObjectLogicalKeyV1 = decode_canonical(&bytes).unwrap();
 
     assert_eq!(decoded.validate(&units).unwrap(), units.logical_key());
 

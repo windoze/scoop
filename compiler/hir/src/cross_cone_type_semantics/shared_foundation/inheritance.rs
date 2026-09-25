@@ -30,66 +30,55 @@ impl CheckedSharedTypeFoundationV1<'_> {
     pub fn with_inheritance_graph<R>(
         self,
         dependencies: &[CheckedSharedTypeFoundationV1<'_>],
-        meter: &mut BudgetMeter,
-        use_graph: impl for<'graph> FnOnce(
-            &CheckedNominalInheritanceGraphV1<'graph>,
-            &mut BudgetMeter,
-        ) -> R,
+
+        use_graph: impl for<'graph> FnOnce(&CheckedNominalInheritanceGraphV1<'graph>) -> R,
     ) -> Result<R, Error> {
         let types = MetadataTypes {
             current: self.metadata,
             dependencies,
         };
-        types.validate_dependencies(meter)?;
+        types.validate_dependencies()?;
         let mut context = Context::default();
         for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
-            source::collect(&mut context, provider, meter)?;
-            edges::collect(&mut context, provider, dependencies, meter)?;
+            source::collect(&mut context, provider)?;
+            edges::collect(&mut context, provider, dependencies)?;
         }
         let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
             context.edges.iter(),
             context.sources.keys().copied(),
             &context,
-            meter,
         )
         .map_err(|error| Error::InheritanceGraph(Box::new(error)))?;
         for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
-            protected::validate(provider, dependencies, &context, &graph, meter)?;
+            protected::validate(provider, dependencies, &context, &graph)?;
             for record in provider.section.inheritance().records() {
                 graph
-                    .validate_nominal_domains(record.owner(), record.domains(), meter)
+                    .validate_nominal_domains(record.owner(), record.domains())
                     .map_err(Error::InheritanceDomains)?;
                 let owner = graph
                     .get(record.owner())
                     .ok_or(Error::InheritanceEdges(record.owner()))?
                     .source();
-                contracts::lookup(
-                    provider
-                        .metadata
-                        .public
-                        .nominal_interfaces()
-                        .declaration_count(),
-                    meter,
-                )?;
+
                 let declaration = provider
                     .metadata
                     .public
                     .nominal_interfaces()
                     .declaration(owner)
                     .ok_or(Error::InheritanceSource(owner))?;
-                constructors::validate(provider, declaration, record, &context, meter)?;
-                members::validate(provider, declaration, record, &context, meter)?;
+                constructors::validate(provider, declaration, record, &context)?;
+                members::validate(provider, declaration, record, &context)?;
             }
         }
-        schemas::validate(self, dependencies, &context, &graph, meter)?;
+        schemas::validate(self, dependencies, &context, &graph)?;
         for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
             provider
                 .section
                 .protected_source_interfaces()
-                .validate_shared_declarations(provider.section, provider.metadata, meter)?;
-            defaults::validate(provider, dependencies, &context, &graph, meter)?;
+                .validate_shared_declarations(provider.section, provider.metadata)?;
+            defaults::validate(provider, dependencies, &context, &graph)?;
         }
-        Ok(use_graph(&graph, meter))
+        Ok(use_graph(&graph))
     }
 }
 

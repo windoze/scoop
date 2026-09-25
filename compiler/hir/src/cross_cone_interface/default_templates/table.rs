@@ -142,17 +142,13 @@ impl DecodedCanonicalExportDefaultTemplatesV1 {
     where
         R: DefaultStatementReferenceResolver<E>,
     {
-        self.resolve_metered(
-            resolver,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-            &scoop_wire::WirePath::root(),
-        )
+        self.resolve_at(resolver, &scoop_wire::WirePath::root())
     }
 
-    pub fn resolve_metered<R, E>(
+    pub fn resolve_at<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
+
         path: &scoop_wire::WirePath,
     ) -> Result<CanonicalExportDefaultTemplatesV1, ExportDefaultTemplateSetValidationError<E>>
     where
@@ -163,7 +159,7 @@ impl DecodedCanonicalExportDefaultTemplatesV1 {
         let mut records = Vec::<ExportDefaultTemplateV1>::with_capacity(self.records.len());
         for (index, record) in self.records.into_iter().enumerate() {
             let record = record
-                .resolve_metered(resolver, meter, &path.clone().index(index as u64))
+                .resolve_at(resolver, &path.clone().index(index as u64))
                 .map_err(|error| ExportDefaultTemplateSetValidationError::Record {
                     index,
                     error,
@@ -201,7 +197,7 @@ impl WireEncode for DecodedCanonicalExportDefaultTemplatesV1 {
 }
 
 impl WireDecode for DecodedCanonicalExportDefaultTemplatesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExportDefaultTemplateV1::decode(decoder))
             .map(|records| Self { records })

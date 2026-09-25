@@ -96,7 +96,7 @@ impl WireEncode for DecodedCompilerProtocolDefinitionsV1 {
 }
 
 impl WireDecode for DecodedCompilerProtocolDefinitionsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             string_capability: decoder.field(2, DecodedRuntimeCoreCapabilityV1::decode)?,
@@ -219,7 +219,7 @@ impl WireEncode for DecodedCoreBootstrapInterfaceSectionV1 {
 }
 
 impl WireDecode for DecodedCoreBootstrapInterfaceSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             output_contract: decoder.field(2, DecodedHirOutputContractV1::decode)?,
@@ -340,7 +340,7 @@ fn encode_definitions(
     Ok(())
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

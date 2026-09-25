@@ -51,7 +51,7 @@ impl WireEncode for DecodedCDataPointee {
 }
 
 impl WireDecode for DecodedCDataPointee {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -92,7 +92,7 @@ impl WireEncode for DecodedCPointerStorage {
 }
 
 impl WireDecode for DecodedCPointerStorage {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -199,7 +199,7 @@ impl WireEncode for DecodedCanonicalCStorageType {
 }
 
 impl WireDecode for DecodedCanonicalCStorageType {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -244,7 +244,7 @@ impl WireDecode for DecodedCanonicalCStorageType {
 }
 
 impl WireDecode for Signedness {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Signed),
             2 => Ok(Self::Unsigned),
@@ -254,7 +254,7 @@ impl WireDecode for Signedness {
 }
 
 impl WireDecode for IntegerBitWidth {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             8 => Ok(Self::Bits8),
             16 => Ok(Self::Bits16),
@@ -266,7 +266,7 @@ impl WireDecode for IntegerBitWidth {
 }
 
 impl WireDecode for TargetCallingConvention {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Cdecl),
             tag => Err(unknown_tag(decoder, tag)),
@@ -297,14 +297,14 @@ impl<E: fmt::Display> fmt::Display for CanonicalCAbiResolutionError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for CanonicalCAbiResolutionError<E> {}
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -315,11 +315,7 @@ where
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -331,7 +327,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

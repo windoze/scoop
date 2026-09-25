@@ -18,7 +18,7 @@ impl WireEncode for DecodedStaticImmortalRelocationPlanV1 {
 }
 
 impl WireDecode for DecodedStaticImmortalRelocationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             pointer_offset: decoder.field(1, Decoder::unsigned)?,
@@ -56,7 +56,7 @@ impl WireEncode for DecodedStrongStaticStorageInitialStatePlanV1 {
 }
 
 impl WireDecode for DecodedStrongStaticStorageInitialStatePlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let length = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -98,7 +98,7 @@ impl WireEncode for DecodedStaticStorageRelocationTableArtifactV1 {
 }
 
 impl WireDecode for DecodedStaticStorageRelocationTableArtifactV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let length = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -144,7 +144,7 @@ impl WireEncode for DecodedStrongStaticStorageInitialArtifactPlanV1 {
 }
 
 impl WireDecode for DecodedStrongStaticStorageInitialArtifactPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let length = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -221,7 +221,7 @@ impl WireEncode for DecodedStrongStaticStorageRegistrationPlanV1 {
 }
 
 impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(31)?;
         Ok(Self {
             semantic: DecodedStrongStaticStorageSemanticProjectionV1::decode_fields(decoder)?,

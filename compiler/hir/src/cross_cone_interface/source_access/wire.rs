@@ -4,9 +4,7 @@ use scoop_identity::{
     ConeIdentity, DecodedPersistentId, DecodedSourceIdentity, PersistentIdResolver,
     SourceIdentityResolutionError,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath};
 
 pub trait SourceAccessDomainResolver<E>:
     SourceNominalIdResolver<E> + PersistentIdResolver<ConeIdentity, Error = E>
@@ -35,28 +33,16 @@ impl DecodedSourceAccessDomainV1 {
     pub fn resolve<R: SourceAccessDomainResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<SourceAccessDomainV1, SourceAccessDomainResolutionError<E>> {
-        meter.check_semantic_depth(2, path)?;
-        meter.charge_work(1, path)?;
-        meter.charge_nodes(1, path)?;
         let Self::Conjunction(constraints) = self else {
             return Ok(SourceAccessDomainV1::empty());
         };
-        meter.check_table_entries(constraints.len() as u64, path)?;
-        meter.charge_edges(constraints.len() as u64, path)?;
+
         let mut resolved: Vec<SourceAccessConstraintV1> = Vec::new();
-        meter.try_reserve_collection_slots(&mut resolved, constraints.len(), path)?;
+        scoop_wire::allocation::try_reserve(&mut resolved, constraints.len(), path)?;
         for (index, constraint) in constraints.into_iter().enumerate() {
-            meter.charge_work(1, path)?;
-            meter.charge_nodes(1, path)?;
-            if let DecodedSourceAccessConstraintV1::File(source) = &constraint {
-                let bytes = source.logical_path_byte_len() as u64;
-                meter.check_semantic_leaf(bytes, path)?;
-                meter.charge_owned_bytes(bytes, path)?;
-                meter.charge_work(bytes, path)?;
-            }
             let constraint = constraint.resolve(resolver)?;
             if let Some(previous) = resolved.last() {
                 let ordering = previous.cmp(&constraint);
@@ -100,7 +86,7 @@ impl DecodedSourceAccessConstraintV1 {
 }
 
 impl WireDecode for DecodedSourceAccessConstraintV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(2)?;
         match d.field(0, Decoder::unsigned)? {
             1 => d.field(1, DecodedPersistentId::decode).map(Self::Cone),
@@ -117,7 +103,7 @@ impl WireDecode for DecodedSourceAccessConstraintV1 {
 }
 
 impl WireDecode for DecodedSourceAccessDomainV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = d.map()?;
         let tag = d.field(0, Decoder::unsigned)?;
         let expected = match tag {
@@ -201,7 +187,7 @@ impl WireEncode for DecodedSourceAccessDomainV1 {
     }
 }
 
-fn unknown_tag(d: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(d: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         d.path().clone(),

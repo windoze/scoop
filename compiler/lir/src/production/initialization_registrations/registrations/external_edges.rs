@@ -1,12 +1,11 @@
 use super::*;
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 impl StrongInitializationUnitRegistrationPlanSetV2 {
     /// Borrow the complete external edge inventory without dropping its provider.
     pub fn external_dependency_edges(
         &self,
-        meter: &mut BudgetMeter,
     ) -> Result<
         impl Iterator<
             Item = (
@@ -17,12 +16,6 @@ impl StrongInitializationUnitRegistrationPlanSetV2 {
         > + '_,
         WireError,
     > {
-        for unit in self.registrations() {
-            meter.charge_work(
-                unit.semantic().dependencies().len() as u64 + 1,
-                &WirePath::root(),
-            )?;
-        }
         Ok(self.registrations().iter().flat_map(|unit| {
             unit.semantic()
                 .dependencies()

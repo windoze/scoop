@@ -48,14 +48,12 @@ fn shared_call_signatures_close_compound_parameters_from_their_actual_provider()
         actual,
         selected(signature_uses(values.provider(), &[value]))
     );
-    consumer
-        .validate(&actual, &dependencies, &mut meter())
-        .unwrap();
+    consumer.validate(&actual, &dependencies).unwrap();
     let mut misdirected = signature_uses(values.provider(), &[value]);
     misdirected.push(signature(provider.provider(), value));
     misdirected.push(signature(values.provider(), unused));
     assert!(matches!(
-        consumer.validate(&selected(misdirected), &dependencies, &mut meter()),
+        consumer.validate(&selected(misdirected), &dependencies),
         Err(Error::TypeUseInventory)
     ));
     snapshot("call-signature-compound", &actual);

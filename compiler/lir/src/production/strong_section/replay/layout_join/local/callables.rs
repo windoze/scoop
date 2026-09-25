@@ -1,21 +1,9 @@
 use super::*;
-use scoop_wire::WirePath;
 
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    meter.charge_work(
-        (section.callables().records().len() as u64).saturating_mul(
-            production
-                .callable_registrations()
-                .registrations()
-                .len()
-                .max(1) as u64,
-        ),
-        &WirePath::root(),
-    )?;
     for record in section.callables().records() {
         let target = record.target();
         let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;

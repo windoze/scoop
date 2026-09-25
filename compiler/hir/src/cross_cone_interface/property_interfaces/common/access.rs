@@ -17,7 +17,7 @@ impl WireEncode for PropertyPublicAccessV1 {
 }
 
 impl WireDecode for PropertyPublicAccessV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::DirectOnly),
             2 => Ok(Self::PublicSlot),
@@ -43,7 +43,7 @@ impl WireEncode for PropertySetterPublicAccessV1 {
 }
 
 impl WireDecode for PropertySetterPublicAccessV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Restricted),
             2 => Ok(Self::Public),
@@ -71,7 +71,7 @@ impl WireEncode for PropertyRepresentationV1 {
 }
 
 impl WireDecode for PropertyRepresentationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Const),
             2 => Ok(Self::RuntimeAccessor),
@@ -81,7 +81,7 @@ impl WireDecode for PropertyRepresentationV1 {
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

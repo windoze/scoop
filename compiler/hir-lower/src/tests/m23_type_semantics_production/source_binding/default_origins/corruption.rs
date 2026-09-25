@@ -6,12 +6,12 @@ fn default_root_requires_its_own_callable_or_enum_context() {
         let table = templates(output);
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
             for template in table.records() {
                 let other = table.records().iter().find(|other| other.definition_origin().origin().context() != template.definition_origin().origin().context()).unwrap();
                 assert_eq!(other.definition_origin().origin().source(), template.definition_origin().origin().source());
                 let forged = replace(&table, rebuild(template, template.definition_root(), template.body().clone(), other.definition_origin().clone()));
-                assert!(matches!(parameters.bind_default_origins(&forged, &[], &mut meter()), Err(Error::Root(hir::DefaultTemplateRootOriginValidationError::RootOrigin(root))) if root == template.definition_root()));
+                assert!(matches!(parameters.bind_default_origins(&forged, &[]), Err(Error::Root(hir::DefaultTemplateRootOriginValidationError::RootOrigin(root))) if root == template.definition_root()));
             }
         });
     });
@@ -23,12 +23,12 @@ fn default_location_binding_requires_complete_parameter_coverage() {
         let table = templates(output);
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
             for index in 0..table.records().len() {
                 let mut incomplete = table.records().to_vec();
                 let removed = incomplete.remove(index).key();
-                let incomplete = Table::try_new(incomplete, &mut meter()).unwrap();
-                assert!(matches!(parameters.bind_default_origins(&incomplete, &[], &mut meter()), Err(Error::Coverage(hir::DefaultSourceTemplateCoverageError::Missing(key))) if key == removed));
+                let incomplete = Table::try_new(incomplete).unwrap();
+                assert!(matches!(parameters.bind_default_origins(&incomplete, &[]), Err(Error::Coverage(hir::DefaultSourceTemplateCoverageError::Missing(key))) if key == removed));
             }
         });
     });
@@ -69,15 +69,15 @@ fn default_locations_require_body_points_not_only_declaration_points() {
         let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+            .bind_to_foundation(&incomplete, &fixture.identities)
             .unwrap();
         let table = templates(output);
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             assert!(matches!(
-                parameters.bind_default_origins(&table, &[], &mut meter()),
+                parameters.bind_default_origins(&table, &[]),
                 Err(Error::Origin {
                     error: hir::TypeFoundationBindingError::MissingSourcePoint(_),
                     ..
@@ -122,9 +122,9 @@ fn default_root_origin_cannot_borrow_another_files_valid_source_context() {
             let foundation = fixture.bind().unwrap();
             let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             sources.with_bound(&foundation, inputs.protocols().fundamental_types(), |members, constructors| {
-                let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-                parameters.bind_default_origins(&table, &[], &mut meter()).unwrap();
-                assert!(matches!(parameters.bind_default_origins(&forged, &[], &mut meter()), Err(Error::Root(hir::DefaultTemplateRootOriginValidationError::RootOrigin(root))) if root == first.definition_root()));
+                let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+                parameters.bind_default_origins(&table, &[]).unwrap();
+                assert!(matches!(parameters.bind_default_origins(&forged, &[]), Err(Error::Root(hir::DefaultTemplateRootOriginValidationError::RootOrigin(root))) if root == first.definition_root()));
             });
         },
     );

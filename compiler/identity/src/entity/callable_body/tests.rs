@@ -1,5 +1,5 @@
 use scoop_wire::{
-    DecodeLimits, RuntimeDecodeErrorKind, decode_canonical, decode_runtime, encode, encode_runtime,
+    RuntimeDecodeErrorKind, decode_canonical, decode_runtime, encode, encode_runtime,
 };
 
 use super::{
@@ -76,11 +76,7 @@ fn strong_callable_owner_has_its_own_closed_wire_sum() {
         [b"\xa2\0\x04\x01\x58\x20".as_slice(), generated.as_array()].concat()
     );
     assert_eq!(
-        decode_canonical::<DecodedStrongCallableDefinitionOwner>(
-            &encoded,
-            DecodeLimits::default(),
-        )
-        .unwrap(),
+        decode_canonical::<DecodedStrongCallableDefinitionOwner>(&encoded,).unwrap(),
         DecodedStrongCallableDefinitionOwner::GeneratedCallable(
             crate::DecodedPersistentId::from_unvalidated_bytes(ConeIdentity::CORE.0),
         )
@@ -89,11 +85,8 @@ fn strong_callable_owner_has_its_own_closed_wire_sum() {
     let mut obsolete_callable_owner_tag = encoded;
     obsolete_callable_owner_tag[2] = 6;
     assert!(
-        decode_canonical::<DecodedStrongCallableDefinitionOwner>(
-            &obsolete_callable_owner_tag,
-            DecodeLimits::default(),
-        )
-        .is_err()
+        decode_canonical::<DecodedStrongCallableDefinitionOwner>(&obsolete_callable_owner_tag,)
+            .is_err()
     );
 }
 
@@ -165,37 +158,6 @@ fn decoded_body_keys_round_trip_every_runtime_variant() {
         DecodedCallableBodyKeyKind::InitializationStartupGateway(id)
             if id.as_array() == PersistentInitializationUnitId(bytes).as_array()
     ));
-}
-
-#[test]
-fn callable_body_hash_budget_matches_runtime_preimages() {
-    let id = ConeIdentity::CORE.0;
-    let keys = [
-        CallableBodyKey::strong(StrongCallableDefinitionOwner::Function(
-            PersistentFunctionId(id),
-        )),
-        CallableBodyKey::strong(StrongCallableDefinitionOwner::Constructor(
-            crate::PersistentConstructorId(id),
-        )),
-        CallableBodyKey::strong(StrongCallableDefinitionOwner::PropertyAccessor(
-            crate::PersistentPropertyAccessorId(id),
-        )),
-        CallableBodyKey::strong(StrongCallableDefinitionOwner::GeneratedCallable(
-            PersistentGeneratedCallableId(id),
-        )),
-        CallableBodyKey::initialization_startup_gateway(PersistentInitializationUnitId(id)),
-        CallableBodyKey::root_gateway(
-            ConeIdentity::CORE,
-            MainCallableBodyId::from_body(PersistentCallableBodyId(id)),
-        ),
-    ];
-    for key in keys {
-        let actual = encode_runtime(&key).unwrap();
-        assert_eq!(
-            PersistentCallableBodyId::hash_stream_length(&key).unwrap(),
-            8 + "scoop-callable-body-v1".len() as u64 + actual.len() as u64
-        );
-    }
 }
 
 fn source_function(

@@ -62,11 +62,10 @@ fn reader_rejects_extension_receiver_and_cross_declaration_source_protocol() {
                 source,
             })
             .unwrap(),
-            DecodeLimits::default(),
         )
         .unwrap();
         assert!(
-            matches!(decoded.resolve(declaration, &mut fixture, &mut meter()), Err(ProtectedCallableInterfaceResolutionError::Interface(actual)) if actual == expected)
+            matches!(decoded.resolve(declaration, &mut fixture), Err(ProtectedCallableInterfaceResolutionError::Interface(actual)) if actual == expected)
         );
     }
 }
@@ -89,14 +88,11 @@ fn source_validation_rejects_nonclass_owner_bad_binder_scope_and_foreign_source_
         ),
     );
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     assert!(matches!(
-        record.validate_source(&graph, &mut fixture, &mut meter()),
+        record.validate_source(&graph, &mut fixture),
         Err(ProtectedCallableSemanticError::Owner)
     ));
     let bad_scope = fixture.record(
@@ -110,7 +106,7 @@ fn source_validation_rejects_nonclass_owner_bad_binder_scope_and_foreign_source_
         ),
     );
     assert!(matches!(
-        bad_scope.validate_source(&graph, &mut fixture, &mut meter()),
+        bad_scope.validate_source(&graph, &mut fixture),
         Err(ProtectedCallableSemanticError::Signature(_))
     ));
     let valid = fixture.function(owner, "valid", false, vec![]);
@@ -127,7 +123,7 @@ fn source_validation_rejects_nonclass_owner_bad_binder_scope_and_foreign_source_
     let key = fixture.declarations[&declaration].clone();
     fixture.declarations.insert(valid, key);
     assert!(matches!(
-        record.validate_source(&graph, &mut fixture, &mut meter()),
+        record.validate_source(&graph, &mut fixture),
         Err(ProtectedCallableSemanticError::Identity)
     ));
 }

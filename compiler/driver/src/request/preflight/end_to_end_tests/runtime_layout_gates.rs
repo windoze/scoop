@@ -17,7 +17,7 @@ fn runtime_cast_source_only_layout_is_diagnosed_before_mir_and_publication() {
         let destination = root.join("output.slib");
         let error =
             build_manifest_request(sysroot.path(), &target, &root, &destination, vec![], vec![])
-                .build_and_publish(DecodeLimits::default())
+                .build_and_publish()
                 .unwrap_err();
         let SingleConeProductionError::Production(error) = error else {
             panic!("{name}: rejection must occur in the current HIR stage")
@@ -50,7 +50,7 @@ fn runtime_cast_source_only_layout_is_diagnosed_before_mir_and_publication() {
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(&root),
         },
-        ExplicitDependencyInputs::new(vec![], vec![]).unwrap(),
+        ExplicitDependencyInputs::new(vec![], vec![]),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core.artifact().path()).unwrap()),
         target,
         SlibOutputDestination::new(destination.clone()).unwrap(),
@@ -58,7 +58,7 @@ fn runtime_cast_source_only_layout_is_diagnosed_before_mir_and_publication() {
         StageDumpPolicy::Stage(StageDumpKind::Mir),
     )
     .unwrap();
-    let artifact = request.build_and_publish(DecodeLimits::default()).unwrap();
+    let artifact = request.build_and_publish().unwrap();
     let dump = artifact.emitted_dump().unwrap();
     assert_eq!(dump.kind(), StageDumpKind::Mir);
     snapshot(&fixtures.join("inactive.mir.snap"), dump.text());

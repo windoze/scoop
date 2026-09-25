@@ -62,10 +62,9 @@ fn with_intrinsic(
     )]);
     let callable_applications = HashMap::new();
     let initialization_units = HashMap::new();
-    let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
     let mut normalizer = NativeBoundaryNormalizer::new(
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        &mut meter,
         &exact_types,
         &callable_applications,
         &initialization_units,
@@ -193,10 +192,8 @@ fn a_fixed_core_scalar_identity_needs_its_actual_representation_witness() {
             AbiNominalDefinition::native(&definition),
         )]),
     ] {
-        let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
         let mut normalizer = NativeBoundaryNormalizer::new(
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-            &mut meter,
             &exact_types,
             &callable_applications,
             &initialization_units,

@@ -5,13 +5,11 @@ pub(super) fn validate_exports<E>(
     consumer: ConeIdentity,
     target: crate::LirTargetProfile,
     dependencies: &[&LayoutAbiExportConstituentsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSectionError<E>> {
     let path = WirePath::root();
     let mut providers = std::collections::HashSet::new();
-    meter.check_table_entries(dependencies.len() as u64, &path)?;
+
     for dependency in dependencies {
-        meter.charge_work(1, &path)?;
         let provider = dependency.provider();
         if provider == consumer || providers.contains(&provider) {
             return Err(LayoutAbiSectionError::DuplicateProvider(provider));
@@ -19,7 +17,7 @@ pub(super) fn validate_exports<E>(
         if dependency.target_profile() != target {
             return Err(LayoutAbiSectionError::DependencyTarget { provider });
         }
-        meter.try_reserve_set_slots(&mut providers, 1, &path)?;
+        scoop_wire::allocation::try_reserve_set(&mut providers, 1, &path)?;
         providers.insert(provider);
     }
     Ok(())
@@ -29,15 +27,13 @@ pub(crate) fn complete<'a, E>(
     consumer: ConeIdentity,
     target: crate::LirTargetProfile,
     direct: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<&'a CrossConeLayoutAbiSectionV1<'a>>, LayoutAbiSectionError<E>> {
     let path = WirePath::root();
-    let mut pending = reserve(direct.len(), meter)?;
+    let mut pending = reserve(direct.len())?;
     pending.extend(direct.iter().map(|section| (*section, 1u64)));
     let mut sections: Vec<&'a CrossConeLayoutAbiSectionV1<'a>> = Vec::new();
     let mut by_provider = HashMap::new();
     while let Some((section, depth)) = pending.pop() {
-        meter.charge_work(1, &path)?;
         if section.provider() == consumer {
             return Err(LayoutAbiSectionError::DuplicateProvider(consumer));
         }
@@ -53,18 +49,16 @@ pub(crate) fn complete<'a, E>(
             }
             continue;
         }
-        meter.check_semantic_depth(depth, &path)?;
-        meter.charge_nodes(1, &path)?;
-        meter.check_table_entries(sections.len() as u64 + 1, &path)?;
-        meter.try_reserve_map_slots(&mut by_provider, 1, &path)?;
-        meter.try_reserve_collection_slots(&mut sections, 1, &path)?;
+
+        scoop_wire::allocation::try_reserve_map(&mut by_provider, 1, &path)?;
+        scoop_wire::allocation::try_reserve(&mut sections, 1, &path)?;
         by_provider.insert(section.provider(), sections.len());
         sections.push(section);
         let next = depth
             .checked_add(1)
             .ok_or(LayoutAbiSemanticClosureError::ArithmeticOverflow)?;
-        meter.charge_edges(section.dependencies.len() as u64, &path)?;
-        meter.try_reserve_collection_slots(&mut pending, section.dependencies.len(), &path)?;
+
+        scoop_wire::allocation::try_reserve(&mut pending, section.dependencies.len(), &path)?;
         pending.extend(
             section
                 .dependencies
@@ -72,7 +66,7 @@ pub(crate) fn complete<'a, E>(
                 .map(|dependency| (*dependency, next)),
         );
     }
-    sort_work(sections.len(), meter)?;
+
     sections.sort_unstable_by_key(|section| section.provider());
     Ok(sections)
 }

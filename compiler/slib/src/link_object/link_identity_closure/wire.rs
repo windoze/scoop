@@ -7,9 +7,7 @@ use scoop_identity::{
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentId,
 };
 use scoop_lir::{StrongDigestFinalizationPlanV1, StrongProducerUnitPartitionV1};
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 mod digest_inputs;
 mod errors;
@@ -68,7 +66,7 @@ impl WireEncode for DecodedLinkObjectMaterializationV1 {
 }
 
 impl WireDecode for DecodedLinkObjectMaterializationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let member = decoder.field(1, DecodedFixedBytesV1::decode)?;
@@ -115,7 +113,7 @@ impl WireEncode for DecodedDefinitionAtomRangeProjectionV1 {
 }
 
 impl WireDecode for DecodedDefinitionAtomRangeProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             atom: decoder.field(1, DecodedPersistentId::decode)?,
@@ -154,7 +152,7 @@ impl WireEncode for DecodedObjectDefinitionIndexV1 {
 }
 
 impl WireDecode for DecodedObjectDefinitionIndexV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             member: decoder.field(1, DecodedFixedBytesV1::decode)?,
@@ -190,7 +188,7 @@ impl WireEncode for DecodedMaterializedPatchSiteV1 {
 }
 
 impl WireDecode for DecodedMaterializedPatchSiteV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             intent: decoder.field(1, DecodedPersistentId::decode)?,
@@ -229,7 +227,7 @@ impl WireEncode for DecodedImageOwnerProjectionV1 {
 }
 
 impl WireDecode for DecodedImageOwnerProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             member: decoder.field(1, DecodedFixedBytesV1::decode)?,
@@ -262,7 +260,7 @@ impl WireEncode for DecodedEntryOwnerProjectionV1 {
 }
 
 impl WireDecode for DecodedEntryOwnerProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             member: decoder.field(1, DecodedFixedBytesV1::decode)?,
@@ -296,7 +294,7 @@ impl WireEncode for DecodedEntryOwnerBranchV1 {
 }
 
 impl WireDecode for DecodedEntryOwnerBranchV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -372,14 +370,13 @@ impl MaterializationCheckedLinkIdentityClosureSectionV1 {
     pub fn validate_digest_patch_inputs(
         self,
         digest_plan: &StrongDigestFinalizationPlanV1,
-        meter: &mut BudgetMeter,
     ) -> Result<
         DigestPatchInputCheckedLinkIdentityClosureSectionV1,
         LinkDigestPatchInputValidationError,
     > {
-        let sites =
-            self.decoded
-                .replay_digest_patch_inputs(&self.member_plan, digest_plan, meter)?;
+        let sites = self
+            .decoded
+            .replay_digest_patch_inputs(&self.member_plan, digest_plan)?;
 
         Ok(DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
             decoded: self.decoded,
@@ -410,13 +407,12 @@ impl DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
     pub fn validate_object_projections(
         self,
         patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-        meter: &mut BudgetMeter,
     ) -> Result<
         ObjectProjectionCheckedLinkIdentityClosureSectionV1,
         LinkObjectProjectionValidationError,
     > {
         self.decoded
-            .replay_object_projections(&self.member_plan, patch_sites, meter)?;
+            .replay_object_projections(&self.member_plan, patch_sites)?;
         Ok(ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
             decoded: self.decoded,
             member_plan: self.member_plan,
@@ -442,13 +438,12 @@ impl ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
         self,
         defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
         undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
-        meter: &mut BudgetMeter,
     ) -> Result<
         SymbolProjectionCheckedLinkIdentityClosureSectionV1,
         LinkSymbolProjectionValidationError,
     > {
         self.decoded
-            .replay_symbol_projections(defined_symbols, undefined_symbols, meter)?;
+            .replay_symbol_projections(defined_symbols, undefined_symbols)?;
         Ok(SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
             decoded: self.decoded,
             member_plan: self.member_plan,
@@ -484,12 +479,11 @@ impl DecodedLinkIdentityClosureSectionV1 {
     pub fn validate_materializations(
         self,
         partition: &StrongProducerUnitPartitionV1,
-        meter: &mut BudgetMeter,
     ) -> Result<
         MaterializationCheckedLinkIdentityClosureSectionV1,
         LinkObjectMaterializationValidationError,
     > {
-        let member_plan = self.replay_materializations(partition, meter)?;
+        let member_plan = self.replay_materializations(partition)?;
         Ok(MaterializationCheckedLinkIdentityClosureSectionV1 {
             decoded: self,
             member_plan,
@@ -542,7 +536,7 @@ impl WireEncode for DecodedLinkIdentityClosureSectionV1 {
 }
 
 impl WireDecode for DecodedLinkIdentityClosureSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Ok(Self {
             materializations: decoder.field(1, |decoder| {
@@ -580,12 +574,12 @@ fn validate_against(
 }
 
 fn decode_persistent_id_array<I: PersistentId>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedPersistentId<I>>, WireError> {
     decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
 }
 
-fn decode_nonzero_u8(decoder: &mut Decoder<'_, '_>) -> Result<u8, WireError> {
+fn decode_nonzero_u8(decoder: &mut Decoder<'_>) -> Result<u8, WireError> {
     let value = decoder.unsigned()?;
     let value =
         u8::try_from(value).map_err(|_| wire_error(decoder, WireErrorKind::IntegerOutOfRange))?;
@@ -619,11 +613,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -634,7 +624,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

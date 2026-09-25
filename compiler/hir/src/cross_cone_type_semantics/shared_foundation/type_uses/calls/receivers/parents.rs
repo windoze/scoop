@@ -4,13 +4,9 @@ impl Graph<'_> {
     pub(in super::super) fn source_receiver_parents(
         &self,
         receiver: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Vec<PersistentExactTypeId>, Error> {
-        meter.charge_work(
-            1 + u64::from(self.current.identities.identity_count().max(1).ilog2()),
-            path,
-        )?;
         let key = self
             .current
             .identities
@@ -18,7 +14,7 @@ impl Graph<'_> {
         let ExactTypeKey::Nominal(owner) = key.as_ref() else {
             return Err(Error::NonConcreteSignature);
         };
-        self.resolve_nominal(*owner, meter)?;
+        self.resolve_nominal(*owner)?;
         let mut parents = Vec::new();
         // Language builtins have no ordinary source nominal declaration.
         if [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any]
@@ -27,21 +23,20 @@ impl Graph<'_> {
         {
             return Ok(parents);
         }
-        let source = self.nominal(*owner, meter)?;
+        let source = self.nominal(*owner)?;
         let supertypes = source.exact_supertypes().values();
-        meter.try_reserve_collection_slots(&mut parents, supertypes.len(), path)?;
+        scoop_wire::allocation::try_reserve(&mut parents, supertypes.len(), path)?;
         for parent in supertypes {
-            meter.charge_work(1, path)?;
             let SignatureTypeKey::Nominal(parent) = parent else {
                 return Err(Error::NonConcreteSignature);
             };
             if !matches!(
-                self.nominal(*parent, meter)?.kind(),
+                self.nominal(*parent)?.kind(),
                 crate::PublicNominalKindV1::Class | crate::PublicNominalKindV1::Interface
             ) {
                 return Err(Error::InheritanceEdges(receiver));
             }
-            parents.push(self.resolve_nominal(*parent, meter)?.1);
+            parents.push(self.resolve_nominal(*parent)?.1);
         }
         Ok(parents)
     }

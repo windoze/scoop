@@ -38,17 +38,15 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
         .with_origin(target, provider)
         .with_origin(parent, provider);
     let mut parts = EmptyParts::new(CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap());
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    let choices = CanonicalNominalDispatchSelectionsV1::try_new(
-        vec![NominalDispatchSelectionV1::new(
+
+    let choices =
+        CanonicalNominalDispatchSelectionsV1::try_new(vec![NominalDispatchSelectionV1::new(
             slot,
             InheritanceSourceSlotSelectionV1::InterfaceDefault(
                 InheritanceCallableDeclarationV1::Function(function),
             ),
-        )],
-        &mut meter,
-    )
-    .unwrap();
+        )])
+        .unwrap();
     parts.nominal_interfaces = CanonicalNominalInterfacesV1::try_new(
         ["First", "Second"]
             .map(|name| {
@@ -103,7 +101,7 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
         )
     };
     section(references.clone())
-        .validate_external_reference_closure(&mut authority, &mut meter, &WirePath::root())
+        .validate_external_reference_closure(&mut authority, &WirePath::root())
         .unwrap();
     let changed = |origin, role| {
         let record = ExternalHirReferenceV1::try_new(
@@ -121,13 +119,8 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
         ])
         .unwrap()
     };
-    let mut verify = |references| {
-        section(references).validate_inheritance_reference_closure(
-            &mut authority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
-    };
+    let mut verify =
+        |references| section(references).validate_inheritance_reference_closure(&mut authority);
     use ExternalHirInheritanceClosureValidationError as Error;
     let missing =
         CanonicalExternalHirReferencesV1::try_new(vec![references.get(parent).unwrap().clone()])
@@ -155,15 +148,4 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
     assert!(
         matches!(verify(CanonicalExternalHirReferencesV1::try_new(vec![inherited.clone(), excess]).unwrap()), Err(Error::ExtraRole(actual)) if actual == parent)
     );
-    assert!(matches!(
-        section(references).validate_inheritance_reference_closure(
-            &mut authority,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            }),
-            &WirePath::root()
-        ),
-        Err(Error::Resource(_))
-    ));
 }

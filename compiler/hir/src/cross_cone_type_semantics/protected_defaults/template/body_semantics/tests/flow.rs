@@ -12,10 +12,9 @@ impl ProtectedDefaultLocalDataFlowSemanticAuthority<&'static str> for FlowAuthor
         template: &ProtectedDefaultTemplateV1,
         declaration: PersistentFieldId,
         owner: &SignatureTypeKey,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<u32, &'static str> {
-        self.observation.check(template, meter, path)?;
+        assert!(std::ptr::eq(self.observation.template, template));
+        self.observation.calls += 1;
         if declaration == self.field && matches!(owner, SignatureTypeKey::Nominal(_)) {
             Ok(7)
         } else {
@@ -61,14 +60,13 @@ fn protected_flow_preserves_definition_order_and_constructor_receiver_unavailabi
             statements,
             unit(&f),
         );
-        let mut resources = meter();
+
         let path = WirePath::root();
         let mut authority = FlowAuthority {
-            observation: Observation::new(&template, &resources, &path),
+            observation: Observation::new(&template, &path),
             field: f.field,
         };
-        let result =
-            template.validate_local_data_flow_semantics(&mut authority, &mut resources, &path);
+        let result = template.validate_local_data_flow_semantics(&mut authority, &path);
         if valid {
             result.unwrap();
         } else {
@@ -98,14 +96,14 @@ fn protected_flow_preserves_definition_order_and_constructor_receiver_unavailabi
     )
     .unwrap();
     constructor.definition_root = PersistentLexicalRootV1::Constructor(f.constructor);
-    let mut resources = meter();
+
     let path = WirePath::root();
     let mut authority = FlowAuthority {
-        observation: Observation::new(&constructor, &resources, &path),
+        observation: Observation::new(&constructor, &path),
         field: f.field,
     };
     assert!(matches!(
-        constructor.validate_local_data_flow_semantics(&mut authority, &mut resources, &path),
+        constructor.validate_local_data_flow_semantics(&mut authority, &path),
         Err(ExportDefaultLocalDataFlowValidationError::Local {
             error: DefaultLocalDataFlowLocalError::UseBeforeDefinition,
             ..

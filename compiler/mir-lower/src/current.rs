@@ -88,9 +88,9 @@ fn lower_dependency_callables(
     CurrentConeMirLoweringError,
 > {
     let mut mapping = HashMap::new();
-    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
     let executable = output
-        .executable_dependency_callables(&mut meter)
+        .executable_dependency_callables()
         .map_err(CurrentConeMirLoweringError::Occurrences)?;
     for use_ in executable {
         let source_id = use_.callee();

@@ -117,7 +117,7 @@ impl Fixture {
 }
 
 fn register_declaration(
-    pending: &mut PendingIdentityValidation<'_>,
+    pending: &mut PendingIdentityValidation,
     declaration: DependencyCallableDeclarationId,
 ) {
     match declaration {

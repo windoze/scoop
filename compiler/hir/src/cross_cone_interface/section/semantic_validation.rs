@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     CrossConeHirExternalReferenceValidationError, CrossConeHirInterfaceSectionV1,
@@ -75,13 +75,13 @@ impl CrossConeHirInterfaceSectionV1 {
         current: ConeIdentity,
         direct_surface: &CanonicalDirectPublicSurfaceV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), CrossConeHirInterfaceSemanticValidationError<E>>
     where
         A: CrossConeHirInterfaceSemanticAuthority<E>,
     {
-        self.validate_internal_closures(direct_surface, meter, path)
+        self.validate_internal_closures(direct_surface, path)
             .map_err(|error| {
                 CrossConeHirInterfaceSemanticValidationError::Internal(Box::new(error))
             })?;
@@ -130,7 +130,6 @@ impl CrossConeHirInterfaceSectionV1 {
                 self.callable_interfaces(),
                 self.source_interfaces(),
                 authority,
-                meter,
                 &path.clone().field(7),
             )
             .map_err(|error| {
@@ -142,11 +141,11 @@ impl CrossConeHirInterfaceSectionV1 {
                 CrossConeHirInterfaceSemanticValidationError::Constants(Box::new(error))
             })?;
         self.public_bindings()
-            .validate_route_closure(current, authority, meter, &path.clone().field(9))
+            .validate_route_closure(current, authority)
             .map_err(|error| {
                 CrossConeHirInterfaceSemanticValidationError::Routes(Box::new(error))
             })?;
-        self.validate_external_reference_closure(authority, meter, path)
+        self.validate_external_reference_closure(authority, path)
             .map_err(|error| {
                 CrossConeHirInterfaceSemanticValidationError::ExternalReferences(Box::new(error))
             })

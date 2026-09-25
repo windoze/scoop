@@ -1,21 +1,20 @@
 use super::*;
 use scoop_hir::NominalInheritanceSemanticAuthority;
 use scoop_identity::{DeclarationName, ExactTypeKey, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 #[test]
 fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
     let sources = sources::core_sources_with(&[]);
     let hir = super::super::super::TrustedCoreBootstrapHirOutput::lower(&sources).unwrap();
     let input = hir.machine_input();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(
         scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap(),
     )
     .unwrap();
     let decoded: scoop_hir::DecodedHirFoundation = scoop_wire::decode_canonical(
         &scoop_wire::encode(source_foundation.as_canonical()).unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
     let mut pending = scoop_identity::PendingIdentityValidation::new();
@@ -34,7 +33,6 @@ fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
             public: input.public,
         },
         &[],
-        &mut meter,
     )
     .unwrap();
     let foundation = production.foundation();
@@ -42,13 +40,12 @@ fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
         production.local_inheritance_edges().iter(),
         production.source_roots().iter().copied(),
         foundation,
-        &mut meter,
     )
     .unwrap();
     production
         .section()
         .representation_support()
-        .validate_source_semantics(foundation, &mut meter, &WirePath::root())
+        .validate_source_semantics(foundation, &WirePath::root())
         .unwrap();
     let mut found = std::collections::BTreeSet::new();
     for declaration in production.source_nominals().records() {

@@ -10,13 +10,12 @@ pub(super) fn check(
 ) {
     let expected_provider = layout.selected().physical_imports().records()[0].provider();
     let bytes = wrong_link_provider(artifact, expected_provider);
-    let link =
-        DecodedSlibEnvelope::open(&bytes, DecodeLimits::default(), artifact.target_selection())
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_cross_cone_layout_link_sections()
-            .unwrap();
+    let link = DecodedSlibEnvelope::open(&bytes, artifact.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_link_sections()
+        .unwrap();
     let shared = read_sections(
         open_link(provider).into_shared_sections().unwrap(),
         link.into_shared_sections().unwrap(),
@@ -39,24 +38,18 @@ fn wrong_link_provider(
     let mut entries = archive.members();
     let entry = entries.next().unwrap().unwrap();
     assert_eq!(entry.name(), b"manifest.cbor");
-    let manifest = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        entry.data(bytes).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
-    .validate(artifact.target_selection(), &mut meter())
-    .unwrap();
+    let manifest =
+        scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(entry.data(bytes).unwrap())
+            .unwrap()
+            .validate(artifact.target_selection())
+            .unwrap();
     let mut members = Vec::new();
     let mut replacements = 0;
     for record in manifest.members() {
         let data = entries.next().unwrap().unwrap().data(bytes).unwrap();
         let payload = if matches!(record.role(), slib::SlibMemberRole::LirMetadata) {
-            let decoded = slib::DecodedMetadataEnvelope::decode(
-                data,
-                slib::MetadataLocation::Lir,
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                slib::DecodedMetadataEnvelope::decode(data, slib::MetadataLocation::Lir).unwrap();
             let sections = decoded
                 .sections()
                 .iter()

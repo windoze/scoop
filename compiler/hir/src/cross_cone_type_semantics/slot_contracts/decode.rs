@@ -30,7 +30,7 @@ impl WireEncode for DecodedInheritanceSlotTargetV1 {
     }
 }
 impl WireDecode for DecodedInheritanceSlotTargetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedInheritanceCallableDeclarationV1::decode)?,
@@ -69,7 +69,7 @@ impl WireEncode for DecodedInheritanceSlotImplementationV1 {
     }
 }
 impl WireDecode for DecodedInheritanceSlotImplementationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -120,7 +120,7 @@ impl WireEncode for DecodedInheritanceSlotContractV1 {
     }
 }
 impl WireDecode for DecodedInheritanceSlotContractV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(7)?;
         Ok(Self {
             slot: decoder.field(1, DecodedPersistentId::decode)?,

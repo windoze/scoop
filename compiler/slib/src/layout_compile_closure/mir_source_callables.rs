@@ -90,7 +90,7 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
                     lir,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
                 let mir = mir.resolve_callables::<Infallible>(
                     parts.mir_foundation,
                     reachable.iter().map(|position| {
@@ -98,11 +98,8 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
                         (mir.types(), mir.callables(), mir.dispatch())
                     }),
                     parts.identities,
-                    parts.meter,
                 )?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut resolved, 1, &WirePath::root())?;
+                scoop_wire::allocation::try_reserve(&mut resolved, 1, &WirePath::root())?;
                 Ok(ResolvedMirSourceSections { prepared, mir, lir })
             };
             let artifact = resolve()
@@ -111,23 +108,13 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
         }
         let units = replay::validate_sources(&mut resolved, &dependency_positions)?;
         let mut complete = Vec::new();
-        for (
-            ResolvedMirSourceSections {
-                mut prepared,
-                mir,
-                lir,
-            },
-            units,
-        ) in resolved.into_iter().zip(units)
+        for (ResolvedMirSourceSections { prepared, mir, lir }, units) in
+            resolved.into_iter().zip(units)
         {
             let provider = prepared.provider();
-            prepared
-                .semantic_parts()
-                .meter
-                .try_reserve_collection_slots(&mut complete, 1, &WirePath::root())
-                .map_err(|source| {
-                    CrossConeLayoutMirSourceCallablesError::new(provider, source.into())
-                })?;
+            scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root()).map_err(
+                |source| CrossConeLayoutMirSourceCallablesError::new(provider, source.into()),
+            )?;
             complete.push(MirSourceCallablesValidatedCrossConeLayoutSections {
                 prepared,
                 mir,

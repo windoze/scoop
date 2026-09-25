@@ -7,7 +7,7 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
     current: &BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>,
     dependencies: &[&BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>],
     template: &DefaultSourceTemplateV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), Error> {
     let input = DefaultBodyValidationInputV1::new(
@@ -25,7 +25,6 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
                 current,
                 dependencies,
             },
-            meter,
             path,
         )
         .map_err(|error| Error::DataFlow(Box::new(error)))
@@ -40,10 +39,7 @@ impl DefaultBodyDataFlowAuthority<Error> for Authority<'_, '_, '_, '_, '_> {
         &mut self,
         declaration: PersistentFieldId,
         owner_type: &SignatureTypeKey,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<u32, Error> {
-        meter.charge_work(64, path)?;
         let owner = match owner_type {
             SignatureTypeKey::Nominal(id) => SourceNominalId::Concrete(*id),
             SignatureTypeKey::NominalApplication { origin, .. } => {
@@ -61,12 +57,11 @@ impl DefaultBodyDataFlowAuthority<Error> for Authority<'_, '_, '_, '_, '_> {
             }
         }
         .map_err(|error| NominalSourceBindingError::Identity(error.to_string()))?;
-        let provider =
-            sources::provider(self.current, self.dependencies, key.origin(), meter, path)?;
+        let provider = sources::provider(self.current, self.dependencies, key.origin())?;
         provider
             .members()
             .nominals
-            .struct_field_index(owner, declaration, meter, path)
+            .struct_field_index(owner, declaration)
             .map_err(Into::into)
     }
 }

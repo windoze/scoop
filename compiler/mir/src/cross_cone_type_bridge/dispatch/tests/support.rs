@@ -141,10 +141,8 @@ impl Fixture {
                 .collect(),
         )
         .unwrap();
-        let hir: DecodedHirFoundation =
-            decode_canonical(&encode(&hir).unwrap(), DecodeLimits::default()).unwrap();
-        let mir: crate::DecodedMirFoundation =
-            decode_canonical(&encode(&mir).unwrap(), DecodeLimits::default()).unwrap();
+        let hir: DecodedHirFoundation = decode_canonical(&encode(&hir).unwrap()).unwrap();
+        let mir: crate::DecodedMirFoundation = decode_canonical(&encode(&mir).unwrap()).unwrap();
         let mut pending = PendingIdentityValidation::new();
         pending
             .register_authority(ConeIdentity::SINGLE_FILE)
@@ -157,10 +155,8 @@ impl Fixture {
         hir.resolve_identities(&mut pending).unwrap();
         mir.resolve_identities(&mut pending).unwrap();
         let mut graph = pending.finish().unwrap();
-        let foundation = crate::OdrFreeMirFoundation::from_validated(
-            mir.validate(&mut graph, &mut meter()).unwrap(),
-        )
-        .unwrap();
+        let foundation =
+            crate::OdrFreeMirFoundation::from_validated(mir.validate(&mut graph).unwrap()).unwrap();
         let type_authority = MirTypeBridgeAuthority {
             identities: &graph,
             foundation: &foundation,

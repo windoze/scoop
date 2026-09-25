@@ -1,6 +1,6 @@
 use super::*;
 use crate::ProtectedCallableInterfaceResolver;
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -43,21 +43,11 @@ impl CanonicalProtectedCallableSourceInterfacesV1 {
     pub fn validate_default_closure(
         &self,
         keys: &ProtectedDefaultKeyIndexV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedSourceIndexError> {
         let mut seen = BTreeSet::new();
         for record in &self.records {
-            meter
-                .charge_work(record.parameters().len_u32() as u64, &WirePath::root())
-                .map_err(ProtectedSourceIndexError::Resource)?;
             for parameter in record.parameters().parameters() {
                 if let Some(key) = parameter.calling().template() {
-                    meter
-                        .charge_collection_slots(1, &WirePath::root())
-                        .map_err(ProtectedSourceIndexError::Resource)?;
-                    meter
-                        .charge_work(64, &WirePath::root())
-                        .map_err(ProtectedSourceIndexError::Resource)?;
                     if !seen.insert(key) {
                         return Err(ProtectedSourceIndexError::Build(
                             ProtectedSourceBuildError::DuplicateDefault,
@@ -66,12 +56,7 @@ impl CanonicalProtectedCallableSourceInterfacesV1 {
                 }
             }
         }
-        meter
-            .charge_work(
-                (seen.len() as u64).saturating_add(keys.keys().len() as u64),
-                &WirePath::root(),
-            )
-            .map_err(ProtectedSourceIndexError::Resource)?;
+
         if !seen.iter().copied().eq(keys.keys().iter().copied()) {
             return Err(ProtectedSourceIndexError::Build(
                 ProtectedSourceBuildError::DefaultClosure,
@@ -82,16 +67,14 @@ impl CanonicalProtectedCallableSourceInterfacesV1 {
     pub fn index_templates<'a>(
         &'a self,
         keys: &ProtectedDefaultKeyIndexV1,
-        meter: &mut BudgetMeter,
     ) -> Result<IndexedCanonicalProtectedCallableSourceInterfacesV1<'a>, ProtectedSourceIndexError>
     {
-        self.validate_default_closure(keys, meter)?;
+        self.validate_default_closure(keys)?;
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
             .map_err(ProtectedSourceIndexError::Resource)?;
         for record in &self.records {
-            records.push(record.index_templates(keys, meter)?);
+            records.push(record.index_templates(keys)?);
         }
         Ok(IndexedCanonicalProtectedCallableSourceInterfacesV1 { records })
     }
@@ -114,21 +97,19 @@ impl DecodedCanonicalProtectedCallableSourceInterfacesV1 {
         self,
         resolver: &mut R,
         keys: &ProtectedDefaultKeyIndexV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalProtectedCallableSourceInterfacesV1, ProtectedSourceResolutionError<E>>
     {
         use ProtectedSourceResolutionError as Error;
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
             .map_err(Error::Resource)?;
         for record in self.records {
-            records.push(record.resolve(resolver, keys, meter)?);
+            records.push(record.resolve(resolver, keys)?);
         }
         let table = CanonicalProtectedCallableSourceInterfacesV1::from_ordered(records)
             .map_err(Error::Build)?;
         table
-            .validate_default_closure(keys, meter)
+            .validate_default_closure(keys)
             .map_err(|error| match error {
                 ProtectedSourceIndexError::Resource(e) => Error::Resource(e),
                 ProtectedSourceIndexError::Build(e) => Error::Build(e),
@@ -137,7 +118,7 @@ impl DecodedCanonicalProtectedCallableSourceInterfacesV1 {
     }
 }
 impl WireDecode for DecodedCanonicalProtectedCallableSourceInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedProtectedCallableSourceInterfaceV1::decode(d))
             .map(|records| Self { records })

@@ -63,7 +63,7 @@ impl WireEncode for DecodedCallableAdapterEnvironmentKey {
 }
 
 impl WireDecode for DecodedCallableAdapterEnvironmentKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -223,7 +223,7 @@ impl WireEncode for DecodedGeneratedNominalKey {
 }
 
 impl WireDecode for DecodedGeneratedNominalKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -265,7 +265,7 @@ impl WireDecode for DecodedGeneratedNominalKey {
 }
 
 impl WireDecode for ClosureEnvironmentRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Lambda),
             2 => Ok(Self::AnonymousFunction),
@@ -295,7 +295,7 @@ impl<E: fmt::Display> fmt::Display for GeneratedNominalResolutionError<E> {
 impl<E: std::error::Error + 'static> std::error::Error for GeneratedNominalResolutionError<E> {}
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -306,11 +306,7 @@ where
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -321,7 +317,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

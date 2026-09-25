@@ -5,7 +5,7 @@ use scoop_identity::{
     PendingIdentityValidation, PersistentExactTypeId, RepresentationRole, StrongDefinitionEntity,
     StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     DecodedStrongDigestFinalizationPlanV1, DigestInputRefV1, DigestNodeBuildError, DigestNodeV1,
@@ -20,8 +20,7 @@ fn runtime_image_only_plan_has_canonical_wire_and_round_trips() {
     let image = image_node(Vec::new());
     let plan = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let bytes = encode(&plan).unwrap();
-    let decoded: DecodedStrongDigestFinalizationPlanV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongDigestFinalizationPlanV1 = decode_canonical(&bytes).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending
         .register_authority(ConeIdentity::SINGLE_FILE)
@@ -138,7 +137,7 @@ fn reader_rejects_noncanonical_node_order_without_sorting() {
     let image = image_node(vec![DigestInputRefV1::from_node(&layout_node)]);
     let plan = StrongDigestFinalizationPlanV1::new(vec![image, layout_node], &foundation).unwrap();
     let mut decoded: DecodedStrongDigestFinalizationPlanV1 =
-        decode_canonical(&encode(&plan).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&plan).unwrap()).unwrap();
     decoded.nodes.swap(0, 1);
 
     let mut pending = PendingIdentityValidation::new();

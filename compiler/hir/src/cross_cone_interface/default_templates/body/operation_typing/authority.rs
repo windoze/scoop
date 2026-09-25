@@ -11,7 +11,7 @@ impl<A: DefaultOperationTypingSemanticAuthority<E>, E> DefaultBodyOperationAutho
     fn canonical_default_operation_type(
         &mut self,
         role: DefaultOperationCoreTypeV1,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<SignatureTypeKey, E> {
         self.authority
@@ -20,7 +20,7 @@ impl<A: DefaultOperationTypingSemanticAuthority<E>, E> DefaultBodyOperationAutho
     fn classify_default_core_application(
         &mut self,
         value: &SignatureTypeKey,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<Option<DefaultCoreApplicationV1>, E> {
         self.authority
@@ -29,7 +29,7 @@ impl<A: DefaultOperationTypingSemanticAuthority<E>, E> DefaultBodyOperationAutho
     fn default_operation_entity_shape(
         &mut self,
         entity: DefaultOperationEntityV1<'_>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<DefaultOperationEntityShapeV1, E> {
         self.authority
@@ -40,7 +40,7 @@ impl<A: DefaultOperationTypingSemanticAuthority<E>, E> DefaultBodyOperationAutho
         relation: DefaultOperationTypeRelationV1,
         source: &SignatureTypeKey,
         target: &SignatureTypeKey,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<bool, E> {
         self.authority
@@ -49,7 +49,7 @@ impl<A: DefaultOperationTypingSemanticAuthority<E>, E> DefaultBodyOperationAutho
     fn validate_default_operation_intrinsic(
         &mut self,
         intrinsic: DefaultOperationIntrinsicV1<'_>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<(), E> {
         self.authority

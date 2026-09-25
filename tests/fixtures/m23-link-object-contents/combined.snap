@@ -16,5 +16,3 @@ reject DigestIntent
 reject CompileView
 reject MixedView
 reject CBridgeProfile
-reject WorkBudget
-reject OwnedBudget

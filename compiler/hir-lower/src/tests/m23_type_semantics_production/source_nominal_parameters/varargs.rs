@@ -25,7 +25,7 @@ fn complete_parameter_protocols_preserve_generic_vararg_array_shapes() {
         })
         .map(|interface| declaration(export, interface.owner).unwrap())
         .collect();
-    let table = Table::from_export_hir(&output.export, &required, &mut meter()).unwrap();
+    let table = Table::from_export_hir(&output.export, &required).unwrap();
     assert_eq!(
         contracts::verify(&output.export, &table),
         include_str!(concat!(

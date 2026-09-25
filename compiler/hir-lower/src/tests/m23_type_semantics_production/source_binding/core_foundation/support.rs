@@ -83,18 +83,14 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifact(
     )
     .unwrap();
     let decoded: hir::DecodedHirFoundation =
-        decode_canonical(&encode(&foundation).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&foundation).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     decoded.register_identities(&mut pending).unwrap();
     decoded.resolve_identities(&mut pending).unwrap();
     let mut ids = pending.finish().unwrap();
     let foundation = decoded
-        .validate(
-            &scoop_identity::ConeCoordinate::reserved_core(),
-            &mut ids,
-            &mut meter(),
-        )
+        .validate(&scoop_identity::ConeCoordinate::reserved_core(), &mut ids)
         .unwrap();
     (
         hir::OdrFreeHirFoundation::from_validated(foundation).unwrap(),

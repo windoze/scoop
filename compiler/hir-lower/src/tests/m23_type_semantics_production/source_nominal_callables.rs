@@ -22,15 +22,10 @@ const PROTECTED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/protected-callables.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn required(output: &hir::DependencyHirOutput) -> BTreeSet<CallableTemplateOrigin> {
     let export = &output.output().export;
-    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
-    let nominals =
-        hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots, &mut meter())
-            .unwrap();
+    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export).unwrap();
+    let nominals = hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots).unwrap();
     let mut required = BTreeSet::new();
     let mut properties = Vec::new();
     for nominal in nominals.records() {
@@ -57,7 +52,6 @@ fn required(output: &hir::DependencyHirOutput) -> BTreeSet<CallableTemplateOrigi
     let properties = hir::CanonicalNominalSourcePropertiesV1::from_export_hir(
         export,
         &hir::CanonicalPersistentIdsV1::try_new(properties).unwrap(),
-        &mut meter(),
     )
     .unwrap();
     for property in properties.records() {
@@ -73,7 +67,7 @@ fn required(output: &hir::DependencyHirOutput) -> BTreeSet<CallableTemplateOrigi
     required
 }
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
+    Table::from_export_hir(&output.output().export, &required(output)).unwrap()
 }
 
 #[test]
@@ -91,11 +85,9 @@ fn nominal_callable_sources_preserve_generic_members_all_accessors_and_variants(
 fn complete_and_protected_callable_sources_share_the_same_contracts() {
     with_source(PROTECTED, |output, _| {
         let complete = table(output);
-        let protected = hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(
-            output,
-            &mut meter(),
-        )
-        .unwrap();
+        let protected =
+            hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(output)
+                .unwrap();
         assert!(complete.records().len() > protected.records().len());
         for record in protected.records() {
             let source = complete.get(record.declaration()).unwrap();
@@ -147,11 +139,7 @@ fn nominal_callable_projection_rejects_top_level_constructors_and_const_accessor
         );
         for declaration in [top, constant, constructor] {
             assert!(matches!(
-                Table::from_export_hir(
-                    &output.output().export,
-                    &BTreeSet::from([declaration]),
-                    &mut meter()
-                ),
+                Table::from_export_hir(&output.output().export, &BTreeSet::from([declaration])),
                 Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
             ));
         }

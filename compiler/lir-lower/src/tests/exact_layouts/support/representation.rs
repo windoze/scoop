@@ -4,7 +4,7 @@ pub(super) fn representation(
     module: &mir::Module,
     ty: &mir::Type,
     owner: &SourceDeclarationKey,
-    pending: &mut PendingIdentityValidation<'_>,
+    pending: &mut PendingIdentityValidation,
 ) -> (
     mir::MirTypeRepresentationV1,
     mir::MirTypeFactsV1,

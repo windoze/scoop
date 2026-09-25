@@ -1,8 +1,7 @@
 use super::*;
 
-impl Query<'_, '_, '_> {
+impl Query<'_, '_> {
     pub(super) fn callable<'t>(&mut self, declaration: Declaration) -> Result<Access<'t>, Error> {
-        self.meter.charge_edges(1, &self.path)?;
         let (subject, origin) = match declaration {
             Declaration::Function(id) => {
                 (Subject::Function(id), CallableTemplateOrigin::Function(id))
@@ -48,8 +47,7 @@ impl Query<'_, '_, '_> {
         key: &SourceDeclarationKey,
     ) -> Result<(), Error> {
         let owners = key.owners().owners();
-        self.meter
-            .charge_work(owners.len() as u64 + 1, &self.path)?;
+
         if matches!(key.scope(), DeclarationScope::LexicalScoped { .. })
             || owners.iter().any(|owner| {
                 !matches!(

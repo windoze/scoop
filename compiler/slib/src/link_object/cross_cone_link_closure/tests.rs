@@ -9,7 +9,7 @@ use scoop_lir::{
     ExternalCallableRootPlan, LirTargetProfile, OdrFreeLirFoundation,
     SelectedDependencyLirCallableV1,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::link_object::native_requirements::tests::dependency_closure;
@@ -343,9 +343,7 @@ fn link_closure_wire_round_trips_only_against_the_rebuilt_projection() {
         ]
     );
 
-    let decoded =
-        decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes).unwrap();
     decoded
         .validate_semantic_imports_against(&semantic)
         .unwrap();
@@ -353,9 +351,7 @@ fn link_closure_wire_round_trips_only_against_the_rebuilt_projection() {
 
     let mut changed = expected.clone();
     changed.object_coverage.relocation_use_set_digest.0[0] ^= 0xff;
-    let decoded =
-        decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes).unwrap();
     assert!(matches!(
         decoded.validate_against(&changed),
         Err(CrossConeLinkClosureSectionValidationError::ProjectionMismatch)
@@ -365,12 +361,6 @@ fn link_closure_wire_round_trips_only_against_the_rebuilt_projection() {
 #[test]
 fn link_closure_reader_rejects_non_v1_product_shapes() {
     for bytes in [vec![0xa2], vec![0xa4]] {
-        assert!(
-            decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes).is_err());
     }
 }

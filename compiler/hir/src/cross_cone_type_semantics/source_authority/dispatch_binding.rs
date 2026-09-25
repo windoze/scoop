@@ -6,7 +6,7 @@ use scoop_identity::{
     DispatchSlotKey, PersistentDispatchSlotId, PersistentExactTypeId, PersistentFunctionId,
     PersistentPropertyAccessorId, PersistentPropertyId, PropertyAccessorKey, SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::binding_keys;
 use crate::*;
@@ -39,10 +39,7 @@ impl<'f> BoundTypeFoundationSourcesV1<'f> {
         interfaces: &'a CanonicalInterfaceSourceDispatchesV1,
         selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
         callables: &'a CanonicalInheritanceSourceCallablesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundInheritanceDispatchSourcesV1<'a, 'f>, InheritanceDispatchBindingError> {
-        meter.check_semantic_depth(1, &WirePath::root())?;
-        meter.charge_nodes(1, &WirePath::root())?;
         let canonical = self.foundation.as_canonical();
         let result = BoundInheritanceDispatchSourcesV1 {
             foundation: self,
@@ -50,12 +47,12 @@ impl<'f> BoundTypeFoundationSourcesV1<'f> {
             interfaces,
             selections,
             callables,
-            functions: keys::index(canonical.type_source_function_records(), self, meter)?,
-            properties: keys::index(canonical.type_source_property_records(), self, meter)?,
-            slots: keys::index(canonical.type_source_dispatch_records(), self, meter)?,
+            functions: keys::index(canonical.type_source_function_records(), self)?,
+            properties: keys::index(canonical.type_source_property_records(), self)?,
+            slots: keys::index(canonical.type_source_dispatch_records(), self)?,
         };
-        inventory::validate(&result, meter)?;
-        contracts::validate(&result, meter)?;
+        inventory::validate(&result)?;
+        contracts::validate(&result)?;
         Ok(result)
     }
 }
@@ -86,21 +83,4 @@ impl<'a> BoundInheritanceDispatchSourcesV1<'a, '_> {
             .get(owner, slot)
             .ok_or(InheritanceDispatchBindingError::MissingSelection { owner, slot })
     }
-}
-
-fn charge(count: usize, meter: &mut BudgetMeter) -> Result<(), InheritanceDispatchBindingError> {
-    binding_keys::charge_map(count, meter, &WirePath::root())?;
-    Ok(())
-}
-
-fn charge_queries(
-    count: usize,
-    index_length: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), InheritanceDispatchBindingError> {
-    meter.charge_work(
-        (count as u64).saturating_mul(u64::from(index_length.max(1).ilog2()) + 1),
-        &WirePath::root(),
-    )?;
-    Ok(())
 }

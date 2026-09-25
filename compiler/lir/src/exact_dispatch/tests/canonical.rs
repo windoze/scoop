@@ -8,7 +8,6 @@ fn canonical_replay_matches_physical_join_but_does_not_replace_it() {
         fixture.vtable.identity_record(),
         &[fixture.reference_input(Some(&fixture.owner))],
         &fixture.foundation,
-        &mut meter(),
     )
     .unwrap();
     let physical = ExactDispatchExportV1::replay(
@@ -17,11 +16,10 @@ fn canonical_replay_matches_physical_join_but_does_not_replace_it() {
         &[fixture.reference_input(Some(&fixture.owner))],
         &fixture.foundation,
         &mut fixture.local_resolver(),
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(canonical, physical);
-    let mut missing = |_, _: &mut BudgetMeter| Ok(None);
+    let mut missing = |_| Ok(None);
     assert!(matches!(
         ExactDispatchExportV1::replay(
             TARGET,
@@ -29,7 +27,6 @@ fn canonical_replay_matches_physical_join_but_does_not_replace_it() {
             &[fixture.reference_input(Some(&fixture.owner))],
             &fixture.foundation,
             &mut missing,
-            &mut meter(),
         ),
         Err(ExactDispatchError::MissingPhysicalCallable(0))
     ));
@@ -39,7 +36,6 @@ fn canonical_replay_matches_physical_join_but_does_not_replace_it() {
             fixture.vtable.identity_record(),
             &[fixture.reference_input(None)],
             &fixture.foundation,
-            &mut meter(),
         ),
         Err(ExactDispatchError::ReceiverLayout(_))
     ));
@@ -54,7 +50,6 @@ fn canonical_replay_preserves_signature_effect_position_and_slot_requirements() 
             fixture.vtable.identity_record(),
             inputs,
             &fixture.foundation,
-            &mut meter(),
         )
     };
     let mut wrong = fixture.identity_input();

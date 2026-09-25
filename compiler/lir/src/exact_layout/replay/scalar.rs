@@ -8,7 +8,6 @@ impl ExactValueLayoutV1 {
         identity: ExactLayoutIdentityV1,
         kind: ScalarRepresentationKindV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(
             &identity,
@@ -31,7 +30,6 @@ impl ExactValueLayoutV1 {
             storage,
             ValueRepresentation::Scalar(kind),
             foundation,
-            meter,
         )
     }
 
@@ -39,7 +37,6 @@ impl ExactValueLayoutV1 {
         identity: ExactLayoutIdentityV1,
         kind: NichePointerKind,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         let layout = match kind {
             NichePointerKind::Managed => {
@@ -96,14 +93,12 @@ impl ExactValueLayoutV1 {
             storage,
             ValueRepresentation::QualifiedPointer(kind),
             foundation,
-            meter,
         )
     }
 
     pub fn unit(
         identity: ExactLayoutIdentityV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
         if !is_unit(identity.exact_key()) {
@@ -114,7 +109,6 @@ impl ExactValueLayoutV1 {
             ValueStorageLayoutV1::zero_sized(1)?,
             ValueRepresentation::IntrinsicValue(IntrinsicValueFamilyV1::Unit),
             foundation,
-            meter,
         )
     }
 }

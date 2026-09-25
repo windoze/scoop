@@ -1,7 +1,7 @@
 //! Independent source implementation decisions, indexed by exact owner and slot.
 
 use scoop_identity::{PersistentDispatchSlotId, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, Encoder, WireEncode};
+use scoop_wire::{Encoder, WireEncode};
 
 use super::*;
 use crate::InheritanceSourceSlotSelectionV1;
@@ -54,22 +54,18 @@ pub struct CanonicalInheritanceSourceSlotSelectionsV1 {
 impl CanonicalInheritanceSourceSlotSelectionsV1 {
     pub fn try_new(
         mut records: Vec<InheritanceSourceSlotSelectionRecordV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(InheritanceSourceSlotSelectionRecordV1::key);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
 
     fn from_ordered(
         records: Vec<InheritanceSourceSlotSelectionRecordV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             InheritanceSourceSlotSelectionRecordV1::key,
             "inheritance slot selections",
-            meter,
         )?;
         Ok(Self { records })
     }

@@ -39,13 +39,11 @@ pub(super) fn rewrite(
     let mut entries = archive.members();
     let first = entries.next().unwrap().unwrap();
     assert_eq!(first.name(), b"manifest.cbor");
-    let manifest = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        first.data(bytes).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
-    .validate(artifact.target_selection(), &mut meter())
-    .unwrap();
+    let manifest =
+        scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(first.data(bytes).unwrap())
+            .unwrap()
+            .validate(artifact.target_selection())
+            .unwrap();
     let mut members = Vec::new();
     let mut changed = 0;
     for record in manifest.members() {
@@ -92,12 +90,8 @@ pub(super) fn metadata(
     payload: &[u8],
     mut change: impl FnMut(&slib::DecodedMetadataSection<'_>) -> Vec<u8>,
 ) -> Vec<u8> {
-    let decoded = slib::DecodedMetadataEnvelope::decode(
-        payload,
-        slib::MetadataLocation::Lir,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        slib::DecodedMetadataEnvelope::decode(payload, slib::MetadataLocation::Lir).unwrap();
     let sections = decoded
         .sections()
         .iter()
@@ -121,13 +115,11 @@ pub(super) fn payloads(
     let archive = object::read::archive::ArchiveFile::parse(bytes).unwrap();
     let mut entries = archive.members();
     let first = entries.next().unwrap().unwrap();
-    let manifest = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        first.data(bytes).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
-    .validate(artifact.target_selection(), &mut meter())
-    .unwrap();
+    let manifest =
+        scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(first.data(bytes).unwrap())
+            .unwrap()
+            .validate(artifact.target_selection())
+            .unwrap();
     manifest
         .members()
         .iter()

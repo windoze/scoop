@@ -2,7 +2,6 @@ use super::*;
 
 mod negative;
 mod objects;
-mod resources;
 
 #[test]
 fn shared_member_calls_keep_the_declaration_provider_for_local_derived_receivers() {
@@ -35,9 +34,7 @@ fn shared_member_calls_keep_the_declaration_provider_for_local_derived_receivers
         ]);
         let actual = consumer.uses(&dependencies).unwrap();
         assert_eq!(actual, selected(expected));
-        consumer
-            .validate(&actual, &dependencies, &mut meter())
-            .unwrap();
+        consumer.validate(&actual, &dependencies).unwrap();
         snapshot(&format!("member-local-{name}"), &actual);
     }
 }
@@ -69,8 +66,6 @@ fn shared_member_calls_follow_interface_diamonds_across_actual_providers() {
     ]);
     let actual = consumer.uses(&dependencies).unwrap();
     assert_eq!(actual, selected(expected));
-    consumer
-        .validate(&actual, &dependencies, &mut meter())
-        .unwrap();
+    consumer.validate(&actual, &dependencies).unwrap();
     snapshot("member-interface-diamond", &actual);
 }

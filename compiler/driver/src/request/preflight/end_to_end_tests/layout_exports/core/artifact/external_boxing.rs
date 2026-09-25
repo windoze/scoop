@@ -4,8 +4,6 @@ use la_arena::Arena;
 use scoop_identity::{ConeCoordinate, PersistentExactTypeId};
 use scoop_lir as lir;
 
-use super::meter;
-
 mod consumer;
 mod rejections;
 use super::machine_selection as selection;
@@ -40,18 +38,15 @@ pub(super) fn check(
     let foundation = lir::OdrFreeLirFoundation::from_module(&module).unwrap();
     let definitions =
         lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
-    let provider = lir::ShapeLinkProviderV1::try_new(
-        lir::ShapeLinkProviderPartsV1 {
-            foundation: producer.foundation(),
-            production: lir::ShapeLinkProductionV1::Reader(production),
-            ordinary,
-            layouts: layout.layouts(),
-            callables: layout.callables(),
-            descriptors: layout.descriptors(),
-            dispatch: layout.dispatch(),
-        },
-        &mut meter(),
-    )
+    let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
+        foundation: producer.foundation(),
+        production: lir::ShapeLinkProductionV1::Reader(production),
+        ordinary,
+        layouts: layout.layouts(),
+        callables: layout.callables(),
+        descriptors: layout.descriptors(),
+        dispatch: layout.dispatch(),
+    })
     .unwrap();
     let source = selection::Source::new(layout.provider(), &[empty, value], string);
     let imports = source.imports(&provider, module.cone, &definitions);
@@ -61,7 +56,6 @@ pub(super) fn check(
         &[layout],
         imports.clone(),
         &source,
-        &mut meter(),
     )
     .unwrap();
     let complete = lir::CrossConeLayoutAbiSectionV1::try_new(
@@ -69,13 +63,12 @@ pub(super) fn check(
         &[layout],
         imports,
         &source,
-        &mut meter(),
     )
     .unwrap();
     module.meta.external_type_descriptors = Arena::new();
     let string_id = module.meta.external_type_descriptors.alloc(
         selected
-            .materialize_type_descriptor(layout.provider(), string, &mut meter())
+            .materialize_type_descriptor(layout.provider(), string)
             .unwrap(),
     );
     module.meta.well_known_type_descriptors.string = lir::TypeDescriptorRef::External(string_id);
@@ -102,7 +95,7 @@ pub(super) fn check(
         let exact = boxed_exact(shape);
         let id = module.meta.external_type_descriptors.alloc(
             selected
-                .materialize_type_descriptor(layout.provider(), exact, &mut meter())
+                .materialize_type_descriptor(layout.provider(), exact)
                 .unwrap(),
         );
         let descriptor = selected
@@ -112,7 +105,6 @@ pub(super) fn check(
                 &module.meta.external_type_descriptors,
                 id,
                 ty.clone(),
-                &mut meter(),
             )
             .unwrap();
         assert_eq!(
@@ -125,7 +117,6 @@ pub(super) fn check(
                     &module.meta.external_type_descriptors,
                     id,
                     ty,
-                    &mut meter(),
                 )
                 .unwrap()
         );

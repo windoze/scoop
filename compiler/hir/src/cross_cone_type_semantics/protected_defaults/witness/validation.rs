@@ -5,7 +5,7 @@ use crate::{
     ProtectedDefaultTemplateKeyV1, SourceNominalId,
 };
 use scoop_identity::CallableTemplateOrigin;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 mod coverage;
 mod owner_profile;
@@ -23,7 +23,6 @@ pub trait ProtectedDefaultSourceProfileSemanticAuthority<E> {
     fn default_access_profile(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, E>;
 }
 
@@ -92,14 +91,13 @@ impl ProtectedDefaultAccessWitnessV1 {
         key: ProtectedDefaultTemplateKeyV1,
         source: ProtectedDefaultOwnerSourceV1<'s>,
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedDefaultWitnessSourceV1<'w, 's>, ProtectedDefaultWitnessSourceError<E>>
     {
         if self.owner() != key.owner() || self.owner() != source.declaration() {
             return Err(ProtectedDefaultWitnessSourceError::Owner);
         }
         source
-            .validate_default_profile(key, authority, meter)?
+            .validate_default_profile(key, authority)?
             .validate_witness(self)
             .map_err(|error| match error {
                 ProtectedDefaultWitnessProfileError::Owner => {

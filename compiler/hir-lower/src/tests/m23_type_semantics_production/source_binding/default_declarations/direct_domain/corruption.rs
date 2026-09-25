@@ -14,11 +14,11 @@ fn default_direct_domains_reject_witness_replacement_in_every_reference_kind() {
             .unwrap();
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
             for kind in [Kind::Callable, Kind::Constructor, Kind::Type, Kind::Global, Kind::Singleton, Kind::Field] {
                 for domain in [Domain::empty(), Domain::universal()] {
                     let changed = replace(&table, changed(original, kind, domain, output));
-                    let error = parameters.bind_default_declarations(&changed, &[], &mut meter()).unwrap_err();
+                    let error = parameters.bind_default_declarations(&changed, &[]).unwrap_err();
                     let Error::Record { key, error } = error else { panic!("record error") };
                     assert_eq!(key, original.key());
                     assert!(matches!(*error, Error::DirectDomain(error) if matches!(*error, hir::DefaultSourceDirectDomainError::Witness { kind: actual, index: 0 } if actual == kind)));
@@ -41,8 +41,8 @@ fn default_direct_domains_reject_removing_generic_outer_visibility_from_static_n
         );
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-            assert!(matches!(parameters.bind_default_declarations(&changed, &[], &mut meter()), Err(Error::Record { error, .. }) if matches!(*error, Error::DirectDomain(_))));
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+            assert!(matches!(parameters.bind_default_declarations(&changed, &[]), Err(Error::Record { error, .. }) if matches!(*error, Error::DirectDomain(_))));
         });
     });
 }

@@ -12,7 +12,7 @@ use scoop_identity::{
     SignatureTypeKey, SourceDeclarationKey, SourceNominalKind, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 mod authority;
 mod cases;
@@ -22,7 +22,7 @@ mod run;
 mod template;
 use authority::Authority;
 use fixture::Fixture;
-use run::{run, run_with_limits};
+use run::run;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Case {
@@ -55,9 +55,7 @@ impl Case {
         matches!(self, Self::Nested | Self::NestedAbi)
     }
 }
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn parameter() -> LocalValueSelector {
     LocalValueSelector::Parameter {
         declaration_index: 0,

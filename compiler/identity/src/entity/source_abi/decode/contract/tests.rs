@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedSourceNativeExternalContract, DecodedSourceNativeExternalContractKey,
@@ -89,11 +89,9 @@ fn source_contract_keys_round_trip_and_rebuild_from_declarations() {
     let mut resolver = Resolver { function, property };
 
     for key in keys {
-        let decoded = decode_canonical::<DecodedSourceNativeExternalContractKey>(
-            &encode(&key).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedSourceNativeExternalContractKey>(&encode(&key).unwrap())
+                .unwrap();
         assert_eq!(decoded.resolve(&mut resolver).unwrap(), key);
     }
 }
@@ -106,11 +104,9 @@ fn all_source_contract_kinds_round_trip_and_resolve_nested_values() {
     let mut resolver = resolver();
 
     for contract in contracts {
-        let decoded = decode_canonical::<DecodedSourceNativeExternalContract>(
-            &encode(&contract).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedSourceNativeExternalContract>(&encode(&contract).unwrap())
+                .unwrap();
         assert_eq!(decoded.resolve(&mut resolver).unwrap(), contract);
     }
 }
@@ -136,7 +132,6 @@ fn source_contract_records_round_trip_and_verify_identity() {
     for record in records {
         let decoded = decode_canonical::<DecodedSourceNativeExternalContractRecord>(
             &encode(&record).unwrap(),
-            DecodeLimits::default(),
         )
         .unwrap();
         assert_eq!(decoded.resolve(&mut resolver).unwrap(), record);
@@ -189,11 +184,7 @@ fn source_contract_record_rejects_mismatched_owner_binders_and_id() {
     let mut bytes = encode(&valid).unwrap();
     assert_eq!(&bytes[..4], &[0xa3, 0x01, 0x58, 0x20]);
     bytes[4] ^= 1;
-    let wrong_id = decode_canonical::<DecodedSourceNativeExternalContractRecord>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let wrong_id = decode_canonical::<DecodedSourceNativeExternalContractRecord>(&bytes).unwrap();
     assert!(matches!(
         wrong_id.resolve(&mut Resolver { function, property }),
         Err(SourceNativeExternalResolutionError::Id(_))
@@ -209,7 +200,6 @@ fn source_contract_key_rechecks_owner_shape() {
     );
     let decoded = decode_canonical::<DecodedSourceNativeExternalContractKey>(
         &encode(&RawContractKey(owner)).unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
 
@@ -225,11 +215,7 @@ fn source_contract_key_rechecks_owner_shape() {
 fn source_contract_resolution_rejects_invalid_symbol_and_library() {
     let mut symbol_bytes = encode(&c_function_contract()).unwrap();
     replace_once(&mut symbol_bytes, b"native_entry", b"native\0entry");
-    let symbol = decode_canonical::<DecodedSourceNativeExternalContract>(
-        &symbol_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let symbol = decode_canonical::<DecodedSourceNativeExternalContract>(&symbol_bytes).unwrap();
     assert_eq!(
         symbol.resolve(&mut resolver()),
         Err(SourceNativeExternalResolutionError::Symbol(
@@ -246,11 +232,7 @@ fn source_contract_resolution_rejects_invalid_symbol_and_library() {
     };
     let mut library_bytes = encode(&contract).unwrap();
     replace_once(&mut library_bytes, b"library", b"bad/lib");
-    let library = decode_canonical::<DecodedSourceNativeExternalContract>(
-        &library_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let library = decode_canonical::<DecodedSourceNativeExternalContract>(&library_bytes).unwrap();
     assert_eq!(
         library.resolve(&mut resolver()),
         Err(SourceNativeExternalResolutionError::Library(
@@ -270,15 +252,15 @@ fn source_contract_decoder_rejects_unknown_tags() {
 fn decode_record(
     record: &SourceNativeExternalContractRecord,
 ) -> DecodedSourceNativeExternalContractRecord {
-    decode_canonical(&encode(record).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(record).unwrap()).unwrap()
 }
 
 fn decode_contract(contract: &SourceNativeExternalContract) -> DecodedSourceNativeExternalContract {
-    decode_canonical(&encode(contract).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(contract).unwrap()).unwrap()
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
-    let error = decode_canonical::<T>(bytes, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<T>(bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag });
 }
 

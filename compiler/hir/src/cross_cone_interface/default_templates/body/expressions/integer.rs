@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use crate::{DefaultIntegerDivRemV1, DefaultIntegerKindV1, DefaultNoGcIntegerOperationV1};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -73,7 +71,7 @@ impl WireEncode for DefaultIntegerOperationV1 {
 }
 
 impl WireDecode for DefaultIntegerOperationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 3)?;
@@ -91,11 +89,7 @@ impl WireDecode for DefaultIntegerOperationV1 {
     }
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -106,7 +100,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

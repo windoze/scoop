@@ -1,4 +1,3 @@
-use super::super::binding::charge_path;
 use super::*;
 mod errors;
 pub use errors::DefaultSourceValueDomainBindingError;
@@ -19,12 +18,7 @@ impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
     pub fn bind_nominal_default_value_domains<'b, 'd, 'p, 's, 'a, 'f>(
         &self,
         declarations: &'b BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f>,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNominalDefaultValueDomainsV1<'b, 'd, 'p, 's, 'a, 'f>, BindingError> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        meter.charge_work(1, &path)?;
         let foundation = declarations
             .origins()
             .parameters()
@@ -37,17 +31,11 @@ impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
                 actual: declarations.provider(),
             });
         }
-        meter.check_table_entries(declarations.declarations().len() as u64, &path)?;
-        for (index, declaration) in declarations.declarations().iter().enumerate() {
-            charge_path(meter, &path, 1)?;
-            let path = path.clone().index(index as u64);
-            meter.charge_nodes(1, &path)?;
-            meter.charge_edges(1, &path)?;
-            meter.charge_work(1, &path)?;
+
+        for declaration in declarations.declarations() {
             let occurrences = declaration.references().occurrences();
-            meter.check_table_entries(occurrences.len() as u64, &path)?;
+
             for occurrence in occurrences {
-                meter.charge_work(1, &path)?;
                 let record = occurrence.source();
                 let target = match record {
                     DefaultSourceReferenceRecordV1::Constructor(r) => {
@@ -60,34 +48,11 @@ impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
                     | DefaultSourceReferenceRecordV1::Type(_) => continue,
                 };
                 let kind = record.kind();
-                let field = match kind {
-                    ExportDefaultReferenceKindV1::Constructor => 2,
-                    ExportDefaultReferenceKindV1::Global => 4,
-                    ExportDefaultReferenceKindV1::Singleton => 5,
-                    ExportDefaultReferenceKindV1::Field => 6,
-                    ExportDefaultReferenceKindV1::Callable => 1,
-                    ExportDefaultReferenceKindV1::Type => 3,
-                };
-                charge_path(meter, &path, 4)?;
-                let path = path
-                    .clone()
-                    .field(11)
-                    .field(field)
-                    .index(u64::from(occurrence.index()))
-                    .field(1);
-                let expected =
-                    self.value_source_domain_at(target, meter, &path)
-                        .map_err(|error| {
-                            BindingError::target(declaration.key(), kind, occurrence.index(), error)
-                        })?;
+                let expected = self.value_source_domain_at(target).map_err(|error| {
+                    BindingError::target(declaration.key(), kind, occurrence.index(), error)
+                })?;
                 let actual = record.witness().target_domain();
-                let cost = scoop_wire::encoded_length(&expected)
-                    .and_then(|expected| {
-                        scoop_wire::encoded_length(actual)
-                            .map(|actual| expected.saturating_add(actual))
-                    })
-                    .map_err(BindingError::Encoding)?;
-                meter.charge_work(cost, &path)?;
+
                 if actual != &expected {
                     return Err(BindingError::Witness {
                         key: declaration.key(),

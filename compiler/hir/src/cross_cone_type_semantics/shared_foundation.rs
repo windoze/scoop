@@ -3,7 +3,6 @@
 use scoop_identity::{
     ConeIdentity, PersistentExactTypeId, PersistentTypeId, ValidatedIdentityGraph,
 };
-use scoop_wire::BudgetMeter;
 
 use crate::{
     CheckedExactTypeFactsV1, CheckedNominalRepresentationSupportV1, CrossConeHirInterfaceSectionV1,
@@ -51,13 +50,12 @@ impl<'a> SharedTypeMetadataV1<'a> {
     pub fn signature_exact_type(
         self,
         signature: &scoop_identity::SignatureTypeKey,
-        meter: &mut BudgetMeter,
     ) -> Result<PersistentExactTypeId, SharedTypeMetadataError> {
         MetadataTypes {
             current: self,
             dependencies: &[],
         }
-        .exact(signature, 1, meter)
+        .exact(signature)
     }
 }
 
@@ -105,25 +103,22 @@ impl CrossConeTypeSemanticsSectionV1 {
         &'a self,
         metadata: SharedTypeMetadataV1<'a>,
         dependencies: &[CheckedSharedTypeFoundationV1<'a>],
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedSharedTypeFoundationV1<'a>, Error> {
         let types = MetadataTypes {
             current: metadata,
             dependencies,
         };
-        types.validate_dependencies(meter)?;
+        types.validate_dependencies()?;
         let materialization = NominalMaterializationClosure::from_declarations(
             metadata.public.nominal_interfaces(),
             metadata.public.callable_interfaces(),
-            meter,
         )
         .map_err(Error::Materialization)?;
-        let facts = facts::validate(self.exact_facts(), types, &materialization, meter)?;
+        let facts = facts::validate(self.exact_facts(), types, &materialization)?;
         let representations = self.representation_support().validate_shared_metadata(
             types,
             &materialization,
             facts,
-            meter,
         )?;
         Ok(CheckedSharedTypeFoundationV1 {
             metadata,

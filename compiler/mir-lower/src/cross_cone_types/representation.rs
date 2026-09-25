@@ -10,9 +10,7 @@ pub(super) fn project(
     module: &mir::Module,
     ty: &mir::Type,
     source: &hir::NominalRepresentationSupportV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(Repr, Option<Backing>), SourceMirTypeProductionError> {
-    work(1, meter)?;
     let mismatch = || SourceMirTypeProductionError::RepresentationMismatch(source.owner());
     let shape = match (ty, source.shape()) {
         (mir::Type::Unit, Source::Object { .. } | Source::Struct { .. }) => {
@@ -51,11 +49,11 @@ pub(super) fn project(
                 return Err(mismatch());
             }
             let mut projected = Vec::new();
-            reserve(&mut projected, fields.len(), meter)?;
+            reserve(&mut projected, fields.len())?;
             for field in fields {
                 projected.push(mir::MirRepresentationFieldV1 {
                     field: field.identity,
-                    value: fields::exact(module, &field.ty, meter)?,
+                    value: fields::exact(module, &field.ty)?,
                 });
             }
             Repr::Struct {
@@ -83,7 +81,7 @@ pub(super) fn project(
                 return Err(mismatch());
             }
             Repr::Enum {
-                variants: fields::variants(module, variants, meter)?,
+                variants: fields::variants(module, variants)?,
             }
         }
         (
@@ -99,13 +97,7 @@ pub(super) fn project(
                     mir::ClassModifier::Open => mir::MirClassKindV1::Open,
                     mir::ClassModifier::Abstract => mir::MirClassKindV1::Abstract,
                 },
-                declared_fields: fields::class(
-                    module,
-                    class,
-                    source.owner(),
-                    declared_fields,
-                    meter,
-                )?,
+                declared_fields: fields::class(module, class, source.owner(), declared_fields)?,
             }
         }
         (mir::Type::Interface(_) | mir::Type::Any, Source::Interface) => Repr::Interface,
@@ -121,14 +113,9 @@ pub(super) fn project(
                 &module.classes[*id],
                 source.owner(),
                 declared_fields,
-                meter,
             )?;
             let key = ExactTypeKey::Nominal(*backing_class);
-            let length = scoop_wire::encoded_length(&key)
-                .map_err(|error| SourceMirTypeProductionError::Identity(error.to_string()))?;
-            meter
-                .charge_sha256(length, &WirePath::root())
-                .map_err(SourceMirTypeProductionError::Resource)?;
+
             let exact = PersistentExactTypeId::from_key(&key)
                 .map_err(|error| SourceMirTypeProductionError::Identity(error.to_string()))?;
             return Ok((

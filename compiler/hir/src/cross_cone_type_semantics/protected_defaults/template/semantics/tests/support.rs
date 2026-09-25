@@ -6,9 +6,6 @@ pub(super) use crate::cross_cone_type_semantics::protected_interfaces::tests::su
 
 mod builders;
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 pub(super) fn binder(depth: u32, index: u32) -> SignatureTypeKey {
     SignatureTypeKey::Binder { depth, index }
 }
@@ -45,19 +42,13 @@ impl Record {
     ) -> ProtectedDefaultOwnerSourceV1<'a> {
         match self {
             Self::Method(record) => ProtectedDefaultOwnerSourceV1::Protected(
-                record
-                    .validate_source(graph, fixture, &mut meter())
-                    .unwrap(),
+                record.validate_source(graph, fixture).unwrap(),
             ),
             Self::Constructor(record) => ProtectedDefaultOwnerSourceV1::Protected(
-                record
-                    .validate_source(graph, fixture, &mut meter())
-                    .unwrap(),
+                record.validate_source(graph, fixture).unwrap(),
             ),
             Self::Support(record) => ProtectedDefaultOwnerSourceV1::NominalSupport(
-                record
-                    .validate_source(graph, fixture, &mut meter())
-                    .unwrap(),
+                record.validate_source(graph, fixture).unwrap(),
             ),
         }
     }
@@ -142,7 +133,6 @@ impl Case {
         &self,
         template: &ProtectedDefaultTemplateV1,
         authority: &mut Authority,
-        resources: &mut BudgetMeter,
     ) -> Result<(), ProtectedDefaultTemplateContractSemanticError<&'static str>> {
         let mut fixture = self.fixture.clone();
         let graph_source = fixture.graph.clone();
@@ -150,7 +140,6 @@ impl Case {
             graph_source.records.values(),
             graph_source.keys.keys().copied(),
             &graph_source,
-            &mut meter(),
         )
         .unwrap();
         let owner = self.record.check(&graph, &mut fixture);
@@ -158,14 +147,14 @@ impl Case {
         let protocol = match owner {
             ProtectedDefaultOwnerSourceV1::Protected(checked) => self
                 .source
-                .validate_protected(checked, &mut source_authority, &mut meter())
+                .validate_protected(checked, &mut source_authority)
                 .unwrap(),
             ProtectedDefaultOwnerSourceV1::NominalSupport(checked) => self
                 .source
-                .validate_nominal_support(checked, &mut source_authority, &mut meter())
+                .validate_nominal_support(checked, &mut source_authority)
                 .unwrap(),
         };
-        template.validate_contract_semantics(owner, protocol, authority, resources)
+        template.validate_contract_semantics(owner, protocol, authority)
     }
 }
 fn root(owner: CallableTemplateOrigin) -> PersistentLexicalRootV1 {

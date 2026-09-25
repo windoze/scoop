@@ -34,8 +34,8 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
         CrossConeHirSourceInterfaceSurfaceError,
     > {
         let mut front = self.0;
-        let (input, meter) = front.hir_validation_parts();
-        input.sources(dependencies, meter)?;
+        let input = front.hir_validation_parts();
+        input.sources(dependencies)?;
         Ok(SourceInterfaceValidatedCrossConeHirFrontSections(front))
     }
 }

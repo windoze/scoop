@@ -83,7 +83,7 @@ impl WireEncode for DecodedConeRecordV1 {
 }
 
 impl WireDecode for DecodedConeRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             coordinate: decoder.field(1, DecodedConeCoordinate::decode)?,
@@ -239,7 +239,7 @@ impl WireEncode for DecodedConeRegistrationTablesV1 {
 }
 
 impl WireDecode for DecodedConeRegistrationTablesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             static_storages: decode_ids(decoder, 1)?,
@@ -413,7 +413,7 @@ fn encode_array<T: WireEncode>(
 }
 
 fn decode_ids<I: scoop_identity::PersistentId>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
 ) -> Result<Vec<DecodedPersistentId<I>>, WireError> {
     decoder.field(field, |decoder| {

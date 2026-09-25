@@ -23,18 +23,17 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         owner: PersistentExactTypeId,
         slot: &'a InheritanceSlotContractV1,
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedInheritanceSourceSlotContractV1<'a>, InheritanceInterfaceSemanticError<E>>
     {
         use InheritanceInterfaceSemanticError as Error;
         let contract = self
-            .validate_slot_contract(owner, slot, authority, meter)
+            .validate_slot_contract(owner, slot, authority)
             .map_err(Error::Slot)?;
         let source = authority
             .inheritance_callable_source(slot.declaration())
             .map_err(Error::Foundation)?;
-        compare(slot.signature(), source.signature, meter)?;
-        compare(slot.declaration_access(), source.declaration_access, meter)?;
+        compare(slot.signature(), source.signature)?;
+        compare(slot.declaration_access(), source.declaration_access)?;
         if source.modality == CallableModalityV1::Final {
             return Err(Error::SourceContract);
         }
@@ -47,9 +46,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
                 InheritanceSourceSlotSelectionV1::InterfaceDefault(target.declaration())
             }
         };
-        meter
-            .charge_work(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         if actual_selection
             != authority
                 .inheritance_slot_selection(owner, slot.slot())
@@ -61,12 +58,8 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             let source = authority
                 .inheritance_callable_source(target.declaration())
                 .map_err(Error::Foundation)?;
-            compare(target.signature(), source.signature, meter)?;
-            compare(
-                target.declaration_access(),
-                source.declaration_access,
-                meter,
-            )?;
+            compare(target.signature(), source.signature)?;
+            compare(target.declaration_access(), source.declaration_access)?;
             if target.modality() != source.modality {
                 return Err(Error::SourceContract);
             }
@@ -78,10 +71,9 @@ pub(super) fn validate<A: NominalInheritanceInterfaceSemanticAuthority<E>, E>(
     record: &NominalInheritanceInterfaceV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     authority: &A,
-    meter: &mut BudgetMeter,
 ) -> Result<(), InheritanceInterfaceSemanticError<E>> {
     for slot in record.slots().records() {
-        graph.validate_slot_source_contract(record.owner(), slot, authority, meter)?;
+        graph.validate_slot_source_contract(record.owner(), slot, authority)?;
     }
     Ok(())
 }

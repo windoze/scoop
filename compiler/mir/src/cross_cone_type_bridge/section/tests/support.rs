@@ -61,7 +61,6 @@ impl Fixture {
             dependencies,
             &self.source,
             graph,
-            &mut meter(),
         )
     }
     pub fn type_use(&self) -> MirTypeBridgeDependencyV1 {
@@ -126,12 +125,10 @@ pub(super) fn exports(
         MirBoxedShapeSupportV1::Available(fixture.boxed_export().exact()),
         fixture.step_export().exact(),
         fixture.slot_export().exact(),
-        &mut meter(),
     )
     .unwrap();
     let shapes =
-        CanonicalMirShapeSupportsV1::try_new(provider, shape_authority, vec![shape], &mut meter())
-            .unwrap();
+        CanonicalMirShapeSupportsV1::try_new(provider, shape_authority, vec![shape]).unwrap();
     let callables = CanonicalMirCallableBindingsV1::try_new(vec![]).unwrap();
     let dispatch = CanonicalMirDispatchSchemasV1::try_new(
         MirDispatchSchemaAuthority {
@@ -140,16 +137,15 @@ pub(super) fn exports(
             callables: &callables,
         },
         vec![],
-        &mut meter(),
     )
     .unwrap();
     MirTypeBridgeExportConstituentsV1::new(
         types,
         callables,
         dispatch,
-        CanonicalMirObjectValuesV1::try_new(vec![], &mut meter()).unwrap(),
+        CanonicalMirObjectValuesV1::try_new(vec![]).unwrap(),
         shapes,
-        CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
+        CanonicalMirExternalInitializationUsesV1::try_new(vec![]).unwrap(),
     )
 }
 pub(super) fn graph(fixtures: &[&Fixture]) -> ValidatedIdentityGraph {

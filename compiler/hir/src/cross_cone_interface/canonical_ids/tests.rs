@@ -3,7 +3,7 @@ use scoop_identity::{
     IdentityReferenceError, PackagePath, PendingIdentityValidation, PersistentTypeId,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 
@@ -125,7 +125,7 @@ fn authority(fixture: &Fixture) -> ValidatedIdentityGraph {
 }
 
 fn decode_ids<T: WireEncode>(value: &T) -> DecodedCanonicalPersistentIdsV1<PersistentTypeId> {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 struct IdSequence(Vec<PersistentTypeId>);

@@ -8,7 +8,7 @@ use scoop_identity::{
     CanonicalScoopAbiFunctionSignature, ExactCallableSignature, GcEffect, PersistentCallableBodyId,
     StrongCallableDefinitionOwner,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::{
     ExactLayoutExportV1, ExactValueLayoutV1, LirTargetProfile, OdrFreeLirFoundation,
@@ -27,9 +27,8 @@ pub fn replay_canonical_scoop_abi_from_layouts(
     signature: ExactCallableSignature,
     protocol: ExactCallableProtocolV1,
     layouts: CallableAbiLayoutInputsV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalScoopAbiFunctionSignature, ExactCallableAbiError> {
-    replay::signature(target, signature, protocol, layouts, meter).map(|(signature, _)| signature)
+    replay::signature(target, signature, protocol, layouts).map(|(signature, _)| signature)
 }
 
 mod physical;
@@ -127,7 +126,6 @@ impl ExactCallableAbiExportV1 {
         protocol: ExactCallableProtocolV1,
         layouts: CallableAbiLayoutInputsV1<'_>,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactCallableAbiError> {
         replay::callable(
             target_profile,
@@ -136,7 +134,6 @@ impl ExactCallableAbiExportV1 {
             protocol,
             layouts,
             foundation,
-            meter,
         )
     }
 

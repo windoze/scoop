@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use scoop_identity::{BindingTarget, ConeIdentity};
 
@@ -30,18 +30,10 @@ impl ExternalHirReferenceV1 {
     pub fn validate_semantics<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), ExternalHirReferenceSemanticValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        meter
-            .charge_nodes(1, path)
-            .map_err(ExternalHirReferenceSemanticValidationError::Resource)?;
-        meter
-            .charge_work(1, path)
-            .map_err(ExternalHirReferenceSemanticValidationError::Resource)?;
         let current = authority.current_cone();
         if self.origin() == current {
             return Err(
@@ -70,9 +62,6 @@ impl ExternalHirReferenceV1 {
             );
         }
 
-        meter
-            .check_table_entries(self.witnesses().witnesses().len() as u64, path)
-            .map_err(ExternalHirReferenceSemanticValidationError::Resource)?;
         if !self.witnesses().is_empty() {
             let root = authority
                 .external_hir_target_binding_root(self.target())
@@ -84,12 +73,7 @@ impl ExternalHirReferenceV1 {
                 )?;
             for (index, witness) in self.witnesses().witnesses().iter().enumerate() {
                 witness
-                    .validate_semantics(
-                        root,
-                        authority,
-                        meter,
-                        &path.clone().field(4).index(index as u64),
-                    )
+                    .validate_semantics(root, authority)
                     .map_err(
                         |error| ExternalHirReferenceSemanticValidationError::Witness {
                             index,

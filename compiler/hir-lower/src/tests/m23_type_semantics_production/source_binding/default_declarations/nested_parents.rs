@@ -12,7 +12,7 @@ pub(super) const SOURCE: &str = include_str!(concat!(
 
 fn first(template: &Template) -> hir::DefaultSourceNestedCallableOccurrenceV1<'_> {
     template
-        .index_nested_callables(&mut meter(), &WirePath::root())
+        .index_nested_callables(&WirePath::root())
         .unwrap()
         .occurrences()[0]
 }
@@ -81,15 +81,13 @@ fn default_source_nested_parent_rejects_same_path_from_another_method_or_variant
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            parameters.bind_default_declarations(&table, &[]).unwrap();
             for template in changed {
                 let expected = template.key();
                 let Error::Record { key, error } = parameters
-                    .bind_default_declarations(&replace(&table, template), &[], &mut meter())
+                    .bind_default_declarations(&replace(&table, template), &[])
                     .unwrap_err()
                 else {
                     panic!("expected nested parent error");
@@ -136,11 +134,9 @@ fn default_source_expanded_local_declarations_retain_the_provider_context() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            parameters.bind_default_declarations(&table, &[]).unwrap();
         });
     });
 }

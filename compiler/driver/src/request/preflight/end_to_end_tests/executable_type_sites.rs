@@ -46,7 +46,7 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
             vec![provider.artifact().path().to_path_buf()],
             vec![],
         )
-        .build_and_publish(DecodeLimits::default())
+        .build_and_publish()
         .unwrap();
         let bytes = std::fs::read(artifact.artifact().path()).unwrap();
         let current = ConeCoordinate::new("dev.example", name, "0.1.0")
@@ -62,7 +62,6 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
             direct,
             dependency_bytes.iter().map(Vec::as_slice).collect(),
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

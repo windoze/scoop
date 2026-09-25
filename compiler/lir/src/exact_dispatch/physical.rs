@@ -1,5 +1,5 @@
 use scoop_identity::{CborIdentityRecord, DispatchTableKey, PersistentDispatchTableId};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::{ExactDispatchEntryInputV1, ExactDispatchError, ExactDispatchExportV1};
 use crate::{
@@ -13,7 +13,6 @@ impl ExactDispatchExportV1 {
         inputs: &[ExactDispatchEntryInputV1<'_>],
         foundation: &crate::OdrFreeLirFoundation,
         resolver: &mut impl ExactDispatchPhysicalCallableResolverV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactDispatchError> {
         if physical.slots().len() != inputs.len() {
             return Err(ExactDispatchError::SlotCount {
@@ -21,13 +20,11 @@ impl ExactDispatchExportV1 {
                 actual: inputs.len(),
             });
         }
-        let replayed =
-            Self::replay_from_schema(target, physical.identity(), inputs, foundation, meter)?;
+        let replayed = Self::replay_from_schema(target, physical.identity(), inputs, foundation)?;
         for (entry, emitted) in replayed.entries().iter().zip(physical.slots()) {
-            meter.charge_work(1, &WirePath::root())?;
             let position = entry.position().into_u32();
             let actual = resolver
-                .resolve(emitted.callable, meter)?
+                .resolve(emitted.callable)?
                 .ok_or(ExactDispatchError::MissingPhysicalCallable(position))?;
             if actual != entry.abi() {
                 return Err(ExactDispatchError::PhysicalCallable(position));
@@ -83,22 +80,17 @@ pub trait ExactDispatchPhysicalCallableResolverV1 {
     fn resolve(
         &mut self,
         callable: CallableRef,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError>;
 }
 
 impl<F> ExactDispatchPhysicalCallableResolverV1 for F
 where
-    F: FnMut(
-        CallableRef,
-        &mut BudgetMeter,
-    ) -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError>,
+    F: FnMut(CallableRef) -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError>,
 {
     fn resolve(
         &mut self,
         callable: CallableRef,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> {
-        self(callable, meter)
+        self(callable)
     }
 }

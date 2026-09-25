@@ -5,13 +5,10 @@ pub(super) fn validate<'c>(
     authority: &mut BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
     protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
     checked: &mut BoundProtectedDeclarationSourcesV1<'c, '_, '_, '_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     for record in checked.table.records() {
-        meter.charge_nodes(1, &WirePath::root())?;
         let owner = match record {
             Declaration::Callable(r) => {
-                query(authority.members().callables().records().len(), meter)?;
                 let source = authority
                     .members()
                     .callable_source(r.declaration())
@@ -22,16 +19,14 @@ pub(super) fn validate<'c>(
                     source.declaration_access(),
                     id,
                     "access",
-                    meter,
                 )?;
-                compare(&**r.payload(), source.payload(), id, "callable", meter)?;
+                compare(&**r.payload(), source.payload(), id, "callable")?;
                 if matches!(r.declaration(), CallableTemplateOrigin::Accessor(_)) {
                     continue;
                 }
                 r.declaration()
             }
             Declaration::Constructor(r) => {
-                query(authority.constructors().table().records().len(), meter)?;
                 let source = authority
                     .constructors()
                     .constructor_source(r.declaration())
@@ -42,13 +37,11 @@ pub(super) fn validate<'c>(
                     source.declaration_access(),
                     id,
                     "access",
-                    meter,
                 )?;
-                compare(&**r.payload(), source.payload(), id, "constructor", meter)?;
+                compare(&**r.payload(), source.payload(), id, "constructor")?;
                 CallableTemplateOrigin::Constructor(r.declaration())
             }
             Declaration::Property(r) => {
-                query(authority.members().properties().records().len(), meter)?;
                 let source = authority
                     .members()
                     .property_source(r.declaration())
@@ -67,9 +60,8 @@ pub(super) fn validate<'c>(
                     source.declaration_access(),
                     id,
                     "access",
-                    meter,
                 )?;
-                compare(&**r.payload(), interface, id, "property", meter)?;
+                compare(&**r.payload(), interface, id, "property")?;
                 continue;
             }
             Declaration::NestedNominal(r) => {
@@ -77,22 +69,21 @@ pub(super) fn validate<'c>(
                     r.source_record(),
                     protocols,
                     checked.representations,
-                    meter,
                 )?;
                 for protocol in nested.protocols() {
-                    retain(checked, protocol, meter)?;
+                    retain(checked, protocol)?;
                 }
                 continue;
             }
         };
-        query(protocols.records().len(), meter)?;
+
         let candidate = protocols
             .get(owner)
             .ok_or(NominalNestedBindingError::MissingProtocol(owner))?;
         let protocol = authority
-            .validate_source_protocol(candidate, meter)
+            .validate_source_protocol(candidate)
             .map_err(NominalNestedBindingError::from_protocol)?;
-        retain(checked, protocol, meter)?;
+        retain(checked, protocol)?;
     }
     Ok(())
 }

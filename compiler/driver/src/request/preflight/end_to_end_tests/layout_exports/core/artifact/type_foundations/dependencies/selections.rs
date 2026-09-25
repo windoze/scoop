@@ -29,24 +29,11 @@ pub(super) fn check(
         );
         let provider = lower(sysroot, target, &root, vec![], &[core]);
         let checked = provider.check(&[core]).unwrap();
-        let mut measured = meter();
-        checked
-            .with_inheritance_graph(&[core], &mut measured, |_, _| ())
-            .unwrap();
-        let mut bounded = scoop_wire::BudgetMeter::new(DecodeLimits {
-            validation_work_units: measured.usage().validation_work_units,
-            ..DecodeLimits::default()
-        });
-        checked
-            .with_inheritance_graph(&[core], &mut bounded, |_, _| ())
-            .unwrap();
-        assert!(matches!(
-            checked.with_inheritance_graph(&[core], &mut bounded, |_, _| ()),
-            Err(Error::Resource(error))
-                if matches!(error.kind(), scoop_wire::WireErrorKind::LimitExceeded {
-                    resource: scoop_wire::ResourceKind::ValidationWorkUnits, ..
-                })
-        ));
+
+        checked.with_inheritance_graph(&[core], |_| ()).unwrap();
+
+        checked.with_inheritance_graph(&[core], |_| ()).unwrap();
+
         claims::check(checked, core);
         shared::check(checked, core);
         let dump = snapshot::render(checked);

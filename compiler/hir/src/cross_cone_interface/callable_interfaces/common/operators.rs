@@ -79,7 +79,7 @@ impl WireEncode for CallableOperatorV1 {
 }
 
 impl WireDecode for CallableOperatorV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let operator = match tag {
@@ -139,7 +139,7 @@ impl WireEncode for PropertyDelegateOperatorV1 {
 }
 
 impl WireDecode for PropertyDelegateOperatorV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ProvideDelegate),
             2 => Ok(Self::GetValue),
@@ -167,7 +167,7 @@ impl WireEncode for CallableOperatorRoleV1 {
 }
 
 impl WireDecode for CallableOperatorRoleV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -210,11 +210,7 @@ fn encode_value_sum(
     value.encode(encoder)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -226,7 +222,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),
@@ -234,7 +230,7 @@ fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
     )
 }
 
-fn integer_out_of_range(decoder: &Decoder<'_, '_>) -> WireError {
+fn integer_out_of_range(decoder: &Decoder<'_>) -> WireError {
     WireError::new(
         WireErrorKind::IntegerOutOfRange,
         decoder.path().clone(),

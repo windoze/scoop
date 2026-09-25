@@ -27,24 +27,14 @@ impl DecodedCanonicalInheritanceSourceCallablesV1 {
     pub fn resolve<R: InheritanceSourceCallableResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalInheritanceSourceCallablesV1, InheritanceSourceCallableResolutionError<E>>
     {
         use InheritanceSourceCallableResolutionError as Error;
-        let mut records = reserve(self.records.len(), meter).map_err(Error::Inventory)?;
-        for (index, source) in self.records.into_iter().enumerate() {
-            let path = WirePath::root().index(index as u64);
-            meter
-                .check_semantic_depth(3, &path)
-                .map_err(Error::Resource)?;
-            meter.charge_edges(4, &path).map_err(Error::Resource)?;
-            source
-                .declaration_access
-                .charge_resolution_at(meter, &path.clone().field(4), 3)
-                .map_err(Error::Resource)?;
+        let mut records = reserve(self.records.len()).map_err(Error::Inventory)?;
+        for source in self.records.into_iter() {
             let signature = source
                 .signature
-                .resolve(resolver, meter)
+                .resolve(resolver)
                 .map_err(Error::Signature)?;
             let declaration = source
                 .declaration
@@ -61,8 +51,7 @@ impl DecodedCanonicalInheritanceSourceCallablesV1 {
                 access,
             ));
         }
-        CanonicalInheritanceSourceCallablesV1::from_ordered(records, meter)
-            .map_err(Error::Inventory)
+        CanonicalInheritanceSourceCallablesV1::from_ordered(records).map_err(Error::Inventory)
     }
 }
 

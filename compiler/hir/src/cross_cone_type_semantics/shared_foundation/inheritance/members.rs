@@ -11,10 +11,9 @@ pub(super) fn validate(
     nominal: &NominalInterfaceRecordV1,
     record: &NominalInheritanceInterfaceV1,
     context: &Context<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    let required = required(provider.metadata, nominal, context, meter)?;
-    contracts::charge_compare(record.protected_members(), &required, meter)?;
+    let required = required(provider.metadata, nominal, context)?;
+
     if record.protected_members() != &required {
         return Err(Error::ProtectedMemberInventory(record.owner()));
     }
@@ -25,7 +24,6 @@ fn required(
     metadata: SharedTypeMetadataV1<'_>,
     nominal: &NominalInterfaceRecordV1,
     context: &Context<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalProtectedDeclarationRefsV1, Error> {
     let path = WirePath::root();
     let mut references = Vec::new();
@@ -36,7 +34,6 @@ fn required(
                     metadata,
                     CallableTemplateOrigin::Function(id),
                     &mut references,
-                    meter,
                 )?;
             }
             NestedSourceMemberRefV1::GenericFunction(id) => {
@@ -44,17 +41,16 @@ fn required(
                     metadata,
                     CallableTemplateOrigin::GenericFunction(id),
                     &mut references,
-                    meter,
                 )?;
             }
             NestedSourceMemberRefV1::Property(id) => {
                 let table = metadata.public.property_interfaces();
-                contracts::lookup(table.declaration_count(), meter)?;
+
                 let property = table.declaration(PropertyOwner::Property(id)).ok_or(
                     Error::DeclarationMetadata(DefinitionOriginSubject::Property(id)),
                 )?;
                 if property.declared_visibility() == DeclaredVisibilityV1::Protected {
-                    meter.try_reserve_collection_slots(&mut references, 1, &path)?;
+                    scoop_wire::allocation::try_reserve(&mut references, 1, &path)?;
                     references.push(ProtectedDeclarationRefV1::Property(id));
                 }
                 if property.representation() == crate::PropertyRepresentationV1::Const {
@@ -66,23 +62,18 @@ fn required(
                         metadata,
                         CallableTemplateOrigin::Accessor(id),
                         &mut references,
-                        meter,
                     )?;
                 }
             }
         }
     }
     for child in nominal.declaration_details().children().values() {
-        contracts::lookup(context.sources.len(), meter)?;
         if context.source(*child)?.access.declared_visibility() == DeclaredVisibilityV1::Protected {
-            meter.try_reserve_collection_slots(&mut references, 1, &path)?;
+            scoop_wire::allocation::try_reserve(&mut references, 1, &path)?;
             references.push(ProtectedDeclarationRefV1::NestedNominal(*child));
         }
     }
-    meter.charge_work(
-        (references.len() as u64).saturating_mul(1 + u64::from(references.len().max(1).ilog2())),
-        &path,
-    )?;
+
     CanonicalProtectedDeclarationRefsV1::try_new(references)
         .map_err(|_| Error::InheritanceSource(nominal.declaration()))
 }
@@ -91,14 +82,11 @@ fn push_callable(
     metadata: SharedTypeMetadataV1<'_>,
     id: CallableTemplateOrigin,
     references: &mut Vec<ProtectedDeclarationRefV1>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    if contracts::callable(metadata, id, meter)?.declared_visibility()
-        == DeclaredVisibilityV1::Protected
-    {
+    if contracts::callable(metadata, id)?.declared_visibility() == DeclaredVisibilityV1::Protected {
         let reference = ProtectedCallableDeclarationRefV1::try_new(id)
             .map_err(|_| Error::CallableContract(id))?;
-        meter.try_reserve_collection_slots(references, 1, &WirePath::root())?;
+        scoop_wire::allocation::try_reserve(references, 1, &WirePath::root())?;
         references.push(ProtectedDeclarationRefV1::Callable(reference));
     }
     Ok(())

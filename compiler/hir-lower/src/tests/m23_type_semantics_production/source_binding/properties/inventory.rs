@@ -35,17 +35,16 @@ fn protected_property_inventory_cannot_move_a_member_to_another_owner() {
                 source.constructors().clone(),
                 hir::CanonicalProtectedDeclarationRefsV1::try_new(members).unwrap(),
                 source.slot_schemas().clone(),
-                &mut meter(),
             )
             .unwrap();
         }
         sources.dispatch.inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter()).unwrap();
+            hir::CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap();
         let hir::ProtectedDeclarationRefV1::Property(expected) = member else {
             unreachable!()
         };
         assert!(
-            matches!(sources.bind(&foundation, &mut meter()), Err(Error::Owner(actual)) if actual == expected)
+            matches!(sources.bind(&foundation), Err(Error::Owner(actual)) if actual == expected)
         );
     });
 }
@@ -83,10 +82,9 @@ fn property_sources_require_exact_inventory_without_missing_or_unused_records() 
                 records.pop().unwrap();
             }
             forged.properties =
-                hir::CanonicalInheritanceSourcePropertiesV1::try_new(records, &mut meter())
-                    .unwrap();
+                hir::CanonicalInheritanceSourcePropertiesV1::try_new(records).unwrap();
             assert!(matches!(
-                (extra, forged.bind(&foundation, &mut meter())),
+                (extra, forged.bind(&foundation)),
                 (true, Err(Error::Inventory)) | (false, Err(Error::MissingSource(_)))
             ));
         }

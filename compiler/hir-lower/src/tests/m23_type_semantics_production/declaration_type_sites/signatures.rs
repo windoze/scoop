@@ -11,7 +11,6 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
             .complete_cross_cone_interface_source_points(
                 output.output().export.module(),
                 &interface,
-                &mut BudgetMeter::new(DecodeLimits::default()),
             )
             .unwrap();
         let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
@@ -23,8 +22,6 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
             foundation.validate_declaration_type_position(
                 local.cone,
                 Position::CallableSignature(root, part),
-                &mut BudgetMeter::new(DecodeLimits::default()),
-                &WirePath::root(),
             )
         };
         for site in interface
@@ -39,18 +36,11 @@ fn signature_sites_preserve_receivers_constructors_and_exact_accessor_parameter_
                         local.cone,
                         expression.position().root,
                         expression.origin().evaluation(),
-                        &mut BudgetMeter::new(DecodeLimits::default()),
-                        &WirePath::root(),
                     )
                     .unwrap();
             } else {
                 foundation
-                    .validate_declaration_type_position(
-                        local.cone,
-                        site.position(),
-                        &mut BudgetMeter::new(DecodeLimits::default()),
-                        &WirePath::root(),
-                    )
+                    .validate_declaration_type_position(local.cone, site.position())
                     .unwrap();
             }
         }

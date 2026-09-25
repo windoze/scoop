@@ -17,11 +17,9 @@ fn shape_link_descriptor_and_registration_share_one_complete_semantic_contract()
         !contract.matches_subject(ExternalStrongShapeSubjectV1::Layout(fixture.value_layout()))
     );
     let bytes = encode(&contract).unwrap();
-    let raw: DecodedShapeLinkContractV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let raw: DecodedShapeLinkContractV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&raw).unwrap(), bytes);
-    raw.validate_against(&contract, &mut fixture.meter())
-        .unwrap();
+    raw.validate_against(&contract).unwrap();
     let mut altered = bytes;
     let spelling = fixture.name().as_bytes();
     let index = altered
@@ -29,10 +27,6 @@ fn shape_link_descriptor_and_registration_share_one_complete_semantic_contract()
         .position(|part| part == spelling)
         .unwrap();
     altered[index] ^= 1;
-    let raw: DecodedShapeLinkContractV1 =
-        decode_canonical(&altered, DecodeLimits::default()).unwrap();
-    assert!(
-        raw.validate_against(&contract, &mut fixture.meter())
-            .is_err()
-    );
+    let raw: DecodedShapeLinkContractV1 = decode_canonical(&altered).unwrap();
+    assert!(raw.validate_against(&contract).is_err());
 }

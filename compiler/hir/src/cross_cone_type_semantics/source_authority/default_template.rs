@@ -52,7 +52,6 @@ impl DefaultSourceTemplateV1 {
         value_parameters: CanonicalTemplateValueParametersV1,
         references: DefaultSourceReferencesV1,
         definition_origin: ExportDefinitionSourceV1,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, DefaultSourceTemplateBuildError> {
         let template = Self {
             key,
@@ -68,9 +67,9 @@ impl DefaultSourceTemplateV1 {
             references,
             definition_origin,
         };
-        template.validate_shape(meter)?;
+        template.validate_shape()?;
         template
-            .index_locals(meter)
+            .index_locals()
             .map_err(DefaultSourceTemplateBuildError::Index)?;
         Ok(template)
     }

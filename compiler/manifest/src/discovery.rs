@@ -12,8 +12,6 @@ use scoop_identity::{
 use crate::LoadedConeManifest;
 use crate::stable_file::StableFileObservation;
 
-const MAX_SYMLINK_DEPTH: usize = 64;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceDisplayLocator(PathBuf);
 
@@ -157,7 +155,7 @@ pub enum SourceDiscoveryErrorKind {
     SourceRootNotDirectory,
     NonUtf8EntryName,
     EscapesSourceRoot,
-    SymlinkDepthExceeded,
+    SymlinkCycle,
     DirectoryCycle,
     InvalidLogicalPath(NormalizedSourcePathError),
     DuplicateLogicalPath,
@@ -194,8 +192,8 @@ impl fmt::Display for SourceDiscoveryError {
             SourceDiscoveryErrorKind::EscapesSourceRoot => {
                 formatter.write_str("symlink target escapes the resolved src root")
             }
-            SourceDiscoveryErrorKind::SymlinkDepthExceeded => {
-                formatter.write_str("symlink depth exceeds the limit of 64")
+            SourceDiscoveryErrorKind::SymlinkCycle => {
+                formatter.write_str("symlink targets form a cycle")
             }
             SourceDiscoveryErrorKind::DirectoryCycle => {
                 formatter.write_str("symlink traversal creates a directory cycle")
@@ -250,10 +248,10 @@ struct SourceCandidate {
     display_path: PathBuf,
 }
 
+#[derive(Debug)]
 struct ResolvedEntry {
     path: PathBuf,
     metadata: std::fs::Metadata,
-    symlink_depth: usize,
 }
 
 pub fn discover_manifest_sources(
@@ -283,7 +281,6 @@ pub fn discover_manifest_sources(
         &real_src,
         Path::new("src"),
         &real_src,
-        0,
         &mut active_directories,
         &mut candidates,
     )?;
@@ -434,7 +431,6 @@ fn walk_directory(
     real_directory: &Path,
     logical_directory: &Path,
     real_src: &Path,
-    symlink_depth: usize,
     active_directories: &mut BTreeSet<PathBuf>,
     candidates: &mut Vec<SourceCandidate>,
 ) -> Result<(), SourceDiscoveryError> {
@@ -449,7 +445,6 @@ fn walk_directory(
         real_directory,
         logical_directory,
         real_src,
-        symlink_depth,
         active_directories,
         candidates,
     );
@@ -461,7 +456,6 @@ fn walk_active_directory(
     real_directory: &Path,
     logical_directory: &Path,
     real_src: &Path,
-    symlink_depth: usize,
     active_directories: &mut BTreeSet<PathBuf>,
     candidates: &mut Vec<SourceCandidate>,
 ) -> Result<(), SourceDiscoveryError> {
@@ -509,7 +503,7 @@ fn walk_active_directory(
         let name = entry.file_name();
         let name = name.to_str().expect("entry names were validated as UTF-8");
         let logical_path = logical_directory.join(name);
-        let resolved = resolve_entry(&entry.path(), symlink_depth)?;
+        let resolved = resolve_entry(&entry.path())?;
         if !resolved.path.starts_with(real_src) {
             return Err(SourceDiscoveryError::new(
                 entry.path(),
@@ -522,7 +516,6 @@ fn walk_active_directory(
                 &resolved.path,
                 &logical_path,
                 real_src,
-                resolved.symlink_depth,
                 active_directories,
                 candidates,
             )?;
@@ -560,12 +553,9 @@ fn validated_entry_name(name: &OsStr) -> Option<&str> {
     name.to_str()
 }
 
-fn resolve_entry(
-    path: &Path,
-    inherited_symlink_depth: usize,
-) -> Result<ResolvedEntry, SourceDiscoveryError> {
+fn resolve_entry(path: &Path) -> Result<ResolvedEntry, SourceDiscoveryError> {
     let mut current = path.to_path_buf();
-    let mut depth = inherited_symlink_depth;
+    let mut links = BTreeSet::new();
     loop {
         let metadata = std::fs::symlink_metadata(&current).map_err(|error| {
             SourceDiscoveryError::io(DiscoveryIoOperation::Inspect, current.clone(), error)
@@ -580,19 +570,23 @@ fn resolve_entry(
             return Ok(ResolvedEntry {
                 path: canonical,
                 metadata,
-                symlink_depth: depth,
             });
         }
-        depth = depth.checked_add(1).ok_or_else(|| {
-            SourceDiscoveryError::new(
-                path.to_path_buf(),
-                SourceDiscoveryErrorKind::SymlinkDepthExceeded,
-            )
+        let parent = current
+            .parent()
+            .expect("a symlink directory entry has a parent");
+        let parent = std::fs::canonicalize(parent).map_err(|error| {
+            SourceDiscoveryError::io(DiscoveryIoOperation::Canonicalize, current.clone(), error)
         })?;
-        if depth > MAX_SYMLINK_DEPTH {
+        let link = parent.join(
+            current
+                .file_name()
+                .expect("a symlink directory entry has a name"),
+        );
+        if !links.insert(link) {
             return Err(SourceDiscoveryError::new(
                 path.to_path_buf(),
-                SourceDiscoveryErrorKind::SymlinkDepthExceeded,
+                SourceDiscoveryErrorKind::SymlinkCycle,
             ));
         }
         let target = std::fs::read_link(&current).map_err(|error| {
@@ -601,10 +595,7 @@ fn resolve_entry(
         current = if target.is_absolute() {
             target
         } else {
-            current
-                .parent()
-                .expect("a directory entry always has a parent")
-                .join(target)
+            parent.join(target)
         };
     }
 }
@@ -727,6 +718,40 @@ mod tests {
         assert!(matches!(
             discover_manifest_sources(&cone.load()).unwrap_err().kind(),
             SourceDiscoveryErrorKind::DirectoryCycle
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn follows_long_acyclic_symlink_chains() {
+        let cone = TempCone::new();
+        let root = cone.0.join("src");
+        std::fs::write(root.join("last.scoop"), "fun source() {}\n").unwrap();
+        for index in 0..80 {
+            let next = if index == 79 {
+                "last.scoop".to_owned()
+            } else {
+                format!("link{}", index + 1)
+            };
+            std::os::unix::fs::symlink(next, root.join(format!("link{index}"))).unwrap();
+        }
+        let resolved = resolve_entry(&root.join("link0")).unwrap();
+        assert_eq!(
+            resolved.path,
+            std::fs::canonicalize(root.join("last.scoop")).unwrap()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlink_cycles_with_different_relative_spellings() {
+        let cone = TempCone::new();
+        let root = cone.0.join("src");
+        std::os::unix::fs::symlink("./second", root.join("first")).unwrap();
+        std::os::unix::fs::symlink("../src/first", root.join("second")).unwrap();
+        assert!(matches!(
+            resolve_entry(&root.join("first")).unwrap_err().kind(),
+            SourceDiscoveryErrorKind::SymlinkCycle
         ));
     }
 

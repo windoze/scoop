@@ -8,7 +8,6 @@ pub(super) fn project(
     export: &ExportHir,
     id: PropertyId,
     signatures: &HirInterfaceSignatureProjector<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<NominalSupportPropertyInterfaceV1, Error> {
     let property = &export.properties[id];
     let HirPropertyIdentity::Ordinary(identity) = &export.property_identities[id] else {
@@ -37,9 +36,9 @@ pub(super) fn project(
     if key.owners().owners().last() != Some(&owner_atom) {
         return Err(invalid("source property has a different lexical owner"));
     }
-    resources::binders(export, parameters, parameters.len(), meter)?;
+
     let binders = signatures.binder_frame(parameters, 0).map_err(invalid)?;
-    resources::ty(export, property.ty, binders.len(), 3, meter)?;
+
     let value_type = signatures
         .map_type(property.ty, &binders)
         .map_err(invalid)?;
@@ -48,22 +47,13 @@ pub(super) fn project(
         key,
         DefinitionOriginSubject::Property(identity.id()),
         property.access.declared,
-        meter,
     )?;
     let payload = match &property.representation {
         PropertyRepresentation::Const { value } => NominalSupportPropertyPayloadV1::Const {
-            value: constants::project(
-                export,
-                property,
-                identity.id(),
-                value,
-                value_type,
-                &access,
-                meter,
-            )?,
+            value: constants::project(export, property, identity.id(), value, value_type, &access)?,
         },
         _ => NominalSupportPropertyPayloadV1::Runtime {
-            interface: runtime(export, property, key, owner, value_type, meter)?,
+            interface: runtime(export, property, key, owner, value_type)?,
         },
     };
     NominalSupportPropertyInterfaceV1::try_new(identity.id(), access, payload).map_err(invalid)
@@ -75,7 +65,6 @@ fn runtime(
     key: &SourceDeclarationKey,
     owner: SourceNominalId,
     value_type: SignatureTypeKey,
-    meter: &mut BudgetMeter,
 ) -> Result<NominalSourcePropertyPayloadV1, Error> {
     let getter_id = property.capability.getter();
     let getter = &export.property_getters[getter_id];
@@ -97,7 +86,6 @@ fn runtime(
                     key,
                     DefinitionOriginSubject::PropertyAccessor(id),
                     setter.access.declared,
-                    meter,
                 )?,
             }
         }
@@ -112,7 +100,6 @@ fn runtime(
             export,
             getter.implementation,
             setter.map(|setter| setter.implementation),
-            meter,
         )?,
     )
     .map_err(invalid)

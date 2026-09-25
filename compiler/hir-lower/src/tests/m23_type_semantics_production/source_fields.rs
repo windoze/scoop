@@ -13,10 +13,6 @@ const COMBINED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-reference-source-fields/combined.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn reference_source_fields_preserve_private_storage_binders_and_declaration_order() {
     for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
@@ -26,16 +22,11 @@ fn reference_source_fields_preserve_private_storage_binders_and_declaration_orde
             let table = public.nominal_interfaces();
             let foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
             table
-                .validate_declared_field_inventory(&foundation, &mut meter())
+                .validate_declared_field_inventory(&foundation)
                 .unwrap();
-            let required =
-                hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
-            let contracts = hir::CanonicalNominalSourceContractsV1::from_export_hir(
-                export,
-                &required,
-                &mut meter(),
-            )
-            .unwrap();
+            let required = hir::CanonicalSourceNominalIdsV1::from_export_hir(export).unwrap();
+            let contracts =
+                hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &required).unwrap();
             let mut dump = Vec::new();
             for (class, declaration) in export.classes.iter() {
                 let identity = &export.nominal_identities[class];
@@ -91,12 +82,12 @@ fn reference_source_fields_preserve_private_storage_binders_and_declaration_orde
             assert_snapshot(case, &dump.concat());
             let bytes = encode(table).unwrap();
             let decoded: hir::DecodedCanonicalNominalInterfacesV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             let mut identities = source_inventory::identity_closure(output);
             let restored = decoded.resolve(&mut identities).unwrap();
             assert_eq!(&restored, table);
             restored
-                .validate_declared_field_inventory(&foundation, &mut meter())
+                .validate_declared_field_inventory(&foundation)
                 .unwrap();
         });
     }

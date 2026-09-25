@@ -11,7 +11,7 @@ fn callable_domains_reject_valid_artifact_nested_identities_from_another_default
             let mut local = 0;
             let mut generated = 0;
             for template in inputs.templates.records() {
-                let nested = template.index_nested_callables(&mut meter(), &scoop_wire::WirePath::root()).unwrap();
+                let nested = template.index_nested_callables( &scoop_wire::WirePath::root()).unwrap();
                 for occurrence in nested.occurrences() {
                     let identity = occurrence.descriptor().identity();
                     let declaration = match identity {
@@ -24,8 +24,8 @@ fn callable_domains_reject_valid_artifact_nested_identities_from_another_default
                     let callee = hir::DefaultCallableRefV1::try_new(declaration, callee.owner().clone(), callee.type_arguments().to_vec()).unwrap();
                     let changed = replacement::call(original, &callee, Domain::universal());
                     let table = super::super::super::default_origins::replace(&inputs.templates, changed);
-                    let declarations = parameters.bind_default_declarations(&table, &[], &mut meter()).unwrap();
-                    let error = domains.bind_nominal_default_callable_domains(&declarations, &mut meter()).unwrap_err();
+                    let declarations = parameters.bind_default_declarations(&table, &[]).unwrap();
+                    let error = domains.bind_nominal_default_callable_domains(&declarations).unwrap_err();
                     let Error::Target { key, index, error } = error else { panic!("{error:?}") };
                     assert_eq!((key, index), (original.key(), 0));
                     match declaration {
@@ -57,7 +57,7 @@ fn callable_reference_domain_rejects_false_local_roles_and_generated_underlying_
             };
             let local_template = support::named(inputs, "Host.local", 0);
             let nested = local_template
-                .index_nested_callables(&mut meter(), &scoop_wire::WirePath::root())
+                .index_nested_callables(&scoop_wire::WirePath::root())
                 .unwrap();
             let hir::DefaultNestedCallableIdentityV1::LocalFunction(local) =
                 nested.occurrences()[0].descriptor().identity()
@@ -100,11 +100,9 @@ fn callable_reference_domain_rejects_false_local_roles_and_generated_underlying_
                 );
                 let table =
                     super::super::super::default_origins::replace(&inputs.templates, changed);
-                let declarations = parameters
-                    .bind_default_declarations(&table, &[], &mut meter())
-                    .unwrap();
+                let declarations = parameters.bind_default_declarations(&table, &[]).unwrap();
                 let error = domains
-                    .bind_nominal_default_callable_domains(&declarations, &mut meter())
+                    .bind_nominal_default_callable_domains(&declarations)
                     .unwrap_err();
                 let Error::Target { key, error, .. } = error else {
                     panic!("{error:?}")

@@ -7,9 +7,9 @@ fn nominal_binding_requires_exact_roots_and_complete_nonpublic_member_lists() {
         let mut fixture = Fixture::from_output(output);
         let table = sources(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let missing = Table::try_new(table.records()[1..].to_vec(), &mut meter()).unwrap();
+        let missing = Table::try_new(table.records()[1..].to_vec()).unwrap();
         assert!(matches!(
-            foundation.bind_nominal_sources(&missing, &mut meter()),
+            foundation.bind_nominal_sources(&missing),
             Err(Error::Inventory("nominal owners"))
         ));
         let source = named(&fixture, &table, "Defaults");
@@ -23,7 +23,7 @@ fn nominal_binding_requires_exact_roots_and_complete_nonpublic_member_lists() {
             source.source_shape().clone(),
         );
         assert!(matches!(
-            foundation.bind_nominal_sources(&replace(&table, missing), &mut meter()),
+            foundation.bind_nominal_sources(&replace(&table, missing)),
             Err(Error::Inventory("nominal constructors"))
         ));
         let source = named(&fixture, &table, "Marker");
@@ -37,7 +37,7 @@ fn nominal_binding_requires_exact_roots_and_complete_nonpublic_member_lists() {
             source.source_shape().clone(),
         );
         assert!(matches!(
-            foundation.bind_nominal_sources(&replace(&table, missing), &mut meter()),
+            foundation.bind_nominal_sources(&replace(&table, missing)),
             Err(Error::Inventory("nominal members"))
         ));
     });
@@ -54,7 +54,7 @@ fn nominal_binding_requires_exact_roots_and_complete_nonpublic_member_lists() {
             source.source_shape().clone(),
         );
         assert!(matches!(
-            foundation.bind_nominal_sources(&replace(&table, missing), &mut meter()),
+            foundation.bind_nominal_sources(&replace(&table, missing)),
             Err(Error::Inventory("nominal children"))
         ));
     });
@@ -86,7 +86,7 @@ fn nominal_binding_rejects_omitted_fields_variants_and_variant_fields() {
             missing,
         );
         assert!(matches!(
-            foundation.bind_nominal_sources(&replace(&table, record), &mut meter()),
+            foundation.bind_nominal_sources(&replace(&table, record)),
             Err(Error::Inventory("nominal fields"))
         ));
         let choice = named(&fixture, &table, "Choice");
@@ -112,7 +112,7 @@ fn nominal_binding_rejects_omitted_fields_variants_and_variant_fields() {
                 shape,
             );
             assert!(
-                matches!(foundation.bind_nominal_sources(&replace(&table, record), &mut meter()), Err(Error::Inventory(actual)) if actual == expected)
+                matches!(foundation.bind_nominal_sources(&replace(&table, record)), Err(Error::Inventory(actual)) if actual == expected)
             );
         }
     });
@@ -150,7 +150,7 @@ fn nominal_binding_rejects_invalid_selectors_and_out_of_scope_field_types() {
                 Shape::Enum(EnumSourceShapeV1::try_new(variants).unwrap()),
             );
             assert!(matches!(
-                foundation.bind_nominal_sources(&replace(&table, record), &mut meter()),
+                foundation.bind_nominal_sources(&replace(&table, record)),
                 Err(Error::Contract { .. })
             ));
         }
@@ -176,9 +176,9 @@ fn nominal_binding_requires_artifact_owned_keys_even_when_graph_resolves_them() 
             let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
             let foundation = fixture
                 .source
-                .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+                .bind_to_foundation(&incomplete, &fixture.identities)
                 .unwrap();
-            let result = foundation.bind_nominal_sources(&table, &mut meter());
+            let result = foundation.bind_nominal_sources(&table);
             assert!(
                 matches!(result, Err(Error::Inventory(_) | Error::MissingObject(_))),
                 "field {field}: {result:?}"

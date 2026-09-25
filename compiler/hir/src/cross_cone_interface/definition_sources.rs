@@ -7,9 +7,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-mod metered;
 mod semantics;
-pub use metered::MeteredDefinitionSourcesResolutionError;
 
 pub use semantics::{
     ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceSemanticValidationError,
@@ -67,7 +65,7 @@ impl WireEncode for DecodedExportDefinitionSourceV1 {
 }
 
 impl WireDecode for DecodedExportDefinitionSourceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedDefinitionOrigin::decode(decoder).map(|origin| Self { origin })
     }
 }
@@ -144,7 +142,13 @@ impl DecodedCanonicalExportDefinitionSourcesV1 {
         R: PersistentIdResolver<ConeIdentity, Error = E>
             + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
     {
-        let mut sources = Vec::<ExportDefinitionSourceV1>::with_capacity(self.sources.len());
+        let mut sources = Vec::<ExportDefinitionSourceV1>::new();
+        scoop_wire::allocation::try_reserve(
+            &mut sources,
+            self.sources.len(),
+            &scoop_wire::WirePath::root(),
+        )
+        .map_err(ExportDefinitionSourceSetValidationError::Allocation)?;
         for (index, source) in self.sources.into_iter().enumerate() {
             let source = source.resolve(resolver).map_err(|error| {
                 ExportDefinitionSourceSetValidationError::Source { index, error }
@@ -179,7 +183,7 @@ impl WireEncode for DecodedCanonicalExportDefinitionSourcesV1 {
 }
 
 impl WireDecode for DecodedCanonicalExportDefinitionSourcesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExportDefinitionSourceV1::decode(decoder))
             .map(|sources| Self { sources })
@@ -205,6 +209,7 @@ impl std::error::Error for ExportDefinitionSourceSetBuildError {}
 
 #[derive(Debug)]
 pub enum ExportDefinitionSourceSetValidationError<E> {
+    Allocation(WireError),
     Source {
         index: usize,
         error: SourceOriginResolutionError<E>,
@@ -220,6 +225,7 @@ pub enum ExportDefinitionSourceSetValidationError<E> {
 impl<E: fmt::Display> fmt::Display for ExportDefinitionSourceSetValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Allocation(error) => error.fmt(formatter),
             Self::Source { index, error } => {
                 write!(
                     formatter,
@@ -271,3 +277,6 @@ impl<E: std::error::Error + 'static> std::error::Error
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod resolution_tests;

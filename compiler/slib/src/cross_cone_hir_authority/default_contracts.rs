@@ -27,9 +27,8 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 .iter()
                 .map(|provider| (provider.identity, provider.interface)),
         );
-        let mut shapes = DefaultNominalShapes::new(self.identities, providers, self.meter, &path)?;
-        self.meter
-            .check_table_entries(templates.len() as u64, &path)?;
+        let mut shapes = DefaultNominalShapes::new(self.identities, providers)?;
+
         for (index, template) in templates.iter().enumerate() {
             self.validate_default_contract(
                 template,
@@ -55,17 +54,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let interface = self
             .provider_interface(provider)
             .map_err(|error| Error::Provider(Box::new(error)))?;
-        self.meter.charge_work(
-            u64::from(
-                self.current_interface
-                    .callable_interfaces()
-                    .records()
-                    .len()
-                    .max(1)
-                    .ilog2(),
-            ) + 1,
-            path,
-        )?;
+
         if let Some(public) = self
             .current_interface
             .callable_interfaces()
@@ -73,7 +62,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         {
             template
                 .references()
-                .validate_public_access(public, self.meter, path)
+                .validate_public_access(public)
                 .map_err(|error| Error::PublicWitness(Box::new(error)))?;
         }
         let publisher = declarations::contract(
@@ -81,7 +70,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             template.key().owner(),
             ParameterSelection::Position(template.key().parameter_position()),
             shapes,
-            self.meter,
             path,
         )?;
         let original = declarations::contract(
@@ -89,16 +77,15 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             template.definition_root().declaration(),
             ParameterSelection::from_path(template.definition_path())?,
             shapes,
-            self.meter,
             path,
         )?;
         let view = DefaultTemplateContractViewV1::from(template);
-        view.validate(&publisher, &original, shapes, self.meter, path)
+        view.validate(&publisher, &original, shapes, path)
             .map_err(|error| Error::Contract(Box::new(error)))?;
-        view.validate_provider_types(original.shape(), shapes, self.meter, path)
+        view.validate_provider_types(original.shape(), shapes, path)
             .map_err(|error| Error::Envelope(Box::new(error)))?;
         template
-            .validate_source_reference_closure(self.meter, path)
+            .validate_source_reference_closure(path)
             .map_err(|error| Error::ReferenceClosure(Box::new(error)))
     }
 }

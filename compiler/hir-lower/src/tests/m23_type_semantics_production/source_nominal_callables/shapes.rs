@@ -130,7 +130,7 @@ fn nominal_callable_projection_does_not_silently_drop_missing_required_ids() {
         let mut required = required(output);
         required.insert(foreign);
         assert!(matches!(
-            Table::from_export_hir(&output.output().export, &required, &mut meter()),
+            Table::from_export_hir(&output.output().export, &required),
             Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(message))
                 if message == "required nominal source callable has no sealed declaration"
         ));

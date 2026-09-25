@@ -152,7 +152,7 @@ impl DecodedPropertyInterfaceRecordV1 {
 }
 
 impl WireDecode for DecodedPropertyInterfaceRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             data: decoder.field(1, DecodedPropertyDeclarationRecordV1::decode)?,

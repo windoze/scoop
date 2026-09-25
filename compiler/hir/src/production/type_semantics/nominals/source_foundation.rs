@@ -1,5 +1,4 @@
 use super::*;
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod sources;
 
@@ -14,58 +13,40 @@ impl CrossConeTypeSemanticsFoundationV1 {
     /// Projects source evidence before candidate dispatch, protected-callable,
     /// or default contracts are built. Serialization and binding have their
     /// own validation step; this sealed-HIR product is not a proof.
-    pub fn from_dependency_hir(
-        output: &DependencyHirOutput,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
-        Self::from_hir(output.output(), meter)
+    pub fn from_dependency_hir(output: &DependencyHirOutput) -> Result<Self, Error> {
+        Self::from_hir(output.output())
     }
 
     /// Projects declaration metadata from the same sealed HIR pair for every Cone.
     /// Source projection references existing exact types; it does not materialize them.
-    pub fn from_hir(output: &Output, meter: &mut BudgetMeter) -> Result<Self, Error> {
-        project(output, meter).map(|projection| projection.foundation)
+    pub fn from_hir(output: &Output) -> Result<Self, Error> {
+        project(output).map(|projection| projection.foundation)
     }
 }
 
-pub(super) fn project<'a>(
-    output: &'a Output,
-    meter: &mut BudgetMeter,
-) -> Result<Projection<'a>, Error> {
-    let path = WirePath::root();
-    meter
-        .check_semantic_depth(1, &path)
-        .map_err(inheritance::source_resources::resource)?;
-    meter
-        .charge_nodes(1, &path)
-        .map_err(inheritance::source_resources::resource)?;
-    meter
-        .charge_work(1, &path)
-        .map_err(inheritance::source_resources::resource)?;
+pub(super) fn project<'a>(output: &'a Output) -> Result<Projection<'a>, Error> {
     let export = output.export.module();
     let local = output.local.module();
-    let public = CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, meter).map_err(
-        |error| match error {
+    let public =
+        CanonicalNominalInterfacesV1::from_export_hir(export).map_err(|error| match error {
             crate::NominalInterfaceBuildError::Resource(error) => {
-                inheritance::source_resources::resource(error)
+                inheritance::source_errors::resource(error)
             }
             other => Error::PublicInterface(other.to_string()),
-        },
-    )?;
-    let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.export, meter)?;
-    let sources = sources::project(export, &required, meter)?;
+        })?;
+    let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.export)?;
+    let sources = sources::project(export, &required)?;
     let mut roots = Vec::new();
-    meter
-        .try_reserve_collection_slots(
-            &mut roots,
-            required.values().len(),
-            &scoop_wire::WirePath::root(),
-        )
-        .map_err(inheritance::source_resources::resource)?;
+    scoop_wire::allocation::try_reserve(
+        &mut roots,
+        required.values().len(),
+        &scoop_wire::WirePath::root(),
+    )
+    .map_err(inheritance::source_errors::resource)?;
     roots.extend_from_slice(required.values());
     // Source roots remain complete. Only the closed param-free subset supplies
     // representation and exact inheritance; no exact pair is synthesized.
-    let concrete = source_inventory::from_pair(output, &required, meter)?;
+    let concrete = source_inventory::from_pair(output, &required)?;
     let root_exacts = concrete
         .iter()
         .map(|nominal| nominal.exact)

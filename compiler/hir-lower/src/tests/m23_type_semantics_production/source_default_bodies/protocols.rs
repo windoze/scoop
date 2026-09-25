@@ -16,8 +16,8 @@ fn private_literal_body_is_independent_of_public_lookup() {
                 .records()
                 .is_empty()
         );
-        let ordinary = Body::from_dependency_hir(output, owner, 0, &mut meter()).unwrap();
-        let direct = Body::from_export_hir(export, owner, 0, &mut meter()).unwrap();
+        let ordinary = Body::from_dependency_hir(output, owner, 0).unwrap();
+        let direct = Body::from_export_hir(export, owner, 0).unwrap();
         assert_eq!(ordinary.body(), direct.body());
         assert_eq!(ordinary.result(), direct.result());
         assert!(
@@ -44,13 +44,7 @@ fn vararg_default_projects_the_array_body_and_empty_omission_is_not_a_body() {
     ));
     let output = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()]).unwrap();
     let export = output.export.module();
-    let body = Body::from_export_hir(
-        export,
-        function(export, "Variadic.defaulted"),
-        1,
-        &mut meter(),
-    )
-    .unwrap();
+    let body = Body::from_export_hir(export, function(export, "Variadic.defaulted"), 1).unwrap();
     assert!(
         matches!(body.result(), SignatureTypeKey::NominalApplication { arguments, .. } if arguments.as_slice().len() == 1)
     );
@@ -58,12 +52,7 @@ fn vararg_default_projects_the_array_body_and_empty_omission_is_not_a_body() {
         matches!(body.body().value().kind(), hir::DefaultExpressionKindV1::ArrayLiteral(elements) if elements.len() == 1)
     );
     assert!(matches!(
-        Body::from_export_hir(
-            export,
-            function(export, "Variadic.collect"),
-            0,
-            &mut meter()
-        ),
+        Body::from_export_hir(export, function(export, "Variadic.collect"), 0),
         Err(Error::NoDefault { position: 0, .. })
     ));
 }
@@ -76,20 +65,10 @@ fn inherited_generic_body_keeps_provider_binders_and_target_substitution() {
     ));
     with_hir_source(source, |output, _| {
         let export = output.output().export.module();
-        let body = Body::from_dependency_hir(
-            output,
-            function(export, "GenericChild.choose"),
-            1,
-            &mut meter(),
-        )
-        .unwrap();
-        let parent = Body::from_dependency_hir(
-            output,
-            function(export, "GenericParent.choose"),
-            1,
-            &mut meter(),
-        )
-        .unwrap();
+        let body =
+            Body::from_dependency_hir(output, function(export, "GenericChild.choose"), 1).unwrap();
+        let parent =
+            Body::from_dependency_hir(output, function(export, "GenericParent.choose"), 1).unwrap();
         assert_ne!(body.owner(), parent.owner());
         assert_eq!(body.definition_root(), parent.definition_root());
         assert_eq!(body.body(), parent.body());
@@ -127,7 +106,7 @@ fn source_body_rejects_corrupt_provider_binder_identity() {
             .type_parameters
             .clear();
         assert!(matches!(
-            Body::from_export_hir(&corrupted, owner, 1, &mut meter()),
+            Body::from_export_hir(&corrupted, owner, 1),
             Err(Error::Body(
                 hir::DefaultTemplateEnvelopeProjectionError::TypeParameterArity {
                     expected: 1,
@@ -140,7 +119,7 @@ fn source_body_rejects_corrupt_provider_binder_identity() {
             .type_arguments
             .clear();
         assert!(matches!(
-            Body::from_export_hir(&corrupted, owner, 1, &mut meter()),
+            Body::from_export_hir(&corrupted, owner, 1),
             Err(Error::Body(
                 hir::DefaultTemplateEnvelopeProjectionError::TypeParameterArity {
                     expected: 1,

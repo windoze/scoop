@@ -51,30 +51,6 @@ impl NominalExactLeafClassifierV1 {
         }))
     }
 
-    pub fn classify_callable_metered(
-        &self,
-        callable: &CallableInterfaceRecordV1,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<ParamFreeNominalCallableV1>, NominalCallableClassificationError> {
-        let parameters = callable.parameters().parameters().len() as u64;
-        let lookups = parameters.saturating_add(2);
-        let depth = 1 + u64::from(self.leaves.len().max(1).ilog2());
-        meter
-            .charge_work(lookups.saturating_mul(depth), path)
-            .map_err(NominalCallableClassificationError::Resource)?;
-        meter
-            .charge_collection_slots(parameters, path)
-            .map_err(NominalCallableClassificationError::Resource)?;
-        meter
-            .charge_owned_bytes(
-                parameters.saturating_mul(std::mem::size_of::<PersistentExactTypeId>() as u64),
-                path,
-            )
-            .map_err(NominalCallableClassificationError::Resource)?;
-        self.classify_callable(callable)
-    }
-
     fn exact_signature(
         &self,
         callable: &CallableInterfaceRecordV1,

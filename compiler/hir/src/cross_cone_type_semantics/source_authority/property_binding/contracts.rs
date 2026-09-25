@@ -5,13 +5,12 @@ pub(super) fn validate(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     key: &SourceDeclarationKey,
     record: &NominalSupportPropertyInterfaceV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), InheritancePropertyBindingError> {
     use InheritancePropertyBindingError as Error;
     let property = record.declaration();
     let payload = payload(record)?;
-    let owner = exact_owner(payload.owner(), meter)?;
-    query(dispatch.inventory().records().len(), meter)?;
+    let owner = exact_owner(payload.owner())?;
+
     let source = dispatch
         .inventory()
         .get(owner)
@@ -22,41 +21,29 @@ pub(super) fn validate(
         key,
         DefinitionOriginSubject::Property(property),
         record.declaration_access(),
-        meter,
     )?;
     access::accessor(
         dispatch.foundation,
         property,
         payload.getter(),
         AccessorRole::Getter,
-        meter,
     )?;
     if let ProtectedPropertyMutabilityV1::ReadWrite {
         setter,
         setter_access,
     } = payload.mutability()
     {
-        access::accessor(
-            dispatch.foundation,
-            property,
-            *setter,
-            AccessorRole::Setter,
-            meter,
-        )?;
+        access::accessor(dispatch.foundation, property, *setter, AccessorRole::Setter)?;
         let setter = access::validate(
             dispatch.foundation,
             property,
             key,
             DefinitionOriginSubject::PropertyAccessor(*setter),
             setter_access,
-            meter,
         )?;
-        let getter_domain = graph.replay_declaration_access(getter, meter)?;
-        let setter_domain = graph.replay_declaration_access(setter, meter)?;
-        if !getter_domain
-            .lookup()
-            .covers(setter_domain.lookup(), meter)?
-        {
+        let getter_domain = graph.replay_declaration_access(getter)?;
+        let setter_domain = graph.replay_declaration_access(setter)?;
+        if !getter_domain.lookup().covers(setter_domain.lookup())? {
             return Err(Error::SetterDomain(property));
         }
     }
@@ -68,12 +55,11 @@ pub(super) fn validate(
             }
         })
     {
-        query(dispatch.callables.records().len(), meter)?;
         if let Some(callable) = dispatch.callables.get(declaration) {
-            signature(dispatch.foundation, owner, record, callable, meter)?;
+            signature(dispatch.foundation, owner, record, callable)?;
         }
     }
-    slots::validate(dispatch, graph, source, record, meter)
+    slots::validate(dispatch, graph, source, record)
 }
 
 fn signature(
@@ -81,7 +67,6 @@ fn signature(
     owner: PersistentExactTypeId,
     record: &NominalSupportPropertyInterfaceV1,
     callable: &InheritanceSourceCallableV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), InheritancePropertyBindingError> {
     use InheritancePropertyBindingError as Error;
     let property = record.declaration();
@@ -107,19 +92,13 @@ fn signature(
         }
         _ => return Err(Error::Signature(property)),
     };
-    meter.charge_work(access.lexical_owners().len() as u64 + 1, &WirePath::root())?;
+
     if callable.declaration_access().declared_visibility() != access.declared_visibility()
         || callable.declaration_access().lexical_owners() != access.lexical_owners()
     {
         return Err(Error::Visibility(property));
     }
-    match_value_type(
-        foundation,
-        property,
-        payload.value_type(),
-        exact_value,
-        meter,
-    )
+    match_value_type(foundation, property, payload.value_type(), exact_value)
 }
 
 pub(super) fn match_value_type(
@@ -127,14 +106,12 @@ pub(super) fn match_value_type(
     property: PersistentPropertyId,
     value: &scoop_identity::SignatureTypeKey,
     exact: PersistentExactTypeId,
-    meter: &mut BudgetMeter,
 ) -> Result<(), InheritancePropertyBindingError> {
     use InheritancePropertyBindingError as Error;
     NominalRepresentationSupportV1::validate_exact_field_types(
         std::slice::from_ref(value),
         &[exact],
         foundation,
-        meter,
     )
     .map_err(|error| match error {
         InheritanceSlotContractSemanticError::Resource(error) => Error::Resource(error),

@@ -12,8 +12,6 @@ use crate::{
     CanonicalSourceParameterShapesV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
 };
 
-mod resources;
-
 #[test]
 fn only_known_nominal_leaves_are_classified() {
     let (classifier, unit, exact) = classifier();

@@ -42,7 +42,7 @@ encode_record!(InheritanceSourceCallableV1);
 encode_record!(DecodedInheritanceSourceCallableV1);
 
 impl WireDecode for DecodedInheritanceSourceCallableV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedInheritanceCallableDeclarationV1::decode)?,
@@ -58,7 +58,7 @@ impl WireEncode for DecodedCanonicalInheritanceSourceCallablesV1 {
     }
 }
 impl WireDecode for DecodedCanonicalInheritanceSourceCallablesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedInheritanceSourceCallableV1::decode(d))
             .map(|records| Self { records })

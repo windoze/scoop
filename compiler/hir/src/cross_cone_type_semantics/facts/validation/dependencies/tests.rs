@@ -7,7 +7,7 @@ use scoop_identity::{
     CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
     PackagePath, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::DecodeLimits;
+
 use std::{cell::Cell, collections::BTreeMap};
 
 struct Shapes(BTreeMap<PersistentExactTypeId, Shape>);
@@ -25,12 +25,9 @@ impl ExactTypeFactsDependencyLookupV1 for Dependencies<'_> {
     fn get_dependency_fact(
         &self,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<CheckedExactTypeFactV1<'_>>, WireError> {
-        meter.charge_work(1, path)?;
+    ) -> Option<CheckedExactTypeFactV1<'_>> {
         self.calls.set(self.calls.get() + 1);
-        Ok(self.checked.get_checked(self.redirect.unwrap_or(exact)))
+        self.checked.get_checked(self.redirect.unwrap_or(exact))
     }
 }
 fn exact(name: &str) -> PersistentExactTypeId {
@@ -65,9 +62,6 @@ fn value(exact: PersistentExactTypeId, zero: bool, gc: Gc) -> ExactTypeFactsV1 {
     )
     .unwrap()
 }
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn local_struct_recurses_through_checked_dependencies_without_copying_their_rows() {
@@ -83,7 +77,7 @@ fn local_struct_recurses_through_checked_dependencies_without_copying_their_rows
         (reference, Shape::Reference),
     ]));
     let dependencies = Dependencies {
-        checked: external.validate_semantics(&source, &mut meter()).unwrap(),
+        checked: external.validate_semantics(&source).unwrap(),
         redirect: None,
         calls: Cell::new(0),
     };
@@ -100,7 +94,7 @@ fn local_struct_recurses_through_checked_dependencies_without_copying_their_rows
         },
     )]));
     let checked = local_table
-        .validate_semantics_with_dependencies(&local_source, &dependencies, &mut meter())
+        .validate_semantics_with_dependencies(&local_source, &dependencies)
         .unwrap();
     assert_eq!(checked.records(), local_table.records());
     assert_eq!(checked.records().len(), 1);
@@ -115,10 +109,7 @@ fn missing_and_wrong_identity_dependency_facts_are_rejected() {
         CanonicalExactTypeFactsV1::try_new(vec![value(wrong, false, Gc::GcFree)]).unwrap();
     let mut dependencies = Dependencies {
         checked: external
-            .validate_semantics(
-                &Shapes(BTreeMap::from([(wrong, Shape::Scalar)])),
-                &mut meter(),
-            )
+            .validate_semantics(&Shapes(BTreeMap::from([(wrong, Shape::Scalar)])))
             .unwrap(),
         redirect: None,
         calls: Cell::new(0),
@@ -132,12 +123,12 @@ fn missing_and_wrong_identity_dependency_facts_are_rejected() {
         },
     )]));
     assert!(
-        matches!(local_table.validate_semantics_with_dependencies(&source, &dependencies, &mut meter()),
+        matches!(local_table.validate_semantics_with_dependencies(&source, &dependencies),
         Err(Error::MissingFacts(id)) if id == field)
     );
     dependencies.redirect = Some(wrong);
     assert!(
-        matches!(local_table.validate_semantics_with_dependencies(&source, &dependencies, &mut meter()),
+        matches!(local_table.validate_semantics_with_dependencies(&source, &dependencies),
         Err(Error::DependencyIdentity { expected, actual }) if expected == field && actual == wrong)
     );
 }
@@ -148,7 +139,7 @@ fn external_zero_sized_facts_preserve_struct_and_c_layout_rules() {
     let external = CanonicalExactTypeFactsV1::try_new(vec![value(unit, true, Gc::GcFree)]).unwrap();
     let dependencies = Dependencies {
         checked: external
-            .validate_semantics(&Shapes(BTreeMap::from([(unit, Shape::Unit)])), &mut meter())
+            .validate_semantics(&Shapes(BTreeMap::from([(unit, Shape::Unit)])))
             .unwrap(),
         redirect: None,
         calls: Cell::new(0),
@@ -160,7 +151,7 @@ fn external_zero_sized_facts_preserve_struct_and_c_layout_rules() {
         Shape::OrdinaryStruct { fields: vec![unit] },
     )]));
     ordinary
-        .validate_semantics_with_dependencies(&source, &dependencies, &mut meter())
+        .validate_semantics_with_dependencies(&source, &dependencies)
         .unwrap();
     let c_layout =
         CanonicalExactTypeFactsV1::try_new(vec![value(local, false, Gc::GcFree)]).unwrap();
@@ -169,7 +160,7 @@ fn external_zero_sized_facts_preserve_struct_and_c_layout_rules() {
         Shape::CLayoutStruct { fields: vec![unit] },
     )]));
     assert!(
-        matches!(c_layout.validate_semantics_with_dependencies(&source, &dependencies, &mut meter()),
+        matches!(c_layout.validate_semantics_with_dependencies(&source, &dependencies),
         Err(Error::ZeroSizedCLayoutField { owner, field }) if owner == local && field == unit)
     );
 }
@@ -181,10 +172,7 @@ fn a_local_record_cannot_be_replaced_by_a_conflicting_dependency_fact() {
         CanonicalExactTypeFactsV1::try_new(vec![value(local, true, Gc::GcFree)]).unwrap();
     let dependencies = Dependencies {
         checked: external
-            .validate_semantics(
-                &Shapes(BTreeMap::from([(local, Shape::Unit)])),
-                &mut meter(),
-            )
+            .validate_semantics(&Shapes(BTreeMap::from([(local, Shape::Unit)])))
             .unwrap(),
         redirect: None,
         calls: Cell::new(0),
@@ -193,61 +181,8 @@ fn a_local_record_cannot_be_replaced_by_a_conflicting_dependency_fact() {
         CanonicalExactTypeFactsV1::try_new(vec![value(local, true, Gc::GcFree)]).unwrap();
     let source = Shapes(BTreeMap::from([(local, Shape::Scalar)]));
     assert!(matches!(
-        local_table.validate_semantics_with_dependencies(&source, &dependencies, &mut meter()),
+        local_table.validate_semantics_with_dependencies(&source, &dependencies),
         Err(Error::Mismatch { .. })
     ));
     assert_eq!(dependencies.calls.get(), 0);
-}
-
-#[test]
-fn fact_validation_precharges_its_local_state_and_shares_dependency_work() {
-    let local = exact("Local");
-    let table = CanonicalExactTypeFactsV1::try_new(vec![value(local, true, Gc::GcFree)]).unwrap();
-    let source = Shapes(BTreeMap::from([(local, Shape::Unit)]));
-    let mut short = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        table.validate_semantics(&source, &mut short),
-        Err(Error::Resource(_))
-    ));
-    let mut short = BudgetMeter::new(DecodeLimits {
-        semantic_table_entries: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        table.validate_semantics(&source, &mut short),
-        Err(Error::Resource(_))
-    ));
-    let dependencies = Dependencies {
-        checked: table.validate_semantics(&source, &mut meter()).unwrap(),
-        redirect: None,
-        calls: Cell::new(0),
-    };
-    let outer = exact("Outer");
-    let table = CanonicalExactTypeFactsV1::try_new(vec![value(outer, true, Gc::GcFree)]).unwrap();
-    let source = Shapes(BTreeMap::from([(
-        outer,
-        Shape::OrdinaryStruct {
-            fields: vec![local],
-        },
-    )]));
-    let mut short = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 2,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        table.validate_semantics_with_dependencies(&source, &dependencies, &mut short),
-        Err(Error::Resource(_))
-    ));
-    assert_eq!(dependencies.calls.get(), 0);
-    let mut exact_budget = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 3,
-        ..DecodeLimits::default()
-    });
-    table
-        .validate_semantics_with_dependencies(&source, &dependencies, &mut exact_budget)
-        .unwrap();
-    assert_eq!(dependencies.calls.get(), 1);
 }

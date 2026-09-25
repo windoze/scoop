@@ -1,7 +1,4 @@
-use scoop_wire::{
-    BudgetMeter, Encoder, WireEncode, WirePath, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash};
 
 use super::{
     EncodeResult, ExternalShapeUndefinedUseV1, LayoutLinkClosureError,
@@ -55,7 +52,6 @@ impl WireEncode for ExternalShapeObjectCoverageV1 {
 pub(super) fn from_verified<D, C, I>(
     closure: &VerifiedExternalShapeRequirementClosureV1<'_>,
     objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
-    meter: &mut BudgetMeter,
 ) -> Result<ExternalShapeObjectCoverageV1, LayoutLinkClosureError>
 where
     D: scoop_lir::StrongDescriptorReference,
@@ -75,22 +71,14 @@ where
             .patch_sites()
             .builtins()
             .strong_relocations(),
-        meter,
     )?;
-    from_projection(objects.projection(), closure.requirements(), meter)
+    from_projection(objects.projection(), closure.requirements())
 }
 
 fn from_projection(
     objects: &CodeLinkObjectMemberSetV1,
     requirements: &[ExternalShapeUndefinedUseV1],
-    meter: &mut BudgetMeter,
 ) -> Result<ExternalShapeObjectCoverageV1, LayoutLinkClosureError> {
-    let path = WirePath::root();
-    meter.check_table_entries(objects.members().len() as u64, &path)?;
-    meter.check_table_entries(requirements.len() as u64, &path)?;
-    meter.charge_nodes(objects.members().len() as u64, &path)?;
-    let depth = u64::from(objects.members().len().max(1).ilog2()) + 1;
-    meter.charge_work((requirements.len() as u64).saturating_mul(depth), &path)?;
     for requirement in requirements {
         let member = requirement.use_site().source_member();
         if objects
@@ -101,13 +89,8 @@ fn from_projection(
             return Err(LayoutLinkClosureError::UseOutsideObjectSet { member });
         }
     }
-    let digest = digest(objects, requirements, meter)?;
-    meter.charge_collection_slots(objects.members().len() as u64, &path)?;
-    meter.charge_owned_bytes(
-        (objects.members().len() as u64)
-            .saturating_mul(std::mem::size_of::<crate::VerifiedCodeLinkObjectMemberV1>() as u64),
-        &path,
-    )?;
+    let digest = digest(objects, requirements)?;
+
     Ok(ExternalShapeObjectCoverageV1 {
         verified_link_objects: objects.clone(),
         relocation_use_set_digest: digest,
@@ -119,19 +102,14 @@ fn from_projection(
 fn same_relocation_proof(
     classified: &VerifiedCurrentConeStrongRelocationClosureV1,
     finalized: &VerifiedCurrentConeStrongRelocationClosureV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutLinkClosureError> {
-    let path = WirePath::root();
-    meter.check_table_entries(classified.members().len() as u64, &path)?;
-    meter.check_table_entries(classified.bindings().len() as u64, &path)?;
-    meter.charge_work(1, &path)?;
     if classified.producer() != finalized.producer()
         || classified.members().len() != finalized.members().len()
         || classified.bindings().len() != finalized.bindings().len()
     {
         return Err(LayoutLinkClosureError::ObjectProofMismatch);
     }
-    meter.charge_work(classified.members().len() as u64, &path)?;
+
     for (left, right) in classified.members().iter().zip(finalized.members()) {
         let left_bytes = left.definitions().sections().envelope();
         let right_bytes = right.definitions().sections().envelope();
@@ -144,10 +122,6 @@ fn same_relocation_proof(
         }
     }
     for (left, right) in classified.bindings().iter().zip(finalized.bindings()) {
-        meter.charge_work(
-            left.symbol().len() as u64 + right.symbol().len() as u64 + 1,
-            &path,
-        )?;
         if left != right {
             return Err(LayoutLinkClosureError::ObjectProofMismatch);
         }
@@ -176,22 +150,12 @@ impl WireEncode for Preimage<'_> {
 fn digest(
     objects: &CodeLinkObjectMemberSetV1,
     requirements: &[ExternalShapeUndefinedUseV1],
-    meter: &mut BudgetMeter,
 ) -> Result<ExternalShapeRelocationUseSetDigestV1, LayoutLinkClosureError> {
-    let path = WirePath::root();
-    meter.charge_work(
-        objects.members().len() as u64 + requirements.len() as u64,
-        &path,
-    )?;
-    for requirement in requirements {
-        meter.charge_work(requirement.use_site().symbol().len() as u64, &path)?;
-    }
     let preimage = Preimage {
         objects,
         requirements,
     };
-    let stream = domain_separated_cbor_hash_stream_length(DOMAIN, &preimage)?;
-    meter.charge_sha256(stream, &path)?;
+
     let digest = domain_separated_cbor_hash(DOMAIN, &preimage)?;
     Ok(ExternalShapeRelocationUseSetDigestV1(*digest.as_array()))
 }

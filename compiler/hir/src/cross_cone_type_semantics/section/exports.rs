@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod errors;
 mod fact_shapes;
@@ -37,7 +37,7 @@ pub(super) fn validate<'a, F, S, D, E>(
     foundation: &'a F,
     declarations: &mut S,
     defaults: &mut D,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<CheckedTypeSectionExportsV1<'a>, TypeSectionExportValidationError<E>>
 where
@@ -50,22 +50,22 @@ where
     if public.provider() != provider {
         return Err(Error::Provider);
     }
-    inventory::dependencies(provider, dependencies, meter, path)?;
+    inventory::dependencies(provider, dependencies)?;
     let source_roots = foundation.local_source_roots().map_err(Error::Source)?;
     let edges = foundation
         .local_inheritance_edges()
         .map_err(Error::Source)?;
-    inventory::sources(candidate, source_roots, edges, foundation, meter, path)?;
-    let fact_dependencies = inventory::facts(candidate, dependencies, foundation, meter, path)?;
+    inventory::sources(candidate, source_roots, edges, foundation, path)?;
+    let fact_dependencies = inventory::facts(candidate, dependencies, foundation)?;
     let facts = candidate
         .exact_facts
-        .validate_semantics_with_dependencies(foundation, &fact_dependencies, meter)
+        .validate_semantics_with_dependencies(foundation, &fact_dependencies)
         .map_err(|e| Error::Facts(Box::new(e)))?;
     let representations = candidate
         .representation_support
-        .validate_source_semantics(foundation, meter, &path.clone().field(2))
+        .validate_source_semantics(foundation, &path.clone().field(2))
         .map_err(|e| Error::Representation(Box::new(e)))?;
-    fact_shapes::validate(representations, foundation, meter, path)?;
+    fact_shapes::validate(representations, foundation, path)?;
     let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
         edges.iter().chain(dependencies.iter().flat_map(|section| {
             section
@@ -82,7 +82,6 @@ where
                 .flat_map(|section| section.exports.source_roots.iter().copied()),
         ),
         foundation,
-        meter,
     )
     .map_err(|e| Error::Graph(Box::new(e)))?;
     let protected = declarations
@@ -91,15 +90,13 @@ where
             &candidate.protected_source_interfaces,
             representations.table(),
             &graph,
-            meter,
         )
         .map_err(|e| Error::Protected(Box::new(e)))?;
     let inheritance = candidate
         .inheritance
-        .validate_interfaces(&graph, protected, declarations, meter)
+        .validate_interfaces(&graph, protected, declarations)
         .map_err(|e| Error::Inheritance(Box::new(e)))?;
-    let inheritance_records =
-        inventory::inheritance_records(inheritance, dependencies, meter, path)?;
+    let inheritance_records = inventory::inheritance_records(inheritance, dependencies)?;
     let sources = candidate
         .protected_source_interfaces
         .validate_protocols(
@@ -109,7 +106,6 @@ where
             candidate.protected_defaults.keys(),
             declarations,
             defaults,
-            meter,
         )
         .map_err(|e| Error::Sources(Box::new(e)))?;
     let checked_defaults = candidate
@@ -120,7 +116,6 @@ where
             inheritance,
             declarations,
             defaults,
-            meter,
             &path.clone().field(6),
         )
         .map_err(|e| Error::Defaults(Box::new(e)))?;
@@ -129,7 +124,6 @@ where
         .validate_definition_sources(
             &candidate.definition_sources,
             defaults,
-            meter,
             &path.clone().field(7),
         )
         .map_err(|e| Error::Origins(Box::new(e)))?;
@@ -140,7 +134,6 @@ where
         &sources,
         &checked_defaults,
         foundation,
-        meter,
         path,
     )?;
     Ok(CheckedTypeSectionExportsV1 {

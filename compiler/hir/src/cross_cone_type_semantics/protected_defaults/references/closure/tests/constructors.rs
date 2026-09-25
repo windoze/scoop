@@ -60,9 +60,7 @@ fn ordinary_class_init_does_not_prove_constructor_delegation() {
         locals: empty_locals(),
         receiver: OptionalTemplateReceiverV1::Absent,
     };
-    input
-        .validate(&mut Authority::default(), &mut meter())
-        .unwrap();
+    input.validate(&mut Authority::default()).unwrap();
     input.refs.constructors[0] = reference(
         &input.f,
         constructor,
@@ -72,7 +70,7 @@ fn ordinary_class_init_does_not_prove_constructor_delegation() {
         )],
     );
     assert!(matches!(
-        input.validate(&mut Authority::default(), &mut meter()),
+        input.validate(&mut Authority::default()),
         Err(ProtectedDefaultBodyClosureError::MissingUse { .. })
     ));
 }

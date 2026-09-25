@@ -21,7 +21,7 @@ impl WireEncode for CallableSafetyV1 {
 }
 
 impl WireDecode for CallableSafetyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Safe),
             2 => Ok(Self::Unsafe),
@@ -46,7 +46,7 @@ impl WireEncode for CallableInfixV1 {
 }
 
 impl WireDecode for CallableInfixV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Ordinary),
             2 => Ok(Self::Infix),
@@ -75,7 +75,7 @@ impl WireEncode for CallableModalityV1 {
 }
 
 impl WireDecode for CallableModalityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Final),
             2 => Ok(Self::Open),
@@ -102,7 +102,7 @@ impl WireEncode for PublicLookupAccessV1 {
 }
 
 impl WireDecode for PublicLookupAccessV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::DirectOnly),
             2 => Ok(Self::PublicSlot),
@@ -266,7 +266,7 @@ impl WireEncode for DecodedCallableSourceEffectsV1 {
 }
 
 impl WireDecode for DecodedCallableSourceEffectsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             execution: decoder.field(1, decode_effect)?,
@@ -315,7 +315,7 @@ impl fmt::Display for CallableSourceEffectsBuildError {
 
 impl std::error::Error for CallableSourceEffectsBuildError {}
 
-fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
+fn decode_effect(decoder: &mut Decoder<'_>) -> Result<Effect, WireError> {
     match decoder.unsigned()? {
         1 => Ok(Effect::Ordinary),
         2 => Ok(Effect::Suspend),
@@ -323,7 +323,7 @@ fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

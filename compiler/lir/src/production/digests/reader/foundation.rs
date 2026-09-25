@@ -1,7 +1,7 @@
 //! Resolve local digest owners through existing typed foundation records.
 
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, WireError, WirePath, encoded_length};
+use scoop_wire::WireError;
 
 use super::*;
 
@@ -11,27 +11,14 @@ impl DecodedStrongDigestFinalizationPlanV1 {
     pub fn resolve_foundation(
         self,
         foundation: &crate::OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestPlanReplayError> {
-        let path = WirePath::root();
-        let nodes = self.nodes.len() as u64;
-        meter.check_table_entries(nodes, &path)?;
-        meter.charge_work(nodes, &path)?;
         let mut edges = 0_u64;
         let mut patches = 0_u64;
         for node in &self.nodes {
             edges = edges.saturating_add(node.direct_inputs.len() as u64);
             patches = patches.saturating_add(node.patch_intents.len() as u64);
         }
-        meter.charge_nodes(nodes, &path)?;
-        meter.charge_edges(edges.saturating_add(patches), &path)?;
-        let entries = nodes.saturating_add(edges).saturating_add(patches);
-        meter.charge_collection_slots(entries.saturating_mul(8), &path)?;
-        meter.charge_owned_bytes(entries.saturating_mul(1024), &path)?;
-        crate::production::digests::budget::charge_resolution(&self, foundation, meter)?;
-        let length = encoded_length(&self).map_err(|_| StrongDigestPlanReplayError::Encoding)?;
-        meter.charge_sha256(length.saturating_mul(4), &path)?;
-        meter.charge_stable_kahn(nodes, edges, &path)?;
+
         self.validate_resolved(&mut Foundation(foundation), foundation)
             .map_err(StrongDigestPlanReplayError::Validation)
     }

@@ -3,7 +3,6 @@ use super::*;
 impl<A> ExternalReferenceAccumulator<'_, A> {
     pub(in crate::production::external_references) fn finish<E>(
         self,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalExternalHirReferencesV1, ExternalHirReferenceProductionError<E>> {
         let mut records = Vec::with_capacity(self.references.len());
         for (target, pending) in self.references {
@@ -30,31 +29,17 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
             )
             .map_err(ExternalHirReferenceProductionError::Witnesses)?;
             let mut call_sites = Vec::new();
-            meter
-                .charge_owned_bytes(
-                    (pending.call_sites.len()
-                        * std::mem::size_of::<crate::HirDependencyCallSiteV1>())
-                        as u64,
-                    &WirePath::root(),
-                )
-                .map_err(ExternalHirReferenceProductionError::Resource)?;
-            meter
-                .try_reserve_collection_slots(
-                    &mut call_sites,
-                    pending.call_sites.len(),
-                    &WirePath::root(),
-                )
-                .map_err(ExternalHirReferenceProductionError::Resource)?;
+
+            scoop_wire::allocation::try_reserve(
+                &mut call_sites,
+                pending.call_sites.len(),
+                &WirePath::root(),
+            )
+            .map_err(ExternalHirReferenceProductionError::Resource)?;
             for site in pending.call_sites {
-                call_sites.push(site.finish(&witnesses, meter)?);
+                call_sites.push(site.finish(&witnesses)?);
             }
-            let count = call_sites.len() as u64;
-            meter
-                .charge_work(
-                    count.saturating_mul(2 + u64::from(count.max(1).ilog2())),
-                    &WirePath::root(),
-                )
-                .map_err(ExternalHirReferenceProductionError::Resource)?;
+
             let call_sites = crate::CanonicalHirDependencyCallSitesV1::try_new(call_sites)
                 .map_err(ExternalHirReferenceProductionError::CallSite)?;
             records.push(
@@ -64,15 +49,14 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
                     roles,
                     witnesses,
                     call_sites,
-                    crate::CanonicalHirDependencyTypeSitesV1::try_new(pending.type_sites, meter)
-                        .map_err(|error| {
-                            ExternalHirReferenceProductionError::TypeSite(Box::new(error))
-                        })?,
+                    crate::CanonicalHirDependencyTypeSitesV1::try_new(pending.type_sites).map_err(
+                        |error| ExternalHirReferenceProductionError::TypeSite(Box::new(error)),
+                    )?,
                 )
                 .map_err(ExternalHirReferenceProductionError::Record)?,
             );
         }
-        CanonicalExternalHirReferencesV1::try_new_metered(records, meter)
+        CanonicalExternalHirReferencesV1::try_new(records)
             .map_err(ExternalHirReferenceProductionError::Table)
     }
 }

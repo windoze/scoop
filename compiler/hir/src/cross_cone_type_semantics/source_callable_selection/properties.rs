@@ -1,10 +1,9 @@
 use super::*;
 use scoop_identity::PropertyOwner;
 
-impl Selection<'_, '_, '_> {
+impl Selection<'_, '_> {
     pub(super) fn properties(&mut self) -> Result<(), Error> {
         for property in self.public.property_interfaces().all_declarations() {
-            lookup(self.properties.len(), self.meter)?;
             let mut selected = match property.declaration() {
                 PropertyOwner::Property(id) => self.properties.remove(&id),
                 PropertyOwner::ExtensionProperty(_) => false,
@@ -12,7 +11,6 @@ impl Selection<'_, '_, '_> {
             for accessor in
                 std::iter::once(property.accessors().getter()).chain(property.accessors().setter())
             {
-                lookup(self.required.len(), self.meter)?;
                 selected |= self
                     .required
                     .contains_key(&Declaration::PropertyAccessor(accessor));
@@ -22,14 +20,9 @@ impl Selection<'_, '_, '_> {
             {
                 let accessor = source.accessor();
                 if !source.implementation().requires_body() {
-                    lookup(self.required.len(), self.meter)?;
                     self.required
                         .remove(&Declaration::PropertyAccessor(accessor));
                 } else if selected {
-                    lookup(
-                        self.public.callable_interfaces().declaration_count(),
-                        self.meter,
-                    )?;
                     let callable = self
                         .public
                         .callable_interfaces()

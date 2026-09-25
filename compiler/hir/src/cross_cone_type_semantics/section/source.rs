@@ -46,12 +46,11 @@ pub trait TypeSectionDeclarationSemanticAuthority<E>:
         _protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
         representations: &'c CanonicalNominalRepresentationSupportV1,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<CheckedProtectedDeclarationSourcesV1<'c>, ProtectedDeclarationSemanticError<E>>
     where
         Self: Sized,
     {
-        table.validate_sources(graph, representations, self, meter)
+        table.validate_sources(graph, representations, self)
     }
 }
 

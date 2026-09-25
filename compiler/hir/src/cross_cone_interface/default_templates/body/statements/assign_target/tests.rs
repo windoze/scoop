@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{DefaultExpressionKindV1, DefaultFieldRefV1};
@@ -30,8 +30,7 @@ fn assignment_target_variants_have_fixed_tags_and_round_trip() {
     for (expected_tag, expected) in (1_u8..=4).zip(cases) {
         let bytes = encode(&expected.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultAssignTargetV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultAssignTargetV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(
             decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
@@ -69,18 +68,10 @@ fn assignment_target_reports_nested_expression_index_location() {
 
 #[test]
 fn assignment_target_decoder_rejects_unknown_tags_and_non_exact_maps() {
-    let error = decode_canonical::<DecodedDefaultAssignTargetV1>(
-        &[0xa1, 0x00, 0x05],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultAssignTargetV1>(&[0xa1, 0x00, 0x05]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let error = decode_canonical::<DecodedDefaultAssignTargetV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultAssignTargetV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

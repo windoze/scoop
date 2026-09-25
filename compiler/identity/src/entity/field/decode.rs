@@ -42,7 +42,7 @@ impl WireEncode for DecodedSourceFieldKey {
 }
 
 impl WireDecode for DecodedSourceFieldKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 3)?;
         match tag {
@@ -101,7 +101,7 @@ impl WireEncode for DecodedGeneratedFieldKey {
 }
 
 impl WireDecode for DecodedGeneratedFieldKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => decode_empty_variant(decoder, fields, Self::BoxPayload),
@@ -165,7 +165,7 @@ impl WireEncode for DecodedFieldIdentityKey {
 }
 
 impl WireDecode for DecodedFieldIdentityKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -333,23 +333,19 @@ where
     }
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
-fn decode_empty_variant<T>(
-    decoder: &Decoder<'_, '_>,
-    fields: u64,
-    value: T,
-) -> Result<T, WireError> {
+fn decode_empty_variant<T>(decoder: &Decoder<'_>, fields: u64, value: T) -> Result<T, WireError> {
     expect_sum_length(decoder, fields, 1)?;
     Ok(value)
 }
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -360,11 +356,7 @@ where
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -376,7 +368,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

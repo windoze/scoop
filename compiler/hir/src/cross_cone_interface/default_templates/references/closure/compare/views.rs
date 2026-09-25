@@ -26,15 +26,14 @@ impl<'a> From<&'a ExportDefaultCallableTargetV1> for CallableTargetView<'a> {
 }
 
 impl CallableTargetView<'_> {
-    /// Compares this actual target to the declared target using the shared budget.
+    /// Compares this actual target to the declared target in canonical structural order.
     pub fn compare_to(
         self,
         declared: &ExportDefaultCallableTargetV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Ordering, WireError> {
-        meter.charge_work(1, path)?;
-        callable_target(declared, self, meter, path).map(Ordering::reverse)
+        callable_target(declared, self, path).map(Ordering::reverse)
     }
 }
 
@@ -45,15 +44,14 @@ impl<'a> From<&'a DefaultConstructorRefV1> for ConstructorTargetView<'a> {
 }
 
 impl ConstructorTargetView<'_> {
-    /// Compares this actual target to the declared target using the shared budget.
+    /// Compares this actual target to the declared target in canonical structural order.
     pub fn compare_to(
         self,
         declared: &DefaultConstructorRefV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Ordering, WireError> {
-        meter.charge_work(1, path)?;
-        constructor_target(declared, self, meter, path).map(Ordering::reverse)
+        constructor_target(declared, self, path).map(Ordering::reverse)
     }
 }
 
@@ -64,15 +62,14 @@ impl<'a> From<&'a DefaultFieldRefV1> for FieldTargetView<'a> {
 }
 
 impl FieldTargetView<'_> {
-    /// Compares this actual target to the declared target using the shared budget.
+    /// Compares this actual target to the declared target in canonical structural order.
     pub fn compare_to(
         self,
         declared: &DefaultFieldRefV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Ordering, WireError> {
-        meter.charge_work(1, path)?;
-        field_target(declared, self, meter, path).map(Ordering::reverse)
+        field_target(declared, self, path).map(Ordering::reverse)
     }
 }
 
@@ -80,8 +77,8 @@ impl FieldTargetView<'_> {
 pub fn compare_default_signature_reference_targets(
     left: &SignatureTypeKey,
     right: &SignatureTypeKey,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
-    signature_type(left, right, meter, path)
+    signature_type(left, right, path)
 }

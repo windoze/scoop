@@ -118,11 +118,7 @@ pub enum CompileCacheStoreError {
         expected: ConeCompileCacheKeyV1,
         actual: ConeCompileCacheKeyV1,
     },
-    ReceiptTooLarge {
-        limit: u64,
-        observed: u64,
-    },
-    LengthOverflow,
+
     WrongLock,
     CandidateVerificationMissing,
     CandidateVerificationMismatch,
@@ -169,11 +165,7 @@ impl fmt::Display for CompileCacheStoreError {
                 formatter,
                 "cache receipt key mismatch: expected {expected}, found {actual}"
             ),
-            Self::ReceiptTooLarge { limit, observed } => write!(
-                formatter,
-                "cache receipt exceeds byte limit {limit}: observed {observed}"
-            ),
-            Self::LengthOverflow => formatter.write_str("cache payload length does not fit u64"),
+
             Self::WrongLock => {
                 formatter.write_str("cache operation received the wrong per-key lock")
             }

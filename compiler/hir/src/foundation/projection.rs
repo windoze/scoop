@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{CborIdentityRecord, DefinitionOriginRecord, PersistentId};
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use super::*;
 use crate::{ExportHir, HirNativeBoundaryTypeDefinitions, LocalConcreteHir};
@@ -23,21 +22,6 @@ impl CanonicalHirFoundation {
         export: &ExportHir,
         local: &LocalConcreteHir,
         native_boundary_types: &HirNativeBoundaryTypeDefinitions,
-    ) -> Result<Self, HirFoundationBuildError> {
-        Self::from_modules_with_budget(
-            export,
-            local,
-            native_boundary_types,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-    }
-
-    /// Completes source identities using the caller's cumulative projection budget.
-    pub fn from_modules_with_budget(
-        export: &ExportHir,
-        local: &LocalConcreteHir,
-        native_boundary_types: &HirNativeBoundaryTypeDefinitions,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, HirFoundationBuildError> {
         let mut foundation = Self::empty();
 
@@ -77,7 +61,7 @@ impl CanonicalHirFoundation {
         foundation.set_odr_members(local.callable_applications.odr_member_records().to_vec())?;
 
         foundation.set_definition_origins(definition_origin_records(export, local))?;
-        source_callable_keys::complete(export, &mut foundation, meter)?;
+        source_callable_keys::complete(export, &mut foundation)?;
         foundation.set_sources(source_records(
             &export.source_files,
             &foundation.definition_origins,

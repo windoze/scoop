@@ -3,13 +3,12 @@
 use super::*;
 use crate::*;
 use scoop_identity::*;
-use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
 
 mod calls;
 mod fixture;
 mod negative;
-mod resources;
-use fixture::{Artifact, Loaded, coordinate, exact, meter, selected};
+
+use fixture::{Artifact, Loaded, coordinate, exact, selected};
 
 #[test]
 fn shared_type_uses_rebuild_class_and_interface_edges_for_every_provider() {
@@ -49,9 +48,7 @@ fn shared_type_uses_rebuild_class_and_interface_edges_for_every_provider() {
                 ),
             ]);
             assert_eq!(consumer.uses(&[&provider]).unwrap(), expected);
-            consumer
-                .validate(&expected, &[&provider], &mut meter())
-                .unwrap();
+            consumer.validate(&expected, &[&provider]).unwrap();
         }
     }
 }
@@ -110,9 +107,9 @@ fn shared_type_uses_preserve_each_current_derived_and_do_not_claim_transitive_ed
     assert_eq!(actual, reversed);
     let wire = scoop_wire::encode(&actual).unwrap();
     let decoded: DecodedCanonicalSelectedExternalTypeUsesV1 =
-        scoop_wire::decode_canonical(&wire, DecodeLimits::default()).unwrap();
+        scoop_wire::decode_canonical(&wire).unwrap();
     let decoded = decoded
-        .resolve(&mut consumer.identities, &mut meter(), &WirePath::root())
+        .resolve(&mut consumer.identities, &WirePath::root())
         .unwrap();
     assert_eq!(actual, decoded);
     let snapshot = actual

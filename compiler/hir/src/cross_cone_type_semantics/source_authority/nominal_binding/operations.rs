@@ -4,7 +4,7 @@ use crate::*;
 use scoop_identity::{
     PersistentEnumVariantId, PersistentFieldId, PersistentObjectValueId, SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 mod applied;
 mod errors;
 mod variants;
@@ -35,12 +35,9 @@ impl BoundNominalSourceContractsV1<'_, '_> {
     pub fn default_nominal_operation_shape(
         &self,
         target: DefaultSourceNominalOperationV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<DefaultOperationEntityShapeV1, Error> {
-        meter.check_semantic_depth(1, path)?;
-        meter.charge_nodes(1, path)?;
-        meter.charge_work(1, path)?;
         use DefaultOperationEntityShapeV1 as Shape;
         use DefaultSourceNominalOperationV1 as Target;
         match target {
@@ -48,16 +45,15 @@ impl BoundNominalSourceContractsV1<'_, '_> {
                 owner_type,
                 expected,
             } => {
-                let applied = Applied::new(self, owner_type, meter, path)?;
+                let applied = Applied::new(self, owner_type, path)?;
                 applied.require_kind(expected)?;
-                Ok(Shape::Type(applied.owner_type(meter, path)?))
+                Ok(Shape::Type(applied.owner_type(path)?))
             }
             Target::Struct(owner_type) => {
-                let applied = Applied::new(self, owner_type, meter, path)?;
+                let applied = Applied::new(self, owner_type, path)?;
                 let fields = applied.struct_shape()?.fields();
                 Ok(Shape::Aggregate(applied.aggregate(
                     fields.iter().map(NominalSourceFieldV1::value_type),
-                    meter,
                     path,
                 )?))
             }
@@ -65,10 +61,9 @@ impl BoundNominalSourceContractsV1<'_, '_> {
                 declaration,
                 owner_type,
             } => {
-                let applied = Applied::new(self, owner_type, meter, path)?;
+                let applied = Applied::new(self, owner_type, path)?;
                 let fields = applied.struct_shape()?.fields();
-                let index =
-                    self.struct_field_index(applied.source.owner(), declaration, meter, path)?;
+                let index = self.struct_field_index(applied.source.owner(), declaration)?;
                 let field = fields.get(index as usize).ok_or_else(|| {
                     NominalSourceBindingError::FieldOwner {
                         owner: applied.source.owner(),
@@ -77,39 +72,35 @@ impl BoundNominalSourceContractsV1<'_, '_> {
                 })?;
                 Ok(Shape::Field(DefaultFieldOperationShapeV1::new(
                     DefaultFieldOperationKindV1::Struct,
-                    applied.owner_type(meter, path)?,
+                    applied.owner_type(path)?,
                     index,
-                    applied.field_type(field.value_type(), meter, path)?,
+                    applied.field_type(field.value_type())?,
                     CanonicalBooleanV1::False,
                 )))
             }
             Target::Variant(reference) => {
-                let applied = Applied::new(self, reference.owner_type(), meter, path)?;
-                let variant =
-                    self.operation_variant(&applied, reference.declaration(), meter, path)?;
+                let applied = Applied::new(self, reference.owner_type(), path)?;
+                let variant = self.operation_variant(&applied, reference.declaration())?;
                 Ok(Shape::Aggregate(applied.aggregate(
                     variant.fields().iter().map(EnumSourceFieldV1::value_type),
-                    meter,
                     path,
                 )?))
             }
             Target::VariantField(reference) => self
-                .operation_variant_field(reference, meter, path)
+                .operation_variant_field(reference, path)
                 .map(Shape::VariantField),
             Target::Singleton(value) => {
-                query(self.objects.len(), meter, path)?;
                 self.object_value_key(value)?;
                 let subject = self
                     .foundation
-                    .default_indirect_access_subject(
-                        DefaultSourceIndirectTargetV1::Singleton(value),
-                        meter,
-                    )
+                    .default_indirect_access_subject(DefaultSourceIndirectTargetV1::Singleton(
+                        value,
+                    ))
                     .map_err(Error::target)?;
                 let scoop_identity::DefinitionOriginSubject::Type(id) = subject else {
                     return Err(Error::Singleton(value));
                 };
-                query(self.table.records().len(), meter, path)?;
+
                 let source = self.nominal_source(SourceNominalId::Concrete(id))?;
                 if !matches!(source.source_shape(), NominalSourceShapeV1::Object(shape) if shape.value() == value)
                 {
@@ -119,11 +110,4 @@ impl BoundNominalSourceContractsV1<'_, '_> {
             }
         }
     }
-}
-fn query(count: usize, meter: &mut BudgetMeter, path: &WirePath) -> Result<(), WireError> {
-    meter.charge_edges(1, path)?;
-    meter.charge_work(
-        (u64::from(count.max(1).ilog2()) + 1).saturating_mul(32),
-        path,
-    )
 }

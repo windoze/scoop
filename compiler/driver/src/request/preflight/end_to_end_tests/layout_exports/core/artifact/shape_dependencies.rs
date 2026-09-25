@@ -29,18 +29,15 @@ pub(super) fn check(
         )
         .unwrap(),
     ];
-    let provider = lir::ShapeLinkProviderV1::try_new(
-        lir::ShapeLinkProviderPartsV1 {
-            foundation: &prepared.foundation,
-            production: lir::ShapeLinkProductionV1::Reader(&prepared.production),
-            ordinary,
-            layouts: core_lir.layouts(),
-            callables: core_lir.callables(),
-            descriptors: core_lir.descriptors(),
-            dispatch: core_lir.dispatch(),
-        },
-        &mut meter(),
-    )
+    let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
+        foundation: &prepared.foundation,
+        production: lir::ShapeLinkProductionV1::Reader(&prepared.production),
+        ordinary,
+        layouts: core_lir.layouts(),
+        callables: core_lir.callables(),
+        descriptors: core_lir.descriptors(),
+        dispatch: core_lir.dispatch(),
+    })
     .unwrap();
     let sysroot = tempfile::tempdir().unwrap();
     let installed = bootstrap_core(sysroot.path(), target);
@@ -63,12 +60,10 @@ pub(super) fn check(
                     dispatch: &[core_mir.dispatch()],
                 };
                 let exports =
-                    scoop_mir_lower::lower_type_bridge_exports(input, dependencies, &mut meter())
-                        .unwrap();
+                    scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
                 let projection = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
                     input,
                     dependencies,
-                    &mut meter(),
                 )
                 .unwrap();
                 let uses = mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(
@@ -106,7 +101,6 @@ pub(super) fn check(
                     &[core_mir],
                     &projection,
                     input.identities,
-                    &mut meter(),
                 )
                 .unwrap();
                 mir_reader::check(name, &fixtures, input, &section, core_mir, &expected);

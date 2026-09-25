@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::super::test_support::{Fixture, LocalError};
 use super::*;
@@ -257,8 +257,7 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
         let expression = expression(kind, &fixture);
         let bytes = encode(&expression.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(expression_tag(&bytes), expected_tag);
-        let decoded: DecodedDefaultExpressionV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultExpressionV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
     }
 }
@@ -298,8 +297,7 @@ fn leaf_and_recursive_expressions_have_fixed_tags_and_round_trip() {
         let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
         assert_eq!(expression_tag(&bytes), expected_tag);
 
-        let decoded: DecodedDefaultExpressionV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultExpressionV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(
             decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
@@ -339,32 +337,25 @@ fn expression_index_errors_preserve_nested_location() {
 
 #[test]
 fn explicit_optional_expression_sum_round_trips() {
-    let absent: DecodedOptionalDefaultExpressionV1 =
-        decode_canonical(&[0xa1, 0x00, 0x01], DecodeLimits::default()).unwrap();
+    let absent: DecodedOptionalDefaultExpressionV1 = decode_canonical(&[0xa1, 0x00, 0x01]).unwrap();
     assert_eq!(absent, DecodedOptionalDefaultExpressionV1::Absent);
     assert_eq!(encode(&absent).unwrap(), [0xa1, 0x00, 0x01]);
 
-    let error = decode_canonical::<DecodedOptionalDefaultExpressionV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedOptionalDefaultExpressionV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 
 #[test]
 fn expression_decoder_rejects_unknown_tags_and_non_exact_sums() {
-    let error = decode_canonical::<DecodedDefaultExpressionV1>(
-        &[0xa3, 0x01, 0xa1, 0x00, 0x18, 0x3a],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultExpressionV1>(&[0xa3, 0x01, 0xa1, 0x00, 0x18, 0x3a, 0])
+            .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 58 });
 
-    let error = decode_canonical::<DecodedDefaultExpressionV1>(
-        &[0xa3, 0x01, 0xa2, 0x00, 0x04, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
+    let error = decode_canonical::<DecodedDefaultExpressionV1>(&[
+        0xa3, 0x01, 0xa2, 0x00, 0x04, 0x01, 0x00, 0,
+    ])
     .unwrap_err();
     assert_eq!(
         error.kind(),
@@ -464,8 +455,7 @@ fn cast_wire_requires_a_checked_type_before_the_optional_flag() {
         &fixture,
     );
     let bytes = encode(&cast.index_locals(&mut fixture.locals()).unwrap()).unwrap();
-    let decoded: DecodedDefaultExpressionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultExpressionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
         Ok(cast)
@@ -476,8 +466,7 @@ fn cast_wire_requires_a_checked_type_before_the_optional_flag() {
     let mut retired = bytes;
     assert_eq!(&retired[..6], &[0xa3, 1, 0xa4, 0, 0x18, 37]);
     retired[2] = 0xa3;
-    let error = decode_canonical::<DecodedDefaultExpressionV1>(&retired, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultExpressionV1>(&retired).unwrap_err();
     assert_eq!(error.path(), &scoop_wire::WirePath::root().field(1));
     assert!(matches!(
         error.kind(),

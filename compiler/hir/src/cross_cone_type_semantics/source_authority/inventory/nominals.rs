@@ -2,7 +2,7 @@ use scoop_identity::{
     ConeIdentity, PersistentIdResolver, PersistentKeyResolver, PersistentSourceContextId,
     SourceContextKey,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::*;
 use crate::{
@@ -46,25 +46,13 @@ pub struct CanonicalTypeSourceNominalsV1 {
 }
 
 impl CanonicalTypeSourceNominalsV1 {
-    pub fn try_new(
-        mut records: Vec<TypeSourceNominalV1>,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
+    pub fn try_new(mut records: Vec<TypeSourceNominalV1>) -> Result<Self, SourceInventoryError> {
         records.sort_unstable_by_key(TypeSourceNominalV1::owner);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
 
-    fn from_ordered(
-        records: Vec<TypeSourceNominalV1>,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, SourceInventoryError> {
-        validate_order(
-            &records,
-            TypeSourceNominalV1::owner,
-            "nominal snapshots",
-            meter,
-        )?;
+    fn from_ordered(records: Vec<TypeSourceNominalV1>) -> Result<Self, SourceInventoryError> {
+        validate_order(&records, TypeSourceNominalV1::owner, "nominal snapshots")?;
         Ok(Self { records })
     }
 
@@ -93,7 +81,7 @@ pub struct DecodedTypeSourceNominalV1 {
 }
 
 impl WireDecode for DecodedTypeSourceNominalV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedSourceNominalId::decode)?,
@@ -121,7 +109,6 @@ impl DecodedCanonicalTypeSourceNominalsV1 {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalTypeSourceNominalsV1, SourceInventoryError>
     where
         R: SourceNominalIdResolver<E>
@@ -129,23 +116,18 @@ impl DecodedCanonicalTypeSourceNominalsV1 {
             + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
         E: fmt::Display,
     {
-        let mut records = reserve(self.records.len(), meter)?;
-        for (index, record) in self.records.into_iter().enumerate() {
-            record.access.charge_resolution_at(
-                meter,
-                &WirePath::root().index(index as u64).field(2),
-                2,
-            )?;
+        let mut records = reserve(self.records.len())?;
+        for record in self.records.into_iter() {
             let owner = record.owner.resolve(resolver).map_err(reference)?;
             let access = record.access.resolve(resolver).map_err(reference)?;
             records.push(TypeSourceNominalV1::new(owner, access));
         }
-        CanonicalTypeSourceNominalsV1::from_ordered(records, meter)
+        CanonicalTypeSourceNominalsV1::from_ordered(records)
     }
 }
 
 impl WireDecode for DecodedCanonicalTypeSourceNominalsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedTypeSourceNominalV1::decode(d))
             .map(|records| Self { records })

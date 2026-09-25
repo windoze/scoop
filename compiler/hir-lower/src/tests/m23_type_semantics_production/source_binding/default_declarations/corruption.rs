@@ -105,7 +105,6 @@ fn corrupt(t: &Template, change: Change) -> Template {
         t.value_parameters().clone(),
         t.references().clone(),
         t.definition_origin().clone(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -124,7 +123,7 @@ fn bound_default_declarations_reject_raw_types_even_when_substitution_collapses_
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for change in [
                 Change::Path,
@@ -142,7 +141,7 @@ fn bound_default_declarations_reject_raw_types_even_when_substitution_collapses_
                 };
                 let changed = replace(&table, corrupt(original, change));
                 let Error::Record { key: failed, error } = parameters
-                    .bind_default_declarations(&changed, &[], &mut meter())
+                    .bind_default_declarations(&changed, &[])
                     .unwrap_err()
                 else {
                     panic!("expected a declaration contract failure for {change:?}");
@@ -155,8 +154,9 @@ fn bound_default_declarations_reject_raw_types_even_when_substitution_collapses_
                     | (
                         Change::Prefix,
                         Error::Prefix(
-                            hir::MeteredTemplateValueParameterSemanticValidationError::LocalType {
+                            hir::TemplateValueParameterSemanticValidationError::LocalType {
                                 position: 0,
+                                ..
                             },
                         ),
                     )
@@ -164,7 +164,7 @@ fn bound_default_declarations_reject_raw_types_even_when_substitution_collapses_
                     | (
                         Change::Receiver,
                         Error::Receiver(
-                            hir::MeteredTemplateReceiverSemanticValidationError::CallableType,
+                            hir::TemplateReceiverSemanticValidationError::CallableType { .. },
                         ),
                     )
                     | (Change::Suspend, Error::SuspendPermission) => true,
@@ -182,12 +182,12 @@ fn nominal_default_paths_cannot_claim_a_nested_lexical_root() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for original in table.records() {
                 let changed = replace(&table, corrupt(original, Change::NestedPath));
                 let Error::Record { key, error } = parameters
-                    .bind_default_declarations(&changed, &[], &mut meter())
+                    .bind_default_declarations(&changed, &[])
                     .unwrap_err()
                 else {
                     panic!("expected nominal default path failure");

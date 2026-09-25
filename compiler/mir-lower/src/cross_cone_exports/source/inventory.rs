@@ -11,7 +11,6 @@ impl Inventory {
     pub fn from_source(
         input: MirTypeBridgeExportInputV1<'_>,
         source: &mir::MirTypeBridgeExportConstituentsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeSourceProjectionError> {
         let mut roots = collect(
             input
@@ -22,26 +21,24 @@ impl Inventory {
                 .roots()
                 .iter()
                 .map(|r| r.source()),
-            meter,
         )?;
-        sort_cost(roots.len(), meter)?;
+
         roots.sort_unstable();
         source
             .shapes()
-            .validate_required_sources(&roots, meter)
+            .validate_required_sources(&roots)
             .map_err(MirTypeBridgeSourceProjectionError::Shapes)?;
         Ok(Self {
-            types: collect(source.types().records().iter().map(|r| r.exact()), meter)?,
+            types: collect(source.types().records().iter().map(|r| r.exact()))?,
             callables: collect(
                 source
                     .callables()
                     .entries()
                     .iter()
                     .map(|r| r.implementation()),
-                meter,
             )?,
-            dispatch: collect(source.dispatch().records().iter().map(|r| r.owner()), meter)?,
-            objects: collect(source.objects().records().iter().map(|r| r.value()), meter)?,
+            dispatch: collect(source.dispatch().records().iter().map(|r| r.owner()))?,
+            objects: collect(source.objects().records().iter().map(|r| r.value()))?,
             roots,
         })
     }
@@ -49,25 +46,12 @@ impl Inventory {
 
 pub(super) fn collect<T>(
     source: impl ExactSizeIterator<Item = T>,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<T>, MirTypeBridgeSourceProjectionError> {
     let count = source.len();
     let path = WirePath::root();
-    meter.check_table_entries(count as u64, &path)?;
-    meter.charge_work(count as u64, &path)?;
-    meter.charge_owned_bytes(
-        (count as u64).saturating_mul(std::mem::size_of::<T>() as u64),
-        &path,
-    )?;
+
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, &path)?;
+    scoop_wire::allocation::try_reserve(&mut values, count, &path)?;
     values.extend(source);
     Ok(values)
-}
-
-pub(super) fn sort_cost(count: usize, meter: &mut BudgetMeter) -> Result<(), WireError> {
-    meter.charge_work(
-        (count as u64).saturating_mul(u64::from(count.checked_ilog2().unwrap_or(0)) + 1),
-        &WirePath::root(),
-    )
 }

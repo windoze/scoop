@@ -70,11 +70,9 @@ fn source_contracts_cover_exactly_slot_roots_and_selected_targets() {
                     });
                 }
             }
-            let selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+            let selections =
+                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(output)
+                    .unwrap();
             for record in selections.records() {
                 use hir::InheritanceSourceSlotSelectionV1 as Selection;
                 match record.selection() {
@@ -97,68 +95,13 @@ fn source_contracts_cover_exactly_slot_roots_and_selected_targets() {
     }
 }
 
-#[test]
-fn source_contracts_ignore_unrelated_arenas_and_reject_exhausted_projection_budget() {
-    let original = with_hir_source(CALLABLES, |output, _| {
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
-                Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                    hir::SourceInventoryError::Resource(_)
-                ))
-            ));
-        }
-        table(output)
-    });
-    assert_eq!(
-        encode(&original).unwrap(),
-        with_hir_source(CALLABLES, |output, _| encode(&table(output)).unwrap())
-    );
-    let shifted = format!("fun unrelated(): Int = 0\n{CALLABLES}");
-    // Access source spans intentionally change when source text moves. Compare
-    // signatures and declaration identities, while retaining the new origins.
-    with_hir_source(&shifted, |output, _| {
-        let shifted = table(output);
-        assert_eq!(original.records().len(), shifted.records().len());
-        for (a, b) in original.records().iter().zip(shifted.records()) {
-            assert_eq!(a.declaration(), b.declaration());
-            assert_eq!(a.signature(), b.signature());
-            assert_eq!(a.modality(), b.modality());
-            assert_eq!(
-                a.declaration_access().declared_visibility(),
-                b.declaration_access().declared_visibility()
-            );
-            assert_ne!(
-                a.declaration_access().definition_origin(),
-                b.declaration_access().definition_origin()
-            );
-        }
-    });
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_dependency_hir(output, &mut meter()).unwrap()
+    Table::from_dependency_hir(output).unwrap()
 }
 fn roundtrip(output: &hir::DependencyHirOutput, table: &Table) {
     let mut identities = super::super::source_inventory::identity_closure(output);
-    let decoded: DecodedTable =
-        decode_canonical(&encode(table).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(
-        decoded.resolve(&mut identities, &mut meter()).unwrap(),
-        *table
-    );
+    let decoded: DecodedTable = decode_canonical(&encode(table).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut identities).unwrap(), *table);
 }
 
 fn template(declaration: Declaration) -> CallableTemplateOwner {

@@ -34,9 +34,7 @@ fn same_target_at_different_origins_remains_two_records_in_every_domain() {
     )
     .unwrap();
     assert_eq!(
-        decoded(&canonical)
-            .resolve(&mut f.resolver(), &mut meter())
-            .unwrap(),
+        decoded(&canonical).resolve(&mut f.resolver()).unwrap(),
         canonical
     );
     assert_eq!(canonical.callables().len(), 2);
@@ -72,7 +70,7 @@ fn duplicate_keys_are_rejected_even_when_witness_or_uses_differ() {
         );
         set.globals = vec![original, changed];
         assert!(matches!(
-            decoded(&set).resolve(&mut f.resolver(), &mut meter()),
+            decoded(&set).resolve(&mut f.resolver()),
             Err(ProtectedDefaultReferenceSetResolutionError::Build(
                 ProtectedDefaultReferenceSetBuildError::Duplicate {
                     kind: ProtectedDefaultReferenceKindV1::Global,
@@ -117,9 +115,7 @@ fn reader_rejects_duplicate_and_descending_keys_in_all_six_domains() {
                     uses(1),
                 );
                 set.$field = vec![second, first.clone()];
-                let error = decoded(&set)
-                    .resolve(&mut f.resolver(), &mut meter())
-                    .unwrap_err();
+                let error = decoded(&set).resolve(&mut f.resolver()).unwrap_err();
                 let ProtectedDefaultReferenceSetResolutionError::Build(error) = error else {
                     panic!("{error:?}");
                 };

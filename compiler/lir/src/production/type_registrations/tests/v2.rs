@@ -19,8 +19,7 @@ fn legacy_relations_keep_the_complete_registration_bytes_in_v2() {
     for (old, new) in v1.registrations().iter().zip(v2.registrations()) {
         let bytes = encode(new).unwrap();
         assert_eq!(bytes, encode(old).unwrap());
-        let decoded: DecodedStrongTypeRegistrationPlanV2 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedStrongTypeRegistrationPlanV2 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
     }
 }
@@ -34,11 +33,9 @@ fn dependency_parent_interface_and_dispatch_survive_the_registration_wire() {
     let plans = build(&fixture, Some(ConeIdentity::CORE)).unwrap();
     for plan in plans.registrations() {
         let bytes = encode(plan).unwrap();
-        let decoded: DecodedStrongTypeRegistrationPlanV2 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedStrongTypeRegistrationPlanV2 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        let shared: DecodedStrongTypeRegistrationPlanV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let shared: DecodedStrongTypeRegistrationPlanV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&shared).unwrap(), bytes);
         assert!(
             matches!(plan.semantic().parent(), Some(Descriptor::DependencyExternal { provider, .. })
@@ -58,13 +55,7 @@ fn dependency_parent_interface_and_dispatch_survive_the_registration_wire() {
         assert_eq!(&extra_field[..2], &[0xb8, 28]);
         extra_field[1] = 29;
         extra_field.extend_from_slice(&[0x18, 29, 0]);
-        assert!(
-            decode_canonical::<DecodedStrongTypeRegistrationPlanV2>(
-                &extra_field,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV2>(&extra_field).is_err());
     }
     let changed_provider = build(&fixture, Some(ConeIdentity::SINGLE_FILE)).unwrap();
     for (original, changed) in plans
@@ -221,10 +212,10 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
     let bytes = encode(&surface).unwrap();
     assert_eq!(bytes[0], 0xa8);
     let decoded: crate::DecodedStrongRegistrationProductionSurfaceV2 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let shared: crate::DecodedStrongRegistrationProductionSurfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
     assert!(
         shared
@@ -240,11 +231,8 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
         let mut malformed = bytes.clone();
         malformed[0] = field_count;
         assert!(
-            decode_canonical::<crate::DecodedStrongRegistrationProductionSurfaceV2>(
-                &malformed,
-                DecodeLimits::default()
-            )
-            .is_err()
+            decode_canonical::<crate::DecodedStrongRegistrationProductionSurfaceV2>(&malformed)
+                .is_err()
         );
     }
 }

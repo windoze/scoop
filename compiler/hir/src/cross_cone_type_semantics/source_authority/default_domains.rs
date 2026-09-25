@@ -4,7 +4,7 @@ use scoop_identity::{
     ConeIdentity, DefinitionOriginSubject as Subject, PersistentGenericTypeId, PersistentTypeId,
     SignatureTypeKey, SourceDeclarationKey, SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 mod binding;
 pub use binding::*;
 mod callables;
@@ -38,14 +38,9 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
         current: &'b Declarations<'s, 'a, 'f>,
         dependencies: &'b [&'b Declarations<'s, 'a, 'f>],
         core: &'b ImportedCoreFundamentalTypeProtocol,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        providers::validate(current, dependencies, meter)?;
-        meter.charge_owned_bytes(128, &path)?;
-        meter.charge_sha256(256, &path)?;
+        providers::validate(current, dependencies)?;
+
         let any = scoop_identity::CoreBuiltinNominal::Any
             .identity_record()
             .id();
@@ -63,27 +58,22 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
         &self,
         ty: &SignatureTypeKey,
         scope: &SignatureBinderScopeV1,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
-        self.type_source_domain_at(ty, scope, meter, &WirePath::root())
+        self.type_source_domain_at(ty, scope, &WirePath::root())
     }
 
     fn type_source_domain_at(
         &self,
         ty: &SignatureTypeKey,
         scope: &SignatureBinderScopeV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
         let mut result = DefaultSourceAccessDomainV1::universal();
-        visit_default_source_type_access_demands(ty, meter, path, &mut |demand, meter, path| {
-            let part = self.demand_domain(demand, scope, meter, path)?;
-            result = merge::intersect(&result, &part, meter, path)?;
+        visit_default_source_type_access_demands(ty, path, &mut |demand, path| {
+            let part = self.demand_domain(demand, scope)?;
+            result = merge::intersect(&result, &part, path)?;
             Ok::<_, Error>(())
-        })
-        .map_err(|error| match error {
-            DefaultSourceTypeAccessVisitError::Resource(error) => Error::Resource(error),
-            DefaultSourceTypeAccessVisitError::Visitor(error) => error,
         })?;
         Ok(result)
     }

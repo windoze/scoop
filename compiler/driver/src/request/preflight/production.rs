@@ -9,7 +9,6 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
     pub fn build_and_publish(
         self,
         temporary_parent: &Path,
-        limits: DecodeLimits,
     ) -> Result<SingleConeProductionSuccess, CurrentConeProductionError> {
         let protocols = self.request.protocols();
         let cone = match self.request.current() {
@@ -77,7 +76,6 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 .publish(
                     self.request.output().as_path(),
                     self.request.dependencies().dependency_first().to_vec(),
-                    limits,
                 )
                 .map_err(CurrentConeProductionFailure::Publication)
         })();

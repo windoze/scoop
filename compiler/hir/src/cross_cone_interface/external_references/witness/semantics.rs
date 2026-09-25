@@ -1,8 +1,6 @@
 mod errors;
 pub use errors::DependencyBindingWitnessSemanticValidationError;
 
-use scoop_wire::{BudgetMeter, WirePath};
-
 use scoop_identity::{BindingTarget, ExportBindingKey};
 
 use super::DependencyBindingWitnessV1;
@@ -13,16 +11,12 @@ impl DependencyBindingWitnessV1 {
         &self,
         root: BindingTarget,
         authority: &A,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), DependencyBindingWitnessSemanticValidationError>
     where
         A: PublicExportBindingClosureAuthority,
     {
-        meter.charge_nodes(1, path)?;
-        meter.charge_work(1, path)?;
         let route = self.route();
-        if !authority.is_direct_dependency(route.immediate_provider(), meter, path)? {
+        if !authority.is_direct_dependency(route.immediate_provider()) {
             return Err(
                 DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
                     provider: route.immediate_provider(),
@@ -38,14 +32,8 @@ impl DependencyBindingWitnessV1 {
             );
         }
 
-        let path = path.clone().field(2);
-        meter.check_table_entries(route.hops().len() as u64, &path)?;
-        meter.check_semantic_depth(route.hops().len() as u64, &path)?;
         for (hop_index, hop) in route.hops().iter().copied().enumerate() {
-            let path = path.clone().index(hop_index as u64);
-            meter.charge_edges(1, &path)?;
-            meter.charge_work(1, &path)?;
-            validate_hop(root, hop_index, route.hops(), hop, authority, meter, &path)?;
+            validate_hop(root, hop_index, route.hops(), hop, authority)?;
         }
         Ok(())
     }
@@ -57,14 +45,12 @@ fn validate_hop<A>(
     route_hops: &[ReexportRouteHopV1],
     hop: ReexportRouteHopV1,
     authority: &A,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), DependencyBindingWitnessSemanticValidationError>
 where
     A: PublicExportBindingClosureAuthority,
 {
     let binding = hop.binding();
-    let key = authority.binding_key(binding, meter, path)?.ok_or(
+    let key = authority.binding_key(binding).ok_or(
         DependencyBindingWitnessSemanticValidationError::MissingHopBindingKey {
             hop: hop_index,
             binding,
@@ -72,15 +58,13 @@ where
     )?;
     validate_binding_key(root, hop_index, hop, key)?;
 
-    let surface = authority
-        .public_bindings(hop.exporter(), meter, path)?
-        .ok_or(
-            DependencyBindingWitnessSemanticValidationError::MissingProviderSurface {
-                hop: hop_index,
-                provider: hop.exporter(),
-            },
-        )?;
-    let record = surface.get_metered(binding, meter, path)?.ok_or(
+    let surface = authority.public_bindings(hop.exporter()).ok_or(
+        DependencyBindingWitnessSemanticValidationError::MissingProviderSurface {
+            hop: hop_index,
+            provider: hop.exporter(),
+        },
+    )?;
+    let record = surface.get(binding).ok_or(
         DependencyBindingWitnessSemanticValidationError::MissingProviderBinding {
             hop: hop_index,
             provider: hop.exporter(),
@@ -118,7 +102,7 @@ where
         ),
         (false, ExportBindingSourceV1::Reexport { routes }) => {
             let suffix = &route_hops[hop_index + 1..];
-            if routes.contains_exact_suffix_metered(suffix, meter, path)? {
+            if routes.contains_exact_suffix(suffix) {
                 Ok(())
             } else {
                 Err(

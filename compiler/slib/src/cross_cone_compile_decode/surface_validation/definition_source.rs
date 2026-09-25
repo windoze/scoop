@@ -38,8 +38,8 @@ impl<'input> InternallyClosedCrossConeHirFrontSections<'input> {
         CrossConeHirDefinitionSourceSurfaceError,
     > {
         let mut front = self.0;
-        let (input, meter) = front.hir_validation_parts();
-        input.definition_sources(dependencies, meter)?;
+        let input = front.hir_validation_parts();
+        input.definition_sources(dependencies)?;
         Ok(DefinitionSourceValidatedCrossConeHirFrontSections(front))
     }
 }

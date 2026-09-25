@@ -8,7 +8,7 @@ use scoop_identity::{
     CallableTemplateOrigin, OptionalSignatureType, PersistentObjectValueId, PersistentPropertyId,
     SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     ExportDefaultCallableTargetV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
@@ -19,8 +19,8 @@ use crate::{
     DefaultCallableRefV1, DefaultConstructorRefV1, DefaultFieldRefV1,
     DefaultTemplateProviderShapeV1, ExportDefaultCallDomainV1, ExportDefaultTemplateV1,
     ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceSemanticValidationError,
-    ExportDefinitionSourceV1, MeteredSignatureTypeSemanticError, NominalInterfaceShapeAuthority,
-    PublicLookupAccessV1, SignatureBinderScopeError, SignatureTypeSemanticError,
+    ExportDefinitionSourceV1, NominalInterfaceShapeAuthority, PublicLookupAccessV1,
+    SignatureBinderScopeError, SignatureTypeSemanticError,
 };
 
 /// Supplies already validated public-surface and lexical-identity facts for
@@ -79,17 +79,16 @@ impl ExportDefaultTemplateV1 {
     /// Validates the declared reference records without reconstructing the
     /// body-to-reference exact closure.
     ///
-    /// The caller supplies the provider shape already proven by the template
-    /// contract pass. All signature trees consume the artifact's shared
-    /// meter. Local declaration signature references use the exact typed body
-    /// attachment and independently proven own arity; all other occurrences use
-    /// the provider scope. Exact reference coverage remains a separate pass.
+    /// The caller supplies the provider shape checked with the template contract.
+    /// Local declaration signatures use their typed body attachment and binder
+    /// arity; other occurrences use the provider scope. Reference coverage is
+    /// checked separately.
     pub fn validate_reference_envelope_semantics<A, E>(
         &self,
         owner_interface: &CallableInterfaceRecordV1,
         provider: DefaultTemplateProviderShapeV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceSetSemanticValidationError<E>>
     where
@@ -111,7 +110,7 @@ impl ExportDefaultTemplateV1 {
             expected_call_domain: call_domain(owner_interface.access()),
             scope: provider.signature_scope(),
             authority,
-            meter,
+
             path,
             error: PhantomData,
         }
@@ -124,7 +123,7 @@ struct ReferenceSetValidator<'a, A, E> {
     expected_call_domain: ExportDefaultCallDomainV1,
     scope: crate::SignatureBinderScopeV1,
     authority: &'a mut A,
-    meter: &'a mut BudgetMeter,
+
     path: &'a WirePath,
     error: PhantomData<fn() -> E>,
 }
@@ -209,14 +208,6 @@ where
             &ExportDefinitionSourceV1,
         ) -> Result<(), ExportDefaultReferenceValidationError<E>>,
     ) -> Result<(), ExportDefaultReferenceSetSemanticValidationError<E>> {
-        self.enter_record().map_err(|error| {
-            ExportDefaultReferenceSetSemanticValidationError::Record {
-                kind,
-                index,
-                error: Box::new(ExportDefaultReferenceValidationError::Resource(error)),
-            }
-        })?;
-
         reference
             .witness()
             .validate_public_access(self.template.key().owner(), self.expected_call_domain)
@@ -386,30 +377,20 @@ where
         site: ExportDefaultReferenceTargetTypeSiteV1,
         origin: &ExportDefinitionSourceV1,
     ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
-        match self.scope.validate_signature_semantics_metered(
-            signature,
-            self.authority,
-            self.meter,
-            self.path,
-        ) {
-            Ok(()) => Ok(()),
-            Err(MeteredSignatureTypeSemanticError::Semantic(error)) => {
-                Err(ExportDefaultReferenceValidationError::Type {
-                    site,
-                    definition_origin: Box::new(origin.clone()),
-                    error: Box::new(error),
-                })
-            }
-            Err(MeteredSignatureTypeSemanticError::Resource(error)) => {
+        match self
+            .scope
+            .validate_signature_semantics(signature, self.authority)
+        {
+            Err(SignatureTypeSemanticError::Allocation(error)) => {
                 Err(ExportDefaultReferenceValidationError::Resource(error))
             }
+            Ok(()) => Ok(()),
+            Err(error) => Err(ExportDefaultReferenceValidationError::Type {
+                site,
+                definition_origin: Box::new(origin.clone()),
+                error: Box::new(error),
+            }),
         }
-    }
-
-    fn enter_record(&mut self) -> Result<(), WireError> {
-        self.meter.check_semantic_depth(1, self.path)?;
-        self.meter.charge_nodes(1, self.path)?;
-        self.meter.charge_work(1, self.path)
     }
 
     fn record_error(

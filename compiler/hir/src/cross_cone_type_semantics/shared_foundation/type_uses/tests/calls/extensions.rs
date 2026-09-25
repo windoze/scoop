@@ -3,7 +3,6 @@ use scoop_identity::{CallingConvention, NonEmptyVec};
 
 mod functions;
 mod negative;
-mod resources;
 
 #[test]
 fn shared_extension_receivers_follow_inheritance_for_every_provider_and_accessor_role() {
@@ -27,9 +26,7 @@ fn shared_extension_receivers_follow_inheritance_for_every_provider_and_accessor
                 actual,
                 selected(signature_uses(provider.provider(), &[base, derived]))
             );
-            consumer
-                .validate(&actual, &dependencies, &mut meter())
-                .unwrap();
+            consumer.validate(&actual, &dependencies).unwrap();
             snapshot(&format!("extension-receiver-{name}"), &actual);
         }
     }
@@ -59,13 +56,8 @@ fn shared_extension_receivers_reach_any_from_nominal_and_structural_values() {
         consumer.calls(&provider, &[target, target]);
         consumer.change_last_receiver(actual_type);
         let actual = consumer.uses(&dependencies).unwrap();
-        assert!(actual.records().iter().all(|record| matches!(
-            record.usage(),
-            SelectedTypeUseV1::Signature { .. } | SelectedTypeUseV1::Representation { .. }
-        )));
-        consumer
-            .validate(&actual, &dependencies, &mut meter())
-            .unwrap();
+
+        consumer.validate(&actual, &dependencies).unwrap();
     }
 }
 
@@ -118,9 +110,7 @@ fn check_relation(
     consumer.change_last_receiver(actual_type);
     if accepted {
         let actual = consumer.uses(&dependencies).unwrap();
-        consumer
-            .validate(&actual, &dependencies, &mut meter())
-            .unwrap();
+        consumer.validate(&actual, &dependencies).unwrap();
     } else {
         assert!(
             matches!(consumer.uses(&dependencies), Err(Error::CallReceiver {

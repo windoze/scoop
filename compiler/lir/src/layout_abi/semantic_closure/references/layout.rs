@@ -4,49 +4,27 @@ use scoop_identity::{LayoutKey, RepresentationRole};
 
 pub(super) fn enqueue(
     record: &crate::ExactLayoutExportV1,
-    depth: u64,
     views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     pending: &mut Vec<Pending>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSemanticClosureError> {
     let profile = record.identity().target();
     match record.kind() {
         crate::ExactLayoutBodyKindV1::Value(value) => match value.representation().kind() {
             crate::ExactRepresentationKindV1::Struct(value) => {
-                fields(value.fields(), profile, depth, views, index, pending, meter)?
+                fields(value.fields(), profile, views, index, pending)?
             }
             crate::ExactRepresentationKindV1::Tuple(value) => {
                 for element in value.elements() {
-                    field(
-                        element.storage(),
-                        profile,
-                        depth,
-                        views,
-                        index,
-                        pending,
-                        meter,
-                    )?;
+                    field(element.storage(), profile, views, index, pending)?;
                 }
             }
-            crate::ExactRepresentationKindV1::TaggedEnum(value) => variants(
-                value.variants(),
-                profile,
-                depth,
-                views,
-                index,
-                pending,
-                meter,
-            )?,
-            crate::ExactRepresentationKindV1::NicheEnum(value) => variants(
-                value.variants(),
-                profile,
-                depth,
-                views,
-                index,
-                pending,
-                meter,
-            )?,
+            crate::ExactRepresentationKindV1::TaggedEnum(value) => {
+                variants(value.variants(), profile, views, index, pending)?
+            }
+            crate::ExactRepresentationKindV1::NicheEnum(value) => {
+                variants(value.variants(), profile, views, index, pending)?
+            }
             crate::ExactRepresentationKindV1::Scalar(_)
             | crate::ExactRepresentationKindV1::QualifiedPointer(_)
             | crate::ExactRepresentationKindV1::IntrinsicValue(_) => {}
@@ -64,11 +42,9 @@ pub(super) fn enqueue(
                         let owner = target(
                             LayoutAbiSemanticTargetV1::Layout(layout),
                             None,
-                            depth,
                             views,
                             index,
                             pending,
-                            meter,
                         )?;
                         let Some(candidate) = views[owner].layouts().get(layout) else {
                             return Err(LayoutAbiSemanticClosureError::MissingTarget(
@@ -86,21 +62,13 @@ pub(super) fn enqueue(
                             ));
                         }
                     }
-                    fields(
-                        value.declared_fields(),
-                        profile,
-                        depth,
-                        views,
-                        index,
-                        pending,
-                        meter,
-                    )?;
+                    fields(value.declared_fields(), profile, views, index, pending)?;
                 }
                 crate::InstanceRepresentationKindV1::BoxedPayload(value) => {
-                    constituent(value, depth, views, index, pending, meter)?;
+                    constituent(value, views, index, pending)?;
                 }
                 crate::InstanceRepresentationKindV1::InlineArray { element, .. } => {
-                    constituent(element, depth, views, index, pending, meter)?;
+                    constituent(element, views, index, pending)?;
                 }
                 crate::InstanceRepresentationKindV1::InlineBytes
                 | crate::InstanceRepresentationKindV1::AbstractReference => {}
@@ -113,15 +81,13 @@ pub(super) fn enqueue(
 fn variants(
     variants: &[crate::EnumVariantLayoutV1],
     profile: crate::LirTargetProfile,
-    depth: u64,
     views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     pending: &mut Vec<Pending>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSemanticClosureError> {
     for variant in variants {
         for item in variant.fields() {
-            field(item.storage(), profile, depth, views, index, pending, meter)?;
+            field(item.storage(), profile, views, index, pending)?;
         }
     }
     Ok(())
@@ -130,14 +96,12 @@ fn variants(
 fn fields(
     fields: &[crate::PlacedFieldStorageV1],
     profile: crate::LirTargetProfile,
-    depth: u64,
     views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     pending: &mut Vec<Pending>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSemanticClosureError> {
     for item in fields {
-        field(item.storage(), profile, depth, views, index, pending, meter)?;
+        field(item.storage(), profile, views, index, pending)?;
     }
     Ok(())
 }
@@ -145,11 +109,9 @@ fn fields(
 fn field(
     field: &crate::FieldStorageV1,
     profile: crate::LirTargetProfile,
-    depth: u64,
     views: &[&LayoutAbiExportConstituentsV1],
     index: &LayoutAbiTargetIndex,
     pending: &mut Vec<Pending>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSemanticClosureError> {
     let (layout, expected, zst_alignment) = match field.kind() {
         crate::FieldStorageKindV1::Stored { layout, .. } => (layout.layout(), Some(layout), None),
@@ -165,7 +127,7 @@ fn field(
             Some(alignment),
         ),
     };
-    let owner = exact_target(layout, None, depth, views, index, pending, meter)?;
+    let owner = exact_target(layout, None, views, index, pending)?;
     let Some(candidate) = views[owner].layouts().get(layout) else {
         return Err(LayoutAbiSemanticClosureError::MissingTarget(
             LayoutAbiSemanticTargetV1::Layout(layout),

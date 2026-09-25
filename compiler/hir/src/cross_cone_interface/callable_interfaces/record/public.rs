@@ -139,7 +139,7 @@ impl WireEncode for DecodedCallableInterfaceRecordV1 {
     }
 }
 impl WireDecode for DecodedCallableInterfaceRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             data: decoder.field(1, DecodedCallableDeclarationRecordV1::decode)?,

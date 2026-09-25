@@ -4,7 +4,7 @@ use super::*;
 fn actual_mir_source_projection_rejects_reordered_fields_with_unchanged_identities_and_facts() {
     let (_, source) = fixture("combined");
     with_exports(&source, |input, dependencies, candidate| {
-        let source = project(input, dependencies, &mut meter()).unwrap();
+        let source = project(input, dependencies).unwrap();
         let mut types = candidate.types().records().to_vec();
         let index = types.iter().position(|record| {
             matches!(record.representation(), mir::MirTypeRepresentationV1::Struct { fields, .. } if fields.len() > 1)
@@ -37,7 +37,7 @@ fn actual_mir_source_projection_rejects_reordered_fields_with_unchanged_identiti
             candidate.initialization_uses().clone(),
         );
         assert!(matches!(
-            candidate.validate_sources(input.mir.module().cone, input.identities, &source, &mut meter()),
+            candidate.validate_sources(input.mir.module().cone, input.identities, &source),
             Err(mir::MirTypeBridgeSourceJoinError::Record(mir::MirTypeBridgeSourceRecordV1::Type(actual))) if actual == exact
         ));
     });

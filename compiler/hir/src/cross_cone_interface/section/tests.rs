@@ -5,7 +5,7 @@ use scoop_identity::{
     SourceIdentity, SourceSpan, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath, decode_canonical, encode};
+use scoop_wire::{WirePath, decode_canonical, encode};
 
 use super::*;
 use crate::cross_cone_interface::default_templates::expression_test_support::Fixture;
@@ -29,7 +29,6 @@ fn internal_closure_validator_accepts_an_empty_section() {
     assert_eq!(
         empty_section().validate_internal_closures(
             &CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
             &WirePath::root(),
         ),
         Ok(())
@@ -46,11 +45,7 @@ fn internal_closure_validator_preserves_relation_errors() {
     let direct = CanonicalDirectPublicSurfaceV1::try_new(vec![binding]).unwrap();
 
     assert_eq!(
-        empty_section().validate_internal_closures(
-            &direct,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        ),
+        empty_section().validate_internal_closures(&direct, &WirePath::root(),),
         Err(CrossConeHirInternalClosureValidationError::DirectSurface(
             PublicExportBindingDirectSurfaceValidationError::MissingDeclaredCurrent {
                 surface_index: 0,
@@ -67,7 +62,6 @@ fn internal_closure_validator_preserves_relation_errors() {
     assert_eq!(
         section.validate_internal_closures(
             &CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
             &WirePath::root(),
         ),
         Err(
@@ -86,10 +80,7 @@ fn definition_source_closure_accepts_every_inline_source_category() {
     let (section, expected) = closure_section(None, None);
 
     assert_eq!(
-        section.validate_definition_source_closure(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        ),
+        section.validate_definition_source_closure(&WirePath::root(),),
         Ok(())
     );
     assert_eq!(section.definition_sources().sources().len(), expected.len());
@@ -108,10 +99,7 @@ fn definition_source_closure_reports_each_missing_use_site() {
             .unwrap_err();
 
         assert_eq!(
-            section.validate_definition_source_closure(
-                &mut BudgetMeter::new(DecodeLimits::default()),
-                &WirePath::root(),
-            ),
+            section.validate_definition_source_closure(&WirePath::root(),),
             Err(ExportDefinitionSourceClosureValidationError::Missing {
                 source: Box::new(missing_source),
                 insertion_index,
@@ -132,10 +120,7 @@ fn definition_source_closure_rejects_an_unused_table_entry() {
         .unwrap();
 
     assert_eq!(
-        section.validate_definition_source_closure(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        ),
+        section.validate_definition_source_closure(&WirePath::root(),),
         Err(ExportDefinitionSourceClosureValidationError::Extra {
             index,
             source: Box::new(extra),
@@ -153,8 +138,7 @@ fn empty_section_has_fixed_wire_and_resolves() {
         "aa018002a20180028003a20180028004a201800280058006800780088009800a80"
     );
 
-    let decoded: DecodedCrossConeHirInterfaceSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeHirInterfaceSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 
     let mut identities = PendingIdentityValidation::new().finish().unwrap();
@@ -180,13 +164,7 @@ fn reader_rejects_open_or_reordered_top_level_maps() {
     ];
 
     for bytes in [vec![0xa9], vec![0xab], reordered] {
-        assert!(
-            decode_canonical::<DecodedCrossConeHirInterfaceSectionV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCrossConeHirInterfaceSectionV1>(&bytes,).is_err());
     }
 }
 

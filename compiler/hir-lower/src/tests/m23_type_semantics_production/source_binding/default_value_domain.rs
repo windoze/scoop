@@ -5,7 +5,7 @@ use hir::{
 };
 mod dependencies;
 mod rejection;
-mod resources;
+
 pub(super) mod support;
 use support::with_inputs;
 const SOURCE: &str = include_str!(concat!(
@@ -34,9 +34,9 @@ fn default_value_domains_join_actual_constructor_storage_and_inherited_occurrenc
         with_inputs(source, |inputs| {
             inputs.with_bound(|domains, parameters, _| {
                 let declarations = parameters
-                    .bind_default_declarations(&inputs.templates, &[], &mut meter())
+                    .bind_default_declarations(&inputs.templates, &[])
                     .unwrap();
-                let proof = domains.bind_nominal_default_value_domains(&declarations, &mut meter()).unwrap();
+                let proof = domains.bind_nominal_default_value_domains(&declarations).unwrap();
                 assert!(std::ptr::eq(proof.declarations(), &declarations));
                 let mut counts = [0; 7];
                 for declaration in proof.declarations().declarations() {
@@ -53,7 +53,7 @@ fn default_value_domains_join_actual_constructor_storage_and_inherited_occurrenc
                         };
                         counts[6] += usize::from(!record.witness().target_domain().generic_subclasses().is_empty());
                         counts[index] += 1;
-                        let actual = domains.value_source_domain(target, &mut meter()).unwrap();
+                        let actual = domains.value_source_domain(target).unwrap();
                         assert_eq!(&actual, record.witness().target_domain());
                     }
                 }

@@ -80,36 +80,6 @@ fn evaluation_and_control_regions_do_not_merge_or_leak_local_declarations() {
     }
 }
 
-#[test]
-fn lexical_scope_work_consumes_the_callers_shared_budget() {
-    let f = LocalFixture::new();
-    let template = template_with_body(&f.fixture, regions(&f, true), unit(&f.fixture));
-    let path = WirePath::root();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    template
-        .body()
-        .validate_nested_callable_abi_semantics(&template, &mut f.authority(), &mut meter, &path)
-        .unwrap();
-    let work = meter.usage().validation_work_units;
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: work * 2 - 1,
-        ..DecodeLimits::default()
-    });
-    template
-        .body()
-        .validate_nested_callable_abi_semantics(&template, &mut f.authority(), &mut shared, &path)
-        .unwrap();
-    assert!(matches!(
-        template.body().validate_nested_callable_abi_semantics(
-            &template,
-            &mut f.authority(),
-            &mut shared,
-            &path,
-        ),
-        Err(DefaultNestedCallableAbiValidationError::Resource(_))
-    ));
-}
-
 fn assert_missing(f: &LocalFixture, template: &ExportDefaultTemplateV1) {
     assert_eq!(
         validate_body(template, &mut f.authority()).unwrap_err(),

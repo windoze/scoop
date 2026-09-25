@@ -8,7 +8,7 @@ use scoop_identity::{
     SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{CallableSignatureRecord, CanonicalMirFoundation, DecodedMirFoundation};
@@ -37,13 +37,7 @@ fn bridge_reader_rejects_non_closed_products_and_sums() {
         vec![0xa2, 0x02, 0xa1, 0x00, 0x03, 0x03, 0x80],
         vec![0xa2, 0x02, 0xa2, 0x00, 0x01, 0x01, 0x00, 0x03, 0x80],
     ] {
-        assert!(
-            decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(&bytes,).is_err());
     }
 }
 
@@ -54,11 +48,7 @@ fn reader_rejects_removed_core_production_field() {
         assert_eq!(bytes[0], 0xa2);
         bytes[0] = 0xa3;
         bytes.splice(1..1, std::iter::once(0x01).chain(old_branch));
-        let error = decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(
-            &bytes,
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error = decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -314,8 +304,7 @@ fn executable_entry_bridge_round_trips_the_complete_hir_proof() {
         .position(|window| window == body.as_array())
         .unwrap();
     tampered[offset + body.as_array().len() - 1] ^= 1;
-    let decoded: DecodedCoreBootstrapBridgeSectionV1 =
-        decode_canonical(&tampered, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCoreBootstrapBridgeSectionV1 = decode_canonical(&tampered).unwrap();
     let (mut identities, foundation) = validate_mir(&hir, &mir);
     assert_eq!(
         decoded.validate(artifact, &mut identities, &foundation),
@@ -329,9 +318,7 @@ fn entry_bridge_rejects_the_removed_id_only_wire() {
         CborIdentityRecord::from_key(source_function_in(ConeIdentity::SINGLE_FILE, "main"))
             .unwrap();
     let bytes = encode(&IdOnlyEntryBranch(function.id())).unwrap();
-    assert!(
-        decode_canonical::<DecodedEntryMirBridgeBranchV1>(&bytes, DecodeLimits::default()).is_err()
-    );
+    assert!(decode_canonical::<DecodedEntryMirBridgeBranchV1>(&bytes).is_err());
 }
 
 struct IdOnlyEntryBranch(PersistentFunctionId);

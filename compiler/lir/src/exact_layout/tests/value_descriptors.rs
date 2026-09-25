@@ -2,8 +2,7 @@ use super::*;
 
 fn own_descriptor(value: &ExactValueLayoutV1) -> ExactInstanceLayoutV1 {
     let bound = Bound::instance(value.identity().exact_record().clone());
-    ExactInstanceLayoutV1::boxed_payload(bound.identity, value, &bound.foundation, &mut meter())
-        .unwrap()
+    ExactInstanceLayoutV1::boxed_payload(bound.identity, value, &bound.foundation).unwrap()
 }
 
 #[test]
@@ -11,14 +10,8 @@ fn source_value_descriptors_keep_same_exact_and_boxed_instance_shape() {
     let unit = unit();
     let integer = integer("Int", IntegerKind::SIGNED_64);
     let zero = Bound::value(exact(&source("Empty", SourceNominalKind::Struct, 0)));
-    let zero = ExactValueLayoutV1::ordinary_struct(
-        zero.identity,
-        false,
-        &[],
-        &zero.foundation,
-        &mut meter(),
-    )
-    .unwrap();
+    let zero =
+        ExactValueLayoutV1::ordinary_struct(zero.identity, false, &[], &zero.foundation).unwrap();
     for (value, minimum, inline_size) in [(&unit, 16, 0), (&zero, 16, 0), (&integer, 24, 8)] {
         let descriptor = own_descriptor(value);
         assert_eq!(descriptor.identity().exact(), value.identity().exact());
@@ -47,7 +40,6 @@ fn source_aggregate_descriptor_translates_payload_scan_from_same_exact_layout() 
             value: &reference,
         }],
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     let descriptor = own_descriptor(&value);
@@ -68,7 +60,7 @@ fn boxed_payload_rejects_reference_value_and_c_storage_role() {
     let value = managed();
     let own = Bound::instance(value.identity().exact_record().clone());
     assert!(matches!(
-        ExactInstanceLayoutV1::boxed_payload(own.identity, &value, &own.foundation, &mut meter()),
+        ExactInstanceLayoutV1::boxed_payload(own.identity, &value, &own.foundation),
         Err(ExactLayoutReplayError::BoxPayloadKind)
     ));
     let integer = exact(&source("CInteger", SourceNominalKind::Struct, 0));
@@ -81,12 +73,11 @@ fn boxed_payload_rejects_reference_value_and_c_storage_role() {
         bound.identity,
         ScalarRepresentationKindV1::Integer(IntegerKind::SIGNED_64),
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     let own = Bound::instance(integer);
     assert!(matches!(
-        ExactInstanceLayoutV1::boxed_payload(own.identity, &value, &own.foundation, &mut meter()),
+        ExactInstanceLayoutV1::boxed_payload(own.identity, &value, &own.foundation),
         Err(ExactLayoutReplayError::RepresentationRole)
     ));
 }

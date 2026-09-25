@@ -27,20 +27,19 @@ impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
     pub fn bind_nominal_default_target_domains<'b, 'd, 'p, 's, 'a, 'f>(
         &self,
         declarations: &'b BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f>,
-        meter: &mut BudgetMeter,
     ) -> Result<
         BoundNominalDefaultTargetDomainsV1<'b, 'd, 'p, 's, 'a, 'f>,
         DefaultSourceTargetDomainBindingError,
     > {
         use DefaultSourceTargetDomainBindingError as Error;
         let types = self
-            .bind_nominal_default_type_domains(declarations, meter)
+            .bind_nominal_default_type_domains(declarations)
             .map_err(Error::Type)?;
         let values = self
-            .bind_nominal_default_value_domains(declarations, meter)
+            .bind_nominal_default_value_domains(declarations)
             .map_err(Error::Value)?;
         let callables = self
-            .bind_nominal_default_callable_domains(declarations, meter)
+            .bind_nominal_default_callable_domains(declarations)
             .map_err(Error::Callable)?;
         Ok(BoundNominalDefaultTargetDomainsV1 {
             types,

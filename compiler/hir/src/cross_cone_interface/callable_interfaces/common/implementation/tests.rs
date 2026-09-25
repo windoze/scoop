@@ -1,7 +1,7 @@
 use super::*;
 
 mod effects;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 #[test]
 fn every_typed_intrinsic_kind_round_trips_as_a_complete_implementation() {
@@ -9,8 +9,7 @@ fn every_typed_intrinsic_kind_round_trips_as_a_complete_implementation() {
         let implementation = CallableImplementationV1::Intrinsic(kind);
         let bytes = encode(&implementation).unwrap();
         assert_eq!(&bytes[..4], &[0xa2, 0, 2, 1]);
-        let decoded: CallableImplementationV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: CallableImplementationV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded, implementation);
     }
 }
@@ -25,7 +24,7 @@ fn non_intrinsic_implementations_have_no_kind_payload() {
         let bytes = encode(&implementation).unwrap();
         assert_eq!(bytes, [0xa1, 0, tag]);
         assert_eq!(
-            decode_canonical::<CallableImplementationV1>(&bytes, DecodeLimits::default()).unwrap(),
+            decode_canonical::<CallableImplementationV1>(&bytes).unwrap(),
             implementation
         );
     }
@@ -46,7 +45,7 @@ fn implementation_reader_rejects_old_leaf_tags_and_incomplete_or_open_sums() {
         vec![0xa3, 0, 2, 1, 0xa1, 0, 5, 2, 0],
     ] {
         assert!(
-            decode_canonical::<CallableImplementationV1>(&bytes, DecodeLimits::default()).is_err(),
+            decode_canonical::<CallableImplementationV1>(&bytes).is_err(),
             "{bytes:02x?}"
         );
     }

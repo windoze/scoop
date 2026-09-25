@@ -1,5 +1,4 @@
 use scoop_identity::EvaluationOrigin;
-use scoop_wire::WirePath;
 
 use super::*;
 
@@ -24,13 +23,10 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                 .complete_cross_cone_interface_source_points(
                     output.output().export.module(),
                     &interface,
-                    &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
                 )
                 .unwrap();
             let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
-            let calls = output
-                .committed_dependency_call_occurrences(&mut meter())
-                .unwrap();
+            let calls = output.committed_dependency_call_occurrences().unwrap();
             let mut observed = 0;
             for reference in interface.external_references().records() {
                 for site in reference.call_sites().records() {
@@ -64,8 +60,6 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                             output.output().export.cone,
                             site.position().root,
                             site.origin().evaluation(),
-                            &mut meter(),
-                            &WirePath::root(),
                         )
                         .unwrap_or_else(|error| {
                             panic!(
@@ -77,8 +71,6 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                         .validate_definition_origin_location(
                             output.output().export.cone,
                             site.origin().definition(),
-                            &mut meter(),
-                            &WirePath::root(),
                         )
                         .unwrap();
                 }
@@ -129,8 +121,6 @@ fn call_evaluation_rejects_another_executable_context_in_the_same_source() {
                 output.output().export.cone,
                 first.position().root,
                 &wrong,
-                &mut meter(),
-                &WirePath::root(),
             ),
             Err(hir::ExecutableEvaluationValidationError::Context { .. })
         ));

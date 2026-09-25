@@ -49,7 +49,7 @@ impl WireEncode for DecodedCanonicalScoopStorage {
 }
 
 impl WireDecode for DecodedCanonicalScoopStorage {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
@@ -107,7 +107,7 @@ impl WireEncode for DecodedScoopAbiArgument {
 }
 
 impl WireDecode for DecodedScoopAbiArgument {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 2)?;
         match tag {
@@ -171,7 +171,7 @@ impl WireEncode for DecodedScoopAbiReturn {
 }
 
 impl WireDecode for DecodedScoopAbiReturn {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -252,7 +252,7 @@ impl WireEncode for DecodedCanonicalScoopAbiFunctionSignature {
 }
 
 impl WireDecode for DecodedCanonicalScoopAbiFunctionSignature {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             signature: decoder.field(1, DecodedExactCallableSignature::decode)?,
@@ -266,7 +266,7 @@ impl WireDecode for DecodedCanonicalScoopAbiFunctionSignature {
 }
 
 impl WireDecode for ScoopAbiValueShape {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Scalar),
             2 => Ok(Self::Aggregate),
@@ -294,7 +294,7 @@ impl<E: fmt::Display> fmt::Display for ScoopAbiResolutionError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for ScoopAbiResolutionError<E> {}
 
-fn decode_non_zero_u64(decoder: &mut Decoder<'_, '_>) -> Result<NonZeroU64, WireError> {
+fn decode_non_zero_u64(decoder: &mut Decoder<'_>) -> Result<NonZeroU64, WireError> {
     NonZeroU64::new(decoder.unsigned()?).ok_or_else(|| {
         WireError::new(
             WireErrorKind::IntegerOutOfRange,
@@ -304,14 +304,14 @@ fn decode_non_zero_u64(decoder: &mut Decoder<'_, '_>) -> Result<NonZeroU64, Wire
     })
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_storage_variant<T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     build: impl FnOnce(DecodedCanonicalScoopStorage) -> T,
 ) -> Result<T, WireError> {
     decoder
@@ -319,11 +319,7 @@ fn decode_storage_variant<T>(
         .map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -335,7 +331,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

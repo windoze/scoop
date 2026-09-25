@@ -27,7 +27,7 @@ impl WireEncode for NominalInheritanceModalityV1 {
     }
 }
 impl WireDecode for NominalInheritanceModalityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::Final),
@@ -163,7 +163,7 @@ impl WireEncode for DecodedDirectClassBaseV1 {
     }
 }
 impl WireDecode for DecodedDirectClassBaseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -189,39 +189,6 @@ pub struct DecodedNominalInheritanceEdgesV1 {
     direct_interfaces: Vec<DecodedPersistentId<PersistentExactTypeId>>,
 }
 impl DecodedNominalInheritanceEdgesV1 {
-    pub fn resolve_metered<R: PersistentIdResolver<PersistentExactTypeId>>(
-        self,
-        resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<NominalInheritanceEdgesV1, InheritanceEdgeResolutionError<R::Error>> {
-        let path = scoop_wire::WirePath::root();
-        let count = self.direct_interfaces.len() as u64;
-        meter
-            .check_semantic_depth(1, &path)
-            .map_err(InheritanceEdgeResolutionError::Resource)?;
-        meter
-            .check_table_entries(count, &path)
-            .map_err(InheritanceEdgeResolutionError::Resource)?;
-        meter
-            .charge_edges(
-                count.saturating_add(u64::from(matches!(
-                    self.direct_base,
-                    DecodedDirectClassBaseV1::ClassBase { .. }
-                ))),
-                &path,
-            )
-            .map_err(InheritanceEdgeResolutionError::Resource)?;
-        meter
-            .charge_nodes(count.saturating_add(1), &path)
-            .map_err(InheritanceEdgeResolutionError::Resource)?;
-        meter
-            .charge_collection_slots(count, &path)
-            .map_err(InheritanceEdgeResolutionError::Resource)?;
-        meter
-            .charge_work(count.saturating_add(2), &path)
-            .map_err(InheritanceEdgeResolutionError::Resource)?;
-        self.resolve(resolver)
-    }
     pub fn resolve<R: PersistentIdResolver<PersistentExactTypeId>>(
         self,
         resolver: &mut R,
@@ -242,7 +209,7 @@ impl DecodedNominalInheritanceEdgesV1 {
         NominalInheritanceEdgesV1::from_ordered(owner, self.modality, direct_base, interfaces)
             .map_err(InheritanceEdgeResolutionError::Order)
     }
-    pub(super) fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    pub(super) fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
             modality: decoder.field(2, NominalInheritanceModalityV1::decode)?,
@@ -254,7 +221,7 @@ impl DecodedNominalInheritanceEdgesV1 {
     }
 }
 impl WireDecode for DecodedNominalInheritanceEdgesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Self::decode_fields(decoder)
     }

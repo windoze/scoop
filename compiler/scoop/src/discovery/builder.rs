@@ -87,7 +87,6 @@ impl DiscoveryBuilder {
                     &pending.key,
                     &self.context.artifact_search_roots,
                     self.context.target.lir_target_selection(),
-                    self.context.limits.artifact_decode(),
                 )
                 .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?
             };
@@ -113,7 +112,6 @@ impl DiscoveryBuilder {
                 &pending.coordinate,
                 &self.context.artifact_search_roots,
                 self.context.target.lir_target_selection(),
-                self.context.limits.artifact_decode(),
             )
             .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?;
             self.intern_claim(LocatedDependencyClaim::Prebuilt(Box::new(claim)))?;

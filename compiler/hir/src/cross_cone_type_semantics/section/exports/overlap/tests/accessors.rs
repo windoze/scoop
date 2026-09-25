@@ -44,33 +44,14 @@ fn restricted_setter_overlap_does_not_grant_getter_or_owner_access() {
         vec![property],
     );
     let access = fixture.access(owner, DeclaredVisibilityV1::Protected);
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.graph.records.values(),
-        &fixture.graph,
-        &mut meter(),
-    )
-    .unwrap();
-    callables::validate::<&str>(
-        setter,
-        &access,
-        &setter_payload,
-        &public,
-        &graph,
-        &mut meter(),
-        &path(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.graph.records.values(), &fixture.graph)
+            .unwrap();
+    callables::validate::<&str>(setter, &access, &setter_payload, &public, &graph, &path())
+        .unwrap();
     assert!(
-        callables::validate::<&str>(
-            getter,
-            &access,
-            &getter_payload,
-            &public,
-            &graph,
-            &mut meter(),
-            &path()
-        )
-        .is_err()
+        callables::validate::<&str>(getter, &access, &getter_payload, &public, &graph, &path())
+            .is_err()
     );
     let original = fixture.graph.access[&owner.source].clone();
     fixture.graph.access.insert(
@@ -82,22 +63,11 @@ fn restricted_setter_overlap_does_not_grant_getter_or_owner_access() {
         )
         .unwrap(),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.graph.records.values(),
-        &fixture.graph,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.graph.records.values(), &fixture.graph)
+            .unwrap();
     assert!(
-        callables::validate::<&str>(
-            setter,
-            &access,
-            &setter_payload,
-            &public,
-            &graph,
-            &mut meter(),
-            &path()
-        )
-        .is_err()
+        callables::validate::<&str>(setter, &access, &setter_payload, &public, &graph, &path())
+            .is_err()
     );
 }

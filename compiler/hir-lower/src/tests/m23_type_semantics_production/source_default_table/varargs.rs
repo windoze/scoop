@@ -12,7 +12,7 @@ fn complete_default_sources_distinguish_vararg_default_and_empty_omission() {
     let input = crate::CoreBootstrapSources::try_new(&parsed).unwrap();
     let output = crate::lower_core_bootstrap(&input).unwrap();
     let export = output.export.module();
-    let production = Production::from_export_hir(&output.export, &mut meter()).unwrap();
+    let production = Production::from_export_hir(&output.export).unwrap();
     let defaulted = declaration(export, function(export, "Variadic.defaulted"));
     let collect = declaration(export, function(export, "Variadic.collect"));
     let default_key = hir::ProtectedDefaultTemplateKeyV1::try_new(defaulted, 1).unwrap();
@@ -33,7 +33,7 @@ fn complete_default_sources_distinguish_vararg_default_and_empty_omission() {
     );
     production
         .templates()
-        .validate_parameter_coverage(production.parameters(), &mut meter())
+        .validate_parameter_coverage(production.parameters())
         .unwrap();
 }
 
@@ -42,7 +42,7 @@ fn nominal_default_source_production_rejects_foreign_roots_in_a_mixed_test_world
     let source =
         scoop_parser::parse("public struct Value(val field: Int = 1)\nfun main() {}").unwrap();
     let mixed = lower(&[complete_core_file(), source]).unwrap();
-    let error = Production::from_export_hir(&mixed.export, &mut meter()).unwrap_err();
+    let error = Production::from_export_hir(&mixed.export).unwrap_err();
     assert!(
         matches!(error, hir::NominalDefaultSourceProductionError::Sources(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(ref message)) if message == "public source root is not owned by this Cone"),
         "{error:?}"

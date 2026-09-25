@@ -10,12 +10,11 @@ pub(in crate::production::nominal_interfaces::source_contracts) struct Index {
     pub children: BTreeMap<SourceNominalId, Vec<SourceNominalId>>,
 }
 impl Index {
-    pub fn new(export: &ExportHir, meter: &mut BudgetMeter) -> Result<Self, Error> {
+    pub fn new(export: &ExportHir) -> Result<Self, Error> {
         let mut nodes = BTreeMap::new();
         let mut children = BTreeMap::<_, Vec<_>>::new();
-        let path = WirePath::root();
+
         for local in locals(export) {
-            work(meter, nodes.len() + 1)?;
             let identity = local
                 .identity(export)
                 .ok_or_else(|| invalid("sealed nominal has no source identity"))?;
@@ -27,9 +26,7 @@ impl Index {
                 continue;
             }
             let owner = source_nominal_id(source);
-            meter
-                .check_semantic_depth(key.owners().owners().len() as u64 + 1, &path)
-                .map_err(resource)?;
+
             let parent = projection::header(export, local)
                 .1
                 .map(|owner| source_owner(export, owner))
@@ -37,10 +34,7 @@ impl Index {
             if key.owners().owners().last() != parent.map(owner_atom).as_ref() {
                 return Err(invalid("source root has a different lexical owner"));
             }
-            meter
-                .check_table_entries(nodes.len() as u64 + 1, &path)
-                .map_err(resource)?;
-            meter.charge_collection_slots(1, &path).map_err(resource)?;
+
             if nodes
                 .insert(
                     owner,
@@ -55,15 +49,10 @@ impl Index {
                 return Err(invalid("duplicate source nominal identity in sealed HIR"));
             }
             if let Some(parent) = parent {
-                work(meter, children.len())?;
-                if !children.contains_key(&parent) {
-                    meter.charge_collection_slots(1, &path).map_err(resource)?;
-                }
-                push(children.entry(parent).or_default(), owner, meter)?;
+                push(children.entry(parent).or_default(), owner)?;
             }
         }
         for node in nodes.values() {
-            work(meter, nodes.len())?;
             if node
                 .parent
                 .is_some_and(|parent| !nodes.contains_key(&parent))

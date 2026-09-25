@@ -10,39 +10,26 @@ impl CheckedNominalSupportRuntimePropertySourceV1<'_> {
         &self,
         getter: CheckedNominalSupportCallableSourceV1<'_>,
         setter: Option<CheckedNominalSupportCallableSourceV1<'_>>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
-        self.validate_accessor_views(getter.into(), setter.map(Into::into), meter)
+        self.validate_accessor_views(getter.into(), setter.map(Into::into))
     }
 
     pub(in crate::cross_cone_type_semantics) fn validate_resolved_accessor_records(
         &self,
         getter: &crate::NominalSupportCallableInterfaceV1,
         setter: Option<&crate::NominalSupportCallableInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
-        self.validate_accessor_views(getter.into(), setter.map(Into::into), meter)
+        self.validate_accessor_views(getter.into(), setter.map(Into::into))
     }
 
     fn validate_accessor_views(
         &self,
         getter: AccessorSourceView<'_>,
         setter: Option<AccessorSourceView<'_>>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
         use ProtectedPropertyAccessorClosureError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
-        meter
-            .charge_work(
-                scoop_wire::encoded_length(self.payload.value_type())
-                    .map_err(Error::Encoding)?
-                    .saturating_mul(2),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
-        self.check_accessor(getter, self.payload.getter(), self.access.source(), meter)?;
+
+        self.check_accessor(getter, self.payload.getter(), self.access.source())?;
         if !getter.payload.parameters().is_empty()
             || getter.payload.result() != self.payload.value_type()
         {
@@ -57,7 +44,7 @@ impl CheckedNominalSupportRuntimePropertySourceV1<'_> {
                 },
                 Some(setter),
             ) => {
-                self.check_accessor(setter, *expected, setter_access, meter)?;
+                self.check_accessor(setter, *expected, setter_access)?;
                 let parameters = setter.payload.parameters().parameters();
                 if parameters.len() != 1 || parameters[0].value_type() != self.payload.value_type()
                 {
@@ -73,16 +60,13 @@ impl CheckedNominalSupportRuntimePropertySourceV1<'_> {
         accessor: AccessorSourceView<'_>,
         expected: PersistentPropertyAccessorId,
         source: &DeclarationAccessSourceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
         use ProtectedPropertyAccessorClosureError as Error;
         if accessor.declaration != CallableTemplateOrigin::Accessor(expected) {
             return Err(Error::Getter);
         }
         let actual = accessor.access;
-        meter
-            .charge_work(source.lexical_owners().len() as u64, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         if accessor.payload.owner() != self.payload.owner()
             || actual.declared_visibility() != source.declared_visibility()
             || actual.lexical_owners() != source.lexical_owners()
@@ -99,11 +83,8 @@ impl CheckedNominalSupportRuntimePropertySourceV1<'_> {
         {
             return Err(Error::Representation);
         }
-        let count = self.payload.slot_relations().slots().len() as u64;
+
         for slot in accessor.payload.slot_relations().slots() {
-            meter
-                .charge_work(count.saturating_add(1), &WirePath::root())
-                .map_err(Error::Resource)?;
             if self
                 .payload
                 .slot_relations()

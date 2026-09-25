@@ -88,7 +88,6 @@ impl Fixture {
             provider.module().meta.target_profile,
             provider.foundation(),
             vec![crate::tests::exact_callable_abi::unit_layout(&provider)],
-            &mut meter(),
         )
         .unwrap();
         Self {
@@ -106,7 +105,6 @@ impl Fixture {
             &self.types,
             &self.graph,
             &[&self.dependencies],
-            &mut meter(),
         )
     }
     pub fn replace(

@@ -29,9 +29,7 @@ pub(super) fn check(
         );
         let provider = lower(sysroot, target, &root, vec![], &[core]);
         let checked = provider.check(&[core]).unwrap();
-        checked
-            .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
-            .unwrap();
+        checked.with_inheritance_graph(&[core], |_| ()).unwrap();
         body::check(checked, core);
         references::check(checked, core);
         witnesses::check(checked, core);
@@ -156,8 +154,8 @@ fn reject_section(
     candidate: &CrossConeTypeSemanticsSectionV1,
 ) -> Error {
     candidate
-        .validate_shared_foundation(checked.metadata(), &[core], &mut meter())
+        .validate_shared_foundation(checked.metadata(), &[core])
         .unwrap()
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
+        .with_inheritance_graph(&[core], |_| ())
         .expect_err("restricted defaults must agree with shared declarations and body occurrences")
 }

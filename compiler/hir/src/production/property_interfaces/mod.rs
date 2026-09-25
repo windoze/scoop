@@ -7,7 +7,7 @@ use crate::{
     PropertyInterfaceRecordV1,
 };
 use scoop_identity::PropertyOwner as PersistentPropertyOwner;
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 use std::collections::HashSet;
 
 mod accessors;
@@ -23,36 +23,24 @@ pub use errors::{
 
 impl CanonicalPropertyInterfacesV1 {
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, PropertyInterfaceBuildError> {
-        Self::from_export_hir_with_budget(export, &mut BudgetMeter::new(DecodeLimits::default()))
-    }
-
-    pub fn from_export_hir_with_budget(
-        export: &ExportHir,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, PropertyInterfaceBuildError> {
-        let roots = SharedSourceRoots::from_export_hir(export, meter)
+        let roots = SharedSourceRoots::from_export_hir(export)
             .map_err(PropertyInterfaceBuildError::Nominals)?;
         let nominals =
-            CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(export, &roots, meter)
+            CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(export, &roots)
                 .map_err(PropertyInterfaceBuildError::Nominals)?;
-        Self::from_export_hir_with_nominals(export, &nominals, &roots, meter)
+        Self::from_export_hir_with_nominals(export, &nominals, &roots)
     }
 
     pub(in crate::production) fn from_export_hir_with_nominals(
         export: &ExportHir,
         nominals: &CanonicalNominalInterfacesV1,
         roots: &SharedSourceRoots,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, PropertyInterfaceBuildError> {
         use PropertyInterfaceBuildError as Error;
         let path = WirePath::root().field(4);
         let projector = HirInterfaceSignatureProjector::new(export);
         let surface = &export.public_surface;
-        let count = surface.property_getters.len() as u64 + surface.property_setters.len() as u64;
-        meter
-            .charge_collection_slots(count, &path)
-            .map_err(Error::Resource)?;
-        meter.charge_work(count, &path).map_err(Error::Resource)?;
+
         let public_getters = surface
             .property_getters
             .iter()
@@ -64,24 +52,18 @@ impl CanonicalPropertyInterfacesV1 {
             .copied()
             .collect::<HashSet<_>>();
         let mut required = nominals
-            .declared_source_properties(meter)
+            .declared_source_properties()
             .map_err(Error::Inventory)?
             .into_keys()
             .collect::<std::collections::BTreeSet<_>>();
         for property in &roots.top_level_properties {
-            query(meter, required.len())?;
-            meter
-                .charge_collection_slots(1, &path)
-                .map_err(Error::Resource)?;
             required.insert(*property);
         }
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, surface.properties.len(), &path)
+        scoop_wire::allocation::try_reserve(&mut records, surface.properties.len(), &path)
             .map_err(Error::Resource)?;
         for &id in &surface.properties {
-            query(meter, required.len())?;
-            let data = declaration::project(export, &projector, id, meter)?;
+            let data = declaration::project(export, &projector, id)?;
             required.remove(&data.declaration());
             let (access, setter) = accessors::public_lookup(
                 export,
@@ -96,22 +78,13 @@ impl CanonicalPropertyInterfacesV1 {
                     .map_err(|source| Error::Record { property, source })?,
             );
         }
-        let support = support::project(export, &projector, required, meter)?;
+        let support = support::project(export, &projector, required)?;
         let table = Self::with_support(records, support).map_err(Error::Table)?;
         table
-            .validate_member_declaration_inventory(nominals, meter)
+            .validate_member_declaration_inventory(nominals)
             .map_err(Error::Inventory)?;
         Ok(table)
     }
-}
-
-fn query(meter: &mut BudgetMeter, count: usize) -> Result<(), PropertyInterfaceBuildError> {
-    meter
-        .charge_work(
-            u64::from(count.max(1).ilog2()) + 1,
-            &WirePath::root().field(4),
-        )
-        .map_err(PropertyInterfaceBuildError::Resource)
 }
 
 fn persistent_property_owner(identity: &HirPropertyIdentity) -> PersistentPropertyOwner {

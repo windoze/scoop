@@ -1,5 +1,4 @@
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
     ExternalShapeLinkImportV1, ShapeLinkContractV1, ShapeLinkError, ShapeLinkSupportLookupV1,
@@ -31,12 +30,9 @@ pub struct ShapeLinkProviderV1<'a> {
 }
 
 impl<'a> ShapeLinkProviderV1<'a> {
-    pub fn try_new(
-        parts: ShapeLinkProviderPartsV1<'a>,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, ShapeLinkError> {
+    pub fn try_new(parts: ShapeLinkProviderPartsV1<'a>) -> Result<Self, ShapeLinkError> {
         let production = PhysicalProduction::Complete(parts.production);
-        Self::validate(parts.with_production(production), meter)
+        Self::validate(parts.with_production(production))
     }
 
     /// A contract-only view. Its replayed production cannot be passed to the
@@ -45,27 +41,21 @@ impl<'a> ShapeLinkProviderV1<'a> {
         foundation: &'a OdrFreeLirFoundation,
         ordinary: &'a CrossConeLirBridgeSectionV1,
         view: ReplayedStrongLayoutExportsV2<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ShapeLinkError> {
-        Self::validate(
-            ShapeLinkProviderPartsV1 {
-                foundation,
-                ordinary,
-                production: PhysicalProduction::Replayed(view),
-                layouts: view.exports.layouts(),
-                callables: view.exports.callables(),
-                descriptors: view.exports.descriptors(),
-                dispatch: view.exports.dispatch(),
-            },
-            meter,
-        )
+        Self::validate(ShapeLinkProviderPartsV1 {
+            foundation,
+            ordinary,
+            production: PhysicalProduction::Replayed(view),
+            layouts: view.exports.layouts(),
+            callables: view.exports.callables(),
+            descriptors: view.exports.descriptors(),
+            dispatch: view.exports.dispatch(),
+        })
     }
 
     fn validate(
         parts: ShapeLinkProviderPartsV1<'a, PhysicalProduction<'a>>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ShapeLinkError> {
-        meter.charge_work(10, &WirePath::root())?;
         let provider = parts.foundation.producer();
         if [
             parts.ordinary.artifact(),
@@ -118,9 +108,8 @@ impl<'a> ShapeLinkProviderV1<'a> {
     pub(crate) fn semantic_target(
         &self,
         subject: ExternalStrongShapeSubjectV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<LayoutAbiSemanticTargetV1>, ShapeLinkError> {
-        super::import::semantic_target(subject, self.parts.layouts, meter)
+        super::import::semantic_target(subject, self.parts.layouts)
     }
 
     /// The complete local Strong definition surface used by import replay.
@@ -136,19 +125,13 @@ impl<'a> ShapeLinkProviderV1<'a> {
         consumer: ConeIdentity,
         consumer_definitions: &StrongObjectSymbolSurfaceV1,
         support: &dyn ShapeLinkSupportLookupV1<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<ExternalShapeLinkImportV1<'a>, ShapeLinkError> {
         if consumer == self.provider() {
             return Err(ShapeLinkError::LocalImport);
         }
-        self.reject_legacy(subject, meter)?;
-        let physical =
-            StrongShapeDefinitionRefV1::from_foundation(subject, self.parts.foundation, meter)?;
-        let path = WirePath::root();
-        meter.charge_work(
-            self.parts.production.definitions().plans().len() as u64,
-            &path,
-        )?;
+        self.reject_legacy(subject)?;
+        let physical = StrongShapeDefinitionRefV1::from_foundation(subject, self.parts.foundation)?;
+
         let plan = self
             .parts
             .production
@@ -158,9 +141,8 @@ impl<'a> ShapeLinkProviderV1<'a> {
         if plan.primary_atom() != physical.primary() || plan.primary_symbol() != physical.symbol() {
             return Err(ShapeLinkError::DefinitionRelation(subject));
         }
-        meter.charge_work(consumer_definitions.plans().len() as u64, &path)?;
+
         for definition in consumer_definitions.plans() {
-            meter.charge_work(definition.atom_boundaries().len() as u64, &path)?;
             if definition.primary_symbol() == physical.symbol()
                 || definition.atom_boundaries().iter().any(|boundary| {
                     boundary.start() == physical.symbol() || boundary.end() == physical.symbol()
@@ -169,7 +151,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                 return Err(ShapeLinkError::ConsumerDefinition(physical.symbol()));
             }
         }
-        let contract = self.contract(subject, physical, support, meter)?;
+        let contract = self.contract(subject, physical, support)?;
         if !contract.matches_subject(subject) {
             return Err(ShapeLinkError::Contract);
         }
@@ -185,7 +167,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
             self.parts.callables,
             self.parts.descriptors,
             self.parts.dispatch,
-            meter,
         )?;
         Ok(import)
     }

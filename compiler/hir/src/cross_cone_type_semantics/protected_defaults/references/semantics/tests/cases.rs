@@ -85,30 +85,3 @@ fn empty_and_nonempty_reference_sets_cannot_downgrade_owner_profile() {
         ));
     }
 }
-
-#[test]
-fn complete_reference_replay_consumes_the_same_resource_meter() {
-    for limits in [
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            run_with_limits(Case::Valid, limits),
-            Err(ProtectedDefaultReferenceSemanticError::OwnerProfile(
-                ProtectedDefaultWitnessSourceError::Resource(_)
-            ) | ProtectedDefaultReferenceSemanticError::Body(
-                ProtectedDefaultBodyClosureError::Resource(_)
-            ))
-        ));
-    }
-}

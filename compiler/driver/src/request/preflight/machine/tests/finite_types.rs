@@ -1,13 +1,13 @@
 use super::*;
 use scoop_identity::{GeneratedNominalKey, PendingIdentityValidation};
 use scoop_mir::{CanonicalParamFreeMirTypeExportsV1, MirTypeOriginV1, MirTypeRepresentationV1};
-use scoop_wire::{BudgetMeter, DecodeLimits, WireDecode, WireEncode, decode_canonical, encode};
+use scoop_wire::{WireDecode, WireEncode, decode_canonical, encode};
 
 mod assertions;
 mod rejections;
 
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn with_production<R>(
@@ -49,21 +49,13 @@ fn with_production<R>(
             public: input.public,
         },
         &[],
-        &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
-    let sources = scoop_mir_lower::lower_source_type_exports(
-        &source,
-        &mir.strong,
-        &graph,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
-    .unwrap();
+    let sources = scoop_mir_lower::lower_source_type_exports(&source, &mir.strong, &graph).unwrap();
     let records = CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
         &mir.strong,
         &sources,
         &graph,
-        &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
     run(&mir.strong, &mut graph, &records, &sources)
@@ -81,13 +73,7 @@ fn finite_mir_types_are_produced_from_real_materializations_and_survive_bytes() 
             }
             let restored: scoop_mir::DecodedCanonicalParamFreeMirTypeExportsV1 = decoded(records);
             assert_eq!(
-                restored
-                    .validate(
-                        graph,
-                        input.foundation(),
-                        &mut BudgetMeter::new(DecodeLimits::default())
-                    )
-                    .unwrap(),
+                restored.validate(graph, input.foundation()).unwrap(),
                 *records
             );
             let projection = assertions::projection(input, records, count);
@@ -113,14 +99,4 @@ fn finite_mir_types_are_produced_from_real_materializations_and_survive_bytes() 
             );
         }
     }
-}
-
-#[test]
-fn finite_mir_production_shares_resource_limits_across_calls() {
-    with_production(
-        "public struct FiniteEmpty() {}",
-        |input, graph, _, sources| {
-            assertions::resources(input, graph, sources);
-        },
-    );
 }

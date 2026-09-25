@@ -32,18 +32,15 @@ fn materialization_requirements_reject_orphan_constructor_and_slot_owners() {
             )
             .unwrap();
             let error = broken
-                .visit_materialization_requirements::<Error>(
-                    public.callable_interfaces(),
-                    &mut meter(),
-                    |_, _| Ok(()),
-                )
+                .visit_materialization_requirements::<Error>(public.callable_interfaces(), |_| {
+                    Ok(())
+                })
                 .unwrap_err();
             assert_eq!(error, Error::MissingNominal(removed));
             assert_eq!(
                 hir::NominalMaterializationClosure::from_declarations(
                     &broken,
-                    public.callable_interfaces(),
-                    &mut meter()
+                    public.callable_interfaces()
                 )
                 .unwrap_err(),
                 error
@@ -67,8 +64,7 @@ fn materialization_requirement_callback_failure_stops_at_the_actual_position() {
             .nominal_interfaces()
             .visit_materialization_requirements::<Error>(
                 public.callable_interfaces(),
-                &mut meter(),
-                |requirement, _| {
+                |requirement| {
                     visits += 1;
                     if visits == 2 {
                         rejected = Some(requirement.owner());
@@ -81,45 +77,5 @@ fn materialization_requirement_callback_failure_stops_at_the_actual_position() {
             .unwrap_err();
         assert_eq!(visits, 2);
         assert_eq!(error, Error::MissingNominal(rejected.unwrap()));
-    });
-}
-
-#[test]
-fn materialization_requirements_share_inclusive_budget_with_the_consumer() {
-    source_dispatch::with_hir_source(COMBINED, |output, _| {
-        let public = public_interface(output);
-        let run = |budget: &mut BudgetMeter| {
-            public
-                .nominal_interfaces()
-                .visit_materialization_requirements::<Error>(
-                    public.callable_interfaces(),
-                    budget,
-                    |_, budget| {
-                        budget.charge_work(7, &WirePath::root())?;
-                        Ok(())
-                    },
-                )
-        };
-        let mut complete = meter();
-        run(&mut complete).unwrap();
-        let needed = complete.usage().validation_work_units;
-        for (limit, accepted) in [(0, false), (needed - 1, false), (needed, true)] {
-            let mut budget = BudgetMeter::new(DecodeLimits {
-                validation_work_units: limit,
-                ..DecodeLimits::default()
-            });
-            assert_eq!(run(&mut budget).is_ok(), accepted);
-        }
-        let mut budget = BudgetMeter::new(DecodeLimits {
-            validation_work_units: needed,
-            ..DecodeLimits::default()
-        });
-        budget.charge_work(1, &WirePath::root()).unwrap();
-        assert!(run(&mut budget).is_err());
-        let mut budget = BudgetMeter::new(DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        });
-        assert!(run(&mut budget).is_err());
     });
 }

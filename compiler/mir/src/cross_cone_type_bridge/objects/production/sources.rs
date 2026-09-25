@@ -3,10 +3,7 @@ use super::*;
 pub(super) fn project(
     input: &SingleConeStrongMirInput,
     types: &CanonicalParamFreeMirTypeExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<ObjectSource>, MirObjectProductionError> {
-    let path = WirePath::root();
-    meter.charge_work(types.records().len() as u64, &path)?;
     let expected = types
         .records()
         .iter()
@@ -18,10 +15,9 @@ pub(super) fn project(
         })
         .count();
     let mut sources = Vec::new();
-    reserve(&mut sources, expected, meter)?;
+    reserve(&mut sources, expected)?;
     let module = input.module();
     for root in input.materialization().initialization_roots() {
-        meter.charge_nodes(1, &path)?;
         let unit = &module.initialization_units[root.unit()];
         let crate::InitializationUnitKind::LazySingleton {
             value,
@@ -32,7 +28,7 @@ pub(super) fn project(
         };
         let value = &module.singleton_values[value];
         let global = &module.globals[module.singleton_published_roots[published_root].global];
-        meter.charge_work(module.meta.source_exact_types.len() as u64, &path)?;
+
         let exact = module
             .meta
             .source_exact_types
@@ -42,10 +38,7 @@ pub(super) fn project(
             })?
             .identity_record()
             .id();
-        meter.charge_work(
-            u64::from(types.records().len().checked_ilog2().unwrap_or(0)) + 1,
-            &path,
-        )?;
+
         let Some(ty) = types.get(exact) else { continue };
         let MirTypeRepresentationV1::Object { backing } = ty.representation() else {
             return Err(MirObjectProductionError::SourceRepresentation { exact });

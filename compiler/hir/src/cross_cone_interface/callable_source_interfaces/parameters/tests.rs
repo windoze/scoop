@@ -3,7 +3,7 @@ use scoop_identity::{
     NormalizedSourcePath, PersistentFunctionId, SignatureTypeKey, SourceContextKey, SourceIdentity,
     SourceSpan,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -18,7 +18,7 @@ fn calling_variants_have_fixed_indexed_wire() {
 
     for (wire, expected) in expected {
         let decoded: DecodedCallableParameterCallingV1 =
-            decode_canonical(&hex_bytes(wire), DecodeLimits::default()).unwrap();
+            decode_canonical(&hex_bytes(wire)).unwrap();
         assert_eq!(variant(&decoded), expected);
         assert_eq!(hex(&encode(&decoded).unwrap()), wire);
     }
@@ -26,18 +26,13 @@ fn calling_variants_have_fixed_indexed_wire() {
 
 #[test]
 fn calling_decoder_rejects_unknown_tags_wrong_shapes_and_wide_indices() {
-    let unknown = decode_canonical::<DecodedCallableParameterCallingV1>(
-        &hex_bytes("a10005"),
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown =
+        decode_canonical::<DecodedCallableParameterCallingV1>(&hex_bytes("a10005")).unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let wrong_shape = decode_canonical::<DecodedCallableParameterCallingV1>(
-        &hex_bytes("a200010100"),
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let wrong_shape =
+        decode_canonical::<DecodedCallableParameterCallingV1>(&hex_bytes("a200010100"))
+            .unwrap_err();
     assert_eq!(
         wrong_shape.kind(),
         &WireErrorKind::InvalidLength {
@@ -46,10 +41,9 @@ fn calling_decoder_rejects_unknown_tags_wrong_shapes_and_wide_indices() {
         }
     );
 
-    let wide = decode_canonical::<DecodedCallableParameterCallingV1>(
-        &hex_bytes("a20002011b0000000100000000"),
-        DecodeLimits::default(),
-    )
+    let wide = decode_canonical::<DecodedCallableParameterCallingV1>(&hex_bytes(
+        "a20002011b0000000100000000",
+    ))
     .unwrap_err();
     assert_eq!(wide.kind(), &WireErrorKind::IntegerOutOfRange);
 }

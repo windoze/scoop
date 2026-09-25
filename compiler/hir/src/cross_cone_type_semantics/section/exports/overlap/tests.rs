@@ -7,7 +7,6 @@ use scoop_identity::{
     SourceDeclarationKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
 };
-use scoop_wire::{DecodeLimits, ResourceKind};
 
 mod accessors;
 mod calls;

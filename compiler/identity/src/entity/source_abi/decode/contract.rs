@@ -1,8 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{
-    Decoder, Encoder, WireDecode, WireEncode, WireError, domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::{
     DecodedSourceExternFunctionAbi, DecodedSourceNativeLibraryBinding, decode_sum_header,
@@ -35,7 +33,7 @@ impl WireEncode for DecodedSourceNativeExternalOwner {
 }
 
 impl WireDecode for DecodedSourceNativeExternalOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 2)?;
         match tag {
@@ -84,7 +82,7 @@ impl WireEncode for DecodedSourceNativeExternalContractKey {
 }
 
 impl WireDecode for DecodedSourceNativeExternalContractKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         Ok(Self {
             owner: decoder.field(1, DecodedSourceNativeExternalOwner::decode)?,
@@ -254,7 +252,7 @@ impl WireEncode for DecodedSourceNativeExternalContract {
 }
 
 impl WireDecode for DecodedSourceNativeExternalContract {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -323,10 +321,6 @@ impl DecodedSourceNativeExternalContractRecord {
         crate::ids::derive_persistent_id("scoop-source-native-contract-id-v1", &self.key)
     }
 
-    pub(crate) fn candidate_hash_stream_length(&self) -> Result<u64, scoop_wire::HashError> {
-        domain_separated_cbor_hash_stream_length("scoop-source-native-contract-id-v1", &self.key)
-    }
-
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -361,7 +355,7 @@ impl WireEncode for DecodedSourceNativeExternalContractRecord {
 }
 
 impl WireDecode for DecodedSourceNativeExternalContractRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -452,7 +446,7 @@ where
 }
 
 fn decode_data_contract(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
 ) -> Result<
     (

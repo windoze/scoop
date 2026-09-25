@@ -36,7 +36,7 @@ impl WireEncode for ZstStatus {
 }
 
 impl WireDecode for ZstStatus {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::ZeroSized),
@@ -72,7 +72,7 @@ impl WireEncode for ExactTypeGcV1 {
 }
 
 impl WireDecode for ExactTypeGcV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::GcFree),
@@ -102,7 +102,7 @@ impl WireEncode for ExactTypeKindV1 {
 }
 
 impl WireDecode for ExactTypeKindV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -191,7 +191,7 @@ impl WireEncode for DecodedExactTypeFactsV1 {
 }
 
 impl WireDecode for DecodedExactTypeFactsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             exact: decoder.field(1, DecodedPersistentId::decode)?,

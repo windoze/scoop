@@ -1,10 +1,7 @@
 use std::fmt;
 
 use scoop_identity::BackendProfileWireId;
-use scoop_wire::{
-    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 const BACKEND_PROFILE_DOMAIN: &str = "scoop-backend-profile-contract-v1";
 
@@ -76,16 +73,6 @@ impl BackendProfileFingerprint {
 
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
-    }
-
-    pub fn hash_stream_length(profile: BackendProfile) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(
-            BACKEND_PROFILE_DOMAIN,
-            &BackendProfileFingerprintInput {
-                id: profile.wire_id(),
-                contract: profile.contract(),
-            },
-        )
     }
 }
 

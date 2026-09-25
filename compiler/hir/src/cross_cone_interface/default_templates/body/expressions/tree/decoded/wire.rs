@@ -31,7 +31,7 @@ impl WireEncode for DecodedDefaultExpressionV1 {
 }
 
 impl WireDecode for DecodedDefaultExpressionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             kind: decoder.field(1, DecodedDefaultExpressionKindV1::decode)?,
@@ -239,7 +239,7 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
 }
 
 impl WireDecode for DecodedDefaultExpressionKindV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -509,7 +509,7 @@ impl WireEncode for DecodedOptionalDefaultExpressionV1 {
 }
 
 impl WireDecode for DecodedOptionalDefaultExpressionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -542,7 +542,7 @@ impl WireEncode for DecodedDefaultArrayAssemblyV1 {
 }
 
 impl WireDecode for DecodedDefaultArrayAssemblyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             element_type: decoder.field(1, DecodedSignatureTypeKey::decode)?,
@@ -565,7 +565,7 @@ impl WireEncode for DecodedDefaultArrayAssemblyPartV1 {
 }
 
 impl WireDecode for DecodedDefaultArrayAssemblyPartV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -588,7 +588,7 @@ impl WireEncode for DecodedDefaultIntegerArgumentsV1 {
 }
 
 impl WireDecode for DecodedDefaultIntegerArgumentsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -606,7 +606,7 @@ impl WireDecode for DecodedDefaultIntegerArgumentsV1 {
 }
 
 fn decode_method_call(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     direct_super: bool,
 ) -> Result<DecodedDefaultExpressionKindV1, WireError> {
@@ -630,20 +630,20 @@ fn decode_method_call(
 }
 
 fn decode_expression_sequence(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
 ) -> Result<Vec<DecodedDefaultExpressionV1>, WireError> {
     decode_one(decoder, fields, decode_expression_array)
 }
 
 fn decode_expression_array(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedDefaultExpressionV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedDefaultExpressionV1::decode(decoder))
 }
 
 fn decode_boxed_expression(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
 ) -> Result<Box<DecodedDefaultExpressionV1>, WireError> {
     expect_sum_length(decoder, fields, 2)?;
@@ -651,7 +651,7 @@ fn decode_boxed_expression(
 }
 
 fn decode_boxed_expression_field(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
 ) -> Result<Box<DecodedDefaultExpressionV1>, WireError> {
     decoder
@@ -660,9 +660,9 @@ fn decode_boxed_expression_field(
 }
 
 fn decode_one<T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
-    decode: impl FnOnce(&mut Decoder<'_, '_>) -> Result<T, WireError>,
+    decode: impl FnOnce(&mut Decoder<'_>) -> Result<T, WireError>,
 ) -> Result<T, WireError> {
     expect_sum_length(decoder, fields, 2)?;
     decoder.field(1, decode)
@@ -767,11 +767,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -782,6 +778,6 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

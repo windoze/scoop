@@ -36,7 +36,6 @@ fn formal_publication_preserves_private_storage_and_nested_declaration_support()
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

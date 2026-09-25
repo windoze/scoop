@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, encode};
+use scoop_wire::encode;
 
 use super::*;
 use crate::{
@@ -39,15 +39,7 @@ fn foundation_section_round_trips_without_copying_payload() {
     )
     .unwrap();
     let encoded = encode(&envelope).unwrap();
-    let decoded = DecodedMetadataEnvelope::decode(
-        &encoded,
-        MetadataLocation::Hir,
-        DecodeLimits {
-            semantic_leaf_bytes: 64,
-            ..DecodeLimits::default()
-        },
-    )
-    .unwrap();
+    let decoded = DecodedMetadataEnvelope::decode(&encoded, MetadataLocation::Hir).unwrap();
 
     assert_eq!(decoded.sections()[0].payload(), payload);
     let payload_pointer = decoded.sections()[0].payload().as_ptr() as usize;
@@ -76,31 +68,25 @@ fn decoder_rejects_wrong_magic_schema_and_wire_order() {
             .unwrap();
 
     assert_eq!(
-        DecodedMetadataEnvelope::decode(&encoded, MetadataLocation::Mir, DecodeLimits::default(),),
+        DecodedMetadataEnvelope::decode(&encoded, MetadataLocation::Mir,),
         Err(MetadataReadError::BadMagic {
             expected: MetadataLocation::Mir,
         })
     );
 
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    let mut unvalidated = decode_canonical_borrowed_with_meter::<UnvalidatedMetadataEnvelope<'_>>(
-        &encoded, &mut meter,
-    )
-    .unwrap();
+    let mut unvalidated =
+        decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
     unvalidated.outer_schema = 2;
     assert_eq!(
-        unvalidated.validate(MetadataLocation::Hir, &mut meter),
+        unvalidated.validate(MetadataLocation::Hir),
         Err(MetadataReadError::UnsupportedSchema { actual: 2 })
     );
 
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    let mut unvalidated = decode_canonical_borrowed_with_meter::<UnvalidatedMetadataEnvelope<'_>>(
-        &encoded, &mut meter,
-    )
-    .unwrap();
+    let mut unvalidated =
+        decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
     unvalidated.sections.swap(0, 1);
     assert!(matches!(
-        unvalidated.validate(MetadataLocation::Hir, &mut meter),
+        unvalidated.validate(MetadataLocation::Hir),
         Err(MetadataReadError::NonIncreasingSection { .. })
     ));
 }

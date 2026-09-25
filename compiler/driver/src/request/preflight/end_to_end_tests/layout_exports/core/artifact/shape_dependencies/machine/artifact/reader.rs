@@ -16,16 +16,12 @@ pub(super) fn check(
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
     let compile = open(artifact);
-    let link = DecodedSlibEnvelope::open(
-        artifact.as_bytes(),
-        DecodeLimits::default(),
-        artifact.target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap()
-    .decode_cross_cone_layout_link_sections()
-    .unwrap();
+    let link = DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_link_sections()
+        .unwrap();
     assert_eq!(
         compile.artifact_fingerprint(),
         artifact.artifact_fingerprint()

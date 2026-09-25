@@ -8,7 +8,7 @@ use scoop_identity::{
     ScanKey, ScanRole, SourceDeclarationKey, StrongDefinitionEntity, StrongDefinitionRole,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -39,8 +39,7 @@ fn struct_subject_materializes_all_eight_roles_and_round_trips() {
     assert!(closure.roles().coroutine_slot().available().is_some());
 
     let bytes = encode(&plan).unwrap();
-    let decoded: DecodedParamFreeShapeSupportPlanSetV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedParamFreeShapeSupportPlanSetV1 = decode_canonical(&bytes).unwrap();
     let mut identities = source_graph(&fixture.source);
     assert_eq!(
         decoded
@@ -132,13 +131,7 @@ fn roles_wire_is_closed_to_eight_fields() {
 
     let mut old_ten_field_wire = bytes;
     old_ten_field_wire[0] = 0xaa;
-    assert!(
-        decode_canonical::<DecodedParamFreeShapeSupportRolesV1>(
-            &old_ten_field_wire,
-            DecodeLimits::default(),
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedParamFreeShapeSupportRolesV1>(&old_ten_field_wire,).is_err());
 }
 
 #[test]
@@ -151,7 +144,7 @@ fn reader_rebuilds_roles_instead_of_accepting_a_checked_but_wrong_closure() {
     )
     .unwrap();
     let mut decoded: DecodedParamFreeShapeSupportPlanSetV1 =
-        decode_canonical(&encode(&plan).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&plan).unwrap()).unwrap();
     decoded.closures[0].roles.boxed_value = DecodedShapeSupportAvailabilityV1::NotApplicable(
         ClosedShapeSupportReasonV1::ReferenceNominalRequiresNoBox,
     );
@@ -177,7 +170,7 @@ fn reader_requires_complete_authoritative_source_coverage() {
     )
     .unwrap();
     let mut decoded: DecodedParamFreeShapeSupportPlanSetV1 =
-        decode_canonical(&encode(&plan).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&plan).unwrap()).unwrap();
     decoded.closures.clear();
     let mut identities = source_graph(&fixture.source);
     assert!(matches!(
@@ -201,12 +194,9 @@ fn reader_rejects_a_non_core_root_and_non_closed_availability_sum() {
     )
     .unwrap();
     let mut decoded: DecodedParamFreeShapeSupportPlanSetV1 =
-        decode_canonical(&encode(&plan).unwrap(), DecodeLimits::default()).unwrap();
-    decoded.closures[0].root = decode_canonical(
-        &encode(&ConeIdentity::SINGLE_FILE).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+        decode_canonical(&encode(&plan).unwrap()).unwrap();
+    decoded.closures[0].root =
+        decode_canonical(&encode(&ConeIdentity::SINGLE_FILE).unwrap()).unwrap();
     let mut identities = source_graph(&fixture.source);
     assert!(matches!(
         decoded.validate(
@@ -223,7 +213,7 @@ fn reader_rejects_a_non_core_root_and_non_closed_availability_sum() {
             DecodedShapeSupportAvailabilityV1<
                 scoop_identity::DecodedPersistentId<PersistentTypeId>,
             >,
-        >(b"\xa2\x00\x03\x01\x01", DecodeLimits::default(),)
+        >(b"\xa2\x00\x03\x01\x01",)
         .is_err()
     );
     assert!(
@@ -231,7 +221,7 @@ fn reader_rejects_a_non_core_root_and_non_closed_availability_sum() {
             DecodedShapeSupportAvailabilityV1<
                 scoop_identity::DecodedPersistentId<PersistentTypeId>,
             >,
-        >(b"\xa3\x00\x02\x01\x01\x02\x01", DecodeLimits::default(),)
+        >(b"\xa3\x00\x02\x01\x01\x02\x01",)
         .is_err()
     );
 }
@@ -487,7 +477,7 @@ fn finish_fixture(
 fn source_graph(source: &SourceDeclarationKey) -> ValidatedIdentityGraph {
     let record = CborIdentityRecord::<PersistentTypeId, _>::from_key(source.clone()).unwrap();
     let decoded: DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey> =
-        decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&record).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(source.origin()).unwrap();
     pending.register(IdentityLayer::Hir, &decoded).unwrap();

@@ -126,45 +126,14 @@ fn source_dispatch_bytes_ignore_unrelated_arena_allocation() {
     assert_eq!(first, second);
 }
 
-#[test]
-fn source_dispatch_graph_traversal_obeys_shared_depth_and_work_limits() {
-    with_source(INTERFACES, |output, _| {
-        for limits in [
-            DecodeLimits {
-                semantic_recursion: 3,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-                    output,
-                    &mut BudgetMeter::new(limits)
-                ),
-                Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                    hir::SourceInventoryError::Resource(_)
-                ))
-            ));
-        }
-    });
-}
-
 fn roundtrip(
     output: &hir::DependencyHirOutput,
     inventory: &hir::CanonicalSourceInheritanceInventoriesV1,
 ) {
     let mut identities = super::source_inventory::identity_closure(output);
     let restored: hir::DecodedCanonicalSourceInheritanceInventoriesV1 =
-        decode_canonical(&encode(inventory).unwrap(), DecodeLimits::default()).unwrap();
-    let restored = restored
-        .resolve(
-            &mut identities,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-        .unwrap();
+        decode_canonical(&encode(inventory).unwrap()).unwrap();
+    let restored = restored.resolve(&mut identities).unwrap();
     assert_eq!(&restored, inventory);
 }
 
@@ -173,11 +142,8 @@ fn source_dispatch_preserves_generic_interfaces_without_machine_inventory() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
-            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-                output,
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+            let inventory =
+                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
             assert!(inventory.records().is_empty());
             assert_eq!(
                 public_interface(output)

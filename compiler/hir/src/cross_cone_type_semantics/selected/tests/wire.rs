@@ -6,28 +6,20 @@ fn all_selected_use_leaves_preserve_the_frozen_wire_and_typed_resolution() {
     let cases = f.cases();
     assert_eq!(cases.len(), 13);
     let mut resolver = f.resolver();
-    let mut resources = meter();
+
     for (usage, expected_usage) in cases {
         assert_eq!(encode(&usage).unwrap(), expected_usage);
         let decoded_usage: DecodedSelectedTypeUseV1 = parsed(&usage);
         assert_eq!(encode(&decoded_usage).unwrap(), expected_usage);
-        assert_eq!(
-            decoded_usage
-                .resolve(&mut resolver, &mut resources, &path())
-                .unwrap(),
-            usage
-        );
+        assert_eq!(decoded_usage.resolve(&mut resolver).unwrap(), usage);
         let record = f.record(usage);
         let expected = record_wire(f.provider, &expected_usage);
         assert_eq!(encode(&record).unwrap(), expected);
         let decoded: DecodedSelectedExternalTypeUseV1 = parsed(&record);
         assert_eq!(encode(&decoded).unwrap(), expected);
-        let resolved = decoded
-            .resolve(&mut resolver, &mut resources, &path())
-            .unwrap();
+        let resolved = decoded.resolve(&mut resolver).unwrap();
         assert_eq!(resolved, record);
         assert_eq!(resolved.provider(), f.provider);
-        assert_eq!(resolved.usage(), usage);
     }
     for family in [
         Family::Cone,
@@ -41,7 +33,6 @@ fn all_selected_use_leaves_preserve_the_frozen_wire_and_typed_resolution() {
     ] {
         assert!(resolver.calls.contains(&family), "{family:?}");
     }
-    assert!(resources.usage().validation_work_units > 0);
 }
 
 #[test]
@@ -93,11 +84,6 @@ fn empty_selected_table_is_an_empty_sequence_without_resolution() {
     assert_eq!(encode(&empty).unwrap(), [0x80]);
     let mut resolver = f.resolver();
     let decoded: DecodedCanonicalSelectedExternalTypeUsesV1 = parsed(&empty);
-    assert_eq!(
-        decoded
-            .resolve(&mut resolver, &mut meter(), &path())
-            .unwrap(),
-        empty
-    );
+    assert_eq!(decoded.resolve(&mut resolver, &path()).unwrap(), empty);
     assert!(resolver.calls.is_empty());
 }

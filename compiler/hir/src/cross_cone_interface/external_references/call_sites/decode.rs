@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
     PersistentSourceContextId, SourceContextKey,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::*;
 
@@ -55,35 +55,18 @@ impl DecodedHirDependencyCallSiteV1 {
     pub fn resolve<R: HirDependencyCallSiteResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<HirDependencyCallSiteV1, HirDependencyCallSiteResolutionError<E>> {
         use HirDependencyCallSiteResolutionError as Error;
-        let bytes = scoop_wire::encoded_length(&self).map_err(|_| {
-            Error::Resource(WireError::new(
-                scoop_wire::WireErrorKind::IntegerOutOfRange,
-                path.clone(),
-                None,
-            ))
-        })?;
-        meter
-            .charge_owned_bytes(bytes, path)
-            .map_err(Error::Resource)?;
-        meter.charge_work(bytes, path).map_err(Error::Resource)?;
-        meter
-            .charge_nodes(
-                2 + self.arguments.len() as u64 + u64::from(self.receiver.has_receiver()),
-                path,
-            )
-            .map_err(Error::Resource)?;
+
         let position = ExecutableExpressionPosition {
             root: self.root.resolve(resolver).map_err(Error::Identity)?,
             expression_index: self.expression_index,
         };
         let origin = self.origin.resolve(resolver).map_err(Error::Origin)?;
         let mut arguments = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut arguments, self.arguments.len(), path)
+        scoop_wire::allocation::try_reserve(&mut arguments, self.arguments.len(), path)
             .map_err(Error::Resource)?;
         for argument in self.arguments {
             arguments.push(resolver.resolve(argument).map_err(Error::Identity)?);
@@ -125,7 +108,7 @@ impl WireEncode for DecodedHirDependencyCallSiteV1 {
 }
 
 impl WireDecode for DecodedHirDependencyCallSiteV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(7)?;
         Ok(Self {
             root: decoder.field(1, DecodedCallableMaterialization::decode)?,

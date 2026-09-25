@@ -27,15 +27,10 @@ const EFFECTS: &str = include_str!(concat!(
     "/../../tests/fixtures/m19-constructor-nogc/scalar.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn required(output: &hir::DependencyHirOutput) -> BTreeSet<PersistentConstructorId> {
     let export = &output.output().export;
-    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
-    let nominals =
-        hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots, &mut meter())
-            .unwrap();
+    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export).unwrap();
+    let nominals = hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots).unwrap();
     nominals
         .records()
         .iter()
@@ -43,7 +38,7 @@ fn required(output: &hir::DependencyHirOutput) -> BTreeSet<PersistentConstructor
         .collect()
 }
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
+    Table::from_export_hir(&output.output().export, &required(output)).unwrap()
 }
 
 #[test]
@@ -62,11 +57,8 @@ fn complete_and_inheritance_constructor_sources_share_exact_contracts() {
     for input in [SOURCE, INHERITANCE, EFFECTS] {
         with_source(input, |output, _| {
             let complete = table(output);
-            let inheritance = hir::CanonicalInheritanceSourceConstructorsV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+            let inheritance =
+                hir::CanonicalInheritanceSourceConstructorsV1::from_dependency_hir(output).unwrap();
             for record in inheritance.records() {
                 let source = complete.get(record.declaration()).unwrap();
                 assert_eq!(source, record);

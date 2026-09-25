@@ -5,9 +5,7 @@ use crate::{
     DecodedStrongRegistrationProductionSurfaceV2, StrongInitializationDefinitionCatalogV2,
     StrongRegistrationProductionSurfaceV2, StrongTypeReferenceDefinitionsV2,
 };
-use scoop_wire::{BudgetMeter, WirePath, encode_canonical_temporary_with_meter};
-
-mod budget;
+use scoop_wire::{WirePath, encode_canonical_temporary};
 
 /// All eight registration fields have been replayed against one foundation.
 /// This carrier grants no export or selected-dependency authority. It cannot
@@ -57,7 +55,6 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
         external_bridges: &StrongExternalLirBridgeSurfaceV1,
         type_definitions: &StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &StrongInitializationDefinitionCatalogV2,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedStrongRegistrationProductionV2, StrongRegistrationProductionValidationError>
     {
         // Empty tables must not allow authorities from another consumer.
@@ -67,19 +64,15 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
         {
             return Err(StrongRegistrationProductionValidationError::ProducerMismatch);
         }
-        budget::charge_replay(&self, foundation, digests, external_bridges, meter)?;
+
         let path = WirePath::root();
-        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
+        let actual = encode_canonical_temporary(&self, &path)?;
         let identities = self
             .identities
             .validate(foundation, digests)
             .map_err(StrongRegistrationProductionValidationError::Identities)?;
-        let initialization_definitions = initialization_definitions.with_local_foundation(
-            foundation,
-            &identities,
-            digests,
-            meter,
-        )?;
+        let initialization_definitions =
+            initialization_definitions.with_local_foundation(foundation, &identities, digests)?;
         let safepoints = validate_safepoints(self.safepoints, foundation, &identities)?;
         let callable_runtime_scans =
             validate_callable_runtime_scans(self.callable_runtime_scans, foundation)?;
@@ -91,7 +84,6 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             external_bridges,
             type_definitions,
             digests,
-            meter,
         )?;
         let immortal_objects = validate_immortal_objects(
             self.immortal_objects,
@@ -110,7 +102,6 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             storages,
             &initialization_definitions,
             digests,
-            meter,
         )?;
         let surface = StrongRegistrationProductionSurfaceV2::from_semantics(
             target,
@@ -124,7 +115,7 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             initialization,
         )
         .map_err(|error| StrongRegistrationProductionValidationError::Expected(Box::new(error)))?;
-        if actual != encode_canonical_temporary_with_meter(&surface, meter, &path)? {
+        if actual != encode_canonical_temporary(&surface, &path)? {
             return Err(StrongRegistrationProductionValidationError::SurfaceMismatch);
         }
         Ok(ReplayedStrongRegistrationProductionV2 { surface })

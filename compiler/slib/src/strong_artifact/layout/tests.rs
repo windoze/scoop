@@ -2,7 +2,7 @@ mod support;
 
 use scoop_identity::{ConeCoordinate, InitializationCallableRole};
 use scoop_mir::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -48,7 +48,6 @@ fn layout_writer_is_reproducible_and_both_raw_views_accept_every_exact_projectio
     );
     let decoded_manifest = decode_canonical::<DecodedSingleConeProductionManifestV1>(
         &encode(link.production_manifest_wire()).unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert_eq!(
@@ -104,7 +103,7 @@ fn layout_raw_decoders_reject_a_corrupted_archive() {
     let artifact = artifact.unwrap();
     let mut bytes = artifact.as_bytes().to_vec();
     bytes.pop();
-    assert!(DecodedSlibEnvelope::open(&bytes, DecodeLimits::default(), selection()).is_err());
+    assert!(DecodedSlibEnvelope::open(&bytes, selection()).is_err());
 }
 
 #[derive(Clone, Copy)]
@@ -181,27 +180,24 @@ fn write_artifact_from_fixture(
     } else {
         lir.ordinary
     };
-    AssembledCrossConeLayoutStrongArtifactV1::write(
-        CrossConeLayoutStrongArtifactInputV1::new(
-            crate::ProducerRecord::new("layout-writer-test").unwrap(),
-            lir.cone,
-            lir.dependencies,
-            &hir_foundation,
-            &hir_production,
-            empty_hir_interface(),
-            &hir_type_semantics,
-            &mir_foundation,
-            &mir_production,
-            &mir_ordinary,
-            &mir_type_bridge,
-            lir.foundation,
-            ordinary,
-            layout,
-            lir.code,
-            lir.link_objects,
-        ),
-        &mut meter(),
-    )
+    AssembledCrossConeLayoutStrongArtifactV1::write(CrossConeLayoutStrongArtifactInputV1::new(
+        crate::ProducerRecord::new("layout-writer-test").unwrap(),
+        lir.cone,
+        lir.dependencies,
+        &hir_foundation,
+        &hir_production,
+        empty_hir_interface(),
+        &hir_type_semantics,
+        &mir_foundation,
+        &mir_production,
+        &mir_ordinary,
+        &mir_type_bridge,
+        lir.foundation,
+        ordinary,
+        layout,
+        lir.code,
+        lir.link_objects,
+    ))
 }
 
 fn empty_mir_type_bridge<'a>(
@@ -221,10 +217,9 @@ fn empty_mir_type_bridge<'a>(
             callables: &callables,
         },
         vec![],
-        &mut meter(),
     )
     .unwrap();
-    let objects = CanonicalMirObjectValuesV1::try_new(vec![], &mut meter()).unwrap();
+    let objects = CanonicalMirObjectValuesV1::try_new(vec![]).unwrap();
     let shapes = CanonicalMirShapeSupportsV1::try_new(
         provider,
         MirShapeSupportAuthority {
@@ -232,7 +227,6 @@ fn empty_mir_type_bridge<'a>(
             types: &types,
         },
         vec![],
-        &mut meter(),
     )
     .unwrap();
     let exports = MirTypeBridgeExportConstituentsV1::new(
@@ -254,7 +248,6 @@ fn empty_mir_type_bridge<'a>(
         &[],
         source,
         graph,
-        &mut meter(),
     )
     .unwrap()
 }
@@ -268,11 +261,7 @@ impl EmptyMirSource {
     fn new(provider: scoop_identity::ConeIdentity) -> Self {
         Self {
             provider,
-            initialization_uses: CanonicalMirExternalInitializationUsesV1::try_new(
-                vec![],
-                &mut meter(),
-            )
-            .unwrap(),
+            initialization_uses: CanonicalMirExternalInitializationUsesV1::try_new(vec![]).unwrap(),
         }
     }
 }
@@ -346,7 +335,7 @@ impl MirTypeBridgeSectionSourceAuthorityV1<()> for EmptyMirSource {
 }
 
 fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
-    DecodedSlibEnvelope::open(bytes, DecodeLimits::default(), selection())
+    DecodedSlibEnvelope::open(bytes, selection())
         .unwrap()
         .validate_graph()
         .unwrap()
@@ -354,8 +343,4 @@ fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
 
 fn selection() -> ValidatedLirTargetSelection {
     ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

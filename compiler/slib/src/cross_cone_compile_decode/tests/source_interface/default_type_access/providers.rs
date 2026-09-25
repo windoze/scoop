@@ -41,7 +41,7 @@ fn type_access_resolves_the_actual_ordinary_provider_without_name_or_layout_fall
     let identities = decoded
         .validate_foundation_identities([&provider.identities])
         .unwrap();
-    let mut front = decoded
+    let front = decoded
         .validate_foundation_structure(identities)
         .unwrap()
         .resolve_hir_interface()
@@ -66,7 +66,6 @@ fn type_access_resolves_the_actual_ordinary_provider_without_name_or_layout_fall
             &front.foundations.hir,
             &front.hir_interface,
             dependencies,
-            front.graph.envelope.meter_mut(),
         );
         if supplied {
             authority.validate_default_provider_contracts().unwrap();

@@ -22,7 +22,7 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
             CurrentConeInput::Manifest {
                 root: ManifestRootLocator::cone_directory(&core_root),
             },
-            ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+            ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
             TrustedCoreInput::BootstrapSelf,
             target.clone(),
             SlibOutputDestination::new(&core_output).unwrap(),
@@ -33,9 +33,7 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
     };
     assert_publication_warning(core_request(), &core_output, temp.path());
     std::fs::remove_dir(&core_output).unwrap();
-    let core = core_request()
-        .build_and_publish(DecodeLimits::default())
-        .unwrap();
+    let core = core_request().build_and_publish().unwrap();
     assert_eq!(core.warnings().diagnostics().len(), 1);
 
     let ordinary_root = temp.path().join("ordinary");
@@ -51,7 +49,7 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(&ordinary_root),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(&core_output).unwrap()),
         target,
         SlibOutputDestination::new(&ordinary_output).unwrap(),
@@ -63,7 +61,7 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
 }
 
 fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, temporary: &Path) {
-    let loaded = request.load_preflight(DecodeLimits::default()).unwrap();
+    let loaded = request.load_preflight().unwrap();
     let validated = loaded.validate().unwrap();
     let parsed = validated.parse_current_sources().unwrap();
     let file = parsed
@@ -73,7 +71,7 @@ fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, te
         .unwrap();
     std::fs::create_dir(output).unwrap();
     let error = parsed
-        .build_and_publish(&temporary.join("staging"), DecodeLimits::default())
+        .build_and_publish(&temporary.join("staging"))
         .unwrap_err();
     assert!(
         matches!(error.cause(), CurrentConeProductionFailure::Publication(_)),

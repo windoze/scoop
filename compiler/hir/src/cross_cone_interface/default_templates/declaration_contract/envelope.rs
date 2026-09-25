@@ -1,11 +1,10 @@
-use scoop_identity::{LocalValueSelector, StructuralPathSegment};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::DefaultTemplateContractViewV1;
 use crate::{
     DefaultBodyProviderEnvelopeSemanticValidationError, DefaultLocalFunctionSignatureAuthority,
-    DefaultTemplateProviderShapeV1, MeteredSignatureTypeSemanticError,
-    NominalInterfaceShapeAuthority, TemplateLocalScopeValidationError,
+    DefaultTemplateProviderShapeV1, NominalInterfaceShapeAuthority, SignatureTypeSemanticError,
+    TemplateLocalScopeValidationError,
 };
 
 impl DefaultTemplateContractViewV1<'_> {
@@ -15,48 +14,26 @@ impl DefaultTemplateContractViewV1<'_> {
         &self,
         provider: DefaultTemplateProviderShapeV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultTemplateSourceEnvelopeError<E>>
     where
         A: NominalInterfaceShapeAuthority<E> + DefaultLocalFunctionSignatureAuthority<E>,
     {
-        let definition_len = self.definition_path.segments().len() as u64;
-        meter.charge_work(definition_len, path)?;
-        for local in self.locals.records() {
-            let length = match local.selector() {
-                LocalValueSelector::This | LocalValueSelector::Parameter { .. } => 0,
-                LocalValueSelector::LocalDeclaration { path }
-                | LocalValueSelector::BoundReceiver { path }
-                | LocalValueSelector::Synthetic { path, .. }
-                | LocalValueSelector::SuspensionResult { site: path } => {
-                    path.segments().len() as u64
-                }
-            };
-            meter.charge_work(
-                length.saturating_add(definition_len).saturating_add(1),
-                path,
-            )?;
-            // Reserve the existing scope diagnostic's owned selector before checking.
-            meter.charge_nodes(length.saturating_add(1), path)?;
-            meter.charge_collection_slots(length, path)?;
-            let bytes = length.saturating_mul(std::mem::size_of::<StructuralPathSegment>() as u64);
-            meter.charge_owned_bytes(bytes, path)?;
-        }
         self.locals
             .validate_definition_path(self.definition_path)
             .map_err(DefaultTemplateSourceEnvelopeError::LocalScope)?;
         let scope = provider.signature_scope();
         for (index, local) in self.locals.records().iter().enumerate() {
             scope
-                .validate_signature_semantics_metered(local.value_type(), authority, meter, path)
+                .validate_signature_semantics(local.value_type(), authority)
                 .map_err(|error| DefaultTemplateSourceEnvelopeError::LocalType {
                     index,
                     error: Box::new(error),
                 })?;
         }
         self.body
-            .validate_provider_types_semantics(provider, authority, meter, path)
+            .validate_provider_types_semantics(provider, authority, path)
             .map_err(|error| DefaultTemplateSourceEnvelopeError::Body(Box::new(error)))
     }
 }
@@ -67,7 +44,7 @@ pub enum DefaultTemplateSourceEnvelopeError<E> {
     LocalScope(TemplateLocalScopeValidationError),
     LocalType {
         index: usize,
-        error: Box<MeteredSignatureTypeSemanticError<E>>,
+        error: Box<SignatureTypeSemanticError<E>>,
     },
     Body(Box<DefaultBodyProviderEnvelopeSemanticValidationError<E>>),
 }

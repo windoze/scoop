@@ -9,7 +9,7 @@ use crate::{
     ImportedDependencyCallableUseId, MethodOwnerApplication, TypeId,
 };
 
-impl DefaultEntityProjector<'_, '_> {
+impl DefaultEntityProjector<'_> {
     pub(in crate::production::default_templates) fn callable(
         &self,
         callable: Callable,
@@ -32,11 +32,7 @@ impl DefaultEntityProjector<'_, '_> {
                 (
                     generic.function,
                     None,
-                    self.type_arguments(
-                        application.type_args.iter(),
-                        application.type_args.len(),
-                        binders,
-                    )?,
+                    self.type_arguments(application.type_args.iter(), binders)?,
                 )
             }
             Callable::Method(application_id) => {
@@ -68,11 +64,7 @@ impl DefaultEntityProjector<'_, '_> {
                 (
                     method.function,
                     Some(self.generic_method_owner_type(application.owner)?),
-                    self.type_arguments(
-                        application.method_arguments.iter(),
-                        application.method_arguments.len(),
-                        binders,
-                    )?,
+                    self.type_arguments(application.method_arguments.iter(), binders)?,
                 )
             }
         };
@@ -88,12 +80,9 @@ impl DefaultEntityProjector<'_, '_> {
     fn type_arguments<'a>(
         &self,
         arguments: impl Iterator<Item = &'a TypeId>,
-        count: usize,
         binders: &[HirSignatureBinder],
     ) -> Result<Vec<scoop_identity::SignatureTypeKey>, super::super::DefaultEntityProjectionError>
     {
-        self.resources
-            .collection::<scoop_identity::SignatureTypeKey>(count)?;
         arguments.map(|&ty| self.type_key(ty, binders)).collect()
     }
 

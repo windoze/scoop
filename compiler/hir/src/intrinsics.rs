@@ -390,7 +390,7 @@ impl WireEncode for IntrinsicFunctionKind {
 }
 
 impl WireDecode for IntrinsicFunctionKind {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(intrinsic_wire_error(
@@ -520,7 +520,7 @@ impl WireEncode for IntegerIntrinsicKind {
 }
 
 impl WireDecode for IntegerIntrinsicKind {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let source = decoder.field(1, |decoder| {
@@ -863,7 +863,7 @@ fn encode_unsigned_value_sum(
 }
 
 fn decode_empty_intrinsic(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     fields: u64,
     value: IntrinsicFunctionKind,
 ) -> Result<IntrinsicFunctionKind, WireError> {
@@ -872,9 +872,9 @@ fn decode_empty_intrinsic(
 }
 
 fn decode_unsigned_intrinsic<T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
-    decode: impl FnOnce(&Decoder<'_, '_>, u64) -> Result<T, WireError>,
+    decode: impl FnOnce(&Decoder<'_>, u64) -> Result<T, WireError>,
 ) -> Result<T, WireError> {
     require_intrinsic_sum_length(decoder, fields, 2)?;
     decoder.field(1, |decoder| {
@@ -884,7 +884,7 @@ fn decode_unsigned_intrinsic<T>(
 }
 
 fn require_intrinsic_sum_length(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     actual: u64,
     expected: u64,
 ) -> Result<(), WireError> {
@@ -898,7 +898,7 @@ fn require_intrinsic_sum_length(
     }
 }
 
-fn intrinsic_wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn intrinsic_wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
@@ -915,7 +915,7 @@ const fn integer_kind_tag(kind: IntegerKind) -> u64 {
     }
 }
 
-fn decode_integer_kind(decoder: &Decoder<'_, '_>, tag: u64) -> Result<IntegerKind, WireError> {
+fn decode_integer_kind(decoder: &Decoder<'_>, tag: u64) -> Result<IntegerKind, WireError> {
     match tag {
         1 => Ok(IntegerKind::SIGNED_8),
         2 => Ok(IntegerKind::SIGNED_16),
@@ -954,7 +954,7 @@ const fn no_gc_integer_operation_tag(operation: NoGcIntegerOperation) -> u64 {
 }
 
 fn decode_no_gc_integer_operation(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     tag: u64,
 ) -> Result<NoGcIntegerOperation, WireError> {
     match tag {
@@ -988,7 +988,7 @@ const fn integer_div_rem_tag(operation: IntegerDivRem) -> u64 {
     }
 }
 
-fn decode_integer_div_rem(decoder: &Decoder<'_, '_>, tag: u64) -> Result<IntegerDivRem, WireError> {
+fn decode_integer_div_rem(decoder: &Decoder<'_>, tag: u64) -> Result<IntegerDivRem, WireError> {
     match tag {
         1 => Ok(IntegerDivRem::Div),
         2 => Ok(IntegerDivRem::Rem),
@@ -1006,7 +1006,7 @@ const fn primitive_unary_tag(kind: PrimitiveUnaryKind) -> u64 {
 }
 
 fn decode_primitive_unary(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     tag: u64,
 ) -> Result<PrimitiveUnaryKind, WireError> {
     match tag {
@@ -1026,7 +1026,7 @@ const fn primitive_binary_tag(kind: PrimitiveBinaryKind) -> u64 {
 }
 
 fn decode_primitive_binary(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     tag: u64,
 ) -> Result<PrimitiveBinaryKind, WireError> {
     match tag {
@@ -1047,7 +1047,7 @@ const fn array_access_tag(kind: ArrayAccessKind) -> u64 {
     }
 }
 
-fn decode_array_access(decoder: &Decoder<'_, '_>, tag: u64) -> Result<ArrayAccessKind, WireError> {
+fn decode_array_access(decoder: &Decoder<'_>, tag: u64) -> Result<ArrayAccessKind, WireError> {
     match tag {
         1 => Ok(ArrayAccessKind::ImmutableGet),
         2 => Ok(ArrayAccessKind::MutableGet),
@@ -1066,7 +1066,7 @@ const fn array_tag(kind: ArrayIntrinsic) -> u64 {
     }
 }
 
-fn decode_array(decoder: &Decoder<'_, '_>, tag: u64) -> Result<ArrayIntrinsic, WireError> {
+fn decode_array(decoder: &Decoder<'_>, tag: u64) -> Result<ArrayIntrinsic, WireError> {
     match tag {
         1 => Ok(ArrayIntrinsic::ToImmutable),
         2 => Ok(ArrayIntrinsic::ToMutable),
@@ -1093,7 +1093,7 @@ const fn pointer_tag(kind: PointerIntrinsic) -> u64 {
     }
 }
 
-fn decode_pointer(decoder: &Decoder<'_, '_>, tag: u64) -> Result<PointerIntrinsic, WireError> {
+fn decode_pointer(decoder: &Decoder<'_>, tag: u64) -> Result<PointerIntrinsic, WireError> {
     match tag {
         1 => Ok(PointerIntrinsic::ToULong),
         2 => Ok(PointerIntrinsic::Cast),
@@ -1144,7 +1144,7 @@ pub fn integer_intrinsic_kind(name: &str) -> Option<IntegerIntrinsicKind> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     #[test]
     fn intrinsic_function_roles_have_a_closed_canonical_wire_identity() {
@@ -1155,7 +1155,7 @@ mod tests {
         for kind in kinds {
             let bytes = encode(&kind).unwrap();
             assert_eq!(
-                decode_canonical::<IntrinsicFunctionKind>(&bytes, DecodeLimits::default()).unwrap(),
+                decode_canonical::<IntrinsicFunctionKind>(&bytes).unwrap(),
                 kind
             );
         }
@@ -1192,9 +1192,7 @@ mod tests {
                 0xa2, 0x00, 0x0f, 0x01, 0xa3, 0x00, 0x01, 0x01, 0x05, 0x02, 0x10,
             ],
         ] {
-            assert!(
-                decode_canonical::<IntrinsicFunctionKind>(&bytes, DecodeLimits::default()).is_err()
-            );
+            assert!(decode_canonical::<IntrinsicFunctionKind>(&bytes).is_err());
         }
     }
 

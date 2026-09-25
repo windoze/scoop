@@ -13,7 +13,6 @@ pub(super) fn check_provider(
     let input = reader::open(provider);
     let publication = slib::validate_publishable_cross_cone_layout_artifact(
         provider.as_bytes(),
-        DecodeLimits::default(),
         input.identity(),
         &[],
         &[],
@@ -43,7 +42,6 @@ pub(super) fn check(
     let published = slib::publish_cross_cone_layout_artifact(
         artifact.as_bytes(),
         &destination,
-        DecodeLimits::default(),
         current,
         &direct,
         &dependencies,
@@ -62,7 +60,6 @@ pub(super) fn check(
     let bytes = std::fs::read(&destination).unwrap();
     let reread = slib::validate_publishable_cross_cone_layout_artifact(
         &bytes,
-        DecodeLimits::default(),
         current,
         &direct,
         &dependencies,

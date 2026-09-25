@@ -90,7 +90,6 @@ impl<P> PurposeArtifactHandle<P> {
 #[cfg(test)]
 mod tests {
     use scoop_lir::ValidatedLirTargetSelection;
-    use scoop_wire::DecodeLimits;
 
     use super::*;
 
@@ -103,7 +102,6 @@ mod tests {
         let dual = Arc::new(
             DualValidatedArtifactHandle::validate(
                 snapshot,
-                DecodeLimits::default(),
                 ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
                 &Vec::new(),
                 &crate::link_decode::c_bridge_profile_for_test(),

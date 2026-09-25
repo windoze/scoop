@@ -9,7 +9,7 @@ use scoop_identity::{
     PersistentGenericTypeId, PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint,
     SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{DecodedHirFoundation, ImportedHirFoundation, PublicNominalShapeRequirementsV1};
@@ -310,13 +310,13 @@ fn imported_protocols_do_not_require_duplicate_public_bindings() {
 fn decode_interface(
     interface: &CompilerProtocolDefinitionsV1,
 ) -> DecodedCompilerProtocolDefinitionsV1 {
-    decode_canonical(&encode(interface).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(interface).unwrap()).unwrap()
 }
 
 fn decode_section(
     section: &CoreBootstrapInterfaceSectionV1,
 ) -> DecodedCoreBootstrapInterfaceSectionV1 {
-    decode_canonical(&encode(section).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(section).unwrap()).unwrap()
 }
 
 fn non_core_section() -> CoreBootstrapInterfaceSectionV1 {
@@ -408,8 +408,7 @@ fn imported_foundation_at(
     foundation: &CanonicalHirFoundation,
     provider: ConeIdentity,
 ) -> ImportedHirFoundation {
-    let decoded: DecodedHirFoundation =
-        decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedHirFoundation = decode_canonical(&encode(foundation).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     if provider != ConeIdentity::CORE {

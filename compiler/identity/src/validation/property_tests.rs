@@ -1,4 +1,4 @@
-use scoop_wire::{BudgetMeter, DecodeLimits, WireError, decode_canonical, encode};
+use scoop_wire::{WireError, decode_canonical, encode};
 
 use super::{IdentityLayer, IdentityValidationError, PendingIdentityValidation};
 use crate::{
@@ -40,13 +40,13 @@ fn mutated_identity_records_are_panic_free_and_deterministic() {
 fn validate_record(bytes: &[u8]) -> ValidationOutcome {
     let record = match decode_canonical::<
         DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey>,
-    >(bytes, tiny_limits())
+    >(bytes)
     {
         Ok(record) => record,
         Err(error) => return ValidationOutcome::Wire(error),
     };
-    let mut meter = BudgetMeter::new(tiny_limits());
-    let mut validation = PendingIdentityValidation::with_meter(&mut meter);
+
+    let mut validation = PendingIdentityValidation::new();
     if let Err(error) = validation.register_authority(crate::ConeIdentity::CORE) {
         return ValidationOutcome::Identity(error);
     }
@@ -80,20 +80,6 @@ fn source_type_record() -> CborIdentityRecord<PersistentTypeId, SourceDeclaratio
         0,
     ))
     .unwrap()
-}
-
-fn tiny_limits() -> DecodeLimits {
-    DecodeLimits {
-        cbor_nesting: 32,
-        semantic_table_entries: 128,
-        semantic_leaf_bytes: 512,
-        semantic_recursion: 32,
-        logical_heap_bytes: 65_536,
-        decoded_nodes: 1_024,
-        decoded_edges: 1_024,
-        owned_bytes: 4_096,
-        validation_work_units: 4_096,
-    }
 }
 
 fn arbitrary_byte_corpus() -> Vec<Vec<u8>> {

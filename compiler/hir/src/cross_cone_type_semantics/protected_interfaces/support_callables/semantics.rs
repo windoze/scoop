@@ -4,7 +4,7 @@ use crate::{
     ProtectedCallableSemanticAuthority, ProtectedCallableSemanticError, SourceNominalId,
 };
 use scoop_identity::SourceDeclarationKind;
-use scoop_wire::BudgetMeter;
+
 use std::fmt;
 
 pub trait NominalSupportCallableSemanticAuthority<E>:
@@ -56,7 +56,6 @@ impl NominalSupportCallableInterfaceV1 {
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'a mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedNominalSupportCallableSourceV1<'a>, NominalSupportCallableSemanticError<E>>
     {
         validate(
@@ -65,7 +64,6 @@ impl NominalSupportCallableInterfaceV1 {
             self.declaration_access(),
             graph,
             authority,
-            meter,
         )
     }
 }
@@ -74,7 +72,6 @@ impl NominalSupportConstructorInterfaceV1 {
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'a mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedNominalSupportCallableSourceV1<'a>, NominalSupportCallableSemanticError<E>>
     {
         validate(
@@ -83,7 +80,6 @@ impl NominalSupportConstructorInterfaceV1 {
             self.declaration_access(),
             graph,
             authority,
-            meter,
         )
     }
 }
@@ -93,13 +89,11 @@ fn validate<'a, A: NominalSupportCallableSemanticAuthority<E>, E>(
     source: &'a DeclarationAccessSourceV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     authority: &'a mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedNominalSupportCallableSourceV1<'a>, NominalSupportCallableSemanticError<E>> {
     use NominalSupportCallableSemanticError as Error;
     let owner = graph.source(payload.owner()).ok_or(Error::Owner)?;
     if let CallableTemplateOrigin::VariantConstructor(variant) = declaration {
-        let access =
-            super::variants::validate(variant, payload, source, owner.key, authority, meter)?;
+        let access = super::variants::validate(variant, payload, source, owner.key, authority)?;
         return Ok(CheckedNominalSupportCallableSourceV1 {
             declaration,
             payload,
@@ -124,7 +118,6 @@ fn validate<'a, A: NominalSupportCallableSemanticAuthority<E>, E>(
         source,
         graph,
         authority,
-        meter,
     )
     .map_err(Error::Signature)?;
     Ok(CheckedNominalSupportCallableSourceV1 {

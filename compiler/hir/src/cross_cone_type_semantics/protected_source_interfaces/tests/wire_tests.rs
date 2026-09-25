@@ -10,39 +10,19 @@ impl WireEncode for RepeatedRecord<'_> {
     }
 }
 #[test]
-fn source_reader_rejects_duplicate_owner_unknown_calling_and_resource_exhaustion() {
+fn source_reader_rejects_duplicate_owner_and_unknown_calling_convention() {
     let (mut fixture, _, source, keys, _) = fixture(true);
-    let indexed = source.index_templates(&keys, &mut meter()).unwrap();
+    let indexed = source.index_templates(&keys).unwrap();
     let bytes = encode(&RepeatedRecord(&indexed)).unwrap();
     let decoded: DecodedCanonicalProtectedCallableSourceInterfacesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &keys, &mut meter()),
+        decoded.resolve(&mut fixture, &keys),
         Err(ProtectedSourceResolutionError::Build(
             ProtectedSourceBuildError::DuplicateOwner
         ))
     ));
-    assert!(
-        decode_canonical::<DecodedProtectedParameterCallingV1>(
-            &[0xa1, 0, 5],
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
-    let bytes = encode(&indexed).unwrap();
-    let decoded: DecodedProtectedCallableSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert!(matches!(
-        decoded.resolve(
-            &mut fixture,
-            &keys,
-            &mut BudgetMeter::new(DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(ProtectedSourceResolutionError::Resource(_))
-    ));
+    assert!(decode_canonical::<DecodedProtectedParameterCallingV1>(&[0xa1, 0, 5]).is_err());
 }
 #[test]
 fn source_parameter_builder_rejects_duplicate_names_and_multiple_varargs() {

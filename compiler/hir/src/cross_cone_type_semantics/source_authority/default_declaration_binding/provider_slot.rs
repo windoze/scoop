@@ -18,12 +18,9 @@ pub(super) fn validate(
     declaration: &DeclarationFacts<'_>,
     direct: &DefaultSourceAccessDomainV1,
     references: &DefaultSourceReferenceClosureV1<'_>,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<DefaultSourceProviderDispatchV1, Error> {
-    let dispatch = classify(provider, declaration, meter, path)?;
+    let dispatch = classify(provider, declaration)?;
     for occurrence in references.occurrences() {
-        meter.charge_work(1, path)?;
         let valid = match (dispatch, occurrence.source().witness().slot_call_domain()) {
             (
                 DefaultSourceProviderDispatchV1::Direct,
@@ -32,14 +29,7 @@ pub(super) fn validate(
             (
                 DefaultSourceProviderDispatchV1::RootSlot(_),
                 OptionalDefaultSourceSlotDomainV1::Present(actual),
-            ) => {
-                let expected_bytes =
-                    scoop_wire::encoded_length(direct).map_err(SlotError::Encoding)?;
-                let actual_bytes =
-                    scoop_wire::encoded_length(actual).map_err(SlotError::Encoding)?;
-                meter.charge_work(expected_bytes.saturating_add(actual_bytes), path)?;
-                actual == direct
-            }
+            ) => actual == direct,
             _ => false,
         };
         if !valid {
@@ -56,12 +46,7 @@ pub(super) fn validate(
 fn classify(
     provider: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
     declaration: &DeclarationFacts<'_>,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<DefaultSourceProviderDispatchV1, Error> {
-    meter.charge_nodes(1, path)?;
-    meter.charge_edges(1, path)?;
-    meter.charge_work(1, path)?;
     let source = declaration.provider;
     let slots = source.slot_relations().slots();
     if source.modality() == CallableModalityV1::Final {
@@ -86,11 +71,7 @@ fn classify(
         return Err(SlotError::ProviderDeclaration.into());
     };
     let foundation = provider.members().nominals.foundation;
-    sources::query(
-        foundation.source().entries().sources.records().len(),
-        meter,
-        path,
-    )?;
+
     let owner = foundation
         .nominal_key(source.owner())
         .map_err(SlotError::Foundation)?;
@@ -108,12 +89,12 @@ fn classify(
         .foundation
         .as_canonical()
         .type_source_dispatch_records();
-    meter.charge_work((records.len() as u64).saturating_mul(65), path)?;
+
     let record = records
         .iter()
         .find(|record| record.id() == *slot)
         .ok_or(SlotError::MissingSlot(*slot))?;
-    binding_keys::verify(*slot, record.key(), foundation.identities, meter, path)
+    binding_keys::verify(*slot, record.key(), foundation.identities)
         .map_err(SlotError::Foundation)?;
     if record.key() != &expected {
         return Err(SlotError::RootSlot(*slot).into());

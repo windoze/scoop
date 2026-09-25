@@ -128,7 +128,7 @@ fn runtime(
     e.unsigned(function.wire_function_tag())
 }
 
-fn require_fields(d: &Decoder<'_, '_>, actual: u64, expected: u64) -> Result<(), WireError> {
+fn require_fields(d: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -136,6 +136,6 @@ fn require_fields(d: &Decoder<'_, '_>, actual: u64, expected: u64) -> Result<(),
     }
 }
 
-fn error(d: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn error(d: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, d.path().clone(), Some(d.position()))
 }

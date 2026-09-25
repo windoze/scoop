@@ -17,18 +17,10 @@ pub use error::MirDispatchSchemaError;
 pub use model::*;
 pub use wire::{DecodedCanonicalMirDispatchSchemasV1, DecodedParamFreeMirDispatchSchemaV1};
 
-fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, WireError> {
-    meter.check_table_entries(count as u64, &WirePath::root())?;
+fn reserve<T>(count: usize) -> Result<Vec<T>, WireError> {
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, &WirePath::root())?;
+    scoop_wire::allocation::try_reserve(&mut values, count, &WirePath::root())?;
     Ok(values)
-}
-fn charge_sort(length: usize, meter: &mut BudgetMeter) -> Result<(), WireError> {
-    meter.check_table_entries(length as u64, &WirePath::root())?;
-    for _ in 0..usize::BITS - length.max(1).saturating_sub(1).leading_zeros() {
-        meter.charge_work(length as u64, &WirePath::root())?;
-    }
-    Ok(())
 }
 
 #[cfg(test)]

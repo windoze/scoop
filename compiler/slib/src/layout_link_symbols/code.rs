@@ -10,7 +10,6 @@ pub(super) fn replay(
     native: &lir::CanonicalNativeExternalRequirementSurfaceV1,
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     input: &ReplayInputs<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<
     (
         crate::CodeFingerprint,
@@ -18,10 +17,9 @@ pub(super) fn replay(
     ),
     LayoutLinkSymbolUseError,
 > {
-    resources::production_projection(input, objects, meter)?;
     let manifest = input.manifest;
     let mut dependencies = Vec::new();
-    meter.try_reserve_collection_slots(
+    scoop_wire::allocation::try_reserve(
         &mut dependencies,
         manifest.direct_dependencies().len(),
         &WirePath::root(),
@@ -42,7 +40,7 @@ pub(super) fn replay(
         ProductionPlanInputs::from(input.strong),
         objects,
     )?;
-    resources::code_native(native, meter)?;
+
     let contracts = CanonicalNativeExternalContractCodeSetV1::from_requirement_surface(native)
         .map_err(LayoutCodeFingerprintError::NativeContracts)?;
     let fingerprint = LayoutCodeFingerprintInputV1 {
@@ -55,7 +53,7 @@ pub(super) fn replay(
         defined_symbols: defined,
         undefined_symbols: undefined.legacy(),
     }
-    .fingerprint_with_meter(meter)?;
+    .fingerprint()?;
     if manifest.semantic_fingerprints().code()
         != crate::FingerprintAvailability::Available(fingerprint)
     {
@@ -69,7 +67,6 @@ pub(super) fn replay(
             fingerprint,
             &contracts,
             native.library_requirements(),
-            meter,
         )?;
     Ok((fingerprint, production))
 }

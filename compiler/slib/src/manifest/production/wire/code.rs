@@ -11,17 +11,15 @@ impl DecodedSingleConeProductionManifestV1 {
         code: CodeFingerprint,
         contracts: &CanonicalNativeExternalContractCodeSetV1,
         libraries: &[CanonicalNativeLibraryRequirementV1],
-        meter: &mut BudgetMeter,
     ) -> Result<(), CodeProductionProjectionError> {
-        same(&self.distribution, &production.distribution(), 1, meter)?;
-        same(&self.output, production.output(), 2, meter)?;
-        same(&self.code_fingerprint, &code, 7, meter)?;
-        same(&self.native_contracts, contracts, 8, meter)?;
+        same(&self.distribution, &production.distribution(), 1)?;
+        same(&self.output, production.output(), 2)?;
+        same(&self.code_fingerprint, &code, 7)?;
+        same(&self.native_contracts, contracts, 8)?;
         same(
             &Array(&self.native_library_requirements),
             &Array(libraries),
             9,
-            meter,
         )
     }
 }
@@ -37,12 +35,11 @@ fn same(
     actual: &impl WireEncode,
     expected: &impl WireEncode,
     field: u32,
-    meter: &mut BudgetMeter,
 ) -> Result<(), CodeProductionProjectionError> {
     let path = WirePath::root().field(field);
-    let actual = encode_canonical_temporary_with_meter(actual, meter, &path)?;
-    let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
-    meter.charge_work(actual.len().min(expected.len()) as u64, &path)?;
+    let actual = encode_canonical_temporary(actual, &path)?;
+    let expected = encode_canonical_temporary(expected, &path)?;
+
     if actual != expected {
         return Err(CodeProductionProjectionError::FieldMismatch { field });
     }

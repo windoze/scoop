@@ -1,9 +1,6 @@
 use super::*;
 pub(super) use crate::cross_cone_interface::expression_test_support::Fixture;
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 pub(super) fn key(f: &Fixture) -> ProtectedDefaultTemplateKeyV1 {
     ProtectedDefaultTemplateKeyV1::try_new(CallableTemplateOrigin::Function(f.function), 0).unwrap()
 }
@@ -58,7 +55,7 @@ impl ProtectedDefaultReferenceBodySemanticAuthority<&'static str> for Authority 
         occurrence: DefaultBodyReferenceOccurrenceV1<'_>,
         _: &ProtectedDefaultAccessWitnessV1,
         receiver: ProtectedDefaultReferenceReceiverV1<'_>,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), &'static str> {
         match receiver {
@@ -111,7 +108,6 @@ impl Input {
     pub fn validate(
         &self,
         authority: &mut Authority,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedDefaultBodyClosureError<&'static str>> {
         self.refs
             .validate_body_closure(
@@ -121,7 +117,6 @@ impl Input {
                 &self.f.origin(),
                 &self.receiver,
                 authority,
-                meter,
                 &WirePath::root(),
             )
             .map(|_| ())

@@ -7,7 +7,6 @@ pub(super) fn matches(
     owner: PersistentExactTypeId,
     record: &NominalSupportPropertyInterfaceV1,
     slot: &DispatchSlotKey,
-    meter: &mut BudgetMeter,
 ) -> Result<bool, InheritancePropertyBindingError> {
     use InheritancePropertyBindingError as Error;
     let payload = payload(record)?;
@@ -17,16 +16,7 @@ pub(super) fn matches(
     let DispatchDeclarationOwner::Accessor(root) = slot.owner() else {
         return Ok(false);
     };
-    query(
-        dispatch
-            .foundation
-            .source()
-            .entries()
-            .accessor_keys
-            .values()
-            .len(),
-        meter,
-    )?;
+
     let accessor = dispatch.accessor_key(root)?;
     if accessor.role() == AccessorRole::Setter
         && matches!(
@@ -39,25 +29,20 @@ pub(super) fn matches(
     let PropertyOwner::Property(root_property) = accessor.owner() else {
         return Err(Error::Accessor(root));
     };
-    query(dispatch.properties.len(), meter)?;
+
     let root_key = dispatch.property_key(root_property)?;
-    query(dispatch.properties.len(), meter)?;
+
     let own_key = dispatch.property_key(record.declaration())?;
-    NominalRepresentationSupportV1::charge_source_key_resources(
-        root_key,
-        meter,
-        &WirePath::root(),
-    )?;
-    NominalRepresentationSupportV1::charge_source_key_resources(own_key, meter, &WirePath::root())?;
+
     if root_key.name() != own_key.name() {
         return Ok(false);
     }
     let Some(DefinitionOwnerAtom::Type(root_owner)) = root_key.owners().owners().last() else {
         return Err(Error::Owner(root_property));
     };
-    let root_owner = exact_owner(SourceNominalId::Concrete(*root_owner), meter)?;
+    let root_owner = exact_owner(SourceNominalId::Concrete(*root_owner))?;
     if !graph
-        .is_subclass(owner, root_owner, meter)
+        .is_subclass(owner, root_owner)
         .map_err(AccessDomainSemanticError::Inheritance)?
     {
         return Ok(false);
@@ -66,7 +51,7 @@ pub(super) fn matches(
         AccessorRole::Getter => InheritanceCallableDeclarationV1::Getter(root),
         AccessorRole::Setter => InheritanceCallableDeclarationV1::Setter(root),
     };
-    query(dispatch.callables.records().len(), meter)?;
+
     let source = dispatch.callable(declaration)?;
     let signature = source.signature.exact_signature();
     let value = match accessor.role() {
@@ -84,7 +69,6 @@ pub(super) fn matches(
         record.declaration(),
         payload.value_type(),
         value,
-        meter,
     )?;
     Ok(true)
 }

@@ -1,5 +1,5 @@
 //! Joins actual body uses to independent source access and complete call domains.
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use crate::{
     CheckedNominalInheritanceGraphV1, CheckedNominalInheritanceInterfacesV1,
@@ -38,7 +38,7 @@ pub trait ProtectedDefaultReferenceAccessSemanticAuthority<E>:
         &mut self,
         source_use: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
         graph: &'g CheckedNominalInheritanceGraphV1<'a>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CheckedPersistentAccessDomainV1<'g, 'a>, E>;
 
@@ -47,7 +47,7 @@ pub trait ProtectedDefaultReferenceAccessSemanticAuthority<E>:
     fn validate_generic_default_reference(
         &mut self,
         source_use: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), E>;
 }
@@ -65,14 +65,14 @@ impl ProtectedDefaultTemplateV1 {
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         inheritance: CheckedNominalInheritanceInterfacesV1<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<
         CheckedProtectedDefaultReferenceReplayV1<'t, 's>,
         ProtectedDefaultReferenceSemanticError<E>,
     > {
         let owner = source
-            .validate_default_profile(self.key(), authority, meter)
+            .validate_default_profile(self.key(), authority)
             .map_err(ProtectedDefaultReferenceSemanticError::OwnerProfile)?;
         let mut adapter = adapter::Adapter {
             template: self,
@@ -90,7 +90,6 @@ impl ProtectedDefaultTemplateV1 {
                 self.definition_origin(),
                 self.receiver(),
                 &mut adapter,
-                meter,
                 path,
             )
             .map_err(ProtectedDefaultReferenceSemanticError::Body)?;

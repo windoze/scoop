@@ -12,7 +12,6 @@ fn object_backing_fields_follow_their_typed_source_object() {
         &interface,
         &[],
         &[],
-        &mut route_meter(),
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
@@ -37,7 +36,6 @@ fn object_backing_fields_reject_a_different_property_owner_or_provider() {
             &interface,
             &[],
             &[],
-            &mut route_meter(),
             &scoop_wire::WirePath::root(),
         )
         .unwrap();
@@ -65,7 +63,6 @@ fn object_backing_fields_require_an_object_source_declaration() {
         &interface,
         &[],
         &[],
-        &mut route_meter(),
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
@@ -153,8 +150,4 @@ impl Fixture {
             root,
         }
     }
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

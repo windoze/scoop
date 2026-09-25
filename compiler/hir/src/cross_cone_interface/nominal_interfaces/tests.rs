@@ -1,5 +1,5 @@
 use scoop_identity::{CallableTemplateOrigin, IdentityReferenceError};
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -188,9 +188,7 @@ fn reader_reports_the_constituent_that_lacks_typed_authority() {
 
 #[test]
 fn reader_requires_the_exact_record_map_shape() {
-    let error =
-        decode_canonical::<DecodedNominalInterfaceRecordV1>(&[0xa0], DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedNominalInterfaceRecordV1>(&[0xa0]).unwrap_err();
 
     assert!(matches!(
         error.kind(),
@@ -227,5 +225,5 @@ fn empty_struct_shape() -> NominalSourceShapeV1 {
 }
 
 fn decode_record(value: &NominalInterfaceRecordV1) -> DecodedNominalInterfaceRecordV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

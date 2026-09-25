@@ -23,7 +23,6 @@ pub(super) fn validate<A: DefaultReferenceSemanticAuthority<E>, E>(
         validator.template.locals(),
         validator.template.definition_origin(),
         &mut visitor,
-        validator.meter,
         validator.path,
     )?;
     // A standalone record still has to be valid. The exact-closure pass rejects
@@ -56,7 +55,7 @@ impl<'body, A: DefaultReferenceSemanticAuthority<E>, E> DefaultBodyReferenceVisi
         &mut self,
         _: u32,
         _: &'body DefaultExpressionV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -65,24 +64,16 @@ impl<'body, A: DefaultReferenceSemanticAuthority<E>, E> DefaultBodyReferenceVisi
     fn reference(
         &mut self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'body>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Self::Error> {
         let DefaultBodyReferenceTargetV1::Type(target) = occurrence.target else {
             return Ok(());
         };
-        if !compare_default_signature_reference_targets(self.target, target, meter, path)?.is_eq() {
+        if !compare_default_signature_reference_targets(self.target, target, path)?.is_eq() {
             return Ok(());
         }
-        let source_length = |origin: &ExportDefinitionSourceV1| {
-            origin.origin().source().logical_path().as_str().len() as u64
-        };
-        meter.charge_work(
-            source_length(self.origin)
-                .saturating_add(source_length(occurrence.definition_origin))
-                .saturating_add(256),
-            path,
-        )?;
+
         if self.origin != occurrence.definition_origin {
             return Ok(());
         }
@@ -94,23 +85,21 @@ impl<'body, A: DefaultReferenceSemanticAuthority<E>, E> DefaultBodyReferenceVisi
             ) => {
                 let arity = self
                     .authority
-                    .default_local_function_own_binder_arity(function.declaration(), meter, path)
+                    .default_local_function_own_binder_arity(function.declaration())
                     .map_err(Self::Error::Target)?;
-                local_scope = self.provider.with_inner_frame(arity, meter, path)?;
+                local_scope = self.provider.with_inner_frame(arity, path)?;
                 &local_scope
             }
             _ => self.provider,
         };
-        match scope.validate_signature_semantics_metered(target, self.authority, meter, path) {
+        match scope.validate_signature_semantics(target, self.authority) {
+            Err(SignatureTypeSemanticError::Allocation(error)) => Err(Self::Error::Resource(error)),
             Ok(()) => Ok(()),
-            Err(MeteredSignatureTypeSemanticError::Semantic(error)) => Err(Self::Error::Type {
+            Err(error) => Err(Self::Error::Type {
                 site: ExportDefaultReferenceTargetTypeSiteV1::TypeTarget,
                 definition_origin: Box::new(self.origin.clone()),
                 error: Box::new(error),
             }),
-            Err(MeteredSignatureTypeSemanticError::Resource(error)) => {
-                Err(Self::Error::Resource(error))
-            }
         }
     }
 }

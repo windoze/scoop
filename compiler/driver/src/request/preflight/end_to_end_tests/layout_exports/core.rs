@@ -20,9 +20,7 @@ fn ordinary_library_omits_only_source_only_machine_signatures() {
         &core_bytes,
         &source,
         |input, dependencies| {
-            let result =
-                scoop_lir_lower::lower_layout_abi_exports(input, dependencies, &mut meter())
-                    .unwrap();
+            let result = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
             assertions::actual(input, &result);
             let names = result
                 .callables()
@@ -164,7 +162,7 @@ fn check_core_layout_exports(names: &[&str]) {
             CurrentConeInput::Manifest {
                 root: ManifestRootLocator::cone_directory(&root),
             },
-            ExplicitDependencyInputs::new(vec![], vec![]).unwrap(),
+            ExplicitDependencyInputs::new(vec![], vec![]),
             TrustedCoreInput::BootstrapSelf,
             target.clone(),
             SlibOutputDestination::new(directory.path().join("core.slib")).unwrap(),
@@ -172,7 +170,7 @@ fn check_core_layout_exports(names: &[&str]) {
             StageDumpPolicy::None,
         )
         .unwrap()
-        .load_preflight(DecodeLimits::default())
+        .load_preflight()
         .unwrap();
         let request = loaded.validate().unwrap();
         let parsed = request.parse_current_sources().unwrap();
@@ -194,19 +192,15 @@ fn check_core_layout_exports(names: &[&str]) {
             .unwrap();
         let coordinates = [ConeCoordinate::reserved_core()];
         let source_graph = identity_graph(&hir.hir, &mir.strong, None);
-        let diagnostics = scoop_identity::ExactTypeDiagnosticCatalog::try_new(
-            &source_graph,
-            &coordinates,
-            &mut meter(),
-        )
-        .unwrap();
+        let diagnostics =
+            scoop_identity::ExactTypeDiagnosticCatalog::try_new(&source_graph, &coordinates)
+                .unwrap();
         let lir = scoop_lir_lower::lower_with_diagnostics(
             &mir.strong,
             scoop_lir_lower::RuntimeStringDescriptor::Local,
             &lir::SelectedExternalLirSet::empty(ConeIdentity::CORE),
             target.lir_target(),
             &diagnostics,
-            &mut meter(),
         )
         .unwrap();
         let identities = identity_graph(&hir.hir, &mir.strong, Some(&lir));
@@ -223,7 +217,6 @@ fn check_core_layout_exports(names: &[&str]) {
                 public: &hir.cross_cone_section,
             },
             &[],
-            &mut meter(),
         )
         .unwrap();
         let mir_input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
@@ -242,14 +235,12 @@ fn check_core_layout_exports(names: &[&str]) {
                 callables: &[],
                 dispatch: &[],
             },
-            &mut meter(),
         )
         .unwrap_or_else(|error| panic!("{name} MIR exports: {error}"));
         shared_accessors::check(name, mir_input, &bridge);
         let selected = lir::StrongProductionDependencySelectionV2::empty(
             ConeIdentity::CORE,
             target.lir_target(),
-            &mut meter(),
         )
         .unwrap();
         let registration = lir
@@ -259,7 +250,6 @@ fn check_core_layout_exports(names: &[&str]) {
                 lir::EntryProductionSourceV1::Library,
                 &selected,
                 &[],
-                &mut meter(),
             )
             .unwrap();
         let input = scoop_lir_lower::LayoutAbiExportInputV1 {
@@ -273,7 +263,6 @@ fn check_core_layout_exports(names: &[&str]) {
         let result = scoop_lir_lower::lower_layout_abi_exports(
             input,
             scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
-            &mut meter(),
         )
         .unwrap_or_else(|error| panic!("{name} LIR exports: {error}"));
         shared_layouts::check(
@@ -320,9 +309,7 @@ fn check_core_layout_exports(names: &[&str]) {
         }
         assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
         let layout_section = layout_section::check(mir_input, input, result);
-        let production = registration
-            .validate_layout_abi(&layout_section, &mut meter())
-            .unwrap();
+        let production = registration.validate_layout_abi(&layout_section).unwrap();
         assert_eq!(
             production.type_registrations().registrations().len(),
             lir.module().meta.type_descriptors.len()

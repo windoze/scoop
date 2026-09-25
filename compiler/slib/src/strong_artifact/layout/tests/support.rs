@@ -1,7 +1,7 @@
 use scoop_hir::*;
 use scoop_identity::{CborIdentityRecord, ConeIdentity, ExactTypeKey};
 use scoop_mir::*;
-use scoop_wire::{DecodeLimits, decode_canonical};
+use scoop_wire::decode_canonical;
 
 use crate::ConeRecord;
 
@@ -16,10 +16,9 @@ pub(super) fn hir_foundation_and_production(
         ])
         .unwrap();
     let foundation = OdrFreeHirFoundation::try_new(foundation).unwrap();
-    let production = decode_canonical::<DecodedCoreBootstrapInterfaceSectionV1>(
-        &[0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0x80],
-        DecodeLimits::default(),
-    )
+    let production = decode_canonical::<DecodedCoreBootstrapInterfaceSectionV1>(&[
+        0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0x80,
+    ])
     .unwrap()
     .validate_against_strong_foundation(cone.identity(), &foundation)
     .unwrap();

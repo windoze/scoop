@@ -86,7 +86,7 @@ impl WireEncode for DecodedLexicalCallableParent {
 }
 
 impl WireDecode for DecodedLexicalCallableParent {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 2)?;
         match tag {
@@ -364,7 +364,7 @@ impl WireEncode for DecodedGeneratedCallableKey {
 }
 
 impl WireDecode for DecodedGeneratedCallableKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -469,25 +469,25 @@ impl WireDecode for DecodedGeneratedCallableKey {
 }
 
 impl WireDecode for LexicalCallableRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_binary_role(decoder, Self::LambdaBody, Self::AnonymousFunctionBody)
     }
 }
 
 impl WireDecode for InitializationCallableRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_binary_role(decoder, Self::Initializer, Self::Ensure)
     }
 }
 
 impl WireDecode for ContinuationShellRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_binary_role(decoder, Self::Success, Self::Failure)
     }
 }
 
 impl WireDecode for CoroutineAdapterRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_binary_role(decoder, Self::Success, Self::Failure)
     }
 }
@@ -538,11 +538,7 @@ where
         .map_err(GeneratedCallableResolutionError::Signature)
 }
 
-fn decode_binary_role<T>(
-    decoder: &mut Decoder<'_, '_>,
-    first: T,
-    second: T,
-) -> Result<T, WireError> {
+fn decode_binary_role<T>(decoder: &mut Decoder<'_>, first: T, second: T) -> Result<T, WireError> {
     match decoder.unsigned()? {
         1 => Ok(first),
         2 => Ok(second),
@@ -550,14 +546,14 @@ fn decode_binary_role<T>(
     }
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -568,11 +564,7 @@ where
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -584,7 +576,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

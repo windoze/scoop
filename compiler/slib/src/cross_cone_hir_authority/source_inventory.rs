@@ -2,7 +2,7 @@
 
 use super::*;
 use scoop_hir::{PropertyDeclarationId, SignatureNominalWalker};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 use std::collections::BTreeSet;
 
 mod declarations;
@@ -56,7 +56,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     .map(|r| Declaration::Property(r.declaration())),
             );
         for declaration in supports {
-            query(closure.world.meter, closure.required.len())?;
             if !closure.required.contains(&declaration) {
                 return Err(Error::Unrelated(declaration));
             }
@@ -73,18 +72,12 @@ struct Closure<'a, 'b> {
 
 impl Closure<'_, '_> {
     fn add(&mut self, declaration: Declaration) -> Result<(), Error> {
-        query(self.world.meter, self.required.len())?;
         if self.required.contains(&declaration) {
             return Ok(());
         }
         let path = WirePath::root();
-        self.world
-            .meter
-            .check_table_entries(self.required.len() as u64 + 1, &path)?;
-        self.world.meter.charge_collection_slots(1, &path)?;
-        self.world
-            .meter
-            .try_reserve_collection_slots(&mut self.pending, 1, &path)?;
+
+        scoop_wire::allocation::try_reserve(&mut self.pending, 1, &path)?;
         self.required.insert(declaration);
         self.pending.push(declaration);
         Ok(())
@@ -107,7 +100,7 @@ impl Closure<'_, '_> {
             .world
             .provider_interface(provider)?
             .nominal_interfaces();
-        query(self.world.meter, table.declaration_count())?;
+
         if table.declaration(owner).is_none() {
             return Err(Error::Missing(Declaration::Nominal(owner)));
         }
@@ -121,14 +114,12 @@ impl Closure<'_, '_> {
         let provider = scoop_hir::DefaultTargetIdentityQueriesV1::source_callable_provider(
             id,
             self.world.identities,
-            self.world.meter,
-            &WirePath::root(),
         )?;
         let table = self
             .world
             .provider_interface(provider)?
             .callable_interfaces();
-        query(self.world.meter, table.declaration_count())?;
+
         if table.declaration(id).is_none() {
             return Err(Error::Missing(Declaration::Callable(id)));
         }
@@ -139,7 +130,6 @@ impl Closure<'_, '_> {
     }
 
     fn property(&mut self, id: PropertyDeclarationId) -> Result<(), Error> {
-        query(self.world.meter, 1)?;
         let key = match id {
             PropertyOwner::Property(id) => self
                 .world
@@ -157,7 +147,7 @@ impl Closure<'_, '_> {
             .world
             .provider_interface(provider)?
             .property_interfaces();
-        query(self.world.meter, table.declaration_count())?;
+
         if table.declaration(id).is_none() {
             return Err(Error::Missing(Declaration::Property(id)));
         }
@@ -190,14 +180,10 @@ impl Closure<'_, '_> {
 
     fn signature(&mut self, signature: &SignatureTypeKey) -> Result<(), Error> {
         let path = WirePath::root();
-        let mut walk = SignatureNominalWalker::new(signature, self.world.meter, &path)?;
-        while let Some(owner) = walk.next(self.world.meter, &path)? {
+        let mut walk = SignatureNominalWalker::new(signature, &path)?;
+        while let Some(owner) = walk.next(&path)? {
             self.nominal(owner)?;
         }
         Ok(())
     }
-}
-
-fn query(meter: &mut BudgetMeter, count: usize) -> Result<(), scoop_wire::WireError> {
-    meter.charge_work(u64::from(count.max(1).ilog2()) + 1, &WirePath::root())
 }

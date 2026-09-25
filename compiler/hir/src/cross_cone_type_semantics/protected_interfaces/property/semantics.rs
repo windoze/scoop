@@ -4,7 +4,6 @@ use crate::{
     ProtectedCallableSemanticAuthority, SignatureBinderScopeV1,
 };
 use scoop_identity::{SourceDeclarationKey, SourceDeclarationKind};
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod accessors;
 mod errors;
@@ -50,7 +49,6 @@ impl ProtectedPropertyInterfaceV1 {
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'a mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedPropertySourceV1<'a>, ProtectedPropertySemanticError<E>> {
         if graph
             .source(self.payload().owner())
@@ -64,7 +62,6 @@ impl ProtectedPropertyInterfaceV1 {
             self.payload(),
             graph,
             authority,
-            meter,
         )?;
         Ok(CheckedProtectedPropertySourceV1 {
             record: self,
@@ -83,9 +80,8 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_sourc
     payload: &NominalSourcePropertyPayloadV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     authority: &'a mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedPropertySemanticError<E>> {
-    validate_source_parts(declaration, source, payload, graph, authority, meter, true)
+    validate_source_parts(declaration, source, payload, graph, authority, true)
 }
 
 pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_source_template_contract<
@@ -98,7 +94,6 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_sourc
     payload: &NominalSourcePropertyPayloadV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     authority: &'a mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedPropertySemanticError<E>> {
     if !source
         .lexical_owners()
@@ -107,7 +102,7 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_sourc
     {
         return Err(ProtectedPropertySemanticError::Owner);
     }
-    validate_source_parts(declaration, source, payload, graph, authority, meter, false)
+    validate_source_parts(declaration, source, payload, graph, authority, false)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -117,29 +112,19 @@ fn validate_source_parts<'a, A: ProtectedPropertySemanticAuthority<E>, E>(
     payload: &NominalSourcePropertyPayloadV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     authority: &'a mut A,
-    meter: &mut BudgetMeter,
+
     replay_domains: bool,
 ) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedPropertySemanticError<E>> {
     use ProtectedPropertySemanticError as Error;
     let owner = graph.source(payload.owner()).ok_or(Error::Owner)?;
     let arity = owner.key.duplicate_signature().type_parameter_count();
     SignatureBinderScopeV1::for_declaration(0, (arity != 0).then_some(arity))
-        .validate_signature_semantics_metered(
-            payload.value_type(),
-            authority,
-            meter,
-            &WirePath::root(),
-        )
+        .validate_signature_semantics(payload.value_type(), authority)
         .map_err(Error::Signature)?;
     let key = authority
         .property_source_key(declaration)
         .map_err(Error::Foundation)?;
-    meter
-        .charge_sha256(
-            scoop_wire::encoded_length(key).map_err(Error::Encoding)?,
-            &WirePath::root(),
-        )
-        .map_err(Error::Resource)?;
+
     if PersistentPropertyId::from_source_declaration(key).ok() != Some(declaration)
         || key.origin() != owner.key.origin()
         || key.package() != owner.key.package()
@@ -176,10 +161,9 @@ fn validate_source_parts<'a, A: ProtectedPropertySemanticAuthority<E>, E>(
         payload.getter(),
         scoop_identity::AccessorRole::Getter,
         authority,
-        meter,
     )?;
     let access = graph
-        .check_declaration_source(source, key, authority, meter)
+        .check_declaration_source(source, key, authority)
         .map_err(Error::Source)?;
     if let ProtectedPropertyMutabilityV1::ReadWrite {
         setter,
@@ -191,21 +175,20 @@ fn validate_source_parts<'a, A: ProtectedPropertySemanticAuthority<E>, E>(
             *setter,
             scoop_identity::AccessorRole::Setter,
             authority,
-            meter,
         )?;
         let setter = graph
-            .check_declaration_source(setter_access, key, authority, meter)
+            .check_declaration_source(setter_access, key, authority)
             .map_err(Error::Source)?;
         if replay_domains {
             let getter_domain = graph
-                .replay_declaration_access(access, meter)
+                .replay_declaration_access(access)
                 .map_err(Error::Domain)?;
             let setter_domain = graph
-                .replay_declaration_access(setter, meter)
+                .replay_declaration_access(setter)
                 .map_err(Error::Domain)?;
             if !getter_domain
                 .lookup()
-                .covers(setter_domain.lookup(), meter)
+                .covers(setter_domain.lookup())
                 .map_err(Error::Domain)?
             {
                 return Err(Error::SetterDomain);
@@ -213,7 +196,7 @@ fn validate_source_parts<'a, A: ProtectedPropertySemanticAuthority<E>, E>(
         }
     } else if replay_domains {
         graph
-            .replay_declaration_access(access, meter)
+            .replay_declaration_access(access)
             .map_err(Error::Domain)?;
     }
     Ok(access)

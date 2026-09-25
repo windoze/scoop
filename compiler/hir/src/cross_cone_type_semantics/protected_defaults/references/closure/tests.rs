@@ -1,7 +1,7 @@
 use super::*;
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, LocalValueSelector, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 mod combined;
 mod constructors;

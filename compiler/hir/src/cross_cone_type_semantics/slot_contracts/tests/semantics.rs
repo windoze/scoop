@@ -36,14 +36,11 @@ fn target_source_package_must_match_its_canonical_nominal_owner() {
         slot,
         InheritanceSlotImplementationV1::Concrete(target),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     assert!(matches!(
-        graph.validate_slot_contract(owner.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(owner.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::DeclarationIdentity(_))
     ));
 }
@@ -64,14 +61,11 @@ fn inherited_slot_keeps_root_identity_and_joins_the_derived_receiver_and_source(
         slot,
         InheritanceSlotImplementationV1::Concrete(fixture.concrete(derived, override_slot)),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     let checked = graph
-        .validate_slot_contract(derived.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(derived.exact, &record, &fixture)
         .unwrap();
     assert_eq!(checked.record().slot(), slot);
     assert_eq!(
@@ -88,7 +82,7 @@ fn inherited_slot_keeps_root_identity_and_joins_the_derived_receiver_and_source(
     );
     record.declaration = fixture.declaration(override_slot);
     assert!(matches!(
-        graph.validate_slot_contract(derived.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(derived.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::DeclarationIdentity(_))
     ));
 }
@@ -108,51 +102,45 @@ fn parameters_accessors_and_receiver_owners_are_replayed_from_foundation() {
     fixture
         .inheritance
         .modality(owner, NominalInheritanceModalityV1::Abstract);
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     assert!(matches!(
-        graph.validate_slot_contract(owner.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(owner.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Signature)
     ));
     record.signature = fixture.signature(owner, vec![value.exact]);
     graph
-        .validate_slot_contract(owner.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(owner.exact, &record, &fixture)
         .unwrap();
     record.signature = fixture.signature(value, vec![value.exact]);
     assert!(matches!(
-        graph.validate_slot_contract(owner.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(owner.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::ReceiverOwner)
     ));
 
     let getter = fixture.accessor(owner, "property", AccessorRole::Getter);
     let setter = fixture.accessor(owner, "property", AccessorRole::Setter);
     fixture.schema(owner, &[slot, getter, setter]);
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     let mut record = fixture.contract(owner, getter, InheritanceSlotImplementationV1::Abstract);
     graph
-        .validate_slot_contract(owner.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(owner.exact, &record, &fixture)
         .unwrap();
     record.signature = fixture.signature(owner, vec![value.exact]);
     assert!(matches!(
-        graph.validate_slot_contract(owner.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(owner.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Signature)
     ));
     record = fixture.contract(owner, setter, InheritanceSlotImplementationV1::Abstract);
     assert!(matches!(
-        graph.validate_slot_contract(owner.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(owner.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Signature)
     ));
     record.signature = fixture.signature(owner, vec![value.exact]);
     graph
-        .validate_slot_contract(owner.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(owner.exact, &record, &fixture)
         .unwrap();
 }

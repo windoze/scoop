@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     CallableApplicationResolutionError, DecodedCallableApplicationKey, DecodedCallableArguments,
@@ -73,7 +73,7 @@ fn property_accessor_record_resolves_owner_before_recomputing_identity() {
     let bytes = encode(&record).unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentPropertyAccessorId, DecodedPropertyAccessorKey>,
-    >(&bytes, DecodeLimits::default())
+    >(&bytes)
     .unwrap();
 
     assert_eq!(
@@ -104,11 +104,9 @@ fn all_callable_application_shapes_round_trip_and_resolve() {
     ];
 
     for application in applications {
-        let decoded = decode_canonical::<DecodedCallableApplicationKey>(
-            &encode(&application).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedCallableApplicationKey>(&encode(&application).unwrap())
+                .unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), application);
     }
 }
@@ -119,11 +117,8 @@ fn callable_application_rejects_template_argument_shape_mismatches() {
         PersistentFunctionId::expected(),
         CallableInstantiationOwner::NoOwner,
     );
-    let mut decoded = decode_canonical::<DecodedCallableApplicationKey>(
-        &encode(&key).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let mut decoded =
+        decode_canonical::<DecodedCallableApplicationKey>(&encode(&key).unwrap()).unwrap();
     decoded.callable_arguments = DecodedCallableArguments::Arguments(NonEmptyVec::from_first(
         crate::DecodedPersistentId::from_unvalidated_bytes(
             *PersistentExactTypeId::expected().as_array(),
@@ -145,21 +140,16 @@ fn callable_materialization_round_trips_template_and_context() {
             PersistentInitializationUnitId::expected(),
         ),
     );
-    let decoded = decode_canonical::<DecodedCallableMaterialization>(
-        &encode(&materialization).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCallableMaterialization>(&encode(&materialization).unwrap())
+            .unwrap();
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), materialization);
 }
 
 #[test]
 fn callable_decoder_rejects_empty_argument_lists_and_unknown_roles() {
-    let empty_arguments = decode_canonical::<DecodedCallableArguments>(
-        b"\xa2\x00\x02\x01\x80",
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let empty_arguments =
+        decode_canonical::<DecodedCallableArguments>(b"\xa2\x00\x02\x01\x80").unwrap_err();
     assert_eq!(
         empty_arguments.kind(),
         &WireErrorKind::InvalidLength {
@@ -172,7 +162,6 @@ fn callable_decoder_rejects_empty_argument_lists_and_unknown_roles() {
     let mut bad_role = vec![0xa2, 0x01, 0xa2, 0x00, 0x01, 0x01, 0x58, 0x20];
     bad_role.extend_from_slice(property.as_array());
     bad_role.extend_from_slice(&[0x02, 0x03]);
-    let error = decode_canonical::<DecodedPropertyAccessorKey>(&bad_role, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedPropertyAccessorKey>(&bad_role).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }

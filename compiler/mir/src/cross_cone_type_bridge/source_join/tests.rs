@@ -1,17 +1,12 @@
 use super::*;
 use crate::cross_cone_type_bridge::tests::support::Fixture;
 use scoop_identity::{CallableTemplateOwner, SourceNominalKind};
-use scoop_wire::DecodeLimits;
 
 mod dispatch;
 mod objects;
 mod records;
 mod roots;
 mod tables;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 struct Source {
     fixture: Fixture,
@@ -35,7 +30,7 @@ impl Source {
             required_dispatch: vec![],
             required_objects: vec![],
             roots: vec![fixture.empty.id()],
-            uses: CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
+            uses: CanonicalMirExternalInitializationUsesV1::try_new(vec![]).unwrap(),
             fixture,
             expected,
         }
@@ -63,17 +58,11 @@ impl Source {
                 MirBoxedShapeSupportV1::Available(self.fixture.boxed_export().exact()),
                 self.fixture.step_export().exact(),
                 self.fixture.slot_export().exact(),
-                &mut meter(),
             )
             .unwrap(),
         ];
-        let shapes = CanonicalMirShapeSupportsV1::try_new(
-            self.provider,
-            shape_authority,
-            shapes,
-            &mut meter(),
-        )
-        .unwrap();
+        let shapes =
+            CanonicalMirShapeSupportsV1::try_new(self.provider, shape_authority, shapes).unwrap();
         let callables = CanonicalMirCallableBindingsV1::try_new(vec![]).unwrap();
         let dispatch = CanonicalMirDispatchSchemasV1::try_new(
             MirDispatchSchemaAuthority {
@@ -82,16 +71,15 @@ impl Source {
                 callables: &callables,
             },
             vec![],
-            &mut meter(),
         )
         .unwrap();
         MirTypeBridgeExportConstituentsV1::new(
             types,
             callables,
             dispatch,
-            CanonicalMirObjectValuesV1::try_new(vec![], &mut meter()).unwrap(),
+            CanonicalMirObjectValuesV1::try_new(vec![]).unwrap(),
             shapes,
-            CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
+            CanonicalMirExternalInitializationUsesV1::try_new(vec![]).unwrap(),
         )
     }
     fn frame_owner(&self) -> scoop_identity::PersistentFunctionId {

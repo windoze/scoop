@@ -8,7 +8,6 @@ use scoop_identity::DispatchTableKey;
 pub(super) fn replay(
     source: ExactDescriptorSourceInputV1<'_>,
     dispatch: &CanonicalExactDispatchExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<
     (
         StrongTypeVtableSemanticPlanV2,
@@ -17,8 +16,7 @@ pub(super) fn replay(
     ExactDescriptorError,
 > {
     let path = WirePath::root();
-    meter.check_table_entries(source.interfaces.len() as u64, &path)?;
-    meter.charge_work(source.interfaces.len() as u64, &path)?;
+
     if source
         .interfaces
         .windows(2)
@@ -26,7 +24,7 @@ pub(super) fn replay(
     {
         return Err(ExactDescriptorError::NonCanonicalInterfaces(source.exact));
     }
-    meter.charge_work(dispatch.records().len() as u64, &path)?;
+
     let count = dispatch
         .records()
         .iter()
@@ -41,35 +39,30 @@ pub(super) fn replay(
     {
         return Err(ExactDescriptorError::DispatchInventory(source.exact));
     }
-    let table = find(DispatchTableKey::vtable(source.exact), dispatch, meter)?;
-    let vtable = StrongTypeVtableSemanticPlanV2::from_artifact(table.table(), slots(table, meter)?);
+    let table = find(DispatchTableKey::vtable(source.exact), dispatch)?;
+    let vtable = StrongTypeVtableSemanticPlanV2::from_artifact(table.table(), slots(table)?);
     let mut itables = Vec::new();
-    meter.try_reserve_collection_slots(&mut itables, source.interfaces.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut itables, source.interfaces.len(), &path)?;
     for &interface in source.interfaces {
         let table = find(
             DispatchTableKey::itable(source.exact, interface.exact_type()),
             dispatch,
-            meter,
         )?;
         itables.push(StrongTypeItableSemanticPlanV2::from_artifact(
             table.table(),
             interface,
-            slots(table, meter)?,
+            slots(table)?,
         ));
     }
     Ok((vtable, itables))
 }
 
-fn find<'a>(
+fn find(
     key: DispatchTableKey,
-    dispatch: &'a CanonicalExactDispatchExportsV1,
-    meter: &mut BudgetMeter,
-) -> Result<&'a ExactDispatchExportV1, ExactDescriptorError> {
+    dispatch: &CanonicalExactDispatchExportsV1,
+) -> Result<&ExactDispatchExportV1, ExactDescriptorError> {
     let id = scoop_identity::PersistentDispatchTableId::from_key(&key)?;
-    meter.charge_work(
-        u64::from(dispatch.records().len().max(1).ilog2()) + 1,
-        &WirePath::root(),
-    )?;
+
     dispatch
         .get(id)
         .ok_or(ExactDescriptorError::DispatchTable(id))
@@ -77,12 +70,11 @@ fn find<'a>(
 
 fn slots(
     table: &ExactDispatchExportV1,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<StrongTypeDispatchCallableRefV2>, ExactDescriptorError> {
     let path = WirePath::root();
-    meter.charge_work(table.entries().len() as u64, &path)?;
+
     let mut slots = Vec::new();
-    meter.try_reserve_collection_slots(&mut slots, table.entries().len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut slots, table.entries().len(), &path)?;
     slots.extend(table.entries().iter().map(|entry| entry.abi()));
     Ok(slots)
 }

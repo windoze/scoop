@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 
 use scoop_identity::{ConeIdentity, SemanticIdentitySession};
 use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
-use scoop_wire::DecodeLimits;
 
 use super::{
     DecodedCrossConeClosure, ValidatedCrossConeSemanticClosure,
@@ -155,7 +154,7 @@ impl ValidatedCrossConeArtifactClosure<'_> {
 /// semantic closure once, and resolves Link imports against terminal owners.
 pub fn validate_cross_cone_artifact_closure<'input>(
     input: CrossConeArtifactClosureInput<'input>,
-    limits: DecodeLimits,
+
     c_bridge_profile: &CBridgeToolchainProfileV1,
     session: &mut SemanticIdentitySession,
 ) -> Result<ValidatedCrossConeArtifactClosure<'input>, CrossConeArtifactClosureValidationError> {
@@ -171,20 +170,12 @@ pub fn validate_cross_cone_artifact_closure<'input>(
     for (index, bytes) in dependency_first.iter().copied().enumerate() {
         decoded.push(decode_compile_front(
             bytes,
-            limits,
             target,
             CrossConeClosureArtifactSlotV1::Dependency(index),
         )?);
     }
     let current_front = current_artifact
-        .map(|bytes| {
-            decode_compile_front(
-                bytes,
-                limits,
-                target,
-                CrossConeClosureArtifactSlotV1::Current,
-            )
-        })
+        .map(|bytes| decode_compile_front(bytes, target, CrossConeClosureArtifactSlotV1::Current))
         .transpose()?;
     let decoded = match current_front {
         Some(current_artifact) => DecodedCrossConeClosure::with_current_artifact(
@@ -218,7 +209,6 @@ pub fn validate_cross_cone_artifact_closure<'input>(
             &semantic,
             identity,
             bytes,
-            limits,
             target,
             &links,
             &positions,
@@ -247,7 +237,7 @@ pub fn validate_completed_cross_cone_artifact_closure<'input>(
     direct: Vec<ConeIdentity>,
     dependency_first: Vec<&'input [u8]>,
     current_artifact: &'input [u8],
-    limits: DecodeLimits,
+
     c_bridge_profile: &CBridgeToolchainProfileV1,
     session: &mut SemanticIdentitySession,
 ) -> Result<
@@ -262,7 +252,6 @@ pub fn validate_completed_cross_cone_artifact_closure<'input>(
             dependency_first,
             current_artifact,
         ),
-        limits,
         c_bridge_profile,
         session,
     )?;
@@ -279,12 +268,12 @@ pub fn validate_completed_cross_cone_artifact_closure<'input>(
 
 fn decode_compile_front<'input>(
     bytes: &'input [u8],
-    limits: DecodeLimits,
+
     target: ValidatedLirTargetSelection,
     slot: CrossConeClosureArtifactSlotV1,
 ) -> Result<crate::DecodedCrossConeHirFrontSections<'input>, CrossConeArtifactClosureValidationError>
 {
-    DecodedSlibEnvelope::open(bytes, limits, target)
+    DecodedSlibEnvelope::open(bytes, target)
         .map_err(
             |source| CrossConeArtifactClosureValidationError::CompileEnvelope {
                 slot,
@@ -312,7 +301,7 @@ fn validate_link<'input>(
     semantic: &ValidatedCrossConeSemanticClosure<'input>,
     identity: ConeIdentity,
     bytes: &'input [u8],
-    limits: DecodeLimits,
+
     target: ValidatedLirTargetSelection,
     validated_links: &[ValidatedCrossConeStrongLinkArtifact<'input>],
     validated_positions: &BTreeMap<ConeIdentity, usize>,
@@ -329,7 +318,7 @@ fn validate_link<'input>(
         .all_artifacts_for_validation()
         .find(|artifact| artifact.identity() == identity)
         .expect("Link validation identity belongs to the committed Compile closure");
-    let graph = DecodedSlibEnvelope::open(bytes, limits, target).map_err(|source| {
+    let graph = DecodedSlibEnvelope::open(bytes, target).map_err(|source| {
         CrossConeArtifactClosureValidationError::LinkEnvelope {
             slot,
             source: Box::new(source),
@@ -409,7 +398,6 @@ mod tests {
                 Vec::new(),
                 Vec::new(),
             ),
-            DecodeLimits::default(),
             &crate::link_decode::c_bridge_profile_for_test(),
             &mut session,
         )

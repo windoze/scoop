@@ -1,9 +1,8 @@
 use la_arena::Arena;
 use scoop_identity::ConeCoordinate;
 use scoop_lir::*;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
-use super::{boxed_exact, meter, selection::Source};
+use super::{boxed_exact, selection::Source};
 
 pub(super) fn check(
     selected: &StrongProductionDependencySelectionV2<'_>,
@@ -13,22 +12,21 @@ pub(super) fn check(
     external: &Arena<ExternalTypeDescriptor>,
     descriptor: ExternalTypeDescriptorId,
 ) {
-    let construct = |provider, entries: &Arena<ExternalTypeDescriptor>, meter: &mut BudgetMeter| {
+    let construct = |provider, entries: &Arena<ExternalTypeDescriptor>| {
         selected.materialize_boxed_value_descriptor(
             provider,
             shape.source_nominal(),
             entries,
             descriptor,
             LirType::Aggregate(Vec::new()),
-            meter,
         )
     };
     assert!(matches!(
-        construct(selected.consumer(), external, &mut meter()),
+        construct(selected.consumer(), external),
         Err(LayoutExternalMaterializationError::ProviderPartition { .. })
     ));
     assert!(matches!(
-        construct(layout.provider(), &Arena::new(), &mut meter()),
+        construct(layout.provider(), &Arena::new()),
         Err(LayoutExternalMaterializationError::BoxDescriptor(
             BoxDescriptorError::InvalidDescriptor
         ))
@@ -43,33 +41,17 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(matches!(
-        construct(layout.provider(), &replaced, &mut meter()),
+        construct(layout.provider(), &replaced),
         Err(LayoutExternalMaterializationError::BoxDescriptor(
             BoxDescriptorError::InvalidDescriptor
         ))
     ));
     replaced[descriptor] = *external.iter().next().unwrap().1;
     assert!(matches!(
-        construct(layout.provider(), &replaced, &mut meter()),
+        construct(layout.provider(), &replaced),
         Err(LayoutExternalMaterializationError::BoxDescriptor(
             BoxDescriptorError::InvalidDescriptor
         ))
-    ));
-    let mut exhausted = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        construct(layout.provider(), external, &mut exhausted),
-        Err(LayoutExternalMaterializationError::Resource(_))
-    ));
-    let mut exhausted = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        construct(layout.provider(), external, &mut exhausted),
-        Err(LayoutExternalMaterializationError::Resource(_))
     ));
 
     let subject = ExternalStrongShapeSubjectV1::TypeDescriptor(boxed_exact(shape));
@@ -93,12 +75,11 @@ pub(super) fn check(
         &[layout],
         descriptor_imports,
         &descriptor_only,
-        &mut meter(),
     )
     .unwrap();
     assert!(
         unqualified
-            .materialize_type_descriptor(layout.provider(), boxed_exact(shape), &mut meter())
+            .materialize_type_descriptor(layout.provider(), boxed_exact(shape))
             .is_ok()
     );
     assert!(matches!(
@@ -108,7 +89,6 @@ pub(super) fn check(
             external,
             descriptor,
             LirType::Aggregate(Vec::new()),
-            &mut meter(),
         ),
         Err(LayoutExternalMaterializationError::MissingShapeSupport { .. })
     ));
@@ -135,12 +115,11 @@ pub(super) fn check(
         &[layout],
         retained_imports,
         &missing_import,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(incomplete.materialize_boxed_value_descriptor(
         layout.provider(), shape.source_nominal(), external, descriptor,
-        LirType::Aggregate(Vec::new()), &mut meter(),
+        LirType::Aggregate(Vec::new()),
     ), Err(LayoutExternalMaterializationError::MissingPhysicalImport { subject: found, .. }) if found == subject));
 }
 
@@ -164,12 +143,11 @@ pub(super) fn reference_shape(
         &[layout],
         Vec::new(),
         &source,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(selected.materialize_boxed_value_descriptor(
         layout.provider(), shape.source_nominal(), external, descriptor,
-        MANAGED_PTR, &mut meter(),
+        MANAGED_PTR,
     ), Err(LayoutExternalMaterializationError::UnavailableBoxedValue(found)) if found == shape.source_nominal()));
 }
 

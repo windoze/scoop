@@ -1,6 +1,6 @@
 //! Joins local representation inventory to independent checked source facts.
 use scoop_identity::{ConeIdentity, PersistentTypeId, SourceDeclarationKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     CanonicalNominalRepresentationSupportV1, NominalRepresentationShapeV1,
@@ -16,38 +16,15 @@ mod source;
 mod tests;
 mod types;
 pub use errors::*;
-pub(super) use source::charge_key;
-
-impl NominalRepresentationSupportV1 {
-    pub(in crate::cross_cone_type_semantics) fn charge_source_key_resources(
-        key: &SourceDeclarationKey,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), scoop_wire::WireError> {
-        source::charge_key(key, meter, path)
-    }
-}
-
-impl NominalRepresentationSupportV1 {
-    pub(in crate::cross_cone_type_semantics) fn signature_types_match_metered(
-        left: &scoop_identity::SignatureTypeKey,
-        right: &scoop_identity::SignatureTypeKey,
-        depth: u64,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        types::equal(left, right, depth, meter, path)
-    }
-}
 
 impl NominalRepresentationSupportV1 {
     pub(in crate::cross_cone_type_semantics) fn public_source_shape_matches(
         &self,
         source: &NominalSourceShapeV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<bool, scoop_wire::WireError> {
-        compare::public_value(self.shape(), source, meter, path)
+        compare::public_value(self.shape(), source, path)
     }
 }
 
@@ -101,7 +78,7 @@ impl CanonicalNominalRepresentationSupportV1 {
     pub fn validate_source_semantics<A: NominalRepresentationSemanticAuthority<E>, E>(
         &self,
         authority: &A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<
         CheckedNominalRepresentationSupportV1<'_>,
@@ -112,12 +89,10 @@ impl CanonicalNominalRepresentationSupportV1 {
             .required_representation_owners()
             .map_err(Error::Inventory)?
             .values();
-        source::sequence(required.len(), meter, path)?;
-        source::sequence(self.records().len(), meter, path)?;
+
         let mut records = self.records().iter().enumerate();
         let mut next = records.next();
         for owner in required {
-            meter.charge_work(32, path)?;
             let Some((index, record)) = next else {
                 return Err(Error::Missing { owner: *owner });
             };
@@ -132,9 +107,7 @@ impl CanonicalNominalRepresentationSupportV1 {
                 std::cmp::Ordering::Equal => {}
             }
             let at = path.clone().index(index as u64);
-            meter.check_semantic_depth(1, &at)?;
-            meter.charge_nodes(1, &at)?;
-            meter.charge_work(1, &at)?;
+
             let expected =
                 authority
                     .representation_source(*owner)
@@ -143,7 +116,7 @@ impl CanonicalNominalRepresentationSupportV1 {
                         owner: *owner,
                         error,
                     })?;
-            source::validate(record, expected, authority.current_provider(), meter, &at).map_err(
+            source::validate(record, expected, authority.current_provider(), &at).map_err(
                 |error| match error {
                     source::Failure::Resource(error) => Error::Resource(error),
                     source::Failure::Mismatch(error) => Error::Record {

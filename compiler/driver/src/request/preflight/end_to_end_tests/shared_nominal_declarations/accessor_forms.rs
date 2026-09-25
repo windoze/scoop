@@ -31,7 +31,6 @@ fn formal_publication_preserves_accessor_source_forms_in_both_artifact_views() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

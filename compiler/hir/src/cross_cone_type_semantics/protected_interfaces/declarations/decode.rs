@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedProtectedDeclarationInterfaceV1 {
@@ -12,27 +12,26 @@ impl DecodedProtectedDeclarationInterfaceV1 {
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedDeclarationInterfaceV1, ProtectedDeclarationResolutionError<E>> {
         use ProtectedDeclarationResolutionError as Error;
         Ok(match self {
             Self::Callable(value) => ProtectedDeclarationInterfaceV1::Callable(Box::new(
-                value.resolve(resolver, meter).map_err(Error::Callable)?,
+                value.resolve(resolver).map_err(Error::Callable)?,
             )),
             Self::Constructor(value) => ProtectedDeclarationInterfaceV1::Constructor(Box::new(
-                value.resolve(resolver, meter).map_err(Error::Callable)?,
+                value.resolve(resolver).map_err(Error::Callable)?,
             )),
             Self::Property(value) => ProtectedDeclarationInterfaceV1::Property(Box::new(
-                value.resolve(resolver, meter).map_err(Error::Property)?,
+                value.resolve(resolver).map_err(Error::Property)?,
             )),
             Self::NestedNominal(value) => ProtectedDeclarationInterfaceV1::NestedNominal(Box::new(
-                value.resolve(resolver, meter).map_err(Error::Nested)?,
+                value.resolve(resolver).map_err(Error::Nested)?,
             )),
         })
     }
 }
 impl WireDecode for DecodedProtectedDeclarationInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => DecodedProtectedCallableInterfaceV1::decode_fields(decoder)

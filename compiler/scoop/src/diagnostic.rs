@@ -79,7 +79,8 @@ impl BuildDiagnosticCode {
     pub const GRAPH_MISSING_CORE: Self = Self("SCOOP_GRAPH_MISSING_CORE");
     pub const GRAPH_CYCLE: Self = Self("SCOOP_GRAPH_CYCLE");
     pub const GRAPH_UNREACHABLE_NODE: Self = Self("SCOOP_GRAPH_UNREACHABLE_NODE");
-    pub const GRAPH_RESOURCE_LIMIT: Self = Self("SCOOP_GRAPH_RESOURCE_LIMIT");
+    pub const GRAPH_ALLOCATION: Self = Self("SCOOP_GRAPH_ALLOCATION");
+    pub const ARTIFACT_LENGTH_OVERFLOW: Self = Self("SCOOP_ARTIFACT_LENGTH_OVERFLOW");
 
     pub const PREBUILT_SUMMARY_MISMATCH: Self = Self("SCOOP_PREBUILT_SUMMARY_MISMATCH");
     pub const PREBUILT_VIEW_INVALID: Self = Self("SCOOP_PREBUILT_VIEW_INVALID");
@@ -236,9 +237,13 @@ impl ClassifyBuildFailure for DependencyLocatorError {
                 BuildFailurePhase::Summary,
                 BuildDiagnosticCode::PREBUILT_CHANGED,
             ),
-            Self::ArtifactTooLarge { .. } | Self::Allocation(_) => classified(
+            Self::LengthOverflow(_) => classified(
                 BuildFailurePhase::Summary,
-                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
+                BuildDiagnosticCode::ARTIFACT_LENGTH_OVERFLOW,
+            ),
+            Self::Allocation(_) => classified(
+                BuildFailurePhase::Summary,
+                BuildDiagnosticCode::GRAPH_ALLOCATION,
             ),
             Self::Summary { .. } => classified(
                 BuildFailurePhase::Summary,
@@ -258,7 +263,7 @@ impl ClassifyBuildFailure for ResolveBuildGraphError {
         match self {
             Self::Allocation { .. } => classified(
                 BuildFailurePhase::GraphCycleOrder,
-                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
+                BuildDiagnosticCode::GRAPH_ALLOCATION,
             ),
             Self::InvalidReservedNode { .. } => classified(
                 BuildFailurePhase::GraphIdentity,
@@ -455,9 +460,7 @@ impl ClassifyBuildFailure for CompileCacheStoreError {
             | Self::InvalidPathType { .. }
             | Self::UnexpectedEntryContents { .. }
             | Self::ReceiptDecode(_)
-            | Self::ReceiptKeyMismatch { .. }
-            | Self::ReceiptTooLarge { .. }
-            | Self::LengthOverflow => classified(
+            | Self::ReceiptKeyMismatch { .. } => classified(
                 BuildFailurePhase::Cache,
                 BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
             ),
@@ -489,8 +492,6 @@ impl ClassifyBuildFailure for ChildTransportError {
             | Self::WriteRequest(_)
             | Self::Wait(_)
             | Self::ReadStream { .. }
-            | Self::StreamLengthOverflow(_)
-            | Self::StreamTooLarge { .. }
             | Self::ReaderPanicked(_) => classified(
                 BuildFailurePhase::ChildTransport,
                 BuildDiagnosticCode::CHILD_TRANSPORT,

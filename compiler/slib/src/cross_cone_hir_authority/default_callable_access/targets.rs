@@ -15,16 +15,12 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         protocols: &CoreBootstrapInterfaceSectionV1,
         path: &WirePath,
     ) -> Result<SourceAccessDomainV1, Error> {
-        self.meter.charge_nodes(1, path)?;
-        self.meter.charge_work(1, path)?;
         if let View::DerivedEquality(owner) = target {
             return self.source_equality_access_domain(owner, protocols, path);
         }
         let declaration = target.source_declaration()?;
         let provider = if let Declaration::Generated(id) = declaration {
-            let source = context
-                .nested
-                .attached_to(context.occurrence, self.meter, path)?;
+            let source = context.nested.attached_to(context.occurrence)?;
             let actual = match source.descriptor().identity() {
                 Identity::Lambda(id)
                 | Identity::AnonymousFunction(id)
@@ -38,10 +34,9 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             }
             source.definition_origin().origin().source().cone()
         } else {
-            declaration.source_provider(self.identities, self.meter, path)?
+            declaration.source_provider(self.identities)?
         };
-        self.meter
-            .charge_work(self.dependencies.len() as u64 + 1, path)?;
+
         let foundation = if provider == self.current {
             self.current_foundation
         } else {
@@ -52,22 +47,18 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 .ok_or(DeclarationError::UnreachableProvider { origin: provider })?
         };
         let query = DefaultTargetIdentityQueriesV1::new(provider, foundation, self.identities);
-        match query.default_callable_access_subject_view(target, self.meter)? {
+        match query.default_callable_access_subject_view(target)? {
             Access::Declaration(subject) => {
-                let key = query.source_declaration_key(subject, self.meter)?;
-                self.source_declaration_access_domain(subject, key, path)
+                let key = query.source_declaration_key(subject)?;
+                self.source_declaration_access_domain(subject, key)
                     .map_err(Into::into)
             }
             Access::Nested(Identity::LocalFunction(declaration)) => {
-                context
-                    .nested
-                    .require_local_declaration(declaration, self.meter, path)?;
+                context.nested.require_local_declaration(declaration)?;
                 Ok(SourceAccessDomainV1::universal())
             }
             Access::Nested(identity) => {
-                let source = context
-                    .nested
-                    .attached_to(context.occurrence, self.meter, path)?;
+                let source = context.nested.attached_to(context.occurrence)?;
                 if source.descriptor().identity() != identity {
                     return Err(DefaultSourceTargetSubjectError::NestedRole(identity).into());
                 }

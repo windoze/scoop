@@ -4,7 +4,7 @@ use scoop_identity::{
     CallableTemplateOrigin, DecodedCallableTemplateOrigin, DecodedPersistentId,
     PersistentConstructorId,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedProtectedCallableInterfaceV1 {
@@ -16,21 +16,18 @@ impl DecodedProtectedCallableInterfaceV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedCallableInterfaceV1, ProtectedCallableInterfaceResolutionError<E>> {
         use ProtectedCallableInterfaceResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let declaration = self
             .declaration
             .resolve(resolver)
             .map_err(Error::Identity)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Source)?;
-        let payload = self.payload.resolve(declaration, resolver, meter)?;
+        let payload = self.payload.resolve(declaration, resolver)?;
         ProtectedCallableInterfaceV1::try_new(declaration, access, payload)
             .map_err(Error::Interface)
     }
@@ -56,7 +53,7 @@ impl WireEncode for DecodedProtectedCallableInterfaceV1 {
 }
 impl DecodedProtectedCallableInterfaceV1 {
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
-        decoder: &mut Decoder<'_, '_>,
+        decoder: &mut Decoder<'_>,
     ) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,
@@ -66,7 +63,7 @@ impl DecodedProtectedCallableInterfaceV1 {
     }
 }
 impl WireDecode for DecodedProtectedCallableInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Self::decode_fields(decoder)
     }
@@ -82,24 +79,19 @@ impl DecodedProtectedConstructorInterfaceV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedConstructorInterfaceV1, ProtectedCallableInterfaceResolutionError<E>> {
         use ProtectedCallableInterfaceResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let declaration = resolver
             .resolve(self.declaration)
             .map_err(Error::Identity)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Source)?;
-        let payload = self.payload.resolve(
-            CallableTemplateOrigin::Constructor(declaration),
-            resolver,
-            meter,
-        )?;
+        let payload = self
+            .payload
+            .resolve(CallableTemplateOrigin::Constructor(declaration), resolver)?;
         ProtectedConstructorInterfaceV1::try_new(declaration, access, payload)
             .map_err(Error::Interface)
     }
@@ -125,7 +117,7 @@ impl WireEncode for DecodedProtectedConstructorInterfaceV1 {
 }
 impl DecodedProtectedConstructorInterfaceV1 {
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
-        decoder: &mut Decoder<'_, '_>,
+        decoder: &mut Decoder<'_>,
     ) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedPersistentId::decode)?,
@@ -135,7 +127,7 @@ impl DecodedProtectedConstructorInterfaceV1 {
     }
 }
 impl WireDecode for DecodedProtectedConstructorInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Self::decode_fields(decoder)
     }

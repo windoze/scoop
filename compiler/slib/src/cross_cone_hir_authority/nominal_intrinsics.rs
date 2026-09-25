@@ -4,7 +4,7 @@ use std::fmt;
 
 use scoop_hir::{IntrinsicTypeKind, NominalSourceShapeV1, PublicNominalKindV1, SourceNominalId};
 use scoop_identity::{PersistentGenericTypeId, PersistentTypeId, SourceDeclarationKey};
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::{CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError};
 
@@ -15,11 +15,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         expected: IntrinsicTypeKind,
     ) -> Result<(), CrossConeHirIntrinsicTypeError> {
         use CrossConeHirIntrinsicTypeError as Error;
-        let path = WirePath::root();
-        self.meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-        self.meter
-            .charge_work(self.dependencies.len() as u64 + 1, &path)
-            .map_err(Error::Resource)?;
+
         let key = match declaration {
             SourceNominalId::Concrete(id) => self
                 .identities
@@ -32,17 +28,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let interface = self
             .provider_interface(key.origin())
             .map_err(Error::Nominal)?;
-        let lookup_work = u64::from(
-            interface
-                .nominal_interfaces()
-                .records()
-                .len()
-                .max(1)
-                .ilog2(),
-        ) + 1;
-        self.meter
-            .charge_work(lookup_work, &path)
-            .map_err(Error::Resource)?;
+
         let record =
             Self::checked_nominal_record(interface, declaration, &key).map_err(Error::Nominal)?;
         let NominalSourceShapeV1::Intrinsic(representation) = record.source_shape() else {

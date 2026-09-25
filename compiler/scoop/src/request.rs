@@ -5,7 +5,6 @@ use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::TargetSelectionRequestV1;
 
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
-use scoop_wire::DecodeLimits;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactSearchRoot(PathBuf);
@@ -178,21 +177,6 @@ pub enum DiagnosticsPolicy {
     Structured,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct BuildLimitsProfileV1 {
-    artifact_decode: DecodeLimits,
-}
-
-impl BuildLimitsProfileV1 {
-    pub const M23_DEFAULT: Self = Self {
-        artifact_decode: DecodeLimits::M23_DEFAULT,
-    };
-
-    pub const fn artifact_decode(self) -> DecodeLimits {
-        self.artifact_decode
-    }
-}
-
 #[derive(Debug)]
 pub struct BuildGraphRequest {
     root: BuildRootInput,
@@ -202,7 +186,6 @@ pub struct BuildGraphRequest {
     target: ResolvedTargetProfile,
     compiler: PairedScoopcLocator,
     diagnostics: DiagnosticsPolicy,
-    limits: BuildLimitsProfileV1,
 }
 
 pub(crate) struct BuildGraphRequestParts {
@@ -213,7 +196,6 @@ pub(crate) struct BuildGraphRequestParts {
     pub(crate) target: ResolvedTargetProfile,
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
-    pub(crate) limits: BuildLimitsProfileV1,
 }
 
 impl BuildGraphRequest {
@@ -226,7 +208,6 @@ impl BuildGraphRequest {
         target: TargetSelectionRequestV1,
         compiler: PairedScoopcLocator,
         diagnostics: DiagnosticsPolicy,
-        limits: BuildLimitsProfileV1,
     ) -> Result<Self, BuildGraphRequestError> {
         artifact_search_roots.sort_by(|left, right| left.as_path().cmp(right.as_path()));
         artifact_search_roots.dedup();
@@ -241,7 +222,6 @@ impl BuildGraphRequest {
             target,
             compiler,
             diagnostics,
-            limits,
         })
     }
 
@@ -273,10 +253,6 @@ impl BuildGraphRequest {
         self.diagnostics
     }
 
-    pub const fn limits(&self) -> BuildLimitsProfileV1 {
-        self.limits
-    }
-
     pub(crate) fn into_parts(self) -> BuildGraphRequestParts {
         BuildGraphRequestParts {
             root: self.root,
@@ -286,7 +262,6 @@ impl BuildGraphRequest {
             target: self.target,
             compiler: self.compiler,
             diagnostics: self.diagnostics,
-            limits: self.limits,
         }
     }
 }
@@ -370,7 +345,6 @@ mod tests {
                 TargetSelectionRequestV1::new(target.into()).unwrap(),
                 PairedScoopcLocator::new(absolute("bin/scoopc")).unwrap(),
                 DiagnosticsPolicy::Human,
-                BuildLimitsProfileV1::M23_DEFAULT,
             )
             .unwrap()
         };

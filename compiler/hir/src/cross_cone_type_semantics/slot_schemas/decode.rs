@@ -3,9 +3,7 @@ use std::fmt;
 use scoop_identity::{
     DecodedPersistentId, PersistentDispatchSlotId, PersistentExactTypeId, PersistentIdResolver,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath};
 
 use super::{
     CanonicalInheritanceSlotSchemasV1, InheritanceSlotSchemaBuildError,
@@ -45,7 +43,7 @@ impl WireEncode for DecodedInheritanceSlotSchemaRoleV1 {
     }
 }
 impl WireDecode for DecodedInheritanceSlotSchemaRoleV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -72,33 +70,23 @@ impl DecodedInheritanceSlotSchemaV1 {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<InheritanceSlotSchemaV1, InheritanceSlotSchemaResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
             + PersistentIdResolver<PersistentDispatchSlotId, Error = E>,
     {
         let root = WirePath::root();
-        meter
-            .charge_nodes(1, &root)
-            .map_err(InheritanceSlotSchemaResolutionError::Resource)?;
+
         let role = self
             .role
             .resolve(resolver)
             .map_err(InheritanceSlotSchemaResolutionError::Identity)?;
         let mut slots = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut slots, self.slots.len(), &root)
+        scoop_wire::allocation::try_reserve(&mut slots, self.slots.len(), &root)
             .map_err(InheritanceSlotSchemaResolutionError::Resource)?;
-        meter
-            .charge_collection_slots(self.slots.len() as u64, &root)
-            .map_err(InheritanceSlotSchemaResolutionError::Resource)?;
+
         let mut seen = std::collections::BTreeSet::new();
         for (position, slot) in self.slots.into_iter().enumerate() {
-            let path = root.clone().index(position as u64);
-            meter
-                .charge_work(1, &path)
-                .map_err(InheritanceSlotSchemaResolutionError::Resource)?;
             let slot = resolver
                 .resolve(slot)
                 .map_err(InheritanceSlotSchemaResolutionError::Identity)?;
@@ -122,7 +110,7 @@ impl WireEncode for DecodedInheritanceSlotSchemaV1 {
     }
 }
 impl WireDecode for DecodedInheritanceSlotSchemaV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             role: decoder.field(1, DecodedInheritanceSlotSchemaRoleV1::decode)?,
@@ -138,45 +126,19 @@ pub struct DecodedCanonicalInheritanceSlotSchemasV1 {
     records: Vec<DecodedInheritanceSlotSchemaV1>,
 }
 impl DecodedCanonicalInheritanceSlotSchemasV1 {
-    pub(crate) fn charge_resolution_at(
-        &self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), WireError> {
-        meter.check_semantic_depth(1, path)?;
-        meter.check_table_entries(self.records.len() as u64, path)?;
-        meter.charge_nodes(self.records.len() as u64, path)?;
-        meter.charge_work(self.records.len() as u64, path)?;
-        for (index, schema) in self.records.iter().enumerate() {
-            let at = path.clone().index(index as u64);
-            let count = schema.slots.len() as u64;
-            meter.check_semantic_depth(3, &at)?;
-            meter.check_table_entries(count, &at)?;
-            meter.charge_nodes(count, &at)?;
-            meter.charge_edges(count, &at)?;
-            meter.charge_work(
-                count.saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-                &at,
-            )?;
-        }
-        Ok(())
-    }
-
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalInheritanceSlotSchemasV1, InheritanceSlotSchemaResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>
             + PersistentIdResolver<PersistentDispatchSlotId, Error = E>,
     {
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
             .map_err(InheritanceSlotSchemaResolutionError::Resource)?;
         for decoded in self.records {
-            let record = decoded.resolve(resolver, meter)?;
+            let record = decoded.resolve(resolver)?;
             if records
                 .last()
                 .is_some_and(|previous: &InheritanceSlotSchemaV1| previous.role() >= record.role())
@@ -198,7 +160,7 @@ impl WireEncode for DecodedCanonicalInheritanceSlotSchemasV1 {
     }
 }
 impl WireDecode for DecodedCanonicalInheritanceSlotSchemasV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedInheritanceSlotSchemaV1::decode(decoder))
             .map(|records| Self { records })

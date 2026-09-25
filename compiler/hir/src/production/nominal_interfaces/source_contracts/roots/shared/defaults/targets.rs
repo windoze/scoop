@@ -6,12 +6,8 @@ impl SourceRoots {
         export: &ExportHir,
         target: ExportDefaultCallableTarget,
         index: &super::super::super::Index,
-        roots: &mut Roots<'_>,
+        roots: &mut Roots,
     ) -> Result<(), Error> {
-        roots
-            .meter
-            .charge_work(1, &WirePath::root())
-            .map_err(resource)?;
         match target {
             ExportDefaultCallableTarget::Callable(callable) => {
                 self.function(export, callable.function(export), roots)
@@ -24,7 +20,6 @@ impl SourceRoots {
                 export,
                 index,
                 export.derived_equality_applications[id].owner_ty,
-                1,
             ),
             ExportDefaultCallableTarget::CallableReference(id) => {
                 match &export.callable_references[id].target {
@@ -41,7 +36,6 @@ impl SourceRoots {
                             export,
                             index,
                             export.derived_equality_applications[id].owner_ty,
-                            1,
                         ),
                     },
                     // The lifted declaration and its dependencies are attached
@@ -63,7 +57,7 @@ impl SourceRoots {
         export: &ExportHir,
         id: BoundCallableRefId,
         index: &super::super::super::Index,
-        roots: &mut Roots<'_>,
+        roots: &mut Roots,
     ) -> Result<(), Error> {
         let (ty, function) = match export.bound_callable_refs[id].source {
             BoundCallableSource::Class { bound, callable } => (
@@ -75,7 +69,7 @@ impl SourceRoots {
                 export.interface_methods[member].function,
             ),
         };
-        roots.require_field_type(export, index, ty, 1)?;
+        roots.require_field_type(export, index, ty)?;
         self.function(export, function, roots)
     }
 }

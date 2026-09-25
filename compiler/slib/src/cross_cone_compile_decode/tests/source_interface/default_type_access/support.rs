@@ -25,20 +25,6 @@ pub(super) fn front(bytes: &[u8]) -> HirProductionValidatedCrossConeHirFrontSect
         .unwrap()
 }
 
-pub(super) fn validate(
-    front: &mut HirProductionValidatedCrossConeHirFrontSections<'_>,
-) -> Result<(), Error> {
-    crate::cross_cone_hir_authority::CanonicalCrossConeHirSurfaceAuthority::new(
-        front.graph.identity(),
-        &front.identities,
-        &front.foundations.hir,
-        &front.hir_interface,
-        vec![],
-        front.graph.envelope.meter_mut(),
-    )
-    .validate_default_type_access(&front.hir_core_production)
-}
-
 pub(super) fn add_unused_local(fixture: &mut CallableSourceSurface, ty: SignatureTypeKey) {
     let interface = &fixture.interface;
     let template = &interface.default_templates().records()[0];

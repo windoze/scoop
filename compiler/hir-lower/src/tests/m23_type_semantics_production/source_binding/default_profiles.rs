@@ -5,7 +5,7 @@ use hir::{
     ProtectedDefaultWitnessSourceProfileV1 as Profile,
 };
 mod rejection;
-mod resources;
+
 mod snapshot;
 mod support;
 use support::with_inputs;
@@ -29,10 +29,10 @@ fn source_profiles_bind_real_owners_inheritance_and_all_six_target_domains() {
         with_inputs(source, |inputs| {
             inputs.with_bound(|domains, parameters, _| {
                 let declarations = parameters
-                    .bind_default_declarations(inputs.production.templates(), &[], &mut meter())
+                    .bind_default_declarations(inputs.production.templates(), &[])
                     .unwrap();
                 let targets = domains
-                    .bind_nominal_default_target_domains(&declarations, &mut meter())
+                    .bind_nominal_default_target_domains(&declarations)
                     .unwrap();
                 assert!(std::ptr::eq(
                     targets.types().declarations(),
@@ -43,7 +43,7 @@ fn source_profiles_bind_real_owners_inheritance_and_all_six_target_domains() {
                     targets.callables().declarations()
                 ));
                 let profiles = targets
-                    .bind_source_profiles(inputs.production.profiles(), &mut meter())
+                    .bind_source_profiles(inputs.production.profiles())
                     .unwrap();
                 assert!(std::ptr::eq(
                     profiles.domains().declarations(),
@@ -51,9 +51,7 @@ fn source_profiles_bind_real_owners_inheritance_and_all_six_target_domains() {
                 ));
                 for record in profiles.profiles().records() {
                     assert_eq!(
-                        profiles
-                            .default_access_profile(record.key(), &mut meter())
-                            .unwrap(),
+                        profiles.default_access_profile(record.key()).unwrap(),
                         record.profile()
                     );
                 }
@@ -67,7 +65,7 @@ fn inherited_defaults_preserve_distinct_publishing_and_provider_call_domains() {
     with_inputs(DOMAINS, |inputs| {
         inputs.with_bound(|domains, parameters, _| {
             let declarations = parameters
-                .bind_default_declarations(inputs.production.templates(), &[], &mut meter())
+                .bind_default_declarations(inputs.production.templates(), &[])
                 .unwrap();
             let inherited = declarations
                 .declarations()
@@ -88,10 +86,10 @@ fn inherited_defaults_preserve_distinct_publishing_and_provider_call_domains() {
                 Some(inherited[0].direct_call_domain())
             );
             let targets = domains
-                .bind_nominal_default_target_domains(&declarations, &mut meter())
+                .bind_nominal_default_target_domains(&declarations)
                 .unwrap();
             targets
-                .bind_source_profiles(inputs.production.profiles(), &mut meter())
+                .bind_source_profiles(inputs.production.profiles())
                 .unwrap();
         })
     });

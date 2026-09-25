@@ -47,7 +47,7 @@ impl WireEncode for DecodedDefinitionOwner {
 }
 
 impl WireDecode for DecodedDefinitionOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => decode_value_variant(decoder, fields, DecodedNominalOwner::decode, Self::Nominal),
@@ -177,7 +177,7 @@ impl WireEncode for DecodedStaticStorageKey {
 }
 
 impl WireDecode for DecodedStaticStorageKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedDefinitionOwner::decode)?,
@@ -187,7 +187,7 @@ impl WireDecode for DecodedStaticStorageKey {
 }
 
 impl WireDecode for StorageRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::PropertyBacking),
             2 => Ok(Self::PropertyDelegate),

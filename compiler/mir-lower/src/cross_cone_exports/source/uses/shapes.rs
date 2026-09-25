@@ -4,15 +4,13 @@ use scoop_identity::{ExactTypeKey, SourceDeclarationKey};
 
 pub(super) fn project(
     input: MirTypeBridgeExportInputV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<mir::MirTypeBridgeDependencyV1>, Error> {
     let module = input.hir.output().local.module();
-    let path = WirePath::root();
+
     let mut actual = Vec::new();
     module
-        .visit_executable_expressions(meter, |occurrence, meter| {
+        .visit_executable_expressions(|occurrence| {
             for (role, ty) in occurrence.expression.type_uses() {
-                meter.charge_work(1, &path)?;
                 if !role.requires_shape_support() {
                     continue;
                 }
@@ -20,10 +18,7 @@ pub(super) fn project(
                 let ExactTypeKey::Nominal(owner) = exact.key() else {
                     continue;
                 };
-                meter.charge_work(
-                    1 + u64::from(input.identities.identity_count().max(1).ilog2()),
-                    &path,
-                )?;
+
                 let declaration = input
                     .identities
                     .canonical_key::<_, SourceDeclarationKey>(*owner)
@@ -37,7 +32,6 @@ pub(super) fn project(
                         declaration.origin(),
                         mir::MirTypeBridgeTargetV1::ShapeSupport(*owner),
                     ),
-                    meter,
                 )?;
             }
             Ok(())
@@ -46,15 +40,15 @@ pub(super) fn project(
             ExecutableExpressionVisitError::Structure(error) => Error::ExecutableExpressions(error),
             ExecutableExpressionVisitError::Visitor(error) => error,
         })?;
-    inventory::sort_cost(actual.len(), meter)?;
+
     actual.sort_unstable();
     actual.dedup();
     let shared = input
         .public
         .external_references()
-        .materialized_shape_dependencies(module.cone, input.identities, meter)
+        .materialized_shape_dependencies(module.cone, input.identities)
         .map_err(|error| Error::SharedTypeOccurrences(Box::new(error)))?;
-    meter.charge_work(actual.len() as u64 + shared.len() as u64, &path)?;
+
     if !actual
         .iter()
         .map(|usage| (usage.provider(), usage.target()))

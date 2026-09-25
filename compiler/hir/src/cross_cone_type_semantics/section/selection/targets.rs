@@ -4,7 +4,6 @@ use scoop_identity::{CallableTemplateOrigin, ExactTypeKey};
 mod callables;
 mod nominal;
 mod receiver;
-mod resources;
 mod singleton;
 mod slots;
 
@@ -16,40 +15,38 @@ pub(super) fn validate<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     local: &Exports<'a>,
     provider: &Exports<'a>,
     foundation: &F,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<CheckedTypeSelectionTargetV1<'a>, Error<E>> {
-    meter.charge_nodes(1, path)?;
-    meter.charge_work(1, path)?;
     let exact = match request.usage() {
         SelectedTypeUseV1::Signature { exact }
         | SelectedTypeUseV1::Representation { exact }
         | SelectedTypeUseV1::TypeTest { exact }
         | SelectedTypeUseV1::ShapeSupport { exact } => exact,
         SelectedTypeUseV1::Construct { exact, declaration } => {
-            callables::construction(provider, exact, declaration, foundation, meter, path)?;
+            callables::construction(provider, exact, declaration, foundation, path)?;
             exact
         }
         SelectedTypeUseV1::MemberCall {
             receiver,
             declaration,
         } => {
-            let owner = callables::member(provider, declaration, foundation, meter, path)?;
-            receiver::validate(&local.graph, receiver, owner, meter, path)?;
+            let owner = callables::member(provider, declaration, foundation, path)?;
+            receiver::validate(&local.graph, receiver, owner, path)?;
             owner
         }
         SelectedTypeUseV1::SlotCall { receiver, slot } => {
-            slots::validate(local, provider, receiver, slot, meter, path)?
+            slots::validate(local, provider, receiver, slot, path)?
         }
         SelectedTypeUseV1::SingletonValue { exact, value } => {
-            singleton::validate(provider, exact, value, foundation, meter, path)?;
+            singleton::validate(provider, exact, value, foundation)?;
             exact
         }
         SelectedTypeUseV1::Inheritance { derived, edge } => {
-            direct_edge(local, provider, derived, edge, meter, path)?
+            direct_edge(local, provider, derived, edge)?
         }
     };
-    let (definition, facts) = nominal::resolve(provider, exact, request, foundation, meter, path)?;
+    let (definition, facts) = nominal::resolve(provider, exact, request, foundation)?;
     Ok(CheckedTypeSelectionTargetV1 {
         request,
         definition,
@@ -64,10 +61,7 @@ fn direct_edge<E>(
     provider: &Exports<'_>,
     derived: PersistentExactTypeId,
     edge: SelectedDirectInheritanceEdgeV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<PersistentExactTypeId, Error<E>> {
-    meter.charge_work(2, path)?;
     let actual = local
         .inheritance_records
         .get(&derived)
@@ -79,10 +73,6 @@ fn direct_edge<E>(
             exact
         }
         SelectedDirectInheritanceEdgeV1::Interface { exact } => {
-            meter.charge_work(
-                (actual.edges().direct_interfaces().len() as u64 + 1).ilog2() as u64 + 1,
-                path,
-            )?;
             if actual
                 .edges()
                 .direct_interfaces()
@@ -101,17 +91,11 @@ fn direct_edge<E>(
     Ok(target)
 }
 
-fn exact<E>(
-    owner: SourceNominalId,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<PersistentExactTypeId, Error<E>> {
+fn exact<E>(owner: SourceNominalId) -> Result<PersistentExactTypeId, Error<E>> {
     let SourceNominalId::Concrete(owner) = owner else {
         return Err(Error::DeclarationOwner);
     };
     let key = ExactTypeKey::Nominal(owner);
-    let bytes =
-        PersistentExactTypeId::hash_stream_length(&key).map_err(|_| Error::DeclarationOwner)?;
-    meter.charge_sha256(bytes, path)?;
+
     PersistentExactTypeId::from_key(&key).map_err(|_| Error::DeclarationOwner)
 }

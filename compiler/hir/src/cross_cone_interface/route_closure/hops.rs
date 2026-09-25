@@ -2,7 +2,6 @@ use super::*;
 use crate::ReexportRouteHopV1;
 use scoop_identity::BindableEntity;
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn validate_hop<A>(
     binding: PersistentExportBindingId,
     binding_key: &ExportBindingKey,
@@ -11,13 +10,11 @@ pub(super) fn validate_hop<A>(
     route_hops: &[ReexportRouteHopV1],
     hop: ReexportRouteHopV1,
     authority: &A,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), PublicExportBindingClosureValidationError>
 where
     A: PublicExportBindingClosureAuthority,
 {
-    let hop_key = authority.binding_key(hop.binding(), meter, path)?.ok_or(
+    let hop_key = authority.binding_key(hop.binding()).ok_or(
         PublicExportBindingClosureValidationError::MissingHopBindingKey {
             binding,
             route: route_index,
@@ -72,17 +69,15 @@ where
         });
     }
 
-    let surface = authority
-        .public_bindings(hop.exporter(), meter, path)?
-        .ok_or(
-            PublicExportBindingClosureValidationError::MissingProviderSurface {
-                binding,
-                route: route_index,
-                hop: hop_index,
-                provider: hop.exporter(),
-            },
-        )?;
-    let record = surface.get_metered(hop.binding(), meter, path)?.ok_or(
+    let surface = authority.public_bindings(hop.exporter()).ok_or(
+        PublicExportBindingClosureValidationError::MissingProviderSurface {
+            binding,
+            route: route_index,
+            hop: hop_index,
+            provider: hop.exporter(),
+        },
+    )?;
+    let record = surface.get(hop.binding()).ok_or(
         PublicExportBindingClosureValidationError::MissingProviderBinding {
             binding,
             route: route_index,
@@ -115,7 +110,7 @@ where
         ),
         (false, ExportBindingSourceV1::Reexport { routes }) => {
             let suffix = &route_hops[hop_index + 1..];
-            if routes.contains_exact_suffix_metered(suffix, meter, path)? {
+            if routes.contains_exact_suffix(suffix) {
                 Ok(())
             } else {
                 Err(

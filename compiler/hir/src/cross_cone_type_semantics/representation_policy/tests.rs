@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -32,11 +32,7 @@ fn c_layout_has_closed_semantic_alignment_and_stable_wire() {
                 contract: HirCLayoutContract { aligned, packed },
             };
             assert_eq!(
-                decode_canonical::<NominalCLayoutPolicyV1>(
-                    &encode(&policy).unwrap(),
-                    DecodeLimits::default()
-                )
-                .unwrap(),
+                decode_canonical::<NominalCLayoutPolicyV1>(&encode(&policy).unwrap()).unwrap(),
                 policy
             );
         }
@@ -68,7 +64,7 @@ fn intrinsic_family_keeps_integer_width_and_signedness_and_generic_family_distin
         let bytes = encode(&representation).unwrap();
         assert!(encodings.insert(bytes.clone()));
         assert_eq!(
-            decode_canonical::<NominalIntrinsicRepresentationV1>(&bytes, DecodeLimits::default())
+            decode_canonical::<NominalIntrinsicRepresentationV1>(&bytes)
                 .unwrap()
                 .family(),
             family
@@ -86,18 +82,13 @@ fn representation_reader_rejects_unknown_family_alignment_and_extra_fields() {
         &[0xa3, 0, 1, 1, 0xa1, 0, 3, 2, 0xa1, 0, 1][..],
         &[0xa3, 0, 1, 1, 0xa1, 0, 1, 2, 0xa1, 0, 5][..],
     ] {
-        assert!(
-            decode_canonical::<NominalIntrinsicRepresentationV1>(bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<NominalIntrinsicRepresentationV1>(bytes).is_err());
     }
     for bytes in [
         &[0xa1, 0, 3][..],
         &[0xa2, 0, 1, 1, 0][..],
         &[0xa2, 0, 2, 1, 0xa2, 1, 0xa1, 0, 7, 2, 0xa1, 0, 1][..],
     ] {
-        assert!(
-            decode_canonical::<NominalCLayoutPolicyV1>(bytes, DecodeLimits::default()).is_err()
-        );
+        assert!(decode_canonical::<NominalCLayoutPolicyV1>(bytes).is_err());
     }
 }

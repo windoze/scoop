@@ -57,9 +57,7 @@ fn default_target_queries_follow_dependency_ordered_artifact_declarations() {
             let foundation = fixture.bind().unwrap();
             for (target, expected, _) in expected::targets(export) {
                 assert_eq!(
-                    foundation
-                        .default_indirect_access_subject(target, &mut meter())
-                        .unwrap(),
+                    foundation.default_indirect_access_subject(target).unwrap(),
                     expected
                 );
             }
@@ -73,7 +71,7 @@ fn default_target_queries_follow_dependency_ordered_artifact_declarations() {
             ] {
                 let record = constructors::reference(output, name, position);
                 foundation
-                    .default_constructor_access_subject(record.target(), &mut meter())
+                    .default_constructor_access_subject(record.target())
                     .unwrap();
             }
         },

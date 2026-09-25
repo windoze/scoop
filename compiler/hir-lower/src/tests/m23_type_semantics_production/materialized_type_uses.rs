@@ -14,14 +14,10 @@ fn fixture(name: &str) -> String {
     .unwrap()
 }
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn names(output: &hir::LocalConcreteHirOutput) -> BTreeSet<String> {
     let module = output.module();
     output
-        .materialized_type_closure(&mut meter())
+        .materialized_type_closure()
         .unwrap()
         .iter()
         .filter_map(|ty| match &module.types[*ty].kind {
@@ -90,7 +86,7 @@ fn materialized_types_include_explicit_non_result_type_operands() {
         );
         let mut operations = [false; 3];
         local
-            .visit_executable_expressions(&mut meter(), |occurrence, _| {
+            .visit_executable_expressions(|occurrence| {
                 match occurrence.expression.kind {
                     ExprKind::SizeOf(_) => operations[0] = true,
                     ExprKind::AlignOf(_) => operations[1] = true,
@@ -111,7 +107,7 @@ fn materialized_initialization_adds_its_implicit_string_type() {
         let local = &output.output().local;
         assert_eq!(local.initialization_units.len(), 1);
         local
-            .visit_executable_expressions(&mut meter(), |occurrence, _| {
+            .visit_executable_expressions(|occurrence| {
                 assert!(!matches!(
                     occurrence.expression.kind,
                     ExprKind::StringLiteral { .. }

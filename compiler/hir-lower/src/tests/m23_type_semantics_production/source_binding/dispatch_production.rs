@@ -38,23 +38,19 @@ fn produced_dispatch_contracts_roundtrip_and_validate_against_source_choices() {
                 for record in nominal.slots().records() {
                     let bytes = encode(record).unwrap();
                     let decoded: hir::DecodedInheritanceSlotContractV1 =
-                        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-                    let decoded = decoded
-                        .resolve(&mut fixture.identities, &mut meter())
-                        .unwrap();
+                        decode_canonical(&bytes).unwrap();
+                    let decoded = decoded.resolve(&mut fixture.identities).unwrap();
                     assert_eq!(&decoded, record);
                     assert_eq!(encode(&decoded).unwrap(), bytes);
                     restored.push((nominal.owner(), decoded));
                 }
             }
             let foundation = fixture.bind().unwrap();
-            let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
+            let dispatch = sources.bind(&foundation).unwrap();
 
-            let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
+            let slots = dispatch.bind_slot_sources().unwrap();
             for (owner, record) in &restored {
-                slots
-                    .validate_contract(*owner, record, &mut meter())
-                    .unwrap();
+                slots.validate_contract(*owner, record).unwrap();
                 assert!(
                     production
                         .section()
@@ -109,25 +105,7 @@ fn produced_dispatch_is_deterministic_and_obeys_resource_limits() {
     let produce = |sources: &[(&str, &str)]| {
         with_hir_sources(sources, |output, _| {
             let public = public_interface(output);
-            for limits in [
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_table_entries: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    produce_type_semantics_metered(output, &public, &mut BudgetMeter::new(limits))
-                        .is_err()
-                );
-            }
+
             let production = produce_cross_cone_type_semantics(output, &public).unwrap();
             encode(production.section().inheritance()).unwrap()
         })
@@ -152,9 +130,9 @@ fn produced_contracts_reject_a_different_reachable_default_and_narrowed_domain()
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
+        let dispatch = sources.bind(&foundation).unwrap();
 
-        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
+        let slots = dispatch.bind_slot_sources().unwrap();
         let mut checked = 0;
         for nominal in production.section().inheritance().records() {
             for record in nominal.slots().records() {
@@ -172,7 +150,7 @@ fn produced_contracts_reject_a_different_reachable_default_and_narrowed_domain()
                     )
                     .unwrap();
                 assert!(matches!(
-                    slots.validate_contract(nominal.owner(), &narrowed, &mut meter()),
+                    slots.validate_contract(nominal.owner(), &narrowed),
                     Err(hir::InheritanceInterfaceSemanticError::Slot(
                         hir::InheritanceSlotContractSemanticError::Domain
                     ))
@@ -205,10 +183,10 @@ fn produced_contracts_reject_a_different_reachable_default_and_narrowed_domain()
                 .unwrap();
                 slots
                     .graph()
-                    .validate_slot_contract(nominal.owner(), &wrong, &slots, &mut meter())
+                    .validate_slot_contract(nominal.owner(), &wrong, &slots)
                     .unwrap();
                 assert!(matches!(
-                    slots.validate_contract(nominal.owner(), &wrong, &mut meter()),
+                    slots.validate_contract(nominal.owner(), &wrong),
                     Err(hir::InheritanceInterfaceSemanticError::SlotSelection)
                 ));
                 checked += 1;

@@ -13,7 +13,6 @@ pub(super) fn lower_graph(
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     selected_layout: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
-    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<LoweredModule, StrongLirLoweringError> {
     let module = input.module();
     module
@@ -28,7 +27,6 @@ pub(super) fn lower_graph(
         target_profile,
         selected_layout,
         &mut external_type_descriptors,
-        meter,
     )?;
     validate_strong_materialization(input, &identity_roots, &dependency_types)
         .map_err(StrongLirLoweringError::Capability)?;

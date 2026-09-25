@@ -27,7 +27,7 @@ impl<'body> Visitor<'body> for Recorder {
         &mut self,
         index: u32,
         _: &DefaultExpressionV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         self.expressions.push(index);
@@ -37,7 +37,7 @@ impl<'body> Visitor<'body> for Recorder {
     fn reference(
         &mut self,
         occurrence: Occurrence<'body>,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         let kind = match occurrence.target {
@@ -85,14 +85,8 @@ fn collect(
     origin: &ExportDefinitionSourceV1,
 ) -> Recorder {
     let mut recorder = Recorder::default();
-    body.visit_direct_references(
-        locals,
-        origin,
-        &mut recorder,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
-    .unwrap();
+    body.visit_direct_references(locals, origin, &mut recorder, &WirePath::root())
+        .unwrap();
     recorder
 }
 
@@ -173,72 +167,4 @@ fn visitor_sees_binder_only_expressions_without_fabricating_type_references() {
     );
     assert_eq!(records.expressions, [0]);
     assert!(records.references.is_empty());
-}
-
-#[test]
-fn resource_limits_stop_the_shared_walk_before_observation() {
-    let fixture = Fixture::new();
-    let body = body(
-        DefaultExpressionKindV1::UnitLiteral,
-        fixture.value_type(),
-        fixture.origin(),
-    );
-    let mut recorder = Recorder::default();
-    let limits = DecodeLimits {
-        decoded_nodes: 0,
-        ..DecodeLimits::default()
-    };
-    let error = body
-        .visit_direct_references(
-            &CanonicalTemplateLocalTableV1::try_new(Vec::new()).unwrap(),
-            &fixture.origin(),
-            &mut recorder,
-            &mut BudgetMeter::new(limits),
-            &WirePath::root(),
-        )
-        .unwrap_err();
-    assert!(matches!(
-        error.kind(),
-        WireErrorKind::LimitExceeded {
-            resource: ResourceKind::DecodedNodes,
-            ..
-        }
-    ));
-    assert!(recorder.expressions.is_empty());
-    assert!(recorder.references.is_empty());
-}
-
-#[test]
-fn shared_walk_preserves_structural_recursion_limit() {
-    let fixture = Fixture::new();
-    let body = body(
-        DefaultExpressionKindV1::Box(Box::new(expression(
-            DefaultExpressionKindV1::UnitLiteral,
-            binder(),
-            fixture.origin(),
-        ))),
-        binder(),
-        fixture.origin(),
-    );
-    let mut recorder = Recorder::default();
-    let limits = DecodeLimits {
-        semantic_recursion: 2,
-        ..DecodeLimits::default()
-    };
-    let error = body
-        .visit_direct_references(
-            &CanonicalTemplateLocalTableV1::try_new(Vec::new()).unwrap(),
-            &fixture.origin(),
-            &mut recorder,
-            &mut BudgetMeter::new(limits),
-            &WirePath::root(),
-        )
-        .unwrap_err();
-    assert!(matches!(
-        error.kind(),
-        WireErrorKind::LimitExceeded {
-            resource: ResourceKind::SemanticRecursion,
-            ..
-        }
-    ));
 }

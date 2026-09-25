@@ -101,9 +101,7 @@ impl NominalRepresentationSemanticAuthority<&'static str> for Fixture {
         })
     }
 }
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 pub(super) fn path() -> WirePath {
     WirePath::root().field(2)
 }
@@ -135,23 +133,10 @@ pub(super) fn mismatch(
     expected: NominalRepresentationSourceMismatchV1,
 ) {
     let error = table
-        .validate_source_semantics(fixture, &mut meter(), &path())
+        .validate_source_semantics(fixture, &path())
         .unwrap_err();
     assert!(
         matches!(error, NominalRepresentationSourceSemanticError::Record { error, .. } if error == expected),
         "{error:?}"
     );
-}
-pub(super) fn resource(
-    error: NominalRepresentationSourceSemanticError<&'static str>,
-    expected: ResourceKind,
-) {
-    let NominalRepresentationSourceSemanticError::Resource(error) = error else {
-        panic!("{error:?}");
-    };
-    assert!(
-        matches!(error.kind(), WireErrorKind::LimitExceeded { resource, .. } if *resource == expected),
-        "{error:?}"
-    );
-    assert!(error.path().segments().starts_with(path().segments()));
 }

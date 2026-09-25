@@ -4,26 +4,23 @@ pub(super) fn validate<E>(
     source: &CheckedProtectedSourceInterfaceV1<'_>,
     public: &CrossConeHirInterfaceSectionV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
-    lookup(public.source_interfaces().records().len(), meter, path)?;
     let old = public.source_interfaces().get(source.owner());
-    if !effective_public(source.declaration_access(), graph, meter, path)? {
+    if !effective_public(source.declaration_access(), graph)? {
         return require(old.is_none());
     }
     let old = old.ok_or(TypeSectionExportValidationError::PublicOverlap)?;
-    require(equal(source.protocol().record(), old, meter, path)?)
+    require(equal(source.protocol().record(), old, path)?)
 }
 
 pub(super) fn equal(
     new: &ProtectedCallableSourceInterfaceV1,
     old: &CallableSourceInterfaceV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<bool, WireError> {
-    sequence(new.parameters().parameters().len(), meter, path)?;
-    sequence(old.parameters().parameters().len(), meter, path)?;
     if new.owner() != old.owner() || new.parameters().len_u32() != old.parameters().len_u32() {
         return Ok(false);
     }
@@ -35,14 +32,11 @@ pub(super) fn equal(
         .enumerate()
     {
         let at = path.clone().index(index as u64);
-        text(new.name().as_str(), meter, &at)?;
-        text(old.name().as_str(), meter, &at)?;
-        origin(new.definition_origin(), meter, &at)?;
-        origin(old.definition_origin(), meter, &at)?;
+
         if new.name() != old.name()
             || new.definition_origin() != old.definition_origin()
-            || !signature(new.value_type(), old.value_type(), meter, &at)?
-            || !calling(new.calling(), old.calling(), meter, &at)?
+            || !signature(new.value_type(), old.value_type(), &at)?
+            || !calling(new.calling(), old.calling(), &at)?
         {
             return Ok(false);
         }
@@ -54,17 +48,17 @@ impl ProtectedCallableSourceInterfaceV1 {
     pub(in crate::cross_cone_type_semantics) fn matches_shared_interface(
         &self,
         shared: &CallableSourceInterfaceV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<bool, WireError> {
-        equal(self, shared, meter, path)
+        equal(self, shared, path)
     }
 }
 
 fn calling(
     new: &ProtectedParameterCallingV1,
     old: &CallableParameterCallingV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<bool, WireError> {
     let kinds_match = matches!(
@@ -83,7 +77,7 @@ fn calling(
             CallableParameterCallingV1::VarargDefault { .. }
         )
     );
-    if !kinds_match || !optional_signature(new.element_type(), old.element_type(), meter, path)? {
+    if !kinds_match || !optional_signature(new.element_type(), old.element_type(), path)? {
         return Ok(false);
     }
     Ok(match (new.template(), old.template()) {

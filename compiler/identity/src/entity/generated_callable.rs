@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{
     CallableMaterialization, CallableTemplateOwner, ExactCallableSignature,
@@ -498,14 +498,6 @@ impl PersistentGeneratedCallableId {
         key.validate()?;
         derive_persistent_id(GENERATED_CALLABLE_HASH_DOMAIN, key).map_err(Into::into)
     }
-
-    pub fn hash_stream_length(
-        key: &GeneratedCallableKey,
-    ) -> Result<u64, GeneratedCallableIdentityError> {
-        key.validate()?;
-        domain_separated_cbor_hash_stream_length(GENERATED_CALLABLE_HASH_DOMAIN, key)
-            .map_err(Into::into)
-    }
 }
 
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -525,7 +517,7 @@ fn encode_value_sum(
 }
 
 #[cfg(test)]
-mod budget_tests;
+mod wire_tests;
 
 #[cfg(test)]
 mod tests {

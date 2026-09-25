@@ -8,9 +8,7 @@ use scoop_identity::{
     IdentityReferenceError, PersistentDispatchTableId, PersistentExactTypeId, PersistentLayoutId,
     PersistentTypeId, StrongCallableDefinitionOwner, ValidatedIdentityGraph,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath};
 
 mod dependency;
 mod exports;
@@ -89,7 +87,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

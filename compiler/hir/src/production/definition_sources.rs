@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use scoop_identity::{DefinitionOrigin, SourceOriginError, SourceSpan};
-use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::{
     CanonicalCallableSourceInterfacesV1, CanonicalExportConstValuesV1,
@@ -40,7 +40,6 @@ impl CanonicalExportDefinitionSourcesV1 {
             );
         }
 
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
         for (wire_index, (template_index, template)) in
             (0_u64..).zip(default_templates.records().iter().enumerate())
         {
@@ -53,10 +52,10 @@ impl CanonicalExportDefinitionSourcesV1 {
             template
                 .body()
                 .visit_definition_sources(
-                    &mut |source, _| {
+                    &mut |source, _, _| {
                         sources.insert(source.clone());
+                        Ok(())
                     },
-                    &mut meter,
                     &WirePath::root().field(7).index(wire_index).field(5),
                 )
                 .map_err(

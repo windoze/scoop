@@ -5,17 +5,15 @@ mod shapes;
 
 pub(super) fn project(
     input: MirTypeBridgeExportInputV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<mir::MirTypeBridgeDependencyV1>, Error> {
     let module = input.mir.module();
-    let path = WirePath::root();
+
     let mut uses = Vec::new();
     let local = &input.hir.output().local;
     for ty in local
-        .materialized_type_closure(meter)
+        .materialized_type_closure()
         .map_err(Error::MaterializedTypes)?
     {
-        meter.charge_work(1, &path)?;
         let exact = &local.exact_type_identities[ty];
         let scoop_identity::ExactTypeKey::Nominal(source) = exact.key() else {
             continue;
@@ -32,19 +30,18 @@ pub(super) fn project(
                     provider,
                     mir::MirTypeBridgeTargetV1::Type(exact.id()),
                 ),
-                meter,
             )?;
         }
     }
-    inventory::sort_cost(uses.len(), meter)?;
+
     uses.sort_unstable();
     uses.dedup();
     let shared = input
         .public
         .external_references()
-        .materialized_type_dependencies(module.cone, input.identities, meter)
+        .materialized_type_dependencies(module.cone, input.identities)
         .map_err(|source| Error::SharedTypeOccurrences(Box::new(source)))?;
-    meter.charge_work(uses.len() as u64 + shared.len() as u64, &path)?;
+
     if !uses
         .iter()
         .map(|usage| (usage.provider(), usage.target()))
@@ -54,11 +51,10 @@ pub(super) fn project(
     {
         return Err(Error::TypeOccurrenceInventory);
     }
-    for shape in shapes::project(input, meter)? {
-        push(&mut uses, shape, meter)?;
+    for shape in shapes::project(input)? {
+        push(&mut uses, shape)?;
     }
     for root in input.mir.materialization().external_callable_roots() {
-        meter.charge_work(input.ordinary.selected().len() as u64 + 1, &path)?;
         if root.role() == mir::CallableRole::InitializationCycle
             || input.ordinary.selected().iter().any(|selected| {
                 selected.provider() == root.provider()
@@ -75,10 +71,9 @@ pub(super) fn project(
                 root.provider(),
                 mir::MirTypeBridgeTargetV1::Callable(root.implementation()),
             ),
-            meter,
         )?;
     }
-    inventory::sort_cost(uses.len(), meter)?;
+
     uses.sort_unstable();
     uses.dedup();
     Ok(uses)
@@ -87,12 +82,10 @@ pub(super) fn project(
 fn push(
     uses: &mut Vec<mir::MirTypeBridgeDependencyV1>,
     relation: mir::MirTypeBridgeDependencyV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let path = WirePath::root();
-    meter.check_table_entries(uses.len() as u64 + 1, &path)?;
-    meter.charge_owned_bytes(std::mem::size_of_val(&relation) as u64, &path)?;
-    meter.try_reserve_collection_slots(uses, 1, &path)?;
+
+    scoop_wire::allocation::try_reserve(uses, 1, &path)?;
     uses.push(relation);
     Ok(())
 }

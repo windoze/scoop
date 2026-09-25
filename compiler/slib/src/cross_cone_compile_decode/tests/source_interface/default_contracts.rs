@@ -1,7 +1,6 @@
 use scoop_hir::{
     DefaultTemplateDeclarationContractError as ContractError,
-    MeteredTemplateReceiverSemanticValidationError,
-    MeteredTemplateValueParameterSemanticValidationError,
+    TemplateReceiverSemanticValidationError, TemplateValueParameterSemanticValidationError,
 };
 
 use super::*;
@@ -35,7 +34,7 @@ fn ordinary_reader_checks_the_original_default_result_type() {
 fn ordinary_reader_rejects_a_receiver_on_a_top_level_default() {
     assert!(matches!(
         contract_failure(Change::Receiver),
-        ContractError::Receiver(MeteredTemplateReceiverSemanticValidationError::Unexpected,)
+        ContractError::Receiver(TemplateReceiverSemanticValidationError::Unexpected { .. },)
     ));
 }
 
@@ -43,12 +42,10 @@ fn ordinary_reader_rejects_a_receiver_on_a_top_level_default() {
 fn ordinary_reader_rejects_a_parameter_prefix_before_position_zero() {
     assert!(matches!(
         contract_failure(Change::Prefix),
-        ContractError::Prefix(
-            MeteredTemplateValueParameterSemanticValidationError::PrefixArity {
-                expected: 0,
-                actual: 1
-            },
-        )
+        ContractError::Prefix(TemplateValueParameterSemanticValidationError::PrefixArity {
+            expected: 0,
+            actual: 1
+        },)
     ));
 }
 
@@ -82,12 +79,23 @@ fn failure(change: Change) -> Error {
     assert_eq!(key.owner(), fixture.owner);
     assert_eq!(key.parameter_position(), 0);
     let expected = match change {
-        Change::Ordinal => "default path does not identify a provider default parameter",
-        Change::Mapping => "default source mapping differs from its provider binder count",
-        Change::Result => "default source result differs from its original provider parameter",
-        Change::Receiver => "default template has a receiver forbidden by its source contract",
-        Change::Prefix => "default template has 1 preceding parameters, expected 0",
-        Change::Suspend => "default source suspend permission differs from its declarations",
+        Change::Ordinal => "default path does not identify a provider default parameter".to_owned(),
+        Change::Mapping => {
+            "default source mapping differs from its provider binder count".to_owned()
+        }
+        Change::Result => {
+            "default source result differs from its original provider parameter".to_owned()
+        }
+        Change::Receiver => format!(
+            "default template has unexpected receiver of type {:?}",
+            fixture.interface.default_templates().records()[0].result()
+        ),
+        Change::Prefix => {
+            "default template has 1 preceding value parameters, expected 0".to_owned()
+        }
+        Change::Suspend => {
+            "default source suspend permission differs from its declarations".to_owned()
+        }
     };
     assert_eq!(source.to_string(), expected);
     *source

@@ -1,13 +1,11 @@
 //! Physical Link replay retains the original final bytes and all object proofs.
 
 use scoop_lir as lir;
-use scoop_wire::BudgetMeter;
 
 use crate::link_object::*;
 
 mod errors;
 mod registrations;
-mod resources;
 mod verification;
 pub use errors::LayoutLinkObjectContentsError;
 pub(crate) use verification::replay;
@@ -24,47 +22,9 @@ pub struct ReplayedLayoutLinkObjectContentsV1<'input> {
     immortals: VerifiedStrongImmortalObjectRegistrationSetV1,
     storages: VerifiedStrongStaticStorageRegistrationSetV1,
     initializations: VerifiedStrongInitializationRegistrationSetV2,
-    costs: resources::ReplayCosts,
 }
 
 impl<'input> ReplayedLayoutLinkObjectContentsV1<'input> {
-    pub(crate) fn charge_registration_fingerprints(
-        &self,
-        strong: &lir::ReplayedStrongProductionSectionV2,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), scoop_wire::WireError> {
-        self.costs.registration_fingerprints(self, strong, meter)
-    }
-
-    pub(crate) fn charge_final_object_reconstruction(
-        &self,
-        strong: &lir::ReplayedStrongProductionSectionV2,
-        compatibility: &crate::CompatibilityRecord,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), scoop_wire::WireError> {
-        self.costs.final_objects(self, strong, compatibility, meter)
-    }
-
-    pub(crate) fn charge_strong_closure_copy(
-        &self,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), scoop_wire::WireError> {
-        self.costs
-            .copy_builtins(self.patch_sites().builtins(), meter)
-    }
-
-    pub(crate) fn charge_patch_site_copy(
-        &self,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), scoop_wire::WireError> {
-        self.charge_strong_closure_copy(meter)?;
-        resources::copy_plan(self.patch_sites().digest_plan(), meter)?;
-        resources::slots::<VerifiedMaterializedPatchSiteV1>(
-            self.patch_sites().sites().len() as u64,
-            meter,
-        )
-    }
-
     pub const fn provider(&self) -> scoop_identity::ConeIdentity {
         self.safepoints.producer()
     }

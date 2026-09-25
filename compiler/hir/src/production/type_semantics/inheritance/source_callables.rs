@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::{DispatchDeclarationOwner, DispatchRole};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 use std::collections::BTreeSet;
 
 mod contract;
@@ -11,23 +11,17 @@ pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
     inventory: &CanonicalSourceInheritanceInventoriesV1,
     selections: &CanonicalInheritanceSourceSlotSelectionsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalInheritanceSourceCallablesV1, Error> {
-    let mut required = required(export, inventory, selections, meter)?;
+    let mut required = required(export, inventory, selections)?;
     let mut records = Vec::new();
     for (id, _) in export.functions.iter() {
-        work(meter, required.len())?;
         let Some(declaration) = identity(export, id) else {
             continue;
         };
         if required.remove(&declaration) {
-            meter
-                .check_table_entries(records.len() as u64 + 1, &WirePath::root())
+            scoop_wire::allocation::try_reserve(&mut records, 1, &WirePath::root())
                 .map_err(resource)?;
-            meter
-                .try_reserve_collection_slots(&mut records, 1, &WirePath::root())
-                .map_err(resource)?;
-            records.push(contract::project(export, id, declaration, meter)?);
+            records.push(contract::project(export, id, declaration)?);
         }
     }
     if !required.is_empty() {
@@ -35,28 +29,24 @@ pub(in crate::production::type_semantics) fn project(
             "a required dispatch callable has no sealed source declaration",
         ));
     }
-    CanonicalInheritanceSourceCallablesV1::try_new(records, meter).map_err(Error::SourceInventory)
+    CanonicalInheritanceSourceCallablesV1::try_new(records).map_err(Error::SourceInventory)
 }
 
 pub(super) fn required(
     export: &ExportHir,
     inventory: &CanonicalSourceInheritanceInventoriesV1,
     selections: &CanonicalInheritanceSourceSlotSelectionsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<BTreeSet<Declaration>, Error> {
     let mut slots = BTreeSet::new();
     let mut declarations = BTreeSet::new();
     for owner in inventory.records() {
-        work(meter, 1)?;
         for schema in owner.slot_schemas().records() {
-            work(meter, 1)?;
             for slot in schema.slots() {
-                insert(&mut slots, *slot, meter)?;
+                insert(&mut slots, *slot)?;
             }
         }
     }
     for record in export.dispatch_slot_identities.records() {
-        work(meter, slots.len())?;
         if slots.remove(&record.id()) {
             let declaration = match (record.key().owner(), record.key().role()) {
                 (
@@ -75,20 +65,19 @@ pub(super) fn required(
                     ));
                 }
             };
-            insert(&mut declarations, declaration, meter)?;
+            insert(&mut declarations, declaration)?;
         }
     }
     if !slots.is_empty() {
         return Err(invalid("source schema refers to an unsealed dispatch slot"));
     }
     for record in selections.records() {
-        work(meter, 1)?;
         let declaration = match record.selection() {
             InheritanceSourceSlotSelectionV1::Abstract => continue,
             InheritanceSourceSlotSelectionV1::Concrete(declaration)
             | InheritanceSourceSlotSelectionV1::InterfaceDefault(declaration) => declaration,
         };
-        insert(&mut declarations, declaration, meter)?;
+        insert(&mut declarations, declaration)?;
     }
     Ok(declarations)
 }
@@ -111,25 +100,13 @@ pub(super) fn identity(export: &ExportHir, function: FunctionId) -> Option<Decla
     }
 }
 
-fn insert<T: Ord>(set: &mut BTreeSet<T>, value: T, meter: &mut BudgetMeter) -> Result<(), Error> {
-    work(meter, set.len())?;
-    meter
-        .charge_collection_slots(1, &WirePath::root())
-        .map_err(resource)?;
+fn insert<T: Ord>(set: &mut BTreeSet<T>, value: T) -> Result<(), Error> {
     if !set.contains(&value) {
-        meter
-            .check_table_entries(set.len() as u64 + 1, &WirePath::root())
-            .map_err(resource)?;
-        work(meter, set.len())?;
         set.insert(value);
     }
     Ok(())
 }
-fn work(meter: &mut BudgetMeter, length: usize) -> Result<(), Error> {
-    meter
-        .charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())
-        .map_err(resource)
-}
+
 fn resource(error: scoop_wire::WireError) -> Error {
     Error::SourceInventory(SourceInventoryError::Resource(error))
 }

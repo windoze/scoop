@@ -35,20 +35,16 @@ pub(super) fn signature(parameter: SignatureTypeKey, result: SignatureTypeKey) -
         result: Box::new(result),
     }
 }
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 pub(super) fn validate_scope(
     fixture: &Fixture,
     candidate: &ExportDefaultTemplateV1,
     authority: &mut Authority,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExportDefaultReferenceSetSemanticValidationError<AuthorityError>> {
     candidate.validate_reference_envelope_semantics(
         &owner_interface(fixture, PublicLookupAccessV1::DirectOnly),
         DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap(),
         authority,
-        meter,
         &WirePath::root(),
     )
 }

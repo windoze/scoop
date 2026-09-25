@@ -12,7 +12,6 @@ impl Collector<'_> {
         &mut self,
         target: StrongCallableDefinitionOwner,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.meter.charge_work(4, &WirePath::root())?;
         let source = match target {
             StrongCallableDefinitionOwner::Function(id) => {
                 self.graph.canonical_key::<_, SourceDeclarationKey>(id)?
@@ -53,7 +52,6 @@ impl Collector<'_> {
         target: StrongCallableDefinitionOwner,
     ) -> Result<(), MirTypeBridgeReferenceError> {
         if let StrongCallableDefinitionOwner::GeneratedCallable(id) = target {
-            self.meter.charge_work(1, &WirePath::root())?;
             let key = self.graph.canonical_key::<_, GeneratedCallableKey>(id)?;
             if !matches!(
                 key.as_ref(),

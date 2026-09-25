@@ -27,7 +27,6 @@ pub(super) fn with_candidates(
             let production = hir::NestedNominalSourceProductionV1::from_export_hir(
                 &output.output().export,
                 nominal.owner(),
-                &mut meter(),
             )
             .unwrap();
             let mut expected = BTreeSet::new();
@@ -44,7 +43,6 @@ pub(super) fn with_candidates(
             let repeated = hir::NestedNominalSourceProductionV1::from_export_hir(
                 &output.output().export,
                 nominal.owner(),
-                &mut meter(),
             )
             .unwrap();
             assert_eq!(production.record(), repeated.record());
@@ -57,10 +55,8 @@ pub(super) fn with_candidates(
             let (record, _) = production.into_parts();
             let bytes = encode(&record).unwrap();
             let decoded: hir::DecodedNominalSupportNestedInterfaceV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-            let restored = decoded
-                .resolve(&mut fixture.identities, &mut meter())
-                .unwrap();
+                decode_canonical(&bytes).unwrap();
+            let restored = decoded.resolve(&mut fixture.identities).unwrap();
             assert_eq!(encode(&restored).unwrap(), bytes);
             records.push(restored);
         }
@@ -78,12 +74,10 @@ pub(super) fn with_candidates(
                 .collect(),
         )
         .unwrap();
-        let bytes = encode(&protocols.index_templates(&keys, &mut meter()).unwrap()).unwrap();
+        let bytes = encode(&protocols.index_templates(&keys).unwrap()).unwrap();
         let decoded: hir::DecodedCanonicalProtectedCallableSourceInterfacesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let protocols = decoded
-            .resolve(&mut fixture.identities, &keys, &mut meter())
-            .unwrap();
+            decode_canonical(&bytes).unwrap();
+        let protocols = decoded.resolve(&mut fixture.identities, &keys).unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(
             &fixture,

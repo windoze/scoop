@@ -13,7 +13,7 @@ fn add_adapter(
     let decoded: DecodedCborIdentityRecord<
         PersistentGeneratedCallableId,
         DecodedGeneratedCallableKey,
-    > = decode_canonical(&encode(record).unwrap(), DecodeLimits::default()).unwrap();
+    > = decode_canonical(&encode(record).unwrap()).unwrap();
     let mut validation = PendingIdentityValidation::new();
     validation
         .register_external_graph_authorities(&fixture.identities)
@@ -66,19 +66,19 @@ fn adapter_signature_requires_artifact_identity_and_complete_defaultable_paramet
             let (artifact, graph) = add_adapter(output, fixture, &record);
             let missing = fixture
                 .source
-                .bind_to_foundation(&fixture.foundation, &graph, &mut meter())
+                .bind_to_foundation(&fixture.foundation, &graph)
                 .unwrap();
             sources.with_bound(&missing, core, |members, constructors| {
-                let bound = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-                assert!(matches!(bound.default_constructor_operation_shape(&reference, &mut meter(), &WirePath::root()), Err(Error::Target(error)) if matches!(*error, hir::DefaultSourceTargetSubjectError::MissingAdapter(id) if id == record.id())));
+                let bound = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+                assert!(matches!(bound.default_constructor_operation_shape(&reference,  &WirePath::root()), Err(Error::Target(error)) if matches!(*error, hir::DefaultSourceTargetSubjectError::MissingAdapter(id) if id == record.id())));
             });
             let foundation = fixture
                 .source
-                .bind_to_foundation(&artifact, &graph, &mut meter())
+                .bind_to_foundation(&artifact, &graph)
                 .unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
-                let bound = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-                let result = bound.default_constructor_operation_shape(&reference, &mut meter(), &WirePath::root());
+                let bound = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+                let result = bound.default_constructor_operation_shape(&reference,  &WirePath::root());
                 if name == "required" {
                     assert!(matches!(result, Err(Error::AdapterRequiredParameter { constructor: actual, position: 0 }) if actual == constructor));
                 } else {
@@ -114,7 +114,7 @@ fn produced_adapter_is_a_constructor_and_never_a_member_callable() {
         };
         assert_eq!(
             bound
-                .default_constructor_operation_shape(&reference, &mut meter(), &WirePath::root())
+                .default_constructor_operation_shape(&reference, &WirePath::root())
                 .unwrap(),
             Shape::Constructor {
                 owner_type,
@@ -128,7 +128,7 @@ fn produced_adapter_is_a_constructor_and_never_a_member_callable() {
         )
         .unwrap();
         assert!(
-            matches!(bound.members().default_member_callable_shape(&member, &mut meter(), &WirePath::root()), Err(Error::Declaration(hir::DefaultCallableDeclarationV1::Generated(actual))) if actual == id)
+            matches!(bound.members().default_member_callable_shape(&member,  &WirePath::root()), Err(Error::Declaration(hir::DefaultCallableDeclarationV1::Generated(actual))) if actual == id)
         );
     });
 }

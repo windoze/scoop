@@ -31,7 +31,7 @@ pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
     super::type_uses::check(checked_provider, &[core]);
 
     checked_provider
-        .with_inheritance_graph(&[core], &mut meter(), |graph, _| {
+        .with_inheritance_graph(&[core], |graph| {
             for section in [core.section(), checked_provider.section()] {
                 for record in section.inheritance().records() {
                     assert_eq!(graph.get(record.owner()).unwrap().edges(), record.edges());
@@ -106,7 +106,7 @@ fn lower(
         direct,
         vec![],
     )
-    .load_preflight(DecodeLimits::default())
+    .load_preflight()
     .unwrap();
     let request = loaded.validate().unwrap();
     let parsed = request.parse_current_sources().unwrap();

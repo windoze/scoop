@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::{collections::BTreeSet, num::NonZeroU32};
 
 use scoop_identity::DecodedSignatureTypeKey;
@@ -146,7 +144,7 @@ impl WireEncode for DecodedDefaultBindingShapeV1 {
 }
 
 impl WireDecode for DecodedDefaultBindingShapeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -210,7 +208,7 @@ impl WireEncode for DecodedDefaultBindingStructFieldV1 {
 }
 
 impl WireDecode for DecodedDefaultBindingStructFieldV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             declaration_index: decoder.field(1, Decoder::u32)?,
@@ -232,7 +230,7 @@ impl WireEncode for DecodedDefaultBindingClassComponentV1 {
 }
 
 impl WireDecode for DecodedDefaultBindingClassComponentV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let index = decoder.field(1, Decoder::u32)?;
         Ok(Self {
@@ -286,11 +284,7 @@ fn validate_class_components(
     Ok(())
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -301,10 +295,10 @@ fn expect_sum_length(
     }
 }
 
-fn integer_out_of_range(decoder: &Decoder<'_, '_>) -> WireError {
+fn integer_out_of_range(decoder: &Decoder<'_>) -> WireError {
     wire_error(decoder, WireErrorKind::IntegerOutOfRange)
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

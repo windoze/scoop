@@ -12,14 +12,13 @@ fn nominal_member_this_uses_only_the_direct_owner_and_correct_binder_frame() {
         let case = Case::method(generic_owner, generic_callable, static_nested);
         let template = case.template();
         let mut authority = Authority::new(&case, &template);
-        case.validate(&template, &mut authority, &mut meter())
-            .unwrap();
+        case.validate(&template, &mut authority).unwrap();
         let mut missing = template;
         missing.receiver = OptionalTemplateReceiverV1::Absent;
         assert!(matches!(
-            case.validate(&missing, &mut authority, &mut meter()),
+            case.validate(&missing, &mut authority),
             Err(ProtectedDefaultTemplateContractSemanticError::Receiver(
-                MeteredTemplateReceiverSemanticValidationError::Missing
+                TemplateReceiverSemanticValidationError::Missing { .. }
             ))
         ));
     }
@@ -28,7 +27,7 @@ fn nominal_member_this_uses_only_the_direct_owner_and_correct_binder_frame() {
     let mut authority = Authority::new(&case, &template);
     template.type_parameters = CanonicalBinderUseListV1::try_new(vec![binder(1, 0)]).unwrap();
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(ProtectedDefaultTemplateContractSemanticError::MappingArgument { .. })
     ));
 }
@@ -64,9 +63,9 @@ fn receiver_mapping_rejects_callable_frame_in_place_of_nominal_frame() {
     )
     .unwrap();
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(ProtectedDefaultTemplateContractSemanticError::Receiver(
-            MeteredTemplateReceiverSemanticValidationError::CallableType
+            TemplateReceiverSemanticValidationError::CallableType { .. }
         ))
     ));
 }
@@ -76,8 +75,7 @@ fn constructors_and_source_variant_defaults_have_no_receiver() {
     for case in [Case::constructor(), Case::variant()] {
         let mut template = case.template();
         let mut authority = Authority::new(&case, &template);
-        case.validate(&template, &mut authority, &mut meter())
-            .unwrap();
+        case.validate(&template, &mut authority).unwrap();
         let ty = case.record.payload().result().clone();
         let mut locals = template.locals().records().to_vec();
         locals.push(local(LocalValueSelector::This, ty.clone(), &case.origin));
@@ -86,9 +84,9 @@ fn constructors_and_source_variant_defaults_have_no_receiver() {
             TemplateReceiverV1::try_new(LocalValueSelector::This, ty).unwrap(),
         );
         assert!(matches!(
-            case.validate(&template, &mut authority, &mut meter()),
+            case.validate(&template, &mut authority),
             Err(ProtectedDefaultTemplateContractSemanticError::Receiver(
-                MeteredTemplateReceiverSemanticValidationError::Unexpected
+                TemplateReceiverSemanticValidationError::Unexpected { .. }
             ))
         ));
     }
@@ -114,11 +112,10 @@ fn inherited_defaults_require_the_independent_protected_provider_relation() {
         .insert(CallableTemplateOrigin::Function(function), key);
     template.definition_root = PersistentLexicalRootV1::Function(function);
     authority.root = template.definition_root();
-    case.validate(&template, &mut authority, &mut meter())
-        .unwrap();
+    case.validate(&template, &mut authority).unwrap();
     authority.inherited = false;
     assert!(matches!(
-        case.validate(&template, &mut authority, &mut meter()),
+        case.validate(&template, &mut authority),
         Err(
             ProtectedDefaultTemplateContractSemanticError::DefinitionRoot(
                 DefaultTemplateRootSemanticValidationError::InheritedRelation(

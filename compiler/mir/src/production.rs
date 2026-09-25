@@ -89,7 +89,7 @@ impl WireEncode for DecodedEntryMirBridgeV1 {
 }
 
 impl WireDecode for DecodedEntryMirBridgeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             source: decoder.field(1, DecodedExecutableSourceEntryIdentity::decode)?,
@@ -129,7 +129,7 @@ impl WireEncode for DecodedEntryMirBridgeBranchV1 {
 }
 
 impl WireDecode for DecodedEntryMirBridgeBranchV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decode_sum(decoder, |tag, decoder| match tag {
             1 => Ok(Self::Library),
             2 => DecodedEntryMirBridgeV1::decode(decoder)
@@ -260,7 +260,7 @@ impl WireEncode for DecodedCoreBootstrapBridgeSectionV1 {
 }
 
 impl WireDecode for DecodedCoreBootstrapBridgeSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             entry_bridge: decoder.field(2, DecodedEntryMirBridgeBranchV1::decode)?,
@@ -412,8 +412,8 @@ fn encode_value_sum(
 }
 
 fn decode_sum<T>(
-    decoder: &mut Decoder<'_, '_>,
-    decode_value: impl FnOnce(u64, &mut Decoder<'_, '_>) -> Result<T, WireError>,
+    decoder: &mut Decoder<'_>,
+    decode_value: impl FnOnce(u64, &mut Decoder<'_>) -> Result<T, WireError>,
 ) -> Result<T, WireError> {
     let fields = decoder.map()?;
     if fields == 0 {
@@ -443,7 +443,7 @@ fn decode_sum<T>(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

@@ -83,7 +83,7 @@ impl WireEncode for CanonicalIntegerConstantV1 {
 }
 
 impl WireDecode for CanonicalIntegerConstantV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 2)?;
@@ -154,7 +154,7 @@ impl WireEncode for CanonicalBooleanV1 {
 }
 
 impl WireDecode for CanonicalBooleanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::False),
             2 => Ok(Self::True),
@@ -219,7 +219,7 @@ impl WireEncode for CanonicalConstValueV1 {
 }
 
 impl WireDecode for CanonicalConstValueV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 2)?;
@@ -256,19 +256,19 @@ impl From<CanonicalConstValueV1> for ConstPropertyValue {
     }
 }
 
-fn decode_u8(decoder: &mut Decoder<'_, '_>) -> Result<u8, WireError> {
+fn decode_u8(decoder: &mut Decoder<'_>) -> Result<u8, WireError> {
     decode_narrow_unsigned(decoder)
 }
 
-fn decode_u16(decoder: &mut Decoder<'_, '_>) -> Result<u16, WireError> {
+fn decode_u16(decoder: &mut Decoder<'_>) -> Result<u16, WireError> {
     decode_narrow_unsigned(decoder)
 }
 
-fn decode_u32(decoder: &mut Decoder<'_, '_>) -> Result<u32, WireError> {
+fn decode_u32(decoder: &mut Decoder<'_>) -> Result<u32, WireError> {
     decode_narrow_unsigned(decoder)
 }
 
-fn decode_narrow_unsigned<T>(decoder: &mut Decoder<'_, '_>) -> Result<T, WireError>
+fn decode_narrow_unsigned<T>(decoder: &mut Decoder<'_>) -> Result<T, WireError>
 where
     T: TryFrom<u64>,
 {
@@ -276,11 +276,7 @@ where
     T::try_from(value).map_err(|_| wire_error(decoder, WireErrorKind::IntegerOutOfRange))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -291,7 +287,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

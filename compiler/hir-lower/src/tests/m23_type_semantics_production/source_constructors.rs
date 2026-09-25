@@ -11,12 +11,8 @@ const SOURCE: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/constructors.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_dependency_hir(output, &mut meter()).unwrap()
+    Table::from_dependency_hir(output).unwrap()
 }
 
 #[test]
@@ -24,8 +20,7 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
     with_source(SOURCE, |output, _| {
         let records = table(output);
         let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
         let required = inventory
             .records()
             .iter()
@@ -146,44 +141,14 @@ fn constructor_source_bytes_are_deterministic_and_resolve_without_candidate_tabl
         let table = table(output);
         let bytes = encode(&table).unwrap();
         let decoded: hir::DecodedCanonicalInheritanceSourceConstructorsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         let mut identities = source_inventory::identity_closure(output);
-        assert_eq!(
-            decoded.resolve(&mut identities, &mut meter()).unwrap(),
-            table
-        );
+        assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
         bytes
     });
     let second = with_source(SOURCE, |output, _| encode(&table(output)).unwrap());
     assert_eq!(first, second);
-}
-
-#[test]
-fn constructor_projection_obeys_the_shared_resource_budget() {
-    with_source(SOURCE, |output, _| {
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
-                Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                    hir::SourceInventoryError::Resource(_)
-                ))
-            ));
-        }
-    });
 }
 
 #[test]

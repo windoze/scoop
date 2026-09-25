@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentPropertyAccessorId, PersistentPropertyId, PropertyAccessorKey, SourceDeclarationKey,
     SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{CanonicalInheritanceSlotSchemasV1, InheritanceSlotSchemaRoleV1 as Role};
 use crate::{CheckedNominalInheritanceGraphV1, DirectClassBaseV1, InheritanceQueryError};
@@ -49,16 +49,8 @@ impl CheckedInheritanceSlotSchemasV1<'_> {
     pub const fn schemas(&self) -> &CanonicalInheritanceSlotSchemasV1 {
         self.schemas
     }
-    pub fn supports_interface(
-        &self,
-        interface: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(
-            u64::from(self.interfaces.len().max(1).ilog2()) + 1,
-            &WirePath::root(),
-        )?;
-        Ok(self.interfaces.contains(&interface))
+    pub fn supports_interface(&self, interface: PersistentExactTypeId) -> bool {
+        self.interfaces.contains(&interface)
     }
 }
 
@@ -67,17 +59,16 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         &self,
         owner: PersistentExactTypeId,
         authority: &'a A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedInheritanceSlotSchemasV1<'a>, InheritanceSlotSchemaSemanticError<E>> {
         let mut validation = Validation {
             graph: self,
             authority,
-            meter,
+
             complete: BTreeMap::new(),
             conformances: BTreeMap::new(),
             interface_expansions: BTreeMap::new(),
         };
-        validation.visit(owner, 1)?;
+        validation.visit(owner)?;
         Ok(CheckedInheritanceSlotSchemasV1 {
             owner,
             schemas: validation.complete[&owner],
@@ -92,7 +83,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
 struct Validation<'a, 'g, 'w, A> {
     graph: &'g CheckedNominalInheritanceGraphV1<'w>,
     authority: &'a A,
-    meter: &'g mut BudgetMeter,
+
     complete: BTreeMap<PersistentExactTypeId, &'a CanonicalInheritanceSlotSchemasV1>,
     conformances: BTreeMap<PersistentExactTypeId, BTreeSet<PersistentExactTypeId>>,
     interface_expansions: BTreeMap<PersistentExactTypeId, interfaces::Expansion>,
@@ -101,18 +92,10 @@ impl<A> Validation<'_, '_, '_, A> {
     fn visit<E>(
         &mut self,
         owner: PersistentExactTypeId,
-        depth: u64,
     ) -> Result<(), InheritanceSlotSchemaSemanticError<E>>
     where
         A: InheritanceSlotSchemaSemanticAuthority<E>,
     {
-        let path = WirePath::root();
-        self.meter
-            .charge_work(1, &path)
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
-        self.meter
-            .check_semantic_depth(depth, &path)
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
         if self.complete.contains_key(&owner) {
             return Ok(());
         }
@@ -132,17 +115,14 @@ impl<A> Validation<'_, '_, '_, A> {
             .declaration_kind();
         let mut interfaces = BTreeSet::new();
         if let DirectClassBaseV1::ClassBase { exact } = node.edges().direct_base() {
-            self.visit(exact, depth + 1)?;
+            self.visit(exact)?;
             self.add_interfaces(exact, &mut interfaces)?;
         }
         for interface in node.edges().direct_interfaces() {
-            self.visit(*interface, depth + 1)?;
+            self.visit(*interface)?;
             self.add_interfaces(*interface, &mut interfaces)?;
         }
         if kind == SourceDeclarationKind::Interface {
-            self.meter
-                .charge_collection_slots(1, &path)
-                .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
             interfaces.insert(owner);
         }
         let schemas = self
@@ -194,12 +174,7 @@ impl<A> Validation<'_, '_, '_, A> {
                 _ => return Err(InheritanceSlotSchemaSemanticError::RoleCoverage(owner)),
             }
         }
-        self.meter
-            .charge_nodes(2, &path)
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
-        self.meter
-            .charge_collection_slots(2, &path)
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
+
         self.complete.insert(owner, schemas);
         self.conformances.insert(owner, interfaces);
         Ok(())
@@ -211,12 +186,7 @@ impl<A> Validation<'_, '_, '_, A> {
         result: &mut BTreeSet<PersistentExactTypeId>,
     ) -> Result<(), InheritanceSlotSchemaSemanticError<E>> {
         let entries = &self.conformances[&owner];
-        self.meter
-            .charge_collection_slots(entries.len() as u64, &WirePath::root())
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
-        self.meter
-            .charge_work(entries.len() as u64, &WirePath::root())
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
+
         result.extend(entries);
         Ok(())
     }
@@ -238,14 +208,12 @@ impl<A> Validation<'_, '_, '_, A> {
         } else {
             &[]
         };
-        self.meter
-            .charge_work(prefix.len() as u64, &WirePath::root())
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
+
         if !slots.starts_with(prefix) {
             return Err(InheritanceSlotSchemaSemanticError::BasePrefix(owner));
         }
         for slot in &slots[prefix.len()..] {
-            let root = identity::source_owner(self.graph, *slot, self.authority, self.meter)?;
+            let root = identity::source_owner(self.graph, *slot, self.authority)?;
             if root != owner {
                 return Err(InheritanceSlotSchemaSemanticError::NewSlotOwner {
                     owner,

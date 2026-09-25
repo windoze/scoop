@@ -27,9 +27,7 @@ fn core_request_retains_direct_and_support_inputs_for_common_preflight() {
     ));
     assert_eq!(request.dependencies.direct()[0].as_path(), direct);
     assert_eq!(request.dependencies.support()[0].as_path(), support);
-    let loaded = request
-        .load_preflight(scoop_wire::DecodeLimits::default())
-        .unwrap();
+    let loaded = request.load_preflight().unwrap();
     assert!(matches!(
         loaded.validate(),
         Err(preflight::SingleConeDependencyValidationError::ExplicitDependencies(error))

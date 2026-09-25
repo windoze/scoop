@@ -6,7 +6,7 @@ use scoop_identity::{
     SemanticIdentitySession, SemanticOriginFingerprint, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath, decode_canonical, encode};
+use scoop_wire::{WirePath, decode_canonical, encode};
 
 use crate::ImportedProviderCertificate;
 use crate::{
@@ -237,11 +237,8 @@ pub(super) fn import_foundation(
     fixture: &ProviderFixture,
     fingerprint: u8,
 ) -> ImportedHirFoundation {
-    let decoded: DecodedHirFoundation = decode_canonical(
-        &encode(&fixture.foundation).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedHirFoundation =
+        decode_canonical(&encode(&fixture.foundation).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(fixture.identity()).unwrap();
     for record in &fixture.external_types {
@@ -374,11 +371,7 @@ fn interface(
 pub(super) fn empty_alias_expansions() -> CanonicalTypeAliasExpansionsV1 {
     CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
         .unwrap()
-        .expand_alias_closure(
-            &EmptyAliasAuthority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
         .unwrap()
 }
 

@@ -15,22 +15,18 @@ pub struct CanonicalNominalSourceConstructorsV1 {
 impl CanonicalNominalSourceConstructorsV1 {
     pub fn try_new(
         mut records: Vec<NominalSupportConstructorInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(NominalSupportConstructorInterfaceV1::declaration);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
 
     fn from_ordered(
         records: Vec<NominalSupportConstructorInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             NominalSupportConstructorInterfaceV1::declaration,
             "nominal source constructors",
-            meter,
         )?;
         Ok(Self { records })
     }

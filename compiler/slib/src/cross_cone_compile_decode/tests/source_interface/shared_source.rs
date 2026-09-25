@@ -1,10 +1,8 @@
 use super::*;
 use crate::cross_cone_hir_authority::{
-    CanonicalCrossConeHirSurfaceAuthority, CrossConeHirSourceInventoryError as InventoryError,
-    SourceInventoryDeclaration,
+    CrossConeHirSourceInventoryError as InventoryError, SourceInventoryDeclaration,
 };
 use scoop_hir::*;
-use scoop_wire::WirePath;
 
 mod cycle;
 
@@ -65,41 +63,6 @@ fn reader_rejects_unreachable_support_even_when_its_default_references_itself() 
             "{error:?}"
         );
     }
-}
-
-#[test]
-fn source_inventory_uses_the_cumulative_artifact_budget() {
-    let fixture = default_fixture::fixture(default_fixture::Case::Defined);
-    let bytes = fixture.artifact();
-    let mut state = declaration_front(&bytes);
-    fn check(
-        state: &mut HirProductionValidatedCrossConeHirFrontSections<'_>,
-    ) -> Result<(), InventoryError> {
-        CanonicalCrossConeHirSurfaceAuthority::new(
-            state.graph.identity(),
-            &state.identities,
-            &state.foundations.hir,
-            &state.hir_interface,
-            vec![],
-            state.graph.envelope.meter_mut(),
-        )
-        .validate_shared_source_inventory()
-    }
-    let before = state
-        .graph
-        .envelope
-        .meter_mut()
-        .usage()
-        .validation_work_units;
-    check(&mut state).unwrap();
-    let meter = state.graph.envelope.meter_mut();
-    let work = meter.usage().validation_work_units - before;
-    assert!(work > 1);
-    let remaining = meter.limits().validation_work_units - meter.usage().validation_work_units;
-    meter
-        .charge_work(remaining - (work - 1), &WirePath::root())
-        .unwrap();
-    assert!(format!("{:?}", check(&mut state).unwrap_err()).contains("ValidationWorkUnits"));
 }
 
 fn support(default: bool) -> CallableSourceSurface {

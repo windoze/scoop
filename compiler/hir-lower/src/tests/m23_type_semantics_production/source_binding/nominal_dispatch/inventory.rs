@@ -44,18 +44,16 @@ fn dispatch_join_rejects_constructor_and_protected_inventory_omissions() {
                 constructors,
                 protected,
                 row.slot_schemas().clone(),
-                &mut meter(),
             )
             .unwrap();
             let mut forged = dispatch.clone();
             forged.inventory =
-                hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter())
-                    .unwrap();
-            let bound = forged.bind(&foundation, &mut meter()).unwrap();
-            let slots = bound.bind_slot_sources(&mut meter()).unwrap();
+                hir::CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap();
+            let bound = forged.bind(&foundation).unwrap();
+            let slots = bound.bind_slot_sources().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
-                let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-                assert!(matches!(parameters.bind_dispatch_sources(&slots, &mut meter()),
+                let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+                assert!(matches!(parameters.bind_dispatch_sources(&slots),
                     Err(Error::Inventory { owner, field: actual }) if owner == row.owner() && actual == field));
             });
         }
@@ -67,14 +65,14 @@ fn dispatch_join_rejects_another_binding_of_the_same_artifact() {
     with_sources(SOURCE, |fixture, sources, dispatch, core| {
         let foundation = fixture.bind().unwrap();
         let another = fixture.bind().unwrap();
-        let bound = dispatch.bind(&another, &mut meter()).unwrap();
-        let slots = bound.bind_slot_sources(&mut meter()).unwrap();
+        let bound = dispatch.bind(&another).unwrap();
+        let slots = bound.bind_slot_sources().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             assert!(matches!(
-                parameters.bind_dispatch_sources(&slots, &mut meter()),
+                parameters.bind_dispatch_sources(&slots),
                 Err(Error::FoundationMismatch)
             ));
         });

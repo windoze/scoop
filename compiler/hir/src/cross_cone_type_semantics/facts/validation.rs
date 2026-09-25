@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_identity::{PersistentEnumVariantId, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::{
     CanonicalExactTypeFactsV1, ExactTypeFactsV1, ExactTypeGcV1, ExactTypeKindV1, ZstStatus,
@@ -65,37 +64,31 @@ impl CanonicalExactTypeFactsV1 {
     pub fn validate_semantics<'a, A, E>(
         &'a self,
         authority: &A,
-        budget: &mut BudgetMeter,
     ) -> Result<CheckedExactTypeFactsV1<'a>, ExactTypeFactsSemanticError<E>>
     where
         A: ExactTypeFactsSemanticAuthority<E>,
     {
-        self.validate_semantics_with_dependencies(authority, &dependencies::NoDependencies, budget)
+        self.validate_semantics_with_dependencies(authority, &dependencies::NoDependencies)
     }
 
     pub fn validate_semantics_with_dependencies<'a, A, E>(
         &'a self,
         authority: &A,
         dependencies: &dyn ExactTypeFactsDependencyLookupV1,
-        budget: &mut BudgetMeter,
     ) -> Result<CheckedExactTypeFactsV1<'a>, ExactTypeFactsSemanticError<E>>
     where
         A: ExactTypeFactsSemanticAuthority<E>,
     {
-        budget
-            .check_table_entries(self.records().len() as u64, &WirePath::root())
-            .map_err(ExactTypeFactsSemanticError::Resource)?;
         let mut validation = Validation {
             facts: self,
             authority,
             dependencies,
-            budget,
+
             active: BTreeSet::new(),
             complete: BTreeMap::new(),
-            path: WirePath::default(),
         };
         for record in self.records() {
-            validation.visit(record.exact(), 1)?;
+            validation.visit(record.exact())?;
         }
         Ok(CheckedExactTypeFactsV1 { facts: self })
     }
@@ -105,35 +98,26 @@ struct Validation<'a, A> {
     facts: &'a CanonicalExactTypeFactsV1,
     authority: &'a A,
     dependencies: &'a dyn ExactTypeFactsDependencyLookupV1,
-    budget: &'a mut BudgetMeter,
+
     active: BTreeSet<PersistentExactTypeId>,
     complete: BTreeMap<PersistentExactTypeId, ExactTypeFactsV1>,
-    path: WirePath,
 }
 
 impl<A> Validation<'_, A> {
     fn visit<E>(
         &mut self,
         exact: PersistentExactTypeId,
-        depth: u64,
     ) -> Result<ExactTypeFactsV1, ExactTypeFactsSemanticError<E>>
     where
         A: ExactTypeFactsSemanticAuthority<E>,
     {
-        self.budget
-            .charge_work(1, &self.path)
-            .map_err(ExactTypeFactsSemanticError::Resource)?;
-        self.budget
-            .check_semantic_depth(depth, &self.path)
-            .map_err(ExactTypeFactsSemanticError::Resource)?;
         if let Some(facts) = self.complete.get(&exact) {
             return Ok(*facts);
         }
         let Some(actual) = self.facts.get(exact) else {
             let fact = self
                 .dependencies
-                .get_dependency_fact(exact, self.budget, &self.path)
-                .map_err(ExactTypeFactsSemanticError::Resource)?
+                .get_dependency_fact(exact)
                 .ok_or(ExactTypeFactsSemanticError::MissingFacts(exact))?
                 .record();
             if fact.exact() != exact {
@@ -147,12 +131,7 @@ impl<A> Validation<'_, A> {
         if self.active.contains(&exact) {
             return Err(ExactTypeFactsSemanticError::ByValueCycle(exact));
         }
-        self.budget
-            .charge_nodes(2, &self.path)
-            .map_err(ExactTypeFactsSemanticError::Resource)?;
-        self.budget
-            .charge_collection_slots(2, &self.path)
-            .map_err(ExactTypeFactsSemanticError::Resource)?;
+
         self.active.insert(exact);
         let shape = self
             .authority
@@ -168,13 +147,13 @@ impl<A> Validation<'_, A> {
                 ExactTypeGcV1::ContainsManagedReferences,
             ),
             ExactTypeFactShapeV1::OrdinaryStruct { fields }
-            | ExactTypeFactShapeV1::Tuple { elements: fields } => self.fields(fields, depth)?,
+            | ExactTypeFactShapeV1::Tuple { elements: fields } => self.fields(fields)?,
             ExactTypeFactShapeV1::CLayoutStruct { fields } => {
                 if fields.is_empty() {
                     return Err(ExactTypeFactsSemanticError::EmptyCLayout(exact));
                 }
                 for field in fields {
-                    let facts = self.visit(*field, depth + 1)?;
+                    let facts = self.visit(*field)?;
                     if facts.kind() == value(ZstStatus::ZeroSized) {
                         return Err(ExactTypeFactsSemanticError::ZeroSizedCLayoutField {
                             owner: exact,
@@ -182,15 +161,13 @@ impl<A> Validation<'_, A> {
                         });
                     }
                 }
-                let (_, gc) = self.fields(fields, depth)?;
+                let (_, gc) = self.fields(fields)?;
                 (value(ZstStatus::NonZero), gc)
             }
             ExactTypeFactShapeV1::Enum { variants } => {
                 let mut gc_free = true;
                 let mut ids = BTreeSet::new();
-                self.budget
-                    .charge_collection_slots(variants.len() as u64, &self.path)
-                    .map_err(ExactTypeFactsSemanticError::Resource)?;
+
                 for variant in variants {
                     if !ids.insert(variant.variant) {
                         return Err(ExactTypeFactsSemanticError::DuplicateVariant {
@@ -198,7 +175,7 @@ impl<A> Validation<'_, A> {
                             variant: variant.variant,
                         });
                     }
-                    let (_, gc) = self.fields(&variant.fields, depth)?;
+                    let (_, gc) = self.fields(&variant.fields)?;
                     if gc != variant.gc {
                         return Err(ExactTypeFactsSemanticError::VariantGc {
                             owner: exact,
@@ -228,18 +205,14 @@ impl<A> Validation<'_, A> {
     fn fields<E>(
         &mut self,
         fields: &[PersistentExactTypeId],
-        depth: u64,
     ) -> Result<(ExactTypeKindV1, ExactTypeGcV1), ExactTypeFactsSemanticError<E>>
     where
         A: ExactTypeFactsSemanticAuthority<E>,
     {
-        self.budget
-            .charge_edges(fields.len() as u64, &self.path)
-            .map_err(ExactTypeFactsSemanticError::Resource)?;
         let mut zero_sized = true;
         let mut gc_free = true;
         for field in fields {
-            let facts = self.visit(*field, depth + 1)?;
+            let facts = self.visit(*field)?;
             zero_sized &= facts.kind() == value(ZstStatus::ZeroSized);
             gc_free &= facts.gc().is_gc_free();
         }
@@ -267,7 +240,6 @@ const fn gc(gc_free: bool) -> ExactTypeGcV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExactTypeFactsSemanticError<E> {
-    Resource(WireError),
     Shape {
         exact: PersistentExactTypeId,
         error: E,
@@ -304,7 +276,6 @@ pub enum ExactTypeFactsSemanticError<E> {
 impl<E: fmt::Display> fmt::Display for ExactTypeFactsSemanticError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resource(error) => error.fmt(f),
             Self::Shape { exact, error } => {
                 write!(f, "invalid semantic shape for {exact}: {error}")
             }

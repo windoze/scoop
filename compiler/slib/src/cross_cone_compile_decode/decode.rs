@@ -24,55 +24,46 @@ impl<'input> ValidatedGraphArtifact<'input> {
         )?;
 
         let hir_foundation = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Hir,
             hir_identity_foundation_capability(),
         )?;
         let hir_core_production = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Hir,
             hir_core_bootstrap_interface_capability(),
         )?;
         let hir_interface = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Hir,
             hir_cross_cone_interface_capability(),
         )?;
         let mir_foundation = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Mir,
             mir_identity_foundation_capability(),
         )?;
         let mir_core_production = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Mir,
             mir_core_bootstrap_bridge_capability(),
         )?;
         let mir_cross_cone_bridge = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Mir,
             mir_cross_cone_param_free_bridge_capability(),
         )?;
         let lir_foundation = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Lir,
             lir_identity_foundation_capability(),
         )?;
         let lir_strong_production = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Lir,
             lir_strong_production_capability(),
         )?;
         let lir_cross_cone_bridge = decode_compile_section(
-            &mut self,
             &metadata,
             MetadataLocation::Lir,
             lir_cross_cone_param_free_bridge_capability(),

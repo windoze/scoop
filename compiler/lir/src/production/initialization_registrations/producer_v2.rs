@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeIdentity, PersistentInitializationUnitId};
-use scoop_wire::BudgetMeter;
 
 use super::{
     StrongInitializationUnitSemanticPlan, StrongInitializationUnitSemanticPlanBuildError,
@@ -26,7 +25,6 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
         digests: &StrongDigestFinalizationPlanV1,
         selected: &crate::StrongProductionDependencySelectionV2<'_>,
         external_uses: &[StrongExternalInitializationUseV2],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, StrongInitializationUnitSemanticPlanV2BuildError> {
         if module.cone != foundation.producer() {
             return Err(
@@ -46,7 +44,6 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
                 foundation,
                 identities,
                 digests,
-                meter,
             )
             .map_err(StrongInitializationUnitSemanticPlanV2BuildError::LocalDefinition)?;
             definitions.insert(semantic.unit(), definition);
@@ -59,7 +56,7 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
             .collect::<BTreeSet<_>>();
         for use_record in external_uses {
             use_record
-                .validate_against(selected, meter)
+                .validate_against(selected)
                 .map_err(StrongInitializationUnitSemanticPlanV2BuildError::ExternalUse)?;
             if use_record.consumer() != module.cone {
                 return Err(
@@ -92,9 +89,8 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
         }
 
         let definitions = definitions.into_values().collect::<Vec<_>>();
-        let catalog =
-            StrongInitializationDefinitionCatalogV2::new(module.cone, &definitions, meter)
-                .map_err(StrongInitializationUnitSemanticPlanV2BuildError::Definitions)?;
+        let catalog = StrongInitializationDefinitionCatalogV2::new(module.cone, &definitions)
+            .map_err(StrongInitializationUnitSemanticPlanV2BuildError::Definitions)?;
         let mut units = Vec::with_capacity(local.units().len());
         for semantic in local.units() {
             let mut dependencies = semantic
@@ -111,7 +107,7 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
             dependencies.sort_unstable();
             dependencies.dedup();
             let resolved = catalog
-                .resolve_ids(semantic.unit(), &dependencies, meter)
+                .resolve_ids(semantic.unit(), &dependencies)
                 .map_err(StrongInitializationUnitSemanticPlanV2BuildError::Dependencies)?;
             units.push(StrongInitializationUnitSemanticPlan::from_artifact(
                 semantic.unit(),

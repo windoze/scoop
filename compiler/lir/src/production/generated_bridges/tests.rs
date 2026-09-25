@@ -7,7 +7,7 @@ use scoop_identity::{
     PendingIdentityValidation, PersistentNativeExternalSymbolId, SourceNativeSymbol,
     StrongDefinitionEntity, StrongDefinitionRole, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
@@ -26,7 +26,7 @@ fn generated_bridge_plan_has_a_fixed_wire_vector_and_validates() {
     );
 
     let decoded: DecodedGeneratedBridgePlanSetV1 =
-        decode_canonical(&encode(&fixture.plan).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&fixture.plan).unwrap()).unwrap();
     let mut identities = authorities(fixture.unit.id(), fixture.bridge_atom.id());
     assert_eq!(
         decoded.validate(&mut identities, &fixture.foundation),
@@ -37,10 +37,7 @@ fn generated_bridge_plan_has_a_fixed_wire_vector_and_validates() {
 #[test]
 fn generated_bridge_reader_rejects_non_closed_products() {
     for bytes in [vec![0x81, 0xa3], vec![0x81, 0xa5]] {
-        assert!(
-            decode_canonical::<DecodedGeneratedBridgePlanSetV1>(&bytes, DecodeLimits::default(),)
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedGeneratedBridgePlanSetV1>(&bytes,).is_err());
     }
 }
 
@@ -70,8 +67,7 @@ fn generated_bridge_plan_requires_primary_and_definition_plans() {
 fn validation_rejects_atoms_moved_to_another_role_set() {
     let fixture = fixture(true);
     let bytes = encode(&fixture.plan).unwrap();
-    let mut decoded: DecodedGeneratedBridgePlanSetV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let mut decoded: DecodedGeneratedBridgePlanSetV1 = decode_canonical(&bytes).unwrap();
     let primary_atom = decoded.units[0].primary_atom;
     decoded.units[0]
         .materialized_associated_atoms

@@ -1,15 +1,12 @@
 use super::*;
 use crate::*;
 use scoop_identity::{AccessorRole, CallableTemplateOrigin, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod rejections;
 pub(in crate::cross_cone_type_semantics) mod support;
 mod wire;
 use support::{Fixture, nominal};
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn protected_generic_method_keeps_source_binders_without_gaining_a_dispatch_slot() {
@@ -25,15 +22,10 @@ fn protected_generic_method_keeps_source_binders_without_gaining_a_dispatch_slot
     ));
     assert!(record.payload().slot_relations().is_empty());
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
-    let checked = record
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
+    let checked = record.validate_source(&graph, &mut fixture).unwrap();
     assert_eq!(checked.declaration(), declaration);
     assert_eq!(checked.payload().type_parameters().len_u32(), 1);
     let mut bad = payload;
@@ -64,23 +56,18 @@ fn protected_accessor_source_shapes_are_joined_to_the_logical_property() {
     let set_payload = fixture.payload(owner, setter, vec![value], unit.clone());
     let set = fixture.record(owner, setter, set_payload.clone());
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
-    get.validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
-    set.validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
+    get.validate_source(&graph, &mut fixture).unwrap();
+    set.validate_source(&graph, &mut fixture).unwrap();
     assert_eq!(
         set.payload().source_interface(),
         ProtectedSourceInterfaceUseV1::AccessorNoSourceInterface
     );
     let bad_get = fixture.record(owner, getter, fixture.payload(owner, getter, vec![], unit));
     assert!(matches!(
-        bad_get.validate_source(&graph, &mut fixture, &mut meter()),
+        bad_get.validate_source(&graph, &mut fixture),
         Err(ProtectedCallableSemanticError::Result)
     ));
     let mut bad_payload = set_payload;
@@ -88,7 +75,7 @@ fn protected_accessor_source_shapes_are_joined_to_the_logical_property() {
         CanonicalSourceParameterShapesV1::try_new(vec![]).unwrap();
     let bad = fixture.record(owner, setter, bad_payload);
     assert!(matches!(
-        bad.validate_source(&graph, &mut fixture, &mut meter()),
+        bad.validate_source(&graph, &mut fixture),
         Err(ProtectedCallableSemanticError::ParameterShape)
     ));
 }
@@ -120,15 +107,10 @@ fn protected_constructor_is_separate_and_preserves_the_source_result_owner() {
         Err(ProtectedCallableInterfaceBuildError::DeclarationKind)
     ));
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
-    record
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
+    record.validate_source(&graph, &mut fixture).unwrap();
     let mut bad = payload;
     bad.source_signature.result = SignatureTypeKey::Nominal(nominal(fixture.unit));
     let bad = ProtectedConstructorInterfaceV1::try_new(
@@ -138,10 +120,10 @@ fn protected_constructor_is_separate_and_preserves_the_source_result_owner() {
     )
     .unwrap();
     assert!(matches!(
-        bad.validate_source(&graph, &mut fixture, &mut meter()),
+        bad.validate_source(&graph, &mut fixture),
         Err(ProtectedCallableSemanticError::Result)
     ));
     let decoded: DecodedProtectedConstructorInterfaceV1 =
-        decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+        decode_canonical(&encode(&record).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
 }

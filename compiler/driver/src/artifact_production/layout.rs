@@ -3,7 +3,6 @@
 use super::*;
 use crate::object_production::{BuiltinObjectProductionError as ObjectError, layout as objects};
 use scoop_slib as slib;
-use scoop_wire::BudgetMeter;
 
 mod error;
 use LayoutArtifactProductionError as Error;
@@ -36,7 +35,6 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         emitted: scoop_codegen::EmittedStrongObjectSetV2,
         generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
-        meter: &mut BudgetMeter,
     ) -> Result<slib::AssembledCrossConeLayoutStrongArtifactV1, Error> {
         let prepared = objects::prepare(emitted, generated)?;
         let strong = prepared.patch_sites.builtins().strong_relocations().clone();
@@ -56,12 +54,9 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             self.ordinary.lir_cross_cone,
         )
         .map_err(ObjectError::DependencyRequirements)?;
-        let shape = slib::verify_external_shape_requirements_v1(
-            &ordinary,
-            self.lir_layout.selected(),
-            meter,
-        )
-        .map_err(|error| Error::Layout(Box::new(error)))?;
+        let shape =
+            slib::verify_external_shape_requirements_v1(&ordinary, self.lir_layout.selected())
+                .map_err(|error| Error::Layout(Box::new(error)))?;
         let undefined = objects::complete_requirements(&prepared, &native, &shape)?;
         let current = self.ordinary.cone.identity();
         let finalized = prepared.finalize(
@@ -79,7 +74,6 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             defined,
             undefined,
             &shape,
-            meter,
         )
         .map_err(|error| Error::Code(Box::new(error)))?;
         let artifact = slib::AssembledCrossConeLayoutStrongArtifactV1::write(
@@ -101,7 +95,6 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
                 code,
                 finalized.members,
             ),
-            meter,
         )
         .map_err(|error| Error::Assembly(Box::new(error)))?;
         if artifact.target_selection() != finalized.target_selection {

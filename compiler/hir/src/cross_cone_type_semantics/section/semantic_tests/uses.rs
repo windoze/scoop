@@ -46,10 +46,9 @@ impl CommittedTypeUseSemanticAuthorityV1<&'static str> for Uses {
         root: &Root,
         target: CheckedTypeSelectionTargetV1<'_>,
         _context: TypeSectionUseContextV1<'_>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
+
+        _path: &WirePath,
     ) -> Result<(), &'static str> {
-        meter.charge_work(1, path).map_err(|_| "use budget")?;
         self.root_calls.set(self.root_calls.get() + 1);
         if root.request == target.request() && root.permitted {
             Ok(())
@@ -79,10 +78,9 @@ impl CommittedTypeUseSemanticAuthorityV1<&'static str> for Uses {
         edge: &Root,
         target: CheckedTypeSelectionTargetV1<'_>,
         _context: TypeSectionUseContextV1<'_>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
+
+        _path: &WirePath,
     ) -> Result<(), &'static str> {
-        meter.charge_work(1, path).map_err(|_| "edge budget")?;
         self.edge_calls.set(self.edge_calls.get() + 1);
         if edge.request == target.request() && edge.permitted {
             Ok(())

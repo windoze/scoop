@@ -10,8 +10,7 @@ pub(super) fn check(
     source: &Source,
     provider: Provider<'_, '_>,
 ) {
-    let lower = |selection: &lir::StrongProductionDependencySelectionV2<'_>,
-                 meter: &mut scoop_wire::BudgetMeter| {
+    let lower = |selection: &lir::StrongProductionDependencySelectionV2<'_>| {
         scoop_lir_lower::lower_with_layout_dependencies(
             input,
             string,
@@ -19,7 +18,6 @@ pub(super) fn check(
             provider.target.lir_target(),
             selection,
             diagnostics,
-            meter,
         )
     };
     let absent = Source {
@@ -33,10 +31,9 @@ pub(super) fn check(
             &[],
             vec![],
             &absent,
-            &mut meter(),
         )
         .unwrap();
-        let error = lower(&empty, &mut meter()).err().unwrap();
+        let error = lower(&empty).err().unwrap();
         if owner == input.module().cone {
             assert!(
                 matches!(
@@ -80,14 +77,11 @@ pub(super) fn check(
         &[provider.layout],
         imports,
         &missing,
-        &mut meter(),
     )
     .unwrap();
-    assert!(
-        matches!(lower(&incomplete, &mut meter()), Err(Error::DependencyLayout(
+    assert!(matches!(lower(&incomplete), Err(Error::DependencyLayout(
         lir::LayoutExternalMaterializationError::MissingPhysicalImport { subject: found, .. }
-    )) if found == subject)
-    );
+    )) if found == subject));
 
     let descriptor_only = Source {
         roots: source
@@ -111,11 +105,10 @@ pub(super) fn check(
         &[provider.layout],
         selected.physical_imports().records().to_vec(),
         &descriptor_only,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
-        lower(&unqualified, &mut meter()),
+        lower(&unqualified),
         Err(Error::DependencyLayout(
             lir::LayoutExternalMaterializationError::MissingShapeSupport { .. }
         ))
@@ -148,31 +141,14 @@ pub(super) fn check(
             &[provider.layout],
             selected.physical_imports().records().to_vec(),
             &runtime_only,
-            &mut meter(),
         )
         .unwrap();
-        assert!(
-            matches!(lower(&unqualified, &mut meter()), Err(Error::Capability(error))
-            if error.requirement() == &scoop_lir_lower::StrongLirMaterializationRequirement::TypeDescriptor(mir::Type::String))
-        );
+        assert!(matches!(lower(&unqualified), Err(Error::Capability(error))
+            if error.requirement() == &scoop_lir_lower::StrongLirMaterializationRequirement::TypeDescriptor(mir::Type::String)));
     }
     assert!(matches!(
-        selected.materialize_shape_type_descriptor(
-            root.provider(),
-            root.source(),
-            provider.string,
-            &mut meter(),
-        ),
+        selected
+            .materialize_shape_type_descriptor(root.provider(), root.source(), provider.string,),
         Err(lir::LayoutExternalMaterializationError::UnavailableShapeDescriptor { .. })
-    ));
-    let mut exhausted = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        lower(selected, &mut exhausted),
-        Err(Error::DependencyLayout(
-            lir::LayoutExternalMaterializationError::Resource(_)
-        ))
     ));
 }

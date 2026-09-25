@@ -15,34 +15,31 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(super) fn process_statement(
         &mut self,
         statement: &'body DefaultStatementV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         let origin = statement.definition_origin();
         match statement.kind() {
             DefaultStatementKindV1::Expr(expression)
             | DefaultStatementKindV1::Throw(expression) => {
-                self.push_child(pending, depth, BodyNode::Expression(expression))
+                self.push_child(pending, BodyNode::Expression(expression))
             }
             DefaultStatementKindV1::InitializationEnsure(_)
             | DefaultStatementKindV1::Break
             | DefaultStatementKindV1::Continue => Ok(()),
             DefaultStatementKindV1::LocalFunction(function) => {
-                self.push_child(pending, depth, BodyNode::LocalFunction { function, origin })
+                self.push_child(pending, BodyNode::LocalFunction { function, origin })
             }
             DefaultStatementKindV1::Return(value) => match value.as_ref() {
-                Some(expression) => {
-                    self.push_child(pending, depth, BodyNode::Expression(expression))
-                }
+                Some(expression) => self.push_child(pending, BodyNode::Expression(expression)),
                 None => Ok(()),
             },
             DefaultStatementKindV1::ValDecl { pattern, init } => {
-                self.push_child(pending, depth, BodyNode::Expression(init))?;
-                self.push_child(pending, depth, BodyNode::Pattern { pattern, origin })
+                self.push_child(pending, BodyNode::Expression(init))?;
+                self.push_child(pending, BodyNode::Pattern { pattern, origin })
             }
             DefaultStatementKindV1::Assign { target, value } => {
-                self.push_child(pending, depth, BodyNode::Expression(value))?;
-                self.push_child(pending, depth, BodyNode::AssignTarget { target, origin })
+                self.push_child(pending, BodyNode::Expression(value))?;
+                self.push_child(pending, BodyNode::AssignTarget { target, origin })
             }
             DefaultStatementKindV1::If {
                 condition,
@@ -50,29 +47,27 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 else_body,
             } => {
                 if let OptionalDefaultStatementListViewV1::Present(statements) = else_body.view() {
-                    self.push_statements(pending, depth, statements)?;
+                    self.push_statements(pending, statements)?;
                 }
-                self.push_statements(pending, depth, then_body)?;
-                self.push_child(pending, depth, BodyNode::Expression(condition))
+                self.push_statements(pending, then_body)?;
+                self.push_child(pending, BodyNode::Expression(condition))
             }
             DefaultStatementKindV1::While {
                 condition_setup,
                 condition,
                 body,
             } => {
-                self.push_statements(pending, depth, body)?;
-                self.push_child(pending, depth, BodyNode::Expression(condition))?;
-                self.push_statements(pending, depth, condition_setup)
+                self.push_statements(pending, body)?;
+                self.push_child(pending, BodyNode::Expression(condition))?;
+                self.push_statements(pending, condition_setup)
             }
             DefaultStatementKindV1::For(plan) => {
-                self.push_child(pending, depth, BodyNode::For { plan, origin })
+                self.push_child(pending, BodyNode::For { plan, origin })
             }
             DefaultStatementKindV1::When(value) => {
-                self.push_child(pending, depth, BodyNode::When { value, origin })
+                self.push_child(pending, BodyNode::When { value, origin })
             }
-            DefaultStatementKindV1::Try(value) => {
-                self.push_child(pending, depth, BodyNode::Try(value))
-            }
+            DefaultStatementKindV1::Try(value) => self.push_child(pending, BodyNode::Try(value)),
         }
     }
 
@@ -80,7 +75,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         pattern: &'body DefaultPatternV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match pattern.view() {
@@ -96,17 +90,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     DefaultBodyProviderTypeSiteV1::PatternSubject,
                 )?;
-                self.push_child(
-                    pending,
-                    depth,
-                    BodyNode::LiteralEquality { equality, origin },
-                )
+                self.push_child(pending, BodyNode::LiteralEquality { equality, origin })
             }
             DefaultPatternViewV1::Variant { variant, fields } => {
                 for field in fields.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::Pattern {
                             pattern: field.pattern(),
                             origin,
@@ -115,7 +104,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 }
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::ConstructorUse {
                         target: ConstructorTargetView::Variant(variant),
                         origin,
@@ -124,13 +112,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )
             }
             DefaultPatternViewV1::Tuple { elements } => {
-                self.push_patterns(pending, depth, elements, origin)
+                self.push_patterns(pending, elements, origin)
             }
             DefaultPatternViewV1::Struct { owner_type, fields } => {
                 for field in fields.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::Pattern {
                             pattern: field.pattern(),
                             origin,
@@ -150,12 +137,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn push_patterns(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         patterns: &'body [DefaultPatternV1],
         origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), V::Error> {
         for pattern in patterns.iter().rev() {
-            self.push_child(pending, depth, BodyNode::Pattern { pattern, origin })?;
+            self.push_child(pending, BodyNode::Pattern { pattern, origin })?;
         }
         Ok(())
     }
@@ -164,7 +150,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         target: &'body DefaultAssignTargetV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match target {
@@ -176,20 +161,19 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 ExportDefaultReferenceOccurrenceSiteV1::Assignment,
             ),
             DefaultAssignTargetV1::Index { array, index } => {
-                self.push_child(pending, depth, BodyNode::Expression(index))?;
-                self.push_child(pending, depth, BodyNode::Expression(array))
+                self.push_child(pending, BodyNode::Expression(index))?;
+                self.push_child(pending, BodyNode::Expression(array))
             }
             DefaultAssignTargetV1::Field { receiver, field } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::FieldUse {
                         target: FieldTargetView::Field(field),
                         origin,
                         site: ExportDefaultReferenceOccurrenceSiteV1::Assignment,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
         }
     }
@@ -197,11 +181,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(super) fn push_statements(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         statements: &'body [DefaultStatementV1],
     ) -> Result<(), V::Error> {
         for statement in statements.iter().rev() {
-            self.push_child(pending, depth, BodyNode::Statement(statement))?;
+            self.push_child(pending, BodyNode::Statement(statement))?;
         }
         Ok(())
     }

@@ -58,9 +58,7 @@ fn indirect_default_targets_derive_actual_declaration_demands_and_lookup_domains
             let targets = expected::targets(export);
             let mut required = BTreeSet::new();
             for (target, expected, _) in &targets {
-                let subject = foundation
-                    .default_indirect_access_subject(*target, &mut meter())
-                    .unwrap();
+                let subject = foundation.default_indirect_access_subject(*target).unwrap();
                 assert_eq!(&subject, expected, "{target:?}");
                 required.insert(subject);
             }
@@ -72,15 +70,14 @@ fn indirect_default_targets_derive_actual_declaration_demands_and_lookup_domains
                     .len(),
                 4
             );
-            let table =
-                Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+            let table = Table::from_export_hir(&output.output().export, &required).unwrap();
             let bound = foundation
-                .bind_default_access_declarations(&table, &required, &mut meter())
+                .bind_default_access_declarations(&table, &required)
                 .unwrap();
             let mut snapshot = String::new();
             for (target, subject, domain) in targets {
-                let actual = bound.source_lookup_domain(subject, &mut meter()).unwrap();
-                let expected = Domain::from_export_hir(export, domain, &mut meter()).unwrap();
+                let actual = bound.source_lookup_domain(subject).unwrap();
+                let expected = Domain::from_export_hir(export, domain).unwrap();
                 assert_eq!(actual, expected, "{target:?}");
                 let role = match subject {
                     Subject::Type(_) => "Type",
@@ -112,61 +109,4 @@ fn indirect_default_targets_derive_actual_declaration_demands_and_lookup_domains
             }
         });
     }
-}
-
-#[test]
-fn indirect_default_target_queries_charge_one_shared_budget() {
-    with_hir_source(COMBINATIONS, |output, _| {
-        let fixture = Fixture::from_output(output);
-        let foundation = fixture.bind().unwrap();
-        for (target, _, _) in expected::targets(output.output().export.module()) {
-            let mut measured = meter();
-            foundation
-                .default_indirect_access_subject(target, &mut measured)
-                .unwrap();
-            let work = measured.usage().validation_work_units;
-            let mut shared = BudgetMeter::new(DecodeLimits {
-                validation_work_units: work * 2 - 1,
-                ..DecodeLimits::default()
-            });
-            foundation
-                .default_indirect_access_subject(target, &mut shared)
-                .unwrap();
-            assert!(matches!(
-                foundation.default_indirect_access_subject(target, &mut shared),
-                Err(Error::Resource(_))
-            ));
-            for limits in [
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    decoded_nodes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_table_entries: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_recursion: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    semantic_leaf_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    matches!(
-                        foundation
-                            .default_indirect_access_subject(target, &mut BudgetMeter::new(limits)),
-                        Err(Error::Resource(_))
-                    ),
-                    "{target:?} {limits:?}"
-                );
-            }
-        }
-    });
 }

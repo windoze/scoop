@@ -60,17 +60,14 @@ fn witness_reader_rejects_accessor_owners_and_constructor_slots() {
                 expected
             );
             let bytes = witness_bytes(owner, &slot);
-            let decoded: DecodedWitness =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: DecodedWitness = decode_canonical(&bytes).unwrap();
             assert!(
-                matches!(decoded.resolve(&mut identity_closure(output), &mut meter()), Err(hir::DefaultSourceAccessResolutionError::Build(error)) if error == expected)
+                matches!(decoded.resolve(&mut identity_closure(output)), Err(hir::DefaultSourceAccessResolutionError::Build(error)) if error == expected)
             );
             for count in [0xa3, 0xa5] {
                 let mut corrupt = bytes.clone();
                 corrupt[0] = count;
-                assert!(
-                    decode_canonical::<DecodedWitness>(&corrupt, DecodeLimits::default()).is_err()
-                );
+                assert!(decode_canonical::<DecodedWitness>(&corrupt).is_err());
             }
         }
     });
@@ -88,11 +85,10 @@ fn private_literal_fixture_preserves_its_file_constraint_and_source_provider() {
             output,
             function(export, "hidden"),
             0,
-            &mut meter(),
         )
         .unwrap();
         for source in witnesses(body.source_references()) {
-            let witness = Witness::from_export_hir(export, source, &mut meter()).unwrap();
+            let witness = Witness::from_export_hir(export, source).unwrap();
             assert_eq!(witness.owner(), body.owner());
             assert!(witness.target_domain().is_universal());
             assert!(witness.direct_call_domain().persistent().constraints().iter().any(|constraint| matches!(constraint, hir::PersistentAccessConstraintV1::File(file) if file == &export.source_files[0].identity)));

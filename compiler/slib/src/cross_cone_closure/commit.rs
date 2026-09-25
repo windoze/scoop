@@ -38,11 +38,10 @@ pub struct ValidatedCrossConeSemanticClosure<'input> {
 impl<'input> LirBridgeValidatedCrossConeHirClosure<'input> {
     /// Atomically imports every validated provider identity graph.
     ///
-    /// Decode-budget charging happens before the semantic-session mutation;
     /// `SemanticIdentitySession::import_batch` stages the complete batch and
     /// leaves the session untouched if any origin or canonical key conflicts.
     pub fn commit(
-        mut self,
+        self,
         session: &mut SemanticIdentitySession,
     ) -> Result<ValidatedCrossConeSemanticClosure<'input>, CrossConeSemanticCommitError> {
         let artifact_count = self.dependency_first.len();
@@ -51,13 +50,6 @@ impl<'input> LirBridgeValidatedCrossConeHirClosure<'input> {
                 artifacts: artifact_count,
                 alias_expansions: self.type_alias_expansions.len(),
             });
-        }
-
-        for front in &mut self.dependency_first {
-            let identity = front.identity();
-            front.charge_identity_import().map_err(|source| {
-                CrossConeSemanticCommitError::IdentityPreparation { identity, source }
-            })?;
         }
 
         let mut dependency_first = Vec::new();

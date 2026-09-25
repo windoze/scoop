@@ -14,10 +14,10 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for NestedAut
         template: &ProtectedDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
         site: crate::DefaultNestedCallableSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, &'static str> {
-        self.observation.check(template, meter, path)?;
+        self.observation.check(template, path)?;
         self.sites.push(site);
         if identity != DefaultNestedCallableIdentityV1::Lambda(self.identity) {
             return Err("unknown nested source identity");
@@ -35,10 +35,10 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for NestedAut
         identity: DefaultNestedCallableIdentityV1,
         site: crate::DefaultNestedCallableSiteV1,
         arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<DefaultNestedCallableAbiShapeV1, &'static str> {
-        self.observation.check(template, meter, path)?;
+        self.observation.check(template, path)?;
         self.sites.push(site);
         if identity != DefaultNestedCallableIdentityV1::Lambda(self.identity)
             || !matches!(arguments, DefaultNestedCallableBodyArgumentsV1::Lexical)
@@ -87,10 +87,9 @@ fn protected_nested_abi_preserves_identity_and_checks_complete_capture_contract(
         ),
     );
     for failure in 0..3 {
-        let mut resources = meter();
         let path = WirePath::root();
         let mut authority = NestedAuthority {
-            observation: Observation::new(&template, &resources, &path),
+            observation: Observation::new(&template, &path),
             sites: Vec::new(),
             identity,
             definition_path: nested_path.clone(),
@@ -105,8 +104,7 @@ fn protected_nested_abi_preserves_identity_and_checks_complete_capture_contract(
                 vec![value(&f)]
             },
         };
-        let result =
-            template.validate_nested_callable_abi_semantics(&mut authority, &mut resources, &path);
+        let result = template.validate_nested_callable_abi_semantics(&mut authority, &path);
         assert_eq!(authority.observation.calls, 2);
         assert_eq!(
             authority.sites,

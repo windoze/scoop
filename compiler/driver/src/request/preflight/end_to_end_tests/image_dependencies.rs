@@ -47,7 +47,7 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
             .collect(),
         vec![],
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap();
     let mut dependencies = vec![ConeIdentity::CORE];
     dependencies.extend(
@@ -72,7 +72,6 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
         dependencies.clone(),
         provider_bytes.iter().map(Vec::as_slice).collect(),
         &bytes,
-        DecodeLimits::default(),
         target.c_bridge_toolchain().profile(),
         &mut scoop_identity::SemanticIdentitySession::new(),
     )

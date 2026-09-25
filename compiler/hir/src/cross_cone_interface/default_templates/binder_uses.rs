@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::{DecodedSignatureTypeKey, SignatureTypeKey};
@@ -7,11 +5,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::SignatureTypeReferenceResolver;
 
-mod metered_substitution;
-pub use metered_substitution::copy_default_signature_type_metered;
+mod substitution;
+pub use substitution::copy_default_signature_type;
 mod semantics;
 
-pub use metered_substitution::MeteredDefaultTemplateTypeSubstitutionError;
 pub use semantics::{BinderUseListSemanticValidationError, DefaultTemplateTypeSubstitutionError};
 
 /// Declaration-order mapping from a default provider's binder slots to the
@@ -89,7 +86,7 @@ impl WireEncode for DecodedCanonicalBinderUseListV1 {
 }
 
 impl WireDecode for DecodedCanonicalBinderUseListV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
             .map(|arguments| Self { arguments })

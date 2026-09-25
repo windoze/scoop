@@ -1,6 +1,6 @@
 //! Complete declaration-domain transcripts, independent of candidate sections.
 use crate::*;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 mod binding;
 mod wire;

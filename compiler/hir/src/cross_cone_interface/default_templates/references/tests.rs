@@ -3,7 +3,7 @@ use scoop_identity::{
     PackagePath, PersistentPropertyId, SignatureTypeKey, SourceDeclarationKey,
     SourceDeclarationSite,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::super::body::expression_test_support::{Fixture, ResolutionError, hex};
 use super::*;
@@ -22,14 +22,9 @@ fn access_domains_and_witness_have_fixed_wire() {
     assert!(bytes.ends_with(&[
         0x02, 0xa2, 0x00, 0x02, 0x01, 0x80, 0x03, 0x80, 0x04, 0xa2, 0x00, 0x02, 0x01, 0x80
     ]));
-    let decoded: DecodedExportDefaultAccessWitnessV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultAccessWitnessV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
-        decoded.resolve(
-            &mut fixture.resolver(),
-            &mut scoop_wire::BudgetMeter::new(DecodeLimits::default()),
-            &scoop_wire::WirePath::root()
-        ),
+        decoded.resolve(&mut fixture.resolver(), &scoop_wire::WirePath::root()),
         Ok(witness)
     );
 }
@@ -76,8 +71,7 @@ fn callable_target_tags_round_trip() {
         let expected_tag = u8::try_from(index + 1).unwrap();
         let bytes = encode(&expected).unwrap();
         assert_eq!(bytes[0..3], [0xa2, 0x00, expected_tag]);
-        let decoded: DecodedExportDefaultCallableTargetV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedExportDefaultCallableTargetV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(expected));
     }
 }
@@ -136,8 +130,7 @@ fn reference_set_sorts_each_domain_and_round_trips() {
 
     assert_eq!(expected.callables(), &[direct, address]);
     let bytes = encode(&expected).unwrap();
-    let decoded: DecodedExportDefaultReferenceSetV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultReferenceSetV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), expected);
 }
 
@@ -174,8 +167,7 @@ fn reference_set_rejects_duplicates_and_noncanonical_reader_order() {
         callables: vec![direct.clone(), direct.clone()],
     })
     .unwrap();
-    let duplicate: DecodedExportDefaultReferenceSetV1 =
-        decode_canonical(&duplicate_bytes, DecodeLimits::default()).unwrap();
+    let duplicate: DecodedExportDefaultReferenceSetV1 = decode_canonical(&duplicate_bytes).unwrap();
     assert!(matches!(
         duplicate.resolve(&mut fixture.resolver()),
         Err(ExportDefaultReferenceSetValidationError::Duplicate {
@@ -188,8 +180,7 @@ fn reference_set_rejects_duplicates_and_noncanonical_reader_order() {
         callables: vec![address, direct],
     })
     .unwrap();
-    let decoded: DecodedExportDefaultReferenceSetV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultReferenceSetV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut fixture.resolver()),
         Err(
@@ -258,7 +249,7 @@ fn reference_set_reports_nested_resolution_errors() {
     )
     .unwrap();
     let decoded: DecodedExportDefaultReferenceSetV1 =
-        decode_canonical(&encode(&set).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&set).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver()),
@@ -275,18 +266,13 @@ fn reference_set_reports_nested_resolution_errors() {
 #[test]
 fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
     let fixture = Fixture::new();
-    let error = decode_canonical::<DecodedExportDefaultCallableTargetV1>(
-        &[0xa2, 0x00, 0x09, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedExportDefaultCallableTargetV1>(&[0xa2, 0x00, 0x09, 0x01, 0x00])
+            .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 
-    let error = decode_canonical::<DecodedExportDefaultCallableTargetV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedExportDefaultCallableTargetV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -297,9 +283,7 @@ fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
 
     let mut witness = encode(&witness(&fixture, ExportDefaultCallDomainV1::DirectPublic)).unwrap();
     witness[0] = 0xa3;
-    let error =
-        decode_canonical::<DecodedExportDefaultAccessWitnessV1>(&witness, DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedExportDefaultAccessWitnessV1>(&witness).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -315,9 +299,7 @@ fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
     );
     let mut record = encode(&global).unwrap();
     record[0] = 0xa2;
-    let error =
-        decode_canonical::<DecodedExportDefaultGlobalReferenceV1>(&record, DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedExportDefaultGlobalReferenceV1>(&record).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -326,9 +308,7 @@ fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
         }
     );
 
-    let error =
-        decode_canonical::<DecodedExportDefaultReferenceSetV1>(&[0xa0], DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedExportDefaultReferenceSetV1>(&[0xa0]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

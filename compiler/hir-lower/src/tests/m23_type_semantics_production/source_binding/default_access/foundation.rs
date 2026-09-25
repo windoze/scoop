@@ -8,10 +8,10 @@ fn rejected(
 ) -> Error {
     match fixture
         .source
-        .bind_to_foundation(foundation, &fixture.identities, &mut meter())
+        .bind_to_foundation(foundation, &fixture.identities)
     {
         Ok(bound) => bound
-            .bind_default_access_declarations(table, required, &mut meter())
+            .bind_default_access_declarations(table, required)
             .unwrap_err(),
         Err(error) => error.into(),
     }
@@ -58,7 +58,7 @@ fn default_access_binding_requires_identity_graph_and_local_provider() {
         assert!(matches!(
             fixture
                 .source
-                .bind_to_foundation(&fixture.foundation, &empty, &mut meter()),
+                .bind_to_foundation(&fixture.foundation, &empty),
             Err(hir::TypeFoundationBindingError::Identity(_))
         ));
         let foreign = scoop_identity::CoreBuiltinNominal::Any.identity_record();
@@ -68,17 +68,14 @@ fn default_access_binding_requires_identity_graph_and_local_provider() {
         let canonical = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&canonical, &fixture.identities, &mut meter())
+            .bind_to_foundation(&canonical, &fixture.identities)
             .unwrap();
-        let table = Table::try_new(
-            vec![
-                Record::try_new(subject, table.records()[0].declaration_access().clone()).unwrap(),
-            ],
-            &mut meter(),
-        )
+        let table = Table::try_new(vec![
+            Record::try_new(subject, table.records()[0].declaration_access().clone()).unwrap(),
+        ])
         .unwrap();
         assert!(
-            matches!(foundation.bind_default_access_declarations(&table, &BTreeSet::from([subject]), &mut meter()),
+            matches!(foundation.bind_default_access_declarations(&table, &BTreeSet::from([subject])),
             Err(Error::ForeignKey(id)) if id == subject)
         );
     });
@@ -89,7 +86,7 @@ fn default_access_origins_require_actual_subject_context_file_and_span_points() 
         let subject = function(output.output().export.module(), "privateTarget");
         let required = BTreeSet::from([subject]);
         let record = table.get(subject).unwrap();
-        let table = Table::try_new(vec![record.clone()], &mut meter()).unwrap();
+        let table = Table::try_new(vec![record.clone()]).unwrap();
         for field in [1, 2, 3] {
             let mut canonical = fixture.foundation.as_canonical().clone();
             match field {
@@ -127,9 +124,9 @@ fn default_access_origins_require_actual_subject_context_file_and_span_points() 
             vec![],
             hir::ExportDefinitionSourceV1::new(invalid),
         );
-        let table = Table::try_new(vec![record], &mut meter()).unwrap();
+        let table = Table::try_new(vec![record]).unwrap();
         assert!(
-            matches!(fixture.bind().unwrap().bind_default_access_declarations(&table, &required, &mut meter()),
+            matches!(fixture.bind().unwrap().bind_default_access_declarations(&table, &required),
             Err(Error::Foundation(e)) if matches!(*e, hir::TypeFoundationBindingError::MissingSourcePoint(1)))
         );
     });

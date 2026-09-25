@@ -47,7 +47,7 @@ fn open<'a>(
     bytes: &'a [u8],
     source: &slib::AssembledCrossConeLayoutStrongArtifactV1,
 ) -> slib::DecodedCrossConeLayoutCompileSections<'a> {
-    DecodedSlibEnvelope::open(bytes, DecodeLimits::default(), source.target_selection())
+    DecodedSlibEnvelope::open(bytes, source.target_selection())
         .unwrap()
         .validate_graph()
         .unwrap()

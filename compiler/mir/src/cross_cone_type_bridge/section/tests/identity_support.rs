@@ -22,10 +22,8 @@ pub(super) fn update(
     mir: crate::CanonicalMirFoundation,
     external: &[&ValidatedIdentityGraph],
 ) {
-    let hir: DecodedHirFoundation =
-        decode_canonical(&encode(&hir).unwrap(), DecodeLimits::default()).unwrap();
-    let mir: crate::DecodedMirFoundation =
-        decode_canonical(&encode(&mir).unwrap(), DecodeLimits::default()).unwrap();
+    let hir: DecodedHirFoundation = decode_canonical(&encode(&hir).unwrap()).unwrap();
+    let mir: crate::DecodedMirFoundation = decode_canonical(&encode(&mir).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     hir.register_identities(&mut pending).unwrap();
     mir.register_identities(&mut pending).unwrap();
@@ -38,10 +36,8 @@ pub(super) fn update(
     hir.resolve_identities(&mut pending).unwrap();
     mir.resolve_identities(&mut pending).unwrap();
     let mut graph = pending.finish().unwrap();
-    fixture.foundation = crate::OdrFreeMirFoundation::from_validated(
-        mir.validate(&mut graph, &mut meter()).unwrap(),
-    )
-    .unwrap();
+    fixture.foundation =
+        crate::OdrFreeMirFoundation::from_validated(mir.validate(&mut graph).unwrap()).unwrap();
     fixture.graph = graph;
 }
 pub(super) fn add_function(
@@ -161,6 +157,6 @@ pub(super) fn set_uses(fixture: &mut Fixture, records: Vec<SelectedExternalIniti
         source.dispatch().clone(),
         source.objects().clone(),
         source.shapes().clone(),
-        CanonicalMirExternalInitializationUsesV1::try_new(records, &mut meter()).unwrap(),
+        CanonicalMirExternalInitializationUsesV1::try_new(records).unwrap(),
     );
 }

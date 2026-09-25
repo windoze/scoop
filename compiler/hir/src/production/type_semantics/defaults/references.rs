@@ -22,17 +22,7 @@ impl<'a, T: Ord + Clone + WireEncode> References<'a, T> {
         &mut self,
         source: &'a DefaultSourceReferenceV1<T>,
         context: DefaultReferenceContextV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
-        let path = WirePath::root();
-        let length = scoop_wire::encoded_length(source).map_err(invalid)?;
-        meter
-            .charge_work(
-                length.saturating_mul(u64::from(self.records.len().max(1).ilog2()) + 1),
-                &path,
-            )
-            .map_err(resource)?;
-        meter.charge_collection_slots(1, &path).map_err(resource)?;
         let record = self
             .records
             .entry((source.target(), source.definition_origin()))
@@ -46,8 +36,6 @@ impl<'a, T: Ord + Clone + WireEncode> References<'a, T> {
             ));
         }
         if let Some(usage) = context.expression_use() {
-            work(meter, record.uses.len())?;
-            meter.charge_collection_slots(1, &path).map_err(resource)?;
             record.uses.insert(usage);
         }
         Ok(())
@@ -56,25 +44,16 @@ impl<'a, T: Ord + Clone + WireEncode> References<'a, T> {
     fn finish(
         self,
         publication: &witness::Publication,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<ProtectedDefaultReferenceV1<T>>, Error> {
-        resources::canonical(self.records.len(), meter)?;
         let mut records = Vec::new();
         for record in self.records.into_values() {
             let source = record.source;
-            let length = scoop_wire::encoded_length(source).map_err(invalid)?;
-            meter
-                .charge_owned_bytes(length, &WirePath::root())
-                .map_err(resource)?;
-            meter
-                .charge_work(length, &WirePath::root())
-                .map_err(resource)?;
-            resources::canonical(record.uses.len(), meter)?;
+
             let uses = CanonicalProtectedDefaultExpressionUsesV1::try_new(
                 record.uses.into_iter().collect(),
             )
             .map_err(invalid)?;
-            let witness = publication.reference(source.witness(), meter)?;
+            let witness = publication.reference(source.witness())?;
             resources::push(
                 &mut records,
                 ProtectedDefaultReferenceV1::new(
@@ -83,7 +62,6 @@ impl<'a, T: Ord + Clone + WireEncode> References<'a, T> {
                     witness,
                     uses,
                 ),
-                meter,
             )?;
         }
         Ok(records)
@@ -93,10 +71,9 @@ impl<'a, T: Ord + Clone + WireEncode> References<'a, T> {
 pub(super) fn project(
     source: &DefaultSourceTemplateV1,
     publication: &witness::Publication,
-    meter: &mut BudgetMeter,
 ) -> Result<ProtectedDefaultReferenceSetV1, Error> {
     let closure = source
-        .bind_reference_occurrences(meter, &WirePath::root())
+        .bind_reference_occurrences(&WirePath::root())
         .map_err(invalid)?;
     let mut callables = References::new();
     let mut constructors = References::new();
@@ -108,21 +85,21 @@ pub(super) fn project(
         let context = occurrence.context();
         use DefaultSourceReferenceRecordV1 as Record;
         match occurrence.source() {
-            Record::Callable(source) => callables.observe(source, context, meter)?,
-            Record::Constructor(source) => constructors.observe(source, context, meter)?,
-            Record::Type(source) => types.observe(source, context, meter)?,
-            Record::Global(source) => globals.observe(source, context, meter)?,
-            Record::Singleton(source) => singletons.observe(source, context, meter)?,
-            Record::Field(source) => fields.observe(source, context, meter)?,
+            Record::Callable(source) => callables.observe(source, context)?,
+            Record::Constructor(source) => constructors.observe(source, context)?,
+            Record::Type(source) => types.observe(source, context)?,
+            Record::Global(source) => globals.observe(source, context)?,
+            Record::Singleton(source) => singletons.observe(source, context)?,
+            Record::Field(source) => fields.observe(source, context)?,
         }
     }
     ProtectedDefaultReferenceSetV1::try_new(
-        callables.finish(publication, meter)?,
-        constructors.finish(publication, meter)?,
-        types.finish(publication, meter)?,
-        globals.finish(publication, meter)?,
-        singletons.finish(publication, meter)?,
-        fields.finish(publication, meter)?,
+        callables.finish(publication)?,
+        constructors.finish(publication)?,
+        types.finish(publication)?,
+        globals.finish(publication)?,
+        singletons.finish(publication)?,
+        fields.finish(publication)?,
     )
     .map_err(invalid)
 }

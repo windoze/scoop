@@ -8,7 +8,7 @@ use scoop_identity::{
     SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite, StrongDefinitionEntity,
     StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1};
@@ -239,11 +239,9 @@ fn imported_foundation(
     function: PersistentFunctionId,
     exact: &CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
 ) -> ImportedLirFoundation {
-    let decoded = decode_canonical::<super::super::DecodedLirFoundation>(
-        &encode(&canonical).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<super::super::DecodedLirFoundation>(&encode(&canonical).unwrap())
+            .unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(provider).unwrap();
     pending.register_authority(function).unwrap();
@@ -259,7 +257,7 @@ fn imported_foundation(
             PersistentExactTypeId,
             scoop_identity::DecodedExactTypeKey,
         >,
-    >(&encode(exact).unwrap(), DecodeLimits::default())
+    >(&encode(exact).unwrap())
     .unwrap();
     pending
         .register(scoop_identity::IdentityLayer::Hir, &decoded_exact)

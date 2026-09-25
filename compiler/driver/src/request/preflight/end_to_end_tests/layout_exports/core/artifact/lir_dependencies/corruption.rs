@@ -1,7 +1,6 @@
 use super::*;
 use scoop_slib::SharedLirDependencyGraphError as Error;
 
-mod resources;
 pub(in super::super) mod wire;
 
 pub(super) fn check(
@@ -23,12 +22,7 @@ pub(super) fn check(
     let resolve = |candidate: &[_]| wire::resolve(layout, candidate, input.identities);
     let replay = |candidate: &lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
                   dependencies: &[_]| {
-        scoop_slib::replay_shared_lir_dependency_graph(
-            metadata,
-            candidate,
-            dependencies,
-            &mut meter(),
-        )
+        scoop_slib::replay_shared_lir_dependency_graph(metadata, candidate, dependencies)
     };
     let resolved = resolve(&expected).unwrap();
     replay(&resolved, &[core.exports()]).unwrap();
@@ -96,12 +90,11 @@ pub(super) fn check(
         scoop_slib::replay_shared_lir_dependency_graph(
             wrong_provider,
             &resolved,
-            &[core.exports()],
-            &mut meter()
+            &[core.exports()]
         ),
         Err(Error::InputProvider { .. })
     ));
-    resources::check(metadata, &resolved, core.exports());
+
     if layout.layouts().records().is_empty() {
         missing_occurrences(metadata, &resolved, core.exports());
     }
@@ -130,6 +123,6 @@ fn missing_occurrences(
         ..metadata
     };
     assert!(
-        matches!(scoop_slib::replay_shared_lir_dependency_graph(metadata, layout, &[core], &mut meter()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
+        matches!(scoop_slib::replay_shared_lir_dependency_graph(metadata, layout, &[core]), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
     );
 }

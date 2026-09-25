@@ -2,20 +2,13 @@
 
 use super::*;
 use crate::{
-    DecodedOptionalStrongTypeDescriptorRefV2, DecodedStrongTypeDescriptorRefV2,
-    DecodedStrongTypeDispatchCallableRefV2, StrongExternalLirBridgeSurfaceV1,
-    StrongRegistrationIdentitySurfaceV1, StrongTypeDescriptorRefV2,
-    StrongTypeDispatchCallableRefV2, StrongTypeReferenceDefinitionsV2,
+    StrongExternalLirBridgeSurfaceV1, StrongRegistrationIdentitySurfaceV1,
+    StrongTypeDescriptorRefV2, StrongTypeDispatchCallableRefV2, StrongTypeReferenceDefinitionsV2,
     StrongTypeReferenceResolutionErrorV2 as Error,
 };
 
 fn checked(subject: ExternalStrongShapeSubjectV1) -> StrongShapeDefinitionRefV1 {
-    StrongShapeDefinitionRefV1::from_foundation(
-        subject,
-        &foundation(subject, true, 1),
-        &mut meter(),
-    )
-    .unwrap()
+    StrongShapeDefinitionRefV1::from_foundation(subject, &foundation(subject, true, 1)).unwrap()
 }
 
 fn empty_consumer() -> (
@@ -50,16 +43,14 @@ fn consumer_at(
 }
 
 fn decoded<T: scoop_wire::WireDecode>(value: &impl scoop_wire::WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 #[test]
 fn descriptor_and_body_references_bind_the_same_provider_definition() {
     let all = subjects();
     let definitions = [checked(all[0]), checked(all[3])];
-    let catalog =
-        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &definitions, &mut meter())
-            .unwrap();
+    let catalog = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &definitions).unwrap();
     let (consumer, registrations, core) = empty_consumer();
     let ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = all[3] else {
         panic!("descriptor fixture");
@@ -69,13 +60,7 @@ fn descriptor_and_body_references_bind_the_same_provider_definition() {
         exact,
     };
     let resolved = catalog
-        .resolve_descriptor(
-            decoded(&descriptor),
-            &consumer,
-            &registrations,
-            &core,
-            &mut meter(),
-        )
+        .resolve_descriptor(decoded(&descriptor), &consumer, &registrations, &core)
         .unwrap();
     assert_eq!(resolved, descriptor);
     assert_eq!(catalog.descriptor_definitions(), &definitions[1..]);
@@ -88,7 +73,7 @@ fn descriptor_and_body_references_bind_the_same_provider_definition() {
     };
     assert_eq!(
         catalog
-            .resolve_dispatch_callable(decoded(&callable), &consumer, &core, &mut meter())
+            .resolve_dispatch_callable(decoded(&callable), &consumer, &core)
             .unwrap(),
         callable
     );
@@ -99,13 +84,7 @@ fn descriptor_and_body_references_bind_the_same_provider_definition() {
     };
     assert_eq!(
         catalog
-            .resolve_optional_descriptor(
-                decoded(&optional),
-                &consumer,
-                &registrations,
-                &core,
-                &mut meter()
-            )
+            .resolve_optional_descriptor(decoded(&optional), &consumer, &registrations, &core)
             .unwrap(),
         Some(descriptor)
     );
@@ -116,24 +95,16 @@ fn physical_catalog_rejects_duplicate_local_and_wrong_role_definitions() {
     let all = subjects();
     let definition = checked(all[3]);
     assert!(matches!(
-        StrongTypeReferenceDefinitionsV2::new(
-            ConeIdentity::CORE,
-            &[definition, definition],
-            &mut meter()
-        ),
+        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition, definition]),
         Err(Error::DuplicateDefinition(_))
     ));
     assert!(matches!(
-        StrongTypeReferenceDefinitionsV2::new(
-            ConeIdentity::SINGLE_FILE,
-            &[definition],
-            &mut meter()
-        ),
+        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[definition]),
         Err(Error::CurrentConeDefinition(_))
     ));
     for wrong in [all[1], all[5], all[6], all[9]] {
         assert!(
-            matches!(StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[checked(wrong)], &mut meter()), Err(Error::UnexpectedSubject(subject)) if subject == wrong)
+            matches!(StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[checked(wrong)]), Err(Error::UnexpectedSubject(subject)) if subject == wrong)
         );
     }
 }
@@ -141,9 +112,7 @@ fn physical_catalog_rejects_duplicate_local_and_wrong_role_definitions() {
 #[test]
 fn an_imported_symbol_request_is_not_a_local_definition() {
     let definition = checked(subjects()[3]);
-    let catalog =
-        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition], &mut meter())
-            .unwrap();
+    let catalog = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition]).unwrap();
     let (_, registrations, core) = empty_consumer();
     let mut canonical = crate::CanonicalLirFoundation::empty();
     canonical
@@ -158,13 +127,7 @@ fn an_imported_symbol_request_is_not_a_local_definition() {
     };
     assert_eq!(
         catalog
-            .resolve_descriptor(
-                decoded(&reference),
-                &consumer,
-                &registrations,
-                &core,
-                &mut meter()
-            )
+            .resolve_descriptor(decoded(&reference), &consumer, &registrations, &core)
             .unwrap(),
         reference
     );
@@ -174,9 +137,7 @@ fn an_imported_symbol_request_is_not_a_local_definition() {
 fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
     let all = subjects();
     let definitions = [checked(all[0]), checked(all[3])];
-    let catalog =
-        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &definitions, &mut meter())
-            .unwrap();
+    let catalog = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &definitions).unwrap();
     let (consumer, registrations, core) = empty_consumer();
     let ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = all[3] else {
         panic!("descriptor fixture");
@@ -186,13 +147,7 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
         exact,
     };
     assert!(matches!(
-        catalog.resolve_descriptor(
-            decoded(&wrong),
-            &consumer,
-            &registrations,
-            &core,
-            &mut meter()
-        ),
+        catalog.resolve_descriptor(decoded(&wrong), &consumer, &registrations, &core),
         Err(Error::UnknownDependencyDescriptor { .. })
     ));
     assert!(matches!(
@@ -200,8 +155,7 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
             decoded(&StrongTypeDescriptorRefV2::Local(exact)),
             &consumer,
             &registrations,
-            &core,
-            &mut meter()
+            &core
         ),
         Err(Error::UnknownLocalDescriptor(_))
     ));
@@ -213,15 +167,14 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
         body,
     };
     assert!(matches!(
-        catalog.resolve_dispatch_callable(decoded(&wrong), &consumer, &core, &mut meter()),
+        catalog.resolve_dispatch_callable(decoded(&wrong), &consumer, &core),
         Err(Error::UnknownDependencyCallable { .. })
     ));
     assert!(matches!(
         catalog.resolve_dispatch_callable(
             decoded(&StrongTypeDispatchCallableRefV2::Local(body)),
             &consumer,
-            &core,
-            &mut meter()
+            &core
         ),
         Err(Error::UnknownLocalCallable(_))
     ));
@@ -240,8 +193,7 @@ fn descriptor_sources_bind_the_requested_provider_and_reject_duplicate_proofs() 
     ))
     .unwrap();
     let definition = checked(ExternalStrongShapeSubjectV1::TypeDescriptor(exact));
-    let catalog =
-        StrongTypeReferenceDefinitionsV2::new(producer, &[definition], &mut meter()).unwrap();
+    let catalog = StrongTypeReferenceDefinitionsV2::new(producer, &[definition]).unwrap();
     let (consumer, registrations, _) = consumer_at(producer);
     for provider in [ConeIdentity::CORE, definition.provider()] {
         let external = StrongExternalLirBridgeSurfaceV1::try_new(
@@ -252,13 +204,8 @@ fn descriptor_sources_bind_the_requested_provider_and_reject_duplicate_proofs() 
         )
         .unwrap();
         let reference = StrongTypeDescriptorRefV2::DependencyExternal { provider, exact };
-        let result = catalog.resolve_descriptor(
-            decoded(&reference),
-            &consumer,
-            &registrations,
-            &external,
-            &mut meter(),
-        );
+        let result =
+            catalog.resolve_descriptor(decoded(&reference), &consumer, &registrations, &external);
         if provider == definition.provider() {
             assert!(
                 matches!(result, Err(Error::ConflictingDescriptorSources(actual)) if actual == exact)
@@ -276,93 +223,10 @@ fn descriptor_sources_bind_the_requested_provider_and_reject_duplicate_proofs() 
                         &consumer,
                         &registrations,
                         &external,
-                        &mut meter(),
                     )
                     .unwrap(),
                 layout_reference
             );
         }
     }
-}
-
-#[test]
-fn absent_runtime_and_catalog_queries_keep_the_consumer_and_budget() {
-    let definition = checked(subjects()[3]);
-    let no_heap = DecodeLimits {
-        logical_heap_bytes: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        StrongTypeReferenceDefinitionsV2::new(
-            ConeIdentity::CORE,
-            &[definition],
-            &mut BudgetMeter::new(no_heap)
-        ),
-        Err(Error::Resource(_))
-    ));
-    let catalog =
-        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition], &mut meter())
-            .unwrap();
-    let (consumer, registrations, core) = empty_consumer();
-    assert_eq!(
-        catalog
-            .resolve_optional_descriptor(
-                DecodedOptionalStrongTypeDescriptorRefV2::Absent,
-                &consumer,
-                &registrations,
-                &core,
-                &mut meter()
-            )
-            .unwrap(),
-        None
-    );
-    let other = crate::OdrFreeLirFoundation::try_new(
-        ConeIdentity::SINGLE_FILE,
-        crate::CanonicalLirFoundation::empty(),
-    )
-    .unwrap();
-    assert!(matches!(
-        catalog.resolve_optional_descriptor(
-            DecodedOptionalStrongTypeDescriptorRefV2::Absent,
-            &other,
-            &registrations,
-            &core,
-            &mut meter()
-        ),
-        Err(Error::ProducerMismatch { .. })
-    ));
-    let runtime = crate::RuntimeFunction::NoGc(crate::NoGcRuntimeFunction::Trap);
-    assert_eq!(
-        catalog
-            .resolve_dispatch_callable(
-                DecodedStrongTypeDispatchCallableRefV2::Runtime(runtime),
-                &consumer,
-                &core,
-                &mut meter()
-            )
-            .unwrap(),
-        StrongTypeDispatchCallableRefV2::Runtime(runtime)
-    );
-    let ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = definition.subject() else {
-        panic!("descriptor fixture");
-    };
-    let reference: DecodedStrongTypeDescriptorRefV2 =
-        decoded(&StrongTypeDescriptorRefV2::DependencyExternal {
-            provider: ConeIdentity::SINGLE_FILE,
-            exact,
-        });
-    let no_work = DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        catalog.resolve_descriptor(
-            reference,
-            &consumer,
-            &registrations,
-            &core,
-            &mut BudgetMeter::new(no_work)
-        ),
-        Err(Error::Resource(_))
-    ));
 }

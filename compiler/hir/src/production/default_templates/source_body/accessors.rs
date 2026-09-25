@@ -4,7 +4,6 @@ use scoop_identity::{SignatureTypeKey, StructuralDefinitionPath};
 impl DefaultSourceBodyProductionV1<'_> {
     pub fn into_source_template(
         self,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<DefaultSourceTemplateV1, DefaultSourceTemplateBuildError> {
         let key = ProtectedDefaultTemplateKeyV1::try_new(self.owner, self.parameter_position)
             .map_err(DefaultSourceTemplateBuildError::Key)?;
@@ -22,7 +21,6 @@ impl DefaultSourceBodyProductionV1<'_> {
             body.value_parameters,
             self.references,
             body.definition_origin,
-            meter,
         )
     }
 

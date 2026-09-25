@@ -71,8 +71,9 @@ fn protected_origins_must_match_the_exact_typed_foundation_subject() {
                 }
                 _ => panic!("protected callable"),
             };
-            assert!(matches!(forged.bind(&foundation,
-                &mut meter()), Err(Error::DefinitionOrigin(actual)) if actual == expected));
+            assert!(
+                matches!(forged.bind(&foundation), Err(Error::DefinitionOrigin(actual)) if actual == expected)
+            );
         }
     });
 }
@@ -108,7 +109,7 @@ fn protected_sources_cannot_truncate_nested_lexical_owners() {
                 )
                 .unwrap(),
             );
-            let error = forged.bind(&foundation, &mut meter()).unwrap_err();
+            let error = forged.bind(&foundation).unwrap_err();
             match (record.declaration(), error) {
                 (CallableTemplateOrigin::Accessor(id), Error::AccessorAccess(actual)) => {
                     assert_eq!(id, actual)

@@ -1,9 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{ConeIdentity, PersistentExportBindingId, PersistentIdResolver};
-use scoop_wire::{
-    BudgetMeter, DecodeLimits, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::{
     CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,
@@ -124,17 +122,13 @@ impl DecodedExternalHirReferenceV1 {
     where
         R: ExternalHirReferenceResolver<E>,
     {
-        self.resolve_metered(
-            resolver,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        self.resolve_at(resolver, &WirePath::root())
     }
 
-    pub fn resolve_metered<R: ExternalHirReferenceResolver<E>, E>(
+    pub fn resolve_at<R: ExternalHirReferenceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<ExternalHirReferenceV1, ExternalHirReferenceResolutionError<E>> {
         let origin = <R as PersistentIdResolver<ConeIdentity>>::resolve(resolver, self.origin)
@@ -153,11 +147,11 @@ impl DecodedExternalHirReferenceV1 {
             .map_err(ExternalHirReferenceResolutionError::Witnesses)?;
         let call_sites = self
             .call_sites
-            .resolve(resolver, meter, &path.clone().field(5))
+            .resolve(resolver, &path.clone().field(5))
             .map_err(|source| ExternalHirReferenceResolutionError::CallSites(Box::new(source)))?;
         let type_sites = self
             .type_sites
-            .resolve(resolver, meter, &path.clone().field(6))
+            .resolve(resolver, &path.clone().field(6))
             .map_err(|source| ExternalHirReferenceResolutionError::TypeSites(Box::new(source)))?;
         ExternalHirReferenceV1::try_new(origin, target, roles, witnesses, call_sites, type_sites)
             .map_err(ExternalHirReferenceResolutionError::Shape)
@@ -183,7 +177,7 @@ impl WireEncode for DecodedExternalHirReferenceV1 {
 }
 
 impl WireDecode for DecodedExternalHirReferenceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             origin: decoder.field(1, scoop_identity::DecodedPersistentId::decode)?,

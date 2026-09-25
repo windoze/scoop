@@ -8,7 +8,6 @@ impl Fixture {
             self.source.graph.records.values(),
             self.roots.iter().copied(),
             self,
-            &mut meter(),
         )
         .unwrap();
         let inheritance = self
@@ -18,7 +17,7 @@ impl Fixture {
                 NominalInheritanceInterfaceV1::try_new(
                     edge.clone(),
                     graph
-                        .replay_nominal_domains(edge.owner(), &mut meter())
+                        .replay_nominal_domains(edge.owner())
                         .unwrap()
                         .to_record(),
                     CanonicalInheritanceConstructorsV1::try_new(

@@ -109,7 +109,6 @@ fn assert_artifact_only_cli_consumer(
     let bytes = std::fs::read(output).unwrap();
     let summary = probe_prebuilt_manifest_summary(
         &bytes,
-        DecodeLimits::M23_DEFAULT,
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();

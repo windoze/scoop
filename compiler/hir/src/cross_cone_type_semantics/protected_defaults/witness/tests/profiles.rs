@@ -110,13 +110,10 @@ fn source_profile_uses_complete_owner_chain_and_independent_default_classificati
             graph_source.records.values(),
             graph_source.keys.keys().copied(),
             &graph_source,
-            &mut meter(),
         )
         .unwrap();
         let source = ProtectedDefaultOwnerSourceV1::Protected(
-            record
-                .validate_source(&graph, &mut fixture, &mut meter())
-                .unwrap(),
+            record.validate_source(&graph, &mut fixture).unwrap(),
         );
         let witness =
             ProtectedDefaultAccessWitnessV1::generic_source_metadata(key.owner()).unwrap();
@@ -126,7 +123,7 @@ fn source_profile_uses_complete_owner_chain_and_independent_default_classificati
         };
         assert!(matches!(
             witness
-                .validate_source_profile(key, source, &metadata, &mut meter())
+                .validate_source_profile(key, source, &metadata)
                 .unwrap(),
             CheckedProtectedDefaultWitnessSourceV1::GenericSourceMetadata(_)
         ));
@@ -135,13 +132,13 @@ fn source_profile_uses_complete_owner_chain_and_independent_default_classificati
             profile: ProtectedDefaultWitnessSourceProfileV1::ParamFree,
         };
         assert!(matches!(
-            witness.validate_source_profile(key, source, &ordinary, &mut meter()),
+            witness.validate_source_profile(key, source, &ordinary),
             Err(ProtectedDefaultWitnessSourceError::SourceProfile)
         ));
         let concrete = param_free(key.owner());
         assert_eq!(
             concrete
-                .validate_source_profile(key, source, &ordinary, &mut meter())
+                .validate_source_profile(key, source, &ordinary)
                 .is_ok(),
             nested
         );
@@ -156,7 +153,7 @@ fn source_profile_uses_complete_owner_chain_and_independent_default_classificati
         )
         .unwrap();
         assert!(matches!(
-            witness.validate_source_profile(wrong, source, &metadata, &mut meter()),
+            witness.validate_source_profile(wrong, source, &metadata),
             Err(ProtectedDefaultWitnessSourceError::Owner)
         ));
     }
@@ -169,16 +166,11 @@ fn callable_binders_do_not_allow_metadata_downgrade_of_param_free_owner() {
     let record = callable(&mut fixture, vec![owner.source], true);
     let key = ProtectedDefaultTemplateKeyV1::try_new(record.declaration(), 0).unwrap();
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let source = ProtectedDefaultOwnerSourceV1::Protected(
-        record
-            .validate_source(&graph, &mut fixture, &mut meter())
-            .unwrap(),
+        record.validate_source(&graph, &mut fixture).unwrap(),
     );
     let ordinary = ExpectedProfile {
         key,
@@ -186,7 +178,7 @@ fn callable_binders_do_not_allow_metadata_downgrade_of_param_free_owner() {
     };
     assert!(matches!(
         param_free(key.owner())
-            .validate_source_profile(key, source, &ordinary, &mut meter())
+            .validate_source_profile(key, source, &ordinary)
             .unwrap(),
         CheckedProtectedDefaultWitnessSourceV1::ParamFree(_)
     ));
@@ -197,7 +189,7 @@ fn callable_binders_do_not_allow_metadata_downgrade_of_param_free_owner() {
     assert!(matches!(
         ProtectedDefaultAccessWitnessV1::generic_source_metadata(key.owner())
             .unwrap()
-            .validate_source_profile(key, source, &invalid, &mut meter()),
+            .validate_source_profile(key, source, &invalid),
         Err(ProtectedDefaultWitnessSourceError::SourceProfile)
     ));
 }

@@ -29,10 +29,9 @@ fn reader_rejects_duplicate_source_relations_without_canonicalizing_input() {
             members,
         ]
         .concat();
-        let read: DecodedInterfaceSourceDispatchV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let read: DecodedInterfaceSourceDispatchV1 = decode_canonical(&bytes).unwrap();
         assert!(matches!(
-            read.resolve(&mut fixture, &mut meter()),
+            read.resolve(&mut fixture),
             Err(SourceInventoryError::InvalidInterfaceDispatch { .. })
         ));
     }
@@ -46,10 +45,9 @@ fn reader_rejects_duplicate_source_relations_without_canonicalizing_input() {
         encode(&ancestor).unwrap(),
     ]
     .concat();
-    let read: DecodedInterfaceSourceDispatchV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let read: DecodedInterfaceSourceDispatchV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        read.resolve(&mut fixture, &mut meter()),
+        read.resolve(&mut fixture),
         Err(SourceInventoryError::Reference(_))
     ));
 }

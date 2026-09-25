@@ -1,7 +1,6 @@
 use crate::{
-    MeteredDefaultTemplateTypeSubstitutionError, MeteredSignatureTypeSemanticError,
-    MeteredTemplateReceiverSemanticValidationError,
-    MeteredTemplateValueParameterSemanticValidationError,
+    DefaultTemplateTypeSubstitutionError, SignatureTypeSemanticError,
+    TemplateReceiverSemanticValidationError, TemplateValueParameterSemanticValidationError,
 };
 use scoop_wire::WireError;
 use std::fmt;
@@ -19,10 +18,10 @@ pub enum DefaultTemplateDeclarationContractError<E> {
     ParameterType { index: usize },
     ResultType,
     SuspendPermission,
-    Signature(Box<MeteredSignatureTypeSemanticError<E>>),
-    Receiver(MeteredTemplateReceiverSemanticValidationError),
-    Prefix(MeteredTemplateValueParameterSemanticValidationError),
-    Substitution(MeteredDefaultTemplateTypeSubstitutionError),
+    Signature(Box<SignatureTypeSemanticError<E>>),
+    Receiver(TemplateReceiverSemanticValidationError),
+    Prefix(TemplateValueParameterSemanticValidationError),
+    Substitution(DefaultTemplateTypeSubstitutionError),
 }
 
 impl<E> From<WireError> for DefaultTemplateDeclarationContractError<E> {

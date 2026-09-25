@@ -2,7 +2,6 @@
 
 use super::*;
 use scoop_identity::{CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph};
-use scoop_wire::BudgetMeter;
 
 /// Lowers the existing strong profile with its source display diagnostics.
 pub fn lower(
@@ -19,7 +18,6 @@ pub fn lower(
             selected_callables,
             target_profile,
             None,
-            &mut BudgetMeter::new(scoop_wire::DecodeLimits::default()),
         )?,
     )
 }
@@ -32,7 +30,6 @@ pub fn lower_with_diagnostics(
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let mut lowered = lowering::lower_graph(
         input,
@@ -40,26 +37,22 @@ pub fn lower_with_diagnostics(
         selected_callables,
         target_profile,
         None,
-        meter,
     )?;
-    canonicalize(&mut lowered.module, diagnostics, meter)?;
+    canonicalize(&mut lowered.module, diagnostics)?;
     seal(input, lowered)
 }
 
 fn canonicalize(
     module: &mut lir::Module,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongLirLoweringError> {
     for (_, descriptor) in module.meta.type_descriptors.iter_mut() {
-        descriptor.diagnostic_name =
-            CanonicalExactTypeDiagnosticName::from_validated_graph_metered(
-                descriptor.identity.exact_type(),
-                diagnostics,
-                meter,
-            )
-            .map_err(StrongLirLoweringError::Diagnostic)?
-            .into_string();
+        descriptor.diagnostic_name = CanonicalExactTypeDiagnosticName::from_validated_graph(
+            descriptor.identity.exact_type(),
+            diagnostics,
+        )
+        .map_err(StrongLirLoweringError::Diagnostic)?
+        .into_string();
     }
     Ok(())
 }
@@ -73,7 +66,6 @@ pub fn lower_with_layout_dependencies(
     target_profile: lir::LirTargetProfile,
     selected_layout: &lir::StrongProductionDependencySelectionV2<'_>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let mut lowered = lowering::lower_graph(
         input,
@@ -81,9 +73,8 @@ pub fn lower_with_layout_dependencies(
         selected_callables,
         target_profile,
         Some(selected_layout),
-        meter,
     )?;
-    canonicalize(&mut lowered.module, diagnostics, meter)?;
+    canonicalize(&mut lowered.module, diagnostics)?;
     seal(input, lowered)
 }
 

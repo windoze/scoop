@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::SignatureTypeKey;
-use scoop_wire::{BudgetMeter, Encoder, WireEncode, WirePath};
+use scoop_wire::{Encoder, WireEncode, WirePath};
 
 pub struct IndexedProtectedCallableSourceInterfaceV1<'a> {
     owner: CallableTemplateOrigin,
@@ -10,23 +10,15 @@ impl ProtectedCallableSourceInterfaceV1 {
     pub fn index_templates<'a>(
         &'a self,
         keys: &ProtectedDefaultKeyIndexV1,
-        meter: &mut BudgetMeter,
     ) -> Result<IndexedProtectedCallableSourceInterfaceV1<'a>, ProtectedSourceIndexError> {
         let mut parameters = Vec::new();
-        meter
-            .try_reserve_collection_slots(
-                &mut parameters,
-                self.parameters.parameters().len(),
-                &WirePath::root(),
-            )
-            .map_err(ProtectedSourceIndexError::Resource)?;
+        scoop_wire::allocation::try_reserve(
+            &mut parameters,
+            self.parameters.parameters().len(),
+            &WirePath::root(),
+        )
+        .map_err(ProtectedSourceIndexError::Resource)?;
         for parameter in self.parameters.parameters() {
-            meter
-                .charge_work(
-                    (keys.keys().len() as u64).saturating_add(1).ilog2() as u64 + 1,
-                    &WirePath::root(),
-                )
-                .map_err(ProtectedSourceIndexError::Resource)?;
             let calling = match parameter.calling() {
                 ProtectedParameterCallingV1::Required => IndexedCallingV1::Required,
                 ProtectedParameterCallingV1::Default { template } => IndexedCallingV1::Default(

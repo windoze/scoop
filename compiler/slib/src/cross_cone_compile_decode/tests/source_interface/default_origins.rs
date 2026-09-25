@@ -1,5 +1,4 @@
 use scoop_hir::{DefaultTemplateRootOriginValidationError as RootError, PersistentLexicalRootV1};
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::default_fixture::{Case, fixture};
 use super::*;
@@ -96,66 +95,10 @@ fn a_default_root_requires_artifact_membership_and_the_same_identity_graph() {
                 identities,
                 template.definition_root(),
                 template.definition_origin(),
-                &mut BudgetMeter::new(DecodeLimits::default()),
-                &WirePath::root(),
             )
             .unwrap_err();
         assert!(error.to_string().contains(expected), "{error}");
     }
-}
-
-#[test]
-fn shared_default_root_validation_spends_the_remaining_budget() {
-    let fixture = fixture(Case::Defined);
-    let bytes = fixture.artifact();
-    let front = validate_until_type_alias(&bytes);
-    let provider = front.nominal_provider_view();
-    let template = &front.hir_interface().default_templates().records()[0];
-    let validate = |meter: &mut BudgetMeter| {
-        provider.foundation.validate_default_template_root_origin(
-            provider.identity,
-            provider.identities,
-            template.definition_root(),
-            template.definition_origin(),
-            meter,
-            &WirePath::root(),
-        )
-    };
-    for limits in [
-        DecodeLimits {
-            semantic_recursion: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_leaf_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            validate(&mut BudgetMeter::new(limits)),
-            Err(RootError::Resource(_))
-        ));
-    }
-    let mut measured = BudgetMeter::new(DecodeLimits::default());
-    validate(&mut measured).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units * 2 - 1,
-        ..DecodeLimits::default()
-    });
-    validate(&mut shared).unwrap();
-    assert!(matches!(validate(&mut shared), Err(RootError::Resource(_))));
 }
 
 fn failure(fixture: &CallableSourceSurface) -> RootError {

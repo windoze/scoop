@@ -6,14 +6,12 @@ pub(super) fn validate<E>(
     source: &NominalSourceCallablePayloadV1,
     public: &CrossConeHirInterfaceSectionV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
-    lookup(public.callable_interfaces().records().len(), meter, path)?;
     let old = public.callable_interfaces().get(declaration);
-    let visible = effective_public(access, graph, meter, path)?;
+    let visible = effective_public(access, graph)?;
     let restricted_setter = if let CallableTemplateOrigin::Accessor(id) = declaration {
-        sequence(public.property_interfaces().records().len(), meter, path)?;
         public
             .property_interfaces()
             .records()
@@ -31,7 +29,7 @@ pub(super) fn validate<E>(
         return require(old.is_none());
     }
     if restricted_setter {
-        require(public_owners(access, graph, meter, path)?)?;
+        require(public_owners(access, graph)?)?;
     }
     let old = old.ok_or(TypeSectionExportValidationError::PublicOverlap)?;
     require(
@@ -43,16 +41,10 @@ pub(super) fn validate<E>(
     require(binders(
         old.type_parameters(),
         source.type_parameters(),
-        meter,
         path,
     )?)?;
-    require(parameters(
-        old.parameters(),
-        source.parameters(),
-        meter,
-        path,
-    )?)?;
-    require(signature(old.result(), source.result(), meter, path)?)?;
+    require(parameters(old.parameters(), source.parameters(), path)?)?;
+    require(signature(old.result(), source.result(), path)?)?;
     let public_slot = !source.slot_relations().is_empty();
     require((old.access() == PublicLookupAccessV1::PublicSlot) == public_slot)
 }
@@ -60,21 +52,16 @@ pub(super) fn validate<E>(
 fn parameters(
     left: &CanonicalSourceParameterShapesV1,
     right: &CanonicalSourceParameterShapesV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<bool, WireError> {
-    sequence(left.parameters().len(), meter, path)?;
-    sequence(right.parameters().len(), meter, path)?;
     if left.len_u32() != right.len_u32() {
         return Ok(false);
     }
     for (index, (left, right)) in left.parameters().iter().zip(right.parameters()).enumerate() {
         let at = path.clone().index(index as u64);
-        text(left.name().as_str(), meter, &at)?;
-        text(right.name().as_str(), meter, &at)?;
-        if left.name() != right.name()
-            || !signature(left.value_type(), right.value_type(), meter, &at)?
-        {
+
+        if left.name() != right.name() || !signature(left.value_type(), right.value_type(), &at)? {
             return Ok(false);
         }
     }

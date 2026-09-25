@@ -37,7 +37,7 @@ impl WireEncode for PropertyAccessorImplementationV1 {
 }
 
 impl WireDecode for PropertyAccessorImplementationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Storage),
             2 => Ok(Self::Constant),

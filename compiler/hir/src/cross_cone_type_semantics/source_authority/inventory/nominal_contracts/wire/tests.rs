@@ -4,11 +4,8 @@ use crate::*;
 use scoop_identity::{
     CallableTemplateOrigin, CanonicalIdentifier, SourceDeclarationKey, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn fixture() -> (Fixture, CanonicalNominalSourceContractsV1) {
     let mut fixture = Fixture::default();
     let owner = fixture.class("Owner");
@@ -44,12 +41,12 @@ fn fixture() -> (Fixture, CanonicalNominalSourceContractsV1) {
         NominalSourceShapeV1::Class(Default::default()),
     )
     .unwrap();
-    let table = CanonicalNominalSourceContractsV1::try_new(vec![record], &mut meter()).unwrap();
+    let table = CanonicalNominalSourceContractsV1::try_new(vec![record]).unwrap();
     (fixture, table)
 }
 fn decoded(table: &CanonicalNominalSourceContractsV1) -> DecodedCanonicalNominalSourceContractsV1 {
     let bytes = encode(table).unwrap();
-    let decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     decoded
 }
@@ -78,10 +75,7 @@ fn nominal_contract_wire_retains_all_eight_independent_fields() {
     ]
     .concat();
     assert_eq!(encode(record).unwrap(), expected);
-    assert_eq!(
-        decoded(&table).resolve(&mut fixture, &mut meter()).unwrap(),
-        table
-    );
+    assert_eq!(decoded(&table).resolve(&mut fixture).unwrap(), table);
     assert_eq!(table.get(record.owner()), Some(record));
     assert_eq!(
         encode(&CanonicalNominalSourceContractsV1::default()).unwrap(),
@@ -104,10 +98,9 @@ fn nominal_contract_wire_rejects_duplicate_and_reversed_references() {
             _ => unreachable!(),
         }
         let bytes = encode(&decoded).unwrap();
-        let decoded: DecodedCanonicalNominalSourceContractsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedCanonicalNominalSourceContractsV1 = decode_canonical(&bytes).unwrap();
         assert!(
-            decoded.resolve(&mut fixture, &mut meter()).is_err(),
+            decoded.resolve(&mut fixture).is_err(),
             "mutation {mutation}"
         );
     }
@@ -119,28 +112,24 @@ fn nominal_contract_wire_rejects_duplicate_and_reversed_owners() {
     let mut decoded = decoded(&table);
     decoded.records.push(decoded.records[0].clone());
     assert!(matches!(
-        decoded.clone().resolve(&mut fixture, &mut meter()),
+        decoded.clone().resolve(&mut fixture),
         Err(SourceInventoryError::NonCanonicalOrder { .. })
     ));
     let other = fixture.class("Other");
-    decoded.records[1].owner =
-        decode_canonical(&encode(&other.source).unwrap(), DecodeLimits::default()).unwrap();
-    let mut ordered = decoded.clone().resolve(&mut fixture, &mut meter());
+    decoded.records[1].owner = decode_canonical(&encode(&other.source).unwrap()).unwrap();
+    let mut ordered = decoded.clone().resolve(&mut fixture);
     if ordered.is_err() {
         decoded.records.reverse();
-        ordered = decoded.clone().resolve(&mut fixture, &mut meter());
+        ordered = decoded.clone().resolve(&mut fixture);
     }
     assert!(ordered.is_ok());
     decoded.records.reverse();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(SourceInventoryError::NonCanonicalOrder { .. })
     ));
     let record = table.records()[0].clone();
-    assert!(
-        CanonicalNominalSourceContractsV1::try_new(vec![record.clone(), record], &mut meter())
-            .is_err()
-    );
+    assert!(CanonicalNominalSourceContractsV1::try_new(vec![record.clone(), record]).is_err());
 }
 
 #[test]
@@ -154,10 +143,9 @@ fn nominal_contract_wire_rejects_unknown_typed_identities() {
     );
     let unknown = SourceNominalId::from_source_declaration(&key).unwrap();
     let mut value = decoded(&table);
-    value.records[0].owner =
-        decode_canonical(&encode(&unknown).unwrap(), DecodeLimits::default()).unwrap();
+    value.records[0].owner = decode_canonical(&encode(&unknown).unwrap()).unwrap();
     assert!(matches!(
-        value.resolve(&mut fixture, &mut meter()),
+        value.resolve(&mut fixture),
         Err(SourceInventoryError::Reference(_))
     ));
 }
@@ -167,60 +155,20 @@ fn nominal_contract_wire_checks_modality_kind_and_binder_consistency() {
     let (mut fixture, table) = fixture();
     let mut value = decoded(&table);
     value.records[0].modality = NominalInheritanceModalityV1::Interface;
-    assert!(value.resolve(&mut fixture, &mut meter()).is_err());
+    assert!(value.resolve(&mut fixture).is_err());
     let mut value = decoded(&table);
-    value.records[0].source_shape = decode_canonical(
-        &encode(&NominalSourceShapeV1::Interface).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    value.records[0].source_shape =
+        decode_canonical(&encode(&NominalSourceShapeV1::Interface).unwrap()).unwrap();
     value.records[0].modality = NominalInheritanceModalityV1::Interface;
-    assert!(value.resolve(&mut fixture, &mut meter()).is_err());
+    assert!(value.resolve(&mut fixture).is_err());
     let binders = CanonicalBinderListV1::try_new(vec![TypeParameterBinderV1::new(
         CanonicalIdentifier::new("T").unwrap(),
         TypeParameterBoundsV1::Unconstrained,
     )])
     .unwrap();
     let mut value = decoded(&table);
-    value.records[0].type_parameters =
-        decode_canonical(&encode(&binders).unwrap(), DecodeLimits::default()).unwrap();
-    assert!(value.resolve(&mut fixture, &mut meter()).is_err());
-}
-
-#[test]
-fn nominal_contract_wire_uses_shared_resource_limits() {
-    let (mut fixture, table) = fixture();
-    for limits in [
-        DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            owned_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            decoded(&table).resolve(&mut fixture, &mut BudgetMeter::new(limits)),
-            Err(SourceInventoryError::Resource(_))
-        ));
-    }
+    value.records[0].type_parameters = decode_canonical(&encode(&binders).unwrap()).unwrap();
+    assert!(value.resolve(&mut fixture).is_err());
 }
 
 #[test]
@@ -230,22 +178,10 @@ fn nominal_contract_wire_rejects_inexact_products_and_unknown_tags() {
     for size in [0xa7, 0xa9] {
         let mut corrupt = bytes.clone();
         corrupt[1] = size;
-        assert!(
-            decode_canonical::<DecodedCanonicalNominalSourceContractsV1>(
-                &corrupt,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCanonicalNominalSourceContractsV1>(&corrupt).is_err());
     }
     let mut corrupt = bytes;
     let modality_index = 4 + encode(&table.records()[0].owner()).unwrap().len();
     corrupt[modality_index] = 0x17;
-    assert!(
-        decode_canonical::<DecodedCanonicalNominalSourceContractsV1>(
-            &corrupt,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedCanonicalNominalSourceContractsV1>(&corrupt).is_err());
 }

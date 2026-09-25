@@ -18,12 +18,11 @@ pub(super) fn validate<'a>(
     dependencies: &[CheckedSharedTypeFoundationV1<'a>],
     context: &Context<'_>,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    inventory::validate(provider, meter)?;
+    inventory::validate(provider)?;
     for record in provider.section.protected_declarations().records() {
         let source = record.declaration_access();
-        contracts::lookup(context.sources.len(), meter)?;
+
         let owner = source
             .lexical_owners()
             .last()
@@ -40,7 +39,6 @@ pub(super) fn validate<'a>(
                 callable.declaration(),
                 source,
                 callable.payload(),
-                meter,
             )?,
             ProtectedDeclarationInterfaceV1::Constructor(constructor) => {
                 contracts::validate_callable(
@@ -48,7 +46,6 @@ pub(super) fn validate<'a>(
                     CallableTemplateOrigin::Constructor(constructor.declaration()),
                     source,
                     constructor.payload(),
-                    meter,
                 )?
             }
             ProtectedDeclarationInterfaceV1::Property(property) => properties::validate(
@@ -56,7 +53,6 @@ pub(super) fn validate<'a>(
                 property.declaration(),
                 source,
                 property.payload(),
-                meter,
             )?,
             ProtectedDeclarationInterfaceV1::NestedNominal(nominal) => nested::validate(
                 provider,
@@ -64,8 +60,6 @@ pub(super) fn validate<'a>(
                 nominal.source_record(),
                 context,
                 graph,
-                meter,
-                1,
             )?,
         }
     }
@@ -75,10 +69,9 @@ pub(super) fn validate<'a>(
 fn property<'a>(
     metadata: SharedTypeMetadataV1<'a>,
     id: PersistentPropertyId,
-    meter: &mut BudgetMeter,
 ) -> Result<&'a crate::PropertyDeclarationRecordV1, Error> {
     let table = metadata.public.property_interfaces();
-    contracts::lookup(table.declaration_count(), meter)?;
+
     table
         .declaration(PropertyOwner::Property(id))
         .ok_or(Error::PropertyContract(id))
@@ -87,10 +80,9 @@ fn property<'a>(
 fn property_access(
     metadata: SharedTypeMetadataV1<'_>,
     id: PersistentPropertyId,
-    meter: &mut BudgetMeter,
 ) -> Result<DeclarationAccessSourceV1, Error> {
-    let source = property(metadata, id, meter)?;
-    contracts::lookup(metadata.identities.identity_count(), meter)?;
+    let source = property(metadata, id)?;
+
     let key = metadata
         .identities
         .canonical_key::<_, SourceDeclarationKey>(id)?;
@@ -99,6 +91,5 @@ fn property_access(
         DefinitionOriginSubject::Property(id),
         &key,
         source.declared_visibility(),
-        meter,
     )
 }

@@ -415,14 +415,8 @@ pub fn produce_cross_cone_type_semantics(
     output: &hir::DependencyHirOutput,
     metadata: hir::SharedTypeMetadataV1<'_>,
     dependencies: &[hir::SharedTypeMetadataV1<'_>],
-    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
-    hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(
-        output,
-        metadata,
-        dependencies,
-        meter,
-    )
+    hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(output, metadata, dependencies)
 }
 
 fn finish_output(
@@ -437,16 +431,13 @@ fn finish_output(
             format!("failed to seal Export HIR output: {error}"),
         )]
     })?;
-    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(
-        export.module(),
-        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-    )
-    .map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to project public nominal shapes: {error}"),
-        )]
-    })?;
+    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(export.module())
+        .map_err(|error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to project public nominal shapes: {error}"),
+            )]
+        })?;
     let local = concretize::lower_output(&export, &requirements).map_err(|error| {
         vec![Diagnostic::at(
             Span { start: 0, end: 0 },
@@ -559,11 +550,8 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 /// Concretize a checked, output-sealed Export HIR graph while translating the
 /// output branch into the LocalConcrete HIR id domain.
 pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHirOutput {
-    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(
-        export.module(),
-        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-    )
-    .expect("checked HIR public bindings have valid nominal identities");
+    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(export.module())
+        .expect("checked HIR public bindings have valid nominal identities");
     concretize::lower_output(export, &requirements)
         .expect("validated Export HIR has complete automatic nominal roots")
 }

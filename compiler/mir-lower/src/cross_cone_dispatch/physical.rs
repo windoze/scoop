@@ -5,14 +5,13 @@ pub(super) fn targets(
     owner: PersistentExactTypeId,
     ty: &mir::Type,
     schema: &hir::InheritanceSlotSchemaV1,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<StrongCallableDefinitionOwner>, Error> {
     let mismatch = || Error::TableMismatch {
         owner,
         role: schema.role(),
     };
     let module = context.input.module();
-    let mut targets = reserve(schema.slots().len(), meter)?;
+    let mut targets = reserve(schema.slots().len())?;
     if let mir::Type::Interface(id) = ty {
         if schema.role()
             != (hir::InheritanceSlotSchemaRoleV1::Interface {
@@ -23,20 +22,16 @@ pub(super) fn targets(
             return Err(mismatch());
         }
         for (slot, function) in schema.slots().iter().zip(&module.interfaces[*id].methods) {
-            work(1, meter)?;
             let key = context
                 .authority
                 .identities
                 .canonical_key::<_, DispatchSlotKey>(*slot)?;
             let target = declaration_target(key.owner());
-            let binding = context.callable(target, meter)?;
+            let binding = context.callable(target)?;
             let signature = binding.lowered_signature();
             let exact = signature.exact();
             let actual = &module.functions[*function];
-            work(
-                (exact.parameters().len() as u64 + 1) * search(context.physical.len()),
-                meter,
-            )?;
+
             if actual.gc_effect != signature.gc_effect()
                 || actual.params.len() != exact.parameters().len() + 1
                 || actual.params.first().map(|parameter| &parameter.ty) != Some(ty)
@@ -62,7 +57,6 @@ pub(super) fn targets(
     let class = match ty {
         mir::Type::Class(id) => &module.classes[*id],
         mir::Type::String => {
-            work(module.classes.len() as u64, meter)?;
             module
                 .classes
                 .iter()
@@ -78,7 +72,6 @@ pub(super) fn targets(
                 .1
         }
         _ => {
-            work(module.meta.boxed_types.len() as u64, meter)?;
             let boxed = module
                 .meta
                 .boxed_types
@@ -91,10 +84,6 @@ pub(super) fn targets(
     let slots = match schema.role() {
         hir::InheritanceSlotSchemaRoleV1::ClassVtable => &class.vtable,
         hir::InheritanceSlotSchemaRoleV1::Interface { interface_exact } => {
-            work(
-                search(context.physical.len()) + class.itables.len() as u64,
-                meter,
-            )?;
             let Some(mir::Type::Interface(interface)) =
                 context.physical.get(&interface_exact).copied()
             else {
@@ -115,7 +104,7 @@ pub(super) fn targets(
         let mir::TableSlot::Function(function) = slot else {
             return Err(mismatch());
         };
-        targets.push(context.target(*function, meter)?);
+        targets.push(context.target(*function)?);
     }
     Ok(targets)
 }

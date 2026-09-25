@@ -21,13 +21,7 @@ fn protocol_definitions_have_a_fixed_wire_vector_and_validates_atomically() {
 #[test]
 fn definition_and_section_readers_require_closed_products_and_definition_cardinality() {
     for bytes in [vec![0xa1], vec![0xa3], vec![0xa2, 0x07, 0x00]] {
-        assert!(
-            decode_canonical::<DecodedCompilerProtocolDefinitionsV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCompilerProtocolDefinitionsV1>(&bytes).is_err());
     }
 
     for bytes in [
@@ -51,13 +45,7 @@ fn definition_and_section_readers_require_closed_products_and_definition_cardina
             0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x04, 0x80,
         ],
     ] {
-        assert!(
-            decode_canonical::<DecodedCoreBootstrapInterfaceSectionV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCoreBootstrapInterfaceSectionV1>(&bytes,).is_err());
     }
 }
 
@@ -146,12 +134,6 @@ fn reader_rejects_removed_core_snapshot_type_callable_and_value_fields() {
             removed_field,
         })
         .unwrap();
-        assert!(
-            decode_canonical::<DecodedCompilerProtocolDefinitionsV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCompilerProtocolDefinitionsV1>(&bytes).is_err());
     }
 }

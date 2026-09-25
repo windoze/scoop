@@ -5,8 +5,6 @@ pub(super) fn resolve<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     exact: PersistentExactTypeId,
     request: SelectedExternalTypeUseV1,
     foundation: &F,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<
     (
         CheckedTypeSelectionDefinitionV1<'a>,
@@ -14,7 +12,6 @@ pub(super) fn resolve<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     ),
     Error<E>,
 > {
-    meter.charge_work(3, path)?;
     let key = foundation.exact_type_key(exact).map_err(Error::Source)?;
     let ExactTypeKey::Nominal(owner) = key else {
         return Err(Error::RequiresOdr(exact));
@@ -24,7 +21,6 @@ pub(super) fn resolve<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
         .get_checked(exact)
         .ok_or(Error::MissingTarget(request))?;
     for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-        meter.charge_work(1, path)?;
         let declaration = builtin.identity_record();
         if *owner != declaration.id() {
             continue;

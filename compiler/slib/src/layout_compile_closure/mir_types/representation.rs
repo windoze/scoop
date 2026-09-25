@@ -12,7 +12,7 @@ use super::{
 mod policies;
 
 pub(super) fn validate(
-    comparison: &mut Comparison<'_, '_, '_>,
+    comparison: &mut Comparison<'_, '_>,
     source: &hir::NominalRepresentationSupportV1,
     record: &mir::ParamFreeMirTypeExportV1,
 ) -> Result<(), Error> {
@@ -20,17 +20,7 @@ pub(super) fn validate(
     use mir::MirTypeRepresentationV1 as Repr;
     let exact = record.exact();
     let owner = source.owner();
-    comparison.work(
-        comparison
-            .source
-            .metadata()
-            .public
-            .nominal_interfaces()
-            .declaration_count()
-            .checked_ilog2()
-            .unwrap_or(0) as usize
-            + 1,
-    )?;
+
     let declaration = comparison
         .source
         .metadata()
@@ -161,18 +151,18 @@ pub(super) fn validate(
 }
 
 fn fields_match<'a>(
-    comparison: &mut Comparison<'_, '_, '_>,
+    comparison: &mut Comparison<'_, '_>,
     exact: PersistentExactTypeId,
     expected: impl ExactSizeIterator<Item = (PersistentFieldId, &'a SignatureTypeKey)>,
     actual: &[mir::MirRepresentationFieldV1],
 ) -> Result<(), Error> {
     Error::require(exact, Component::FieldCount, expected.len() == actual.len())?;
-    comparison.work(actual.len())?;
+
     for (index, ((field, signature), actual)) in expected.zip(actual).enumerate() {
         let value = comparison
             .source
             .metadata()
-            .signature_exact_type(signature, comparison.meter)?;
+            .signature_exact_type(signature)?;
         Error::require(
             exact,
             Component::Field { index },
@@ -183,7 +173,7 @@ fn fields_match<'a>(
 }
 
 fn variants_match(
-    comparison: &mut Comparison<'_, '_, '_>,
+    comparison: &mut Comparison<'_, '_>,
     exact: PersistentExactTypeId,
     expected: &[hir::EnumRepresentationVariantV1],
     actual: &[mir::MirRepresentationVariantV1],
@@ -193,7 +183,7 @@ fn variants_match(
         Component::VariantCount,
         expected.len() == actual.len(),
     )?;
-    comparison.work(actual.len())?;
+
     for (variant, (expected, actual)) in expected.iter().zip(actual).enumerate() {
         Error::require(
             exact,
@@ -202,13 +192,13 @@ fn variants_match(
                 && gc(expected.gc()) == actual.gc
                 && expected.fields().len() == actual.fields.len(),
         )?;
-        comparison.work(actual.fields.len())?;
+
         for (index, (expected, actual)) in expected.fields().iter().zip(&actual.fields).enumerate()
         {
             let value = comparison
                 .source
                 .metadata()
-                .signature_exact_type(expected.value_type(), comparison.meter)?;
+                .signature_exact_type(expected.value_type())?;
             Error::require(
                 exact,
                 Component::VariantField { variant, index },

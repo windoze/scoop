@@ -126,14 +126,10 @@ impl Record {
     ) -> ProtectedDefaultOwnerSourceV1<'a> {
         match self {
             Self::Protected(record) => ProtectedDefaultOwnerSourceV1::Protected(
-                record
-                    .validate_source(graph, fixture, &mut meter())
-                    .unwrap(),
+                record.validate_source(graph, fixture).unwrap(),
             ),
             Self::Support(record) => ProtectedDefaultOwnerSourceV1::NominalSupport(
-                record
-                    .validate_source(graph, fixture, &mut meter())
-                    .unwrap(),
+                record.validate_source(graph, fixture).unwrap(),
             ),
         }
     }

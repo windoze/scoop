@@ -1,7 +1,7 @@
 use super::*;
 use crate::CanonicalHirFoundation;
 use scoop_identity::{FieldIdentityView, GeneratedNominalKey, PersistentFieldId, PersistentTypeId};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 impl CanonicalNominalInterfacesV1 {
     /// Joins complete declaration fields to the artifact's canonical field keys.
@@ -9,11 +9,10 @@ impl CanonicalNominalInterfacesV1 {
     pub fn validate_declared_field_inventory(
         &self,
         foundation: &CanonicalHirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<(), NominalSourceFieldInventoryError> {
         let path = WirePath::root().field(2);
         let mut backing = Vec::new();
-        reserve(&mut backing, self.declaration_count(), meter, &path)?;
+        reserve(&mut backing, self.declaration_count(), &path)?;
         for record in self.all_records() {
             if record.kind() == PublicNominalKindV1::Object {
                 let SourceNominalId::Concrete(object) = record.declaration() else {
@@ -22,10 +21,7 @@ impl CanonicalNominalInterfacesV1 {
                     ));
                 };
                 let key = GeneratedNominalKey::ObjectBackingClass { object };
-                let bytes = scoop_wire::encoded_length(&key).map_err(|_| {
-                    NominalSourceFieldInventoryError::ObjectOwner(record.declaration())
-                })?;
-                meter.charge_sha256(bytes, &path)?;
+
                 let id = PersistentTypeId::from_generated_key(&key).map_err(|_| {
                     NominalSourceFieldInventoryError::ObjectOwner(record.declaration())
                 })?;
@@ -35,24 +31,18 @@ impl CanonicalNominalInterfacesV1 {
         backing.sort_unstable();
         let keys = foundation.type_source_field_records();
         let mut expected = Vec::new();
-        reserve(&mut expected, keys.len(), meter, &path)?;
+        reserve(&mut expected, keys.len(), &path)?;
         for field in keys {
             let owner = match field.key().view() {
                 FieldIdentityView::SourceDeclared { owner, .. }
                 | FieldIdentityView::SourcePropertyBacking { owner, .. }
                 | FieldIdentityView::SourcePropertyDelegate { owner, .. } => Some(owner),
-                FieldIdentityView::Generated { owner, .. } => {
-                    meter.charge_work(u64::from(backing.len().max(1).ilog2()) + 1, &path)?;
-                    backing
-                        .binary_search_by_key(&owner, |(id, _)| *id)
-                        .ok()
-                        .map(|index| backing[index].1)
-                }
+                FieldIdentityView::Generated { owner, .. } => backing
+                    .binary_search_by_key(&owner, |(id, _)| *id)
+                    .ok()
+                    .map(|index| backing[index].1),
             };
-            meter.charge_work(
-                u64::from(self.declaration_count().max(1).ilog2()) + 1,
-                &path,
-            )?;
+
             if let Some(owner) = owner.filter(|owner| self.declaration(*owner).is_some()) {
                 expected.push((owner, field.id()));
             }
@@ -71,7 +61,7 @@ impl CanonicalNominalInterfacesV1 {
                 )
             })?;
         let mut actual = Vec::new();
-        reserve(&mut actual, count, meter, &path)?;
+        reserve(&mut actual, count, &path)?;
         for record in self.all_records() {
             actual.extend(
                 record
@@ -85,7 +75,6 @@ impl CanonicalNominalInterfacesV1 {
         let mut expected = expected.iter().peekable();
         let mut actual = actual.iter().peekable();
         loop {
-            meter.charge_work(1, &path)?;
             match (expected.peek(), actual.peek()) {
                 (Some(left), Some(right)) if left == right => {
                     expected.next();
@@ -115,18 +104,8 @@ impl CanonicalNominalInterfacesV1 {
     }
 }
 
-fn reserve<T>(
-    values: &mut Vec<T>,
-    count: usize,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<(), WireError> {
-    meter.check_table_entries(count as u64, path)?;
-    meter.charge_work(
-        (count as u64).saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-        path,
-    )?;
-    meter.try_reserve_collection_slots(values, count, path)
+fn reserve<T>(values: &mut Vec<T>, count: usize, path: &WirePath) -> Result<(), WireError> {
+    scoop_wire::allocation::try_reserve(values, count, path)
 }
 
 #[derive(Debug)]

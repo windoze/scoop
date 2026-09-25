@@ -5,7 +5,7 @@ impl ProtectedDefaultReferenceAccessSemanticAuthority<&'static str> for DefaultA
         &mut self,
         _source_use: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
         _graph: &'g CheckedNominalInheritanceGraphV1<'a>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<CheckedPersistentAccessDomainV1<'g, 'a>, &'static str> {
         Err("fixture has no default template")
@@ -13,7 +13,7 @@ impl ProtectedDefaultReferenceAccessSemanticAuthority<&'static str> for DefaultA
     fn validate_generic_default_reference(
         &mut self,
         _source_use: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<(), &'static str> {
         Err("fixture has no default template")
@@ -24,7 +24,6 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<&'static str> for DefaultAut
     fn default_access_profile(
         &self,
         _key: ProtectedDefaultTemplateKeyV1,
-        _meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, &'static str> {
         Err("fixture has no default template")
     }

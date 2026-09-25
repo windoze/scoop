@@ -8,7 +8,6 @@ mod rejections;
 fn project(
     input: MirTypeBridgeExportInputV1<'_>,
     dependencies: &mir::CanonicalParamFreeMirTypeExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<MirTypeBridgeSourceProjectionV1, MirTypeBridgeSourceProjectionError> {
     MirTypeBridgeSourceProjectionV1::from_input(
         input,
@@ -17,7 +16,6 @@ fn project(
             callables: &[],
             dispatch: &[],
         },
-        meter,
     )
 }
 
@@ -26,15 +24,9 @@ fn actual_mir_source_projection_replays_independently_produced_export_candidates
     for name in ["standalone", "combined"] {
         let (_, source) = fixture(name);
         with_exports(&source, |input, dependencies, candidate| {
-            let mut meter = meter();
-            let source = project(input, dependencies, &mut meter).unwrap();
+            let source = project(input, dependencies).unwrap();
             let checked = candidate
-                .validate_sources(
-                    input.mir.module().cone,
-                    input.identities,
-                    &source,
-                    &mut meter,
-                )
+                .validate_sources(input.mir.module().cone, input.identities, &source)
                 .unwrap();
             assert_eq!(checked.provider(), input.mir.module().cone);
             assert!(std::ptr::eq(checked.exports(), candidate));
@@ -79,40 +71,10 @@ fn actual_mir_source_projection_replays_independently_produced_export_candidates
 }
 
 #[test]
-fn actual_mir_source_projection_rejects_candidate_omissions_and_shared_budget_exhaustion() {
+fn actual_mir_source_projection_rejects_missing_exports() {
     let (_, source) = fixture("combined");
     with_exports(&source, |input, dependencies, candidate| {
-        let source = project(input, dependencies, &mut meter()).unwrap();
+        let source = project(input, dependencies).unwrap();
         rejections::inventories(input, candidate, &source);
-        let mut measured = meter();
-        let source = project(input, dependencies, &mut measured).unwrap();
-        let limits = DecodeLimits {
-            validation_work_units: measured.usage().validation_work_units,
-            ..DecodeLimits::default()
-        };
-        let mut shared = BudgetMeter::new(limits);
-        project(input, dependencies, &mut shared).unwrap();
-        assert!(
-            candidate
-                .validate_sources(
-                    input.mir.module().cone,
-                    input.identities,
-                    &source,
-                    &mut shared
-                )
-                .is_err()
-        );
-        for limits in [
-            DecodeLimits {
-                owned_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(project(input, dependencies, &mut BudgetMeter::new(limits)).is_err());
-        }
     });
 }

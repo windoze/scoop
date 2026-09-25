@@ -1,5 +1,5 @@
 use scoop_identity::{LexicalCallableRole, StructuralDefinitionSiteRole};
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::super::test_support::*;
 use super::*;
@@ -20,8 +20,7 @@ fn lambda_round_trips_provider_body_and_capture_abi() {
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
 
     assert_eq!(bytes[0], 0xa6);
-    let decoded: DecodedDefaultLambdaV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultLambdaV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut locals),
         Ok(expected.clone())
@@ -47,8 +46,7 @@ fn anonymous_function_round_trips_explicit_body_arguments() {
     .unwrap();
     let mut locals = LocalResolver::new(vec![parameter(0)]);
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
-    let decoded: DecodedDefaultAnonymousFunctionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultAnonymousFunctionV1 = decode_canonical(&bytes).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut locals),
@@ -75,11 +73,8 @@ fn lexical_callable_reports_missing_body_identity() {
     )
     .unwrap();
     let mut locals = LocalResolver::new(Vec::new());
-    let decoded: DecodedDefaultLambdaV1 = decode_canonical(
-        &encode(&lambda.index_locals(&mut locals).unwrap()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultLambdaV1 =
+        decode_canonical(&encode(&lambda.index_locals(&mut locals).unwrap()).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut locals),
@@ -113,9 +108,8 @@ fn lexical_callable_index_error_identifies_capture_position() {
 #[test]
 fn lexical_callable_decoders_require_all_six_fields() {
     for error in [
-        decode_canonical::<DecodedDefaultLambdaV1>(&[0xa0], DecodeLimits::default()).unwrap_err(),
-        decode_canonical::<DecodedDefaultAnonymousFunctionV1>(&[0xa0], DecodeLimits::default())
-            .unwrap_err(),
+        decode_canonical::<DecodedDefaultLambdaV1>(&[0xa0]).unwrap_err(),
+        decode_canonical::<DecodedDefaultAnonymousFunctionV1>(&[0xa0]).unwrap_err(),
     ] {
         assert_eq!(
             error.kind(),

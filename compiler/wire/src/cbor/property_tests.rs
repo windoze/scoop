@@ -1,4 +1,4 @@
-use crate::{DecodeLimits, Decoder, Encoder, WireDecode, WireEncode, WireError};
+use crate::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 #[derive(Debug, Eq, PartialEq)]
 struct ProbeDocument {
@@ -8,7 +8,7 @@ struct ProbeDocument {
 }
 
 impl WireDecode for ProbeDocument {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             tag: decoder.field(1, Decoder::unsigned)?,
@@ -39,23 +39,9 @@ impl WireEncode for ProbeDocument {
 #[test]
 fn arbitrary_byte_corpus_is_panic_free_and_deterministic() {
     for bytes in arbitrary_byte_corpus() {
-        let first = super::decode_canonical::<ProbeDocument>(&bytes, tiny_limits());
-        let second = super::decode_canonical::<ProbeDocument>(&bytes, tiny_limits());
+        let first = super::decode_canonical::<ProbeDocument>(&bytes);
+        let second = super::decode_canonical::<ProbeDocument>(&bytes);
         assert_eq!(first, second, "nondeterministic decode for {bytes:02x?}");
-    }
-}
-
-fn tiny_limits() -> DecodeLimits {
-    DecodeLimits {
-        cbor_nesting: 16,
-        semantic_table_entries: 64,
-        semantic_leaf_bytes: 256,
-        semantic_recursion: 16,
-        logical_heap_bytes: 16_384,
-        decoded_nodes: 256,
-        decoded_edges: 256,
-        owned_bytes: 1_024,
-        validation_work_units: 1_024,
     }
 }
 

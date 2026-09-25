@@ -26,12 +26,10 @@ impl<'a, K> DefaultSourceNestedCallablesV1<'a, K> {
         &self,
         site: DefaultNestedCallableSiteV1,
         identity: DefaultNestedCallableIdentityV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<&DefaultSourceNestedCallableOccurrenceV1<'a>, DefaultSourceNestedCallableQueryError>
     {
         use DefaultSourceNestedCallableQueryError as Error;
-        meter.charge_work(65, path).map_err(Error::Resource)?;
+
         let DefaultNestedCallableSiteV1::Body { ordinal } = site else {
             return Err(Error::Standalone);
         };

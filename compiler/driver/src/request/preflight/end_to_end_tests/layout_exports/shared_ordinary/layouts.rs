@@ -5,7 +5,6 @@ pub(super) fn check(
     foundation: &lir::OdrFreeLirFoundation,
     replay: impl Fn(
         &lir::CanonicalExactLayoutExportsV1,
-        &mut BudgetMeter,
     ) -> Result<lir::CrossConeLirBridgeSectionV1, Error>,
 ) {
     let original = expected
@@ -30,7 +29,6 @@ pub(super) fn check(
         original.identity().clone(),
         lir::ScalarRepresentationKindV1::Integer(lir::IntegerKind::SIGNED_64),
         foundation,
-        &mut meter(),
     )
     .unwrap();
     let mut records = expected
@@ -40,14 +38,10 @@ pub(super) fn check(
         .cloned()
         .collect::<Vec<_>>();
     records.push(changed.into());
-    let layouts = lir::CanonicalExactLayoutExportsV1::try_new(
-        expected.target(),
-        foundation,
-        records,
-        &mut meter(),
-    )
-    .unwrap();
+    let layouts =
+        lir::CanonicalExactLayoutExportsV1::try_new(expected.target(), foundation, records)
+            .unwrap();
     assert!(
-        matches!(replay(&layouts, &mut meter()), Err(Error::LayoutSignature { exact: actual, .. }) if actual == exact)
+        matches!(replay(&layouts), Err(Error::LayoutSignature { exact: actual, .. }) if actual == exact)
     );
 }

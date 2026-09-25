@@ -55,7 +55,7 @@ where
         let incoming = self.copy_bits(&available)?;
         let prefix = Region {
             owner: plan_owner,
-            depth: self.child_depth(region.depth)?,
+
             ..region
         };
         let source = self.validate_statements(
@@ -68,7 +68,6 @@ where
             plan.source_init(),
             &source.available,
             reachable && source.falls_through,
-            region.depth,
         )?;
         let mut source_available = source.available;
         self.define_temporary(
@@ -88,7 +87,6 @@ where
             plan.iterator_call(),
             &iterator.available,
             reachable && source.falls_through && iterator.falls_through,
-            region.depth,
         )?;
         let mut iteration_available = iterator.available;
         for (temporary, role) in reserved.iter().copied().skip(1) {
@@ -111,7 +109,6 @@ where
         let action_region = Region {
             owner: plan_owner,
             loop_depth,
-            depth: self.child_depth(region.depth)?,
         };
         let mut successful = Flow::falling_through(iteration_available);
         self.validate_binding_actions(
@@ -120,7 +117,7 @@ where
             reaches_iteration,
             action_region,
         )?;
-        self.validate_binding_shape(plan.binding(), region.depth)?;
+        self.validate_binding_shape(plan.binding())?;
 
         let body_reachable = reaches_iteration && successful.falls_through;
         let body = self.validate_statements(
@@ -168,9 +165,6 @@ where
                 owner,
             )?;
             for (previous, previous_role) in reserved[..index].iter().copied() {
-                self.meter
-                    .charge_work(1, self.path)
-                    .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
                 if previous.local() == temporary.local() {
                     return Err(
                         ExportDefaultLocalDataFlowValidationError::ForTemporaryAlias {
@@ -251,8 +245,6 @@ where
         region: Region,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         for (index, action) in actions.iter().enumerate() {
-            self.enter_edge(region.depth)?;
-            self.enter_node(region.depth)?;
             let action_reachable = reachable && flow.falls_through;
             match action.view() {
                 DefaultBindingActionViewV1::Project { source, result, .. } => {
@@ -279,16 +271,12 @@ where
                         setup,
                         Flow::falling_through(std::mem::take(&mut flow.available)),
                         action_reachable,
-                        Region {
-                            depth: self.child_depth(region.depth)?,
-                            ..region
-                        },
+                        Region { ..region },
                     )?;
                     self.validate_expression(
                         call,
                         &setup.available,
                         action_reachable && setup.falls_through,
-                        region.depth,
                     )?;
                     if action_reachable {
                         self.merge_abrupt_outcomes(&mut flow.abrupt, setup.abrupt)?;
@@ -381,12 +369,10 @@ where
     fn validate_binding_shape(
         &mut self,
         plan: &DefaultBindingPlanV1,
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         let actions = plan.actions();
         let mut struct_indices = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut struct_indices, actions.len(), self.path)
+        scoop_wire::allocation::try_reserve(&mut struct_indices, actions.len(), self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         for (action_index, action) in actions.iter().enumerate() {
             let index = match action.view() {
@@ -396,12 +382,7 @@ where
                         owner_type,
                     } => Some(
                         self.authority
-                            .default_binding_struct_field_index(
-                                declaration,
-                                owner_type,
-                                self.meter,
-                                self.path,
-                            )
+                            .default_binding_struct_field_index(declaration, owner_type)
                             .map_err(|error| {
                                 ExportDefaultLocalDataFlowValidationError::BindingShape(Box::new(
                                     DefaultBindingShapeDataFlowValidationError::StructProjection {
@@ -420,24 +401,20 @@ where
         }
 
         let mut consumed = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut consumed, actions.len(), self.path)
+        scoop_wire::allocation::try_reserve(&mut consumed, actions.len(), self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         consumed.resize(actions.len(), false);
-        let depth = self.child_depth(parent_depth)?;
+
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.enter_edge(depth)?;
+
         pending.push(ShapeWork {
             shape: plan.shape(),
             source: plan.subject(),
-            depth,
         });
 
         while let Some(work) = pending.pop() {
-            self.enter_node(work.depth)?;
             match work.shape.view() {
                 DefaultBindingShapeViewV1::Binding(leaf) => {
                     let index = self.find_action(
@@ -496,7 +473,7 @@ where
                                 },
                             ))
                         })?;
-                        self.push_shape(&mut pending, shape, result, work.depth)?;
+                        self.push_shape(&mut pending, shape, result)?;
                     }
                 }
                 DefaultBindingShapeViewV1::Struct { owner_type, fields } => {
@@ -537,7 +514,7 @@ where
                                 },
                             ))
                         })?;
-                        self.push_shape(&mut pending, field.shape(), result, work.depth)?;
+                        self.push_shape(&mut pending, field.shape(), result)?;
                     }
                 }
                 DefaultBindingShapeViewV1::Class { components, .. } => {
@@ -585,15 +562,12 @@ where
                                 },
                             ))
                         })?;
-                        self.push_shape(&mut pending, component.shape(), result, work.depth)?;
+                        self.push_shape(&mut pending, component.shape(), result)?;
                     }
                 }
             }
         }
         for (index, consumed) in consumed.into_iter().enumerate() {
-            self.meter
-                .charge_work(1, self.path)
-                .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
             if !consumed {
                 return Err(ExportDefaultLocalDataFlowValidationError::BindingShape(
                     Box::new(DefaultBindingShapeDataFlowValidationError::ExtraAction { index }),
@@ -611,9 +585,6 @@ where
     ) -> Result<usize, ExportDefaultLocalDataFlowValidationError<E>> {
         let mut found = None;
         for (index, action) in actions.iter().enumerate() {
-            self.meter
-                .charge_work(1, self.path)
-                .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
             if !predicate(index, action) {
                 continue;
             }
@@ -636,9 +607,6 @@ where
         consumed: &mut [bool],
         index: usize,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         if std::mem::replace(&mut consumed[index], true) {
             Err(ExportDefaultLocalDataFlowValidationError::BindingShape(
                 Box::new(DefaultBindingShapeDataFlowValidationError::ReusedAction { index }),
@@ -653,18 +621,11 @@ where
         pending: &mut Vec<ShapeWork<'body>>,
         shape: &'body DefaultBindingShapeV1,
         source: &'body DefaultBindingTemporaryV1,
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
-        self.meter
-            .try_reserve_collection_slots(pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(pending, 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.enter_edge(depth)?;
-        pending.push(ShapeWork {
-            shape,
-            source,
-            depth,
-        });
+
+        pending.push(ShapeWork { shape, source });
         Ok(())
     }
 }
@@ -680,5 +641,4 @@ fn action_result(action: &DefaultBindingActionV1) -> Option<&DefaultBindingTempo
 struct ShapeWork<'a> {
     shape: &'a DefaultBindingShapeV1,
     source: &'a DefaultBindingTemporaryV1,
-    depth: u64,
 }

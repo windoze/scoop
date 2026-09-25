@@ -20,10 +20,9 @@ fn rejects_unit_as_a_c_object_even_without_consulting_a_witness() {
     let callable_applications = HashMap::new();
     let initialization_units = HashMap::new();
     let definitions = HashMap::new();
-    let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
     let mut normalizer = NativeBoundaryNormalizer::new(
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        &mut meter,
         &exact_types,
         &callable_applications,
         &initialization_units,
@@ -131,10 +130,9 @@ fn recomputes_packed_and_overaligned_c_struct_layout() {
         (u8.owner(), AbiNominalDefinition::native(&u8)),
         (u64.owner(), AbiNominalDefinition::native(&u64)),
     ]);
-    let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
     let mut normalizer = NativeBoundaryNormalizer::new(
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        &mut meter,
         &exact_types,
         &callable_applications,
         &initialization_units,
@@ -158,61 +156,6 @@ fn recomputes_packed_and_overaligned_c_struct_layout() {
             .collect::<Vec<_>>(),
         [0, 1]
     );
-}
-
-#[test]
-fn scoop_layout_walk_has_inclusive_semantic_depth_boundaries() {
-    let unit = scoop_identity::CoreBuiltinNominal::Unit
-        .identity_record()
-        .id();
-    let leaf = CborIdentityRecord::from_key(ExactTypeKey::Nominal(unit)).unwrap();
-    let middle =
-        CborIdentityRecord::from_key(ExactTypeKey::Tuple(NonEmptyVec::from_first(leaf.id(), [])))
-            .unwrap();
-    let root = CborIdentityRecord::from_key(ExactTypeKey::Tuple(NonEmptyVec::from_first(
-        middle.id(),
-        [],
-    )))
-    .unwrap();
-    let root_id = root.id();
-    let exact_types = HashMap::from([
-        (leaf.id(), leaf.into_shared_key()),
-        (middle.id(), middle.into_shared_key()),
-        (root_id, root.into_shared_key()),
-    ]);
-    let callable_applications = HashMap::new();
-    let initialization_units = HashMap::new();
-    let definitions = HashMap::new();
-
-    for (limit, accepted) in [(2, false), (3, true), (4, true)] {
-        let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits {
-            semantic_recursion: limit,
-            ..scoop_wire::DecodeLimits::default()
-        });
-        let result = {
-            let mut normalizer = NativeBoundaryNormalizer::new(
-                scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-                &mut meter,
-                &exact_types,
-                &callable_applications,
-                &initialization_units,
-                &definitions,
-            );
-            normalizer.scoop_layout(root_id)
-        };
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result,
-                Err(NativeBoundaryCompileError::Resource(ref error))
-                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                        resource: scoop_wire::ResourceKind::SemanticRecursion,
-                        limit: 2,
-                        observed: 3,
-                    }
-            ));
-        }
-    }
 }
 
 mod declared_structs;

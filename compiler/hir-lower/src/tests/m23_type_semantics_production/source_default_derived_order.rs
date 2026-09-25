@@ -36,7 +36,6 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     output,
                     hir::ExportParameterOwner::Function(id),
                     2,
-                    &mut BudgetMeter::new(DecodeLimits::default()),
                 )
                 .unwrap();
                 let role = if *name == "closure" {
@@ -69,7 +68,6 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     output,
                     hir::ExportParameterOwner::ClassConstructor(holder.constructors[0]),
                     0,
-                    &mut BudgetMeter::new(DecodeLimits::default()),
                 )
                 .unwrap();
                 assert_eq!(

@@ -1,5 +1,4 @@
 use scoop_identity::{CapabilityId, ConeCoordinate};
-use scoop_wire::DecodeLimits;
 
 use super::*;
 use crate::{
@@ -71,7 +70,7 @@ fn graph_proof_exposes_only_node_identity_and_dependency_records() {
     .unwrap();
     let expected_dependency = dependency.clone();
     let archive = archive(&manifest(vec![dependency], &members, Vec::new()), members);
-    let graph = DecodedSlibEnvelope::open(archive.as_bytes(), DecodeLimits::default(), selection())
+    let graph = DecodedSlibEnvelope::open(archive.as_bytes(), selection())
         .unwrap()
         .validate_graph()
         .unwrap();
@@ -97,7 +96,7 @@ fn graph_rejects_the_reserved_single_file_dependency() {
     let archive = archive(&manifest(vec![dependency], &members, Vec::new()), members);
 
     assert_eq!(
-        DecodedSlibEnvelope::open(archive.as_bytes(), DecodeLimits::default(), selection(),)
+        DecodedSlibEnvelope::open(archive.as_bytes(), selection(),)
             .unwrap()
             .validate_graph(),
         Err(GraphValidationError::SingleFileDependency)
@@ -117,7 +116,7 @@ fn graph_rejects_a_direct_self_edge() {
 
     let archive = archive(&manifest(vec![dependency], &members, Vec::new()), members);
     assert_eq!(
-        DecodedSlibEnvelope::open(archive.as_bytes(), DecodeLimits::default(), selection(),)
+        DecodedSlibEnvelope::open(archive.as_bytes(), selection(),)
             .unwrap()
             .validate_graph(),
         Err(GraphValidationError::SelfDependency {
@@ -158,7 +157,7 @@ fn unknown_compile_and_link_capabilities_remain_opaque_to_graph() {
         members,
     );
     assert!(
-        DecodedSlibEnvelope::open(archive.as_bytes(), DecodeLimits::default(), selection(),)
+        DecodedSlibEnvelope::open(archive.as_bytes(), selection(),)
             .unwrap()
             .validate_graph()
             .is_ok()

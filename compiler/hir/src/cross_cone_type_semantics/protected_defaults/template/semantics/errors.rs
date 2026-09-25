@@ -1,8 +1,8 @@
 use crate::{
     DefaultTemplateProviderShapeBuildError, DefaultTemplateRootSemanticValidationError,
-    MeteredDefaultTemplateTypeSubstitutionError, MeteredSignatureTypeSemanticError,
-    MeteredTemplateReceiverSemanticValidationError,
-    MeteredTemplateValueParameterSemanticValidationError, TemplateLocalScopeValidationError,
+    DefaultTemplateTypeSubstitutionError, SignatureTypeSemanticError,
+    TemplateLocalScopeValidationError, TemplateReceiverSemanticValidationError,
+    TemplateValueParameterSemanticValidationError,
 };
 use scoop_wire::WireError;
 
@@ -37,17 +37,17 @@ pub enum ProtectedDefaultTemplateContractSemanticError<E> {
     },
     MappingArgument {
         index: usize,
-        error: MeteredSignatureTypeSemanticError<E>,
+        error: SignatureTypeSemanticError<E>,
     },
     LocalScope(TemplateLocalScopeValidationError),
     LocalType {
         index: usize,
-        error: MeteredSignatureTypeSemanticError<E>,
+        error: SignatureTypeSemanticError<E>,
     },
-    Receiver(MeteredTemplateReceiverSemanticValidationError),
-    ValueParameters(MeteredTemplateValueParameterSemanticValidationError),
-    ResultType(MeteredSignatureTypeSemanticError<E>),
-    ResultSubstitution(MeteredDefaultTemplateTypeSubstitutionError),
+    Receiver(TemplateReceiverSemanticValidationError),
+    ValueParameters(TemplateValueParameterSemanticValidationError),
+    ResultType(SignatureTypeSemanticError<E>),
+    ResultSubstitution(DefaultTemplateTypeSubstitutionError),
     ResultMismatch,
     SuspendPermission,
 }

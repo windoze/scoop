@@ -10,13 +10,12 @@ use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
     IdentityFoundationArtifactInput, ProducerRecord, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::DecodeLimits;
 
 use super::*;
 use crate::discovery::{DiscoveredDependencyEdge, EdgeOrigin, ManifestLocatorKind};
 use crate::{
-    ArtifactCacheRoot, BuildGraphRequest, BuildLimitsProfileV1, BuildRootInput, DiagnosticsPolicy,
-    PairedScoopcLocator, TrustedSysrootRoot,
+    ArtifactCacheRoot, BuildGraphRequest, BuildRootInput, DiagnosticsPolicy, PairedScoopcLocator,
+    TrustedSysrootRoot,
 };
 
 fn write_manifest(root: &Path, name: &str, version: &str, kind: &str, dependencies: &str) {
@@ -41,14 +40,10 @@ fn write_core(sysroot: &Path) {
 }
 
 fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
-    request_with_limits(root, sysroot, BuildLimitsProfileV1::M23_DEFAULT)
+    request_with_limits(root, sysroot)
 }
 
-fn request_with_limits(
-    root: &Path,
-    sysroot: &Path,
-    limits: BuildLimitsProfileV1,
-) -> BuildGraphRequest {
+fn request_with_limits(root: &Path, sysroot: &Path) -> BuildGraphRequest {
     BuildGraphRequest::new(
         BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
         vec![],
@@ -57,7 +52,6 @@ fn request_with_limits(
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
         DiagnosticsPolicy::Structured,
-        limits,
     )
     .unwrap()
 }
@@ -85,10 +79,9 @@ fn foundation_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
         &lir,
     ))
     .unwrap();
-    let fingerprints =
-        probe_prebuilt_manifest_summary(seed.as_bytes(), DecodeLimits::M23_DEFAULT, selection)
-            .unwrap()
-            .semantic_fingerprints();
+    let fingerprints = probe_prebuilt_manifest_summary(seed.as_bytes(), selection)
+        .unwrap()
+        .semantic_fingerprints();
     let cone = ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap();
     let core = DependencyRecord::new(
         ConeCoordinate::reserved_core(),
@@ -349,7 +342,6 @@ fn executable_root_and_single_file_are_valid_roots_only() {
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
         DiagnosticsPolicy::Structured,
-        BuildLimitsProfileV1::M23_DEFAULT,
     )
     .unwrap()
     .load_root()

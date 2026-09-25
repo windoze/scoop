@@ -2,7 +2,7 @@ use std::num::NonZeroU64;
 
 use scoop_wire::{
     Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind,
-    domain_separated_cbor_hash, domain_separated_cbor_hash_stream_length,
+    domain_separated_cbor_hash,
 };
 
 use super::{CanonicalCAbiResolutionError, DecodedCanonicalCStorageType};
@@ -37,7 +37,7 @@ impl WireEncode for DecodedCLayoutOverride {
 }
 
 impl WireDecode for DecodedCLayoutOverride {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = super::decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -96,7 +96,7 @@ impl WireEncode for DecodedCanonicalCAbiLayoutField {
 }
 
 impl WireDecode for DecodedCanonicalCAbiLayoutField {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             field: decoder.field(1, DecodedPersistentId::decode)?,
@@ -168,7 +168,7 @@ impl WireEncode for DecodedCanonicalCAbiLayout {
 }
 
 impl WireDecode for DecodedCanonicalCAbiLayout {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
@@ -199,10 +199,6 @@ impl DecodedCanonicalCAbiLayoutFingerprintRecord {
     pub fn candidate_fingerprint(&self) -> Result<CanonicalCAbiLayoutFingerprint, HashError> {
         domain_separated_cbor_hash("scoop-c-abi-layout-v1", &self.layout)
             .map(|digest| CanonicalCAbiLayoutFingerprint(*digest.as_array()))
-    }
-
-    pub(crate) fn candidate_hash_stream_length(&self) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length("scoop-c-abi-layout-v1", &self.layout)
     }
 
     pub fn resolve<R, E>(
@@ -255,7 +251,7 @@ impl WireEncode for DecodedCanonicalCAbiLayoutFingerprintRecord {
 }
 
 impl WireDecode for DecodedCanonicalCAbiLayoutFingerprintRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             fingerprint: decoder.field(1, DecodedPersistentId::decode)?,
@@ -265,7 +261,7 @@ impl WireDecode for DecodedCanonicalCAbiLayoutFingerprintRecord {
 }
 
 impl WireDecode for CLayoutByteAlignment {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Bytes1),
             2 => Ok(Self::Bytes2),
@@ -277,7 +273,7 @@ impl WireDecode for CLayoutByteAlignment {
     }
 }
 
-fn decode_non_zero_u64(decoder: &mut Decoder<'_, '_>) -> Result<NonZeroU64, WireError> {
+fn decode_non_zero_u64(decoder: &mut Decoder<'_>) -> Result<NonZeroU64, WireError> {
     NonZeroU64::new(decoder.unsigned()?).ok_or_else(|| {
         WireError::new(
             WireErrorKind::IntegerOutOfRange,

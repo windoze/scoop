@@ -49,18 +49,14 @@ fn value_reader_checks_scalar_kind_field_identity_order_and_storage_scan() {
             panic!("value")
         };
         let wrong = ValueStorageLayoutV1::inline(8, 8, RefScan::None).unwrap();
-        *storage = decode_canonical(&encode(&wrong).unwrap(), DecodeLimits::default()).unwrap();
+        *storage = decode_canonical(&encode(&wrong).unwrap()).unwrap();
     });
     reject(&expected, |raw| {
         let RawValue::Struct { fields, .. } = value(raw) else {
             panic!("struct")
         };
         // A ZST cannot acquire a stored layout by copying a nonzero field.
-        fields[0].storage = decode_canonical(
-            &encode(&fields[1].storage).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        fields[0].storage = decode_canonical(&encode(&fields[1].storage).unwrap()).unwrap();
     });
 }
 
@@ -189,7 +185,7 @@ fn stored_field_offset_cannot_overflow_or_change_from_enum_absolute_to_slot_rela
                 offset,
             };
             variants[1].variant.fields[0].storage =
-                decode_canonical(&encode(&wire).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(&wire).unwrap()).unwrap();
         });
     }
 }

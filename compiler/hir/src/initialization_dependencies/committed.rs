@@ -8,7 +8,6 @@ impl crate::DependencyHirOutput {
     pub fn materialized_property_initialization_uses(
         &self,
         identities: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<HirPropertyInitializationUseV1>, Error> {
         let local = self.output().local.module();
         let units = local_unit_ids(
@@ -16,11 +15,10 @@ impl crate::DependencyHirOutput {
                 .initialization_units
                 .iter()
                 .map(|(_, unit)| unit.identity.id()),
-            meter,
         )?;
         let mut uses = Vec::new();
         for occurrence in self
-            .committed_dependency_call_occurrences(meter)
+            .committed_dependency_call_occurrences()
             .map_err(|error| Error::Calls(Box::new(error)))?
         {
             let callable = occurrence.callable();
@@ -32,7 +30,7 @@ impl crate::DependencyHirOutput {
                 return Err(Error::NonAccessorUnit(declaration));
             };
             let Some(local_unit) =
-                initializer_root(occurrence.position().root, identities, &units, meter)?
+                initializer_root(occurrence.position().root, identities, &units)?
             else {
                 continue;
             };
@@ -45,9 +43,8 @@ impl crate::DependencyHirOutput {
                     accessor,
                 },
                 local.cone,
-                meter,
             )?;
         }
-        canonicalize(uses, meter)
+        canonicalize(uses)
     }
 }

@@ -61,7 +61,7 @@ impl WireEncode for DecodedSignatureCallableShape {
 }
 
 impl WireDecode for DecodedSignatureCallableShape {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             effect: decoder.field(1, decode_effect)?,
@@ -139,7 +139,7 @@ impl WireEncode for DecodedCallbackRegistrationKey {
 }
 
 impl WireDecode for DecodedCallbackRegistrationKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             parent: decoder.field(1, DecodedLexicalCallableParent::decode)?,
@@ -194,7 +194,7 @@ impl WireEncode for DecodedCallbackApplicationKey {
 }
 
 impl WireDecode for DecodedCallbackApplicationKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             registration: decoder.field(1, DecodedPersistentId::decode)?,
@@ -204,7 +204,7 @@ impl WireDecode for DecodedCallbackApplicationKey {
 }
 
 impl WireDecode for CallbackParameterIndex {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.u32().map(Self::new)
     }
 }
@@ -242,9 +242,7 @@ where
         .collect()
 }
 
-fn decode_signatures(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<Vec<DecodedSignatureTypeKey>, WireError> {
+fn decode_signatures(decoder: &mut Decoder<'_>) -> Result<Vec<DecodedSignatureTypeKey>, WireError> {
     decoder.decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
 }
 
@@ -259,7 +257,7 @@ fn encode_signatures(
     Ok(())
 }
 
-fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
+fn decode_effect(decoder: &mut Decoder<'_>) -> Result<Effect, WireError> {
     match decoder.unsigned()? {
         1 => Ok(Effect::Ordinary),
         2 => Ok(Effect::Suspend),

@@ -4,7 +4,7 @@ use crate::{
     DecodedSourceNominalId, NominalSourceShapeResolver, ProtectedPropertyInterfaceResolver,
 };
 use scoop_identity::{DecodedPersistentId, PersistentExactTypeId, PersistentIdResolver};
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 mod errors;
 mod payload;
@@ -46,30 +46,25 @@ impl DecodedProtectedNestedSourceInterfaceV1 {
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedNestedSourceInterfaceV1, NestedSourceResolutionError<E>> {
-        self.resolve_at(resolver, meter, 1)
+        self.resolve_at(resolver)
     }
     fn resolve_at<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        depth: u64,
     ) -> Result<ProtectedNestedSourceInterfaceV1, NestedSourceResolutionError<E>> {
         use NestedSourceResolutionError as Error;
-        meter
-            .check_semantic_depth(depth, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let binders = self
             .type_parameters
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Binders)?;
         let supertypes = self
             .supertypes
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Supertypes)?;
         let mut constructors = Vec::new();
-        reserve(&mut constructors, self.constructors.len(), meter)?;
+        reserve(&mut constructors, self.constructors.len())?;
         for value in self.constructors {
             let value = resolver.resolve(value).map_err(Error::Foundation)?;
             if constructors
@@ -82,16 +77,13 @@ impl DecodedProtectedNestedSourceInterfaceV1 {
         }
         let constructors = CanonicalPersistentIdsV1::try_new(constructors)
             .map_err(|_| Error::Build(NestedSourceBuildError::Duplicate))?;
-        let members = references::resolve_members(self.members, resolver, meter)?;
-        let children = references::resolve_children(self.children, resolver, meter)?;
-        let source_shape = self
-            .source_shape
-            .resolve_metered(resolver, meter)
-            .map_err(Error::Shape)?;
+        let members = references::resolve_members(self.members, resolver)?;
+        let children = references::resolve_children(self.children, resolver)?;
+        let source_shape = self.source_shape.resolve(resolver).map_err(Error::Shape)?;
         let mut records = Vec::new();
-        reserve(&mut records, self.source_support.len(), meter)?;
+        reserve(&mut records, self.source_support.len())?;
         for record in self.source_support {
-            records.push(record.resolve_at(resolver, meter, depth + 1)?);
+            records.push(record.resolve_at(resolver)?);
         }
         let source_support =
             CanonicalNestedSourceSupportV1::from_ordered(records).map_err(Error::Build)?;
@@ -110,7 +102,7 @@ impl DecodedProtectedNestedSourceInterfaceV1 {
     }
 }
 impl WireDecode for DecodedProtectedNestedSourceInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(9)?;
         Ok(Self {
             kind: decoder.field(1, PublicNominalKindV1::decode)?,
@@ -155,19 +147,9 @@ impl WireEncode for DecodedProtectedNestedSourceInterfaceV1 {
         wire::sequence(encoder, &self.source_support)
     }
 }
-fn reserve<T, E>(
-    values: &mut Vec<T>,
-    count: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), NestedSourceResolutionError<E>> {
+fn reserve<T, E>(values: &mut Vec<T>, count: usize) -> Result<(), NestedSourceResolutionError<E>> {
     let path = WirePath::root();
-    meter
-        .charge_nodes(count as u64, &path)
-        .map_err(NestedSourceResolutionError::Resource)?;
-    meter
-        .charge_work((count as u64).saturating_mul(128), &path)
-        .map_err(NestedSourceResolutionError::Resource)?;
-    meter
-        .try_reserve_collection_slots(values, count, &path)
+
+    scoop_wire::allocation::try_reserve(values, count, &path)
         .map_err(NestedSourceResolutionError::Resource)
 }

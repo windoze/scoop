@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::super::test_support::{Fixture, LocalError, definition_path};
 use super::*;
@@ -18,8 +18,7 @@ fn named_callable_reference_round_trips_through_indexed_wire() {
     .unwrap();
 
     let bytes = encode(&expected.index_locals(&mut fixture.locals()).unwrap()).unwrap();
-    let decoded: DecodedDefaultCallableReferenceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultCallableReferenceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
@@ -62,18 +61,12 @@ fn bound_target_index_error_keeps_target_tag() {
 
 #[test]
 fn callable_reference_target_decoder_rejects_unknown_and_non_exact_sums() {
-    let error = decode_canonical::<DecodedDefaultCallableReferenceTargetV1>(
-        &[0xa1, 0x00, 0x05],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultCallableReferenceTargetV1>(&[0xa1, 0x00, 0x05])
+        .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let error = decode_canonical::<DecodedDefaultCallableReferenceTargetV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultCallableReferenceTargetV1>(&[0xa1, 0x00, 0x01])
+        .unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

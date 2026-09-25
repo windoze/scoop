@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 pub(in super::super) struct DependencyTypeReferences<'a> {
     pub local: LegacyTypeReferences<'a>,
@@ -17,7 +17,6 @@ impl TypeReferences for DependencyTypeReferences<'_> {
         &self,
         decoded: Self::Parent,
         _: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<Self::Descriptor>, StrongRegistrationProductionValidationError> {
         self.definitions
             .resolve_optional_descriptor(
@@ -25,7 +24,6 @@ impl TypeReferences for DependencyTypeReferences<'_> {
                 self.local.foundation,
                 self.local.identities,
                 self.local.external,
-                meter,
             )
             .map_err(Into::into)
     }
@@ -33,7 +31,6 @@ impl TypeReferences for DependencyTypeReferences<'_> {
         &self,
         decoded: Self::DecodedDescriptor,
         _: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Self::Descriptor, StrongRegistrationProductionValidationError> {
         self.definitions
             .resolve_descriptor(
@@ -41,7 +38,6 @@ impl TypeReferences for DependencyTypeReferences<'_> {
                 self.local.foundation,
                 self.local.identities,
                 self.local.external,
-                meter,
             )
             .map_err(Into::into)
     }
@@ -49,16 +45,14 @@ impl TypeReferences for DependencyTypeReferences<'_> {
         &self,
         decoded: Vec<Self::DecodedCallable>,
         _: usize,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<Self::Callable>, StrongRegistrationProductionValidationError> {
         let mut slots = Vec::new();
-        meter.try_reserve_collection_slots(&mut slots, decoded.len(), &WirePath::root())?;
+        scoop_wire::allocation::try_reserve(&mut slots, decoded.len(), &WirePath::root())?;
         for decoded in decoded {
             slots.push(self.definitions.resolve_dispatch_callable(
                 decoded,
                 self.local.foundation,
                 self.local.external,
-                meter,
             )?);
         }
         Ok(slots)

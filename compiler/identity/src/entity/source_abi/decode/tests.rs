@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedSourceCAbiFunctionSignature, DecodedSourceExternFunctionAbi,
@@ -50,19 +50,14 @@ fn source_library_bindings_round_trip_and_validate() {
     ];
 
     for binding in bindings {
-        let decoded = decode_canonical::<DecodedSourceNativeLibraryBinding>(
-            &encode(&binding).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedSourceNativeLibraryBinding>(&encode(&binding).unwrap())
+                .unwrap();
         assert_eq!(decoded.validate().unwrap(), binding);
     }
 
-    let invalid = decode_canonical::<DecodedSourceNativeLibraryBinding>(
-        b"\xa2\x00\x02\x01\x64a/bc",
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let invalid =
+        decode_canonical::<DecodedSourceNativeLibraryBinding>(b"\xa2\x00\x02\x01\x64a/bc").unwrap();
     assert_eq!(
         invalid.validate(),
         Err(CanonicalNativeNameError::ForbiddenCharacter)
@@ -80,11 +75,9 @@ fn source_c_abi_signatures_round_trip_and_resolve_type_references() {
     ];
 
     for signature in signatures {
-        let decoded = decode_canonical::<DecodedSourceCAbiFunctionSignature>(
-            &encode(&signature).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedSourceCAbiFunctionSignature>(&encode(&signature).unwrap())
+                .unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), signature);
     }
 }
@@ -92,11 +85,9 @@ fn source_c_abi_signatures_round_trip_and_resolve_type_references() {
 #[test]
 fn source_scoop_abi_signatures_round_trip_and_resolve_type_references() {
     let signature = SourceScoopAbiFunctionSignature::new(vec![application(), binder()], nominal());
-    let decoded = decode_canonical::<DecodedSourceScoopAbiFunctionSignature>(
-        &encode(&signature).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedSourceScoopAbiFunctionSignature>(&encode(&signature).unwrap())
+            .unwrap();
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), signature);
 }
 
@@ -114,11 +105,8 @@ fn both_source_extern_abis_round_trip_and_resolve() {
     ];
 
     for value in values {
-        let decoded = decode_canonical::<DecodedSourceExternFunctionAbi>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedSourceExternFunctionAbi>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), value);
     }
 }
@@ -134,7 +122,7 @@ fn source_abi_decoder_rejects_unknown_tags() {
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
-    let error = decode_canonical::<T>(bytes, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<T>(bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag });
 }
 

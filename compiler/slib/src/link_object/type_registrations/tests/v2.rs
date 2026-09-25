@@ -4,20 +4,17 @@ use scoop_lir::{
     StrongProductionDependencySelectionV2, StrongRegistrationIdentitySurfaceV1,
     StrongTypeDescriptorSemanticPlanSetV2, StrongTypeRegistrationPlanSetV2,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 fn plans(corruption: Corruption) -> StrongTypeRegistrationPlanSetV2 {
     let input = semantic::inputs(corruption);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let selected = StrongProductionDependencySelectionV2::empty(
         input.module.cone,
         input.module.meta.target_profile,
-        &mut meter,
     )
     .unwrap();
     let semantics =
-        StrongTypeDescriptorSemanticPlanSetV2::from_module(&input.module, &selected, &mut meter)
-            .unwrap();
+        StrongTypeDescriptorSemanticPlanSetV2::from_module(&input.module, &selected).unwrap();
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&input.foundation, &input.digest_plan)
             .unwrap();

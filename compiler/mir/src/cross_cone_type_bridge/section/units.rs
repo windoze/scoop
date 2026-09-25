@@ -45,27 +45,23 @@ pub(super) fn build<E>(
     source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
     graph: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<MirTypeBridgeInitializationUnitV1>, MirTypeBridgeSectionError<E>> {
     let required = source
         .local_initialization_units()
         .map_err(MirTypeBridgeSectionError::Source)?;
     let path = WirePath::root();
-    meter.check_table_entries(required.len() as u64, &path)?;
-    meter.charge_work(required.len() as u64, &path)?;
+
     if required.windows(2).any(|pair| pair[0] >= pair[1]) {
         return Err(MirTypeBridgeSectionError::NonCanonicalUnitInventory);
     }
     let mut units = Vec::new();
-    meter.try_reserve_collection_slots(&mut units, required.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut units, required.len(), &path)?;
     for unit in required {
-        units.push(validation::unit(
-            authority, source, *unit, graph, types, meter,
-        )?);
+        units.push(validation::unit(authority, source, *unit, graph, types)?);
     }
     if let MirTypeBridgeLocalAuthorityV1::Producer { input, .. } = authority {
         let roots = input.materialization().initialization_roots();
-        meter.charge_work(roots.len() as u64, &path)?;
+
         if roots.len() != units.len() {
             return Err(MirTypeBridgeSectionError::ProviderContext);
         }

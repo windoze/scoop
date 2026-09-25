@@ -16,7 +16,6 @@ pub(super) fn check(
         let result = slib::publish_cross_cone_layout_artifact(
             bytes,
             destination,
-            DecodeLimits::default(),
             current,
             &direct,
             providers,
@@ -106,7 +105,6 @@ pub(super) fn check(
     let result = slib::publish_cross_cone_layout_artifact(
         artifact.as_bytes(),
         &blocked,
-        DecodeLimits::default(),
         current,
         &direct,
         &dependencies,

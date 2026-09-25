@@ -5,7 +5,7 @@ use scoop_identity::DependencyCallableDeclarationId;
 use scoop_mir::{
     CrossConeMirBridgeSectionV1, ParamFreeMirCallableExportV1, StrongCallableBridgeSurfaceV1,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::CrossConeMirClosureRelationError;
 
@@ -17,25 +17,21 @@ fn validate_export_relation(
     strong_bridges: &StrongCallableBridgeSurfaceV1,
     dependency_bridge: &CrossConeMirBridgeSectionV1,
     classifier: &NominalExactLeafClassifierV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     let path = WirePath::root();
     let mut expected = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut expected, callable_records.len(), &path)
+    scoop_wire::allocation::try_reserve(&mut expected, callable_records.len(), &path)
         .map_err(CrossConeMirClosureRelationError::Resource)?;
     for callable in callable_records {
         let Some(eligible) = classifier
-            .classify_callable_metered(callable, meter, &path)
+            .classify_callable(callable)
             .map_err(CrossConeMirClosureRelationError::NominalClassification)?
         else {
             continue;
         };
         let declaration = eligible.declaration();
         let implementation = declaration.implementation().callable_owner();
-        meter
-            .charge_work(strong_bridges.bridges().len() as u64, &path)
-            .map_err(CrossConeMirClosureRelationError::Resource)?;
+
         let Some(strong) = strong_bridges
             .bridges()
             .iter()
@@ -49,18 +45,7 @@ fn validate_export_relation(
         expected.push(eligible);
     }
     let actual = dependency_bridge.exports();
-    let expected_len = expected.len() as u64;
-    let actual_len = actual.len() as u64;
-    let expected_depth = 1 + u64::from(expected_len.max(1).ilog2());
-    let actual_depth = 1 + u64::from(actual_len.max(1).ilog2());
-    meter
-        .charge_work(
-            expected_len
-                .saturating_mul(expected_depth + actual_depth)
-                .saturating_add(actual_len.saturating_mul(expected_depth)),
-            &path,
-        )
-        .map_err(CrossConeMirClosureRelationError::Resource)?;
+
     expected.sort_unstable_by_key(scoop_hir::ParamFreeNominalCallableV1::declaration);
     for eligible in &expected {
         let declaration = eligible.declaration();

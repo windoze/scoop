@@ -5,7 +5,7 @@ use scoop_identity::{
     NominalDeclarationOwner, PackagePath, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -137,7 +137,7 @@ fn authority(
 }
 
 fn decode_table<T: WireEncode>(value: &T) -> DecodedCanonicalNominalInterfacesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 struct RecordSequence(Vec<NominalInterfaceRecordV1>);

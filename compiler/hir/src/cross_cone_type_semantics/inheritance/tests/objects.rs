@@ -19,11 +19,7 @@ fn source_object_requires_matching_representation_generated_key_and_exact_key() 
         .representations
         .insert(object_id, fixture.representations[&other_id].clone());
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::ObjectBacking(_))
     ));
     fixture
@@ -42,11 +38,7 @@ fn source_object_requires_matching_representation_generated_key_and_exact_key() 
         )
         .unwrap();
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::ObjectBacking(_))
     ));
     fixture.generated.insert(backing, own_key);
@@ -54,11 +46,7 @@ fn source_object_requires_matching_representation_generated_key_and_exact_key() 
         scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(backing)).unwrap();
     fixture.exacts.remove(&backing_exact);
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::Foundation("unknown exact"))
     ));
 }

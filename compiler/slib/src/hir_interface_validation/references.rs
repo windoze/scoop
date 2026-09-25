@@ -14,14 +14,11 @@ impl HirInterfaceValidationInput<'_> {
         self,
         direct: &[ConeIdentity],
         dependencies: &[ValidatedNominalProviderView<'_>],
-        meter: &mut BudgetMeter,
     ) -> Result<(), CrossConeHirReferenceSurfaceError> {
         let path = WirePath::root();
-        meter
-            .charge_work(dependencies.len() as u64 + direct.len() as u64 + 1, &path)
-            .map_err(CrossConeHirReferenceSurfaceError::Resource)?;
+
         let mut providers = Vec::new();
-        reserve_route_slots(&mut providers, dependencies.len(), meter, &path)
+        reserve_route_slots(&mut providers, dependencies.len(), &path)
             .map_err(CrossConeHirReferenceSurfaceError::Resource)?;
         providers.extend(dependencies.iter().map(|provider| RouteProviderView {
             identity: provider.identity,
@@ -33,20 +30,19 @@ impl HirInterfaceValidationInput<'_> {
             self.interface,
             direct,
             &providers,
-            meter,
             &path,
         )
         .map_err(CrossConeHirReferenceSurfaceError::Resource)?;
         self.interface
             .public_bindings()
-            .validate_route_closure(self.current, &authority, meter, &path.clone().field(9))
+            .validate_route_closure(self.current, &authority)
             .map_err(|error| CrossConeHirReferenceSurfaceError::Routes(Box::new(error)))?;
         self.interface
-            .validate_external_reference_closure(&mut authority, meter, &path)
+            .validate_external_reference_closure(&mut authority, &path)
             .map_err(|error| CrossConeHirReferenceSurfaceError::External(Box::new(error)))?;
-        self.call_sites(dependencies, meter)
+        self.call_sites(dependencies)
             .map_err(|error| CrossConeHirReferenceSurfaceError::CallSites(Box::new(error)))?;
-        self.type_sites(dependencies, meter)
+        self.type_sites(dependencies)
             .map_err(|error| CrossConeHirReferenceSurfaceError::TypeSites(Box::new(error)))
     }
 }

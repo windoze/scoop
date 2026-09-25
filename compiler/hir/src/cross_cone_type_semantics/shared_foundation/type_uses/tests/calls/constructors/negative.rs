@@ -31,7 +31,7 @@ fn shared_source_construction_rejects_missing_extra_and_misdirected_selections()
         let mut missing = actual.records().to_vec();
         missing.remove(position);
         assert!(matches!(
-            consumer.validate(&selected(missing), &dependencies, &mut meter()),
+            consumer.validate(&selected(missing), &dependencies),
             Err(Error::TypeUseInventory)
         ));
         for replacement in [
@@ -43,14 +43,14 @@ fn shared_source_construction_rejects_missing_extra_and_misdirected_selections()
             let mut changed = actual.records().to_vec();
             changed[position] = replacement;
             assert!(matches!(
-                consumer.validate(&selected(changed), &dependencies, &mut meter()),
+                consumer.validate(&selected(changed), &dependencies),
                 Err(Error::TypeUseInventory)
             ));
         }
         let mut extra = actual.records().to_vec();
         extra.push(construction(provider.provider(), owner, alternative));
         assert!(matches!(
-            consumer.validate(&selected(extra), &dependencies, &mut meter()),
+            consumer.validate(&selected(extra), &dependencies),
             Err(Error::TypeUseInventory)
         ));
         assert!(

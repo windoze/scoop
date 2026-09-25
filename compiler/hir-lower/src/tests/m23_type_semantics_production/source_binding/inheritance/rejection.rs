@@ -9,19 +9,13 @@ fn inheritance_sources_require_equal_inventories_and_nominal_modalities() {
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
 
-        let dispatch = sources
-            .properties
-            .dispatch
-            .bind(&foundation, &mut meter())
-            .unwrap();
-        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
-        let properties = sources.properties.bind(&foundation, &mut meter()).unwrap();
+        let dispatch = sources.properties.dispatch.bind(&foundation).unwrap();
+        let slots = dispatch.bind_slot_sources().unwrap();
+        let properties = sources.properties.bind(&foundation).unwrap();
         let protected = properties
-            .bind_protected_callable_sources(&sources.callables, &mut meter())
+            .bind_protected_callable_sources(&sources.callables)
             .unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
+        let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
         let mut records = sources.properties.dispatch.inventory.records().to_vec();
         let row = records
             .iter_mut()
@@ -32,16 +26,14 @@ fn inheritance_sources_require_equal_inventories_and_nominal_modalities() {
             row.constructors().clone(),
             hir::CanonicalProtectedDeclarationRefsV1::try_new(vec![]).unwrap(),
             row.slot_schemas().clone(),
-            &mut meter(),
         )
         .unwrap();
-        let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter()).unwrap();
+        let inventory = hir::CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap();
         let constructors = foundation
-            .bind_inheritance_constructor_sources(&inventory, &sources.constructors, &mut meter())
+            .bind_inheritance_constructor_sources(&inventory, &sources.constructors)
             .unwrap();
         assert!(matches!(
-            protected.bind_inheritance_sources(&constructors, &nominals, &slots, &mut meter()),
+            protected.bind_inheritance_sources(&constructors, &nominals, &slots),
             Err(Error::Inventory)
         ));
         let mut records = sources.nominals.records().to_vec();
@@ -62,48 +54,9 @@ fn inheritance_sources_require_equal_inventories_and_nominal_modalities() {
         )
         .unwrap();
         let mut changed = sources.clone();
-        changed.nominals =
-            hir::CanonicalNominalSourceContractsV1::try_new(records, &mut meter()).unwrap();
+        changed.nominals = hir::CanonicalNominalSourceContractsV1::try_new(records).unwrap();
         assert!(
-            matches!(changed.with_bound(&foundation, &mut meter(), |_, _| ()), Err(Error::Modality(actual)) if actual == owner)
+            matches!(changed.with_bound(&foundation,  |_, _| ()), Err(Error::Modality(actual)) if actual == owner)
         );
-    });
-}
-
-#[test]
-fn inheritance_source_composition_shares_constructor_replay_budgets() {
-    with_source(SOURCE, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let sources = Sources::from_output(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            let result = sources.with_bound(&foundation, &mut BudgetMeter::new(limits), |_, _| ());
-            assert!(
-                matches!(result, Err(Error::Resource(_))),
-                "limits {limits:?}: {result:?}"
-            );
-        }
     });
 }

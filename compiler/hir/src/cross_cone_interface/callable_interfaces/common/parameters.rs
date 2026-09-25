@@ -11,8 +11,6 @@ use super::{
 };
 use crate::SignatureTypeReferenceResolver;
 
-mod metered;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceParameterShapeV1 {
     name: CanonicalIdentifier,
@@ -83,7 +81,7 @@ impl WireEncode for DecodedSourceParameterShapeV1 {
 }
 
 impl WireDecode for DecodedSourceParameterShapeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             name: decoder.field(1, DecodedCanonicalIdentifier::decode)?,
@@ -182,7 +180,7 @@ impl WireEncode for DecodedCanonicalSourceParameterShapesV1 {
 }
 
 impl WireDecode for DecodedCanonicalSourceParameterShapesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedSourceParameterShapeV1::decode(decoder))
             .map(|parameters| Self { parameters })

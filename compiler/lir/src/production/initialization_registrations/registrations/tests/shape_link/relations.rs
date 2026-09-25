@@ -6,7 +6,6 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for Candidate<'a> {
         &self,
         _: ConeIdentity,
         _: Subject,
-        _: &mut BudgetMeter,
     ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
         Ok(Some(self.0))
     }
@@ -29,7 +28,7 @@ fn shape_link_support_candidate_cannot_replace_provider_unit_semantics() {
     let candidate = Candidate(ShapeLinkSupportSourceV1::Initialization { unit: &altered });
     let subject = Subject::InitializationCell(unit.unit());
     assert!(
-        matches!(ExternalShapeLinkImportV1::replay(&fixture.provider(), subject, ConeIdentity::CORE, &consumer(), &candidate, &mut meter()), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
+        matches!(ExternalShapeLinkImportV1::replay(&fixture.provider(), subject, ConeIdentity::CORE, &consumer(), &candidate), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
     );
     let storage = fixture
         .section
@@ -43,7 +42,7 @@ fn shape_link_support_candidate_cannot_replace_provider_unit_semantics() {
     let candidate = Candidate(ShapeLinkSupportSourceV1::StaticStorage { unit, storage });
     let subject = Subject::StaticStorage(unit.storage());
     assert!(
-        matches!(ExternalShapeLinkImportV1::replay(&fixture.provider(), subject, ConeIdentity::CORE, &consumer(), &candidate, &mut meter()), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
+        matches!(ExternalShapeLinkImportV1::replay(&fixture.provider(), subject, ConeIdentity::CORE, &consumer(), &candidate), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
     );
 }
 
@@ -57,7 +56,6 @@ fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
         ConeIdentity::CORE,
         &consumer(),
         &NoShapeLinkSupportV1,
-        &mut meter(),
     )
     .unwrap();
     let result: ExactLayoutExportV1 = crate::exact_layout::tests::unit().into();
@@ -77,14 +75,12 @@ fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
             result: &result,
         },
         &fixture.source.foundation,
-        &mut meter(),
     )
     .unwrap();
     let callables = CanonicalExactCallableAbiExportsV1::try_new(
         TARGET,
         &fixture.source.foundation,
         vec![changed],
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
@@ -92,8 +88,7 @@ fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
             &fixture.layouts,
             &callables,
             &fixture.descriptors,
-            &fixture.dispatch,
-            &mut meter()
+            &fixture.dispatch
         ),
         Err(ShapeLinkError::Contract)
     ));

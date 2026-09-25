@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::cross_cone_interface::external_references::test_support::{
@@ -38,7 +38,7 @@ fn canonical_table_round_trips_through_typed_authority() {
     ])
     .unwrap();
     let decoded: DecodedCanonicalExternalHirReferencesV1 =
-        decode_canonical(&encode(&expected).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&expected).unwrap()).unwrap();
 
     assert_eq!(decoded.resolve(&mut fixture.authority()).unwrap(), expected);
 }
@@ -78,19 +78,11 @@ fn table_semantics_reports_the_failing_canonical_record_index() {
     let mut authority =
         TargetOriginAuthority::new(scoop_identity::ConeIdentity::CORE, fixture.provider);
 
-    assert!(
-        table
-            .validate_semantics(
-                &mut authority,
-                &mut route_meter(),
-                &scoop_wire::WirePath::root()
-            )
-            .is_ok()
-    );
+    assert!(table.validate_semantics(&mut authority).is_ok());
 
     authority.fail_on(table.records()[1].target());
     assert!(matches!(
-        table.validate_semantics(&mut authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+        table.validate_semantics(&mut authority),
         Err(ExternalHirReferenceSetSemanticValidationError::Record {
             index: 1,
             error,
@@ -117,9 +109,5 @@ impl WireEncode for RecordSequence {
 }
 
 fn decode_table(value: &impl WireEncode) -> DecodedCanonicalExternalHirReferencesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

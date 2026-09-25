@@ -1,6 +1,6 @@
 //! Actual call sites borrow the winning route from their executable HIR node.
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::*;
 use crate::{
@@ -52,23 +52,13 @@ impl DependencyHirOutput {
     /// default definition is shared with another occurrence.
     pub fn committed_dependency_call_occurrences(
         &self,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<CommittedDependencyCallOccurrence<'_>>, DependencyCallOccurrenceError> {
         let mut occurrences = Vec::new();
-        visit(
-            &self.output,
-            &self.imported_dependencies,
-            meter,
-            |occurrence, meter| {
-                meter.charge_owned_bytes(
-                    std::mem::size_of::<CommittedDependencyCallOccurrence<'_>>() as u64,
-                    &WirePath::root(),
-                )?;
-                meter.try_reserve_collection_slots(&mut occurrences, 1, &WirePath::root())?;
-                occurrences.push(occurrence);
-                Ok(())
-            },
-        )?;
+        visit(&self.output, &self.imported_dependencies, |occurrence| {
+            scoop_wire::allocation::try_reserve(&mut occurrences, 1, &WirePath::root())?;
+            occurrences.push(occurrence);
+            Ok(())
+        })?;
         Ok(occurrences)
     }
 }
@@ -76,15 +66,14 @@ impl DependencyHirOutput {
 pub(super) fn visit<'a>(
     output: &'a crate::Output,
     selected: &'a crate::SelectedImportedDependencySet,
-    meter: &mut BudgetMeter,
+
     mut visitor: impl FnMut(
         CommittedDependencyCallOccurrence<'a>,
-        &mut BudgetMeter,
     ) -> Result<(), DependencyCallOccurrenceError>,
 ) -> Result<(), DependencyCallOccurrenceError> {
     let local = output.local.module();
     local
-        .visit_executable_expressions(meter, |occurrence, meter| {
+        .visit_executable_expressions(|occurrence| {
             let concrete::ExprKind::ImportedDependencyCall {
                 callee,
                 binding,
@@ -99,28 +88,22 @@ pub(super) fn visit<'a>(
                 return Err(DependencyCallOccurrenceError::MissingUse(position));
             }
             let reference = local.imported_dependency_callables[*callee].reference();
-            meter.charge_work(
-                u64::from(selected.callable_count().max(1).ilog2()) + 1,
-                &WirePath::root(),
-            )?;
+
             let callable = selected
                 .resolve_callable(reference)
                 .ok_or(DependencyCallOccurrenceError::UnselectedUse(position))?;
-            if !binding.is_selected_subset(callable.binding(), meter)? {
+            if !binding.is_selected_subset(callable.binding())? {
                 return Err(DependencyCallOccurrenceError::Binding(position));
             }
-            validate_origins(output.export.module(), occurrence, meter)?;
-            visitor(
-                CommittedDependencyCallOccurrence {
-                    occurrence,
-                    callee: *callee,
-                    binding,
-                    callable,
-                    arguments: args,
-                    receiver: *receiver,
-                },
-                meter,
-            )
+            validate_origins(output.export.module(), occurrence)?;
+            visitor(CommittedDependencyCallOccurrence {
+                occurrence,
+                callee: *callee,
+                binding,
+                callable,
+                arguments: args,
+                receiver: *receiver,
+            })
         })
         .map_err(|error| match error {
             concrete::ExecutableExpressionVisitError::Structure(error) => {
@@ -133,7 +116,6 @@ pub(super) fn visit<'a>(
 fn validate_origins(
     export: &crate::ExportHir,
     occurrence: ExecutableExpressionOccurrence<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), DependencyCallOccurrenceError> {
     let origin = occurrence.expression.origin;
     let evaluation = crate::DefinitionOrigin {
@@ -146,12 +128,6 @@ fn validate_origins(
         (DependencyCallOrigin::Definition, origin.definition),
         (DependencyCallOrigin::Evaluation, evaluation),
     ] {
-        meter.charge_work(4, &WirePath::root())?;
-        if let Some(file) = export.source_files.get(source.file as usize) {
-            let bytes = file.identity.logical_path().as_str().len() as u64;
-            meter.charge_owned_bytes(bytes, &WirePath::root())?;
-            meter.charge_work(bytes.saturating_mul(2), &WirePath::root())?;
-        }
         let projected =
             crate::production::project_definition_source(export, source).map_err(|source| {
                 DependencyCallOccurrenceError::Origin {

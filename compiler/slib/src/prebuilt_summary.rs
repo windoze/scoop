@@ -8,7 +8,6 @@ use std::fmt;
 
 use scoop_identity::ArtifactCapabilityProfileId;
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::{DecodeLimits, DecodeUsage};
 
 use crate::{
     ArtifactFingerprint, BootstrapManifest, CompatibilityRecord, ConeRecord, DependencyRecord,
@@ -28,7 +27,6 @@ pub struct PrebuiltManifestSummaryV1 {
     member_count: u64,
     manifest_length: u64,
     archive_length: u64,
-    decode_usage: DecodeUsage,
 }
 
 impl PrebuiltManifestSummaryV1 {
@@ -83,18 +81,14 @@ impl PrebuiltManifestSummaryV1 {
     pub const fn archive_length(&self) -> u64 {
         self.archive_length
     }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.decode_usage
-    }
 }
 
 pub fn probe_prebuilt_manifest_summary(
     bytes: &[u8],
-    limits: DecodeLimits,
+
     target_selection: ValidatedLirTargetSelection,
 ) -> Result<PrebuiltManifestSummaryV1, PrebuiltManifestSummaryError> {
-    let graph = crate::DecodedSlibEnvelope::open(bytes, limits, target_selection)
+    let graph = crate::DecodedSlibEnvelope::open(bytes, target_selection)
         .map_err(PrebuiltManifestSummaryError::Envelope)?
         .validate_graph()
         .map_err(PrebuiltManifestSummaryError::Graph)?;
@@ -108,7 +102,6 @@ pub fn probe_prebuilt_manifest_summary(
         member_count,
         manifest_length,
         archive_length,
-        graph.decode_usage(),
     );
     Ok(summary)
 }
@@ -119,7 +112,6 @@ fn summary_from_manifest(
     member_count: u64,
     manifest_length: u64,
     archive_length: u64,
-    decode_usage: DecodeUsage,
 ) -> PrebuiltManifestSummaryV1 {
     PrebuiltManifestSummaryV1 {
         cone: manifest.cone().clone(),
@@ -132,7 +124,6 @@ fn summary_from_manifest(
         member_count,
         manifest_length,
         archive_length,
-        decode_usage,
     }
 }
 
@@ -176,7 +167,6 @@ mod tests {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
         let summary = probe_prebuilt_manifest_summary(
             &bytes,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         )
         .unwrap();
@@ -203,7 +193,6 @@ mod tests {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
         let summary = probe_prebuilt_manifest_summary(
             &bytes,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         )
         .unwrap();
@@ -217,7 +206,6 @@ mod tests {
         *last ^= 0x01;
         let error = probe_prebuilt_manifest_summary(
             &bytes,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         )
         .unwrap_err();

@@ -66,9 +66,7 @@ fn bootstrap_writer_and_envelope_reader_round_trip() {
     let members = members();
     let expected_manifest = manifest(&members);
     let archive = CanonicalSlibArchive::write_bootstrap(&expected_manifest, members).unwrap();
-    let envelope =
-        DecodedSlibEnvelope::open(archive.as_bytes(), DecodeLimits::default(), selection())
-            .unwrap();
+    let envelope = DecodedSlibEnvelope::open(archive.as_bytes(), selection()).unwrap();
 
     assert_eq!(envelope.manifest, expected_manifest);
     assert_eq!(
@@ -80,7 +78,6 @@ fn bootstrap_writer_and_envelope_reader_round_trip() {
             .map(SlibMemberRecord::id)
             .collect::<Vec<_>>()
     );
-    assert!(envelope.decode_usage().decoded_nodes > 0);
 }
 
 #[test]
@@ -121,7 +118,7 @@ fn envelope_rejects_manifest_and_member_corruption() {
         .position(|window| window == b"SCOOPSLIB")
         .unwrap();
     bad_manifest[magic] = b'X';
-    let error = DecodedSlibEnvelope::open(&bad_manifest, DecodeLimits::default(), selection())
+    let error = DecodedSlibEnvelope::open(&bad_manifest, selection())
         .expect_err("corrupted manifest magic must fail");
     assert!(matches!(
         &error,
@@ -143,7 +140,7 @@ fn envelope_rejects_manifest_and_member_corruption() {
         .position(|window| window == payload)
         .unwrap();
     bad_member[offset] ^= 1;
-    let error = DecodedSlibEnvelope::open(&bad_member, DecodeLimits::default(), selection())
+    let error = DecodedSlibEnvelope::open(&bad_member, selection())
         .expect_err("corrupted member payload must fail");
     assert!(matches!(
         &error,

@@ -6,7 +6,7 @@ use super::{
 };
 use crate::concrete::ExecutableExpressionPosition;
 use scoop_identity::{ConeIdentity, NominalDeclarationOwner, ValidatedIdentityGraph};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 use std::collections::BTreeMap;
 
 use crate::CanonicalExternalHirReferencesV1;
@@ -35,7 +35,6 @@ impl CanonicalExternalHirReferencesV1 {
         current: ConeIdentity,
         identities: &ValidatedIdentityGraph,
         dependencies: &[ConeIdentity],
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
         let input = TypeSiteRelations {
             current,
@@ -45,7 +44,6 @@ impl CanonicalExternalHirReferencesV1 {
         let path = WirePath::root().field(10);
         let mut sites: BTreeMap<Position, Site<'_>> = BTreeMap::new();
         for reference in self.records() {
-            meter.charge_work(1, &path)?;
             if reference.type_sites().is_empty() {
                 continue;
             }
@@ -53,29 +51,16 @@ impl CanonicalExternalHirReferencesV1 {
                 return Err(Error::Target(reference.target()));
             };
             for source in reference.type_sites().records() {
-                meter.charge_work(1 + u64::from(sites.len().max(1).ilog2()), &path)?;
-                if !sites.contains_key(&source.position()) {
-                    meter.charge_owned_bytes(
-                        (std::mem::size_of::<(Position, Site<'_>)>() + 32) as u64,
-                        &path,
-                    )?;
-                    meter.charge_collection_slots(1, &path)?;
-                }
                 let site = sites.entry(source.position()).or_insert_with(|| Site {
                     source,
                     nominals: Vec::new(),
                 });
-                meter.charge_work(
-                    scoop_wire::encoded_length(source)
-                        .map_err(|_| Error::Encoding)?
-                        .saturating_mul(3),
-                    &path,
-                )?;
+
                 if site.source != source {
                     return Err(Error::ConflictingPosition(source.position()));
                 }
-                meter.charge_owned_bytes(std::mem::size_of::<Nominal>() as u64, &path)?;
-                meter.try_reserve_collection_slots(&mut site.nominals, 1, &path)?;
+
+                scoop_wire::allocation::try_reserve(&mut site.nominals, 1, &path)?;
                 site.nominals.push((reference.origin(), owner));
             }
         }
@@ -90,19 +75,14 @@ impl CanonicalExternalHirReferencesV1 {
                 return Err(Error::ConflictingPosition(*position));
             }
             last = site.source.as_expression();
-            let expected = input.type_site_nominals(site.source.exact(), meter)?;
-            let count = site.nominals.len() as u64;
-            meter.charge_work(
-                count.saturating_mul(3 + u64::from(count.max(1).ilog2())),
-                &path,
-            )?;
+            let expected = input.type_site_nominals(site.source.exact())?;
+
             site.nominals.sort_unstable();
             if site.nominals != expected {
                 return Err(Error::NominalClosure(*position));
             }
         }
         for reference in self.records() {
-            meter.charge_work(1, &path)?;
             for call in reference.call_sites().records() {
                 let (roles, exact): (&[_], _) = match call.reason() {
                     crate::HirDependencyCallReasonV1::SourceBinding(_) => {
@@ -118,19 +98,15 @@ impl CanonicalExternalHirReferencesV1 {
                 };
                 for role in roles {
                     let key = Position::Expression(call.position(), *role);
-                    meter.charge_work(1 + u64::from(sites.len().max(1).ilog2()), &path)?;
+
                     if let Some(site) = sites.get(&key) {
-                        meter.charge_work(
-                            scoop_wire::encoded_length(call).map_err(|_| Error::Encoding)?,
-                            &path,
-                        )?;
                         if site.source.exact() != exact
                             || site.source.as_expression().map(|source| source.origin())
                                 != Some(call.origin())
                         {
                             return Err(Error::CallResult(call.position()));
                         }
-                    } else if !input.type_site_nominals(exact, meter)?.is_empty() {
+                    } else if !input.type_site_nominals(exact)?.is_empty() {
                         return Err(Error::CallResult(call.position()));
                     }
                 }

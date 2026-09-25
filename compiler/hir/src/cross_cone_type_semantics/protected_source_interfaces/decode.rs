@@ -3,7 +3,7 @@ use crate::{DecodedExportDefinitionSourceV1, ProtectedCallableInterfaceResolver}
 use scoop_identity::{
     DecodedCallableTemplateOrigin, DecodedCanonicalIdentifier, DecodedSignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 mod calling;
 pub use calling::*;
@@ -20,28 +20,15 @@ impl DecodedProtectedSourceParameterV1 {
         self,
         resolver: &mut R,
         keys: &ProtectedDefaultKeyIndexV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedSourceParameterV1, ProtectedSourceResolutionError<E>> {
         use ProtectedSourceResolutionError as Error;
-        let path = WirePath::root();
-        let bytes = (self.name.byte_len() as u64)
-            .saturating_mul(2)
-            .saturating_add(
-                scoop_wire::encoded_length(&self.definition_origin).map_err(Error::Encoding)?,
-            );
-        meter
-            .charge_owned_bytes(bytes, &path)
-            .map_err(Error::Resource)?;
-        meter.charge_work(bytes, &path).map_err(Error::Resource)?;
-        self.value_type
-            .charge_resolution(meter)
-            .map_err(Error::Resource)?;
+
         let name = self.name.validate().map_err(Error::Name)?;
         let value_type = self
             .value_type
             .resolve(resolver)
             .map_err(Error::Foundation)?;
-        let calling = self.calling.resolve(resolver, keys, meter)?;
+        let calling = self.calling.resolve(resolver, keys)?;
         let origin = self
             .definition_origin
             .resolve(resolver)
@@ -52,7 +39,7 @@ impl DecodedProtectedSourceParameterV1 {
     }
 }
 impl WireDecode for DecodedProtectedSourceParameterV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             name: decoder.field(1, DecodedCanonicalIdentifier::decode)?,
@@ -86,22 +73,16 @@ impl DecodedProtectedCallableSourceInterfaceV1 {
         self,
         resolver: &mut R,
         keys: &ProtectedDefaultKeyIndexV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedCallableSourceInterfaceV1, ProtectedSourceResolutionError<E>> {
         use ProtectedSourceResolutionError as Error;
         let mut parameters = Vec::new();
         let path = WirePath::root();
-        meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-        meter
-            .charge_collection_slots(self.parameters.len() as u64, &path)
-            .map_err(Error::Resource)?;
-        meter
-            .try_reserve_collection_slots(&mut parameters, self.parameters.len(), &path)
+
+        scoop_wire::allocation::try_reserve(&mut parameters, self.parameters.len(), &path)
             .map_err(Error::Resource)?;
         let owner = self.owner.resolve(resolver).map_err(Error::Foundation)?;
         for parameter in self.parameters {
-            meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-            parameters.push(parameter.resolve(resolver, keys, meter)?);
+            parameters.push(parameter.resolve(resolver, keys)?);
         }
         ProtectedCallableSourceInterfaceV1::try_new(
             owner,
@@ -111,7 +92,7 @@ impl DecodedProtectedCallableSourceInterfaceV1 {
     }
 }
 impl WireDecode for DecodedProtectedCallableSourceInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,

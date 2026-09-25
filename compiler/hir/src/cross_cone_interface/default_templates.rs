@@ -9,7 +9,6 @@ mod declaration_contract;
 mod locals;
 mod receiver;
 mod references;
-mod resolution_resources;
 mod roots;
 mod table;
 mod template;
@@ -25,10 +24,7 @@ pub(crate) use body::{
     DefaultBodyValidationInputV1,
 };
 
-pub use binder_uses::MeteredDefaultTemplateTypeSubstitutionError;
-pub use binder_uses::copy_default_signature_type_metered;
-pub use receiver::MeteredTemplateReceiverSemanticValidationError;
-pub use value_parameters::MeteredTemplateValueParameterSemanticValidationError;
+pub use binder_uses::copy_default_signature_type;
 
 #[cfg(test)]
 pub(crate) use body::expression_test_support;
@@ -280,7 +276,7 @@ impl WireEncode for DecodedExportDefaultTemplateKeyV1 {
 }
 
 impl WireDecode for DecodedExportDefaultTemplateKeyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,

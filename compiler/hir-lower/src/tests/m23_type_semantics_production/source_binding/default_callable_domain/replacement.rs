@@ -68,7 +68,6 @@ pub(super) fn body(
         original.value_parameters().clone(),
         references,
         original.definition_origin().clone(),
-        &mut meter(),
     )
     .unwrap()
 }

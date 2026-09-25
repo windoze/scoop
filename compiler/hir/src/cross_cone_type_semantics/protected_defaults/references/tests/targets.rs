@@ -1,7 +1,7 @@
 use scoop_identity::{
     CallableTemplateOrigin, CallingConvention, Effect, NonEmptyVec, SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::support::*;
 use crate::{
@@ -44,7 +44,7 @@ fn borrowed_callable_comparisons_preserve_actual_to_declared_direction_and_kind(
         for right in &targets {
             assert_eq!(
                 DefaultCallableReferenceTargetViewV1::from(left)
-                    .compare_to(right, &mut meter(), &WirePath::root())
+                    .compare_to(right, &WirePath::root())
                     .unwrap(),
                 left.cmp(right)
             );
@@ -65,24 +65,7 @@ fn borrowed_callable_comparisons_preserve_actual_to_declared_direction_and_kind(
         vec![],
     )
     .unwrap();
-    assert_eq!(
-        decoded(&set)
-            .resolve(&mut f.resolver(), &mut meter())
-            .unwrap(),
-        set
-    );
-    assert!(
-        DefaultCallableReferenceTargetViewV1::from(set.callables()[0].target())
-            .compare_to(
-                set.callables()[1].target(),
-                &mut BudgetMeter::new(DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                }),
-                &WirePath::root()
-            )
-            .is_err()
-    );
+    assert_eq!(decoded(&set).resolve(&mut f.resolver()).unwrap(), set);
 }
 
 #[test]
@@ -122,7 +105,7 @@ fn constructor_and_field_views_preserve_projections_and_canonical_order() {
         for right in &constructors {
             assert_eq!(
                 DefaultConstructorReferenceTargetViewV1::from(left)
-                    .compare_to(right, &mut meter(), &WirePath::root())
+                    .compare_to(right, &WirePath::root())
                     .unwrap(),
                 left.cmp(right)
             );
@@ -132,7 +115,7 @@ fn constructor_and_field_views_preserve_projections_and_canonical_order() {
         for right in &fields {
             assert_eq!(
                 DefaultFieldReferenceTargetViewV1::from(left)
-                    .compare_to(right, &mut meter(), &WirePath::root())
+                    .compare_to(right, &WirePath::root())
                     .unwrap(),
                 left.cmp(right)
             );
@@ -141,7 +124,7 @@ fn constructor_and_field_views_preserve_projections_and_canonical_order() {
     let variant = DefaultEnumVariantRefV1::new(f.variant, f.value_type());
     assert!(
         DefaultConstructorReferenceTargetViewV1::Variant(&variant)
-            .compare_to(&constructors[2], &mut meter(), &WirePath::root())
+            .compare_to(&constructors[2], &WirePath::root())
             .unwrap()
             .is_eq()
     );
@@ -151,7 +134,7 @@ fn constructor_and_field_views_preserve_projections_and_canonical_order() {
             declaration: f.field,
             owner_type: &owner_type
         }
-        .compare_to(&fields[0], &mut meter(), &WirePath::root())
+        .compare_to(&fields[0], &WirePath::root())
         .unwrap()
         .is_eq()
     );
@@ -170,16 +153,11 @@ fn constructor_and_field_views_preserve_projections_and_canonical_order() {
             .collect(),
     )
     .unwrap();
-    assert_eq!(
-        decoded(&set)
-            .resolve(&mut f.resolver(), &mut meter())
-            .unwrap(),
-        set
-    );
+    assert_eq!(decoded(&set).resolve(&mut f.resolver()).unwrap(), set);
 }
 
 #[test]
-fn signature_target_comparison_reuses_full_structural_order_and_shared_budget() {
+fn signature_target_comparison_reuses_full_structural_order() {
     let f = Fixture::new();
     let types = vec![
         SignatureTypeKey::Nominal(f.type_id),
@@ -201,13 +179,8 @@ fn signature_target_comparison_reuses_full_structural_order_and_shared_budget() 
     for left in &types {
         for right in &types {
             assert_eq!(
-                compare_default_signature_reference_targets(
-                    left,
-                    right,
-                    &mut meter(),
-                    &WirePath::root()
-                )
-                .unwrap(),
+                compare_default_signature_reference_targets(left, right, &WirePath::root())
+                    .unwrap(),
                 left.cmp(right)
             );
         }
@@ -221,12 +194,7 @@ fn signature_target_comparison_reuses_full_structural_order_and_shared_budget() 
     let set =
         ProtectedDefaultReferenceSetV1::try_new(vec![], vec![], set.types, vec![], vec![], vec![])
             .unwrap();
-    assert_eq!(
-        decoded(&set)
-            .resolve(&mut f.resolver(), &mut meter())
-            .unwrap(),
-        set
-    );
+    assert_eq!(decoded(&set).resolve(&mut f.resolver()).unwrap(), set);
 }
 
 #[test]
@@ -240,7 +208,7 @@ fn local_function_target_rejects_constructor_owner_in_producer_and_reader() {
         },
     )];
     assert!(matches!(
-        decoded(&set).resolve(&mut f.resolver(), &mut meter()),
+        decoded(&set).resolve(&mut f.resolver()),
         Err(ProtectedDefaultReferenceSetResolutionError::Record {
             error: ProtectedDefaultReferenceResolutionError::Target(_),
             ..

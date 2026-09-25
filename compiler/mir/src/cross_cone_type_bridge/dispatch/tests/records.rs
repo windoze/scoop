@@ -99,20 +99,13 @@ impl Fixture {
             })
             .collect();
         itables.sort_by_key(MirInterfaceDispatchTableV1::interface);
-        ParamFreeMirDispatchSchemaV1::try_new(
-            self.authority(),
-            self.exact(owner),
-            vtable,
-            itables,
-            &mut meter(),
-        )
-        .unwrap()
+        ParamFreeMirDispatchSchemaV1::try_new(self.authority(), self.exact(owner), vtable, itables)
+            .unwrap()
     }
     pub fn table(&self) -> CanonicalMirDispatchSchemasV1 {
         CanonicalMirDispatchSchemasV1::try_new(
             self.authority(),
             (BASE..=VALUE).map(|owner| self.record(owner)).collect(),
-            &mut meter(),
         )
         .unwrap()
     }
@@ -120,7 +113,7 @@ impl Fixture {
         &self,
         record: &ParamFreeMirDispatchSchemaV1,
     ) -> Result<(), MirDispatchSchemaError> {
-        self.authority().validate_record(record, &mut meter())
+        self.authority().validate_record(record)
     }
 }
 
@@ -205,7 +198,7 @@ fn diamond_receiver_paths_choose_shortest_then_canonical_exact_sequence() {
     assert_eq!(
         fixture
             .authority()
-            .canonical_receiver_path(fixture.exact(DERIVED), fixture.exact(ROOT), &mut meter())
+            .canonical_receiver_path(fixture.exact(DERIVED), fixture.exact(ROOT))
             .unwrap(),
         vec![
             fixture.exact(DERIVED),
@@ -218,7 +211,7 @@ fn diamond_receiver_paths_choose_shortest_then_canonical_exact_sequence() {
     assert_eq!(
         fixture
             .authority()
-            .canonical_receiver_path(fixture.exact(DERIVED), fixture.exact(ROOT), &mut meter())
+            .canonical_receiver_path(fixture.exact(DERIVED), fixture.exact(ROOT))
             .unwrap(),
         vec![fixture.exact(DERIVED), fixture.exact(ROOT)]
     );

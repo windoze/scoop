@@ -10,9 +10,9 @@ use scoop_lir::{
     StrongRegistrationProductionSurfaceV1, StrongTypeReferenceDefinitionsV2,
     ValidatedStrongProductionSectionV2,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
-use super::super::fixture::{Provider, TARGET, exports, meter};
+use super::super::fixture::{Provider, TARGET, exports};
 use super::super::*;
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::{
@@ -105,17 +105,14 @@ pub(super) fn artifact<'a>(
     section: &'a CrossConeLayoutAbiSectionV1<'a>,
     owners: &'a CanonicalDefinedLinkSymbolOwnerSetV1,
 ) -> CrossConeLayoutTerminalArtifactV1<'a> {
-    CrossConeLayoutTerminalArtifactV1::try_new(
-        CrossConeLayoutTerminalArtifactPartsV1 {
-            foundation: &provider.foundation,
-            production: ShapeLinkProductionV1::Reader(production),
-            ordinary: &provider.ordinary,
-            section,
-            support: &NoShapeLinkSupportV1,
-            defined_symbols: owners,
-        },
-        &mut meter(),
-    )
+    CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
+        foundation: &provider.foundation,
+        production: ShapeLinkProductionV1::Reader(production),
+        ordinary: &provider.ordinary,
+        section,
+        support: &NoShapeLinkSupportV1,
+        defined_symbols: owners,
+    })
     .unwrap()
 }
 
@@ -123,17 +120,14 @@ pub(super) fn consumer_artifact<'a>(
     consumer: &'a Consumer<'a>,
     owners: &'a CanonicalDefinedLinkSymbolOwnerSetV1,
 ) -> CrossConeLayoutTerminalArtifactV1<'a> {
-    CrossConeLayoutTerminalArtifactV1::try_new(
-        CrossConeLayoutTerminalArtifactPartsV1 {
-            foundation: &consumer.foundation,
-            production: ShapeLinkProductionV1::Reader(&consumer.production),
-            ordinary: &consumer.ordinary,
-            section: &consumer.section,
-            support: &NoShapeLinkSupportV1,
-            defined_symbols: owners,
-        },
-        &mut meter(),
-    )
+    CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
+        foundation: &consumer.foundation,
+        production: ShapeLinkProductionV1::Reader(&consumer.production),
+        ordinary: &consumer.ordinary,
+        section: &consumer.section,
+        support: &NoShapeLinkSupportV1,
+        defined_symbols: owners,
+    })
     .unwrap()
 }
 
@@ -167,8 +161,7 @@ fn replay(
     section: &CrossConeLayoutAbiSectionV1<'_>,
 ) -> ValidatedStrongProductionSectionV2 {
     let producer = foundation.producer();
-    let raw: DecodedStrongProductionSectionV2 =
-        decode_canonical(&encode(old).unwrap(), DecodeLimits::default()).unwrap();
+    let raw: DecodedStrongProductionSectionV2 = decode_canonical(&encode(old).unwrap()).unwrap();
     raw.replay(
         coordinate,
         old.image_plan().dependencies(),
@@ -178,12 +171,11 @@ fn replay(
         EntryProductionSourceV1::Library,
         &[],
         old.initialization_cycle_abi().cloned().map(Box::new),
-        &StrongTypeReferenceDefinitionsV2::new(producer, &[], &mut meter()).unwrap(),
-        &StrongInitializationDefinitionCatalogV2::new(producer, &[], &mut meter()).unwrap(),
-        &mut meter(),
+        &StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
+        &StrongInitializationDefinitionCatalogV2::new(producer, &[]).unwrap(),
     )
     .unwrap()
-    .validate_layout_abi(section, &mut meter())
+    .validate_layout_abi(section)
     .unwrap()
 }
 
@@ -193,7 +185,6 @@ pub(super) fn changed_layout_section(provider: &Provider) -> CrossConeLayoutAbiS
         record.identity().clone(),
         ScalarRepresentationKindV1::Integer(scoop_lir::IntegerKind::SIGNED_8),
         &provider.foundation,
-        &mut meter(),
     )
     .unwrap();
     let exports = exports(&provider.foundation, vec![value.into()]);
@@ -206,7 +197,6 @@ pub(super) fn changed_layout_section(provider: &Provider) -> CrossConeLayoutAbiS
         fn validate_local_exports(
             &self,
             exports: &LayoutAbiExportConstituentsV1,
-            _: &mut scoop_wire::BudgetMeter,
         ) -> Result<(), ()> {
             (&self.0 == exports).then_some(()).ok_or(())
         }
@@ -216,19 +206,11 @@ pub(super) fn changed_layout_section(provider: &Provider) -> CrossConeLayoutAbiS
         fn validate_physical_imports(
             &self,
             imports: &[ExternalShapeLinkImportV1<'_>],
-            _: &mut scoop_wire::BudgetMeter,
         ) -> Result<(), ()> {
             imports.is_empty().then_some(()).ok_or(())
         }
     }
-    CrossConeLayoutAbiSectionV1::try_new(
-        exports.clone(),
-        &[],
-        vec![],
-        &Source(exports),
-        &mut meter(),
-    )
-    .unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports.clone(), &[], vec![], &Source(exports)).unwrap()
 }
 
 pub(super) fn owner_set_for_callable(

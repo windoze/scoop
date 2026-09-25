@@ -7,10 +7,6 @@ const FIXTURE: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-source-only-nominals/shape-demand.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn shape_demands_select_the_actual_exporter_in_aggregated_source_graphs() {
     let internal = file(vec![struct_decl("InternalShape", Vec::new())]);
@@ -61,14 +57,11 @@ fn source_only_shape_demands_replay_shared_declarations_before_and_after_concret
                 &foundation,
                 public.nominal_interfaces(),
                 public.callable_interfaces(),
-                &mut meter(),
             )
             .unwrap();
-            let projected = hir::PublicNominalShapeRequirementsV1::from_export_hir(
-                hir.export.module(),
-                &mut meter(),
-            )
-            .unwrap();
+            let projected =
+                hir::PublicNominalShapeRequirementsV1::from_export_hir(hir.export.module())
+                    .unwrap();
             assert_eq!(projected, decoded);
             assert_eq!(
                 projected
@@ -112,31 +105,6 @@ fn source_only_shape_demands_replay_shared_declarations_before_and_after_concret
 }
 
 #[test]
-fn source_only_shape_demands_preserve_the_callers_cumulative_budget() {
-    with_hir_source(FIXTURE, |output, _| {
-        let public = public_interface(output);
-        let compute = |meter: &mut BudgetMeter| {
-            hir::NominalMaterializationClosure::from_declarations(
-                public.nominal_interfaces(),
-                public.callable_interfaces(),
-                meter,
-            )
-        };
-        let mut baseline = meter();
-        compute(&mut baseline).unwrap();
-        let mut shared = BudgetMeter::new(DecodeLimits {
-            validation_work_units: baseline.usage().validation_work_units,
-            ..DecodeLimits::default()
-        });
-        compute(&mut shared).unwrap();
-        assert!(matches!(
-            compute(&mut shared),
-            Err(hir::NominalMaterializationClosureError::Resource(_))
-        ));
-    });
-}
-
-#[test]
 fn source_only_shape_demands_reject_missing_public_declarations() {
     with_hir_source(FIXTURE, |output, _| {
         let hir = output.output();
@@ -156,7 +124,6 @@ fn source_only_shape_demands_reject_missing_public_declarations() {
                 &foundation,
                 &hir::CanonicalNominalInterfacesV1::try_new(Vec::new()).unwrap(),
                 public.callable_interfaces(),
-                &mut meter(),
             ),
             Err(hir::PublicNominalShapeProjectionError::Materialization(
                 hir::NominalMaterializationClosureError::MissingNominal(_)

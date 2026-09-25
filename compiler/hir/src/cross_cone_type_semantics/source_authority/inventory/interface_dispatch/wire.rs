@@ -57,7 +57,7 @@ encode_record!(InterfaceSourceDispatchV1);
 encode_record!(DecodedInterfaceSourceDispatchV1);
 
 impl WireDecode for DecodedInterfaceSourceMemberV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             slot: decoder.field(1, DecodedPersistentId::decode)?,
@@ -66,7 +66,7 @@ impl WireDecode for DecodedInterfaceSourceMemberV1 {
     }
 }
 impl WireDecode for DecodedInterfaceSourceDispatchV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
@@ -78,7 +78,7 @@ impl WireDecode for DecodedInterfaceSourceDispatchV1 {
     }
 }
 impl WireDecode for DecodedCanonicalInterfaceSourceDispatchesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedInterfaceSourceDispatchV1::decode(d))
             .map(|records| Self { records })

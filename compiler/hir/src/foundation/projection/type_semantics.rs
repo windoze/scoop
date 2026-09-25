@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::ExactTypeKey;
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 mod default_sources;
 
@@ -12,18 +12,7 @@ impl CanonicalHirFoundation {
     pub fn from_type_semantics_output(
         output: &crate::DependencyHirOutput,
     ) -> Result<Self, HirFoundationBuildError> {
-        Self::from_type_semantics_output_with_budget(
-            output,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-    }
-
-    /// Shares the source-default projection and occurrence budget with the caller.
-    pub fn from_type_semantics_output_with_budget(
-        output: &crate::DependencyHirOutput,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, HirFoundationBuildError> {
-        let mut foundation = Self::from_dependency_output_with_budget(output, meter)?;
+        let mut foundation = Self::from_dependency_output(output)?;
         let mut exacts = foundation
             .exact_types
             .iter()
@@ -50,7 +39,7 @@ impl CanonicalHirFoundation {
                     .map_err(HirFoundationBuildError::SourceParameterOrigin)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        default_sources::collect(output, &mut parameters, meter)?;
+        default_sources::collect(output, &mut parameters)?;
         foundation.set_sources(source_records(
             &export.source_files,
             &foundation.definition_origins,

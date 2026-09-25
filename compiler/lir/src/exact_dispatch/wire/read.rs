@@ -3,7 +3,7 @@ use scoop_identity::{
     DecodedStrongCallableDefinitionOwner, GcEffect, PersistentDispatchSlotId,
     PersistentDispatchTableId, PersistentExactTypeId,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath, encode_canonical_temporary_with_meter};
+use scoop_wire::{WireError, WirePath, encode_canonical_temporary};
 
 use super::*;
 use crate::{DecodedStrongTypeDispatchCallableRefV2, production::DecodedStrongShapeDefinitionV1};
@@ -78,13 +78,9 @@ impl DecodedExactDispatchExportV1 {
     pub fn validate_against(
         self,
         expected: &ExactDispatchExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ExactDispatchExportV1, ExactDispatchWireError> {
-        self.semantic.validate_against(expected, meter)?;
-        if !self
-            .definition
-            .matches_definition(expected.definition(), meter)?
-        {
+        self.semantic.validate_against(expected)?;
+        if !self.definition.matches_definition(expected.definition())? {
             return Err(ExactDispatchWireError::Mismatch);
         }
         Ok(expected.clone())
@@ -95,17 +91,12 @@ impl DecodedExactDispatchSemanticProjectionV1 {
     pub fn validate_against(
         self,
         expected: &ExactDispatchExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactDispatchWireError> {
         let path = WirePath::root();
-        meter.charge_work(self.entries.len() as u64, &path)?;
-        for entry in &self.entries {
-            meter.charge_work(entry.slot_signature.exact.parameter_count() as u64, &path)?;
-        }
-        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
-        let wanted =
-            encode_canonical_temporary_with_meter(&expected.semantic_projection(), meter, &path)?;
-        meter.charge_work(actual.len() as u64, &path)?;
+
+        let actual = encode_canonical_temporary(&self, &path)?;
+        let wanted = encode_canonical_temporary(&expected.semantic_projection(), &path)?;
+
         if actual != wanted {
             return Err(ExactDispatchWireError::Mismatch);
         }
@@ -117,9 +108,7 @@ impl DecodedCanonicalExactDispatchExportsV1 {
     pub fn validate_against(
         self,
         expected: &CanonicalExactDispatchExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalExactDispatchExportsV1, ExactDispatchTableError> {
-        meter.charge_work(self.records.len() as u64, &WirePath::root())?;
         if self.records.len() != expected.records().len() {
             return Err(ExactDispatchTableError::Count {
                 expected: expected.records().len(),
@@ -130,7 +119,7 @@ impl DecodedCanonicalExactDispatchExportsV1 {
             self.records.into_iter().zip(expected.records()).enumerate()
         {
             record
-                .validate_against(expected, meter)
+                .validate_against(expected)
                 .map_err(|source| ExactDispatchTableError::Record { index, source })?;
         }
         Ok(expected.clone())

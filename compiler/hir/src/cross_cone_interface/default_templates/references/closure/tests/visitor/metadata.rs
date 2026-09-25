@@ -72,7 +72,7 @@ impl<'body> Visitor<'body> for RejectMetadata {
         &mut self,
         _: u32,
         _: &DefaultExpressionV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -80,7 +80,7 @@ impl<'body> Visitor<'body> for RejectMetadata {
     fn reference(
         &mut self,
         occurrence: Occurrence<'body>,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         if matches!(occurrence.attachment, Attachment::Metadata(_)) {
@@ -104,7 +104,6 @@ fn metadata_only_target_validation_is_not_short_circuited_by_absent_expression_u
             &local_records(&fixture),
             &fixture.origin(),
             &mut RejectMetadata,
-            &mut BudgetMeter::new(DecodeLimits::default()),
             &WirePath::root(),
         )
         .unwrap_err();

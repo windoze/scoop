@@ -16,42 +16,36 @@ fn source_object_inherits_protected_access_through_its_checked_backing_class_rel
     let constructor_checked = source
         .validate_for_declaration(&constructor, &mut fixture)
         .unwrap();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture).unwrap();
     let relation = graph.object_backing_relation(object.exact).unwrap();
     assert_eq!(relation.source_object(), object.exact);
     assert_ne!(relation.backing_class(), object.exact);
-    let target = graph
-        .protected_declaration_domain(&checked, &mut meter())
-        .unwrap();
-    let implicit = target.implicit_this(object.source, &mut meter()).unwrap();
+    let target = graph.protected_declaration_domain(&checked).unwrap();
+    let implicit = target.implicit_this(object.source).unwrap();
     assert_eq!(implicit.authorization().access_subject(), object.exact);
     assert_eq!(
         implicit.authorization().access_class(),
         relation.backing_class()
     );
     let explicit = target
-        .explicit_receiver(object.source, object.exact, &mut meter())
+        .explicit_receiver(object.source, object.exact)
         .unwrap();
     assert_eq!(explicit.authorization(), implicit.authorization());
     assert!(matches!(
-        target.explicit_receiver(object.source, base.exact, &mut meter()),
+        target.explicit_receiver(object.source, base.exact),
         Err(AccessDomainSemanticError::ProtectedReceiver)
     ));
     assert!(
         target
-            .explicit_receiver(object.source, relation.backing_class(), &mut meter())
+            .explicit_receiver(object.source, relation.backing_class())
             .is_err()
     );
     assert!(
         graph
-            .protected_declaration_domain(&constructor_checked, &mut meter())
+            .protected_declaration_domain(&constructor_checked)
             .unwrap()
-            .constructor_delegation(object.source, &mut meter())
+            .constructor_delegation(object.source)
             .is_ok()
     );
 }

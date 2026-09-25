@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentExactTypeId, PersistentGeneratedCallableId, StrongCallableDefinitionOwner,
 };
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod abstract_targets;
@@ -24,27 +24,25 @@ pub fn validate_shared_mir_dispatch(
     callables: &mir::CanonicalMirCallableBindingsV1,
     dependency_callables: &[&mir::CanonicalMirCallableBindingsV1],
     dispatch: &mir::CanonicalMirDispatchSchemasV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let mut tables = Vec::new();
-    meter.try_reserve_collection_slots(
+    scoop_wire::allocation::try_reserve(
         &mut tables,
         dependency_callables.len() + 1,
         &WirePath::root(),
     )?;
     tables.push(callables);
     tables.extend_from_slice(dependency_callables);
-    let index = mir::MirTypeBridgeCallableIndexV1::try_new(&tables, meter)?;
-    source.with_inheritance_graph(dependencies, meter, |graph, meter| {
+    let index = mir::MirTypeBridgeCallableIndexV1::try_new(&tables)?;
+    source.with_inheritance_graph(dependencies, |graph| {
         let mut replay = Replay {
             graph,
             callables: &index,
-            abstract_targets: abstract_targets::collect(source, dependencies, meter)?,
+            abstract_targets: abstract_targets::collect(source, dependencies)?,
             adjustments: BTreeSet::new(),
         };
-        inventory::validate(source, dispatch, &mut replay, meter)?;
+        inventory::validate(source, dispatch, &mut replay)?;
         for binding in callables.entries() {
-            meter.charge_work(1, &WirePath::root())?;
             if let mir::MirCallableOriginV1::Generated {
                 callable,
                 role:
@@ -52,7 +50,6 @@ pub fn validate_shared_mir_dispatch(
                     | GeneratedCallableKey::DispatchAdjust { .. },
             } = binding.origin()
             {
-                lookup(replay.adjustments.len(), meter)?;
                 if !replay.adjustments.contains(callable) {
                     return Err(Error::UnexpectedAdjustment(*callable));
                 }
@@ -94,19 +91,8 @@ fn declaration(owner: hir::InheritanceCallableDeclarationV1) -> DispatchDeclarat
     }
 }
 
-fn lookup(count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    Ok(meter.charge_work(u64::from(count.max(1).ilog2()) + 1, &WirePath::root())?)
-}
-
-fn insert<T: Ord>(
-    values: &mut BTreeSet<T>,
-    value: T,
-    meter: &mut BudgetMeter,
-) -> Result<(), Error> {
-    lookup(values.len(), meter)?;
+fn insert<T: Ord>(values: &mut BTreeSet<T>, value: T) -> Result<(), Error> {
     if !values.contains(&value) {
-        meter.check_table_entries(values.len() as u64 + 1, &WirePath::root())?;
-        meter.charge_collection_slots(1, &WirePath::root())?;
         values.insert(value);
     }
     Ok(())

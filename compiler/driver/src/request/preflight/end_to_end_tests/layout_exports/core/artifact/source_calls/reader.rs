@@ -6,14 +6,10 @@ pub(super) fn open<'a>(
     payload: &'a [u8],
     link: bool,
 ) -> slib::HirProductionValidatedCrossConeLayoutClosure<'a> {
-    let open = DecodedSlibEnvelope::open(
-        payload,
-        DecodeLimits::default(),
-        artifact.target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap();
+    let open = DecodedSlibEnvelope::open(payload, artifact.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap();
     let (provider, consumer) = if link {
         (
             super::super::lir_dependencies::reader::open_link(provider_artifact)

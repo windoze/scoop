@@ -1,21 +1,17 @@
 use std::fmt;
 
-use scoop_wire::{
-    BudgetMeter, DecodeLimits, DecodeUsage, Decoder, WireError, WireErrorKind,
-    decode_canonical_with_meter, encode, encoded_length,
-};
+use scoop_wire::{Decoder, WireError, WireErrorKind, decode_canonical, encode};
 
 use crate::request::DecodedScoopcRequestEnvelopeV1;
 use crate::response::DecodedScoopcResponseEnvelopeV1;
 use crate::{ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1};
 
-pub const PROTOCOL_MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 const FRAME_LENGTH_BYTES: usize = 8;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProtocolFrameError {
     MissingLength,
-    PayloadTooLarge { actual: u64 },
+
     LengthOutOfRange(u64),
     LengthMismatch { declared: u64, actual: usize },
     Allocation,
@@ -27,10 +23,7 @@ impl fmt::Display for ProtocolFrameError {
             Self::MissingLength => {
                 formatter.write_str("protocol frame is shorter than its 8-byte length prefix")
             }
-            Self::PayloadTooLarge { actual } => write!(
-                formatter,
-                "protocol payload exceeds the 16777216-byte limit: found {actual}"
-            ),
+
             Self::LengthOutOfRange(length) => {
                 write!(
                     formatter,
@@ -112,49 +105,29 @@ pub fn encode_response_frame(
 }
 
 pub fn decode_request_frame(frame: &[u8]) -> Result<ScoopcRequestEnvelopeV1, ProtocolReadError> {
-    decode_request_frame_with_usage(frame).map(|(request, _)| request)
-}
-
-pub fn decode_request_frame_with_usage(
-    frame: &[u8],
-) -> Result<(ScoopcRequestEnvelopeV1, DecodeUsage), ProtocolReadError> {
     let payload = decode_frame_payload(frame).map_err(ProtocolReadError::Frame)?;
-    let mut meter = BudgetMeter::new(protocol_decode_limits());
-    let decoded =
-        decode_canonical_with_meter::<DecodedScoopcRequestEnvelopeV1>(payload, &mut meter)
-            .map_err(ProtocolReadError::Wire)?;
+
+    let decoded = decode_canonical::<DecodedScoopcRequestEnvelopeV1>(payload)
+        .map_err(ProtocolReadError::Wire)?;
     let request = decoded.validate().map_err(ProtocolReadError::Validation)?;
-    Ok((request, meter.usage()))
+    Ok(request)
 }
 
 pub fn decode_response_frame(frame: &[u8]) -> Result<ScoopcResponseEnvelopeV1, ProtocolReadError> {
-    decode_response_frame_with_usage(frame).map(|(response, _)| response)
-}
-
-pub fn decode_response_frame_with_usage(
-    frame: &[u8],
-) -> Result<(ScoopcResponseEnvelopeV1, DecodeUsage), ProtocolReadError> {
     let payload = decode_frame_payload(frame).map_err(ProtocolReadError::Frame)?;
-    let mut meter = BudgetMeter::new(protocol_decode_limits());
-    let decoded =
-        decode_canonical_with_meter::<DecodedScoopcResponseEnvelopeV1>(payload, &mut meter)
-            .map_err(ProtocolReadError::Wire)?;
+
+    let decoded = decode_canonical::<DecodedScoopcResponseEnvelopeV1>(payload)
+        .map_err(ProtocolReadError::Wire)?;
     let response = decoded.validate().map_err(ProtocolReadError::Validation)?;
-    Ok((response, meter.usage()))
+    Ok(response)
 }
 
 pub(crate) fn encode_frame(
     value: &impl scoop_wire::WireEncode,
 ) -> Result<Vec<u8>, ProtocolWriteError> {
-    let payload_length = encoded_length(value).map_err(ProtocolWriteError::Wire)?;
-    if payload_length > u64::try_from(PROTOCOL_MAX_FRAME_BYTES).unwrap_or(u64::MAX) {
-        return Err(ProtocolWriteError::Frame(
-            ProtocolFrameError::PayloadTooLarge {
-                actual: payload_length,
-            },
-        ));
-    }
     let payload = encode(value).map_err(ProtocolWriteError::Wire)?;
+    let payload_length = u64::try_from(payload.len())
+        .map_err(|_| ProtocolWriteError::Frame(ProtocolFrameError::Allocation))?;
     let frame_length = FRAME_LENGTH_BYTES
         .checked_add(payload.len())
         .ok_or(ProtocolWriteError::Frame(ProtocolFrameError::Allocation))?;
@@ -174,9 +147,7 @@ pub(crate) fn decode_frame_payload(frame: &[u8]) -> Result<&[u8], ProtocolFrameE
     let mut length_array = [0_u8; FRAME_LENGTH_BYTES];
     length_array.copy_from_slice(length_bytes);
     let declared = u64::from_le_bytes(length_array);
-    if declared > u64::try_from(PROTOCOL_MAX_FRAME_BYTES).unwrap_or(u64::MAX) {
-        return Err(ProtocolFrameError::PayloadTooLarge { actual: declared });
-    }
+
     let declared_usize =
         usize::try_from(declared).map_err(|_| ProtocolFrameError::LengthOutOfRange(declared))?;
     let actual = frame.len() - FRAME_LENGTH_BYTES;
@@ -186,22 +157,8 @@ pub(crate) fn decode_frame_payload(frame: &[u8]) -> Result<&[u8], ProtocolFrameE
     Ok(&frame[FRAME_LENGTH_BYTES..])
 }
 
-fn protocol_decode_limits() -> DecodeLimits {
-    DecodeLimits {
-        cbor_nesting: 32,
-        semantic_table_entries: 8_192,
-        semantic_leaf_bytes: 1_048_576,
-        semantic_recursion: 32,
-        logical_heap_bytes: 67_108_864,
-        decoded_nodes: 1_048_576,
-        decoded_edges: 0,
-        owned_bytes: 67_108_864,
-        validation_work_units: 2_097_152,
-    }
-}
-
 pub(crate) fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     actual: u64,
     expected: u64,
 ) -> Result<(), WireError> {
@@ -215,7 +172,7 @@ pub(crate) fn expect_sum_length(
     ))
 }
 
-pub(crate) fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+pub(crate) fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),
@@ -326,14 +283,11 @@ mod tests {
     }
 
     #[test]
-    fn metered_frame_decode_reports_each_canonical_document() {
+    fn frame_decode_preserves_each_canonical_document() {
         let request = request();
         let request_frame = encode_request_frame(&request).unwrap();
-        let (decoded_request, request_usage) =
-            decode_request_frame_with_usage(&request_frame).unwrap();
+        let decoded_request = decode_request_frame(&request_frame).unwrap();
         assert_eq!(decoded_request, request);
-        assert!(request_usage.decoded_nodes > 0);
-        assert!(request_usage.validation_work_units > 0);
 
         let response = ScoopcResponseEnvelopeV1::failure(
             RequestCorrelationId::from_array([7; 16]),
@@ -341,15 +295,12 @@ mod tests {
         )
         .unwrap();
         let response_frame = encode_response_frame(&response).unwrap();
-        let (decoded_response, response_usage) =
-            decode_response_frame_with_usage(&response_frame).unwrap();
+        let decoded_response = decode_response_frame(&response_frame).unwrap();
         assert_eq!(decoded_response, response);
-        assert!(response_usage.decoded_nodes > 0);
-        assert!(response_usage.validation_work_units > 0);
     }
 
     #[test]
-    fn framing_rejects_truncation_trailing_bytes_and_oversize() {
+    fn framing_rejects_truncation_trailing_bytes_and_false_lengths() {
         let frame = encode_request_frame(&request()).unwrap();
         let mut truncated = frame.clone();
         truncated.pop();
@@ -369,11 +320,11 @@ mod tests {
             ))
         ));
 
-        let oversized = (PROTOCOL_MAX_FRAME_BYTES as u64 + 1).to_le_bytes();
+        let false_length = u64::MAX.to_le_bytes();
         assert!(matches!(
-            decode_request_frame(&oversized),
+            decode_request_frame(&false_length),
             Err(ProtocolReadError::Frame(
-                ProtocolFrameError::PayloadTooLarge { .. }
+                ProtocolFrameError::LengthMismatch { .. } | ProtocolFrameError::LengthOutOfRange(_)
             ))
         ));
     }

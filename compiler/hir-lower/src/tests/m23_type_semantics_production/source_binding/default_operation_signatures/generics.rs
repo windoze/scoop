@@ -7,7 +7,7 @@ fn member_operation_signatures_substitute_owner_and_own_binders_once() {
         let [reference]: [hir::DefaultCallableRefV1; 1] = callables(&template).try_into().unwrap();
         let shape = bound
             .members()
-            .default_member_callable_shape(&reference, &mut meter(), &WirePath::root())
+            .default_member_callable_shape(&reference, &WirePath::root())
             .unwrap();
         assert_eq!(shape.result(), template.result());
         assert_eq!(shape.parameters(), reference.type_arguments());
@@ -32,7 +32,7 @@ fn member_operation_signatures_substitute_owner_and_own_binders_once() {
         .unwrap();
         let shape = bound
             .members()
-            .default_member_callable_shape(&remapped, &mut meter(), &WirePath::root())
+            .default_member_callable_shape(&remapped, &WirePath::root())
             .unwrap();
         assert_eq!(
             shape.result(),
@@ -53,7 +53,7 @@ fn owner_only_generic_and_static_nested_signatures_preserve_their_source_frames(
             assert!(reference.type_arguments().is_empty());
             let shape = bound
                 .members()
-                .default_member_callable_shape(&reference, &mut meter(), &WirePath::root())
+                .default_member_callable_shape(&reference, &WirePath::root())
                 .unwrap();
             assert_eq!(shape.result(), template.result());
             assert_eq!(shape.parameters(), std::slice::from_ref(template.result()));
@@ -68,7 +68,7 @@ fn owner_only_generic_and_static_nested_signatures_preserve_their_source_frames(
             owner_type,
             parameters,
         } = bound
-            .default_constructor_operation_shape(&reference, &mut meter(), &WirePath::root())
+            .default_constructor_operation_shape(&reference, &WirePath::root())
             .unwrap()
         else {
             panic!("constructor shape");

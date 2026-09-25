@@ -7,10 +7,9 @@ pub(crate) fn replay_parts(
     registration: StrongShapeRegistrationV1<PersistentExactTypeId>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
     foundation: &OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<ExactDescriptorExportV1, ExactDescriptorError> {
     let path = WirePath::root();
-    meter.charge_work(1, &path)?;
+
     if layouts.provider() != foundation.producer() {
         return Err(ExactDescriptorError::Provider);
     }
@@ -18,7 +17,7 @@ pub(crate) fn replay_parts(
         return Err(ExactDescriptorError::Target);
     }
     let exact = semantic.exact_type();
-    meter.charge_work((layouts.records().len() as u64).saturating_mul(2), &path)?;
+
     let value_record = layouts
         .find_exact_role(exact, RepresentationRole::ManagedValue)
         .ok_or(ExactDescriptorError::MissingValueLayout(exact))?;
@@ -49,8 +48,7 @@ pub(crate) fn replay_parts(
 
     let mut tables = BTreeSet::new();
     let mut interfaces = BTreeSet::new();
-    let itable_count = semantic.itables().len() as u64;
-    meter.charge_work(itable_count, &path)?;
+
     if semantic
         .itables()
         .windows(2)
@@ -58,27 +56,14 @@ pub(crate) fn replay_parts(
     {
         return Err(ExactDescriptorError::NonCanonicalInterfaces(exact));
     }
-    let auxiliary_slots = itable_count
-        .checked_mul(2)
-        .and_then(|count| count.checked_add(1))
-        .ok_or(ExactDescriptorError::CountOverflow)?;
-    let comparison_work = itable_count
-        .checked_mul(u64::from(itable_count.max(1).ilog2()) + 1)
-        .and_then(|count| count.checked_mul(2))
-        .ok_or(ExactDescriptorError::CountOverflow)?;
-    meter.charge_collection_slots(auxiliary_slots, &path)?;
-    meter.charge_work(comparison_work, &path)?;
+
     let vtable = semantic.vtable().table();
-    validate_dispatch_key(foundation, vtable, exact, None, meter)?;
+    validate_dispatch_key(foundation, vtable, exact, None)?;
     tables.insert(vtable);
     let mut ancestry_interfaces = Vec::new();
     let mut itables = Vec::new();
-    meter.try_reserve_collection_slots(
-        &mut ancestry_interfaces,
-        semantic.itables().len(),
-        &path,
-    )?;
-    meter.try_reserve_collection_slots(&mut itables, semantic.itables().len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut ancestry_interfaces, semantic.itables().len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut itables, semantic.itables().len(), &path)?;
     for itable in semantic.itables() {
         let interface = itable.interface();
         if !interfaces.insert(interface.exact_type()) {
@@ -94,7 +79,6 @@ pub(crate) fn replay_parts(
             itable.table(),
             exact,
             Some(interface.exact_type()),
-            meter,
         )?;
         ancestry_interfaces.push(interface);
         itables.push(ExactDescriptorItableV1 {
@@ -104,21 +88,19 @@ pub(crate) fn replay_parts(
     }
 
     let diagnostic_name =
-        CanonicalExactTypeDiagnosticName::from_validated_graph_metered(exact, diagnostics, meter)?;
+        CanonicalExactTypeDiagnosticName::from_validated_graph(exact, diagnostics)?;
     if diagnostic_name.as_str() != semantic.diagnostic_name() {
         return Err(ExactDescriptorError::DiagnosticName(exact));
     }
     let physical = StrongShapeDefinitionRefV1::from_foundation(
         ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
         foundation,
-        meter,
     )?;
     let definition =
         StrongShapeDefinitionV1::from_artifact(exact, physical.definition(), physical.symbol());
     let registration_physical = StrongShapeDefinitionRefV1::from_foundation(
         ExternalStrongShapeSubjectV1::TypeRegistration(exact),
         foundation,
-        meter,
     )?;
     if registration.semantic_id() != exact {
         return Err(ExactDescriptorError::RegistrationExact(exact));
@@ -136,8 +118,7 @@ pub(crate) fn replay_parts(
     if registration.fingerprint_node() != expected_fingerprint {
         return Err(ExactDescriptorError::RegistrationFingerprint(exact));
     }
-    crate::exact_descriptor::resources::shape(semantic.instance_shape(), meter)?;
-    crate::exact_descriptor::resources::scan(semantic.instance_shape().object_scan(), meter, 1)?;
+
     Ok(ExactDescriptorExportV1::from_parts(DescriptorBodyPartsV1 {
         exact: value_layout.identity().exact_record().clone(),
         value_layout,
@@ -161,9 +142,7 @@ fn validate_dispatch_key(
     table: PersistentDispatchTableId,
     owner: PersistentExactTypeId,
     interface: Option<PersistentExactTypeId>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExactDescriptorError> {
-    meter.charge_work(foundation.dispatch_tables().len() as u64, &WirePath::root())?;
     let expected = match interface {
         None => scoop_identity::DispatchTableKey::vtable(owner),
         Some(interface) => scoop_identity::DispatchTableKey::itable(owner, interface),

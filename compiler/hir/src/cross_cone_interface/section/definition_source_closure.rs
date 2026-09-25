@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::CrossConeHirInterfaceSectionV1;
 use crate::{
@@ -13,14 +13,11 @@ impl CrossConeHirInterfaceSectionV1 {
     /// inline definition source in fields 1 through 8.
     pub fn validate_definition_source_closure(
         &self,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefinitionSourceClosureValidationError> {
-        let mut validator = DefinitionSourceClosureValidator::new(
-            self.definition_sources().sources(),
-            meter,
-            path,
-        )?;
+        let mut validator =
+            DefinitionSourceClosureValidator::new(self.definition_sources().sources(), path)?;
 
         for (alias_index, alias) in self.type_aliases().records().iter().enumerate() {
             validator.observe(
@@ -65,7 +62,7 @@ impl CrossConeHirInterfaceSectionV1 {
             template
                 .body()
                 .visit_definition_sources(
-                    &mut |source, site| {
+                    &mut |source, site, _| {
                         validator.observe(
                             source,
                             ExportDefinitionSourceUseSiteV1::DefaultTemplateBody {
@@ -73,8 +70,8 @@ impl CrossConeHirInterfaceSectionV1 {
                                 site,
                             },
                         );
+                        Ok(())
                     },
-                    meter,
                     &path.clone().field(7).index(wire_index).field(5),
                 )
                 .map_err(ExportDefinitionSourceClosureValidationError::Resource)?;
@@ -156,12 +153,11 @@ struct DefinitionSourceClosureValidator<'a> {
 impl<'a> DefinitionSourceClosureValidator<'a> {
     fn new(
         declared: &'a [ExportDefinitionSourceV1],
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, ExportDefinitionSourceClosureValidationError> {
         let mut seen = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut seen, declared.len(), &path.clone().field(9))
+        scoop_wire::allocation::try_reserve(&mut seen, declared.len(), &path.clone().field(9))
             .map_err(ExportDefinitionSourceClosureValidationError::Resource)?;
         seen.resize(declared.len(), false);
         Ok(Self {

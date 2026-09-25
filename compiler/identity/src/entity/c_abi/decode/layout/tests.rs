@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedCLayoutOverride, DecodedCanonicalCAbiLayout, DecodedCanonicalCAbiLayoutFingerprintRecord,
@@ -36,11 +36,8 @@ id_resolver!(CanonicalCAbiLayoutFingerprint, referenced_layout());
 #[test]
 fn c_abi_layout_round_trips_and_resolves_fields() {
     let layout = layout();
-    let decoded = decode_canonical::<DecodedCanonicalCAbiLayout>(
-        &encode(&layout).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalCAbiLayout>(&encode(&layout).unwrap()).unwrap();
 
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), layout);
 }
@@ -48,11 +45,9 @@ fn c_abi_layout_round_trips_and_resolves_fields() {
 #[test]
 fn c_abi_layout_fingerprint_record_round_trips_and_verifies_hash() {
     let record = CanonicalCAbiLayoutFingerprintRecord::new(layout()).unwrap();
-    let decoded = decode_canonical::<DecodedCanonicalCAbiLayoutFingerprintRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalCAbiLayoutFingerprintRecord>(&encode(&record).unwrap())
+            .unwrap();
     assert_eq!(
         decoded.candidate_fingerprint().unwrap(),
         record.fingerprint()
@@ -62,11 +57,7 @@ fn c_abi_layout_fingerprint_record_round_trips_and_verifies_hash() {
     let mut bytes = encode(&record).unwrap();
     assert_eq!(&bytes[..4], &[0xa2, 0x01, 0x58, 0x20]);
     bytes[4] ^= 1;
-    let decoded = decode_canonical::<DecodedCanonicalCAbiLayoutFingerprintRecord>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedCanonicalCAbiLayoutFingerprintRecord>(&bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut Resolver),
         Err(super::super::CanonicalCAbiResolutionError::LayoutFingerprint(_))
@@ -81,20 +72,16 @@ fn c_abi_layout_decoder_rejects_zero_alignment() {
         .position(|window| window == [0x03, 0x08, 0x04])
         .unwrap();
     bytes[offset + 1] = 0;
-    let error = decode_canonical::<DecodedCanonicalCAbiLayout>(&bytes, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedCanonicalCAbiLayout>(&bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::IntegerOutOfRange);
 }
 
 #[test]
 fn c_abi_layout_decoder_rejects_unknown_alignment_and_override() {
-    let error =
-        decode_canonical::<CLayoutByteAlignment>(b"\x03", DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<CLayoutByteAlignment>(b"\x03").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error =
-        decode_canonical::<DecodedCLayoutOverride>(b"\xa1\x00\x03", DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedCLayoutOverride>(b"\xa1\x00\x03").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 

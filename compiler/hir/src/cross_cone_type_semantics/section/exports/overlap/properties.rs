@@ -4,7 +4,7 @@ pub(super) fn validate<E>(
     new: &NominalSupportPropertyInterfaceV1,
     public: &CrossConeHirInterfaceSectionV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
     match new.payload() {
@@ -14,17 +14,14 @@ pub(super) fn validate<E>(
             interface,
             public,
             graph,
-            meter,
             path,
         ),
         NominalSupportPropertyPayloadV1::Const { value } => {
-            lookup(public.constants().records().len(), meter, path)?;
-            lookup(public.property_interfaces().records().len(), meter, path)?;
             let old = public.constants().get(new.declaration());
             let interface = public
                 .property_interfaces()
                 .get(PropertyDeclarationId::Property(new.declaration()));
-            if !effective_public(new.declaration_access(), graph, meter, path)? {
+            if !effective_public(new.declaration_access(), graph)? {
                 return require(old.is_none() && interface.is_none());
             }
             let old = old.ok_or(TypeSectionExportValidationError::PublicOverlap)?;
@@ -35,22 +32,9 @@ pub(super) fn validate<E>(
                     && interface.type_parameters().is_empty()
                     && interface.receiver().is_none(),
             )?;
-            require(signature(
-                interface.value_type(),
-                value.value_type(),
-                meter,
-                path,
-            )?)?;
-            require(signature(
-                old.value_type(),
-                value.value_type(),
-                meter,
-                path,
-            )?)?;
-            constant(old.value(), meter, path)?;
-            constant(value.value(), meter, path)?;
-            origin(old.definition_origin(), meter, path)?;
-            origin(value.definition_origin(), meter, path)?;
+            require(signature(interface.value_type(), value.value_type(), path)?)?;
+            require(signature(old.value_type(), value.value_type(), path)?)?;
+
             require(old == value)
         }
     }
@@ -61,14 +45,13 @@ pub(super) fn runtime<E>(
     source: &NominalSourcePropertyPayloadV1,
     public: &CrossConeHirInterfaceSectionV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
-    lookup(public.property_interfaces().records().len(), meter, path)?;
     let old = public
         .property_interfaces()
         .get(PropertyDeclarationId::Property(declaration));
-    if !effective_public(access, graph, meter, path)? {
+    if !effective_public(access, graph)? {
         return require(old.is_none());
     }
     let old = old.ok_or(TypeSectionExportValidationError::PublicOverlap)?;
@@ -79,12 +62,7 @@ pub(super) fn runtime<E>(
             && old.representation() == source.representation()
             && old.capability().getter() == source.getter(),
     )?;
-    require(signature(
-        old.value_type(),
-        source.value_type(),
-        meter,
-        path,
-    )?)?;
+    require(signature(old.value_type(), source.value_type(), path)?)?;
     require(
         (old.access() == PropertyPublicAccessV1::PublicSlot) == !source.slot_relations().is_empty(),
     )?;
@@ -95,7 +73,7 @@ pub(super) fn runtime<E>(
             setter_access,
         } => {
             require(old.capability().setter() == Some(*setter))?;
-            let expected = if effective_public(setter_access, graph, meter, path)? {
+            let expected = if effective_public(setter_access, graph)? {
                 PropertySetterPublicAccessV1::Public
             } else {
                 PropertySetterPublicAccessV1::Restricted

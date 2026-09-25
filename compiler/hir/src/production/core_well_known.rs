@@ -159,7 +159,7 @@ impl WireEncode for DecodedRuntimeCoreCapabilityV1 {
 }
 
 impl WireDecode for DecodedRuntimeCoreCapabilityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(wire_error(
@@ -264,11 +264,7 @@ fn validate_string_declaration(
     valid.then_some(()).ok_or(())
 }
 
-fn require_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn require_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -279,7 +275,7 @@ fn require_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

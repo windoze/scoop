@@ -23,12 +23,10 @@ struct Replay {
 fn real_interface_source_bytes_replay_exact_slots_and_reject_an_unjustified_suppression() {
     with_source(INTERFACES, |output, _| {
         let mut identities = super::super::source_inventory::identity_closure(output);
-        let source =
-            CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+        let source = CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output).unwrap();
         let decoded: DecodedCanonicalInterfaceSourceDispatchesV1 =
-            decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
-        let restored = decoded.resolve(&mut identities, &mut meter()).unwrap();
+            decode_canonical(&encode(&source).unwrap()).unwrap();
+        let restored = decoded.resolve(&mut identities).unwrap();
         assert_eq!(restored, source);
         assert_eq!(restored.records().len(), 6);
         let inventory = project(output);
@@ -121,12 +119,10 @@ fn real_interface_source_bytes_replay_exact_slots_and_reject_an_unjustified_supp
             }
         }
         {
-            let graph =
-                CheckedNominalInheritanceGraphV1::validate(edges.iter(), &replay, &mut meter())
-                    .unwrap();
+            let graph = CheckedNominalInheritanceGraphV1::validate(edges.iter(), &replay).unwrap();
             for record in replay.sources.records() {
                 graph
-                    .validate_slot_schemas(record.owner(), &replay, &mut meter())
+                    .validate_slot_schemas(record.owner(), &replay)
                     .unwrap();
             }
         }
@@ -148,7 +144,6 @@ fn real_interface_source_bytes_replay_exact_slots_and_reject_an_unjustified_supp
                     InterfaceSourceMemberV1::new(member.slot(), CanonicalPersistentIdsV1::empty())
                 })
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
         let records = replay
@@ -163,12 +158,10 @@ fn real_interface_source_bytes_replay_exact_slots_and_reject_an_unjustified_supp
                 }
             })
             .collect();
-        replay.sources =
-            CanonicalInterfaceSourceDispatchesV1::try_new(records, &mut meter()).unwrap();
-        let graph = CheckedNominalInheritanceGraphV1::validate(edges.iter(), &replay, &mut meter())
-            .unwrap();
+        replay.sources = CanonicalInterfaceSourceDispatchesV1::try_new(records).unwrap();
+        let graph = CheckedNominalInheritanceGraphV1::validate(edges.iter(), &replay).unwrap();
         assert!(
-            matches!(graph.validate_slot_schemas(diamond, &replay, &mut meter()), Err(InheritanceSlotSchemaSemanticError::InheritedSlots(exact)) if exact == diamond)
+            matches!(graph.validate_slot_schemas(diamond, &replay), Err(InheritanceSlotSchemaSemanticError::InheritedSlots(exact)) if exact == diamond)
         );
     });
 }
@@ -176,25 +169,14 @@ fn real_interface_source_bytes_replay_exact_slots_and_reject_an_unjustified_supp
 #[test]
 fn real_interface_source_transport_is_independent_of_unrelated_arena_ids() {
     let source = with_source(INTERFACES, |output, _| {
-        encode(
-            &CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output, &mut meter())
-                .unwrap(),
-        )
-        .unwrap()
+        encode(&CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output).unwrap()).unwrap()
     });
     let shifted = with_source(
         &format!("fun unrelated(): Int = 0\n{INTERFACES}"),
         |output, _| {
-            encode(
-                &CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output, &mut meter())
-                    .unwrap(),
-            )
-            .unwrap()
+            encode(&CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output).unwrap())
+                .unwrap()
         },
     );
     assert_eq!(source, shifted);
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

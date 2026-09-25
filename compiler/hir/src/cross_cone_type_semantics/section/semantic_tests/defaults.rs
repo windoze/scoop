@@ -36,10 +36,9 @@ impl TypeDefinitionSourceSemanticAuthority<&'static str> for DefaultAuthority {
         &mut self,
         _source_use: TypeDefinitionSourceUseV1<'_>,
         source: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
+
+        _path: &WirePath,
     ) -> Result<(), &'static str> {
-        meter.charge_work(1, path).map_err(|_| "origin budget")?;
         self.validate_export_definition_source(source)
     }
 }

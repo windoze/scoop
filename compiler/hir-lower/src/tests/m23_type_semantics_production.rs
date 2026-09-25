@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeIdentity, NominalDeclarationOwner, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
+use scoop_wire::WirePath;
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::*;
@@ -62,7 +62,7 @@ mod source_shapes;
 
 mod materialized_selections;
 mod production;
-use production::{produce_cross_cone_type_semantics, produce_type_semantics_metered};
+use production::produce_cross_cone_type_semantics;
 
 struct FactShapes(BTreeMap<PersistentExactTypeId, hir::ExactTypeFactShapeV1>);
 
@@ -81,10 +81,8 @@ impl hir::ExactTypeFactsDependencyLookupV1 for DependencyFacts<'_> {
     fn get_dependency_fact(
         &self,
         exact: PersistentExactTypeId,
-        _meter: &mut BudgetMeter,
-        _path: &WirePath,
-    ) -> Result<Option<hir::CheckedExactTypeFactV1<'_>>, WireError> {
-        Ok(self.0.get_checked(exact))
+    ) -> Option<hir::CheckedExactTypeFactV1<'_>> {
+        self.0.get_checked(exact)
     }
 }
 
@@ -190,23 +188,22 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
     );
 
     let foundation = production.foundation();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
         foundation.local_inheritance_edges().iter(),
         foundation.source_roots().iter().copied(),
         foundation,
-        &mut meter,
     )
     .unwrap();
     for record in section.inheritance().records() {
         assert_eq!(graph.get(record.owner()).unwrap().edges(), record.edges());
         graph
-            .validate_nominal_domains(record.owner(), record.domains(), &mut meter)
+            .validate_nominal_domains(record.owner(), record.domains())
             .unwrap();
     }
     section
         .representation_support()
-        .validate_source_semantics(foundation, &mut meter, &WirePath::root())
+        .validate_source_semantics(foundation, &WirePath::root())
         .unwrap();
 
     let mut mutated_representations = section.representation_support().records().to_vec();
@@ -235,7 +232,7 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
         hir::CanonicalNominalRepresentationSupportV1::try_new(mutated_representations).unwrap();
     assert!(
         mutated_representations
-            .validate_source_semantics(foundation, &mut meter, &WirePath::root())
+            .validate_source_semantics(foundation, &WirePath::root())
             .is_err()
     );
 
@@ -246,7 +243,7 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
     );
     assert!(
         graph
-            .validate_nominal_domains(word_value_exact(section), &wrong_domains, &mut meter)
+            .validate_nominal_domains(word_value_exact(section), &wrong_domains)
             .is_err()
     );
 
@@ -275,15 +272,11 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
     )
     .unwrap();
     let checked_dependencies = dependency_table
-        .validate_semantics(&dependency_shapes, &mut meter)
+        .validate_semantics(&dependency_shapes)
         .unwrap();
     section
         .exact_facts()
-        .validate_semantics_with_dependencies(
-            foundation,
-            &DependencyFacts(checked_dependencies),
-            &mut meter,
-        )
+        .validate_semantics_with_dependencies(foundation, &DependencyFacts(checked_dependencies))
         .unwrap();
 
     let generic = output

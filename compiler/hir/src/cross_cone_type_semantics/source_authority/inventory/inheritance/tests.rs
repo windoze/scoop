@@ -1,15 +1,12 @@
 use super::*;
 use crate::cross_cone_type_semantics::inheritance::interface_test_support::{Bundle, fixture};
 use crate::*;
-use scoop_wire::{DecodeLimits, WireDecode, decode_canonical, encode};
+use scoop_wire::{WireDecode, decode_canonical, encode};
 
 mod rejection;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn source_inventory(bundle: &Bundle) -> CanonicalSourceInheritanceInventoriesV1 {
@@ -31,12 +28,11 @@ fn source_inventory(bundle: &Bundle) -> CanonicalSourceInheritanceInventoriesV1 
                     .unwrap()
                     .clone(),
                 source.schemas(*owner).unwrap().clone(),
-                &mut meter(),
             )
             .unwrap()
         })
         .collect();
-    CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter()).unwrap()
+    CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap()
 }
 
 #[test]
@@ -46,7 +42,7 @@ fn source_inventory_transports_constructors_protected_members_and_slot_roles() {
     let bytes = encode(&source).unwrap();
     let decoded: DecodedCanonicalSourceInheritanceInventoriesV1 = decoded(&source);
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    let restored = decoded.resolve(&mut bundle.fixture, &mut meter()).unwrap();
+    let restored = decoded.resolve(&mut bundle.fixture).unwrap();
     assert_eq!(restored, source);
     assert_eq!(restored.owners().values().len(), 2);
     let base = restored.get(bundle.base.exact).unwrap();
@@ -65,7 +61,7 @@ fn source_inventory_transports_constructors_protected_members_and_slot_roles() {
     ]
     .concat();
     assert_eq!(encode(base).unwrap(), expected);
-    let empty = CanonicalSourceInheritanceInventoriesV1::try_new(vec![], &mut meter()).unwrap();
+    let empty = CanonicalSourceInheritanceInventoriesV1::try_new(vec![]).unwrap();
     assert_eq!(encode(&empty).unwrap(), [0x80]);
     assert!(empty.owners().is_empty());
     assert!(empty.get(bundle.base.exact).is_none());
@@ -76,7 +72,7 @@ fn byte_restored_source_inventory_drives_existing_missing_constructor_validation
     let mut bundle = fixture();
     let source = source_inventory(&bundle);
     let decoded: DecodedCanonicalSourceInheritanceInventoriesV1 = decoded(&source);
-    let restored = decoded.resolve(&mut bundle.fixture, &mut meter()).unwrap();
+    let restored = decoded.resolve(&mut bundle.fixture).unwrap();
     let input = &mut bundle.fixture.inheritance_interfaces;
     input.owners = restored.owners().clone();
     input.constructors.clear();
@@ -138,13 +134,12 @@ fn producer_orders_only_owners_and_keeps_slot_declaration_order() {
         original.constructors().clone(),
         original.protected_members().clone(),
         schemas,
-        &mut meter(),
     )
     .unwrap();
     let decoded: DecodedSourceInheritanceInventoryV1 = decoded(&record);
     assert_eq!(
         decoded
-            .resolve(&mut bundle.fixture, &mut meter())
+            .resolve(&mut bundle.fixture)
             .unwrap()
             .slot_schemas()
             .records()[0]
@@ -153,7 +148,6 @@ fn producer_orders_only_owners_and_keeps_slot_declaration_order() {
     );
     let reversed = CanonicalSourceInheritanceInventoriesV1::try_new(
         source.records().iter().rev().cloned().collect(),
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(encode(&reversed).unwrap(), encode(&source).unwrap());

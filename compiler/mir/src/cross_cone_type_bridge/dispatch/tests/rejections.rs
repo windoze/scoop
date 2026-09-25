@@ -15,7 +15,7 @@ fn interface_providers_preserve_the_relative_order_of_retained_parent_slots() {
             entry.position = MirDispatchPositionV1::new(position as u32);
         }
         assert!(matches!(
-            CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records, &mut meter()),
+            CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records),
             Err(MirDispatchSchemaError::InterfaceOrder { .. })
         ));
     }
@@ -148,8 +148,7 @@ fn cross_record_prefix_provider_order_and_closure_are_checked() {
             }
         }
         let error =
-            CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records, &mut meter())
-                .unwrap_err();
+            CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records).unwrap_err();
         assert!(matches!(
             (change, error),
             (0, MirDispatchSchemaError::BasePrefix { .. })
@@ -166,13 +165,13 @@ fn canonical_tables_reject_inheritance_cycles_and_duplicate_owners() {
     let mut records = fixture.table().records;
     records.push(records[0].clone());
     assert!(matches!(
-        CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records, &mut meter()),
+        CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records),
         Err(MirDispatchSchemaError::DuplicateOwner { .. })
     ));
     let records = fixture.table().records;
     fixture.set_edges(ROOT, None, &[DIAMOND]);
     assert!(matches!(
-        CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records, &mut meter()),
+        CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records),
         Err(MirDispatchSchemaError::InheritanceCycle { .. })
     ));
 }
@@ -355,8 +354,7 @@ fn abstract_class_keeps_original_typed_trap_and_derived_replaces_only_target() {
         trap_target: fixture.target(0),
         receiver: MirDispatchReceiverAdaptationV1::Identity,
     };
-    let table =
-        CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records, &mut meter()).unwrap();
+    let table = CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records).unwrap();
     assert!(matches!(
         table.get(fixture.exact(BASE)).unwrap().vtable().entries()[0].implementation(),
         MirDispatchImplementationV1::AbstractObligation { .. }

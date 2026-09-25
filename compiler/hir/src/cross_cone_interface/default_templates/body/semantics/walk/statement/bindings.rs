@@ -16,51 +16,42 @@ where
         &mut self,
         plan: &'body DefaultForIterationPlanV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        self.push_statements(pending, depth, plan.body())?;
+        self.push_statements(pending, plan.body())?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingPlan {
                 plan: plan.binding(),
                 definition_origin,
             },
         )?;
-        self.push_child(pending, depth, BodyNode::IteratorNext(plan.next()))?;
+        self.push_child(pending, BodyNode::IteratorNext(plan.next()))?;
+        self.push_child(pending, BodyNode::IteratorConformance(plan.conformance()))?;
+        self.push_child(pending, BodyNode::Expression(plan.iterator_call()))?;
+        self.push_statements(pending, plan.iterator_setup())?;
+        self.push_child(pending, BodyNode::Expression(plan.source_init()))?;
         self.push_child(
             pending,
-            depth,
-            BodyNode::IteratorConformance(plan.conformance()),
-        )?;
-        self.push_child(pending, depth, BodyNode::Expression(plan.iterator_call()))?;
-        self.push_statements(pending, depth, plan.iterator_setup())?;
-        self.push_child(pending, depth, BodyNode::Expression(plan.source_init()))?;
-        self.push_child(
-            pending,
-            depth,
             BodyNode::BindingTemporary {
                 temporary: plan.source(),
                 definition_origin,
             },
         )?;
-        self.push_statements(pending, depth, plan.source_setup())
+        self.push_statements(pending, plan.source_setup())
     }
 
     pub(in super::super) fn process_binding_plan<'body>(
         &mut self,
         plan: &'body DefaultBindingPlanV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         for action in plan.actions().iter().rev() {
-            self.push_child(pending, depth, BodyNode::BindingAction(action))?;
+            self.push_child(pending, BodyNode::BindingAction(action))?;
         }
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingShape {
                 shape: plan.shape(),
                 definition_origin,
@@ -68,7 +59,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 temporary: plan.subject(),
                 definition_origin,
@@ -79,7 +69,6 @@ where
     pub(in super::super) fn process_binding_action<'body>(
         &mut self,
         action: &'body DefaultBindingActionV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match action.view() {
@@ -91,7 +80,6 @@ where
             } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingProjection {
                         projection,
                         definition_origin,
@@ -99,7 +87,6 @@ where
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         temporary: result,
                         definition_origin,
@@ -107,13 +94,12 @@ where
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         temporary: source,
                         definition_origin,
                     },
                 )?;
-                self.push_binding_action_origin(pending, depth, definition_origin)
+                self.push_binding_action_origin(pending, definition_origin)
             }
             DefaultBindingActionViewV1::Component {
                 source,
@@ -123,11 +109,10 @@ where
                 definition_origin,
                 ..
             } => {
-                self.push_child(pending, depth, BodyNode::Expression(call))?;
-                self.push_statements(pending, depth, setup)?;
+                self.push_child(pending, BodyNode::Expression(call))?;
+                self.push_statements(pending, setup)?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         temporary: result,
                         definition_origin,
@@ -135,13 +120,12 @@ where
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         temporary: source,
                         definition_origin,
                     },
                 )?;
-                self.push_binding_action_origin(pending, depth, definition_origin)
+                self.push_binding_action_origin(pending, definition_origin)
             }
             DefaultBindingActionViewV1::Bind {
                 source,
@@ -150,7 +134,6 @@ where
             } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingLeaf {
                         leaf: target,
                         definition_origin,
@@ -158,13 +141,12 @@ where
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         temporary: source,
                         definition_origin,
                     },
                 )?;
-                self.push_binding_action_origin(pending, depth, definition_origin)
+                self.push_binding_action_origin(pending, definition_origin)
             }
         }
     }
@@ -172,12 +154,10 @@ where
     fn push_binding_action_origin<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,
-        depth: u64,
         definition_origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), M::Error> {
         self.push_child(
             pending,
-            depth,
             BodyNode::Origin {
                 source: definition_origin,
                 site: DefaultBodyOriginSiteV1::BindingAction,
@@ -189,13 +169,11 @@ where
         &mut self,
         shape: &'body DefaultBindingShapeV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match shape.view() {
             DefaultBindingShapeViewV1::Binding(leaf) => self.push_child(
                 pending,
-                depth,
                 BodyNode::BindingLeaf {
                     leaf,
                     definition_origin,
@@ -203,13 +181,12 @@ where
             ),
             DefaultBindingShapeViewV1::Wildcard => Ok(()),
             DefaultBindingShapeViewV1::Tuple(elements) => {
-                self.push_binding_shapes(pending, depth, elements, definition_origin)
+                self.push_binding_shapes(pending, elements, definition_origin)
             }
             DefaultBindingShapeViewV1::Struct { owner_type, fields } => {
                 for field in fields.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::BindingShape {
                             shape: field.shape(),
                             definition_origin,
@@ -230,7 +207,6 @@ where
                 for component in components.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::BindingShape {
                             shape: component.shape(),
                             definition_origin,
@@ -250,14 +226,12 @@ where
     fn push_binding_shapes<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,
-        depth: u64,
         shapes: &'body [DefaultBindingShapeV1],
         definition_origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), M::Error> {
         for shape in shapes.iter().rev() {
             self.push_child(
                 pending,
-                depth,
                 BodyNode::BindingShape {
                     shape,
                     definition_origin,
@@ -287,7 +261,6 @@ where
     pub(in super::super) fn process_iterator_conformance<'body>(
         &mut self,
         conformance: &'body DefaultIteratorConformanceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_type(
@@ -298,7 +271,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 temporary: conformance.iterator(),
                 definition_origin: conformance.definition_origin(),
@@ -306,7 +278,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 temporary: conformance.source(),
                 definition_origin: conformance.definition_origin(),
@@ -314,7 +285,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::Origin {
                 source: conformance.definition_origin(),
                 site: DefaultBodyOriginSiteV1::IteratorConformance,
@@ -325,12 +295,10 @@ where
     pub(in super::super) fn process_iterator_next<'body>(
         &mut self,
         next: &'body DefaultIteratorNextV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 temporary: next.element(),
                 definition_origin: next.definition_origin(),
@@ -338,7 +306,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::AppliedOption {
                 option: next.option(),
                 definition_origin: next.definition_origin(),
@@ -346,7 +313,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 temporary: next.result(),
                 definition_origin: next.definition_origin(),
@@ -354,7 +320,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::CallableRef {
                 callable: next.callable(),
                 definition_origin: next.definition_origin(),
@@ -362,7 +327,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::Origin {
                 source: next.definition_origin(),
                 site: DefaultBodyOriginSiteV1::IteratorNext,
@@ -374,12 +338,10 @@ where
         &mut self,
         option: &'body DefaultAppliedOptionV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_child(
             pending,
-            depth,
             BodyNode::EnumVariantRef {
                 variant: option.none(),
                 definition_origin,
@@ -387,7 +349,6 @@ where
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::EnumVariantFieldRef {
                 field: option.some_payload(),
                 definition_origin,

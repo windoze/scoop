@@ -3,7 +3,7 @@ use scoop_identity::{
     FieldIdentityKey, PackagePath, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
     SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -226,16 +226,13 @@ fn field_wire_replays_refs_and_rejects_forged_offset_exact_and_layout() {
     for field in aggregate.fields() {
         let expected = field.storage();
         let bytes = encode(expected).unwrap();
-        let decoded =
-            decode_canonical::<DecodedFieldStorageV1>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedFieldStorageV1>(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.validate_against(expected).unwrap(), *expected);
         for index in [6, 39] {
             let mut forged = bytes.clone();
             forged[index] ^= 1;
-            let decoded =
-                decode_canonical::<DecodedFieldStorageV1>(&forged, DecodeLimits::default())
-                    .unwrap();
+            let decoded = decode_canonical::<DecodedFieldStorageV1>(&forged).unwrap();
             assert_eq!(
                 decoded.validate_against(expected),
                 Err(StorageReplayError::FieldWireMismatch)
@@ -246,7 +243,7 @@ fn field_wire_replays_refs_and_rejects_forged_offset_exact_and_layout() {
     let mut bytes = encode(stored).unwrap();
     *bytes.last_mut().unwrap() ^= 1;
     assert_eq!(
-        decode_canonical::<DecodedFieldStorageV1>(&bytes, DecodeLimits::default())
+        decode_canonical::<DecodedFieldStorageV1>(&bytes)
             .unwrap()
             .validate_against(stored),
         Err(StorageReplayError::FieldWireMismatch)

@@ -25,7 +25,6 @@ pub(super) struct ScheduledWork<'a> {
 pub(super) enum WorkItem<'a> {
     Body {
         node: BodyNode<'a>,
-        depth: u64,
     },
     Type {
         target: &'a SignatureTypeKey,

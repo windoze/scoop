@@ -3,16 +3,12 @@ use super::*;
 pub(in super::super) fn open(
     artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
 ) -> scoop_slib::DecodedCrossConeLayoutCompileSections<'_> {
-    DecodedSlibEnvelope::open(
-        artifact.as_bytes(),
-        DecodeLimits::default(),
-        artifact.target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap()
-    .decode_cross_cone_layout_compile_sections()
-    .unwrap()
+    DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_compile_sections()
+        .unwrap()
 }
 
 pub(in super::super) fn read<'a>(
@@ -25,16 +21,12 @@ pub(in super::super) fn read<'a>(
 pub(in super::super) fn open_link(
     artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
 ) -> scoop_slib::DecodedCrossConeLayoutLinkSections<'_> {
-    DecodedSlibEnvelope::open(
-        artifact.as_bytes(),
-        DecodeLimits::default(),
-        artifact.target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap()
-    .decode_cross_cone_layout_link_sections()
-    .unwrap()
+    DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_link_sections()
+        .unwrap()
 }
 
 pub(in super::super) fn read_link<'a>(
@@ -114,16 +106,12 @@ pub(super) fn check(
         expected
     );
     assert_eq!(current.lir_exports().layouts(), layout.layouts());
-    let link = DecodedSlibEnvelope::open(
-        artifact.as_bytes(),
-        DecodeLimits::default(),
-        artifact.target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap()
-    .decode_cross_cone_layout_link_sections()
-    .unwrap();
+    let link = DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_link_sections()
+        .unwrap();
     assert_eq!(
         encode(link.lir_layout_abi_wire()).unwrap(),
         encode(layout).unwrap()

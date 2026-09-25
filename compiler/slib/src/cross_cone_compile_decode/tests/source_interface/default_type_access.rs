@@ -2,7 +2,6 @@ use super::*;
 use crate::CrossConeHirDefaultTypeAccessError as Error;
 use scoop_hir::{DeclaredVisibilityV1, OdrFreeHirFoundation};
 use scoop_identity::{Effect, NonEmptyVec};
-use scoop_wire::WirePath;
 
 mod providers;
 mod support;
@@ -97,32 +96,6 @@ fn ordinary_reader_requires_actual_protocol_roles_for_pointer_wrappers() {
         support::add_unused_local(&mut fixture, ty);
         assert!(matches!(failure(&fixture), Error::MissingPointerProtocol));
     }
-}
-
-#[test]
-fn ordinary_reader_type_access_uses_the_existing_artifact_budget() {
-    let fixture = default_fixture::fixture(default_fixture::Case::Defined);
-    let bytes = fixture.artifact();
-    let mut front = support::front(&bytes);
-    let before = front
-        .graph
-        .envelope
-        .meter_mut()
-        .usage()
-        .validation_work_units;
-    support::validate(&mut front).unwrap();
-    let meter = front.graph.envelope.meter_mut();
-    let work = meter.usage().validation_work_units - before;
-    assert!(work > 1);
-    let remaining = meter.limits().validation_work_units - meter.usage().validation_work_units;
-    meter
-        .charge_work(remaining - work + 1, &WirePath::root())
-        .unwrap();
-    let Err(Error::Reference { source, .. }) = support::validate(&mut front) else {
-        panic!("type domain replay must not reset the artifact budget")
-    };
-    assert!(matches!(*source, Error::Resource(_)));
-    assert!(format!("{source:?}").contains("ValidationWorkUnits"));
 }
 
 fn failure(fixture: &CallableSourceSurface) -> Error {

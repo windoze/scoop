@@ -13,28 +13,17 @@ impl CanonicalParamFreeMirTypeExportsV1 {
         input: &SingleConeStrongMirInput,
         sources: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeError> {
-        let path = WirePath::root();
         let plan = input.materialization();
         let authority = MirTypeBridgeAuthority {
             identities,
             foundation: input.foundation(),
         };
         let mut records = Vec::new();
-        reserve(
-            &mut records,
-            plan.shape_support().len().saturating_mul(3),
-            meter,
-        )?;
+        reserve(&mut records, plan.shape_support().len().saturating_mul(3))?;
         for root in plan.shape_support() {
             let exact = root.shape().exact();
-            meter
-                .charge_work(
-                    u64::from(sources.records().len().checked_ilog2().unwrap_or(0)) + 1,
-                    &path,
-                )
-                .map_err(MirTypeBridgeError::Resource)?;
+
             let source = sources
                 .get(exact)
                 .ok_or(MirTypeBridgeError::MissingShapeSupportSource { exact })?;
@@ -59,14 +48,8 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 )),
             ];
             for (helper, role) in helpers.into_iter().flatten() {
-                meter
-                    .charge_nodes(1, &path)
-                    .map_err(MirTypeBridgeError::Resource)?;
-                meter
-                    .charge_work(1, &path)
-                    .map_err(MirTypeBridgeError::Resource)?;
                 let (facts, representation, bases) =
-                    representation::project(input, source, helper.location(), &role, meter)?;
+                    representation::project(input, source, helper.location(), &role)?;
                 records.push(ParamFreeMirTypeExportV1::try_new(
                     authority,
                     helper.exact(),
@@ -80,34 +63,13 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 )?);
             }
         }
-        charge_sort(records.len(), meter)?;
+
         Self::try_new(records)
     }
 }
 
-fn charge_sort(count: usize, meter: &mut BudgetMeter) -> Result<(), MirTypeBridgeError> {
-    let count = count as u64;
-    meter
-        .charge_work(
-            count.saturating_mul(u64::from(count.checked_ilog2().unwrap_or(0)) + 1),
-            &WirePath::root(),
-        )
-        .map_err(MirTypeBridgeError::Resource)
-}
-
-fn reserve<T>(
-    values: &mut Vec<T>,
-    count: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), MirTypeBridgeError> {
+fn reserve<T>(values: &mut Vec<T>, count: usize) -> Result<(), MirTypeBridgeError> {
     let path = WirePath::root();
-    meter
-        .charge_owned_bytes(
-            (count as u64).saturating_mul(std::mem::size_of::<T>() as u64),
-            &path,
-        )
-        .map_err(MirTypeBridgeError::Resource)?;
-    meter
-        .try_reserve_collection_slots(values, count, &path)
-        .map_err(MirTypeBridgeError::Resource)
+
+    scoop_wire::allocation::try_reserve(values, count, &path).map_err(MirTypeBridgeError::Resource)
 }

@@ -60,7 +60,7 @@ fn property_and_setter_origins_must_match_their_exact_foundation_subjects() {
                 DefinitionOriginSubject::Property(record.declaration())
             };
             assert!(
-                matches!(forged.bind(&foundation, &mut meter()), Err(Error::DefinitionOrigin(actual)) if actual == subject)
+                matches!(forged.bind(&foundation), Err(Error::DefinitionOrigin(actual)) if actual == subject)
             );
         }
     });
@@ -110,7 +110,7 @@ fn property_access_must_preserve_the_full_lexical_owner_chain() {
             .unwrap(),
         );
         assert!(
-            matches!(sources.bind(&foundation, &mut meter()), Err(Error::Access { declaration, .. }) if declaration == id)
+            matches!(sources.bind(&foundation), Err(Error::Access { declaration, .. }) if declaration == id)
         );
     });
 }

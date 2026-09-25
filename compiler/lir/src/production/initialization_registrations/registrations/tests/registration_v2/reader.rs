@@ -4,17 +4,12 @@ use crate::StrongRegistrationProductionValidationError as Error;
 mod local_catalog;
 mod surface;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn definition(fixture: &Fixture) -> Definition {
     Definition::from_foundation(
         fixture.unit,
         &fixture.foundation,
         &fixture.identities,
         &fixture.digests,
-        &mut meter(),
     )
     .unwrap()
 }
@@ -23,7 +18,7 @@ fn decoded(plans: &Plans) -> Vec<DecodedStrongInitializationUnitRegistrationPlan
     plans
         .registrations()
         .iter()
-        .map(|plan| decode_canonical(&encode(plan).unwrap(), DecodeLimits::default()).unwrap())
+        .map(|plan| decode_canonical(&encode(plan).unwrap()).unwrap())
         .collect()
 }
 
@@ -31,7 +26,6 @@ fn validate(
     fixture: &Fixture,
     records: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
     definitions: &Catalog,
-    meter: &mut BudgetMeter,
 ) -> Result<Semantics, Error> {
     crate::validate_initialization_registration_constituents_v2(
         records,
@@ -41,7 +35,6 @@ fn validate(
         fixture.semantics.static_storages().clone(),
         definitions,
         &fixture.digests,
-        meter,
     )
 }
 
@@ -53,16 +46,11 @@ fn complete_reader_replays_both_schedules_and_keeps_foreign_dependencies_typed()
             ..Options::default()
         });
         let provider = Fixture::with_source(Options::default(), ConeIdentity::CORE, "provider");
-        let definitions = Catalog::new(
-            ConeIdentity::SINGLE_FILE,
-            &[definition(&provider)],
-            &mut meter(),
-        )
-        .unwrap();
+        let definitions =
+            Catalog::new(ConeIdentity::SINGLE_FILE, &[definition(&provider)]).unwrap();
         let reference = dependency(ConeIdentity::SINGLE_FILE, consumer.unit, &provider);
         let original = build(&consumer, vec![reference]).unwrap();
-        let semantics =
-            validate(&consumer, decoded(&original), &definitions, &mut meter()).unwrap();
+        let semantics = validate(&consumer, decoded(&original), &definitions).unwrap();
         assert_eq!(semantics.units()[0].dependencies(), &[reference]);
         assert!(matches!(
             semantics.units()[0].dependencies()[0].kind(),
@@ -93,16 +81,12 @@ fn local_dependency_definition_must_belong_to_the_actual_local_tables() {
         ConeIdentity::SINGLE_FILE,
         "absent_local",
     );
-    let definitions = Catalog::new(
-        ConeIdentity::SINGLE_FILE,
-        &[definition(&absent_local)],
-        &mut meter(),
-    )
-    .unwrap();
+    let definitions =
+        Catalog::new(ConeIdentity::SINGLE_FILE, &[definition(&absent_local)]).unwrap();
     let reference = dependency(ConeIdentity::SINGLE_FILE, consumer.unit, &absent_local);
     let plans = build(&consumer, vec![reference]).unwrap();
     assert!(matches!(
-        validate(&consumer, decoded(&plans), &definitions, &mut meter()),
+        validate(&consumer, decoded(&plans), &definitions),
         Err(Error::InitializationDefinition(
             crate::InitializationDefinitionResolutionErrorV2::MissingRegistrationIdentity(_)
         ))
@@ -115,32 +99,32 @@ fn missing_dependencies_and_a_catalog_from_another_consumer_are_rejected() {
     let provider = Fixture::with_source(Options::default(), ConeIdentity::CORE, "provider");
     let reference = dependency(ConeIdentity::SINGLE_FILE, consumer.unit, &provider);
     let plans = build(&consumer, vec![reference]).unwrap();
-    let empty = Catalog::new(ConeIdentity::SINGLE_FILE, &[], &mut meter()).unwrap();
+    let empty = Catalog::new(ConeIdentity::SINGLE_FILE, &[]).unwrap();
     assert!(matches!(
-        validate(&consumer, decoded(&plans), &empty, &mut meter()),
+        validate(&consumer, decoded(&plans), &empty),
         Err(Error::InitializationDependency(
             crate::InitializationDependencyResolutionError::UnknownUnit(_)
         ))
     ));
-    let other = Catalog::new(ConeIdentity::CORE, &[], &mut meter()).unwrap();
+    let other = Catalog::new(ConeIdentity::CORE, &[]).unwrap();
     let no_dependencies = build(&consumer, Vec::new()).unwrap();
     assert!(matches!(
-        validate(&consumer, decoded(&no_dependencies), &other, &mut meter()),
+        validate(&consumer, decoded(&no_dependencies), &other),
         Err(Error::Semantic {
             field: "producer",
             ..
         })
     ));
-    validate(&consumer, decoded(&no_dependencies), &empty, &mut meter()).unwrap();
+    validate(&consumer, decoded(&no_dependencies), &empty).unwrap();
 }
 
 #[test]
 fn complete_reader_recomputes_every_physical_field_and_table_coverage() {
     let fixture = Fixture::new(Options::default());
-    let definitions = Catalog::new(ConeIdentity::SINGLE_FILE, &[], &mut meter()).unwrap();
+    let definitions = Catalog::new(ConeIdentity::SINGLE_FILE, &[]).unwrap();
     let plans = build(&fixture, Vec::new()).unwrap();
     assert!(matches!(
-        validate(&fixture, Vec::new(), &definitions, &mut meter()),
+        validate(&fixture, Vec::new(), &definitions),
         Err(Error::TableLength { .. })
     ));
     let mut bytes = encode(&plans.registrations()[0]).unwrap();
@@ -150,47 +134,9 @@ fn complete_reader_recomputes_every_physical_field_and_table_coverage() {
         .position(|bytes| bytes == plan.as_array())
         .unwrap();
     bytes[position] ^= 1;
-    let altered = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let altered = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        validate(&fixture, vec![altered], &definitions, &mut meter()),
+        validate(&fixture, vec![altered], &definitions),
         Err(Error::EntryMismatch { index: 0, .. })
-    ));
-}
-
-#[test]
-fn complete_reader_charges_allocations_and_cumulative_work() {
-    let fixture = Fixture::new(Options::default());
-    let definitions = Catalog::new(ConeIdentity::SINGLE_FILE, &[], &mut meter()).unwrap();
-    let plans = build(&fixture, Vec::new()).unwrap();
-    for limits in [
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            validate(
-                &fixture,
-                decoded(&plans),
-                &definitions,
-                &mut BudgetMeter::new(limits)
-            ),
-            Err(Error::Resource(_))
-        ));
-    }
-    let mut baseline = meter();
-    validate(&fixture, decoded(&plans), &definitions, &mut baseline).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: baseline.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    validate(&fixture, decoded(&plans), &definitions, &mut shared).unwrap();
-    assert!(matches!(
-        validate(&fixture, decoded(&plans), &definitions, &mut shared),
-        Err(Error::Resource(_))
     ));
 }

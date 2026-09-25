@@ -12,16 +12,13 @@ impl<'a> Context<'a> {
         source: &'a hir::CrossConeTypeSemanticsProductionV1,
         input: &'a mir::SingleConeStrongMirInput,
         authority: mir::MirDispatchSchemaAuthority<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let mut physical = BTreeMap::new();
         for record in input.module().meta.source_exact_types.iter() {
-            charge_map::<(PersistentExactTypeId, &mir::Type)>(physical.len(), meter)?;
             physical.insert(record.identity_record().id(), record.ty());
         }
         let mut roots = BTreeMap::new();
         for root in input.materialization().callable_roots() {
-            charge_map::<(mir::FunctionId, CallableOwner)>(roots.len(), meter)?;
             roots.insert(root.function(), root.implementation());
         }
         Ok(Self {
@@ -35,9 +32,7 @@ impl<'a> Context<'a> {
     pub fn target(
         &self,
         function: mir::FunctionId,
-        meter: &mut BudgetMeter,
     ) -> Result<StrongCallableDefinitionOwner, Error> {
-        work(search(self.roots.len()), meter)?;
         match *self
             .roots
             .get(&function)
@@ -54,9 +49,7 @@ impl<'a> Context<'a> {
     pub fn callable(
         &self,
         target: StrongCallableDefinitionOwner,
-        meter: &mut BudgetMeter,
     ) -> Result<&mir::ParamFreeMirCallableBindingV1, Error> {
-        work(search(self.authority.callables.record_count()), meter)?;
         self.authority
             .callables
             .get(target)
@@ -66,19 +59,16 @@ impl<'a> Context<'a> {
         &self,
         source: &hir::SourceInheritanceInventoryV1,
         owner: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<mir::ParamFreeMirDispatchSchemaV1, Error> {
-        meter.charge_nodes(1, &WirePath::root())?;
-        work(search(self.physical.len()), meter)?;
         let physical = self
             .physical
             .get(&source.owner())
             .ok_or(Error::MissingPhysicalType(source.owner()))?;
         let mut vtable = mir::MirClassVtableSchemaV1::NoClassVtable;
-        let mut itables = reserve(source.slot_schemas().records().len(), meter)?;
+        let mut itables = reserve(source.slot_schemas().records().len())?;
         for schema in source.slot_schemas().records() {
-            let targets = physical::targets(self, source.owner(), physical, schema, meter)?;
-            let entries = self.entries(source.owner(), schema, &targets, meter)?;
+            let targets = physical::targets(self, source.owner(), physical, schema)?;
+            let entries = self.entries(source.owner(), schema, &targets)?;
             match schema.role() {
                 hir::InheritanceSlotSchemaRoleV1::ClassVtable => {
                     vtable = mir::MirClassVtableSchemaV1::ClassVtable(entries)
@@ -88,15 +78,11 @@ impl<'a> Context<'a> {
                 ),
             }
         }
-        mir::ParamFreeMirDispatchSchemaV1::try_new(self.authority, owner, vtable, itables, meter)
+        mir::ParamFreeMirDispatchSchemaV1::try_new(self.authority, owner, vtable, itables)
             .map_err(Error::Schema)
     }
 }
-fn charge_map<T>(count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    work(search(count), meter)?;
-    meter.charge_collection_slots(1, &WirePath::root())?;
-    Ok(meter.charge_owned_bytes(std::mem::size_of::<T>() as u64, &WirePath::root())?)
-}
+
 pub(super) fn declaration_target(
     declaration: DispatchDeclarationOwner,
 ) -> StrongCallableDefinitionOwner {

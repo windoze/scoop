@@ -6,14 +6,9 @@ impl Context<'_> {
         owner: PersistentExactTypeId,
         schema: &hir::InheritanceSlotSchemaV1,
         targets: &[StrongCallableDefinitionOwner],
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<mir::MirDispatchEntryV1>, Error> {
-        let mut entries = reserve(schema.slots().len(), meter)?;
+        let mut entries = reserve(schema.slots().len())?;
         for (position, (slot, target)) in schema.slots().iter().zip(targets).enumerate() {
-            work(
-                search(self.source.slot_selections().records().len()) + 1,
-                meter,
-            )?;
             let selection = self
                 .source
                 .slot_selections()
@@ -23,7 +18,7 @@ impl Context<'_> {
                 .authority
                 .identities
                 .canonical_key::<_, DispatchSlotKey>(*slot)?;
-            let root = self.callable(declaration_target(key.owner()), meter)?;
+            let root = self.callable(declaration_target(key.owner()))?;
             let exact = root.lowered_signature().exact();
             let receiver = match schema.role() {
                 hir::InheritanceSlotSchemaRoleV1::ClassVtable => exact.receiver().into_option(),
@@ -31,14 +26,14 @@ impl Context<'_> {
                     Some(interface_exact)
                 }
             };
-            let mut parameters = reserve(exact.parameters().len(), meter)?;
+            let mut parameters = reserve(exact.parameters().len())?;
             parameters.extend_from_slice(exact.parameters());
-            work(parameters.len() as u64 + 1, meter)?;
+
             let signature = mir::MirBridgeCallableSignatureV1::new(
                 ExactCallableSignature::new(exact.effect(), receiver, parameters, exact.result()),
                 root.lowered_signature().gc_effect(),
             );
-            let binding = self.callable(*target, meter)?;
+            let binding = self.callable(*target)?;
             let mismatch = || Error::TargetMismatch { owner, slot: *slot };
             let receiver = if signature == *binding.lowered_signature() {
                 mir::MirDispatchReceiverAdaptationV1::Identity

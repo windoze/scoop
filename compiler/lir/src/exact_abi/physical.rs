@@ -13,11 +13,7 @@ impl ExactCallableAbiExportV1 {
         enums: &EnumDefs,
         physical: &ScoopAbiSignature,
         effect: PhysicalGcEffect,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactCallablePhysicalAbiError> {
-        let path = WirePath::root();
-        meter.charge_work(physical.arguments().len() as u64, &path)?;
-        meter.charge_work(1, &path)?;
         let effect = match effect {
             PhysicalGcEffect::Managed => GcEffect::Managed,
             PhysicalGcEffect::NoGc => GcEffect::NoGc,
@@ -61,7 +57,6 @@ impl ExactCallableAbiExportV1 {
                 value,
                 actual.logical_storage_type(),
                 actual.scan(),
-                meter,
             )? {
                 return Err(ExactCallablePhysicalAbiError::Argument(index));
             }
@@ -81,7 +76,7 @@ impl ExactCallableAbiExportV1 {
                     }
                     AbiReturn::UnitVoid => return Err(ExactCallablePhysicalAbiError::Result),
                 };
-                if !value_matches(enums, storage.shape(), layouts.result(), ty, scan, meter)? {
+                if !value_matches(enums, storage.shape(), layouts.result(), ty, scan)? {
                     return Err(ExactCallablePhysicalAbiError::Result);
                 }
             }
@@ -97,7 +92,6 @@ fn value_matches(
     value: &ExactValueLayoutV1,
     physical_type: &LirType,
     scan: &RefScan,
-    meter: &mut BudgetMeter,
 ) -> Result<bool, ExactCallablePhysicalAbiError> {
     let actual_shape = crate::scoop_abi_value_shape(enums, physical_type)
         .map_err(ExactCallablePhysicalAbiError::Classification)?;
@@ -116,7 +110,6 @@ fn value_matches(
     }
     let expected = match value.value().storage().kind() {
         crate::ValueStorageKindV1::ZeroSized { .. } => {
-            meter.charge_work(1, &WirePath::root())?;
             return Ok(scan == &RefScan::None);
         }
         crate::ValueStorageKindV1::Inline { scan, .. } => scan,

@@ -1,5 +1,4 @@
 use scoop_identity::{Effect, ExactCallableSignature, GcEffect, SourceNominalKind};
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use super::*;
 use crate::*;
@@ -11,9 +10,6 @@ mod support;
 mod wire;
 
 use support::{Fixture, effects};
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn callable_signature_requires_receiver_execution_and_dispatch_effects() {

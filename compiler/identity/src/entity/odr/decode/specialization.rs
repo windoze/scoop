@@ -78,7 +78,7 @@ impl WireEncode for DecodedSpecializationKey {
 }
 
 impl WireDecode for DecodedSpecializationKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -133,7 +133,7 @@ where
 }
 
 fn decode_specialization_arguments<I>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
 ) -> Result<
     (
@@ -176,11 +176,7 @@ where
     Ok(())
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -192,7 +188,7 @@ fn expect_sum_length(
     }
 }
 
-fn invalid_empty_sequence(decoder: &Decoder<'_, '_>) -> WireError {
+fn invalid_empty_sequence(decoder: &Decoder<'_>) -> WireError {
     WireError::new(
         WireErrorKind::InvalidLength {
             expected: 1,
@@ -203,7 +199,7 @@ fn invalid_empty_sequence(decoder: &Decoder<'_, '_>) -> WireError {
     )
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

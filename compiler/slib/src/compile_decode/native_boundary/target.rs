@@ -24,7 +24,7 @@ use scoop_identity::{
     SourceNativeExternalContract, SourceNativeExternalContractRecord, SourceNativeLibraryBinding,
     SourceScoopAbiFunctionSignature, TargetCallingConvention,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     NativeBoundaryCompileError, NativeBoundaryFoundationView,
@@ -88,10 +88,9 @@ pub(super) fn validate_target_normalization(
     graph: &scoop_identity::ValidatedIdentityGraph,
     view: &NativeBoundaryFoundationView<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
-    let meter = artifact.envelope.meter_mut();
     let types = scoop_abi::AbiReplayTypes {
-        exact: exact_type_records(graph, meter)?,
-        definitions: nominals::native_definitions(view.type_definitions, meter)?,
+        exact: exact_type_records(graph)?,
+        definitions: nominals::native_definitions(view.type_definitions)?,
     };
     normalization::validate(artifact, graph, view, types, &[])
 }
@@ -99,8 +98,6 @@ pub(super) fn validate_target_normalization(
 fn require_equal_records<K, V, A>(
     expected: &HashMap<K, V>,
     actual: &HashMap<K, A>,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
     error: NativeBoundaryTargetError,
 ) -> Result<(), NativeBoundaryCompileError>
 where
@@ -108,7 +105,6 @@ where
     V: Eq,
     A: std::borrow::Borrow<V>,
 {
-    charge_relations(meter, expected.len(), path)?;
     if expected.len() != actual.len()
         || expected
             .iter()
@@ -120,8 +116,7 @@ where
     }
 }
 
-fn insert_metered<K, V>(
-    meter: &mut BudgetMeter,
+fn insert_entry<K, V>(
     records: &mut HashMap<K, V>,
     key: K,
     value: V,
@@ -131,48 +126,24 @@ where
     K: Eq + std::hash::Hash,
 {
     if !records.contains_key(&key) {
-        meter
-            .try_reserve_map_slots(records, 1, path)
+        scoop_wire::allocation::try_reserve_map(records, 1, path)
             .map_err(NativeBoundaryCompileError::Resource)?;
     }
     Ok(records.insert(key, value))
 }
 
-fn charge_relations(
-    meter: &mut BudgetMeter,
-    count: usize,
-    path: &WirePath,
-) -> Result<(), NativeBoundaryCompileError> {
-    let count = u64::try_from(count).map_err(|_| {
-        NativeBoundaryCompileError::Resource(scoop_wire::WireError::new(
-            scoop_wire::WireErrorKind::IntegerOutOfRange,
-            path.clone(),
-            None,
-        ))
-    })?;
-    meter
-        .charge_edges(count, path)
-        .map_err(NativeBoundaryCompileError::Resource)
-}
-
-fn metered_vec<T>(
-    meter: &mut BudgetMeter,
-    capacity: usize,
-    path: &WirePath,
-) -> Result<Vec<T>, NativeBoundaryCompileError> {
+fn allocate_vec<T>(capacity: usize, path: &WirePath) -> Result<Vec<T>, NativeBoundaryCompileError> {
     let mut values = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut values, capacity, path)
+    scoop_wire::allocation::try_reserve(&mut values, capacity, path)
         .map_err(NativeBoundaryCompileError::Resource)?;
     Ok(values)
 }
 
 fn clone_c_signature(
-    meter: &mut BudgetMeter,
     signature: &CanonicalCAbiFunctionSignature,
     path: &WirePath,
 ) -> Result<CanonicalCAbiFunctionSignature, NativeBoundaryCompileError> {
-    let mut parameters = metered_vec(meter, signature.parameters().len(), path)?;
+    let mut parameters = allocate_vec(signature.parameters().len(), path)?;
     parameters.extend_from_slice(signature.parameters());
     Ok(CanonicalCAbiFunctionSignature::cdecl(
         parameters,
@@ -181,69 +152,38 @@ fn clone_c_signature(
 }
 
 fn push_binder_group(
-    meter: &mut BudgetMeter,
     binders: &mut Vec<Vec<PersistentExactTypeId>>,
     arguments: &[PersistentExactTypeId],
     path: &WirePath,
 ) -> Result<(), NativeBoundaryCompileError> {
-    charge_relations(meter, arguments.len(), path)?;
-    meter
-        .try_reserve_collection_slots(binders, 1, path)
+    scoop_wire::allocation::try_reserve(binders, 1, path)
         .map_err(NativeBoundaryCompileError::Resource)?;
-    let mut group = metered_vec(meter, arguments.len(), path)?;
+    let mut group = allocate_vec(arguments.len(), path)?;
     group.extend_from_slice(arguments);
     binders.push(group);
     Ok(())
 }
 
-struct MeteredVisitingSet<T> {
+struct VisitingSet<T> {
     entries: HashSet<T>,
-    charged_capacity: usize,
 }
 
-impl<T> MeteredVisitingSet<T>
+impl<T> VisitingSet<T>
 where
     T: Copy + Eq + std::hash::Hash,
 {
     fn new() -> Self {
         Self {
             entries: HashSet::new(),
-            charged_capacity: 0,
         }
     }
 
-    fn push(
-        &mut self,
-        value: T,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<bool, NativeBoundaryCompileError> {
+    fn push(&mut self, value: T, path: &WirePath) -> Result<bool, NativeBoundaryCompileError> {
         if self.entries.contains(&value) {
             return Ok(false);
         }
-        let next_len = self.entries.len().checked_add(1).ok_or_else(|| {
-            NativeBoundaryCompileError::Resource(scoop_wire::WireError::new(
-                scoop_wire::WireErrorKind::IntegerOutOfRange,
-                path.clone(),
-                None,
-            ))
-        })?;
-        let depth = u64::try_from(next_len).map_err(|_| {
-            NativeBoundaryCompileError::Resource(scoop_wire::WireError::new(
-                scoop_wire::WireErrorKind::IntegerOutOfRange,
-                path.clone(),
-                None,
-            ))
-        })?;
-        meter
-            .check_semantic_depth(depth, path)
+        scoop_wire::allocation::try_reserve_set(&mut self.entries, 1, path)
             .map_err(NativeBoundaryCompileError::Resource)?;
-        if next_len > self.charged_capacity {
-            meter
-                .try_reserve_set_slots(&mut self.entries, next_len - self.charged_capacity, path)
-                .map_err(NativeBoundaryCompileError::Resource)?;
-            self.charged_capacity = next_len;
-        }
         self.entries.insert(value);
         Ok(true)
     }
@@ -255,7 +195,7 @@ where
 
 struct NativeBoundaryNormalizer<'a> {
     target: scoop_lir::LirTargetProfile,
-    meter: &'a mut BudgetMeter,
+
     exact_types: &'a HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
     callable_applications:
         &'a HashMap<PersistentCallableApplicationId, Arc<CallableApplicationKey>>,
@@ -265,16 +205,16 @@ struct NativeBoundaryNormalizer<'a> {
         HashMap<CanonicalCAbiSignatureFingerprint, CanonicalCAbiSignatureFingerprintRecord>,
     expected_layouts: HashMap<CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord>,
     layouts_by_type: HashMap<PersistentExactTypeId, CanonicalCAbiLayoutFingerprint>,
-    visiting_c_layouts: MeteredVisitingSet<PersistentExactTypeId>,
+    visiting_c_layouts: VisitingSet<PersistentExactTypeId>,
     scoop_layouts: HashMap<PersistentExactTypeId, PhysicalType>,
-    visiting_scoop_layouts: MeteredVisitingSet<PersistentExactTypeId>,
+    visiting_scoop_layouts: VisitingSet<PersistentExactTypeId>,
     expected_requirements: HashMap<NativeLinkRequirementId, NativeLinkRequirementKey>,
 }
 
 impl<'a> NativeBoundaryNormalizer<'a> {
     fn new(
         target: scoop_lir::LirTargetProfile,
-        meter: &'a mut BudgetMeter,
+
         exact_types: &'a HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
         callable_applications: &'a HashMap<
             PersistentCallableApplicationId,
@@ -288,7 +228,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     ) -> Self {
         Self {
             target,
-            meter,
+
             exact_types,
             callable_applications,
             initialization_units,
@@ -296,9 +236,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             expected_signatures: HashMap::new(),
             expected_layouts: HashMap::new(),
             layouts_by_type: HashMap::new(),
-            visiting_c_layouts: MeteredVisitingSet::new(),
+            visiting_c_layouts: VisitingSet::new(),
             scoop_layouts: HashMap::new(),
-            visiting_scoop_layouts: MeteredVisitingSet::new(),
+            visiting_scoop_layouts: VisitingSet::new(),
             expected_requirements: HashMap::new(),
         }
     }
@@ -310,13 +250,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         let (symbol, source_library) = source_target(source.contract());
         let symbol = match self.target.id() {
             scoop_lir::TargetProfileId::DarwinAarch64 => {
-                let path = WirePath::root().field(14);
-                let normalized_length =
-                    NativeExternalSymbolKey::darwin_macho_external_length(symbol)
-                        .map_err(NativeBoundaryTargetError::NativeSymbol)?;
-                self.meter
-                    .charge_owned_bytes(normalized_length, &path)
-                    .map_err(NativeBoundaryCompileError::Resource)?;
+                NativeExternalSymbolKey::darwin_macho_external_length(symbol)
+                    .map_err(NativeBoundaryTargetError::NativeSymbol)?;
+
                 NativeExternalSymbolKey::darwin_macho_external(symbol)
                     .map_err(NativeBoundaryTargetError::NativeSymbol)?
             }
@@ -326,13 +262,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             SourceNativeExternalContract::Function { abi, .. } => match abi {
                 SourceExternFunctionAbi::C(signature) => {
                     let record = self.c_signature(signature, &[])?;
-                    let signature = clone_c_signature(
-                        self.meter,
-                        record.signature(),
-                        &WirePath::root().field(15),
-                    )?;
-                    insert_metered(
-                        self.meter,
+                    let signature =
+                        clone_c_signature(record.signature(), &WirePath::root().field(15))?;
+                    insert_entry(
                         &mut self.expected_signatures,
                         record.fingerprint(),
                         record,
@@ -366,13 +298,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 NativeExternalContract::mutable_tls(library, self.c_storage(exact)?)
             }
         };
-        for stream_length in NativeExternalContractRecord::hash_stream_lengths(&symbol, &contract)
-            .map_err(NativeBoundaryTargetError::Hash)?
-        {
-            self.meter
-                .charge_sha256(stream_length, &WirePath::root().field(14))
-                .map_err(NativeBoundaryCompileError::Resource)?;
-        }
+
         NativeExternalContractRecord::new(source.id(), symbol, contract)
             .map_err(NativeBoundaryTargetError::Hash)
             .map_err(Into::into)
@@ -388,22 +314,19 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             }
             SourceNativeLibraryBinding::LogicalLibrary(name) => {
                 let name = CanonicalNativeLibraryName::from_owned(
-                    self.meter
-                        .try_copy_str(name.as_str(), &WirePath::root().field(20))
-                        .map_err(NativeBoundaryCompileError::Resource)?,
+                    scoop_wire::allocation::try_copy_str(
+                        name.as_str(),
+                        &WirePath::root().field(20),
+                    )
+                    .map_err(NativeBoundaryCompileError::Resource)?,
                 )
                 .map_err(NativeBoundaryTargetError::NativeName)?;
                 let key = NativeLinkRequirementKey::target_default(name);
-                let stream_length = NativeLinkRequirementId::hash_stream_length(&key)
-                    .map_err(NativeBoundaryTargetError::Hash)?;
-                self.meter
-                    .charge_sha256(stream_length, &WirePath::root().field(20))
-                    .map_err(NativeBoundaryCompileError::Resource)?;
+
                 let record =
                     CborIdentityRecord::from_key(key).map_err(NativeBoundaryTargetError::Hash)?;
                 let id = record.id();
-                insert_metered(
-                    self.meter,
+                insert_entry(
                     &mut self.expected_requirements,
                     id,
                     record.into_key(),
@@ -420,7 +343,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         binders: &[Vec<PersistentExactTypeId>],
     ) -> Result<CanonicalCAbiSignatureFingerprintRecord, NativeBoundaryCompileError> {
         let path = WirePath::root().field(15);
-        let mut parameters = metered_vec(self.meter, source.parameters().len(), &path)?;
+        let mut parameters = allocate_vec(source.parameters().len(), &path)?;
         for source in source.parameters() {
             let exact = self.signature_exact(source, binders)?;
             parameters.push(
@@ -437,11 +360,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             }
         };
         let signature = CanonicalCAbiFunctionSignature::cdecl(parameters, result);
-        let stream_length = CanonicalCAbiSignatureFingerprint::hash_stream_length(&signature)
-            .map_err(NativeBoundaryTargetError::Hash)?;
-        self.meter
-            .charge_sha256(stream_length, &path)
-            .map_err(NativeBoundaryCompileError::Resource)?;
+
         CanonicalCAbiSignatureFingerprintRecord::new(signature)
             .map_err(NativeBoundaryTargetError::Hash)
             .map_err(Into::into)
@@ -454,12 +373,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         binders: &[Vec<PersistentExactTypeId>],
     ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
         let path = WirePath::root().field(14);
-        let mut parameters = metered_vec(self.meter, source.parameters().len(), &path)?;
+        let mut parameters = allocate_vec(source.parameters().len(), &path)?;
         for parameter in source.parameters() {
             parameters.push(self.signature_exact(parameter, binders)?);
         }
         let result = self.signature_exact(source.result(), binders)?;
-        let mut arguments = metered_vec(self.meter, parameters.len(), &path)?;
+        let mut arguments = allocate_vec(parameters.len(), &path)?;
         for exact in &parameters {
             arguments.push(self.scoop_argument(*exact)?);
         }
@@ -487,7 +406,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             }
         };
         let path = WirePath::root().field(10);
-        let mut parameters = metered_vec(self.meter, source.parameters().len(), &path)?;
+        let mut parameters = allocate_vec(source.parameters().len(), &path)?;
         for parameter in source.parameters() {
             parameters.push(self.signature_exact(parameter, binders)?);
         }
@@ -504,20 +423,16 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         source: &SignatureTypeKey,
         binders: &[Vec<PersistentExactTypeId>],
     ) -> Result<PersistentExactTypeId, NativeBoundaryCompileError> {
-        self.signature_exact_at(source, binders, 1)
+        self.signature_exact_at(source, binders)
     }
 
     fn signature_exact_at(
         &mut self,
         source: &SignatureTypeKey,
         binders: &[Vec<PersistentExactTypeId>],
-        depth: u64,
     ) -> Result<PersistentExactTypeId, NativeBoundaryCompileError> {
         let path = WirePath::root().field(15);
-        self.meter
-            .check_semantic_depth(depth, &path)
-            .map_err(NativeBoundaryCompileError::Resource)?;
-        charge_relations(self.meter, 1, &path)?;
+
         let key = match source {
             SignatureTypeKey::Binder { depth, index } => {
                 let group = binders
@@ -534,9 +449,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             }
             SignatureTypeKey::Nominal(owner) => ExactTypeKey::Nominal(*owner),
             SignatureTypeKey::NominalApplication { origin, arguments } => {
-                let mut resolved = metered_vec(self.meter, arguments.as_slice().len(), &path)?;
+                let mut resolved = allocate_vec(arguments.as_slice().len(), &path)?;
                 for argument in arguments.as_slice() {
-                    resolved.push(self.signature_exact_at(argument, binders, depth + 1)?);
+                    resolved.push(self.signature_exact_at(argument, binders)?);
                 }
                 ExactTypeKey::NominalApplication {
                     origin: *origin,
@@ -545,9 +460,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 }
             }
             SignatureTypeKey::Tuple(elements) => {
-                let mut resolved = metered_vec(self.meter, elements.as_slice().len(), &path)?;
+                let mut resolved = allocate_vec(elements.as_slice().len(), &path)?;
                 for element in elements.as_slice() {
-                    resolved.push(self.signature_exact_at(element, binders, depth + 1)?);
+                    resolved.push(self.signature_exact_at(element, binders)?);
                 }
                 ExactTypeKey::Tuple(
                     NonEmptyVec::new(resolved)
@@ -559,40 +474,36 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 parameters,
                 result,
             } => {
-                let mut resolved = metered_vec(self.meter, parameters.len(), &path)?;
+                let mut resolved = allocate_vec(parameters.len(), &path)?;
                 for parameter in parameters {
-                    resolved.push(self.signature_exact_at(parameter, binders, depth + 1)?);
+                    resolved.push(self.signature_exact_at(parameter, binders)?);
                 }
                 ExactTypeKey::Function {
                     effect: *effect,
                     parameters: resolved,
-                    result: self.signature_exact_at(result, binders, depth + 1)?,
+                    result: self.signature_exact_at(result, binders)?,
                 }
             }
             SignatureTypeKey::RawPointer(pointee) => {
-                ExactTypeKey::RawPointer(self.signature_exact_at(pointee, binders, depth + 1)?)
+                ExactTypeKey::RawPointer(self.signature_exact_at(pointee, binders)?)
             }
             SignatureTypeKey::NativeFunctionPointer {
                 calling_convention,
                 parameters,
                 result,
             } => {
-                let mut resolved = metered_vec(self.meter, parameters.len(), &path)?;
+                let mut resolved = allocate_vec(parameters.len(), &path)?;
                 for parameter in parameters {
-                    resolved.push(self.signature_exact_at(parameter, binders, depth + 1)?);
+                    resolved.push(self.signature_exact_at(parameter, binders)?);
                 }
                 ExactTypeKey::NativeFunctionPointer {
                     calling_convention: *calling_convention,
                     parameters: resolved,
-                    result: self.signature_exact_at(result, binders, depth + 1)?,
+                    result: self.signature_exact_at(result, binders)?,
                 }
             }
         };
-        let stream_length = PersistentExactTypeId::hash_stream_length(&key)
-            .map_err(NativeBoundaryTargetError::Hash)?;
-        self.meter
-            .charge_sha256(stream_length, &path)
-            .map_err(NativeBoundaryCompileError::Resource)?;
+
         let exact =
             PersistentExactTypeId::from_key(&key).map_err(NativeBoundaryTargetError::Hash)?;
         match self.exact_types.get(&exact) {
@@ -606,7 +517,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         context: CallableMaterializationContext,
     ) -> Result<Vec<Vec<PersistentExactTypeId>>, NativeBoundaryCompileError> {
         let mut binders = Vec::new();
-        let mut visiting = MeteredVisitingSet::new();
+        let mut visiting = VisitingSet::new();
         self.append_context_binders(context, &mut binders, &mut visiting)?;
         Ok(binders)
     }
@@ -615,7 +526,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         &mut self,
         context: CallableMaterializationContext,
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
-        visiting: &mut MeteredVisitingSet<PersistentCallableApplicationId>,
+        visiting: &mut VisitingSet<PersistentCallableApplicationId>,
     ) -> Result<(), NativeBoundaryCompileError> {
         match context {
             CallableMaterializationContext::NoSubstitution => Ok(()),
@@ -632,10 +543,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         &mut self,
         application: PersistentCallableApplicationId,
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
-        visiting: &mut MeteredVisitingSet<PersistentCallableApplicationId>,
+        visiting: &mut VisitingSet<PersistentCallableApplicationId>,
     ) -> Result<(), NativeBoundaryCompileError> {
-        charge_relations(self.meter, 1, &WirePath::root().field(17))?;
-        if !visiting.push(application, self.meter, &WirePath::root().field(17))? {
+        if !visiting.push(application, &WirePath::root().field(17))? {
             return Err(NativeBoundaryTargetError::CallableApplicationCycle { application }.into());
         }
         let key = self
@@ -643,29 +553,18 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             .get(&application)
             .ok_or(NativeBoundaryTargetError::MissingCallableApplication { application })?;
         if let CallableArguments::Arguments(arguments) = key.callable_arguments() {
-            push_binder_group(
-                self.meter,
-                binders,
-                arguments.as_slice(),
-                &WirePath::root().field(17),
-            )?;
+            push_binder_group(binders, arguments.as_slice(), &WirePath::root().field(17))?;
         }
         let owner = key.instantiation_owner();
         match owner {
             CallableInstantiationOwner::NoOwner => {}
             CallableInstantiationOwner::ExactNominalOwner(owner) => {
-                charge_relations(self.meter, 1, &WirePath::root().field(17))?;
                 let key = self
                     .exact_types
                     .get(&owner)
                     .ok_or(NativeBoundaryTargetError::MissingExactType { exact: owner })?;
                 if let ExactTypeKey::NominalApplication { arguments, .. } = key.as_ref() {
-                    push_binder_group(
-                        self.meter,
-                        binders,
-                        arguments.as_slice(),
-                        &WirePath::root().field(17),
-                    )?;
+                    push_binder_group(binders, arguments.as_slice(), &WirePath::root().field(17))?;
                 }
             }
             CallableInstantiationOwner::EnclosingCallableApplication(enclosing) => {
@@ -684,7 +583,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         unit: PersistentInitializationUnitId,
         binders: &mut Vec<Vec<PersistentExactTypeId>>,
     ) -> Result<(), NativeBoundaryCompileError> {
-        charge_relations(self.meter, 1, &WirePath::root().field(21))?;
         let key = self
             .initialization_units
             .get(&unit)
@@ -695,7 +593,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         } = key.as_ref()
         {
             push_binder_group(
-                self.meter,
                 binders,
                 receiver_arguments.as_slice(),
                 &WirePath::root().field(21),

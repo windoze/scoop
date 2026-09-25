@@ -12,7 +12,7 @@ fn indirect_default_targets_reject_field_role_confusion() {
                 _ => continue,
             };
             assert!(
-                matches!(foundation.default_indirect_access_subject(forged, &mut meter()), Err(Error::Role(actual)) if actual == forged)
+                matches!(foundation.default_indirect_access_subject(forged), Err(Error::Role(actual)) if actual == forged)
             );
         }
     });
@@ -35,10 +35,10 @@ fn indirect_default_targets_require_actual_artifact_keys_not_only_known_identiti
                 let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
                 let foundation = fixture
                     .source
-                    .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+                    .bind_to_foundation(&incomplete, &fixture.identities)
                     .unwrap();
                 assert!(
-                    matches!(foundation.default_indirect_access_subject(target, &mut meter()), Err(Error::MissingTarget(actual)) if actual == target)
+                    matches!(foundation.default_indirect_access_subject(target), Err(Error::MissingTarget(actual)) if actual == target)
                 );
             }
         });
@@ -61,10 +61,10 @@ fn indirect_default_targets_require_the_actual_access_declaration_key() {
                 let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
                 let foundation = fixture
                     .source
-                    .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+                    .bind_to_foundation(&incomplete, &fixture.identities)
                     .unwrap();
                 assert!(
-                    matches!(foundation.default_indirect_access_subject(target, &mut meter()), Err(Error::MissingDeclaration(actual)) if actual == subject)
+                    matches!(foundation.default_indirect_access_subject(target), Err(Error::MissingDeclaration(actual)) if actual == subject)
                 );
             }
         });

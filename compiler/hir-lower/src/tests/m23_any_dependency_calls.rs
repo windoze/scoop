@@ -2,7 +2,7 @@ use scoop_hir as hir;
 use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, PersistentExactTypeId};
 
 mod support;
-use support::{fixture, meter, snapshot, with_output};
+use support::{fixture, snapshot, with_output};
 
 #[test]
 fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
@@ -20,10 +20,7 @@ fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
             let mut receivers = 0;
             let mut defaults = 0;
             let mut dump = String::new();
-            for call in output
-                .committed_dependency_call_occurrences(&mut meter())
-                .unwrap()
-            {
+            for call in output.committed_dependency_call_occurrences().unwrap() {
                 let signature = call.callable().capability().signature();
                 let arguments = signature
                     .receiver()

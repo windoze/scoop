@@ -53,22 +53,19 @@ fn default_provider_slots_reject_other_roots_multiple_slots_and_final_overrides(
                         }
                     })
                     .collect(),
-                &mut meter(),
             )
             .unwrap();
             let bytes = encode(&callables).unwrap();
             let decoded: hir::DecodedCanonicalNominalSourceCallablesV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-            changed.members.callables = decoded
-                .resolve(&mut identity_closure(output), &mut meter())
-                .unwrap();
+                decode_canonical(&bytes).unwrap();
+            changed.members.callables = decoded.resolve(&mut identity_closure(output)).unwrap();
             let foundation = fixture.bind().unwrap();
             changed.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &changed.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &changed.protocols)
                     .unwrap();
                 let error = parameters
-                    .bind_default_declarations(&table, &[], &mut meter())
+                    .bind_default_declarations(&table, &[])
                     .unwrap_err();
                 let Error::Record { key, error } = error else {
                     panic!("record error")

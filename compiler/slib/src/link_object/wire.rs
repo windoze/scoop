@@ -26,7 +26,7 @@ impl<I> WireEncode for DecodedFixedBytesV1<I> {
 }
 
 impl<I> WireDecode for DecodedFixedBytesV1<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let bytes = decoder.bytes()?;
         let bytes = <&[u8; 32]>::try_from(bytes).copied().map_err(|_| {
             WireError::new(

@@ -12,14 +12,10 @@ fn nominal_operations_reject_wrong_kinds_field_owners_and_enum_owners() {
             panic!("struct");
         };
         assert!(
-            matches!(nominals.default_nominal_operation_shape(Target::StructField { declaration: fields.fields()[0].field(), owner_type: &empty }, &mut meter(), &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::NominalSourceBindingError::FieldOwner { .. }))
+            matches!(nominals.default_nominal_operation_shape(Target::StructField { declaration: fields.fields()[0].field(), owner_type: &empty },  &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::NominalSourceBindingError::FieldOwner { .. }))
         );
         assert!(matches!(
-            nominals.default_nominal_operation_shape(
-                Target::Struct(&choice),
-                &mut meter(),
-                &WirePath::root()
-            ),
+            nominals.default_nominal_operation_shape(Target::Struct(&choice), &WirePath::root()),
             Err(Error::Kind {
                 expected: hir::PublicNominalKindV1::Struct,
                 actual: hir::PublicNominalKindV1::Enum,
@@ -32,7 +28,6 @@ fn nominal_operations_reject_wrong_kinds_field_owners_and_enum_owners() {
                     owner_type: &packet,
                     expected: hir::PublicNominalKindV1::Class
                 },
-                &mut meter(),
                 &WirePath::root()
             ),
             Err(Error::Kind { .. })
@@ -44,18 +39,14 @@ fn nominal_operations_reject_wrong_kinds_field_owners_and_enum_owners() {
         let variant = &variants.variants()[1];
         let reference = hir::DefaultEnumVariantRefV1::new(variant.variant(), other.clone());
         assert!(matches!(
-            nominals.default_nominal_operation_shape(
-                Target::Variant(&reference),
-                &mut meter(),
-                &WirePath::root()
-            ),
+            nominals
+                .default_nominal_operation_shape(Target::Variant(&reference), &WirePath::root()),
             Err(Error::VariantOwner { .. })
         ));
         let reference = hir::DefaultEnumVariantFieldRefV1::new(variant.fields()[0].field(), other);
         assert!(matches!(
             nominals.default_nominal_operation_shape(
                 Target::VariantField(&reference),
-                &mut meter(),
                 &WirePath::root()
             ),
             Err(Error::VariantOwner { .. })
@@ -75,11 +66,7 @@ fn nominal_operations_reject_missing_artifact_sources_and_bad_owner_arity() {
             arguments: NonEmptyVec::from_first(arguments.as_slice()[0].clone(), []),
         };
         assert!(matches!(
-            nominals.default_nominal_operation_shape(
-                Target::Struct(&short),
-                &mut meter(),
-                &WirePath::root()
-            ),
+            nominals.default_nominal_operation_shape(Target::Struct(&short), &WirePath::root()),
             Err(Error::Arity {
                 expected: 2,
                 actual: 1,
@@ -89,14 +76,13 @@ fn nominal_operations_reject_missing_artifact_sources_and_bad_owner_arity() {
         assert!(matches!(
             nominals.default_nominal_operation_shape(
                 Target::Struct(&Type::Binder { depth: 0, index: 0 }),
-                &mut meter(),
                 &WirePath::root()
             ),
             Err(Error::NonNominalOwner)
         ));
         with_source(SOURCE, |_, other| {
             assert!(
-                matches!(other.default_nominal_operation_shape(Target::Struct(&pair), &mut meter(), &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::NominalSourceBindingError::MissingSource(_)))
+                matches!(other.default_nominal_operation_shape(Target::Struct(&pair),  &WirePath::root()), Err(Error::Nominal(error)) if matches!(*error, hir::NominalSourceBindingError::MissingSource(_)))
             );
         });
     });
@@ -107,20 +93,17 @@ fn intrinsic_source_representation_is_never_an_empty_ordinary_struct() {
     use super::super::core_foundation::support::{artifact, import, lower_extra};
     let output = lower_extra("");
     let (foundation, identities) = artifact(&output);
-    let source = hir::CrossConeTypeSemanticsFoundationV1::from_hir(&output, &mut meter())
+    let source = hir::CrossConeTypeSemanticsFoundationV1::from_hir(&output)
         .unwrap()
-        .source_transcript(&mut meter())
+        .source_transcript()
         .unwrap();
     let table = hir::CanonicalNominalSourceContractsV1::from_export_hir(
         &output.export,
         &source.entries().source_roots,
-        &mut meter(),
     )
     .unwrap();
-    let bound = source
-        .bind_to_foundation(&foundation, &identities, &mut meter())
-        .unwrap();
-    let nominals = bound.bind_nominal_sources(&table, &mut meter()).unwrap();
+    let bound = source.bind_to_foundation(&foundation, &identities).unwrap();
+    let nominals = bound.bind_nominal_sources(&table).unwrap();
     let definitions = hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
     let imported = import(&foundation, &identities);
     let inputs = imported.import_core_inputs(&definitions).unwrap();
@@ -132,11 +115,7 @@ fn intrinsic_source_representation_is_never_an_empty_ordinary_struct() {
             .persistent(),
     );
     assert!(matches!(
-        nominals.default_nominal_operation_shape(
-            Target::Struct(&ty),
-            &mut meter(),
-            &WirePath::root()
-        ),
+        nominals.default_nominal_operation_shape(Target::Struct(&ty), &WirePath::root()),
         Err(Error::StructRepresentation(_))
     ));
     assert_eq!(

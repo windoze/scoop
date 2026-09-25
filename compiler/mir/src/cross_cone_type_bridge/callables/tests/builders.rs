@@ -18,9 +18,7 @@ pub(super) fn generated(record: &crate::GeneratedCallableRecord) -> MirCallableO
         role: record.key().clone(),
     }
 }
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 pub(super) fn name(value: &str) -> CanonicalIdentifier {
     CanonicalIdentifier::new(value).unwrap()
 }

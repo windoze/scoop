@@ -139,17 +139,13 @@ impl DecodedExportDefaultReferenceSetV1 {
     where
         R: DefaultExpressionReferenceResolver<E>,
     {
-        self.resolve_metered(
-            resolver,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-            &scoop_wire::WirePath::root(),
-        )
+        self.resolve_at(resolver, &scoop_wire::WirePath::root())
     }
 
-    pub fn resolve_metered<R, E>(
+    pub fn resolve_at<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
+
         path: &scoop_wire::WirePath,
     ) -> Result<ExportDefaultReferenceSetV1, ExportDefaultReferenceSetValidationError<E>>
     where
@@ -158,7 +154,6 @@ impl DecodedExportDefaultReferenceSetV1 {
         let callables = resolve_set(
             self.callables,
             resolver,
-            meter,
             path,
             ExportDefaultReferenceKindV1::Callable,
             |target, resolver| {
@@ -170,7 +165,6 @@ impl DecodedExportDefaultReferenceSetV1 {
         let constructors = resolve_set(
             self.constructors,
             resolver,
-            meter,
             path,
             ExportDefaultReferenceKindV1::Constructor,
             |target, resolver| {
@@ -182,7 +176,6 @@ impl DecodedExportDefaultReferenceSetV1 {
         let types = resolve_set(
             self.types,
             resolver,
-            meter,
             path,
             ExportDefaultReferenceKindV1::Type,
             |target, resolver| {
@@ -194,7 +187,6 @@ impl DecodedExportDefaultReferenceSetV1 {
         let globals = resolve_set(
             self.globals,
             resolver,
-            meter,
             path,
             ExportDefaultReferenceKindV1::Global,
             |target, resolver| {
@@ -206,7 +198,6 @@ impl DecodedExportDefaultReferenceSetV1 {
         let singleton_values = resolve_set(
             self.singleton_values,
             resolver,
-            meter,
             path,
             ExportDefaultReferenceKindV1::Singleton,
             |target, resolver| {
@@ -218,7 +209,6 @@ impl DecodedExportDefaultReferenceSetV1 {
         let fields = resolve_set(
             self.fields,
             resolver,
-            meter,
             path,
             ExportDefaultReferenceKindV1::Field,
             |target, resolver| {
@@ -251,7 +241,7 @@ impl WireEncode for DecodedExportDefaultReferenceSetV1 {
 }
 
 impl WireDecode for DecodedExportDefaultReferenceSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             callables: decode_field(decoder, 1)?,
@@ -355,7 +345,7 @@ fn canonicalize<T: Ord>(
 fn resolve_set<R, E, D, T>(
     records: Vec<DecodedExportDefaultReferenceV1<D>>,
     resolver: &mut R,
-    meter: &mut scoop_wire::BudgetMeter,
+
     path: &scoop_wire::WirePath,
     kind: ExportDefaultReferenceKindV1,
     mut resolve_target: impl FnMut(
@@ -369,18 +359,14 @@ where
 {
     u32::try_from(records.len())
         .map_err(|_| ExportDefaultReferenceSetValidationError::TooMany(kind))?;
-    meter
-        .check_table_entries(records.len() as u64, path)
-        .map_err(ExportDefaultReferenceSetValidationError::Resource)?;
+
     let mut resolved: Vec<ExportDefaultReferenceV1<T>> = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut resolved, records.len(), path)
+    scoop_wire::allocation::try_reserve(&mut resolved, records.len(), path)
         .map_err(ExportDefaultReferenceSetValidationError::Resource)?;
     for (index, record) in records.into_iter().enumerate() {
         let record = record
             .resolve_with(
                 resolver,
-                meter,
                 &path.clone().field(kind as u32 + 1).index(index as u64),
                 |target, resolver| resolve_target(target, resolver),
             )
@@ -390,10 +376,6 @@ where
                 error,
             })?;
         if let Some(previous) = resolved.last() {
-            previous
-                .witness()
-                .charge_comparison(record.witness(), meter, path)
-                .map_err(ExportDefaultReferenceSetValidationError::Resource)?;
             match previous.cmp(&record) {
                 std::cmp::Ordering::Equal => {
                     return Err(ExportDefaultReferenceSetValidationError::Duplicate {
@@ -427,10 +409,7 @@ fn encode_field<T: WireEncode>(
     Ok(())
 }
 
-fn decode_field<T: WireDecode>(
-    decoder: &mut Decoder<'_, '_>,
-    field: u32,
-) -> Result<Vec<T>, WireError> {
+fn decode_field<T: WireDecode>(decoder: &mut Decoder<'_>, field: u32) -> Result<Vec<T>, WireError> {
     decoder.field(field, |decoder| {
         decoder.decode_array(|decoder, _| T::decode(decoder))
     })

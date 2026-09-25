@@ -6,16 +6,12 @@ use crate::NominalRepresentationShapeV1;
 pub(super) fn collect<'a>(
     context: &mut Context<'a>,
     provider: CheckedSharedTypeFoundationV1<'a>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let metadata = provider.metadata;
-    let path = WirePath::root();
+
     for declaration in metadata.public.nominal_interfaces().all_records() {
         let owner = declaration.declaration();
-        meter.charge_work(
-            1 + u64::from(metadata.identities.identity_count().max(1).ilog2()),
-            &path,
-        )?;
+
         let key = match owner {
             SourceNominalId::Concrete(owner) => metadata
                 .identities
@@ -26,15 +22,8 @@ pub(super) fn collect<'a>(
                     .canonical_key::<PersistentGenericTypeId, SourceDeclarationKey>(owner)?
             }
         };
-        let access = declaration_access(metadata, declaration, &key, meter)?;
-        let length = scoop_wire::encoded_length(access.definition_origin())
-            .map_err(|error| Error::Key(error.to_string()))?;
-        meter.charge_owned_bytes(length, &path)?;
-        meter.charge_collection_slots(2, &path)?;
-        meter.charge_work(
-            (length + 1).saturating_mul(1 + u64::from(context.sources.len().max(1).ilog2())),
-            &path,
-        )?;
+        let access = declaration_access(metadata, declaration, &key)?;
+
         context.origins.insert(access.definition_origin().clone());
         if context
             .sources
@@ -50,12 +39,12 @@ pub(super) fn collect<'a>(
                 current: metadata,
                 dependencies: &[],
             };
-            let exact = types.nominal_exact(*backing_class, meter)?;
-            let key = types.key(exact, meter)?;
+            let exact = types.nominal_exact(*backing_class)?;
+            let key = types.key(exact)?;
             let generated = metadata
                 .identities
                 .canonical_key::<PersistentTypeId, GeneratedNominalKey>(*backing_class)?;
-            meter.charge_collection_slots(3, &path)?;
+
             context.exacts.insert(exact, key);
             context.generated.insert(*backing_class, generated);
             context

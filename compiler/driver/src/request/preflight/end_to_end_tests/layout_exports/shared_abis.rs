@@ -3,7 +3,6 @@ use scoop_lir_lower::{LayoutAbiExportDependenciesV1, LayoutAbiExportInputV1};
 use scoop_slib::SharedLirCallableAbiValidationError as Error;
 
 mod corruption;
-mod resources;
 
 pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
@@ -16,15 +15,14 @@ pub(super) fn check(
         input.lir.foundation(),
         input.identities,
         dependencies.layouts,
-        &mut meter(),
     )
     .unwrap();
-    let abis = replay(input, &layouts, dependencies.layouts, &mut meter()).unwrap();
+    let abis = replay(input, &layouts, dependencies.layouts).unwrap();
     assert_eq!(&abis, expected.callables());
     let wire: lir::DecodedCanonicalExactCallableAbiExportsV1 = decoded(expected.callables());
-    assert_eq!(wire.validate_against(&abis, &mut meter()).unwrap(), abis);
+    assert_eq!(wire.validate_against(&abis).unwrap(), abis);
     if !dependencies.layouts.is_empty() {
-        let missing = replay(input, &layouts, &[], &mut meter());
+        let missing = replay(input, &layouts, &[]);
         let has_foreign = input.bridge.callables().entries().iter().any(|binding| {
             let signature = binding.lowered_signature().exact();
             signature
@@ -44,16 +42,16 @@ pub(super) fn check(
         let mut duplicate = dependencies.layouts.to_vec();
         duplicate.push(dependencies.layouts[0]);
         assert!(matches!(
-            replay(input, &layouts, &duplicate, &mut meter()),
+            replay(input, &layouts, &duplicate),
             Err(Error::DependencyProvider(_))
         ));
         assert!(matches!(
-            replay(input, dependencies.layouts[0], &[], &mut meter()),
+            replay(input, dependencies.layouts[0], &[]),
             Err(Error::LocalProvider)
         ));
     }
     assert!(matches!(
-        replay(input, &layouts, &[&layouts], &mut meter()),
+        replay(input, &layouts, &[&layouts]),
         Err(Error::DependencyProvider(_))
     ));
 }
@@ -63,14 +61,12 @@ pub(super) fn probe(
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
     corruption::check(input, expected);
-    resources::check(input, expected.layouts());
 }
 
 fn replay(
     input: LayoutAbiExportInputV1<'_>,
     local: &lir::CanonicalExactLayoutExportsV1,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactCallableAbiExportsV1, Error> {
     scoop_slib::replay_shared_mir_callable_abis(
         input.lir.module().meta.target_profile,
@@ -78,6 +74,5 @@ fn replay(
         local,
         dependencies,
         input.lir.foundation(),
-        meter,
     )
 }

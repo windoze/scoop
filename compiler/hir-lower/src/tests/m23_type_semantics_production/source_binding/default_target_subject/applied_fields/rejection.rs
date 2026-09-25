@@ -15,7 +15,7 @@ fn applied_default_fields_reject_wrong_nominal_roles_roots_and_arities() {
                 );
                 assert!(
                     matches!(
-                        foundation.default_field_access_subject(&wrong, &mut meter()),
+                        foundation.default_field_access_subject(&wrong),
                         Err(Error::AppliedOwner(_))
                     ),
                     "{name}"
@@ -45,7 +45,7 @@ fn applied_default_fields_reject_wrong_nominal_roles_roots_and_arities() {
                 };
                 assert!(
                     matches!(
-                        foundation.default_field_access_subject(&wrong_kind, &mut meter()),
+                        foundation.default_field_access_subject(&wrong_kind),
                         Err(Error::Role(_))
                     ),
                     "{name}"
@@ -66,7 +66,7 @@ fn applied_default_fields_reject_wrong_nominal_roles_roots_and_arities() {
                     );
                     assert!(
                         matches!(
-                            foundation.default_field_access_subject(&wrong, &mut meter()),
+                            foundation.default_field_access_subject(&wrong),
                             Err(Error::AppliedOwnerArity {
                                 expected: 1,
                                 actual: 2,
@@ -106,11 +106,11 @@ fn applied_default_fields_require_artifact_owned_field_and_declaration_records()
                     let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
                     let foundation = fixture
                         .source
-                        .bind_to_foundation(&artifact, &fixture.identities, &mut meter())
+                        .bind_to_foundation(&artifact, &fixture.identities)
                         .unwrap();
                     assert!(
                         matches!(
-                            foundation.default_field_access_subject(record.target(), &mut meter()),
+                            foundation.default_field_access_subject(record.target()),
                             Err(Error::MissingDeclaration(_)) | Err(Error::MissingTarget(_))
                         ),
                         "{name}"
@@ -141,22 +141,18 @@ fn object_default_field_owner_is_the_source_object_not_its_backing_nominal() {
             let backing = PersistentTypeId::from_generated_key(backing_key).unwrap();
             let wrong = with_owner(record.target(), SignatureTypeKey::Nominal(backing));
             assert!(matches!(
-                fixture
-                    .bind()
-                    .unwrap()
-                    .default_field_access_subject(&wrong, &mut meter()),
+                fixture.bind().unwrap().default_field_access_subject(&wrong),
                 Err(Error::AppliedOwner(_))
             ));
             let mut canonical = fixture.foundation.as_canonical().clone();
             canonical.set_generated_types(vec![]).unwrap();
             let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
-            let error = match fixture.source.bind_to_foundation(
-                &artifact,
-                &fixture.identities,
-                &mut meter(),
-            ) {
+            let error = match fixture
+                .source
+                .bind_to_foundation(&artifact, &fixture.identities)
+            {
                 Ok(foundation) => foundation
-                    .default_field_access_subject(record.target(), &mut meter())
+                    .default_field_access_subject(record.target())
                     .unwrap_err(),
                 Err(error) => Error::Foundation(error),
             };

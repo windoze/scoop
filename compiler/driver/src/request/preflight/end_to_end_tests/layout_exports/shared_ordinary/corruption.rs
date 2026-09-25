@@ -43,19 +43,13 @@ pub(super) fn check(expected: &lir::CrossConeLirBridgeSectionV1) {
         field: 4,
     })
     .unwrap();
-    assert!(
-        decode_canonical::<lir::DecodedCrossConeLirBridgeSectionV1>(
-            &bytes,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<lir::DecodedCrossConeLirBridgeSectionV1>(&bytes).is_err());
 }
 
 fn reject(expected: &lir::CrossConeLirBridgeSectionV1, candidate: &impl WireEncode) {
     let wire: lir::DecodedCrossConeLirBridgeSectionV1 = decoded(candidate);
     assert!(matches!(
-        wire.validate_against(expected.clone(), &mut meter()),
+        wire.validate_against(expected.clone()),
         Err(lir::CrossConeLirBridgeValidationError::SectionMismatch)
     ));
 }

@@ -1,5 +1,3 @@
-use scoop_wire::DecodeUsage;
-
 use super::*;
 use crate::{ArtifactFingerprint, DependencyRecord};
 
@@ -18,10 +16,6 @@ impl DecodedCrossConeLayoutLinkSections<'_> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub const fn production_manifest_wire(&self) -> &DecodedSingleConeProductionManifestV1 {

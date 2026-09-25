@@ -54,11 +54,9 @@ fn nominal_binding_requires_variant_subject_and_valid_source_points() {
             let modified = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
             let foundation = fixture
                 .source
-                .bind_to_foundation(&modified, &fixture.identities, &mut meter())
+                .bind_to_foundation(&modified, &fixture.identities)
                 .unwrap();
-            let error = foundation
-                .bind_nominal_sources(&table, &mut meter())
-                .unwrap_err();
+            let error = foundation.bind_nominal_sources(&table).unwrap_err();
             assert!(
                 matches!((missing, &error),
                 (true, Error::Origin(actual)) if *actual == subject)

@@ -2,14 +2,11 @@ use super::*;
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::Fixture;
 use crate::*;
 use scoop_identity::SignatureTypeKey;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 mod owners;
 mod support;
 mod wire_tests;
 use support::*;
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn protected_source_protocol_roundtrips_required_default_and_both_vararg_categories() {
@@ -17,31 +14,23 @@ fn protected_source_protocol_roundtrips_required_default_and_both_vararg_categor
         let (mut fixture, callable, source, keys, mut authority) = fixture(vararg_default);
         let table =
             CanonicalProtectedCallableSourceInterfacesV1::try_new(vec![source.clone()]).unwrap();
-        let bytes = encode(&table.index_templates(&keys, &mut meter()).unwrap()).unwrap();
+        let bytes = encode(&table.index_templates(&keys).unwrap()).unwrap();
         let decoded: DecodedCanonicalProtectedCallableSourceInterfacesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(
-            decoded.resolve(&mut fixture, &keys, &mut meter()).unwrap(),
-            table
-        );
+        assert_eq!(decoded.resolve(&mut fixture, &keys).unwrap(), table);
         let graph_source = fixture.graph.clone();
         let graph = CheckedNominalInheritanceGraphV1::validate(
             graph_source.records.values(),
             &graph_source,
-            &mut meter(),
         )
         .unwrap();
-        let checked = callable
-            .validate_source(&graph, &mut fixture, &mut meter())
-            .unwrap();
-        let protocol = source
-            .validate_protected(checked, &mut authority, &mut meter())
-            .unwrap();
+        let checked = callable.validate_source(&graph, &mut fixture).unwrap();
+        let protocol = source.validate_protected(checked, &mut authority).unwrap();
         assert_eq!(protocol.record(), &source);
         authority.calling[1] = ProtectedParameterCallingKindV1::Required;
         assert!(matches!(
-            source.validate_protected(checked, &mut authority, &mut meter()),
+            source.validate_protected(checked, &mut authority),
             Err(ProtectedSourceSemanticError::Calling { position: 1 })
         ));
     }
@@ -66,15 +55,10 @@ fn protected_default_keys_reject_wrong_position_missing_keys_and_unreferenced_te
         ProtectedCallableSourceInterfaceV1::try_new(source.owner(), bad_parameters),
         Err(ProtectedSourceBuildError::TemplateOwner { position: 1 })
     ));
-    let bytes = encode(&source.index_templates(&keys, &mut meter()).unwrap()).unwrap();
-    let decoded: DecodedProtectedCallableSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let bytes = encode(&source.index_templates(&keys).unwrap()).unwrap();
+    let decoded: DecodedProtectedCallableSourceInterfaceV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(
-            &mut fixture,
-            &ProtectedDefaultKeyIndexV1::default(),
-            &mut meter()
-        ),
+        decoded.resolve(&mut fixture, &ProtectedDefaultKeyIndexV1::default()),
         Err(ProtectedSourceResolutionError::Build(
             ProtectedSourceBuildError::DefaultIndex
         ))
@@ -82,7 +66,7 @@ fn protected_default_keys_reject_wrong_position_missing_keys_and_unreferenced_te
     let table = CanonicalProtectedCallableSourceInterfacesV1::try_new(vec![source]).unwrap();
     let extra = ProtectedDefaultKeyIndexV1::try_new(vec![keys.keys()[0], wrong]).unwrap();
     assert!(matches!(
-        table.validate_default_closure(&extra, &mut meter()),
+        table.validate_default_closure(&extra),
         Err(ProtectedSourceIndexError::Build(
             ProtectedSourceBuildError::DefaultClosure
         ))
@@ -93,21 +77,16 @@ fn protected_default_keys_reject_wrong_position_missing_keys_and_unreferenced_te
 fn source_protocol_uses_actual_parameter_shape_and_core_array_identity() {
     let (mut fixture, callable, source, _, mut authority) = fixture(false);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
-    let checked = callable
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
+    let checked = callable.validate_source(&graph, &mut fixture).unwrap();
     authority.shapes[0] = SourceParameterShapeV1::new(
         scoop_identity::CanonicalIdentifier::new("forged").unwrap(),
         authority.shapes[0].value_type().clone(),
     );
     assert!(matches!(
-        source.validate_protected(checked, &mut authority, &mut meter()),
+        source.validate_protected(checked, &mut authority),
         Err(ProtectedSourceSemanticError::Shape { position: 0 })
     ));
     authority.shapes[0] = callable.payload().parameters().parameters()[0].clone();
@@ -127,7 +106,7 @@ fn source_protocol_uses_actual_parameter_shape_and_core_array_identity() {
     )
     .unwrap();
     assert!(matches!(
-        bad.validate_protected(checked, &mut authority, &mut meter()),
+        bad.validate_protected(checked, &mut authority),
         Err(ProtectedSourceSemanticError::Vararg { position: 2 })
     ));
 }

@@ -1,10 +1,9 @@
 use super::*;
 use crate::DefaultSourceAccessResolutionError as Error;
 use crate::{
-    DecodedCanonicalPersistentIdsV1, DecodedPersistentAccessConstraintV1,
-    DecodedPersistentAccessDomainV1, PersistentAccessResolver,
+    DecodedCanonicalPersistentIdsV1, DecodedPersistentAccessDomainV1, PersistentAccessResolver,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedDefaultSourceAccessDomainV1 {
@@ -15,37 +14,10 @@ impl DecodedDefaultSourceAccessDomainV1 {
     pub fn resolve<R: PersistentAccessResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultSourceAccessDomainV1, Error<E>> {
-        let path = WirePath::root();
-        meter
-            .check_semantic_depth(2, &path)
-            .map_err(Error::Resource)?;
-        meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-        meter.charge_work(1, &path).map_err(Error::Resource)?;
         // Manually constructed decoded values require the same leaf checks as CBOR.
-        if let DecodedPersistentAccessDomainV1::Conjunction(constraints) = &self.persistent {
-            meter
-                .check_table_entries(constraints.len() as u64, &path)
-                .map_err(Error::Resource)?;
-            meter
-                .charge_work(constraints.len() as u64, &path)
-                .map_err(Error::Resource)?;
-            for constraint in constraints {
-                if let DecodedPersistentAccessConstraintV1::File(source) = constraint {
-                    meter
-                        .check_semantic_leaf(source.logical_path_byte_len() as u64, &path)
-                        .map_err(Error::Resource)?;
-                }
-            }
-        }
-        self.generic_subclasses
-            .charge_resolution_at(meter, &path.field(2))
-            .map_err(Error::Resource)?;
-        let persistent = self
-            .persistent
-            .resolve_metered(resolver, meter)
-            .map_err(Error::Domain)?;
+
+        let persistent = self.persistent.resolve(resolver).map_err(Error::Domain)?;
         let generic_subclasses = self
             .generic_subclasses
             .resolve(resolver)
@@ -54,7 +26,7 @@ impl DecodedDefaultSourceAccessDomainV1 {
     }
 }
 impl WireDecode for DecodedDefaultSourceAccessDomainV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(2)?;
         Ok(Self {
             persistent: d.field(1, DecodedPersistentAccessDomainV1::decode)?,

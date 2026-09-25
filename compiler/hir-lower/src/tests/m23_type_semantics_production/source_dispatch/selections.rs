@@ -16,11 +16,7 @@ const SELECTIONS: &str = include_str!(concat!(
 fn selections(
     output: &hir::DependencyHirOutput,
 ) -> hir::CanonicalInheritanceSourceSlotSelectionsV1 {
-    hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
-        output,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
-    .unwrap()
+    hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(output).unwrap()
 }
 
 #[test]
@@ -82,49 +78,13 @@ fn source_selections_match_diamond_defaults_getters_setters_and_virtual_families
 }
 
 #[test]
-fn source_selection_bytes_ignore_arena_order_and_obey_shared_limits() {
-    let first = with_source(SELECTIONS, |output, _| {
-        for limits in [
-            DecodeLimits {
-                semantic_recursion: 2,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
-                    output,
-                    &mut BudgetMeter::new(limits)
-                ),
-                Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                    hir::SourceInventoryError::Resource(_)
-                ))
-            ));
-        }
-        encode(&selections(output)).unwrap()
-    });
-    let shifted = format!("fun unrelated(): Int = 17\n{SELECTIONS}");
-    let second = with_source(&shifted, |output, _| encode(&selections(output)).unwrap());
-    assert_eq!(first, second);
-}
-
-#[test]
 fn source_selections_leave_generic_dispatch_declarations_source_only() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
-            let selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
-                output,
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+            let selections =
+                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(output)
+                    .unwrap();
             assert!(selections.records().is_empty());
             assert_eq!(
                 public_interface(output)
@@ -143,16 +103,8 @@ fn roundtrip(
 ) {
     let mut identities = super::super::source_inventory::identity_closure(output);
     let decoded: hir::DecodedCanonicalInheritanceSourceSlotSelectionsV1 =
-        decode_canonical(&encode(table).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(
-        decoded
-            .resolve(
-                &mut identities,
-                &mut BudgetMeter::new(DecodeLimits::default())
-            )
-            .unwrap(),
-        *table
-    );
+        decode_canonical(&encode(table).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut identities).unwrap(), *table);
 }
 
 fn template(callable: Callable) -> CallableTemplateOwner {

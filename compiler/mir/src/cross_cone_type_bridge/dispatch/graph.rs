@@ -20,10 +20,9 @@ impl MirDispatchSchemaAuthority<'_> {
     fn neighbors(
         &self,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<PersistentExactTypeId>, MirDispatchSchemaError> {
         let ty = self.type_export(exact)?;
-        let mut values = reserve(ty.base_and_interfaces().interfaces.len() + 2, meter)?;
+        let mut values = reserve(ty.base_and_interfaces().interfaces.len() + 2)?;
         values.extend(ty.base_and_interfaces().interfaces.iter().copied());
         if let MirBaseClassV1::Base(base) = ty.base_and_interfaces().base {
             values.push(base);
@@ -36,13 +35,12 @@ impl MirDispatchSchemaAuthority<'_> {
         for index in 1..values.len() {
             let mut cursor = index;
             while cursor > 0 && values[cursor] < values[cursor - 1] {
-                meter.charge_work(1, &WirePath::root())?;
                 values.swap(cursor, cursor - 1);
                 cursor -= 1;
             }
         }
         values.dedup();
-        meter.charge_edges(values.len() as u64, &WirePath::root())?;
+
         Ok(values)
     }
 
@@ -52,7 +50,6 @@ impl MirDispatchSchemaAuthority<'_> {
         &self,
         owner: PersistentExactTypeId,
         receiver: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<PersistentExactTypeId>, MirDispatchSchemaError> {
         let source = self.type_export(receiver)?;
         let backing = self.type_export(owner)?;
@@ -73,16 +70,16 @@ impl MirDispatchSchemaAuthority<'_> {
             && *expected == owner
         {
             // Two exact views of the same object are not inheritance edges.
-            meter.charge_work(1, &WirePath::root())?;
-            let mut path = reserve(2, meter)?;
+
+            let mut path = reserve(2)?;
             path.extend([owner, receiver]);
             return Ok(path);
         }
-        let (nodes, indexes) = self.ancestry(owner, meter)?;
+        let (nodes, indexes) = self.ancestry(owner)?;
         let mut index = *indexes
             .get(&receiver)
             .ok_or(MirDispatchSchemaError::MissingReceiverPath { owner, receiver })?;
-        let mut path = reserve(nodes.len(), meter)?;
+        let mut path = reserve(nodes.len())?;
         loop {
             path.push(nodes[index].0);
             if let Some(parent) = nodes[index].1 {
@@ -95,22 +92,17 @@ impl MirDispatchSchemaAuthority<'_> {
         Ok(path)
     }
 
-    fn ancestry(
-        &self,
-        owner: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-    ) -> Result<Ancestry, MirDispatchSchemaError> {
+    fn ancestry(&self, owner: PersistentExactTypeId) -> Result<Ancestry, MirDispatchSchemaError> {
         let maximum = self.types.record_count();
-        let mut nodes = reserve(maximum, meter)?;
+        let mut nodes = reserve(maximum)?;
         let mut indexes = HashMap::new();
-        meter.try_reserve_map_slots(&mut indexes, maximum, &WirePath::root())?;
+        scoop_wire::allocation::try_reserve_map(&mut indexes, maximum, &WirePath::root())?;
         self.type_export(owner)?;
         nodes.push((owner, None));
         indexes.insert(owner, 0);
         let mut cursor = 0;
         while cursor < nodes.len() {
-            meter.charge_work(1, &WirePath::root())?;
-            for next in self.neighbors(nodes[cursor].0, meter)? {
+            for next in self.neighbors(nodes[cursor].0)? {
                 self.type_export(next)?;
                 if let std::collections::hash_map::Entry::Vacant(entry) = indexes.entry(next) {
                     entry.insert(nodes.len());
@@ -127,10 +119,7 @@ impl MirDispatchSchemaAuthority<'_> {
         owner: PersistentExactTypeId,
         active: &mut Vec<PersistentExactTypeId>,
         done: &mut HashSet<PersistentExactTypeId>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
-        meter.check_semantic_depth(active.len() as u64, &WirePath::root())?;
-        meter.charge_work(active.len() as u64 + 1, &WirePath::root())?;
         if active.contains(&owner) {
             return Err(MirDispatchSchemaError::InheritanceCycle { exact: owner });
         }
@@ -138,8 +127,8 @@ impl MirDispatchSchemaAuthority<'_> {
             return Ok(());
         }
         active.push(owner);
-        for next in self.neighbors(owner, meter)? {
-            self.check_cycles(next, active, done, meter)?;
+        for next in self.neighbors(owner)? {
+            self.check_cycles(next, active, done)?;
         }
         active.pop();
         done.insert(owner);
@@ -150,43 +139,45 @@ impl MirDispatchSchemaAuthority<'_> {
         &self,
         table: &CanonicalMirDispatchSchemasV1,
         dependencies: &[&CanonicalMirDispatchSchemasV1],
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
         if dependencies.is_empty() {
-            return self.validate_table(table, table, meter);
+            return self.validate_table(table, table);
         }
         let count = dependencies
             .len()
             .checked_add(1)
             .ok_or(MirTypeBridgeLookupError::RecordCountOverflow)?;
-        let mut tables = reserve(count, meter)?;
+        let mut tables = reserve(count)?;
         tables.push(table);
         tables.extend_from_slice(dependencies);
-        let lookup = MirTypeBridgeSchemaIndexV1::try_new(&tables, meter)?;
-        self.validate_table(table, &lookup, meter)
+        let lookup = MirTypeBridgeSchemaIndexV1::try_new(&tables)?;
+        self.validate_table(table, &lookup)
     }
 
     fn validate_table(
         &self,
         table: &CanonicalMirDispatchSchemasV1,
         schemas: &dyn MirTypeBridgeSchemaLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
-        let mut active = reserve(self.types.record_count(), meter)?;
+        let mut active = reserve(self.types.record_count())?;
         let mut done = HashSet::new();
-        meter.try_reserve_set_slots(&mut done, self.types.record_count(), &WirePath::root())?;
+        scoop_wire::allocation::try_reserve_set(
+            &mut done,
+            self.types.record_count(),
+            &WirePath::root(),
+        )?;
         for record in table.records() {
-            self.check_cycles(record.owner(), &mut active, &mut done, meter)?;
+            self.check_cycles(record.owner(), &mut active, &mut done)?;
         }
         for record in table.records() {
-            self.validate_record(record, meter)?;
+            self.validate_record(record)?;
             let ty = self.type_export(record.owner())?;
             if let MirBaseClassV1::Base(base) = ty.base_and_interfaces().base {
                 let base = schemas
                     .get(base)
                     .ok_or(MirDispatchSchemaError::MissingSchema { owner: base })?;
                 let prefix = base.vtable().entries();
-                meter.charge_work(prefix.len() as u64, &WirePath::root())?;
+
                 if !prefix
                     .iter()
                     .zip(record.vtable().entries())
@@ -199,8 +190,8 @@ impl MirDispatchSchemaAuthority<'_> {
                 }
             }
             let interface_owner = matches!(ty.representation(), MirTypeRepresentationV1::Interface);
-            let (reachable, _) = self.ancestry(record.owner(), meter)?;
-            let mut expected = reserve(reachable.len(), meter)?;
+            let (reachable, _) = self.ancestry(record.owner())?;
+            let mut expected = reserve(reachable.len())?;
             for (exact, _) in reachable {
                 if matches!(
                     self.type_export(exact)?.representation(),
@@ -210,7 +201,7 @@ impl MirDispatchSchemaAuthority<'_> {
                     expected.push(exact);
                 }
             }
-            charge_sort(expected.len(), meter)?;
+
             expected.sort_unstable();
             if !record
                 .itables()
@@ -224,7 +215,7 @@ impl MirDispatchSchemaAuthority<'_> {
             }
             for itable in record.itables() {
                 if itable.interface() == record.owner() {
-                    self.interface_prefix(record, itable, schemas, meter)?;
+                    self.interface_prefix(record, itable, schemas)?;
                 } else {
                     let provider = schemas.get(itable.interface()).ok_or(
                         MirDispatchSchemaError::MissingSchema {
@@ -237,7 +228,7 @@ impl MirDispatchSchemaAuthority<'_> {
                             interface: itable.interface(),
                         },
                     )?;
-                    meter.charge_work(itable.entries().len() as u64, &WirePath::root())?;
+
                     if itable.entries().len() != expected.entries().len()
                         || !itable
                             .entries()
@@ -261,14 +252,20 @@ impl MirDispatchSchemaAuthority<'_> {
         record: &ParamFreeMirDispatchSchemaV1,
         own: &MirInterfaceDispatchTableV1,
         table: &dyn MirTypeBridgeSchemaLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
         let mut inherited = HashSet::new();
-        meter.try_reserve_set_slots(&mut inherited, own.entries().len(), &WirePath::root())?;
+        scoop_wire::allocation::try_reserve_set(
+            &mut inherited,
+            own.entries().len(),
+            &WirePath::root(),
+        )?;
         let mut positions = HashMap::new();
-        meter.try_reserve_map_slots(&mut positions, own.entries().len(), &WirePath::root())?;
+        scoop_wire::allocation::try_reserve_map(
+            &mut positions,
+            own.entries().len(),
+            &WirePath::root(),
+        )?;
         for (position, entry) in own.entries().iter().enumerate() {
-            meter.charge_work(1, &WirePath::root())?;
             positions.insert(entry.slot(), position);
         }
         for interface in &self
@@ -287,7 +284,6 @@ impl MirDispatchSchemaAuthority<'_> {
             )?;
             let mut cursor = 0;
             for entry in parent.entries() {
-                meter.charge_work(1, &WirePath::root())?;
                 let Some(&position) = positions.get(&entry.slot()) else {
                     // HIR owns the complete typed override suppression proof.
                     continue;

@@ -13,10 +13,9 @@ pub(super) fn validate_boxed(
     payload: PersistentExactTypeId,
     boxed: PersistentExactTypeId,
     descriptors: &CanonicalExactDescriptorExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ParamFreeShapeSupportExportError> {
-    let source = descriptor(payload, descriptors, meter)?;
-    let descriptor = descriptor(boxed, descriptors, meter)?;
+    let source = descriptor(payload, descriptors)?;
+    let descriptor = descriptor(boxed, descriptors)?;
     if !matches!(
         descriptor.value_layout().representation().kind(),
         ExactRepresentationKindV1::QualifiedPointer(NichePointerKind::Managed)
@@ -40,9 +39,8 @@ pub(super) fn validate_helper(
     payload: PersistentExactTypeId,
     helper: PersistentExactTypeId,
     descriptors: &CanonicalExactDescriptorExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ParamFreeShapeSupportExportError> {
-    let descriptor = descriptor(helper, descriptors, meter)?;
+    let descriptor = descriptor(helper, descriptors)?;
     let variants = match descriptor.value_layout().representation().kind() {
         ExactRepresentationKindV1::TaggedEnum(value) => value.variants(),
         ExactRepresentationKindV1::NicheEnum(value) => {
@@ -67,7 +65,7 @@ pub(super) fn validate_helper(
             return Err(ParamFreeShapeSupportExportError::HelperVariants(helper));
         }
         if index == payload_index {
-            validate_payload(actual, expected, payload, helper, descriptors, meter)?;
+            validate_payload(actual, expected, payload, helper, descriptors)?;
         } else if !actual.fields().is_empty() {
             return Err(ParamFreeShapeSupportExportError::HelperVariants(helper));
         }
@@ -81,7 +79,6 @@ fn validate_payload(
     payload: PersistentExactTypeId,
     helper: PersistentExactTypeId,
     descriptors: &CanonicalExactDescriptorExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ParamFreeShapeSupportExportError> {
     let field = PersistentEnumVariantFieldId::from_key(&EnumVariantFieldKey::new(
         variant,
@@ -92,9 +89,7 @@ fn validate_payload(
     let [actual] = actual.fields() else {
         return Err(ParamFreeShapeSupportExportError::HelperPayload(helper));
     };
-    if actual.field() != field
-        || !payload_storage(actual.storage().kind(), payload, descriptors, meter)?
-    {
+    if actual.field() != field || !payload_storage(actual.storage().kind(), payload, descriptors)? {
         return Err(ParamFreeShapeSupportExportError::HelperPayload(helper));
     }
     Ok(())
@@ -104,11 +99,8 @@ fn payload_storage(
     actual: FieldStorageKindV1<'_>,
     payload: PersistentExactTypeId,
     descriptors: &CanonicalExactDescriptorExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<bool, ParamFreeShapeSupportExportError> {
-    let expected = descriptor(payload, descriptors, meter)?
-        .value_layout()
-        .value();
+    let expected = descriptor(payload, descriptors)?.value_layout().value();
     Ok(match (actual, expected.nonzero_ref()) {
         (
             FieldStorageKindV1::ElidedZst {

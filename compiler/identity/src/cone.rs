@@ -1,9 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{
-    Decoder, Encoder, HashError, WireDecode, WireEncode, WireError,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
 pub use crate::ids::ConeIdentity;
 use crate::ids::derive_persistent_id;
@@ -88,10 +85,6 @@ impl ConeCoordinate {
         derive_persistent_id(CONE_ID_DOMAIN, self)
     }
 
-    pub fn identity_hash_stream_length(&self) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(CONE_ID_DOMAIN, self)
-    }
-
     fn from_owned(
         group: String,
         name: String,
@@ -162,7 +155,7 @@ impl WireEncode for DecodedConeCoordinate {
 }
 
 impl WireDecode for DecodedConeCoordinate {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         let group = decoder.field(1, Decoder::owned_text)?;
         let name = decoder.field(2, Decoder::owned_text)?;
@@ -269,7 +262,7 @@ fn validate_coordinate_text(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::{ConeCoordinate, ConeCoordinateError, ConeIdentity, DecodedConeCoordinate};
 
@@ -301,8 +294,7 @@ mod tests {
     #[test]
     fn coordinate_decode_requires_a_separate_validation_step() {
         let bytes = encode(&ConeCoordinate::reserved_core()).unwrap();
-        let decoded =
-            decode_canonical::<DecodedConeCoordinate>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedConeCoordinate>(&bytes).unwrap();
         assert_eq!(decoded.validate().unwrap(), ConeCoordinate::reserved_core());
     }
 

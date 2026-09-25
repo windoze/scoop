@@ -16,7 +16,6 @@ impl NominalSourceParameterProtocolV1 {
     pub fn try_new(
         owner: CallableTemplateOrigin,
         parameters: Vec<InheritanceSourceParameterV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         if !matches!(
             owner,
@@ -29,19 +28,12 @@ impl NominalSourceParameterProtocolV1 {
                 "nominal parameter owner must be a source function, constructor or variant",
             ));
         }
-        let path = WirePath::root();
-        charge_sort(parameters.len(), meter)?;
-        meter.charge_collection_slots(parameters.len() as u64, &path)?;
+
         let mut names = BTreeSet::new();
         let mut vararg = false;
         for parameter in &parameters {
             let name = parameter.shape().name();
-            meter.check_semantic_leaf(name.as_str().len() as u64, &path)?;
-            meter.charge_work(
-                (name.as_str().len() as u64)
-                    .saturating_mul(u64::from(parameters.len().max(1).ilog2()) + 1),
-                &path,
-            )?;
+
             if !names.insert(name) {
                 return Err(reference("duplicate nominal source parameter name"));
             }
@@ -74,21 +66,17 @@ pub struct CanonicalNominalSourceParameterProtocolsV1 {
 impl CanonicalNominalSourceParameterProtocolsV1 {
     pub fn try_new(
         mut records: Vec<NominalSourceParameterProtocolV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(NominalSourceParameterProtocolV1::owner);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
     fn from_ordered(
         records: Vec<NominalSourceParameterProtocolV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             NominalSourceParameterProtocolV1::owner,
             "nominal source parameter protocols",
-            meter,
         )?;
         Ok(Self { records })
     }

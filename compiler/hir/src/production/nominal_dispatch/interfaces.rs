@@ -1,6 +1,6 @@
 use super::*;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn interface_slot(
         &self,
         member: InterfaceMethodId,
@@ -23,14 +23,12 @@ impl Projection<'_, '_> {
             for member in &self.export.interfaces[interface].methods {
                 self.push(&mut members, *member)?;
                 for overridden in &self.export.interface_methods[*member].overrides {
-                    self.search(suppressed.len())?;
                     suppressed.insert(*overridden);
                 }
             }
         }
         let mut effective = Vec::new();
         for member in members {
-            self.work(suppressed.len().max(1).ilog2() as usize + 1)?;
             if !suppressed.contains(&member) {
                 self.push(&mut effective, member)?;
             }
@@ -48,13 +46,11 @@ impl Projection<'_, '_> {
         let mut pending = Vec::new();
         self.push(&mut pending, (application, false, 1))?;
         while let Some((application, leaving, depth)) = pending.pop() {
-            self.depth(depth)?;
-            self.search(complete.len())?;
             if complete.contains(&application) {
                 continue;
             }
             let source = &self.export.interface_applications[application];
-            self.search(active.len())?;
+
             if leaving {
                 active.remove(&application);
                 complete.insert(application);

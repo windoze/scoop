@@ -31,7 +31,6 @@ impl DecodedTypes {
             .complete_cross_cone_interface_source_points(
                 input.hir.output().export.module(),
                 &input.cross_cone_section,
-                &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
             )
             .unwrap();
         let foundation: hir::DecodedHirFoundation = decoded(&foundation);
@@ -47,15 +46,13 @@ impl DecodedTypes {
         let mut identities = pending.finish().unwrap();
         let foundation = hir::OdrFreeHirFoundation::from_validated(
             foundation
-                .validate_with_dependency_sources(coordinate, &mut identities, &mut meter())
+                .validate_with_dependency_sources(coordinate, &mut identities)
                 .unwrap(),
         )
         .unwrap();
         let public: hir::DecodedCrossConeHirInterfaceSectionV1 =
             decoded(&input.cross_cone_section.index_for_wire().unwrap());
-        let public = public
-            .resolve_metered(&mut identities, &mut meter())
-            .unwrap();
+        let public = public.resolve(&mut identities).unwrap();
         let source = scoop_hir_lower::produce_cross_cone_type_semantics(
             &input.hir,
             hir::SharedTypeMetadataV1 {
@@ -68,13 +65,12 @@ impl DecodedTypes {
                 .iter()
                 .map(|dependency| dependency.metadata())
                 .collect::<Vec<_>>(),
-            &mut meter(),
         )
         .unwrap();
         let types: hir::DecodedCrossConeTypeSemanticsSectionV1 =
-            decoded(&source.section().index_for_wire(&mut meter()).unwrap());
+            decoded(&source.section().index_for_wire().unwrap());
         let types = types
-            .resolve(&mut identities, &mut meter(), &scoop_wire::WirePath::root())
+            .resolve(&mut identities, &scoop_wire::WirePath::root())
             .unwrap();
         Self {
             provider,
@@ -99,6 +95,6 @@ impl DecodedTypes {
         dependencies: &[CheckedSharedTypeFoundationV1<'a>],
     ) -> Result<CheckedSharedTypeFoundationV1<'a>, Error> {
         self.types
-            .validate_shared_foundation(self.metadata(), dependencies, &mut meter())
+            .validate_shared_foundation(self.metadata(), dependencies)
     }
 }

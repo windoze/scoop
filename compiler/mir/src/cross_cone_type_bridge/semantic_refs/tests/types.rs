@@ -11,22 +11,17 @@ fn all_finite_helper_payload_edges_collapse_to_the_exact_source() {
         fixture.slot_export(),
     ] {
         let references =
-            MirTypeBridgeSemanticReferencesV1::of_type(&record, &fixture.graph, &mut meter())
-                .unwrap();
+            MirTypeBridgeSemanticReferencesV1::of_type(&record, &fixture.graph).unwrap();
         assert_eq!(
             references.targets(),
             &[MirTypeBridgeTargetV1::Type(fixture.payload.id())]
         );
     }
     assert!(
-        MirTypeBridgeSemanticReferencesV1::of_type(
-            &fixture.empty_export(),
-            &fixture.graph,
-            &mut meter(),
-        )
-        .unwrap()
-        .targets()
-        .is_empty()
+        MirTypeBridgeSemanticReferencesV1::of_type(&fixture.empty_export(), &fixture.graph,)
+            .unwrap()
+            .targets()
+            .is_empty()
     );
 }
 
@@ -50,11 +45,10 @@ fn a_shape_family_requires_source_and_every_finite_helper() {
         MirBoxedShapeSupportV1::Available(fixture.boxed_export().exact()),
         fixture.step_export().exact(),
         fixture.slot_export().exact(),
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(
-        MirTypeBridgeSemanticReferencesV1::of_shape(&shape, &fixture.graph, &mut meter(),)
+        MirTypeBridgeSemanticReferencesV1::of_shape(&shape, &fixture.graph,)
             .unwrap()
             .targets(),
         expected(
@@ -91,19 +85,11 @@ fn nested_tuple_fields_expand_only_to_nominal_leaves() {
     )
     .unwrap();
     assert_eq!(
-        MirTypeBridgeSemanticReferencesV1::of_type(&record, &graph, &mut meter())
+        MirTypeBridgeSemanticReferencesV1::of_type(&record, &graph)
             .unwrap()
             .targets(),
         &[MirTypeBridgeTargetV1::Type(structural_leaf(&fixture))]
     );
-    let mut limited = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 2,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        MirTypeBridgeSemanticReferencesV1::of_type(&record, &graph, &mut limited),
-        Err(MirTypeBridgeReferenceError::Resource(_))
-    ));
 }
 
 #[test]
@@ -111,34 +97,15 @@ fn tuple_signatures_and_non_tuple_structural_fields_are_gated() {
     let fixture = Fixture::new();
     let (graph, exacts) = structural_graph(&fixture);
     for exact in &exacts {
-        let mut budget = meter();
-        let mut collector = collector::Collector::new(&graph, &mut budget);
+        let mut collector = collector::Collector::new(&graph);
         assert!(matches!(collector.exact(*exact),
             Err(MirTypeBridgeReferenceError::StructuralExecutionGate(id)) if id == *exact));
     }
     for exact in &exacts[2..] {
-        let mut budget = meter();
-        let mut collector = collector::Collector::new(&graph, &mut budget);
+        let mut collector = collector::Collector::new(&graph);
         assert!(matches!(collector.field(*exact),
             Err(MirTypeBridgeReferenceError::StructuralExecutionGate(id)) if id == *exact));
     }
-}
-
-#[test]
-fn resource_limit_is_checked_before_unknown_exact_lookup() {
-    let fixture = Fixture::new();
-    let mut limited = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    let mut collector = collector::Collector::new(&fixture.graph, &mut limited);
-    assert!(matches!(
-        collector.exact(
-            PersistentExactTypeId::from_key(&ExactTypeKey::RawPointer(fixture.payload.id()))
-                .unwrap()
-        ),
-        Err(MirTypeBridgeReferenceError::Resource(_))
-    ));
 }
 
 fn structural_graph(fixture: &Fixture) -> (ValidatedIdentityGraph, Vec<PersistentExactTypeId>) {
@@ -176,7 +143,7 @@ fn structural_graph(fixture: &Fixture) -> (ValidatedIdentityGraph, Vec<Persisten
     hir.set_generic_types(vec![generic]).unwrap();
     hir.set_exact_types(records).unwrap();
     let decoded: scoop_hir::DecodedHirFoundation =
-        decode_canonical(&encode(&hir).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&hir).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending
         .register_external_graph_authorities(&fixture.graph)

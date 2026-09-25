@@ -3,33 +3,21 @@ use scoop_lir_lower::LayoutAbiExportInputV1;
 use scoop_slib::{SharedLirDescriptorInputsV1, SharedLirDescriptorValidationError as Error};
 
 mod corruption;
-mod resources;
 
 pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
-    let descriptors = replay(
-        input,
-        expected.layouts(),
-        expected.dispatch(),
-        &[],
-        &mut meter(),
-    )
-    .unwrap();
+    let descriptors = replay(input, expected.layouts(), expected.dispatch(), &[]).unwrap();
     assert_eq!(&descriptors, expected.descriptors());
     let wire: lir::DecodedCanonicalExactDescriptorExportsV1 = decoded(expected.descriptors());
-    assert_eq!(
-        wire.validate_against(&descriptors, &mut meter()).unwrap(),
-        descriptors
-    );
+    assert_eq!(wire.validate_against(&descriptors).unwrap(), descriptors);
     assert!(matches!(
         replay(
             input,
             expected.layouts(),
             expected.dispatch(),
-            &[&descriptors],
-            &mut meter()
+            &[&descriptors]
         ),
         Err(Error::DependencyProvider(_))
     ));
@@ -65,7 +53,6 @@ pub(super) fn probe(
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
     corruption::check(input, expected);
-    resources::check(input, expected);
 }
 
 fn replay(
@@ -73,13 +60,9 @@ fn replay(
     layouts: &lir::CanonicalExactLayoutExportsV1,
     dispatch: &lir::CanonicalExactDispatchExportsV1,
     dependencies: &[&lir::CanonicalExactDescriptorExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactDescriptorExportsV1, Error> {
-    let diagnostics = scoop_identity::ExactTypeDiagnosticCatalog::try_new(
-        input.identities,
-        input.coordinates,
-        meter,
-    )?;
+    let diagnostics =
+        scoop_identity::ExactTypeDiagnosticCatalog::try_new(input.identities, input.coordinates)?;
     scoop_slib::replay_shared_mir_descriptors(
         input.lir.module().meta.target_profile,
         input.bridge.types(),
@@ -90,6 +73,5 @@ fn replay(
         },
         &diagnostics,
         input.lir.foundation(),
-        meter,
     )
 }

@@ -1,5 +1,5 @@
 use scoop_identity::SourceNominalKind;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -21,8 +21,7 @@ fn round_trip(
         NominalRepresentationSupportV1::try_new(&fixture.key, fixture.access.clone(), shape)
             .unwrap();
     let bytes = encode(&record).unwrap();
-    let decoded: DecodedNominalRepresentationSupportV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedNominalRepresentationSupportV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(decoded.resolve(fixture).unwrap(), record);
     record
@@ -266,9 +265,6 @@ fn shape_wire_has_fixed_tags_and_rejects_unknown_or_wrong_products() {
         &[0xa2, 0, 4, 1, 0][..],
         &[0xa1, 0, 1][..],
     ] {
-        assert!(
-            decode_canonical::<DecodedNominalRepresentationShapeV1>(bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedNominalRepresentationShapeV1>(bytes).is_err());
     }
 }

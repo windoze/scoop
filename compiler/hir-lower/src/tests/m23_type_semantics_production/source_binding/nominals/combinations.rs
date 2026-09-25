@@ -14,9 +14,7 @@ fn nominal_binding_keeps_generic_members_and_rejects_another_owners_method() {
         let mut fixture = Fixture::from_output(output);
         let table = sources(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        foundation
-            .bind_nominal_sources(&table, &mut meter())
-            .unwrap();
+        foundation.bind_nominal_sources(&table).unwrap();
         let host = named(&fixture, &table, "Host");
         let other = named(&fixture, &table, "Other");
         assert_eq!(host.members().values().len(), 4);
@@ -49,7 +47,7 @@ fn nominal_binding_keeps_generic_members_and_rejects_another_owners_method() {
             host.source_shape().clone(),
         );
         assert!(matches!(
-            foundation.bind_nominal_sources(&replace(&table, wrong_owner), &mut meter()),
+            foundation.bind_nominal_sources(&replace(&table, wrong_owner)),
             Err(Error::Inventory("nominal members"))
         ));
         let mut canonical = fixture.foundation.as_canonical().clone();
@@ -57,10 +55,10 @@ fn nominal_binding_keeps_generic_members_and_rejects_another_owners_method() {
         let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+            .bind_to_foundation(&incomplete, &fixture.identities)
             .unwrap();
         assert!(matches!(
-            foundation.bind_nominal_sources(&table, &mut meter()),
+            foundation.bind_nominal_sources(&table),
             Err(Error::Inventory("nominal members"))
         ));
     });
@@ -96,9 +94,7 @@ fn nominal_binding_rejects_reordered_positional_fields_and_other_variant_fields(
                 Shape::Enum(EnumSourceShapeV1::try_new(variants).unwrap()),
             );
             let modified = replace(&table, record);
-            let error = foundation
-                .bind_nominal_sources(&modified, &mut meter())
-                .unwrap_err();
+            let error = foundation.bind_nominal_sources(&modified).unwrap_err();
             assert!(matches!(
                 (foreign_variant, error),
                 (false, Error::Contract { .. }) | (true, Error::Inventory("enum variant fields"))

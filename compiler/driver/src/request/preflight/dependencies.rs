@@ -5,7 +5,7 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_slib::{
     ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError, PrebuiltManifestSummaryError,
 };
-use scoop_wire::{DecodeLimits, HashError};
+use scoop_wire::HashError;
 
 mod graph;
 mod load;
@@ -85,11 +85,9 @@ pub enum ExplicitDependencyLoadError {
         source: std::io::Error,
     },
     NotRegularFile(ExplicitDependencyArtifactInput),
-    ArtifactTooLarge {
-        input: ExplicitDependencyArtifactInput,
-        actual: u64,
-        limit: u64,
-    },
+    LengthOverflow(ExplicitDependencyArtifactInput),
+    Allocation(ExplicitDependencyArtifactInput),
+    ChangedDuringRead(ExplicitDependencyArtifactInput),
 }
 
 impl fmt::Display for ExplicitDependencyLoadError {
@@ -103,14 +101,15 @@ impl fmt::Display for ExplicitDependencyLoadError {
             Self::NotRegularFile(input) => {
                 write!(formatter, "dependency {input} is not a regular file")
             }
-            Self::ArtifactTooLarge {
-                input,
-                actual,
-                limit,
-            } => write!(
-                formatter,
-                "dependency {input} has {actual} bytes, exceeding the {limit}-byte input limit"
-            ),
+            Self::LengthOverflow(input) => {
+                write!(formatter, "dependency {input} length cannot be represented")
+            }
+            Self::Allocation(input) => {
+                write!(formatter, "cannot allocate dependency {input} bytes")
+            }
+            Self::ChangedDuringRead(input) => {
+                write!(formatter, "dependency {input} changed while being read")
+            }
         }
     }
 }
@@ -120,7 +119,10 @@ impl std::error::Error for ExplicitDependencyLoadError {
         match self {
             Self::Io { source, .. } => Some(source),
 
-            Self::NotRegularFile(_) | Self::ArtifactTooLarge { .. } => None,
+            Self::NotRegularFile(_)
+            | Self::LengthOverflow(_)
+            | Self::Allocation(_)
+            | Self::ChangedDuringRead(_) => None,
         }
     }
 }
@@ -135,7 +137,6 @@ struct LoadedExplicitDependencyArtifact {
 #[derive(Debug)]
 pub(super) struct LoadedExplicitDependencyInputs {
     artifacts: Vec<LoadedExplicitDependencyArtifact>,
-    limits: DecodeLimits,
 }
 
 type DependencyValidationResult<T> = Result<T, Box<ExplicitDependencyValidationError>>;

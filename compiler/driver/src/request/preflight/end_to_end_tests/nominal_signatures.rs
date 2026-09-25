@@ -31,7 +31,6 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

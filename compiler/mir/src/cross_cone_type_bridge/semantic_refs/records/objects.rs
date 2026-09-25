@@ -4,9 +4,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
     pub fn of_object(
         record: &ParamFreeMirObjectValueV1,
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
+        let mut collector = Collector::new(graph);
         collector.exact(record.read().object())?;
         collector.exact(record.backing())?;
         collector.push(MirTypeBridgeTargetV1::Callable(record.ensure()))?;
@@ -17,9 +16,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
     pub fn of_initialization_use(
         record: &SelectedExternalInitializationUseV1,
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
+        let mut collector = Collector::new(graph);
         collector.push(MirTypeBridgeTargetV1::InitializationUnit(
             record.local_unit(),
         ))?;
@@ -39,9 +37,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
     pub fn of_initialization_unit(
         unit: PersistentInitializationUnitId,
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
+        let mut collector = Collector::new(graph);
         collector.unit(unit)?;
         collector.finish()
     }
@@ -50,9 +47,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
         unit: PersistentInitializationUnitId,
         signature: &MirBridgeCallableSignatureV1,
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
+        let mut collector = Collector::new(graph);
         collector.unit(unit)?;
         collector.signature(signature)?;
         collector.finish()
@@ -63,7 +59,6 @@ impl Collector<'_> {
         &mut self,
         unit: PersistentInitializationUnitId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.meter.charge_work(3, &WirePath::root())?;
         let key = self.graph.canonical_key::<_, InitializationUnitKey>(unit)?;
         if matches!(
             key.as_ref(),

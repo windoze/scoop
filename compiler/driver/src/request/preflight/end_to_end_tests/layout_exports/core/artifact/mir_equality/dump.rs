@@ -7,23 +7,18 @@ use scoop_identity::{
 pub(super) fn check(replay: &Replay<'_>, name: &str) {
     let metadata = replay.source.metadata();
     let coordinates = [ConeCoordinate::reserved_core()];
-    let names =
-        ExactTypeDiagnosticCatalog::try_new(metadata.identities, &coordinates, &mut meter())
-            .unwrap();
+    let names = ExactTypeDiagnosticCatalog::try_new(metadata.identities, &coordinates).unwrap();
     let exact = |id| {
         CanonicalExactTypeDiagnosticName::from_validated_graph(id, &names)
             .unwrap()
             .into_string()
     };
     let unit = metadata
-        .signature_exact_type(
-            &SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
-            &mut meter(),
-        )
+        .signature_exact_type(&SignatureTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
         .unwrap();
-    let applications = metadata
-        .derived_equality_applications(&mut meter())
-        .unwrap();
+    let applications = metadata.derived_equality_applications().unwrap();
     let mut rows = Vec::new();
     let mut exports = 0;
     let mut deferred = 0;

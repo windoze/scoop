@@ -39,7 +39,7 @@ pub(super) fn check(
     write_cone(&helper, "helper");
     let helper_artifact = workspace.join("direct-helper.slib");
     request(target, &helper, &helper_artifact, &absent, &[core], &[])
-        .build_and_publish(DecodeLimits::default())
+        .build_and_publish()
         .unwrap();
     let combined = workspace.join("direct-combined");
     write_cone(&combined, "combined");
@@ -54,7 +54,7 @@ pub(super) fn check(
         &[core, &helper_artifact],
         &[],
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap();
     assert_eq!(
         std::fs::read(combined_output).unwrap(),
@@ -69,7 +69,7 @@ pub(super) fn check(
         &[&helper_artifact],
         &[],
     )
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap();
     assert_eq!(
         std::fs::read(implicit_combined).unwrap(),

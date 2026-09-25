@@ -28,7 +28,7 @@ fn builtin_default_dependencies_round_trip_without_source_name_witnesses() {
             identities.register_authority(record.origin()).unwrap();
             identities.register_authority(id).unwrap();
             let decoded: DecodedExternalHirReferenceV1 =
-                decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(&record).unwrap()).unwrap();
             assert_eq!(
                 decoded.resolve(&mut identities.finish().unwrap()).unwrap(),
                 record
@@ -84,7 +84,7 @@ fn builtin_default_dependencies_reject_fabricated_binding_witnesses_on_decode() 
             .register_authority(fixture.first_route.terminal().binding())
             .unwrap();
         let decoded: DecodedExternalHirReferenceV1 =
-            decode_canonical(&encode(&malformed).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&malformed).unwrap()).unwrap();
         assert!(matches!(
             decoded.resolve(&mut identities.finish().unwrap()),
             Err(ExternalHirReferenceResolutionError::Shape(

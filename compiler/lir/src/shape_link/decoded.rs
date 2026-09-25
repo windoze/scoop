@@ -1,7 +1,7 @@
 use scoop_identity::{
     ConeIdentity, DecodedPersistentId, DecodedPersistentSymbolRequest, ObjectDefinitionPlanId,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::wire::{EncodeResult, equal_fields, field};
 use super::{DecodedShapeLinkContractV1, ExternalShapeLinkImportV1, ShapeLinkError};
@@ -20,25 +20,23 @@ impl DecodedExternalShapeLinkImportV1 {
     pub fn validate_against(
         self,
         expected: &ExternalShapeLinkImportV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ShapeLinkError> {
-        meter.charge_work(5, &WirePath::root())?;
         if self.provider.verify(expected.provider()).is_err()
             || self
                 .required_definition
                 .verify(expected.required_definition())
                 .is_err()
-            || !equal_fields(&self.subject, &expected.subject(), meter)?
-            || !equal_fields(&self.expected_symbol, &expected.expected_symbol(), meter)?
+            || !equal_fields(&self.subject, &expected.subject())?
+            || !equal_fields(&self.expected_symbol, &expected.expected_symbol())?
             || !expected.contract().matches_subject(expected.subject())
         {
             return Err(ShapeLinkError::Header);
         }
-        self.contract.validate_against(expected.contract(), meter)
+        self.contract.validate_against(expected.contract())
     }
 }
 impl WireDecode for DecodedExternalShapeLinkImportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             provider: decoder.field(1, DecodedPersistentId::decode)?,

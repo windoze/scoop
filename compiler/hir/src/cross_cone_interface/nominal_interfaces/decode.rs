@@ -93,7 +93,7 @@ impl WireEncode for DecodedNominalInterfaceRecordV1 {
 }
 
 impl WireDecode for DecodedNominalInterfaceRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(9)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedSourceNominalId::decode)?,

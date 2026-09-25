@@ -194,7 +194,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
         c_bridge_profile: &CBridgeToolchainProfileV1,
     ) -> Result<CrossConeLinkSymbolCheckedSections<'input>, StrongLinkSymbolRequirementError> {
         let Self {
-            mut graph,
+            graph,
             identities,
             foundations,
             production,
@@ -260,11 +260,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
             .validate_semantic_imports_against(undefined_partitions.cross_cone().semantic_imports())
             .map_err(StrongLinkSymbolRequirementError::CrossConeClosure)?;
         let link_identity_closure = link_identity_closure
-            .validate_symbol_projections(
-                &defined_symbols,
-                undefined_partitions.legacy(),
-                graph.envelope.meter_mut(),
-            )
+            .validate_symbol_projections(&defined_symbols, undefined_partitions.legacy())
             .map_err(StrongLinkSymbolRequirementError::ClosureProjection)?;
 
         Ok(CrossConeLinkSymbolCheckedSections {
@@ -584,10 +580,6 @@ impl ValidatedCrossConeStrongLinkArtifact<'_> {
 
     pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
         self.graph.envelope.manifest().semantic_fingerprints()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {

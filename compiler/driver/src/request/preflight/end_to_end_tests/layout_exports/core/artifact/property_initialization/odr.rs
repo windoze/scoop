@@ -15,7 +15,7 @@ pub(super) fn check(sysroot: &Path, target: &scoop_toolchain::ResolvedTargetProf
         vec![],
         vec![],
     )
-    .load_preflight(DecodeLimits::default())
+    .load_preflight()
     .unwrap();
     let request = loaded.validate().unwrap();
     let parsed = request.parse_current_sources().unwrap();

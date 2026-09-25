@@ -36,7 +36,6 @@ fn link_shape_validation_requires_the_same_artifact_compile_view() {
         vec![ConeIdentity::CORE],
         vec![&core_bytes],
         &archives[0],
-        DecodeLimits::default(),
         target.c_bridge_toolchain().profile(),
         &mut session,
     )
@@ -45,14 +44,10 @@ fn link_shape_validation_requires_the_same_artifact_compile_view() {
         (&core_bytes, PublishViewMismatchError::Cone),
         (&archives[1], PublishViewMismatchError::ArtifactFingerprint),
     ] {
-        let graph = DecodedSlibEnvelope::open(
-            bytes,
-            DecodeLimits::default(),
-            target.lir_target_selection(),
-        )
-        .unwrap()
-        .validate_graph()
-        .unwrap();
+        let graph = DecodedSlibEnvelope::open(bytes, target.lir_target_selection())
+            .unwrap()
+            .validate_graph()
+            .unwrap();
         assert!(matches!(
             scoop_slib::validate_self_describing_cross_cone_strong_link_artifact(
                 graph,

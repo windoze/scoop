@@ -7,15 +7,15 @@ pub(super) fn check(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
-    let validate = |callables: &_, objects: &_, meter: &mut _| {
-        scoop_slib::validate_shared_mir_objects(source, callables, objects, meter)
+    let validate = |callables: &_, objects: &_| {
+        scoop_slib::validate_shared_mir_objects(source, callables, objects)
     };
-    validate(section.callables(), section.object_values(), &mut meter()).unwrap();
+    validate(section.callables(), section.object_values()).unwrap();
     if !name.starts_with("shared-objects-") {
         return;
     }
     let metadata = source.metadata();
-    let units = metadata.object_initialization_units(&mut meter()).unwrap();
+    let units = metadata.object_initialization_units().unwrap();
     let mut rows = Vec::new();
     let mut objects = 0;
     for representation in source.representations().table().records() {
@@ -62,11 +62,10 @@ pub(super) fn check(
                 .filter(|record| record.value() != object.value())
                 .cloned()
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
         assert!(
-            matches!(validate(section.callables(), &remaining, &mut meter()), Err(Error::MissingObject(value)) if value == object.value())
+            matches!(validate(section.callables(), &remaining), Err(Error::MissingObject(value)) if value == object.value())
         );
     }
     let mut entries = 0;
@@ -89,41 +88,14 @@ pub(super) fn check(
         )
         .unwrap();
         assert!(
-            matches!(validate(&remaining, section.object_values(), &mut meter()), Err(Error::MissingCallable(id)) if id == *callable)
+            matches!(validate(&remaining, section.object_values()), Err(Error::MissingCallable(id)) if id == *callable)
         );
         entries += 1;
     }
     assert_eq!(entries, objects * 2);
-    let mut measured = meter();
-    validate(section.callables(), section.object_values(), &mut measured).unwrap();
-    let mut shared = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    validate(section.callables(), section.object_values(), &mut shared).unwrap();
-    assert!(matches!(
-        validate(section.callables(), section.object_values(), &mut shared),
-        Err(Error::Resource(_))
-    ));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            validate(
-                section.callables(),
-                section.object_values(),
-                &mut scoop_wire::BudgetMeter::new(limits)
-            ),
-            Err(Error::Resource(_))
-        ));
-    }
+
+    validate(section.callables(), section.object_values()).unwrap();
+
     let mut missing = metadata.foundation.clone().into_canonical();
     missing.set_initialization_units(vec![]).unwrap();
     let missing = hir::OdrFreeHirFoundation::try_new(missing).unwrap();
@@ -135,15 +107,13 @@ pub(super) fn check(
                 ..metadata
             },
             &[],
-            &mut meter(),
         )
         .unwrap();
     assert!(matches!(
         scoop_slib::validate_shared_mir_objects(
             missing,
             section.callables(),
-            section.object_values(),
-            &mut meter()
+            section.object_values()
         ),
         Err(Error::MissingUnit(_))
     ));

@@ -1,6 +1,5 @@
 use super::*;
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 pub(super) const TARGET: crate::LirTargetProfile = crate::LirTargetProfile::DARWIN_AARCH64;
 
@@ -8,11 +7,7 @@ pub(super) const TARGET: crate::LirTargetProfile = crate::LirTargetProfile::DARW
 pub(super) struct Source(pub Vec<LayoutAbiDependencyV1>);
 
 impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(
-        &self,
-        _exports: &LayoutAbiExportConstituentsV1,
-        _meter: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, _exports: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         Ok(())
     }
 
@@ -23,14 +18,9 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
     fn validate_physical_imports(
         &self,
         imports: &[crate::ExternalShapeLinkImportV1<'_>],
-        _meter: &mut BudgetMeter,
     ) -> Result<(), ()> {
         if imports.is_empty() { Ok(()) } else { Err(()) }
     }
-}
-
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 pub(super) fn cone(name: &str) -> ConeIdentity {
@@ -67,35 +57,18 @@ pub(super) fn exports(
     records: Vec<crate::ExactLayoutExportV1>,
 ) -> LayoutAbiExportConstituentsV1 {
     let layouts =
-        crate::CanonicalExactLayoutExportsV1::try_new(TARGET, foundation, records, &mut meter())
-            .unwrap();
-    let descriptors = crate::CanonicalExactDescriptorExportsV1::try_new(
-        TARGET,
-        foundation,
-        Vec::new(),
-        &mut meter(),
-    )
-    .unwrap();
-    let dispatch = crate::CanonicalExactDispatchExportsV1::try_new(
-        TARGET,
-        foundation,
-        Vec::new(),
-        &mut meter(),
-    )
-    .unwrap();
-    let callables = crate::CanonicalExactCallableAbiExportsV1::try_new(
-        TARGET,
-        foundation,
-        Vec::new(),
-        &mut meter(),
-    )
-    .unwrap();
+        crate::CanonicalExactLayoutExportsV1::try_new(TARGET, foundation, records).unwrap();
+    let descriptors =
+        crate::CanonicalExactDescriptorExportsV1::try_new(TARGET, foundation, Vec::new()).unwrap();
+    let dispatch =
+        crate::CanonicalExactDispatchExportsV1::try_new(TARGET, foundation, Vec::new()).unwrap();
+    let callables =
+        crate::CanonicalExactCallableAbiExportsV1::try_new(TARGET, foundation, Vec::new()).unwrap();
     let shape_support = crate::CanonicalParamFreeShapeSupportExportsV1::from_sources(
         &[],
         &layouts,
         &descriptors,
         foundation,
-        &mut meter(),
     )
     .unwrap();
     LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shape_support)
@@ -107,7 +80,7 @@ pub(super) fn section<'a>(
     dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
     source: &Source,
 ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<()>> {
-    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, Vec::new(), source, &mut meter())
+    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, Vec::new(), source)
 }
 
 pub(super) fn empty_struct(
@@ -125,8 +98,7 @@ pub(super) fn empty_struct(
         ScanRole::InlineValue,
     );
     let value =
-        crate::ExactValueLayoutV1::ordinary_struct(identity, false, &[], &foundation, &mut meter())
-            .unwrap();
+        crate::ExactValueLayoutV1::ordinary_struct(identity, false, &[], &foundation).unwrap();
     (value, foundation)
 }
 
@@ -161,7 +133,6 @@ pub(super) fn struct_with_field(
             value: &external,
         }],
         &foundation,
-        &mut meter(),
     )
     .unwrap();
     (value, foundation)
@@ -181,7 +152,6 @@ pub(super) fn scalar_with_identity(
         identity,
         crate::ScalarRepresentationKindV1::Integer(crate::IntegerKind::SIGNED_8),
         &foundation,
-        &mut meter(),
     )
     .unwrap()
 }
@@ -202,8 +172,7 @@ pub(super) fn boxed_with_payload(
         ScanRole::ManagedObject,
     );
     let value =
-        crate::ExactInstanceLayoutV1::boxed_payload(identity, payload, &foundation, &mut meter())
-            .unwrap();
+        crate::ExactInstanceLayoutV1::boxed_payload(identity, payload, &foundation).unwrap();
     (value, foundation)
 }
 
@@ -243,13 +212,7 @@ fn bound(
     foundation.set_definition_atoms(atoms).unwrap();
     foundation.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
     let foundation = crate::OdrFreeLirFoundation::try_new(provider, foundation).unwrap();
-    let identity = crate::ExactLayoutIdentityV1::from_foundation(
-        TARGET,
-        exact,
-        role,
-        &foundation,
-        &mut meter(),
-    )
-    .unwrap();
+    let identity =
+        crate::ExactLayoutIdentityV1::from_foundation(TARGET, exact, role, &foundation).unwrap();
     (identity, foundation)
 }

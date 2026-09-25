@@ -1,5 +1,5 @@
 use scoop_identity::DecodedPersistentId;
-use scoop_wire::{BudgetMeter, Encoder, WireEncode, WireError, WirePath};
+use scoop_wire::{Encoder, WireEncode, WireError, WirePath};
 
 use super::*;
 
@@ -20,13 +20,11 @@ impl StrongInitializationDefinitionCatalogV2 {
     pub fn new(
         producer: ConeIdentity,
         definitions: &[StrongInitializationUnitDefinitionRefV2],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, InitializationDependencyResolutionError> {
         let path = WirePath::root();
         let mut canonical = Vec::new();
-        meter.try_reserve_collection_slots(&mut canonical, definitions.len(), &path)?;
-        meter.charge_nodes(definitions.len() as u64, &path)?;
-        meter.charge_work((definitions.len() as u64).saturating_mul(64), &path)?;
+        scoop_wire::allocation::try_reserve(&mut canonical, definitions.len(), &path)?;
+
         canonical.extend_from_slice(definitions);
         canonical.sort_unstable_by_key(StrongInitializationUnitDefinitionRefV2::unit);
         if let Some(pair) = canonical
@@ -47,12 +45,11 @@ impl StrongInitializationDefinitionCatalogV2 {
         &self,
         local_unit: PersistentInitializationUnitId,
         dependencies: &[DecodedPersistentId<PersistentInitializationUnitId>],
-        meter: &mut BudgetMeter,
     ) -> Result<ResolvedInitializationDependenciesV2, InitializationDependencyResolutionError> {
         let path = WirePath::root();
         let mut references = Vec::new();
-        meter.try_reserve_collection_slots(&mut references, dependencies.len(), &path)?;
-        meter.charge_work((dependencies.len() as u64).saturating_mul(64), &path)?;
+        scoop_wire::allocation::try_reserve(&mut references, dependencies.len(), &path)?;
+
         for (index, dependency) in dependencies.iter().enumerate() {
             if index != 0 && dependencies[index - 1].as_array() >= dependency.as_array() {
                 return Err(InitializationDependencyResolutionError::NonCanonicalOrder { index });
@@ -88,12 +85,11 @@ impl StrongInitializationDefinitionCatalogV2 {
         &self,
         local_unit: PersistentInitializationUnitId,
         dependencies: &[PersistentInitializationUnitId],
-        meter: &mut BudgetMeter,
     ) -> Result<ResolvedInitializationDependenciesV2, InitializationDependencyResolutionError> {
         let path = WirePath::root();
         let mut references = Vec::new();
-        meter.try_reserve_collection_slots(&mut references, dependencies.len(), &path)?;
-        meter.charge_work((dependencies.len() as u64).saturating_mul(64), &path)?;
+        scoop_wire::allocation::try_reserve(&mut references, dependencies.len(), &path)?;
+
         for (index, dependency) in dependencies.iter().enumerate() {
             if index != 0 && dependencies[index - 1] >= *dependency {
                 return Err(InitializationDependencyResolutionError::NonCanonicalOrder { index });

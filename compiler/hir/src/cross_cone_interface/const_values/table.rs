@@ -121,7 +121,7 @@ impl WireEncode for DecodedCanonicalExportConstValuesV1 {
 }
 
 impl WireDecode for DecodedCanonicalExportConstValuesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExportConstValueV1::decode(decoder))
             .map(|records| Self { records })

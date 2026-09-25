@@ -5,7 +5,7 @@ use scoop_wire::WirePath;
 mod adapters;
 mod generics;
 mod rejection;
-mod resources;
+
 mod support;
 use support::*;
 
@@ -53,7 +53,7 @@ fn member_operation_signatures_preserve_receivers_accessors_effects_and_varargs(
             for reference in callables {
                 let shape = bound
                     .members()
-                    .default_member_callable_shape(&reference, &mut meter(), &WirePath::root())
+                    .default_member_callable_shape(&reference, &WirePath::root())
                     .unwrap();
                 assert!(shape.captures().is_empty());
                 assert_eq!(shape.receiver(), Some(&cell_type));
@@ -109,7 +109,7 @@ fn member_operation_signatures_preserve_receivers_accessors_effects_and_varargs(
                 owner_type,
                 parameters,
             } = bound
-                .default_constructor_operation_shape(&reference, &mut meter(), &WirePath::root())
+                .default_constructor_operation_shape(&reference, &WirePath::root())
                 .unwrap()
             else {
                 panic!("constructor shape");

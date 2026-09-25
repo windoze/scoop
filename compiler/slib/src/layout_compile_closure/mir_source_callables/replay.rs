@@ -16,16 +16,16 @@ pub(super) fn validate_sources(
         let provider = artifact.prepared.provider();
         let parts = artifact.prepared.semantic_parts();
         let mut validate = || -> Result<_, Error> {
-            let reachable = transitive_positions(position, dependency_positions, parts.meter)?;
+            let reachable = transitive_positions(position, dependency_positions)?;
             let mut dependencies = Vec::new();
-            parts.meter.try_reserve_collection_slots(
+            scoop_wire::allocation::try_reserve(
                 &mut dependencies,
                 reachable.len(),
                 &WirePath::root(),
             )?;
             dependencies.extend(reachable.iter().map(|position| checked[*position]));
             let mut dependency_callables = Vec::new();
-            parts.meter.try_reserve_collection_slots(
+            scoop_wire::allocation::try_reserve(
                 &mut dependency_callables,
                 reachable.len(),
                 &WirePath::root(),
@@ -43,25 +43,22 @@ pub(super) fn validate_sources(
                     public: parts.hir_interface,
                 },
                 &dependencies,
-                parts.meter,
             )?;
-            source.with_inheritance_graph(&dependencies, parts.meter, |graph, meter| {
+            source.with_inheritance_graph(&dependencies, |graph| {
                 validate_shared_mir_source_callables(
                     source,
                     &dependencies,
                     graph,
                     parts.mir_ordinary,
                     artifact.mir.callables(),
-                    meter,
                 )
             })??;
-            validate_shared_mir_constructors(source, artifact.mir.callables(), parts.meter)
+            validate_shared_mir_constructors(source, artifact.mir.callables())
                 .map_err(|error| Error::Constructors(Box::new(error)))?;
             validate_shared_mir_objects(
                 source,
                 artifact.mir.callables(),
                 artifact.mir.object_values(),
-                parts.meter,
             )
             .map_err(|error| Error::Objects(Box::new(error)))?;
             validate_shared_mir_equality(
@@ -69,7 +66,6 @@ pub(super) fn validate_sources(
                 &dependencies,
                 parts.mir_core.strong_callable_bridges(),
                 artifact.mir.callables(),
-                parts.meter,
             )
             .map_err(|error| Error::Equality(Box::new(error)))?;
             super::super::mir_dispatch::validate_shared_mir_dispatch(
@@ -78,24 +74,16 @@ pub(super) fn validate_sources(
                 artifact.mir.callables(),
                 &dependency_callables,
                 artifact.mir.dispatch(),
-                parts.meter,
             )
             .map_err(|error| Error::Dispatch(Box::new(error)))?;
-            parts
-                .meter
-                .try_reserve_collection_slots(&mut checked, 1, &WirePath::root())?;
-            parts.meter.try_reserve_collection_slots(
-                &mut checked_callables,
-                1,
-                &WirePath::root(),
-            )?;
+            scoop_wire::allocation::try_reserve(&mut checked, 1, &WirePath::root())?;
+            scoop_wire::allocation::try_reserve(&mut checked_callables, 1, &WirePath::root())?;
             let result = source.metadata().signature_exact_type(
                 &scoop_identity::SignatureTypeKey::Nominal(
                     scoop_identity::CoreBuiltinNominal::Unit
                         .identity_record()
                         .id(),
                 ),
-                parts.meter,
             )?;
             let initialization = scoop_mir::replay_source_initialization_units(
                 provider,
@@ -104,11 +92,8 @@ pub(super) fn validate_sources(
                 parts.mir_core.strong_callable_bridges(),
                 parts.identities,
                 result,
-                parts.meter,
             )?;
-            parts
-                .meter
-                .try_reserve_collection_slots(&mut units, 1, &WirePath::root())?;
+            scoop_wire::allocation::try_reserve(&mut units, 1, &WirePath::root())?;
             Ok((source, initialization))
         };
         let (source, initialization) = validate()

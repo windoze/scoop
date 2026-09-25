@@ -11,7 +11,6 @@ pub(super) fn check(replay: &Replay<'_>, units: &[mir::MirTypeBridgeInitializati
             replay.strong,
             replay.metadata.identities,
             replay.unit_result,
-            &mut meter(),
         ),
         Err(Error::Unit {
             problem: Problem::MissingSource,
@@ -26,7 +25,6 @@ pub(super) fn check(replay: &Replay<'_>, units: &[mir::MirTypeBridgeInitializati
             replay.strong,
             replay.metadata.identities,
             replay.unit_result,
-            &mut meter(),
         ),
         Err(Error::Unit {
             problem: Problem::WrongProvider,
@@ -36,10 +34,8 @@ pub(super) fn check(replay: &Replay<'_>, units: &[mir::MirTypeBridgeInitializati
     for unit in units {
         for target in [unit.initializer(), unit.ensure()] {
             let missing = strong_changed(replay.strong, target.callable_owner(), None);
-            assert!(
-                matches!(Replay { strong: &missing, ..*replay }.run(&mut meter()),
-                Err(Error::Unit { unit: actual, problem: Problem::MissingRole }) if actual == unit.unit())
-            );
+            assert!(matches!(Replay { strong: &missing, ..*replay }.run(),
+                Err(Error::Unit { unit: actual, problem: Problem::MissingRole }) if actual == unit.unit()));
             let wrong = mir::StrongCallableBridgeV1::new(
                 target.callable_owner(),
                 ExactCallableSignature::new(
@@ -50,35 +46,12 @@ pub(super) fn check(replay: &Replay<'_>, units: &[mir::MirTypeBridgeInitializati
                 ),
             );
             let wrong = strong_changed(replay.strong, target.callable_owner(), Some(wrong));
-            assert!(
-                matches!(Replay { strong: &wrong, ..*replay }.run(&mut meter()),
-                Err(Error::Unit { unit: actual, problem: Problem::Signature }) if actual == unit.unit())
-            );
+            assert!(matches!(Replay { strong: &wrong, ..*replay }.run(),
+                Err(Error::Unit { unit: actual, problem: Problem::Signature }) if actual == unit.unit()));
         }
     }
-    let mut measured = meter();
-    replay.run(&mut measured).unwrap();
-    let mut shared = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay.run(&mut shared).unwrap();
-    assert!(matches!(replay.run(&mut shared), Err(Error::Resource(_))));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            replay.run(&mut scoop_wire::BudgetMeter::new(limits)),
-            Err(Error::Resource(_))
-        ));
-    }
+
+    replay.run().unwrap();
 }
 
 fn strong_changed(

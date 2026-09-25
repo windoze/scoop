@@ -101,14 +101,12 @@ pub(super) fn wire(
 ) {
     let callables: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(product.callables());
     let callables = callables
-        .validate(graph, input.foundation(), types, &mut meter())
+        .validate(graph, input.foundation(), types)
         .unwrap();
     assert_eq!(&callables, product.callables());
     let objects: scoop_mir::DecodedCanonicalMirObjectValuesV1 = decoded(product.objects());
     assert_eq!(
-        objects
-            .validate(graph, types, &callables, &mut meter())
-            .unwrap(),
+        objects.validate(graph, types, &callables).unwrap(),
         *product.objects()
     );
 }

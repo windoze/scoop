@@ -22,7 +22,6 @@ fn nominal_member_binding_does_not_lose_a_setter_when_both_source_tables_omit_it
                 .filter(|r| r.declaration() != CallableTemplateOrigin::Accessor(*setter))
                 .cloned()
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
         assert!(matches!(

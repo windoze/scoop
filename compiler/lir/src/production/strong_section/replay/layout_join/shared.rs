@@ -15,9 +15,8 @@ impl ReplayedStrongProductionSectionV2 {
     pub fn replay_layout_exports<'a>(
         &'a self,
         exports: &'a LayoutAbiExportConstituentsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedStrongLayoutExportsV2<'a>, StrongProductionLayoutJoinError> {
-        local::validate(self, exports, meter)?;
+        local::validate(self, exports)?;
         Ok(ReplayedStrongLayoutExportsV2 {
             production: self,
             exports,
@@ -29,9 +28,8 @@ impl ReplayedStrongProductionSectionV2 {
     pub fn validate_replayed_layout_selection(
         &self,
         layout: &PhysicalImportsReplayedLayoutAbiSectionV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), StrongProductionLayoutJoinError> {
-        local::validate(self, layout.exports(), meter)?;
-        selected::validate(self, selected::Selection::Replayed(layout), meter)
+        local::validate(self, layout.exports())?;
+        selected::validate(self, selected::Selection::Replayed(layout))
     }
 }

@@ -6,11 +6,9 @@ pub(super) fn unit<E>(
     unit: PersistentInitializationUnitId,
     graph: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
-    meter: &mut BudgetMeter,
 ) -> Result<MirTypeBridgeInitializationUnitV1, MirTypeBridgeSectionError<E>> {
     use MirTypeBridgeSectionError as Error;
-    meter.charge_nodes(1, &WirePath::root())?;
-    meter.charge_work(4, &WirePath::root())?;
+
     if super::super::super::objects::unit_provider(graph, unit)? != authority.provider() {
         return Err(Error::Unit {
             unit,
@@ -24,7 +22,6 @@ pub(super) fn unit<E>(
         InitializationCallableRole::Initializer,
         graph,
         types,
-        meter,
     )?;
     let ensure = role(
         authority,
@@ -33,7 +30,6 @@ pub(super) fn unit<E>(
         InitializationCallableRole::Ensure,
         graph,
         types,
-        meter,
     )?;
     let signature = source
         .initialization_signature(unit, InitializationCallableRole::Ensure)
@@ -53,10 +49,6 @@ pub(super) fn unit<E>(
             MirInitializationUnitProofKindV1::ReaderSemanticReplay
         }
         MirTypeBridgeLocalAuthorityV1::Producer { input, .. } => {
-            meter.charge_work(
-                input.materialization().initialization_roots().len() as u64,
-                &WirePath::root(),
-            )?;
             let root = input
                 .materialization()
                 .initialization_roots()
@@ -93,14 +85,10 @@ fn role<E>(
     role: InitializationCallableRole,
     graph: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongCallableDefinitionOwner, MirTypeBridgeSectionError<E>> {
     use MirTypeBridgeSectionError as Error;
     let key = GeneratedCallableKey::Initialization { unit, role };
-    meter.charge_sha256(
-        PersistentGeneratedCallableId::hash_stream_length(&key)?,
-        &WirePath::root(),
-    )?;
+
     let id = PersistentGeneratedCallableId::from_key(&key)?;
     if graph.canonical_key::<_, GeneratedCallableKey>(id)?.as_ref() != &key {
         return Err(Error::Unit {
@@ -131,7 +119,7 @@ fn role<E>(
     }
     let subject = crate::CallableSignatureSubject::strong(target.callable_owner());
     let signatures = authority.foundation().as_canonical().callable_signatures();
-    meter.charge_work(signatures.len() as u64, &WirePath::root())?;
+
     let actual = signatures
         .binary_search_by(|record| record.subject().compare_sort_key(subject))
         .ok()

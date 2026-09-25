@@ -116,17 +116,6 @@ impl RuntimeEncode for CallableBodyKey {
 }
 
 impl PersistentCallableBodyId {
-    pub fn hash_stream_length(key: &CallableBodyKey) -> Result<u64, HashError> {
-        let payload = match key.kind() {
-            CallableBodyKeyKind::Strong(_) => 4 + 4 + 32,
-            CallableBodyKeyKind::Odr(_) | CallableBodyKeyKind::InitializationStartupGateway(_) => {
-                4 + 32
-            }
-            CallableBodyKeyKind::RootGateway { .. } => 4 + 32 + 32,
-        };
-        scoop_wire::domain_separated_hash_stream_length("scoop-callable-body-v1", payload)
-    }
-
     pub fn from_key(key: &CallableBodyKey) -> Result<Self, HashError> {
         derive_runtime_persistent_id("scoop-callable-body-v1", key)
     }
@@ -188,7 +177,7 @@ impl WireEncode for DecodedStrongCallableDefinitionOwner {
 }
 
 impl WireDecode for DecodedStrongCallableDefinitionOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields != 2 {
             return Err(WireError::new(
@@ -481,7 +470,7 @@ impl WireEncode for DecodedExecutableSourceEntryIdentity {
 }
 
 impl WireDecode for DecodedExecutableSourceEntryIdentity {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             root_cone: decoder.field(1, DecodedPersistentId::decode)?,

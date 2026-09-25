@@ -11,7 +11,7 @@ pub struct DecodedCanonicalNominalSourceConstructorsV1 {
 }
 
 impl WireDecode for DecodedCanonicalNominalSourceConstructorsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedNominalSupportConstructorInterfaceV1::decode(d))
             .map(|records| Self { records })
@@ -28,15 +28,14 @@ impl DecodedCanonicalNominalSourceConstructorsV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalNominalSourceConstructorsV1, NominalSourceConstructorResolutionError<E>>
     {
         use NominalSourceConstructorResolutionError as Error;
-        let mut records = reserve(self.records.len(), meter).map_err(Error::Inventory)?;
+        let mut records = reserve(self.records.len()).map_err(Error::Inventory)?;
         for record in self.records {
-            records.push(record.resolve(resolver, meter).map_err(Error::Contract)?);
+            records.push(record.resolve(resolver).map_err(Error::Contract)?);
         }
-        CanonicalNominalSourceConstructorsV1::from_ordered(records, meter).map_err(Error::Inventory)
+        CanonicalNominalSourceConstructorsV1::from_ordered(records).map_err(Error::Inventory)
     }
 }
 

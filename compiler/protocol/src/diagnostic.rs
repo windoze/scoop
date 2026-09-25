@@ -3,9 +3,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::path::DecodedHostPathCarrier;
 use crate::response::ProtocolConeIdentity;
-use crate::{
-    HostPathCarrier, MAX_DIAGNOSTIC_NOTES, MAX_DIAGNOSTIC_TEXT_BYTES, ProtocolValidationError,
-};
+use crate::{HostPathCarrier, ProtocolValidationError};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiagnosticSeverityV1 {
@@ -210,9 +208,7 @@ impl StructuredDiagnosticV1 {
         if !valid_text(&message) {
             return Err(ProtocolValidationError::InvalidDiagnosticMessage);
         }
-        if notes.len() > MAX_DIAGNOSTIC_NOTES {
-            return Err(ProtocolValidationError::TooManyDiagnosticNotes(notes.len()));
-        }
+
         Ok(Self {
             severity,
             code,
@@ -264,7 +260,7 @@ impl WireEncode for StructuredDiagnosticV1 {
 }
 
 impl WireDecode for StructuredDiagnosticV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedStructuredDiagnosticV1::decode(decoder)?
             .validate()
             .map_err(|error| diagnostic_validation_error(decoder, error))
@@ -375,7 +371,7 @@ impl WireEncode for DecodedDiagnosticOriginV1 {
 }
 
 impl WireDecode for DecodedDiagnosticOriginV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -440,7 +436,7 @@ impl WireEncode for DecodedDiagnosticNoteV1 {
 }
 
 impl WireDecode for DecodedDiagnosticNoteV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let message = decoder.field(1, Decoder::owned_text)?;
         let origin = decoder.field(2, DecodedDiagnosticOriginV1::decode)?;
@@ -495,7 +491,7 @@ impl WireEncode for DecodedStructuredDiagnosticV1 {
 }
 
 impl WireDecode for DecodedStructuredDiagnosticV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         let severity = decoder.field(1, Decoder::unsigned)?;
         let code = decoder.field(2, Decoder::owned_text)?;
@@ -525,22 +521,14 @@ fn valid_code(code: &str) -> bool {
 }
 
 fn valid_text(text: &str) -> bool {
-    !text.is_empty() && text.len() <= MAX_DIAGNOSTIC_TEXT_BYTES
+    !text.is_empty()
 }
 
 fn diagnostic_validation_error(
-    decoder: &Decoder<'_, '_>,
-    error: ProtocolValidationError,
+    decoder: &Decoder<'_>,
+    _error: ProtocolValidationError,
 ) -> WireError {
-    let kind = match error {
-        ProtocolValidationError::TooManyDiagnosticNotes(actual) => {
-            scoop_wire::WireErrorKind::InvalidLength {
-                expected: MAX_DIAGNOSTIC_NOTES as u64,
-                actual: actual as u64,
-            }
-        }
-        _ => scoop_wire::WireErrorKind::UnknownTag { tag: u64::MAX },
-    };
+    let kind = scoop_wire::WireErrorKind::UnknownTag { tag: u64::MAX };
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
@@ -561,17 +549,13 @@ mod tests {
         let encoded = scoop_wire::encode(&diagnostic).unwrap();
 
         assert_eq!(
-            scoop_wire::decode_canonical::<StructuredDiagnosticV1>(
-                &encoded,
-                scoop_wire::DecodeLimits::M23_DEFAULT,
-            )
-            .unwrap(),
+            scoop_wire::decode_canonical::<StructuredDiagnosticV1>(&encoded,).unwrap(),
             diagnostic
         );
     }
 
     #[test]
-    fn diagnostic_constructor_rejects_invalid_code_span_and_notes() {
+    fn diagnostic_constructor_rejects_invalid_code_and_span() {
         assert_eq!(
             StructuredDiagnosticV1::new(
                 DiagnosticSeverityV1::Error,
@@ -586,20 +570,6 @@ mod tests {
         assert_eq!(
             ProtocolByteSpan::new(2, 1).unwrap_err(),
             ProtocolValidationError::InvalidDiagnosticSpan
-        );
-
-        let note =
-            DiagnosticNoteV1::new("bounded note".to_owned(), DiagnosticOriginV1::None).unwrap();
-        assert_eq!(
-            StructuredDiagnosticV1::new(
-                DiagnosticSeverityV1::Warning,
-                "SCOOPC_TOO_MANY_NOTES".to_owned(),
-                "message".to_owned(),
-                DiagnosticOriginV1::None,
-                vec![note; MAX_DIAGNOSTIC_NOTES + 1],
-            )
-            .unwrap_err(),
-            ProtocolValidationError::TooManyDiagnosticNotes(MAX_DIAGNOSTIC_NOTES + 1)
         );
     }
 }

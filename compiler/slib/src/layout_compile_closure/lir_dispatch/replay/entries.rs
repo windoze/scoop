@@ -3,15 +3,14 @@ use super::*;
 pub(super) fn project<'a>(
     slots: &[mir::MirDispatchEntryV1],
     abis: &lookup::Abis<'a>,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<lir::ExactDispatchEntryInputV1<'a>>, Error> {
     let path = WirePath::root();
-    meter.check_table_entries(slots.len() as u64, &path)?;
+
     let mut entries = Vec::new();
-    meter.try_reserve_collection_slots(&mut entries, slots.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut entries, slots.len(), &path)?;
     for slot in slots {
         let implementation = implementation(slot.implementation());
-        let abi = abis.callable(implementation.target(), meter)?;
+        let abi = abis.callable(implementation.target())?;
         let signature = slot.signature();
         let receiver = match implementation.receiver_adaptation() {
             lir::ExactDispatchReceiverAdaptationV1::Identity => None,
@@ -19,14 +18,10 @@ pub(super) fn project<'a>(
                 .exact()
                 .receiver()
                 .into_option()
-                .map(|exact| abis.value(exact, meter))
+                .map(|exact| abis.value(exact))
                 .transpose()?,
         };
-        let count = signature.exact().parameters().len() as u64;
-        meter.charge_work(count + 1, &path)?;
-        meter.charge_edges(count + 2, &path)?;
-        meter.charge_collection_slots(count, &path)?;
-        meter.charge_owned_bytes(count.saturating_mul(std::mem::size_of::<scoop_identity::PersistentExactTypeId>() as u64), &path)?;
+
         entries.push(lir::ExactDispatchEntryInputV1 {
             position: lir::ExactDispatchPositionV1::from_u32(slot.position().get()),
             slot: slot.slot(),

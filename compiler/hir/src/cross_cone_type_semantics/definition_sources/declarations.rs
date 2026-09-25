@@ -9,25 +9,22 @@ mod nested;
 pub(super) fn visit<V: SourceVisitor<E>, E>(
     inputs: TypeDefinitionSourceInputsV1<'_>,
     validator: &mut V,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
     use TypeDefinitionSourceUseV1 as Use;
-    meter.check_table_entries(inputs.representations.records().len() as u64, path)?;
+
     for (index, record) in inputs.representations.records().iter().enumerate() {
         validator.observe(
             record.declaration_access().definition_origin(),
             Use::Representation(record),
-            meter,
             &path.clone().field(2).index(index as u64).field(2).field(3),
         )?;
     }
-    meter.check_table_entries(inputs.inheritance.records().len() as u64, path)?;
+
     for (index, record) in inputs.inheritance.records().iter().enumerate() {
-        meter.charge_nodes(1, path)?;
-        meter.charge_work(1, path)?;
         let at = path.clone().field(3).index(index as u64);
-        meter.check_table_entries(record.constructors().records().len() as u64, &at)?;
+
         for (index, constructor) in record.constructors().records().iter().enumerate() {
             validator.observe(
                 constructor
@@ -38,11 +35,10 @@ pub(super) fn visit<V: SourceVisitor<E>, E>(
                     owner: record.owner(),
                     constructor,
                 },
-                meter,
                 &at.clone().field(6).index(index as u64).field(2).field(3),
             )?;
         }
-        meter.check_table_entries(record.slots().records().len() as u64, &at)?;
+
         for (index, slot) in record.slots().records().iter().enumerate() {
             let at = at.clone().field(7).index(index as u64);
             validator.observe(
@@ -51,7 +47,6 @@ pub(super) fn visit<V: SourceVisitor<E>, E>(
                     owner: record.owner(),
                     slot,
                 },
-                meter,
                 &at.clone().field(7).field(3),
             )?;
             if let Some(target) = slot.implementation().target() {
@@ -62,19 +57,17 @@ pub(super) fn visit<V: SourceVisitor<E>, E>(
                         slot,
                         target,
                     },
-                    meter,
                     &at.field(6).field(1).field(5).field(3),
                 )?;
             }
         }
     }
-    meter.check_table_entries(inputs.protected_declarations.records().len() as u64, path)?;
+
     for (index, record) in inputs.protected_declarations.records().iter().enumerate() {
         let at = path.clone().field(4).index(index as u64);
         validator.observe(
             record.declaration_access().definition_origin(),
             Use::ProtectedDeclaration(record),
-            meter,
             &at.clone().field(2).field(3),
         )?;
         match record {
@@ -86,11 +79,10 @@ pub(super) fn visit<V: SourceVisitor<E>, E>(
                 property.declaration(),
                 property.payload(),
                 validator,
-                meter,
                 &at.field(3),
             )?,
             ProtectedDeclarationInterfaceV1::NestedNominal(nominal) => {
-                nested::visit(nominal.payload(), validator, meter, at.field(3))?
+                nested::visit(nominal.payload(), validator, at.field(3))?
             }
         }
     }
@@ -101,7 +93,7 @@ fn setter<V: SourceVisitor<E>, E>(
     property: PersistentPropertyId,
     interface: &NominalSourcePropertyPayloadV1,
     validator: &mut V,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
     match interface.mutability() {
@@ -112,7 +104,6 @@ fn setter<V: SourceVisitor<E>, E>(
                 property,
                 interface,
             },
-            meter,
             &path.clone().field(4).field(2).field(3),
         ),
     }

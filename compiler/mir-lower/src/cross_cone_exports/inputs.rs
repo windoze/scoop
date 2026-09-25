@@ -21,7 +21,7 @@ pub struct MirTypeBridgeDependencyTablesV1<'a> {
 }
 
 impl MirTypeBridgeExportInputV1<'_> {
-    pub(super) fn validate(self, meter: &mut BudgetMeter) -> Result<(), Error> {
+    pub(super) fn validate(self) -> Result<(), Error> {
         use hir::NominalRepresentationSemanticAuthority;
         let provider = self.mir.module().cone;
         if self.hir.output().local.module().cone != provider
@@ -30,7 +30,7 @@ impl MirTypeBridgeExportInputV1<'_> {
         {
             return Err(Error::ProviderMismatch);
         }
-        super::callables::validate_ordinary(self, meter)?;
+        super::callables::validate_ordinary(self)?;
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::{
     DecodedExternalHirReferenceV1, ExternalHirReferenceResolutionError,
@@ -17,25 +17,8 @@ pub struct CanonicalExternalHirReferencesV1 {
 
 impl CanonicalExternalHirReferencesV1 {
     pub fn try_new(
-        records: Vec<ExternalHirReferenceV1>,
-    ) -> Result<Self, ExternalHirReferenceSetBuildError> {
-        Self::try_new_metered(
-            records,
-            &mut BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-        )
-    }
-
-    pub(crate) fn try_new_metered(
         mut records: Vec<ExternalHirReferenceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExternalHirReferenceSetBuildError> {
-        let count = records.len() as u64;
-        meter
-            .charge_work(
-                count.saturating_mul(u64::from(count.max(1).ilog2()) + 2),
-                &WirePath::root(),
-            )
-            .map_err(ExternalHirReferenceSetBuildError::Resource)?;
         records.sort_unstable_by_key(ExternalHirReferenceV1::target);
         if let Some(target) = records
             .windows(2)
@@ -44,7 +27,7 @@ impl CanonicalExternalHirReferencesV1 {
         {
             return Err(ExternalHirReferenceSetBuildError::DuplicateTarget(target));
         }
-        positions::validate(&records, meter, &WirePath::root())?;
+        positions::validate(&records, &WirePath::root())?;
         Ok(Self { records })
     }
 
@@ -53,30 +36,13 @@ impl CanonicalExternalHirReferencesV1 {
     }
 
     pub fn get(&self, target: ExternalHirTargetV1) -> Option<&ExternalHirReferenceV1> {
+        self.find_index(target).map(|index| &self.records[index])
+    }
+
+    pub(crate) fn find_index(&self, target: ExternalHirTargetV1) -> Option<usize> {
         self.records
             .binary_search_by_key(&target, ExternalHirReferenceV1::target)
             .ok()
-            .map(|index| &self.records[index])
-    }
-
-    pub(crate) fn find_index_metered(
-        &self,
-        target: ExternalHirTargetV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<usize>, WireError> {
-        let mut start = 0;
-        let mut end = self.records.len();
-        while start < end {
-            meter.charge_work(1, path)?;
-            let middle = start + (end - start) / 2;
-            match self.records[middle].target().cmp(&target) {
-                std::cmp::Ordering::Less => start = middle + 1,
-                std::cmp::Ordering::Greater => end = middle,
-                std::cmp::Ordering::Equal => return Ok(Some(middle)),
-            }
-        }
-        Ok(None)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -86,27 +52,17 @@ impl CanonicalExternalHirReferencesV1 {
     pub fn validate_semantics<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), ExternalHirReferenceSetSemanticValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        meter
-            .charge_work(1, path)
-            .map_err(ExternalHirReferenceSetSemanticValidationError::Resource)?;
-        meter
-            .check_table_entries(self.records.len() as u64, path)
-            .map_err(ExternalHirReferenceSetSemanticValidationError::Resource)?;
         for (index, record) in self.records.iter().enumerate() {
-            record
-                .validate_semantics(authority, meter, &path.clone().index(index as u64))
-                .map_err(
-                    |error| ExternalHirReferenceSetSemanticValidationError::Record {
-                        index,
-                        error: Box::new(error),
-                    },
-                )?;
+            record.validate_semantics(authority).map_err(|error| {
+                ExternalHirReferenceSetSemanticValidationError::Record {
+                    index,
+                    error: Box::new(error),
+                }
+            })?;
         }
         Ok(())
     }
@@ -135,33 +91,22 @@ impl DecodedCanonicalExternalHirReferencesV1 {
     where
         R: ExternalHirReferenceResolver<E>,
     {
-        self.resolve_metered(
-            resolver,
-            &mut BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        self.resolve_at(resolver, &WirePath::root())
     }
 
-    pub fn resolve_metered<R: ExternalHirReferenceResolver<E>, E>(
+    pub fn resolve_at<R: ExternalHirReferenceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CanonicalExternalHirReferencesV1, ExternalHirReferenceSetValidationError<E>> {
         let mut records = Vec::<ExternalHirReferenceV1>::new();
-        meter
-            .charge_owned_bytes(
-                (self.records.len() as u64)
-                    .saturating_mul(std::mem::size_of::<ExternalHirReferenceV1>() as u64),
-                path,
-            )
-            .map_err(ExternalHirReferenceSetValidationError::Resource)?;
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), path)
+
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), path)
             .map_err(ExternalHirReferenceSetValidationError::Resource)?;
         for (index, record) in self.records.into_iter().enumerate() {
             let record = record
-                .resolve_metered(resolver, meter, &path.clone().index(index as u64))
+                .resolve_at(resolver, &path.clone().index(index as u64))
                 .map_err(|error| ExternalHirReferenceSetValidationError::Record { index, error })?;
             if let Some(previous) = records.last() {
                 match previous.target().cmp(&record.target()) {
@@ -181,7 +126,7 @@ impl DecodedCanonicalExternalHirReferencesV1 {
             }
             records.push(record);
         }
-        positions::validate(&records, meter, path)
+        positions::validate(&records, path)
             .map_err(ExternalHirReferenceSetValidationError::CallPositions)?;
         Ok(CanonicalExternalHirReferencesV1 { records })
     }
@@ -198,7 +143,7 @@ impl WireEncode for DecodedCanonicalExternalHirReferencesV1 {
 }
 
 impl WireDecode for DecodedCanonicalExternalHirReferencesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExternalHirReferenceV1::decode(decoder))
             .map(|records| Self { records })

@@ -198,7 +198,7 @@ mod tests {
         ExportBindingKey, PackagePath, PersistentExportBindingId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
-    use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
+    use scoop_wire::{WireEncode, decode_canonical, encode};
 
     use super::*;
 
@@ -272,11 +272,9 @@ mod tests {
     fn decoded_routes_resolve_only_through_typed_authority() {
         let (route_a, route_b) = route_pair();
         let expected = CanonicalReexportRoutesV1::try_new(vec![route_a, route_b]).unwrap();
-        let decoded = decode_canonical::<DecodedCanonicalReexportRoutesV1>(
-            &encode(&expected).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedCanonicalReexportRoutesV1>(&encode(&expected).unwrap())
+                .unwrap();
         let mut authority = route_authority(&expected);
 
         assert_eq!(decoded.resolve(&mut authority).unwrap(), expected);
@@ -293,7 +291,6 @@ mod tests {
 
         let duplicate = decode_canonical::<DecodedCanonicalReexportRoutesV1>(
             &encode(&RouteSequence(vec![first.clone(), first])).unwrap(),
-            DecodeLimits::default(),
         )
         .unwrap();
         assert!(matches!(
@@ -303,7 +300,6 @@ mod tests {
 
         let reversed = decode_canonical::<DecodedCanonicalReexportRoutesV1>(
             &encode(&RouteSequence(vec![second, canonical.routes()[0].clone()])).unwrap(),
-            DecodeLimits::default(),
         )
         .unwrap();
         assert!(matches!(

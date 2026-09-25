@@ -2,34 +2,24 @@ use super::*;
 use scoop_identity::PersistentGenericTypeId;
 
 impl DefaultSourceAccessDomainV1 {
-    pub fn from_export_hir(
-        export: &ExportHir,
-        source: &AccessDomain,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
+    pub fn from_export_hir(export: &ExportHir, source: &AccessDomain) -> Result<Self, Error> {
         let path = WirePath::root();
-        meter.check_semantic_depth(2, &path)?;
-        meter.charge_nodes(1, &path)?;
-        meter.charge_work(1, &path)?;
+
         if source.is_empty() {
             return Ok(Self::empty());
         }
         let count = source.constraints().len();
         let mut persistent = Vec::new();
         let mut generic = Vec::new();
-        meter.try_reserve_collection_slots(&mut persistent, count, &path)?;
-        meter.try_reserve_collection_slots(&mut generic, count, &path)?;
-        meter.charge_work(count as u64, &path)?;
+        scoop_wire::allocation::try_reserve(&mut persistent, count, &path)?;
+        scoop_wire::allocation::try_reserve(&mut generic, count, &path)?;
+
         for constraint in source.constraints() {
             match constraint {
                 AccessConstraint::Cone(id) => {
                     persistent.push(PersistentAccessConstraintV1::Cone(*id))
                 }
                 AccessConstraint::File(source) => {
-                    let length = source.logical_path().as_str().len() as u64;
-                    meter.check_semantic_leaf(length, &path)?;
-                    meter.charge_owned_bytes(length, &path)?;
-                    meter.charge_work(length, &path)?;
                     persistent.push(PersistentAccessConstraintV1::File(source.clone()));
                 }
                 AccessConstraint::LexicalOwner(owner) => persistent.push(
@@ -57,7 +47,7 @@ impl DefaultSourceAccessDomainV1 {
                 }
             }
         }
-        charge_canonicalization(&persistent, generic.len(), meter)?;
+
         let persistent =
             PersistentAccessDomainV1::try_from_constraints(persistent).map_err(Error::Domain)?;
         let generic = CanonicalPersistentIdsV1::<PersistentGenericTypeId>::try_new(generic)
@@ -83,30 +73,4 @@ pub(super) fn nominal(
         HirSourceNominalIdentity::Concrete(record) => SourceNominalId::Concrete(record.id()),
         HirSourceNominalIdentity::Generic(record) => SourceNominalId::GenericTemplate(record.id()),
     })
-}
-
-fn charge_canonicalization(
-    persistent: &[PersistentAccessConstraintV1],
-    generic_count: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), Error> {
-    let path = WirePath::root();
-    // The shared persistent-domain builder encodes sorting keys and checks order.
-    for _ in 0..3 {
-        meter.charge_collection_slots(persistent.len() as u64, &path)?;
-    }
-    for constraint in persistent {
-        let length = scoop_wire::encoded_length(constraint).map_err(Error::Encoding)?;
-        meter.charge_owned_bytes(length.saturating_mul(2), &path)?;
-        meter.charge_work(
-            length.saturating_mul(u64::from(persistent.len().max(1).ilog2()) + 4),
-            &path,
-        )?;
-    }
-    meter.check_table_entries(generic_count as u64, &path)?;
-    meter.charge_work(
-        (generic_count as u64).saturating_mul(u64::from(generic_count.max(1).ilog2()) + 1),
-        &path,
-    )?;
-    Ok(())
 }

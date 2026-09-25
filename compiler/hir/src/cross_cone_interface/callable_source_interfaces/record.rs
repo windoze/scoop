@@ -127,7 +127,7 @@ impl WireEncode for DecodedCallableSourceInterfaceV1 {
 }
 
 impl WireDecode for DecodedCallableSourceInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,

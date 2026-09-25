@@ -236,8 +236,7 @@ fn write_verified_file(
         source,
     })?;
     drop(file);
-    let limit = u64::try_from(bytes.len()).map_err(|_| StagingError::LengthOverflow)?;
-    let actual = ImmutableInputSnapshot::capture(path, limit).map_err(StagingError::Verify)?;
+    let actual = ImmutableInputSnapshot::capture(path).map_err(StagingError::Verify)?;
     if actual.digest() != expected_digest || actual.as_bytes() != bytes {
         return Err(StagingError::VerificationMismatch(path.to_path_buf()));
     }
@@ -486,7 +485,6 @@ pub enum StagingError {
         source: std::io::Error,
     },
     Verify(crate::SnapshotFileError),
-    LengthOverflow,
     VerificationMismatch(PathBuf),
     InvalidInternalPath(PathBuf),
     UnexpectedFileType(PathBuf),
@@ -505,7 +503,6 @@ impl fmt::Display for StagingError {
                 source,
             } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
             Self::Verify(error) => write!(formatter, "cannot verify staged input: {error}"),
-            Self::LengthOverflow => formatter.write_str("staged input length does not fit u64"),
             Self::VerificationMismatch(path) => write!(
                 formatter,
                 "staged input {} does not match its immutable snapshot",

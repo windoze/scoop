@@ -14,37 +14,13 @@ impl DecodedParamFreeMirCallableBindingV1 {
         graph: &mut ValidatedIdentityGraph,
         foundation: &crate::OdrFreeMirFoundation,
         types: &dyn MirTypeBridgeTypeLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirCallableBindingV1, MirCallableBridgeError> {
-        meter
-            .charge_work(32, &WirePath::root())
-            .map_err(MirCallableBridgeError::Resource)?;
         let origin = self.origin.resolve(graph)?;
         let implementation = self.implementation.resolve(graph)?;
-        let semantic = self.semantic.resolve(graph, meter)?;
-        let lowered = self.lowered.resolve(graph, meter)?;
+        let semantic = self.semantic.resolve(graph)?;
+        let lowered = self.lowered.resolve(graph)?;
         let role = self.role.resolve(graph)?;
-        if matches!(role, MirCallableLoweringRoleV1::PureVirtualTrap { .. }) {
-            meter
-                .charge_work(
-                    (types.record_count() as u64)
-                        .saturating_mul(
-                            u64::from(types.record_count().checked_ilog2().unwrap_or(0)) + 1,
-                        )
-                        .saturating_add(
-                            foundation.as_canonical().callable_signatures().len() as u64
-                        ),
-                    &WirePath::root(),
-                )
-                .map_err(MirCallableBridgeError::Resource)?;
-        }
-        meter
-            .charge_work(
-                8 * (semantic.exact().parameters().len() + lowered.exact().parameters().len())
-                    as u64,
-                &WirePath::root(),
-            )
-            .map_err(MirCallableBridgeError::Resource)?;
+
         ParamFreeMirCallableBindingV1::try_new(
             MirCallableBridgeAuthority {
                 identities: graph,
@@ -81,7 +57,7 @@ macro_rules! encode_binding {
 encode_binding!(ParamFreeMirCallableBindingV1);
 encode_binding!(DecodedParamFreeMirCallableBindingV1);
 impl WireDecode for DecodedParamFreeMirCallableBindingV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             origin: decoder.field(1, DecodedMirCallableOriginV1::decode)?,
@@ -103,18 +79,13 @@ impl DecodedCanonicalMirCallableBindingsV1 {
         graph: &mut ValidatedIdentityGraph,
         foundation: &crate::OdrFreeMirFoundation,
         types: &dyn MirTypeBridgeTypeLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirCallableBindingsV1, MirCallableBridgeError> {
         let path = WirePath::root();
         let mut entries: Vec<ParamFreeMirCallableBindingV1> = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut entries, self.entries.len(), &path)
+        scoop_wire::allocation::try_reserve(&mut entries, self.entries.len(), &path)
             .map_err(MirCallableBridgeError::Resource)?;
         for (index, decoded) in self.entries.into_iter().enumerate() {
-            meter
-                .charge_nodes(1, &path.clone().index(index as u64))
-                .map_err(MirCallableBridgeError::Resource)?;
-            let entry = decoded.validate(graph, foundation, types, meter)?;
+            let entry = decoded.validate(graph, foundation, types)?;
             if entries
                 .last()
                 .is_some_and(|previous| previous.implementation() >= entry.implementation())
@@ -137,7 +108,7 @@ impl WireEncode for DecodedCanonicalMirCallableBindingsV1 {
     }
 }
 impl WireDecode for DecodedCanonicalMirCallableBindingsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedParamFreeMirCallableBindingV1::decode(decoder))
             .map(|entries| Self { entries })

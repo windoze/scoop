@@ -7,18 +7,18 @@ fn source_roots_use_common_shape_coverage_for_core_and_ordinary_providers() {
         let exports = source.exports();
         assert_eq!(exports.shapes.records().len(), 1);
         exports
-            .validate_sources(provider, &source.fixture.graph, &source, &mut meter())
+            .validate_sources(provider, &source.fixture.graph, &source)
             .unwrap();
         source.roots.clear();
         assert!(matches!(
-            exports.validate_sources(provider, &source.fixture.graph, &source, &mut meter()),
+            exports.validate_sources(provider, &source.fixture.graph, &source),
             Err(MirTypeBridgeSourceJoinError::Shape(
                 MirShapeSupportError::UnexpectedSource { source: actual }
             )) if actual == source.fixture.empty.id()
         ));
         source.roots.push(source.fixture.other.id());
         let error = exports
-            .validate_sources(provider, &source.fixture.graph, &source, &mut meter())
+            .validate_sources(provider, &source.fixture.graph, &source)
             .err()
             .expect("an unrelated source root must fail validation");
         match (provider, error) {
@@ -55,7 +55,7 @@ fn shape_source_join_rejects_missing_helpers_for_every_provider() {
         .unwrap();
         source.required_types.retain(|exact| *exact != missing);
         assert!(matches!(
-            exports.validate_sources(provider, &source.fixture.graph, &source, &mut meter()),
+            exports.validate_sources(provider, &source.fixture.graph, &source),
             Err(MirTypeBridgeSourceJoinError::Shape(MirShapeSupportError::MissingType { exact }))
                 if exact == missing
         ));
@@ -69,15 +69,9 @@ fn core_shape_table_round_trips_and_rejects_missing_source_records() {
     let mut source = Source::new(ConeIdentity::CORE);
     let mut exports = source.exports();
     let bytes = encode(&exports.shapes).unwrap();
-    let decoded: DecodedCanonicalMirShapeSupportsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalMirShapeSupportsV1 = decode_canonical(&bytes).unwrap();
     let replayed = decoded
-        .validate(
-            source.provider,
-            &mut source.fixture.graph,
-            &exports.types,
-            &mut meter(),
-        )
+        .validate(source.provider, &mut source.fixture.graph, &exports.types)
         .unwrap();
     assert_eq!(replayed, exports.shapes);
     assert_eq!(encode(&replayed).unwrap(), bytes);
@@ -88,11 +82,10 @@ fn core_shape_table_round_trips_and_rejects_missing_source_records() {
             types: &exports.types,
         },
         vec![],
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
-        exports.validate_sources(source.provider, &source.fixture.graph, &source, &mut meter()),
+        exports.validate_sources(source.provider, &source.fixture.graph, &source),
         Err(MirTypeBridgeSourceJoinError::Shape(MirShapeSupportError::MissingSource { source: actual }))
             if actual == source.fixture.empty.id()
     ));

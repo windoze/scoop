@@ -6,10 +6,7 @@ use scoop_identity::{
     TargetProfileWireId,
 };
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::{
-    BudgetMeter, Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError,
-    WirePath,
-};
+use scoop_wire::{Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError};
 
 use crate::{ArtifactCapabilityProfile, CompatibilityRecord};
 
@@ -37,8 +34,6 @@ impl DecodedCompatibilityRecord {
     pub(super) fn validate(
         self,
         selection: ValidatedLirTargetSelection,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<CompatibilityRecord, CompatibilityValidationError> {
         require_schema(CompatibilitySchemaKind::Identity, self.identity_schema)?;
         require_schema(CompatibilitySchemaKind::Hir, self.hir_schema)?;
@@ -53,13 +48,7 @@ impl DecodedCompatibilityRecord {
         .map_err(CompatibilityValidationError::ArtifactProfile)?;
         let profile = ArtifactCapabilityProfile::from_id(&artifact_profile)
             .expect("every refined artifact profile is registered");
-        let hash_stream_lengths = CompatibilityRecord::hash_stream_lengths(selection, profile)
-            .map_err(CompatibilityValidationError::Hash)?;
-        for stream_length in hash_stream_lengths {
-            meter
-                .charge_sha256(stream_length, path)
-                .map_err(CompatibilityValidationError::Resource)?;
-        }
+
         let expected = CompatibilityRecord::new(selection, profile)
             .map_err(CompatibilityValidationError::Hash)?;
         if self.mangling_schema != ManglingSchemaIdentity.canonical_name() {
@@ -156,7 +145,7 @@ impl WireEncode for DecodedCompatibilityRecord {
 }
 
 impl WireDecode for DecodedCompatibilityRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(14)?;
         Ok(Self {
             language_abi: decoder.field(1, Digest256::decode)?,
@@ -320,7 +309,7 @@ fn write_hex(bytes: &[u8; 32], formatter: &mut fmt::Formatter<'_>) -> fmt::Resul
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::*;
 
@@ -332,18 +321,10 @@ mod tests {
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         ] {
             let expected = CompatibilityRecord::new(selection, profile).unwrap();
-            let decoded = decode_canonical::<DecodedCompatibilityRecord>(
-                &encode(&expected).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
-            let actual = decoded
-                .validate(
-                    selection,
-                    &mut BudgetMeter::new(DecodeLimits::default()),
-                    &WirePath::root(),
-                )
-                .unwrap();
+            let decoded =
+                decode_canonical::<DecodedCompatibilityRecord>(&encode(&expected).unwrap())
+                    .unwrap();
+            let actual = decoded.validate(selection).unwrap();
             assert_eq!(actual, expected);
             assert_eq!(actual.artifact_profile(), &profile.id());
         }

@@ -4,10 +4,10 @@ use scoop_lir::{
     OdrFreeLirFoundation, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV2,
     ValidatedLirTargetSelection,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::link_object::layout_link_closure::tests::fixture::{empty_section, meter};
+use crate::link_object::layout_link_closure::tests::fixture::empty_section;
 use crate::link_object::native_requirements::tests::dependency_closure;
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
@@ -53,7 +53,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         None,
     )
     .unwrap()
-    .validate_layout_abi(&layout, &mut meter())
+    .validate_layout_abi(&layout)
     .unwrap();
     let dependencies = vec![
         DependencyRecord::new(
@@ -86,8 +86,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let callable = legacy_closure(strong.clone());
-    let shape =
-        verify_external_shape_requirements_v1(&callable, layout.selected(), &mut meter()).unwrap();
+    let shape = verify_external_shape_requirements_v1(&callable, layout.selected()).unwrap();
     let native =
         CanonicalNativeExternalRequirementSurfaceV1::from_foundation(target, &foundation).unwrap();
     let source =
@@ -112,8 +111,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
     .unwrap();
     let wrong_callable = legacy_closure(wrong_strong);
     let wrong_shape =
-        verify_external_shape_requirements_v1(&wrong_callable, layout.selected(), &mut meter())
-            .unwrap();
+        verify_external_shape_requirements_v1(&wrong_callable, layout.selected()).unwrap();
     assert!(matches!(
         compute_cross_cone_layout_code_fingerprint_v1(
             production.clone(),
@@ -121,18 +119,12 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
             defined.clone(),
             partitions.clone(),
             &wrong_shape,
-            &mut meter(),
         ),
         Err(LayoutCodeFingerprintError::ExternalShapeClosureMismatch)
     ));
 
     let proof = compute_cross_cone_layout_code_fingerprint_v1(
-        production,
-        native,
-        defined,
-        partitions,
-        &shape,
-        &mut meter(),
+        production, native, defined, partitions, &shape,
     )
     .unwrap();
     assert_eq!(
@@ -149,9 +141,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
     );
     let manifest = CrossConeLayoutProductionManifestV1::from_verified_code(proof.code().clone());
     let bytes = encode(&manifest).unwrap();
-    let decoded =
-        decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
     assert_eq!(decoded.validate_layout(proof.code()).unwrap(), manifest);
 
     let mut changed = bytes;
@@ -160,11 +150,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         .position(|bytes| bytes == proof.code().fingerprint().as_array())
         .unwrap();
     changed[offset] ^= 1;
-    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(
-        &changed,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&changed).unwrap();
     assert!(matches!(
         decoded.validate_layout(proof.code()),
         Err(SingleConeProductionManifestValidationError::ProjectionMismatch)

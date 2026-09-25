@@ -8,13 +8,13 @@ impl SourceRoots {
         export: &ExportHir,
         source: ExportDefaultSourceId,
         index: &super::super::Index,
-        roots: &mut Roots<'_>,
+        roots: &mut Roots,
     ) -> Result<(), Error> {
         let source = &export.export_default_sources[source];
         for ty in &source.type_arguments {
-            roots.require_field_type(export, index, *ty, 1)?;
+            roots.require_field_type(export, index, *ty)?;
         }
-        if !insert(&mut self.defaults, source.expression, roots.meter)? {
+        if !insert(&mut self.defaults, source.expression)? {
             return Ok(());
         }
         let template = &export.export_default_exprs[source.expression];
@@ -56,20 +56,18 @@ impl SourceRoots {
                     export.enum_applications[variant.application()].canonical_type,
                 ),
             };
-            roots.require_field_type(export, index, ty, 1)?;
+            roots.require_field_type(export, index, ty)?;
             self.callable(export, owner, roots)?;
         }
         for reference in &references.types {
             match reference.target {
-                ExportDefaultTypeTarget::Type(ty) => {
-                    roots.require_field_type(export, index, ty, 1)?
-                }
+                ExportDefaultTypeTarget::Type(ty) => roots.require_field_type(export, index, ty)?,
                 ExportDefaultTypeTarget::LocalFunctionSignature(id) => {
                     let signature = &export.function_types
                         [export.local_functions[id].declaration_function_type];
-                    roots.require_field_type(export, index, signature.return_type, 1)?;
+                    roots.require_field_type(export, index, signature.return_type)?;
                     for parameter in &signature.parameter_types {
-                        roots.require_field_type(export, index, *parameter, 1)?;
+                        roots.require_field_type(export, index, *parameter)?;
                     }
                 }
             }
@@ -83,7 +81,6 @@ impl SourceRoots {
                 export,
                 index,
                 export.object_types[singleton.object_type].canonical_type,
-                1,
             )?;
         }
         for reference in &references.fields {
@@ -98,7 +95,7 @@ impl SourceRoots {
                 // receiver and element types are in the typed reference set.
                 FieldRef::TupleIndex(_) => continue,
             };
-            roots.require_field_type(export, index, ty, 1)?;
+            roots.require_field_type(export, index, ty)?;
         }
         Ok(())
     }

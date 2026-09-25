@@ -2,7 +2,7 @@ use super::{
     ProtectedCallableInterfaceBuildError, ProtectedCallableInterfaceResolutionError, wire,
 };
 use scoop_identity::{DecodedPersistentId, PersistentDispatchSlotId, PersistentIdResolver};
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalProtectedSlotRefsV1 {
@@ -43,11 +43,9 @@ impl DecodedCanonicalProtectedSlotRefsV1 {
     pub fn resolve<R: PersistentIdResolver<PersistentDispatchSlotId, Error = E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalProtectedSlotRefsV1, ProtectedCallableInterfaceResolutionError<E>> {
         let mut slots = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut slots, self.slots.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut slots, self.slots.len(), &WirePath::root())
             .map_err(ProtectedCallableInterfaceResolutionError::Resource)?;
         for slot in self.slots {
             slots.push(
@@ -66,7 +64,7 @@ impl WireEncode for DecodedCanonicalProtectedSlotRefsV1 {
     }
 }
 impl WireDecode for DecodedCanonicalProtectedSlotRefsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
             .map(|slots| Self { slots })

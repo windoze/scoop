@@ -3,11 +3,7 @@ use super::*;
 pub(super) fn validate(
     current: &Declarations<'_, '_, '_>,
     dependencies: &[&Declarations<'_, '_, '_>],
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    let path = WirePath::root();
-    meter.check_table_entries(dependencies.len() as u64, &path)?;
-    meter.charge_work((dependencies.len() as u64 + 1).saturating_mul(65), &path)?;
     let mut previous = None;
     for dependency in dependencies {
         let provider = dependency.provider();
@@ -28,17 +24,11 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
     pub(super) fn provider(
         &self,
         provider: ConeIdentity,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<&'b Declarations<'s, 'a, 'f>, Error> {
-        meter.charge_work(65, path)?;
         if provider == self.current.provider() {
             return Ok(self.current);
         }
-        meter.charge_work(
-            (u64::from(self.dependencies.len().max(1).ilog2()) + 1) * 65,
-            path,
-        )?;
+
         self.dependencies
             .binary_search_by_key(&provider, |source| source.provider())
             .map(|index| self.dependencies[index])
@@ -48,13 +38,9 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
         &self,
         owner: SourceNominalId,
         arity: usize,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
-        let provider = self.provider(self.nominal_provider(owner, meter, path)?, meter, path)?;
-        let key = provider
-            .source_key(subject(owner), meter)
-            .map_err(Error::access)?;
+        let provider = self.provider(self.nominal_provider(owner)?)?;
+        let key = provider.source_key(subject(owner)).map_err(Error::access)?;
         if !matches!(
             key.declaration_kind(),
             SourceDeclarationKind::Class
@@ -74,7 +60,7 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
             });
         }
         provider
-            .source_lookup_domain(subject(owner), meter)
+            .source_lookup_domain(subject(owner))
             .map_err(Error::domain)
     }
 }

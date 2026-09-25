@@ -2,7 +2,7 @@ use super::SharedLirDescriptorValidationError as Error;
 use scoop_identity::ExactTypeDiagnosticGraph;
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod references;
 
@@ -21,16 +21,13 @@ pub fn replay_shared_mir_descriptors(
     inputs: SharedLirDescriptorInputsV1<'_>,
     diagnostics: &impl ExactTypeDiagnosticGraph,
     foundation: &lir::OdrFreeLirFoundation,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactDescriptorExportsV1, Error> {
-    let references =
-        references::References::new(target, types, inputs, foundation.producer(), meter)?;
+    let references = references::References::new(target, types, inputs, foundation.producer())?;
     let path = WirePath::root();
-    meter.check_table_entries(types.records().len() as u64, &path)?;
+
     let mut records = Vec::new();
-    meter.try_reserve_collection_slots(&mut records, types.records().len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut records, types.records().len(), &path)?;
     for ty in types.records() {
-        meter.charge_work(1, &path)?;
         if matches!(
             ty.representation(),
             mir::MirTypeRepresentationV1::ObjectBacking { .. }
@@ -39,24 +36,19 @@ pub fn replay_shared_mir_descriptors(
         }
         let parent = match parent(ty) {
             mir::MirBaseClassV1::None => None,
-            mir::MirBaseClassV1::Base(exact) => Some(references.get(exact, meter)?),
+            mir::MirBaseClassV1::Base(exact) => Some(references.get(exact)?),
         };
         let mut interfaces = Vec::new();
         for table in inputs.dispatch.records() {
-            meter.charge_work(1, &path)?;
             if table.owner_exact() != ty.exact() {
                 continue;
             }
             if let lir::ExactDispatchRoleV1::Itable { interface_exact } = table.role() {
-                meter.try_reserve_collection_slots(&mut interfaces, 1, &path)?;
-                interfaces.push(references.get(interface_exact, meter)?);
+                scoop_wire::allocation::try_reserve(&mut interfaces, 1, &path)?;
+                interfaces.push(references.get(interface_exact)?);
             }
         }
-        let count = interfaces.len() as u64;
-        meter.charge_work(
-            count.saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-            &path,
-        )?;
+
         interfaces.sort_unstable_by_key(|reference| reference.exact_type());
         let record = lir::ExactDescriptorExportV1::replay_from_constituents(
             target,
@@ -69,7 +61,6 @@ pub fn replay_shared_mir_descriptors(
             inputs.dispatch,
             diagnostics,
             foundation,
-            meter,
         )
         .map_err(|source| Error::Replay {
             exact: ty.exact(),
@@ -78,7 +69,7 @@ pub fn replay_shared_mir_descriptors(
         records.push(record);
     }
     Ok(lir::CanonicalExactDescriptorExportsV1::try_new(
-        target, foundation, records, meter,
+        target, foundation, records,
     )?)
 }
 

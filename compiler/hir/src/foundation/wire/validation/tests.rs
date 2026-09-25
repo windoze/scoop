@@ -4,17 +4,13 @@ use scoop_identity::{
     ExactTypeKey, NormalizedSourcePath, PackagePath, PendingIdentityValidation, SourceContextKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{NativeBoundaryCLayoutPolicy, NativeBoundaryNominalShape};
 
 mod external_types;
 mod native_boundary;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 struct Fixture {
     coordinate: ConeCoordinate,
@@ -98,7 +94,7 @@ fn declaration(cone: ConeIdentity, name: &str) -> SourceDeclarationKey {
 }
 
 fn decode(canonical: &CanonicalHirFoundation) -> DecodedHirFoundation {
-    decode_canonical(&encode(canonical).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(canonical).unwrap()).unwrap()
 }
 
 fn validate_identities(
@@ -117,10 +113,7 @@ fn validate_identities(
     pending.finish().unwrap()
 }
 
-fn validate_origins_only(
-    fixture: &Fixture,
-    meter: &mut BudgetMeter,
-) -> Result<(), HirFoundationValidationError> {
+fn validate_origins_only(fixture: &Fixture) -> Result<(), HirFoundationValidationError> {
     let foundation = &fixture.canonical;
     origins::validate(
         fixture.coordinate.identity().unwrap(),
@@ -144,7 +137,6 @@ fn validate_origins_only(
         &foundation.callback_registrations,
         &foundation.source_native_contracts,
         &foundation.definition_origins,
-        meter,
     )
 }
 
@@ -159,7 +151,7 @@ fn validates_the_complete_hir_foundation_atomically() {
     );
 
     let validated = decoded
-        .validate(&fixture.coordinate, &mut identities, &mut meter())
+        .validate(&fixture.coordinate, &mut identities)
         .unwrap();
 
     assert_eq!(encode(&validated).unwrap(), bytes);
@@ -205,7 +197,7 @@ fn dependency_source_mode_resolves_an_external_source_identity() {
         [ConeIdentity::CORE, coordinate.identity().unwrap(), provider],
     );
     assert!(matches!(
-        decoded.validate(&coordinate, &mut identities, &mut meter()),
+        decoded.validate(&coordinate, &mut identities),
         Err(HirFoundationValidationError::SourceRecord {
             error: SourceRecordValidationError::Identity(_),
             ..
@@ -218,118 +210,9 @@ fn dependency_source_mode_resolves_an_external_source_identity() {
         [ConeIdentity::CORE, coordinate.identity().unwrap(), provider],
     );
     let validated = decoded
-        .validate_with_dependency_sources(&coordinate, &mut identities, &mut meter())
+        .validate_with_dependency_sources(&coordinate, &mut identities)
         .unwrap();
     assert_eq!(encode(&validated).unwrap(), encode(&canonical).unwrap());
-}
-
-#[test]
-fn source_context_index_has_inclusive_heap_boundaries() {
-    let fixture = fixture(true, true);
-    let required = scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
-
-    for (limit, accepted) in [
-        (required - 1, false),
-        (required, true),
-        (required + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            logical_heap_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let result = validate_source_contexts(
-            &fixture.canonical.source_contexts,
-            &fixture.canonical.sources,
-            &mut meter,
-        );
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result.unwrap_err(),
-                HirFoundationValidationError::Resource(ref error)
-                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                        resource: scoop_wire::ResourceKind::LogicalHeapBytes,
-                        limit,
-                        observed: required,
-                    }
-            ));
-        }
-    }
-}
-
-#[test]
-fn absent_source_diagnostic_copy_has_inclusive_owned_byte_boundaries() {
-    let fixture = fixture(true, true);
-    let required = u64::try_from(
-        fixture.canonical.source_contexts[0]
-            .key()
-            .source()
-            .logical_path()
-            .as_str()
-            .len(),
-    )
-    .unwrap();
-
-    for (limit, accepted) in [
-        (required - 1, false),
-        (required, true),
-        (required + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            owned_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let error = validate_source_contexts(&fixture.canonical.source_contexts, &[], &mut meter)
-            .unwrap_err();
-
-        if accepted {
-            assert!(matches!(
-                error,
-                HirFoundationValidationError::UnknownContextSource { .. }
-            ));
-            assert_eq!(meter.usage().owned_bytes, required);
-        } else {
-            assert!(matches!(
-                error,
-                HirFoundationValidationError::Resource(ref error)
-                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                        resource: scoop_wire::ResourceKind::OwnedBytes,
-                        limit,
-                        observed: required,
-                    }
-            ));
-        }
-    }
-}
-
-#[test]
-fn definition_origin_indexes_have_inclusive_heap_boundaries() {
-    let fixture = fixture(true, true);
-    let required = 3 * scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
-
-    for (limit, accepted) in [
-        (required - 1, false),
-        (required, true),
-        (required + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            logical_heap_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let result = validate_origins_only(&fixture, &mut meter);
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result.unwrap_err(),
-                HirFoundationValidationError::Resource(ref error)
-                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                        resource: scoop_wire::ResourceKind::LogicalHeapBytes,
-                        limit,
-                        observed: required,
-                    }
-            ));
-        }
-    }
 }
 
 #[test]
@@ -342,7 +225,7 @@ fn rejects_a_missing_required_definition_origin() {
     );
 
     assert!(matches!(
-        decoded.validate(&fixture.coordinate, &mut identities, &mut meter()),
+        decoded.validate(&fixture.coordinate, &mut identities),
         Err(HirFoundationValidationError::Origin(
             DefinitionOriginValidationError::MissingSubject { subject }
         )) if subject == fixture.subject
@@ -352,11 +235,11 @@ fn rejects_a_missing_required_definition_origin() {
 #[test]
 fn source_declared_core_nominals_require_definition_origins() {
     let complete = fixture_at(ConeCoordinate::reserved_core(), true, true);
-    validate_origins_only(&complete, &mut meter()).unwrap();
+    validate_origins_only(&complete).unwrap();
 
     let missing = fixture_at(ConeCoordinate::reserved_core(), false, true);
     assert!(matches!(
-        validate_origins_only(&missing, &mut meter()),
+        validate_origins_only(&missing),
         Err(HirFoundationValidationError::Origin(
             DefinitionOriginValidationError::MissingSubject { subject }
         )) if subject == missing.subject
@@ -373,7 +256,7 @@ fn rejects_an_origin_endpoint_absent_from_the_source_point_table() {
     );
 
     assert!(matches!(
-        decoded.validate(&fixture.coordinate, &mut identities, &mut meter()),
+        decoded.validate(&fixture.coordinate, &mut identities),
         Err(HirFoundationValidationError::Origin(
             DefinitionOriginValidationError::MissingPoint {
                 subject,
@@ -382,51 +265,6 @@ fn rejects_an_origin_endpoint_absent_from_the_source_point_table() {
             }
         )) if subject == fixture.subject
     ));
-}
-
-#[test]
-fn missing_point_diagnostic_copy_has_inclusive_owned_byte_boundaries() {
-    let fixture = fixture(true, false);
-    let required = u64::try_from(
-        fixture.canonical.sources[0]
-            .identity()
-            .logical_path()
-            .as_str()
-            .len(),
-    )
-    .unwrap();
-
-    for (limit, accepted) in [
-        (required - 1, false),
-        (required, true),
-        (required + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            owned_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let error = validate_origins_only(&fixture, &mut meter).unwrap_err();
-
-        if accepted {
-            assert!(matches!(
-                error,
-                HirFoundationValidationError::Origin(
-                    DefinitionOriginValidationError::MissingPoint { .. }
-                )
-            ));
-            assert_eq!(meter.usage().owned_bytes, required);
-        } else {
-            assert!(matches!(
-                error,
-                HirFoundationValidationError::Resource(ref error)
-                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                        resource: scoop_wire::ResourceKind::OwnedBytes,
-                        limit,
-                        observed: required,
-                    }
-            ));
-        }
-    }
 }
 
 #[test]
@@ -440,7 +278,7 @@ fn rejects_semantically_noncanonical_table_order() {
     );
 
     assert!(matches!(
-        decoded.validate(&fixture.coordinate, &mut identities, &mut meter()),
+        decoded.validate(&fixture.coordinate, &mut identities),
         Err(HirFoundationValidationError::NonCanonicalFoundation)
     ));
 }
@@ -470,7 +308,7 @@ fn rejects_a_foreign_source_declaration_in_the_artifact_delta() {
     );
 
     assert!(matches!(
-        decoded.validate(&coordinate, &mut identities, &mut meter()),
+        decoded.validate(&coordinate, &mut identities),
         Err(HirFoundationValidationError::ForeignDeclaration {
             table: HirFoundationTable::Type,
             identity: actual,
@@ -494,7 +332,7 @@ fn rejects_a_foundation_without_the_trusted_core_nominals() {
     let mut identities = validate_identities(&decoded, [ConeIdentity::CORE, cone]);
 
     assert!(matches!(
-        decoded.validate(&coordinate, &mut identities, &mut meter()),
+        decoded.validate(&coordinate, &mut identities),
         Err(HirFoundationValidationError::MissingCoreBuiltin { .. })
     ));
 }

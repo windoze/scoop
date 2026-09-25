@@ -49,11 +49,8 @@ fn explicit_c_projections_roundtrip_complete_typed_members() {
     ] {
         let bytes = encode(&record).unwrap();
         assert_eq!(bytes[0], 0xa4);
-        let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
-            &bytes,
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), record);
     }
@@ -84,7 +81,6 @@ fn scalar_projection_requires_the_only_field_of_an_ordinary_struct() {
         );
         let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
             &with_unchecked_projection(&record, projection),
-            DecodeLimits::default(),
         )
         .unwrap();
         assert!(decoded.resolve(&mut fixture.resolver()).is_err());
@@ -98,7 +94,6 @@ fn scalar_projection_requires_the_only_field_of_an_ordinary_struct() {
         );
         let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
             &with_unchecked_projection(&record, projection),
-            DecodeLimits::default(),
         )
         .unwrap();
         assert!(decoded.resolve(&mut fixture.resolver()).is_err());
@@ -135,7 +130,6 @@ fn nullable_projection_requires_the_exact_empty_and_single_payload_variants() {
         );
         let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
             &with_unchecked_projection(&record, projection),
-            DecodeLimits::default(),
         )
         .unwrap();
         assert!(decoded.resolve(&mut fixture.resolver()).is_err());
@@ -151,7 +145,6 @@ fn nullable_projection_requires_the_exact_empty_and_single_payload_variants() {
     );
     let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
         &with_unchecked_projection(&record, wrong_none),
-        DecodeLimits::default(),
     )
     .unwrap();
     assert!(decoded.resolve(&mut fixture.resolver()).is_err());
@@ -163,19 +156,9 @@ fn native_record_rejects_missing_projection_and_unknown_projection_tags() {
     let mut legacy = encode(&fixture.reference_record()).unwrap();
     legacy[0] = 0xa3;
     legacy.truncate(legacy.len() - 4);
-    assert!(
-        decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
-            &legacy,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(&legacy).is_err());
     let mut bytes = encode(&fixture.reference_record()).unwrap();
     *bytes.last_mut().unwrap() = 4;
-    let error = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(&bytes).unwrap_err();
     assert_eq!(error.path(), &scoop_wire::WirePath::root().field(4));
 }

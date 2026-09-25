@@ -79,7 +79,7 @@ impl WireEncode for DecodedInitializationUnitKey {
 }
 
 impl WireDecode for DecodedInitializationUnitKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => decode_id_variant(decoder, fields, Self::TopLevelProperty),
@@ -138,7 +138,7 @@ impl WireEncode for DecodedLocalValueKey {
 }
 
 impl WireDecode for DecodedLocalValueKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedCallableMaterialization::decode)?,
@@ -148,7 +148,7 @@ impl WireDecode for DecodedLocalValueKey {
 }
 
 impl WireDecode for LocalValueSelector {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -177,7 +177,7 @@ impl WireDecode for LocalValueSelector {
 }
 
 impl WireDecode for SyntheticLocalRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Temporary),
             2 => Ok(Self::DefaultValue),
@@ -263,7 +263,7 @@ where
 }
 
 fn decode_non_empty_exact_ids(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<NonEmptyVec<DecodedPersistentId<PersistentExactTypeId>>, WireError> {
     let values = decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))?;
     NonEmptyVec::new(values).map_err(|_| {
@@ -278,14 +278,14 @@ fn decode_non_empty_exact_ids(
     })
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -297,7 +297,7 @@ where
 }
 
 fn decode_path_variant<T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(StructuralDefinitionPath) -> T,
 ) -> Result<T, WireError> {
@@ -307,11 +307,7 @@ fn decode_path_variant<T>(
         .map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -323,7 +319,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

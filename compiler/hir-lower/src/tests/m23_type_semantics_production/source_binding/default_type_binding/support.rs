@@ -36,9 +36,8 @@ pub(super) fn with_inputs(source: &str, run: impl FnOnce(&Inputs<'_>)) {
         {
             hir::visit_default_source_type_access_demands(
                 ty,
-                &mut meter(),
                 &scoop_wire::WirePath::root(),
-                &mut |demand, _, _| {
+                &mut |demand, _| {
                     use hir::DefaultSourceTypeAccessDemandV1 as D;
                     use scoop_identity::SourceDeclarationKey;
                     let subject = match demand {
@@ -69,13 +68,10 @@ pub(super) fn with_inputs(source: &str, run: impl FnOnce(&Inputs<'_>)) {
             )
             .unwrap();
         }
-        let access =
-            Access::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let access = Access::from_export_hir(&output.output().export, &required).unwrap();
         let decoded: hir::DecodedCanonicalDefaultSourceAccessDeclarationsV1 =
-            decode_canonical(&encode(&access).unwrap(), DecodeLimits::default()).unwrap();
-        let access = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&encode(&access).unwrap()).unwrap();
+        let access = decoded.resolve(&mut fixture.identities).unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(&Inputs {
             output,
@@ -99,13 +95,13 @@ impl Inputs<'_> {
     ) {
         let foundation = self.fixture.bind().unwrap();
         let access = foundation
-            .bind_default_access_declarations(&self.access, &self.required, &mut meter())
+            .bind_default_access_declarations(&self.access, &self.required)
             .unwrap();
-        let domains = Domains::new(&access, &[], self.core_types, &mut meter()).unwrap();
+        let domains = Domains::new(&access, &[], self.core_types).unwrap();
         self.sources
             .with_bound(&foundation, self.core_types, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &self.sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &self.sources.protocols)
                     .unwrap();
                 run(&domains, &parameters, &foundation);
             });

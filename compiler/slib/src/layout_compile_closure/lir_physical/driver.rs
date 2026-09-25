@@ -29,45 +29,24 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable =
-                    transitive_positions(position, &self.dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &self.dependency_positions)?;
                 let mut dependencies = Vec::new();
-                parts.meter.try_reserve_collection_slots(
+                scoop_wire::allocation::try_reserve(
                     &mut dependencies,
                     reachable.len(),
                     &WirePath::root(),
                 )?;
                 dependencies.extend(reachable.iter().map(|&index| complete[index]));
-                let layout = replay::physical(
-                    layout,
-                    &strong,
-                    &mir,
-                    &dependencies,
-                    parts.identities,
-                    parts.meter,
-                )?;
-                strong.validate_replayed_layout_selection(&layout, parts.meter)?;
+                let layout =
+                    replay::physical(layout, &strong, &mir, &dependencies, parts.identities)?;
+                strong.validate_replayed_layout_selection(&layout)?;
                 if let Some(link) = parts.link_sections {
                     link.layout_link_closure_wire()
-                        .validate_physical_imports_against(
-                            layout.physical_imports(),
-                            parts.meter,
-                        )?;
+                        .validate_physical_imports_against(layout.physical_imports())?;
                 }
-                parts.meter.charge_owned_bytes(
-                    std::mem::size_of::<PhysicalImportsReplayedCrossConeLayoutSections<'_, '_>>()
-                        as u64,
-                    &WirePath::root(),
-                )?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &WirePath::root())?;
-                parts.meter.try_reserve_exact(
-                    &mut objects,
-                    1,
-                    std::mem::size_of::<O>() as u64,
-                    &WirePath::root(),
-                )?;
+
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
+                scoop_wire::allocation::try_reserve_count(&mut objects, 1, &WirePath::root())?;
                 let mut artifact = PhysicalImportsReplayedCrossConeLayoutSections {
                     prepared,
                     mir,

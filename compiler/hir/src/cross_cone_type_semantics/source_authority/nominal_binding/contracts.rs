@@ -4,13 +4,11 @@ use scoop_identity::SignatureTypeKey;
 pub(super) fn validate(
     bound: &mut BoundNominalSourceContractsV1<'_, '_>,
     source: &NominalSourceContractV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let owner = source.owner();
-    let path = WirePath::root();
-    queries(bound.table.records().len(), meter)?;
+
     let key = bound.foundation.nominal_key(owner)?;
-    NominalRepresentationSupportV1::charge_source_key_resources(key, meter, &path)?;
+
     let header = replay::shape(key)?;
     if header.kind() != source.kind()
         || header.type_parameter_arity() as usize != source.type_parameters().binders().len()
@@ -21,16 +19,15 @@ pub(super) fn validate(
         ));
     }
     let scope = source.type_parameters().signature_scope(None);
-    meter.check_table_entries(source.type_parameters().binders().len() as u64, &path)?;
+
     for binder in source.type_parameters().binders() {
-        meter.charge_nodes(1, &path)?;
         if let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() {
             for bound_type in bounds
                 .class()
                 .into_iter()
                 .chain(bounds.interfaces().values())
             {
-                signature(&scope, bound_type, owner, bound, meter)?;
+                signature(&scope, bound_type, owner, bound)?;
             }
         }
     }
@@ -38,10 +35,10 @@ pub(super) fn validate(
         .type_parameters()
         .validate_bound_semantics(None, bound)
         .map_err(|error| invalid(owner, error))?;
-    meter.check_table_entries(source.supertypes().values().len() as u64, &path)?;
+
     let mut class_seen = false;
     for supertype in source.supertypes().values() {
-        signature(&scope, supertype, owner, bound, meter)?;
+        signature(&scope, supertype, owner, bound)?;
         let kind = match supertype {
             SignatureTypeKey::Nominal(id) => bound.concrete_nominal_shape(*id)?.kind(),
             SignatureTypeKey::NominalApplication { origin, .. } => {
@@ -74,21 +71,14 @@ pub(super) fn validate(
         }
     }
     for field in source.source_shape().declared_fields() {
-        signature(&scope, field.value_type(), owner, bound, meter)?;
+        signature(&scope, field.value_type(), owner, bound)?;
     }
-    match source.source_shape() {
-        NominalSourceShapeV1::Enum(shape) => {
-            for variant in shape.variants() {
-                for field in variant.fields() {
-                    signature(&scope, field.value_type(), owner, bound, meter)?;
-                }
+    if let NominalSourceShapeV1::Enum(shape) = source.source_shape() {
+        for variant in shape.variants() {
+            for field in variant.fields() {
+                signature(&scope, field.value_type(), owner, bound)?;
             }
         }
-        NominalSourceShapeV1::Intrinsic(_) => meter.charge_work(1, &WirePath::root())?,
-        NominalSourceShapeV1::Struct(_)
-        | NominalSourceShapeV1::Class(_)
-        | NominalSourceShapeV1::Interface
-        | NominalSourceShapeV1::Object(_) => {}
     }
     source
         .source_shape()
@@ -122,12 +112,11 @@ fn signature(
     signature: &SignatureTypeKey,
     owner: SourceNominalId,
     bound: &mut BoundNominalSourceContractsV1<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     scope
-        .validate_signature_semantics_metered(signature, bound, meter, &WirePath::root())
+        .validate_signature_semantics(signature, bound)
         .map_err(|error| match error {
-            MeteredSignatureTypeSemanticError::Resource(error) => Error::Resource(error),
-            MeteredSignatureTypeSemanticError::Semantic(error) => invalid(owner, error),
+            SignatureTypeSemanticError::Allocation(error) => Error::Resource(error),
+            error => invalid(owner, error),
         })
 }

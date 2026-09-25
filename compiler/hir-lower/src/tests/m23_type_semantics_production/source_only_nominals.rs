@@ -13,10 +13,6 @@ const COMBINED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-source-only-nominals/combined.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn source_only_nominals_preserve_complete_declarations_and_close_machine_dependencies() {
     for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
@@ -33,12 +29,11 @@ fn source_only_nominals_preserve_complete_declarations_and_close_machine_depende
                 foundation.local_inheritance_edges().iter(),
                 foundation.source_roots().iter().copied(),
                 foundation,
-                &mut meter(),
             )
             .unwrap();
             section
                 .representation_support()
-                .validate_source_semantics(foundation, &mut meter(), &WirePath::root())
+                .validate_source_semantics(foundation, &WirePath::root())
                 .unwrap();
             let mut rows = Vec::new();
             for source in production.source_nominals().records() {
@@ -90,13 +85,10 @@ fn source_only_nominals_preserve_complete_declarations_and_close_machine_depende
             snapshot(case, &rows.concat());
             let bytes = encode(production.source_nominals()).unwrap();
             let decoded: hir::DecodedCanonicalNominalSourceContractsV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             assert_eq!(
                 decoded
-                    .resolve(
-                        &mut source_inventory::identity_closure(output),
-                        &mut meter()
-                    )
+                    .resolve(&mut source_inventory::identity_closure(output))
                     .unwrap(),
                 *production.source_nominals()
             );
@@ -120,7 +112,7 @@ fn source_only_publication_still_rejects_missing_or_extra_machine_types() {
         let required = production.section().representation_support().records()[0].owner();
         let absent = hir::CanonicalNominalRepresentationSupportV1::try_new(Vec::new()).unwrap();
         assert!(matches!(
-            absent.validate_source_semantics(production.foundation(), &mut meter(), &WirePath::root()),
+            absent.validate_source_semantics(production.foundation(),  &WirePath::root()),
             Err(hir::NominalRepresentationSourceSemanticError::Missing { owner }) if owner == required
         ));
         let foundation = production.foundation();
@@ -153,7 +145,7 @@ fn source_only_publication_still_rejects_missing_or_extra_machine_types() {
         records.push(extra);
         let extra = hir::CanonicalNominalRepresentationSupportV1::try_new(records).unwrap();
         assert!(matches!(
-            extra.validate_source_semantics(foundation, &mut meter(), &WirePath::root()),
+            extra.validate_source_semantics(foundation,  &WirePath::root()),
             Err(hir::NominalRepresentationSourceSemanticError::Extra { owner: extra, .. }) if extra == owner
         ));
     });
@@ -180,26 +172,6 @@ fn source_only_machine_exports_ignore_unrelated_arena_allocation() {
         project(&format!("{padding}{STANDALONE}")),
         project(&format!("{prefix}{STANDALONE}"))
     );
-}
-
-#[test]
-fn source_only_projection_keeps_one_resource_budget_across_calls() {
-    with_hir_source(COMBINED, |output, _| {
-        let public = public_interface(output);
-        let mut first = meter();
-        produce_type_semantics_metered(output, &public, &mut first).unwrap();
-        let mut shared = BudgetMeter::new(DecodeLimits {
-            validation_work_units: first.usage().validation_work_units,
-            ..DecodeLimits::default()
-        });
-        produce_type_semantics_metered(output, &public, &mut shared).unwrap();
-        assert!(matches!(
-            produce_type_semantics_metered(output, &public, &mut shared),
-            Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                hir::SourceInventoryError::Resource(_)
-            ))
-        ));
-    });
 }
 
 fn snapshot(case: &str, actual: &str) {

@@ -1,5 +1,5 @@
 use scoop_identity::{CallableTemplateOrigin, PersistentExactTypeId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::{HirDependencyCallReasonV1, HirDependencyCallSiteV1};
 use crate::{
@@ -20,12 +20,9 @@ impl HirDependencyCallSiteV1 {
         &self,
         target: ExternalHirTargetV1,
         metadata: SharedTypeMetadataV1<'a>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<&'a CallableDeclarationRecordV1, HirDependencyCallSignatureError> {
         use HirDependencyCallSignatureError as Error;
-        meter.charge_nodes(1, path)?;
-        meter.charge_work(1, path)?;
+
         if !matches!(self.reason(), HirDependencyCallReasonV1::SourceBinding(_)) {
             return Err(Error::Reason);
         }
@@ -39,10 +36,7 @@ impl HirDependencyCallSiteV1 {
             return Err(Error::Target(target));
         };
         let callables = metadata.public.callable_interfaces();
-        meter.charge_work(
-            1 + u64::from(callables.declaration_count().max(1).ilog2()),
-            path,
-        )?;
+
         let source = callables
             .declaration(declaration)
             .ok_or(Error::Declaration(declaration))?;
@@ -56,18 +50,18 @@ impl HirDependencyCallSiteV1 {
         let receiver = match source.owner().nominal_owner() {
             Some(SourceNominalId::Concrete(_)) if construction => None,
             Some(SourceNominalId::Concrete(owner)) => {
-                Some(metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner), meter)?)
+                Some(metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner))?)
             }
             Some(SourceNominalId::GenericTemplate(_)) => {
                 return Err(Error::GenericDeclaration(declaration));
             }
             None => source
                 .receiver()
-                .map(|ty| metadata.signature_exact_type(ty, meter))
+                .map(|ty| metadata.signature_exact_type(ty))
                 .transpose()?,
         };
         let parameters = source.parameters().parameters();
-        meter.charge_work(1, path)?;
+
         if self.receiver().has_receiver() != receiver.is_some() {
             return Err(Error::ReceiverRole {
                 expected: receiver.is_some(),
@@ -77,7 +71,7 @@ impl HirDependencyCallSiteV1 {
         let expected = parameters
             .len()
             .saturating_add(usize::from(receiver.is_some()));
-        meter.check_table_entries(expected as u64, path)?;
+
         if self.arguments().len() != expected {
             return Err(Error::ArgumentCount {
                 expected,
@@ -85,21 +79,15 @@ impl HirDependencyCallSiteV1 {
             });
         }
         if let Some(expected) = receiver {
-            argument(0, self.arguments()[0], expected, meter, path)?;
+            argument(0, self.arguments()[0], expected)?;
         }
         let offset = usize::from(receiver.is_some());
         for (index, parameter) in parameters.iter().enumerate() {
-            let expected = metadata.signature_exact_type(parameter.value_type(), meter)?;
-            argument(
-                index + offset,
-                self.arguments()[index + offset],
-                expected,
-                meter,
-                path,
-            )?;
+            let expected = metadata.signature_exact_type(parameter.value_type())?;
+            argument(index + offset, self.arguments()[index + offset], expected)?;
         }
-        let expected = metadata.signature_exact_type(source.result(), meter)?;
-        meter.charge_work(1, path)?;
+        let expected = metadata.signature_exact_type(source.result())?;
+
         if self.result() != expected {
             return Err(Error::Result {
                 expected,
@@ -114,10 +102,7 @@ fn argument(
     index: usize,
     actual: PersistentExactTypeId,
     expected: PersistentExactTypeId,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), HirDependencyCallSignatureError> {
-    meter.charge_work(1, path)?;
     if actual != expected {
         return Err(HirDependencyCallSignatureError::Argument {
             index,

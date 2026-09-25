@@ -42,11 +42,10 @@ impl TypeFoundationSourceAuthorityV1 {
         &'a self,
         foundation: &'a OdrFreeHirFoundation,
         identities: &'a ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundTypeFoundationSourcesV1<'a>, TypeFoundationBindingError> {
-        let result = keys::bind(self, foundation, identities, meter)?;
-        origins::validate_all(&result, meter)?;
-        sources::validate_all(&result, meter)?;
+        let result = keys::bind(self, foundation, identities)?;
+        origins::validate_all(&result)?;
+        sources::validate_all(&result)?;
         Ok(result)
     }
 }
@@ -55,10 +54,8 @@ impl<'a> BoundTypeFoundationSourcesV1<'a> {
     pub(in crate::cross_cone_type_semantics::source_authority) fn validate_origin(
         &self,
         source: &ExportDefinitionSourceV1,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
     ) -> Result<(), TypeFoundationBindingError> {
-        origins::validate(self, source, meter, path)
+        origins::validate(self, source)
     }
 
     pub const fn source(&self) -> &'a TypeFoundationSourceAuthorityV1 {

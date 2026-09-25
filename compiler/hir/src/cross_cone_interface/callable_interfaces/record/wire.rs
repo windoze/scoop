@@ -125,7 +125,7 @@ impl WireEncode for DecodedCallableDeclarationRecordV1 {
 }
 
 impl WireDecode for DecodedCallableDeclarationRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         let value = Self {
             declaration: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,
@@ -139,8 +139,7 @@ impl WireDecode for DecodedCallableDeclarationRecordV1 {
             visibility: decoder.field(9, DeclaredVisibilityV1::decode)?,
             slots: decoder.field(10, DecodedCanonicalPersistentIdsV1::decode)?,
         };
-        let path = decoder.path().clone().field(10);
-        value.slots.charge_resolution_at(decoder.meter(), &path)?;
+
         Ok(value)
     }
 }

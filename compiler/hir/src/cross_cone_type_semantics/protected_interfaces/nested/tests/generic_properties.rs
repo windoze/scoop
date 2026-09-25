@@ -142,14 +142,13 @@ fn generic_property_keeps_source_access_without_fabricating_a_concrete_domain() 
     .unwrap();
     let record = ProtectedNestedNominalInterfaceV1::try_new(owner, access, payload).unwrap();
     let decoded: DecodedProtectedNestedNominalInterfaceV1 =
-        decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+        decode_canonical(&encode(&record).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
     let graph_source = fixture.graph.clone();
     let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
         graph_source.records.values(),
         graph_source.keys.keys().copied(),
         &graph_source,
-        &mut meter(),
     )
     .unwrap();
     record
@@ -157,11 +156,10 @@ fn generic_property_keeps_source_access_without_fabricating_a_concrete_domain() 
             &graph,
             &CanonicalNominalRepresentationSupportV1::default(),
             &mut fixture,
-            &mut meter(),
         )
         .unwrap();
     let CheckedNominalSupportPropertySourceV1::Runtime(checked) = property_record
-        .validate_source(&graph, &mut fixture, &mut meter())
+        .validate_source(&graph, &mut fixture)
         .unwrap()
     else {
         panic!("runtime property required")
@@ -172,7 +170,7 @@ fn generic_property_keeps_source_access_without_fabricating_a_concrete_domain() 
     );
     assert!(
         graph
-            .replay_declaration_access(checked.declaration_access(), &mut meter())
+            .replay_declaration_access(checked.declaration_access())
             .is_err()
     );
     fixture.property_shapes.get_mut(&property).unwrap().setter =
@@ -181,8 +179,7 @@ fn generic_property_keeps_source_access_without_fabricating_a_concrete_domain() 
         record.validate_source(
             &graph,
             &CanonicalNominalRepresentationSupportV1::default(),
-            &mut fixture,
-            &mut meter()
+            &mut fixture
         ),
         Err(NestedSourceSemanticError::Property(
             NominalSupportPropertySemanticError::Runtime(

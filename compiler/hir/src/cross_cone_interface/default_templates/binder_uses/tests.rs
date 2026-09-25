@@ -3,7 +3,7 @@ use scoop_identity::{
     IdentityReferenceError, PackagePath, PendingIdentityValidation, PersistentTypeId,
     SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -21,7 +21,7 @@ fn binder_uses_preserve_declaration_order_and_duplicates_with_fixed_wire() {
     );
 
     let decoded: DecodedCanonicalBinderUseListV1 =
-        decode_canonical(&encode(&uses).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&uses).unwrap()).unwrap();
     let mut authority = PendingIdentityValidation::new().finish().unwrap();
     assert_eq!(decoded.resolve(&mut authority).unwrap(), uses);
 }
@@ -32,7 +32,7 @@ fn decoded_uses_resolve_each_nominal_through_typed_authority() {
     let uses =
         CanonicalBinderUseListV1::try_new(vec![SignatureTypeKey::Nominal(nominal.id())]).unwrap();
     let decoded: DecodedCanonicalBinderUseListV1 =
-        decode_canonical(&encode(&uses).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&uses).unwrap()).unwrap();
     let mut authority = authority(&nominal);
 
     assert_eq!(decoded.resolve(&mut authority).unwrap(), uses);
@@ -47,7 +47,7 @@ fn decoded_uses_report_the_failing_argument_position() {
     ])
     .unwrap();
     let decoded: DecodedCanonicalBinderUseListV1 =
-        decode_canonical(&encode(&uses).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&uses).unwrap()).unwrap();
     let mut authority = PendingIdentityValidation::new().finish().unwrap();
 
     assert!(matches!(

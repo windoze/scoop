@@ -5,7 +5,7 @@ use scoop_hir::{
     NominalSourceShapeV1, SourceNominalId,
 };
 use scoop_identity::{PersistentFieldId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::CanonicalCrossConeHirSurfaceAuthority;
 
@@ -23,10 +23,10 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let path = WirePath::root().field(7);
         let interfaces = std::iter::once(self.current_interface)
             .chain(self.dependencies.iter().map(|provider| provider.interface));
-        let mut fields = DefaultStructFields::from_interfaces(interfaces, self.meter, &path)?;
+        let mut fields = DefaultStructFields::from_interfaces(interfaces, &path)?;
         for (index, template) in templates.records().iter().enumerate() {
             template
-                .validate_local_data_flow_semantics(&mut fields, self.meter, &path)
+                .validate_local_data_flow_semantics(&mut fields, &path)
                 .map_err(|source| CrossConeHirDefaultDataFlowError::Template {
                     index,
                     key: template.key(),
@@ -45,14 +45,12 @@ struct DefaultStructField {
 }
 
 /// An index over ordinary nominal metadata, never a second declaration table.
-/// Building it before visiting bodies keeps every allocation and traversal on
-/// the same budget without sharing a mutable meter with the callback.
 struct DefaultStructFields(Vec<DefaultStructField>);
 
 impl DefaultStructFields {
     fn from_interfaces<'a, I>(
         interfaces: I,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, CrossConeHirDefaultDataFlowError>
     where
@@ -62,20 +60,15 @@ impl DefaultStructFields {
         let interfaces = interfaces.into_iter();
         let mut count = 0;
         for interface in interfaces.clone() {
-            meter.charge_work(
-                interface.nominal_interfaces().declaration_count() as u64 * 2,
-                path,
-            )?;
             for record in interface.nominal_interfaces().all_records() {
                 if let NominalSourceShapeV1::Struct(shape) = record.source_shape() {
                     count += shape.fields().len() as u64;
-                    meter.check_table_entries(count, path)?;
                 }
             }
         }
-        meter.charge_work(count, path)?;
+
         let mut fields = Vec::new();
-        meter.try_reserve_collection_slots(&mut fields, count as usize, path)?;
+        scoop_wire::allocation::try_reserve(&mut fields, count as usize, path)?;
         for interface in interfaces {
             for record in interface.nominal_interfaces().all_records() {
                 let NominalSourceShapeV1::Struct(shape) = record.source_shape() else {
@@ -91,8 +84,7 @@ impl DefaultStructFields {
                 }
             }
         }
-        let levels = u64::from(count.checked_ilog2().unwrap_or(0)) + 1;
-        meter.charge_work(count.saturating_mul(levels), path)?;
+
         fields.sort_unstable_by_key(|field| field.declaration);
         for pair in fields.windows(2) {
             if pair[0].declaration == pair[1].declaration {

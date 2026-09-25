@@ -58,9 +58,9 @@ fn generic_constructor_source_metadata_cannot_acquire_a_concrete_inheritance_ent
         Err(InheritanceInterfaceBuildError::ConstructorGeneric)
     ));
     let decoded: DecodedInheritanceConstructorInterfaceV1 =
-        decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&source).unwrap()).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(InheritanceInterfaceResolutionError::Build(
             InheritanceInterfaceBuildError::ConstructorGeneric
         ))

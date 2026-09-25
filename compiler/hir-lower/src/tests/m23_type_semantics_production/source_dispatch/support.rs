@@ -88,11 +88,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
 pub(super) fn project(
     output: &hir::DependencyHirOutput,
 ) -> hir::CanonicalSourceInheritanceInventoriesV1 {
-    hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-        output,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
-    .unwrap()
+    hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap()
 }
 
 pub(in crate::tests::m23_type_semantics_production) fn owners(

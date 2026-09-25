@@ -4,7 +4,6 @@ use scoop_hir::{
     CallableModalityV1 as Modality, DeclaredVisibilityV1 as Visibility,
     SourceAccessConstraintV1 as Constraint, SourceAccessDomainV1 as Domain,
 };
-use scoop_wire::DecodeLimits;
 
 mod inheritance;
 mod rejection;

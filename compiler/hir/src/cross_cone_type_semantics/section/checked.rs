@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::{ConeIdentity, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 /// Complete provider-local source tables plus the exact committed external-use
 /// closure. Only `validate_semantics` can construct this publication evidence.
@@ -66,7 +66,7 @@ impl CrossConeTypeSemanticsSectionV1 {
         declarations: &mut S,
         defaults: &mut D,
         committed: &A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CheckedCrossConeTypeSemanticsSectionV1<'a>, TypeSectionSemanticValidationError<E>>
     where
@@ -82,7 +82,6 @@ impl CrossConeTypeSemanticsSectionV1 {
             foundation,
             declarations,
             defaults,
-            meter,
             path,
         )
         .map_err(|error| TypeSectionSemanticValidationError::Exports(Box::new(error)))?;
@@ -91,7 +90,6 @@ impl CrossConeTypeSemanticsSectionV1 {
             dependencies,
             foundation,
             committed,
-            meter,
             &path.clone().field(8),
         )
         .map_err(|error| TypeSectionSemanticValidationError::Selected(Box::new(error)))?;

@@ -3,7 +3,7 @@ use scoop_identity::{
     PackagePath, PersistentTypeAliasId, PersistentTypeId, SignatureTypeKey, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -39,16 +39,12 @@ fn variants_have_fixed_wire_and_resolve_typed_references() {
 
 #[test]
 fn decoder_rejects_unknown_tags_and_wrong_sum_shape() {
-    let unknown = decode_canonical::<DecodedTypeAliasTargetV1>(
-        &[0xa2, 0x00, 0x03, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown =
+        decode_canonical::<DecodedTypeAliasTargetV1>(&[0xa2, 0x00, 0x03, 0x01, 0x00]).unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
     let wrong_shape =
-        decode_canonical::<DecodedTypeAliasTargetV1>(&[0xa1, 0x00, 0x01], DecodeLimits::default())
-            .unwrap_err();
+        decode_canonical::<DecodedTypeAliasTargetV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         wrong_shape.kind(),
         &WireErrorKind::InvalidLength {
@@ -80,7 +76,7 @@ fn resolution_rejects_missing_nominal_and_alias_authority() {
 }
 
 fn decode(target: &TypeAliasTargetV1) -> DecodedTypeAliasTargetV1 {
-    decode_canonical(&encode(target).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(target).unwrap()).unwrap()
 }
 
 fn authority(

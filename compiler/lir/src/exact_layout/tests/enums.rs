@@ -43,13 +43,8 @@ fn enum_replay_selects_pointer_niche_but_keeps_zst_payload_tagged() {
             },
         ];
         let bound = Bound::value(exact(&owner));
-        let result = ExactValueLayoutV1::enumeration(
-            bound.identity,
-            &variants,
-            &bound.foundation,
-            &mut meter(),
-        )
-        .unwrap();
+        let result =
+            ExactValueLayoutV1::enumeration(bound.identity, &variants, &bound.foundation).unwrap();
         assert_eq!(result.value().storage().byte_size(), 8);
         match result.representation().kind() {
             ExactRepresentationKindV1::TaggedEnum(layout) => {
@@ -98,8 +93,7 @@ fn tagged_enum_combines_dedicated_slots_at_enum_relative_offsets() {
     ];
     let bound = Bound::value(exact(&owner));
     let value =
-        ExactValueLayoutV1::enumeration(bound.identity, &variants, &bound.foundation, &mut meter())
-            .unwrap();
+        ExactValueLayoutV1::enumeration(bound.identity, &variants, &bound.foundation).unwrap();
     assert_eq!(value.value().storage().byte_size(), 24);
     assert_eq!(scan(&value), &RefScan::References(vec![16]));
     let ExactRepresentationKindV1::TaggedEnum(layout) = value.representation().kind() else {
@@ -129,8 +123,7 @@ fn enum_replay_rejects_wrong_variant_and_payload_identity_owners() {
                 variant: &other,
                 fields: &[]
             }],
-            &bound.foundation,
-            &mut meter()
+            &bound.foundation
         ),
         Err(ExactLayoutReplayError::VariantOwner)
     ));
@@ -147,13 +140,12 @@ fn enum_replay_rejects_wrong_variant_and_payload_identity_owners() {
                 variant: &first,
                 fields: &fields
             }],
-            &bound.foundation,
-            &mut meter()
+            &bound.foundation
         ),
         Err(ExactLayoutReplayError::VariantFieldOwner)
     ));
     assert!(matches!(
-        ExactValueLayoutV1::enumeration(bound.identity, &[], &bound.foundation, &mut meter()),
+        ExactValueLayoutV1::enumeration(bound.identity, &[], &bound.foundation),
         Err(ExactLayoutReplayError::EmptyEnum)
     ));
 }
@@ -194,8 +186,7 @@ fn generated_variant_owner_is_verified_without_source_name_fallback() {
     ];
     let bound = Bound::value(CborIdentityRecord::from_key(ExactTypeKey::Nominal(owner)).unwrap());
     let result =
-        ExactValueLayoutV1::enumeration(bound.identity, &variants, &bound.foundation, &mut meter())
-            .unwrap();
+        ExactValueLayoutV1::enumeration(bound.identity, &variants, &bound.foundation).unwrap();
     assert!(matches!(
         result.representation().kind(),
         ExactRepresentationKindV1::NicheEnum(_)

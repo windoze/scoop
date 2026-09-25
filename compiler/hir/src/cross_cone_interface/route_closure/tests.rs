@@ -17,12 +17,7 @@ fn validates_a_complete_reexport_chain_and_supports_binding_lookup() {
 
     fixture
         .current_surface
-        .validate_route_closure(
-            fixture.current,
-            &fixture.authority,
-            &mut route_meter(),
-            &scoop_wire::WirePath::root(),
-        )
+        .validate_route_closure(fixture.current, &fixture.authority)
         .unwrap();
     assert_eq!(
         fixture
@@ -48,7 +43,7 @@ fn rejects_non_direct_provider_and_routes_longer_than_the_closure() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::ImmediateProviderNotDirect {
             binding,
             route: 0,
@@ -61,7 +56,7 @@ fn rejects_non_direct_provider_and_routes_longer_than_the_closure() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::RouteExceedsClosure {
             binding,
             route: 0,
@@ -79,7 +74,7 @@ fn rejects_missing_or_inconsistent_hop_authority() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::MissingHopBindingKey {
             binding,
             route: 0,
@@ -93,7 +88,7 @@ fn rejects_missing_or_inconsistent_hop_authority() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::MissingProviderSurface {
             binding,
             route: 0,
@@ -112,7 +107,7 @@ fn rejects_missing_or_inconsistent_hop_authority() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::HopTargetMismatch {
             binding,
             route: 0,
@@ -139,7 +134,7 @@ fn requires_intermediate_reexports_and_a_declared_terminal() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::IntermediateIsDeclared {
             binding,
             route: 0,
@@ -163,7 +158,7 @@ fn requires_intermediate_reexports_and_a_declared_terminal() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::TerminalIsReexport {
             binding,
             route: 0,
@@ -205,7 +200,7 @@ fn requires_the_intermediate_surface_to_publish_the_exact_suffix() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(fixture.current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(fixture.current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::MissingRouteSuffix {
             binding,
             route: 0,
@@ -222,7 +217,7 @@ fn validates_current_binding_exporter_and_declared_target() {
     assert!(matches!(
         fixture
             .current_surface
-            .validate_route_closure(wrong_current, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+            .validate_route_closure(wrong_current, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::CurrentBindingExporterMismatch {
             binding,
             expected,
@@ -240,7 +235,7 @@ fn validates_current_binding_exporter_and_declared_target() {
         },
     )]);
     assert!(matches!(
-        direct.validate_route_closure(fixture.terminal, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
+        direct.validate_route_closure(fixture.terminal, &fixture.authority),
         Err(PublicExportBindingClosureValidationError::DeclaredTargetMismatch {
             exporter,
             binding,
@@ -366,34 +361,16 @@ impl PublicExportBindingClosureAuthority for TestAuthority {
         self.closure_nodes
     }
 
-    fn is_direct_dependency(
-        &self,
-        provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(self.direct.contains(&provider))
+    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
+        self.direct.contains(&provider)
     }
 
-    fn binding_key(
-        &self,
-        binding: PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(self.keys.get(&binding))
+    fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        self.keys.get(&binding)
     }
 
-    fn public_bindings(
-        &self,
-        exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(self.surfaces.get(&exporter))
+    fn public_bindings(&self, exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
+        self.surfaces.get(&exporter)
     }
 }
 
@@ -441,8 +418,4 @@ fn cone(value: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

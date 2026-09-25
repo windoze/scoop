@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentPropertyId, PropertyAccessorKey, PropertyOwner, SignatureTypeKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -24,8 +24,7 @@ fn roots_have_fixed_tags_and_resolve_through_kind_specific_authority() {
     for (index, root) in roots.into_iter().enumerate() {
         let bytes = encode(&root).unwrap();
         assert_eq!(bytes[2], u8::try_from(index + 1).unwrap());
-        let decoded: DecodedPersistentLexicalRootV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedPersistentLexicalRootV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut resolver), Ok(root));
         assert_eq!(
             PersistentLexicalRootV1::try_from(root.declaration()),
@@ -75,16 +74,11 @@ fn property_accessors_cannot_be_lexical_roots() {
 fn decoder_rejects_unknown_tags_and_non_exact_maps() {
     let mut unknown_bytes = vec![0xa2, 0x00, 0x05, 0x01, 0x58, 0x20];
     unknown_bytes.extend([0; 32]);
-    let unknown =
-        decode_canonical::<DecodedPersistentLexicalRootV1>(&unknown_bytes, DecodeLimits::default())
-            .unwrap_err();
+    let unknown = decode_canonical::<DecodedPersistentLexicalRootV1>(&unknown_bytes).unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let short = decode_canonical::<DecodedPersistentLexicalRootV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let short =
+        decode_canonical::<DecodedPersistentLexicalRootV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert!(matches!(
         short.kind(),
         WireErrorKind::InvalidLength {

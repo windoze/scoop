@@ -3,7 +3,6 @@ use scoop_identity::{
     PersistentDispatchSlotId, PersistentFunctionId, PersistentPropertyAccessorId,
     PersistentPropertyId, PropertyOwner, SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{InheritanceSlotSchemaSemanticAuthority, InheritanceSlotSchemaSemanticError};
 use crate::{CheckedNominalInheritanceGraphV1, SourceNominalId};
@@ -12,12 +11,7 @@ pub(super) fn source_owner<A: InheritanceSlotSchemaSemanticAuthority<E>, E>(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     slot: PersistentDispatchSlotId,
     authority: &A,
-    meter: &mut BudgetMeter,
 ) -> Result<scoop_identity::PersistentExactTypeId, InheritanceSlotSchemaSemanticError<E>> {
-    let path = WirePath::root();
-    meter
-        .charge_work(1, &path)
-        .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
     let key = authority
         .dispatch_slot_key(slot)
         .map_err(InheritanceSlotSchemaSemanticError::Foundation)?;

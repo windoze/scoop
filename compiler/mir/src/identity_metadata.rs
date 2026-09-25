@@ -102,7 +102,7 @@ impl WireEncode for ForeignCallbackStorageAbi {
 }
 
 impl WireDecode for ForeignCallbackStorageAbi {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ClosureResultRootsThrowableToU32),
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
@@ -232,7 +232,7 @@ impl WireEncode for DecodedCallableSignatureSubject {
 }
 
 impl WireDecode for DecodedCallableSignatureSubject {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -292,7 +292,7 @@ impl WireEncode for DecodedCallableSignatureRecord {
 }
 
 impl WireDecode for DecodedCallableSignatureRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             subject: decoder.field(1, DecodedCallableSignatureSubject::decode)?,
@@ -362,7 +362,7 @@ impl WireEncode for DecodedCallbackApplicationRecord {
 }
 
 impl WireDecode for DecodedCallbackApplicationRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             application: decoder.field(1, DecodedPersistentId::decode)?,
@@ -432,11 +432,7 @@ fn encode_value_sum(
     value.encode(encoder)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -447,7 +443,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

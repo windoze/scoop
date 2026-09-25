@@ -19,9 +19,7 @@ const COMBINATIONS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/access-declaration-combinations.scoop"
 ));
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 pub(super) fn required(export: &hir::ExportHir) -> BTreeSet<Subject> {
     let mut internal: BTreeSet<_> = export
         .properties
@@ -60,7 +58,6 @@ fn table(output: &hir::DependencyHirOutput) -> Table {
     Table::from_export_hir(
         &output.output().export,
         &required(output.output().export.module()),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -131,12 +128,8 @@ fn default_access_demand_adds_complete_static_nested_owner_chain() {
     with_hir_source(SOURCE, |output, _| {
         let export = output.output().export.module();
         let leaf = function(export, "Scope.Hidden.leaf");
-        let actual = Table::from_export_hir(
-            &output.output().export,
-            &BTreeSet::from([leaf]),
-            &mut meter(),
-        )
-        .unwrap();
+        let actual =
+            Table::from_export_hir(&output.output().export, &BTreeSet::from([leaf])).unwrap();
         assert_eq!(actual.records().len(), 3);
         let leaf = actual.get(leaf).unwrap().declaration_access();
         assert_eq!(

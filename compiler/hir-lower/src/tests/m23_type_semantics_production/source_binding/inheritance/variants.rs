@@ -90,7 +90,7 @@ fn inheritance_sources_replay_real_generic_and_concrete_enum_constructors() {
         let foundation = fixture.bind().unwrap();
 
         sources
-            .with_bound(&foundation, &mut meter(), |bound, graph| {
+            .with_bound(&foundation, |bound, graph| {
                 let mut count = 0;
                 for source in sources.nominals.records() {
                     let hir::NominalSourceShapeV1::Enum(shape) = source.source_shape() else {
@@ -98,7 +98,7 @@ fn inheritance_sources_replay_real_generic_and_concrete_enum_constructors() {
                     };
                     for variant in shape.variants() {
                         let record = candidate(bound, source, variant);
-                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                        record.validate_source(graph, bound).unwrap();
                         count += 1;
                         let other = shape
                             .variants()
@@ -121,7 +121,7 @@ fn inheritance_sources_replay_real_generic_and_concrete_enum_constructors() {
                         )
                         .unwrap();
                         assert!(matches!(
-                            wrong_origin.validate_source(graph, bound, &mut meter()),
+                            wrong_origin.validate_source(graph, bound),
                             Err(hir::NominalSupportCallableSemanticError::Variant(
                                 hir::NominalSupportVariantError::Access
                             ))

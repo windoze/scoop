@@ -2,7 +2,7 @@
 use super::binding_keys;
 use crate::*;
 use scoop_identity::{DefinitionOriginSubject as Subject, *};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 mod applied_fields;
 mod bound;
 mod callables;
@@ -56,18 +56,9 @@ type Target = DefaultSourceIndirectTargetV1;
 impl DefaultTargetIdentityQueriesV1<'_> {
     /// Derives a declaration demand from actual local artifact keys. Applied
     /// owner types, declaration access and runtime capabilities remain separate.
-    pub fn default_indirect_access_subject(
-        &self,
-        target: Target,
-        meter: &mut BudgetMeter,
-    ) -> Result<Subject, Error> {
-        let mut query = Query {
-            foundation: self,
-            meter,
-            path: WirePath::root(),
-        };
-        query.meter.check_semantic_depth(1, &query.path)?;
-        query.meter.charge_nodes(1, &query.path)?;
+    pub fn default_indirect_access_subject(&self, target: Target) -> Result<Subject, Error> {
+        let mut query = Query { foundation: self };
+
         let canonical = self.foundation.as_canonical();
         match target {
             Target::StructField(id) | Target::ClassField(id) => {
@@ -84,13 +75,7 @@ impl DefaultTargetIdentityQueriesV1<'_> {
                 let key = query.key(canonical.type_source_object_value_records(), id, || {
                     Error::MissingTarget(target)
                 })?;
-                NominalRepresentationSupportV1::charge_source_key_resources(
-                    key,
-                    query.meter,
-                    &query.path,
-                )?;
-                let bytes = scoop_wire::encoded_length(key).map_err(Error::Encoding)?;
-                query.meter.charge_sha256(bytes, &query.path)?;
+
                 let owner =
                     SourceNominalId::from_source_declaration(key).map_err(Error::Identity)?;
                 query.nominal(owner, SourceDeclarationKind::Object)
@@ -99,10 +84,8 @@ impl DefaultTargetIdentityQueriesV1<'_> {
     }
 }
 
-struct Query<'b, 'f, 'm> {
+struct Query<'b, 'f> {
     foundation: &'b DefaultTargetIdentityQueriesV1<'f>,
-    meter: &'m mut BudgetMeter,
-    path: WirePath,
 }
 fn subject(owner: SourceNominalId) -> Subject {
     match owner {

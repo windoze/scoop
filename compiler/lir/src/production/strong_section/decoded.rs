@@ -26,29 +26,6 @@ pub struct DecodedStrongProductionSection<R, I = DecodedCallableAbiRecordV1> {
 }
 
 impl<R, I> DecodedStrongProductionSection<R, I> {
-    /// Resolves physical references only; the dependency and source joins
-    /// remain the responsibility of the complete artifact closure.
-    pub fn reconstruct_external_bridges_with_meter(
-        &self,
-        producer: scoop_identity::ConeIdentity,
-        identities: &mut ValidatedIdentityGraph,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
-        let path = scoop_wire::WirePath::root();
-        let bytes =
-            scoop_wire::encode_canonical_temporary_with_meter(&self.external_bridges, meter, &path)
-                .map_err(StrongExternalLirBridgeReconstructionError::Resource)?;
-        // Each owned signature element or reference occupies at least one
-        // encoded byte. Preflight its clone, canonical comparison and lookup.
-        meter
-            .charge_collection_slots(bytes.len() as u64, &path)
-            .map_err(StrongExternalLirBridgeReconstructionError::Resource)?;
-        meter
-            .charge_work((bytes.len() as u64).saturating_mul(64), &path)
-            .map_err(StrongExternalLirBridgeReconstructionError::Resource)?;
-        self.reconstruct_external_bridges(producer, identities)
-    }
-
     pub fn reconstruct_external_bridges(
         &self,
         producer: scoop_identity::ConeIdentity,
@@ -85,7 +62,7 @@ impl<R: WireEncode, I: WireEncode> WireEncode for DecodedStrongProductionSection
 }
 
 impl<R: WireDecode> WireDecode for DecodedStrongProductionSection<R> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
             canonical_definitions: decoder.field(2, DecodedStrongObjectSymbolSurfaceV1::decode)?,

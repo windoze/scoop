@@ -8,9 +8,9 @@ use crate::{
 };
 
 use super::{
-    BodyNode, BodyValidator, BodyWork, DefaultBindingActionOperationV1,
-    DefaultBindingShapeOperationV1, DefaultBodyOperationTypingProblemV1, DefaultBodyOperationV1,
-    DefaultForOperationV1, ExportDefaultBodyOperationTypingValidationError, effect_is_ordinary,
+    BodyNode, BodyValidator, DefaultBindingActionOperationV1, DefaultBindingShapeOperationV1,
+    DefaultBodyOperationTypingProblemV1, DefaultBodyOperationV1, DefaultForOperationV1,
+    ExportDefaultBodyOperationTypingValidationError, effect_is_ordinary,
 };
 
 impl<A, E> BodyValidator<'_, A, E>
@@ -20,8 +20,7 @@ where
     pub(super) fn process_for<'body>(
         &mut self,
         plan: &'body DefaultForIterationPlanV1,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         let source_site = Self::site(
             DefaultBodyOperationV1::For(DefaultForOperationV1::Source),
@@ -190,19 +189,18 @@ where
             ),
         )?;
 
-        self.push_statements(pending, plan.body(), depth)?;
-        self.push_node(pending, BodyNode::BindingPlan(plan.binding()), depth)?;
-        self.push_node(pending, BodyNode::Expression(plan.iterator_call()), depth)?;
-        self.push_statements(pending, plan.iterator_setup(), depth)?;
-        self.push_node(pending, BodyNode::Expression(plan.source_init()), depth)?;
-        self.push_statements(pending, plan.source_setup(), depth)
+        self.push_statements(pending, plan.body())?;
+        self.push_node(pending, BodyNode::BindingPlan(plan.binding()))?;
+        self.push_node(pending, BodyNode::Expression(plan.iterator_call()))?;
+        self.push_statements(pending, plan.iterator_setup())?;
+        self.push_node(pending, BodyNode::Expression(plan.source_init()))?;
+        self.push_statements(pending, plan.source_setup())
     }
 
     pub(super) fn process_binding_plan<'body>(
         &mut self,
         plan: &'body DefaultBindingPlanV1,
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         let site = Self::site(
             DefaultBodyOperationV1::For(DefaultForOperationV1::BindingSubject),
@@ -216,7 +214,6 @@ where
                 source: plan.subject(),
                 actions: plan.actions(),
             },
-            depth,
         )?;
         for (index, action) in plan.actions().iter().enumerate().rev() {
             self.push_node(
@@ -226,7 +223,6 @@ where
                     index,
                     actions: plan.actions(),
                 },
-                depth,
             )?;
         }
         Ok(())
@@ -237,8 +233,7 @@ where
         action: &'body DefaultBindingActionV1,
         index: usize,
         _actions: &'body [DefaultBindingActionV1],
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         match action.view() {
             DefaultBindingActionViewV1::Project {
@@ -335,8 +330,8 @@ where
                     },
                     Self::site(operation, DefaultOperationValueRoleV1::Callable),
                 )?;
-                self.push_node(pending, BodyNode::Expression(call), depth)?;
-                self.push_statements(pending, setup, depth)
+                self.push_node(pending, BodyNode::Expression(call))?;
+                self.push_statements(pending, setup)
             }
             DefaultBindingActionViewV1::Bind { source, target, .. } => {
                 let operation = DefaultBodyOperationV1::BindingAction {
@@ -360,8 +355,7 @@ where
         shape: &'body DefaultBindingShapeV1,
         source: &'body DefaultBindingTemporaryV1,
         actions: &'body [DefaultBindingActionV1],
-        depth: u64,
-        pending: &mut Vec<BodyWork<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         match shape.view() {
             DefaultBindingShapeViewV1::Binding(leaf) => {
@@ -404,7 +398,6 @@ where
                             source: result,
                             actions,
                         },
-                        depth,
                     )?;
                 }
                 Ok(())
@@ -451,7 +444,6 @@ where
                             source: result,
                             actions,
                         },
-                        depth,
                     )?;
                 }
                 Ok(())
@@ -497,7 +489,6 @@ where
                             source: result,
                             actions,
                         },
-                        depth,
                     )?;
                 }
                 Ok(())
@@ -541,7 +532,6 @@ where
     {
         let mut found = None;
         for action in actions {
-            self.charge_work()?;
             let DefaultBindingActionViewV1::Project {
                 source: actual_source,
                 result,
@@ -617,7 +607,6 @@ where
     {
         let mut found = None;
         for action in actions {
-            self.charge_work()?;
             if !predicate(action) {
                 continue;
             }

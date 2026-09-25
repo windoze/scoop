@@ -53,7 +53,7 @@ impl WireEncode for DeclaredVisibilityV1 {
 }
 
 impl WireDecode for DeclaredVisibilityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::Public),
@@ -218,29 +218,6 @@ pub struct DecodedDeclarationAccessSourceV1 {
 }
 
 impl DecodedDeclarationAccessSourceV1 {
-    pub fn resolve_metered<R, E>(
-        self,
-        resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<DeclarationAccessSourceV1, DeclarationAccessSourceResolutionError<E>>
-    where
-        R: SourceNominalIdResolver<E>
-            + PersistentIdResolver<ConeIdentity, Error = E>
-            + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
-    {
-        let path = scoop_wire::WirePath::root();
-        meter
-            .charge_nodes(1, &path)
-            .map_err(DeclarationAccessSourceResolutionError::Resource)?;
-        meter
-            .charge_collection_slots((self.lexical_owners.len() as u64).saturating_mul(2), &path)
-            .map_err(DeclarationAccessSourceResolutionError::Resource)?;
-        meter
-            .charge_work(self.lexical_owners.len() as u64, &path)
-            .map_err(DeclarationAccessSourceResolutionError::Resource)?;
-        self.resolve(resolver)
-    }
-
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -282,7 +259,7 @@ impl WireEncode for DecodedDeclarationAccessSourceV1 {
 }
 
 impl WireDecode for DecodedDeclarationAccessSourceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             declared_visibility: decoder.field(1, DeclaredVisibilityV1::decode)?,

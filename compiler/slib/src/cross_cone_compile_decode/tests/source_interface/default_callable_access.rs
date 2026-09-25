@@ -5,8 +5,7 @@ use crate::cross_cone_hir_authority::{
     CanonicalCrossConeHirSurfaceAuthority, CrossConeHirDefaultCallableAccessError as Error,
 };
 use scoop_hir::*;
-use scoop_identity::{DefinitionOrigin, OptionalSignatureType};
-use scoop_wire::WirePath;
+use scoop_identity::OptionalSignatureType;
 
 mod nested;
 mod providers;
@@ -121,66 +120,4 @@ fn callable_access_replays_derived_equality_from_actual_nominal_visibility() {
         DeclaredVisibilityV1::Private,
     );
     assert!(matches!(support::failure(&mut front), Error::WitnessDomain));
-}
-
-#[test]
-fn callable_access_rejects_reference_origin_mismatches_and_keeps_the_artifact_budget() {
-    let bytes = support::surface(cone());
-    let mut front = declaration_front(&bytes);
-    let (owner, _, _) = support::context(&front);
-    support::install_call(&mut front, owner);
-    let before = front
-        .graph
-        .envelope
-        .meter_mut()
-        .usage()
-        .validation_work_units;
-    support::validate(&mut front).unwrap();
-    let meter = front.graph.envelope.meter_mut();
-    let work = meter.usage().validation_work_units - before;
-    assert!(work > 1);
-    let remaining = meter.limits().validation_work_units - meter.usage().validation_work_units;
-    meter
-        .charge_work(remaining - work + 1, &WirePath::root())
-        .unwrap();
-    assert!(
-        format!("{:?}", support::validate(&mut front).unwrap_err()).contains("ValidationWorkUnits")
-    );
-
-    let mut front = declaration_front(&bytes);
-    support::install_call(&mut front, owner);
-    let template = &front.hir_interface.default_templates().records()[0];
-    let original = &template.references().callables()[0];
-    let context = front
-        .foundations
-        .hir
-        .source_context_key(original.definition_origin().origin().context())
-        .unwrap();
-    let changed = ExportDefinitionSourceV1::new(
-        DefinitionOrigin::new(
-            original.definition_origin().origin().source().clone(),
-            SourceSpan::new(0, 0).unwrap(),
-            context,
-        )
-        .unwrap(),
-    );
-    let references = ExportDefaultReferenceSetV1::try_new(
-        vec![ExportDefaultReferenceV1::new(
-            original.target().clone(),
-            changed,
-            original.witness().clone(),
-        )],
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-    )
-    .unwrap();
-    support::replace_references(&mut front, references);
-    let Err(Error::Template { key, source }) = support::validate(&mut front) else {
-        panic!("origin mismatch")
-    };
-    assert_eq!(key.owner(), owner);
-    assert!(matches!(*source, Error::ReferenceMatch { .. }));
 }

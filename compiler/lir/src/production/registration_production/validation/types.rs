@@ -8,9 +8,7 @@ use crate::{
     DecodedStrongTypeRegistrationPlan, StrongDescriptorReference, StrongTypeDescriptorSemanticPlan,
     StrongTypeDescriptorSemanticPlanSet,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath, encode_canonical_temporary_with_meter};
-
-mod budget;
+use scoop_wire::{WirePath, encode_canonical_temporary};
 
 type DecodedTypeFor<R> = DecodedStrongTypeRegistrationPlan<
     <R as TypeReferences>::Parent,
@@ -41,7 +39,6 @@ pub(crate) fn validate_types(
             identities,
             external: external_bridges,
         },
-        &mut BudgetMeter::new(DecodeLimits::default()),
     )
 }
 
@@ -58,7 +55,6 @@ pub fn validate_type_registration_constituents_v2(
     external_bridges: &StrongExternalLirBridgeSurfaceV1,
     definitions: &crate::StrongTypeReferenceDefinitionsV2,
     digests: &StrongDigestFinalizationPlanV1,
-    meter: &mut BudgetMeter,
 ) -> Result<crate::StrongTypeDescriptorSemanticPlanSetV2, StrongRegistrationProductionValidationError>
 {
     for actual in [definitions.consumer(), external_bridges.producer()] {
@@ -86,7 +82,6 @@ pub fn validate_type_registration_constituents_v2(
             },
             definitions,
         },
-        meter,
     )
 }
 
@@ -97,7 +92,6 @@ fn validate_types_with_references<R: TypeReferences>(
     identities: &StrongRegistrationIdentitySurfaceV1,
     digests: &StrongDigestFinalizationPlanV1,
     references: &R,
-    meter: &mut BudgetMeter,
 ) -> Result<SemanticTypeSetFor<R>, StrongRegistrationProductionValidationError> {
     require_length(
         RegistrationProductionTableV1::Type,
@@ -105,15 +99,14 @@ fn validate_types_with_references<R: TypeReferences>(
         identities.type_registrations().len(),
     )?;
     let path = WirePath::root();
-    budget::charge_plan_replay(decoded.len(), foundation, identities, digests, meter)?;
+
     let mut actual = Vec::new();
-    meter.try_reserve_collection_slots(&mut actual, decoded.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut actual, decoded.len(), &path)?;
     for record in &decoded {
-        budget::charge_record::<R>(record, meter)?;
-        actual.push(encode_canonical_temporary_with_meter(record, meter, &path)?);
+        actual.push(encode_canonical_temporary(record, &path)?);
     }
     let mut descriptors = Vec::new();
-    meter.try_reserve_collection_slots(&mut descriptors, decoded.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut descriptors, decoded.len(), &path)?;
     for (index, (decoded, identity)) in decoded
         .into_iter()
         .zip(identities.type_registrations())
@@ -181,28 +174,16 @@ fn validate_types_with_references<R: TypeReferences>(
             foundation,
             index,
         )?;
-        let parent = references.parent(decoded.parent, index, meter)?;
-        let vtable = type_references::vtable(
-            decoded.vtable,
-            exact_type,
-            foundation,
-            references,
-            index,
-            meter,
-        )?;
+        let parent = references.parent(decoded.parent, index)?;
+        let vtable =
+            type_references::vtable(decoded.vtable, exact_type, foundation, references, index)?;
         let mut table_ids = BTreeSet::from([vtable.table()]);
         let mut interfaces = BTreeSet::new();
         let mut itables = Vec::new();
-        meter.try_reserve_collection_slots(&mut itables, decoded.itables.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut itables, decoded.itables.len(), &path)?;
         for decoded_itable in decoded.itables {
-            let itable = type_references::itable(
-                decoded_itable,
-                exact_type,
-                foundation,
-                references,
-                index,
-                meter,
-            )?;
+            let itable =
+                type_references::itable(decoded_itable, exact_type, foundation, references, index)?;
             if !table_ids.insert(itable.table()) {
                 return Err(semantic_error(
                     RegistrationProductionTableV1::Type,
@@ -245,7 +226,7 @@ fn validate_types_with_references<R: TypeReferences>(
         ))
     })?;
     for (index, (actual, expected)) in actual.iter().zip(expected.registrations()).enumerate() {
-        let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
+        let expected = encode_canonical_temporary(expected, &path)?;
         if actual != &expected {
             return Err(StrongRegistrationProductionValidationError::EntryMismatch {
                 table: RegistrationProductionTableV1::Type,

@@ -30,14 +30,13 @@ pub(super) fn check(
     }];
     let resolved_core = wire::resolve(core, &[], core.initialization_uses(), input.identities);
     let views = [resolved_core.dependency_view(core.initialization_units())];
-    let replay = |candidate: &_, meter: &mut BudgetMeter| {
+    let replay = |candidate: &_| {
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
             &dependencies,
             candidate,
             section.initialization_units(),
             &views,
-            meter,
         )
     };
     let records = section.initialization_uses().records();
@@ -47,7 +46,7 @@ pub(super) fn check(
         section.initialization_uses(),
         input.identities,
     );
-    replay(&valid, &mut meter()).unwrap();
+    replay(&valid).unwrap();
     let first = records[0];
     let mut extra = records.to_vec();
     extra.push(
@@ -58,13 +57,11 @@ pub(super) fn check(
             first.provider(),
             first.dependency_unit(),
             mir::MirExternalInitializationCauseV1::InitializationSupport(first.dependency_unit()),
-            &mut meter(),
         )
         .unwrap(),
     );
     for candidate in [vec![], records[1..].to_vec(), extra] {
-        let uses = mir::CanonicalMirExternalInitializationUsesV1::try_new(candidate, &mut meter())
-            .unwrap();
+        let uses = mir::CanonicalMirExternalInitializationUsesV1::try_new(candidate).unwrap();
         let exports = section.exports();
         let candidate = mir::MirTypeBridgeExportConstituentsV1::new(
             exports.types().clone(),
@@ -75,16 +72,13 @@ pub(super) fn check(
             uses.clone(),
         );
         assert!(matches!(
-            candidate.validate_sources(section.provider(), input.identities, source, &mut meter(),),
+            candidate.validate_sources(section.provider(), input.identities, source,),
             Err(mir::MirTypeBridgeSourceJoinError::Record(
                 mir::MirTypeBridgeSourceRecordV1::InitializationUses
             ))
         ));
         assert!(matches!(
-            replay(
-                &wire::resolve(section, &[core], &uses, input.identities),
-                &mut meter(),
-            ),
+            replay(&wire::resolve(section, &[core], &uses, input.identities),),
             Err(Error::InitializationUseInventory)
         ));
     }
@@ -96,14 +90,10 @@ pub(super) fn check(
             section.provider(),
             first.dependency_unit(),
             first.cause(),
-            &mut meter(),
         )
         .is_err()
     );
-    assert!(
-        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![first, first], &mut meter())
-            .is_err()
-    );
+    assert!(mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![first, first]).is_err());
     assert!(matches!(
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
@@ -111,16 +101,9 @@ pub(super) fn check(
             &valid,
             &[],
             &views,
-            &mut meter(),
         ),
         Err(Error::MissingInitializationUnit(_))
     ));
-    let mut measured = meter();
-    replay(&valid, &mut measured).unwrap();
-    let mut exact = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay(&valid, &mut exact).unwrap();
-    assert!(replay(&valid, &mut exact).is_err());
+
+    replay(&valid).unwrap();
 }

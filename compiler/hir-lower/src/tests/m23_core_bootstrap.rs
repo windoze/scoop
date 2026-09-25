@@ -23,11 +23,9 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     assert_eq!(source.identity.logical_path().as_str(), "src/core.scoop");
     assert_eq!(source.name, "<core>");
     assert!(source.source.is_empty());
-    let requirements = scoop_hir::PublicNominalShapeRequirementsV1::from_export_hir(
-        output.export.module(),
-        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-    )
-    .unwrap();
+    let requirements =
+        scoop_hir::PublicNominalShapeRequirementsV1::from_export_hir(output.export.module())
+            .unwrap();
     let plan = output.local.materialization();
     assert_eq!(plan.roots().len(), requirements.roots().len());
     assert!(

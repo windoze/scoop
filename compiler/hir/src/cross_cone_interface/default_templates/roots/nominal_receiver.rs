@@ -1,6 +1,6 @@
 use crate::{DefaultTemplateProviderShapeV1, PersistentLexicalRootV1, SourceNominalId};
 use scoop_identity::{NonEmptyVec, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 impl DefaultTemplateProviderShapeV1 {
     /// Reconstructs a source receiver from declared binders and a nominal owner.
@@ -9,12 +9,12 @@ impl DefaultTemplateProviderShapeV1 {
         self,
         root: PersistentLexicalRootV1,
         owner: SourceNominalId,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Option<SignatureTypeKey>, DefaultNominalReceiverBuildError> {
         use DefaultNominalReceiverBuildError as Error;
         let arity = self.nominal_owner_binder_arity();
-        meter.charge_work(1, path)?;
+
         if matches!(owner, SourceNominalId::Concrete(_)) != (arity == 0) {
             return Err(Error::OwnerShape);
         }
@@ -25,18 +25,12 @@ impl DefaultTemplateProviderShapeV1 {
         ) {
             return Ok(None);
         }
-        meter.check_semantic_depth(1, path)?;
-        meter.charge_nodes(1, path)?;
+
         Ok(Some(match owner {
             SourceNominalId::Concrete(id) => SignatureTypeKey::Nominal(id),
             SourceNominalId::GenericTemplate(origin) => {
-                meter.check_table_entries(u64::from(arity), path)?;
-                meter.check_semantic_depth(2, path)?;
-                meter.charge_work(u64::from(arity), path)?;
-                meter.charge_nodes(u64::from(arity), path)?;
-                meter.charge_edges(u64::from(arity), path)?;
                 let mut arguments = Vec::new();
-                meter.try_reserve_collection_slots(&mut arguments, arity as usize, path)?;
+                scoop_wire::allocation::try_reserve(&mut arguments, arity as usize, path)?;
                 arguments.extend((0..arity).map(|index| SignatureTypeKey::Binder {
                     depth: u32::from(self.callable_own_binder_arity() != 0),
                     index,

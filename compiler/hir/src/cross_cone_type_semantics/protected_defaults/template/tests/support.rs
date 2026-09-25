@@ -2,7 +2,7 @@ use scoop_identity::{
     CallableTemplateOrigin, LocalValueSelector, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 pub(super) use super::super::*;
 pub(super) use crate::cross_cone_interface::expression_test_support::{Fixture, Resolver};
@@ -18,9 +18,6 @@ pub(super) use crate::{
     TemplateValueParameterV1,
 };
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 pub(super) fn references(
     f: &Fixture,
     owner: CallableTemplateOrigin,
@@ -98,11 +95,7 @@ pub(super) fn template(f: &Fixture) -> ProtectedDefaultTemplateV1 {
     .unwrap()
 }
 pub(super) fn decoded(value: &ProtectedDefaultTemplateV1) -> DecodedProtectedDefaultTemplateV1 {
-    decode_canonical(
-        &encode(&value.index_locals().unwrap()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
+    decode_canonical(&encode(&value.index_locals().unwrap()).unwrap()).unwrap()
 }
 pub(super) fn rebuild(
     value: ProtectedDefaultTemplateV1,

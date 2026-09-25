@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 
 use scoop_identity::{CanonicalIdentifier, Effect, GcEffect, SignatureTypeKey};
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -39,7 +39,7 @@ fn decoded_parameter_list_validates_names_types_and_duplicates() {
     ])
     .unwrap();
     let decoded: DecodedCanonicalSourceParameterShapesV1 =
-        decode_canonical(&encode(&expected).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&expected).unwrap()).unwrap();
     let mut authority = scoop_identity::PendingIdentityValidation::new()
         .finish()
         .unwrap();
@@ -48,17 +48,14 @@ fn decoded_parameter_list_validates_names_types_and_duplicates() {
 
     let duplicate = ParameterSequence(vec![parameter("same", 0), parameter("same", 1)]);
     let decoded: DecodedCanonicalSourceParameterShapesV1 =
-        decode_canonical(&encode(&duplicate).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&duplicate).unwrap()).unwrap();
     assert!(matches!(
         decoded.resolve(&mut authority),
         Err(SourceParameterListValidationError::DuplicateName { index: 1, .. })
     ));
 
-    let decoded: DecodedCanonicalSourceParameterShapesV1 = decode_canonical(
-        &encode(&InvalidNameParameter).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedCanonicalSourceParameterShapesV1 =
+        decode_canonical(&encode(&InvalidNameParameter).unwrap()).unwrap();
     assert!(matches!(
         decoded.resolve(&mut authority),
         Err(SourceParameterListValidationError::Parameter {
@@ -86,13 +83,10 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
         hex("a601010202030204a1000405a2000201a200181801030602")
     );
     assert_eq!(
-        decode_canonical::<DecodedCallableSourceEffectsV1>(
-            &encode(&effects).unwrap(),
-            DecodeLimits::default()
-        )
-        .unwrap()
-        .validate()
-        .unwrap(),
+        decode_canonical::<DecodedCallableSourceEffectsV1>(&encode(&effects).unwrap())
+            .unwrap()
+            .validate()
+            .unwrap(),
         effects
     );
 
@@ -163,10 +157,9 @@ fn callable_effects_reject_impossible_semantic_combinations() {
         Err(CallableSourceEffectsBuildError::ManagedCExtern)
     );
 
-    let decoded = decode_canonical::<DecodedCallableSourceEffectsV1>(
-        &hex("a601020201030204a1000105a100010601"),
-        DecodeLimits::default(),
-    )
+    let decoded = decode_canonical::<DecodedCallableSourceEffectsV1>(&hex(
+        "a601020201030204a1000105a100010601",
+    ))
     .unwrap();
     assert_eq!(
         decoded.validate(),
@@ -208,8 +201,7 @@ fn every_language_operator_tag_is_stable() {
 
     for (offset, operator) in operators.into_iter().enumerate() {
         let bytes = encode(&operator).unwrap();
-        let decoded =
-            decode_canonical::<CallableOperatorV1>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<CallableOperatorV1>(&bytes).unwrap();
         assert_eq!(decoded, operator);
         let tag = u64::try_from(offset + 1).unwrap();
         let expected = if tag <= 23 {
@@ -226,15 +218,13 @@ fn every_language_operator_tag_is_stable() {
 
 #[test]
 fn reader_rejects_unknown_tags_bad_sum_lengths_and_zero_component_index() {
-    let unknown = decode_canonical::<CallableSafetyV1>(&[3], DecodeLimits::default()).unwrap_err();
+    let unknown = decode_canonical::<CallableSafetyV1>(&[3]).unwrap_err();
     assert!(matches!(
         unknown.kind(),
         WireErrorKind::UnknownTag { tag: 3 }
     ));
 
-    let missing_operator =
-        decode_canonical::<CallableOperatorRoleV1>(&hex("a10002"), DecodeLimits::default())
-            .unwrap_err();
+    let missing_operator = decode_canonical::<CallableOperatorRoleV1>(&hex("a10002")).unwrap_err();
     assert!(matches!(
         missing_operator.kind(),
         WireErrorKind::InvalidLength {
@@ -243,9 +233,7 @@ fn reader_rejects_unknown_tags_bad_sum_lengths_and_zero_component_index() {
         }
     ));
 
-    let zero_component =
-        decode_canonical::<CallableOperatorV1>(&hex("a20018180100"), DecodeLimits::default())
-            .unwrap_err();
+    let zero_component = decode_canonical::<CallableOperatorV1>(&hex("a20018180100")).unwrap_err();
     assert_eq!(zero_component.kind(), &WireErrorKind::IntegerOutOfRange);
 }
 

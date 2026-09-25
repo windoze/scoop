@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::{DecodedExactCallableSignature, MeteredExactCallableSignatureResolutionError};
+use scoop_identity::DecodedExactCallableSignature;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MirBridgeCallableSignatureV1 {
@@ -35,7 +35,7 @@ impl WireEncode for MirBridgeCallableSignatureV1 {
 }
 
 /// The shared exact-signature constituent retains its original wire and
-/// charges the semantic budget before resolving parameter references.
+/// resolves each parameter through its typed exact-type reference.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedMirBridgeCallableSignatureV1 {
     exact: DecodedExactCallableSignature,
@@ -45,24 +45,16 @@ impl DecodedMirBridgeCallableSignatureV1 {
     pub(in crate::cross_cone_type_bridge) fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<MirBridgeCallableSignatureV1, MirCallableBridgeError> {
         let exact = self
             .exact
-            .resolve_metered(graph, meter)
-            .map_err(|error| match error {
-                MeteredExactCallableSignatureResolutionError::Resource(error) => {
-                    MirCallableBridgeError::Resource(error)
-                }
-                MeteredExactCallableSignatureResolutionError::Signature(error) => {
-                    MirCallableBridgeError::ExactSignature(error)
-                }
-            })?;
+            .resolve(graph)
+            .map_err(MirCallableBridgeError::ExactSignature)?;
         Ok(MirBridgeCallableSignatureV1::new(exact, self.gc_effect))
     }
 }
 impl WireDecode for DecodedMirBridgeCallableSignatureV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let exact = decoder.field(1, DecodedExactCallableSignature::decode)?;
         let gc_effect = decoder.field(2, |decoder| {

@@ -5,13 +5,9 @@ use std::collections::BTreeMap;
 
 type Members = BTreeMap<SourceNominalId, Vec<ProtectedDeclarationRefV1>>;
 
-pub(in crate::production::type_semantics) fn project(
-    export: &ExportHir,
-    meter: &mut BudgetMeter,
-) -> Result<Members, Error> {
+pub(in crate::production::type_semantics) fn project(export: &ExportHir) -> Result<Members, Error> {
     let mut members = BTreeMap::new();
     for (id, function) in export.functions.iter() {
-        meter.charge_work(1, &WirePath::root()).map_err(resource)?;
         if function.access.declared != DeclaredVisibility::Protected {
             continue;
         }
@@ -30,15 +26,9 @@ pub(in crate::production::type_semantics) fn project(
                 CallableTemplateOrigin::GenericFunction(record.id())
             }
         };
-        insert(
-            &mut members,
-            source.declaration(),
-            callable(declaration)?,
-            meter,
-        )?;
+        insert(&mut members, source.declaration(), callable(declaration)?)?;
     }
     for (id, property) in export.properties.iter() {
-        meter.charge_work(1, &WirePath::root()).map_err(resource)?;
         let getter_protected = property.access.declared == DeclaredVisibility::Protected;
         let setter_protected = property.capability.setter().is_some_and(|setter| {
             export.property_setters[setter].access.declared == DeclaredVisibility::Protected
@@ -56,7 +46,6 @@ pub(in crate::production::type_semantics) fn project(
                 &mut members,
                 identity.key(),
                 ProtectedDeclarationRefV1::Property(identity.id()),
-                meter,
             )?;
         }
         if matches!(
@@ -73,7 +62,6 @@ pub(in crate::production::type_semantics) fn project(
                 &mut members,
                 identity.key(),
                 callable(CallableTemplateOrigin::Accessor(accessor))?,
-                meter,
             )?;
         }
         if let Some(setter) = property.capability.setter()
@@ -84,12 +72,10 @@ pub(in crate::production::type_semantics) fn project(
                 &mut members,
                 identity.key(),
                 callable(CallableTemplateOrigin::Accessor(accessor))?,
-                meter,
             )?;
         }
     }
     for nominal in all_nominals(export) {
-        meter.charge_work(1, &WirePath::root()).map_err(resource)?;
         if nominal_access(export, nominal).declared != DeclaredVisibility::Protected {
             continue;
         }
@@ -104,7 +90,6 @@ pub(in crate::production::type_semantics) fn project(
             &mut members,
             source.declaration(),
             ProtectedDeclarationRefV1::NestedNominal(declaration),
-            meter,
         )?;
     }
     Ok(members)
@@ -120,7 +105,6 @@ fn insert(
     members: &mut Members,
     key: &SourceDeclarationKey,
     declaration: ProtectedDeclarationRefV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let owner = match key.owners().owners().last() {
         Some(DefinitionOwnerAtom::Type(id)) => SourceNominalId::Concrete(*id),
@@ -132,17 +116,10 @@ fn insert(
         }
     };
     let path = WirePath::root();
-    meter
-        .charge_work(u64::from(members.len().max(1).ilog2()) + 1, &path)
-        .map_err(resource)?;
-    meter.charge_collection_slots(1, &path).map_err(resource)?;
+
     let declarations = members.entry(owner).or_default();
-    meter
-        .check_table_entries((declarations.len() as u64).saturating_add(1), &path)
-        .map_err(resource)?;
-    meter
-        .try_reserve_collection_slots(declarations, 1, &path)
-        .map_err(resource)?;
+
+    scoop_wire::allocation::try_reserve(declarations, 1, &path).map_err(resource)?;
     declarations.push(declaration);
     Ok(())
 }

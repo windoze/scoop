@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{CrossConeHirInterfaceSectionV1, signature_nominal_walk::SignatureNominalWalker};
 use crate::{
@@ -14,7 +14,7 @@ impl CrossConeHirInterfaceSectionV1 {
     pub fn validate_alias_reference_closure<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExternalHirAliasClosureValidationError<E>>
     where
@@ -23,9 +23,12 @@ impl CrossConeHirInterfaceSectionV1 {
         let references = self.external_references();
         let references_path = path.clone().field(10);
         let mut seen = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut seen, references.records().len(), &references_path)
-            .map_err(ExternalHirAliasClosureValidationError::Resource)?;
+        scoop_wire::allocation::try_reserve(
+            &mut seen,
+            references.records().len(),
+            &references_path,
+        )
+        .map_err(ExternalHirAliasClosureValidationError::Resource)?;
         seen.resize(references.records().len(), false);
         let current = authority.current_cone();
 
@@ -41,15 +44,13 @@ impl CrossConeHirInterfaceSectionV1 {
                     current,
                     ExternalHirTargetV1::TypeAlias(*alias),
                     ExternalHirAliasUseSiteV1::DirectAlias { record_index },
-                    meter,
-                    &target_path,
                 )?,
                 TypeAliasTargetV1::Signature(signature) => {
                     let site = ExternalHirAliasUseSiteV1::ExpandedSignature { record_index };
-                    let mut walker = SignatureNominalWalker::new(signature, meter, &target_path)
+                    let mut walker = SignatureNominalWalker::new(signature, &target_path)
                         .map_err(ExternalHirAliasClosureValidationError::Resource)?;
                     while let Some(declaration) = walker
-                        .next(meter, &target_path)
+                        .next(&target_path)
                         .map_err(ExternalHirAliasClosureValidationError::Resource)?
                     {
                         observe_alias_target(
@@ -59,8 +60,6 @@ impl CrossConeHirInterfaceSectionV1 {
                             current,
                             ExternalHirTargetV1::from(declaration),
                             site,
-                            meter,
-                            &target_path,
                         )?;
                     }
                 }
@@ -68,9 +67,6 @@ impl CrossConeHirInterfaceSectionV1 {
         }
 
         for (record_index, record) in references.records().iter().enumerate() {
-            meter
-                .charge_work(1, &references_path)
-                .map_err(ExternalHirAliasClosureValidationError::Resource)?;
             if record
                 .roles()
                 .contains(ExternalHirReferenceRoleV1::AliasTarget)
@@ -94,8 +90,6 @@ fn observe_alias_target<A, E>(
     current: scoop_identity::ConeIdentity,
     target: ExternalHirTargetV1,
     site: ExternalHirAliasUseSiteV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), ExternalHirAliasClosureValidationError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -114,8 +108,7 @@ where
     }
 
     let record_index = references
-        .find_index_metered(target, meter, path)
-        .map_err(ExternalHirAliasClosureValidationError::Resource)?
+        .find_index(target)
         .ok_or(ExternalHirAliasClosureValidationError::MissingReference { site, target })?;
     let record = &references.records()[record_index];
     if record.origin() != expected {

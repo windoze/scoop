@@ -1,5 +1,5 @@
 use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, SourceNominalKind};
-use scoop_wire::{BudgetMeter, DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::cross_cone_type_semantics::wire;
@@ -7,10 +7,6 @@ use crate::cross_cone_type_semantics::wire;
 pub(in crate::cross_cone_type_semantics) mod support;
 use support::Fixture;
 mod objects;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn checked_graph_accepts_diamond_interface_closure_and_lexical_sources() {
@@ -24,27 +20,11 @@ fn checked_graph_accepts_diamond_interface_closure_and_lexical_sources() {
     let derived = fixture.add("Derived", SourceNominalKind::Class, &[]);
     fixture.edges(derived, Some(base), &[left, right]);
     let nested = fixture.add("Nested", SourceNominalKind::Struct, &[derived]);
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
-    assert!(
-        graph
-            .is_subclass(derived.exact, base.exact, &mut meter())
-            .unwrap()
-    );
-    assert!(
-        !graph
-            .is_subclass(base.exact, derived.exact, &mut meter())
-            .unwrap()
-    );
-    assert!(
-        !graph
-            .is_subclass(nested.exact, base.exact, &mut meter())
-            .unwrap()
-    );
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture).unwrap();
+    assert!(graph.is_subclass(derived.exact, base.exact).unwrap());
+    assert!(!graph.is_subclass(base.exact, derived.exact).unwrap());
+    assert!(!graph.is_subclass(nested.exact, base.exact).unwrap());
     assert!(
         graph
             .lexically_contains(derived.source, nested.source)
@@ -66,11 +46,7 @@ fn class_and_interface_cycles_fail_independently() {
             fixture.edges(right, None, &[left]);
         }
         assert!(matches!(
-            CheckedNominalInheritanceGraphV1::validate(
-                fixture.records.values(),
-                &fixture,
-                &mut meter()
-            ),
+            CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
             Err(InheritanceGraphError::Cycle(_))
         ));
     }
@@ -84,39 +60,23 @@ fn missing_wrong_kind_and_final_base_are_rejected() {
     let interface = fixture.add("Interface", SourceNominalKind::Interface, &[]);
     fixture.edges(child, Some(interface), &[]);
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::ClassBaseKind { .. })
     ));
     fixture.edges(child, None, &[base]);
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::InterfaceEdgeKind { .. })
     ));
     fixture.edges(child, Some(base), &[]);
     fixture.modality(base, NominalInheritanceModalityV1::Final);
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::FinalBase { .. })
     ));
     fixture.records.remove(&base.exact);
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::MissingNode(_))
     ));
 }
@@ -127,11 +87,7 @@ fn foundation_identity_source_and_modality_are_not_trusted_from_the_edges() {
     let value = fixture.add("Value", SourceNominalKind::Struct, &[]);
     fixture.modality(value, NominalInheritanceModalityV1::Open);
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::KindModality(_))
     ));
     fixture.modality(value, NominalInheritanceModalityV1::Final);
@@ -143,77 +99,16 @@ fn foundation_identity_source_and_modality_are_not_trusted_from_the_edges() {
         )
         .unwrap();
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::ExactIdentity(_))
     ));
     fixture.exacts.insert(value.exact, old);
     fixture.origins.remove(&value.source);
     assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate(
-            fixture.records.values(),
-            &fixture,
-            &mut meter()
-        ),
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture),
         Err(InheritanceGraphError::Foundation(
             "missing foundation origin"
         ))
-    ));
-}
-
-#[test]
-fn graph_and_query_share_resource_limits_and_reject_duplicate_nodes() {
-    let mut fixture = Fixture::default();
-    let base = fixture.add("Base", SourceNominalKind::Class, &[]);
-    let child = fixture.add("Child", SourceNominalKind::Class, &[]);
-    fixture.edges(child, Some(base), &[]);
-    for limits in [
-        DecodeLimits {
-            decoded_edges: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            CheckedNominalInheritanceGraphV1::validate(
-                fixture.records.values(),
-                &fixture,
-                &mut BudgetMeter::new(limits)
-            ),
-            Err(InheritanceGraphError::Resource(_))
-        ));
-    }
-    let record = &fixture.records[&base.exact];
-    assert!(matches!(
-        CheckedNominalInheritanceGraphV1::validate([record, record], &fixture, &mut meter()),
-        Err(InheritanceGraphError::DuplicateNode(_))
-    ));
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
-    assert!(matches!(
-        graph.is_subclass(
-            child.exact,
-            base.exact,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(InheritanceQueryError::Resource(_))
     ));
 }
 
@@ -227,18 +122,11 @@ fn inheritance_edge_wire_is_closed_and_reader_never_repairs_duplicate_interfaces
     ] {
         assert_eq!(encode(&modality).unwrap(), [0xa1, 0, tag]);
         assert_eq!(
-            decode_canonical::<NominalInheritanceModalityV1>(
-                &[0xa1, 0, tag],
-                DecodeLimits::default()
-            )
-            .unwrap(),
+            decode_canonical::<NominalInheritanceModalityV1>(&[0xa1, 0, tag]).unwrap(),
             modality
         );
     }
-    assert!(
-        decode_canonical::<NominalInheritanceModalityV1>(&[0xa1, 0, 5], DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<NominalInheritanceModalityV1>(&[0xa1, 0, 5]).is_err());
     assert_eq!(
         encode(&DirectClassBaseV1::NoClassBase).unwrap(),
         [0xa1, 0, 1]
@@ -254,13 +142,11 @@ fn inheritance_edge_wire_is_closed_and_reader_never_repairs_duplicate_interfaces
     )
     .unwrap();
     let bytes = encode(&record).unwrap();
-    let decoded: DecodedNominalInheritanceEdgesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedNominalInheritanceEdgesV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
     let bad = encode(&BadInterfaces(base.exact, interface.exact)).unwrap();
-    let decoded: DecodedNominalInheritanceEdgesV1 =
-        decode_canonical(&bad, DecodeLimits::default()).unwrap();
+    let decoded: DecodedNominalInheritanceEdgesV1 = decode_canonical(&bad).unwrap();
     assert!(matches!(
         decoded.resolve(&mut fixture),
         Err(InheritanceEdgeResolutionError::Order(_))

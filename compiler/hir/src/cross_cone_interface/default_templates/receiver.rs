@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::{DecodedSignatureTypeKey, LocalValueSelector, SignatureTypeKey};
@@ -8,10 +6,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{TemplateLocalIndexResolver, TemplateLocalSelectorResolver};
 use crate::SignatureTypeReferenceResolver;
 
-mod metered_semantics;
 mod semantics;
 
-pub use metered_semantics::MeteredTemplateReceiverSemanticValidationError;
 pub use semantics::TemplateReceiverSemanticValidationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -97,7 +93,7 @@ impl WireEncode for DecodedTemplateReceiverV1 {
 }
 
 impl WireDecode for DecodedTemplateReceiverV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             local_index: decoder.field(1, Decoder::u32)?,
@@ -194,7 +190,7 @@ impl WireEncode for DecodedOptionalTemplateReceiverV1 {
 }
 
 impl WireDecode for DecodedOptionalTemplateReceiverV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -305,11 +301,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -320,7 +312,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

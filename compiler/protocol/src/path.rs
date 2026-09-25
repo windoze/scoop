@@ -3,8 +3,6 @@ use std::path::{Path, PathBuf};
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-const MAX_HOST_PATH_BYTES: usize = 16_384;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HostPathEncoding {
     UnixBytes,
@@ -53,7 +51,7 @@ impl HostPathCarrier {
         let byte_length = words
             .len()
             .checked_mul(2)
-            .ok_or(HostPathError::InvalidLength(usize::MAX))?;
+            .ok_or(HostPathError::LengthOverflow)?;
         let mut bytes = Vec::new();
         bytes
             .try_reserve_exact(byte_length)
@@ -146,7 +144,7 @@ impl WireEncode for DecodedHostPathCarrier {
 }
 
 impl WireDecode for DecodedHostPathCarrier {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let encoding = decoder.field(1, Decoder::unsigned)?;
         let bytes = decoder.field(2, Decoder::owned_bytes)?;
@@ -156,7 +154,8 @@ impl WireDecode for DecodedHostPathCarrier {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HostPathError {
-    InvalidLength(usize),
+    Empty,
+    LengthOverflow,
     ContainsNul,
     InvalidWindowsByteLength,
     UnknownEncoding(u64),
@@ -170,10 +169,8 @@ pub enum HostPathError {
 impl fmt::Display for HostPathError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidLength(actual) => write!(
-                formatter,
-                "host path must contain 1..16384 bytes, found {actual}"
-            ),
+            Self::Empty => formatter.write_str("host path must not be empty"),
+            Self::LengthOverflow => formatter.write_str("host path byte length overflows usize"),
             Self::ContainsNul => formatter.write_str("host path must not contain NUL"),
             Self::InvalidWindowsByteLength => {
                 formatter.write_str("Windows host path must contain complete little-endian u16s")
@@ -191,8 +188,8 @@ impl fmt::Display for HostPathError {
 impl std::error::Error for HostPathError {}
 
 fn validate_path_bytes(encoding: HostPathEncoding, bytes: &[u8]) -> Result<(), HostPathError> {
-    if bytes.is_empty() || bytes.len() > MAX_HOST_PATH_BYTES {
-        return Err(HostPathError::InvalidLength(bytes.len()));
+    if bytes.is_empty() {
+        return Err(HostPathError::Empty);
     }
     match encoding {
         HostPathEncoding::UnixBytes => {
@@ -241,7 +238,7 @@ fn validate_host_encoding(encoding: HostPathEncoding) -> Result<(), HostPathErro
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::*;
 
@@ -256,13 +253,10 @@ mod tests {
         let path = PathBuf::from("opaque-path");
 
         let carrier = HostPathCarrier::from_path(&path).unwrap();
-        let decoded = decode_canonical::<DecodedHostPathCarrier>(
-            &encode(&carrier).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap()
-        .validate()
-        .unwrap();
+        let decoded = decode_canonical::<DecodedHostPathCarrier>(&encode(&carrier).unwrap())
+            .unwrap()
+            .validate()
+            .unwrap();
         assert_eq!(decoded.to_path_buf().unwrap(), path);
     }
 
@@ -270,7 +264,7 @@ mod tests {
     fn path_validation_rejects_empty_nul_and_wrong_width() {
         assert_eq!(
             HostPathCarrier::new(HostPathEncoding::UnixBytes, Vec::new()).unwrap_err(),
-            HostPathError::InvalidLength(0)
+            HostPathError::Empty
         );
         assert_eq!(
             HostPathCarrier::new(HostPathEncoding::UnixBytes, vec![0]).unwrap_err(),
@@ -280,19 +274,6 @@ mod tests {
             HostPathCarrier::new(HostPathEncoding::WindowsWtf16Le, vec![1]).unwrap_err(),
             HostPathError::InvalidWindowsByteLength
         );
-        assert!(
-            HostPathCarrier::new(HostPathEncoding::UnixBytes, vec![b'a'; MAX_HOST_PATH_BYTES])
-                .is_ok()
-        );
-        assert_eq!(
-            HostPathCarrier::new(
-                HostPathEncoding::UnixBytes,
-                vec![b'a'; MAX_HOST_PATH_BYTES + 1],
-            )
-            .unwrap_err(),
-            HostPathError::InvalidLength(MAX_HOST_PATH_BYTES + 1)
-        );
-
         #[cfg(unix)]
         assert!(matches!(
             DecodedHostPathCarrier {

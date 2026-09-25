@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{ConeIdentity, PersistentExportBindingId};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     CanonicalExternalHirReferencesV1, ExternalHirReferenceRoleV1,
@@ -20,27 +20,28 @@ impl CanonicalExternalHirReferencesV1 {
         &self,
         bindings: &CanonicalPublicExportBindingsV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExternalHirReexportClosureValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         let mut seen_records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut seen_records, self.records().len(), path)
+        scoop_wire::allocation::try_reserve(&mut seen_records, self.records().len(), path)
             .map_err(ExternalHirReexportClosureValidationError::Resource)?;
         seen_records.resize(self.records().len(), false);
 
         let mut seen_witnesses = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut seen_witnesses, self.records().len(), path)
+        scoop_wire::allocation::try_reserve(&mut seen_witnesses, self.records().len(), path)
             .map_err(ExternalHirReexportClosureValidationError::Resource)?;
         for record in self.records() {
             let mut seen = Vec::new();
-            meter
-                .try_reserve_collection_slots(&mut seen, record.witnesses().witnesses().len(), path)
-                .map_err(ExternalHirReexportClosureValidationError::Resource)?;
+            scoop_wire::allocation::try_reserve(
+                &mut seen,
+                record.witnesses().witnesses().len(),
+                path,
+            )
+            .map_err(ExternalHirReexportClosureValidationError::Resource)?;
             seen.resize(record.witnesses().witnesses().len(), false);
             seen_witnesses.push(seen);
         }
@@ -49,11 +50,10 @@ impl CanonicalExternalHirReferencesV1 {
             let ExportBindingSourceV1::Reexport { routes } = binding.source() else {
                 continue;
             };
-            charge_node(meter, path)?;
+
             let binding_id = binding.binding();
             let target = authority
-                .binding_key(binding_id, meter, path)
-                .map_err(ExternalHirReexportClosureValidationError::Resource)?
+                .binding_key(binding_id)
                 .map(|key| ExternalHirTargetV1::from(key.target()))
                 .ok_or(
                     ExternalHirReexportClosureValidationError::MissingBindingKey {
@@ -80,15 +80,12 @@ impl CanonicalExternalHirReferencesV1 {
                 );
             }
 
-            let record_index = self
-                .find_index_metered(target, meter, path)
-                .map_err(ExternalHirReexportClosureValidationError::Resource)?
-                .ok_or(
-                    ExternalHirReexportClosureValidationError::MissingReference {
-                        binding_index,
-                        target,
-                    },
-                )?;
+            let record_index = self.find_index(target).ok_or(
+                ExternalHirReexportClosureValidationError::MissingReference {
+                    binding_index,
+                    target,
+                },
+            )?;
             let record = &self.records()[record_index];
             if record.origin() != origin {
                 return Err(ExternalHirReexportClosureValidationError::OriginMismatch {
@@ -112,8 +109,7 @@ impl CanonicalExternalHirReferencesV1 {
             seen_records[record_index] = true;
 
             for (route_index, route) in routes.routes().iter().enumerate() {
-                charge_edge(meter, path)?;
-                let witness_index = find_witness(record, route, meter, path)?.ok_or(
+                let witness_index = find_witness(record, route)?.ok_or(
                     ExternalHirReexportClosureValidationError::MissingWitness {
                         binding_index,
                         route_index,
@@ -126,9 +122,6 @@ impl CanonicalExternalHirReferencesV1 {
         }
 
         for (record_index, record) in self.records().iter().enumerate() {
-            meter
-                .charge_work(1, path)
-                .map_err(ExternalHirReexportClosureValidationError::Resource)?;
             if record
                 .roles()
                 .contains(ExternalHirReferenceRoleV1::ReexportTarget)
@@ -151,9 +144,6 @@ impl CanonicalExternalHirReferencesV1 {
                 continue;
             }
             for (witness_index, seen) in seen_witnesses[record_index].iter().copied().enumerate() {
-                meter
-                    .charge_work(1, path)
-                    .map_err(ExternalHirReexportClosureValidationError::Resource)?;
                 if !seen {
                     return Err(ExternalHirReexportClosureValidationError::ExtraWitness {
                         record_index,
@@ -171,16 +161,11 @@ impl CanonicalExternalHirReferencesV1 {
 fn find_witness<E>(
     record: &super::ExternalHirReferenceV1,
     route: &ReexportRouteV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<Option<usize>, ExternalHirReexportClosureValidationError<E>> {
     let witnesses = record.witnesses().witnesses();
     let mut start = 0;
     let mut end = witnesses.len();
     while start < end {
-        meter
-            .charge_work(1, path)
-            .map_err(ExternalHirReexportClosureValidationError::Resource)?;
         let middle = start + (end - start) / 2;
         match witnesses[middle].route().cmp(route) {
             std::cmp::Ordering::Less => start = middle + 1,
@@ -189,36 +174,6 @@ fn find_witness<E>(
         }
     }
     Ok(None)
-}
-
-fn charge_node<E>(
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<(), ExternalHirReexportClosureValidationError<E>> {
-    meter
-        .check_semantic_depth(1, path)
-        .map_err(ExternalHirReexportClosureValidationError::Resource)?;
-    meter
-        .charge_nodes(1, path)
-        .map_err(ExternalHirReexportClosureValidationError::Resource)?;
-    meter
-        .charge_work(1, path)
-        .map_err(ExternalHirReexportClosureValidationError::Resource)
-}
-
-fn charge_edge<E>(
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<(), ExternalHirReexportClosureValidationError<E>> {
-    meter
-        .check_semantic_depth(2, path)
-        .map_err(ExternalHirReexportClosureValidationError::Resource)?;
-    meter
-        .charge_edges(1, path)
-        .map_err(ExternalHirReexportClosureValidationError::Resource)?;
-    meter
-        .charge_work(1, path)
-        .map_err(ExternalHirReexportClosureValidationError::Resource)
 }
 
 #[derive(Debug, Eq, PartialEq)]

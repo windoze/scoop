@@ -1,7 +1,7 @@
 use scoop_hir as hir;
 
 mod support;
-use support::{fixture, meter, with_output};
+use support::{fixture, with_output};
 
 #[test]
 fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
@@ -12,9 +12,7 @@ fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
     ] {
         with_output(case, |output, world| {
             let local = output.output().local.module();
-            let calls = output
-                .committed_dependency_call_occurrences(&mut meter())
-                .unwrap();
+            let calls = output.committed_dependency_call_occurrences().unwrap();
             assert_eq!(calls.len(), receiver_count + plain_count);
             let mut receivers = 0;
             let mut plain = 0;
@@ -50,7 +48,7 @@ fn source_call_receivers_survive_adaptation_defaults_and_property_access() {
             let mut dump = String::new();
             let mut adapted = 0;
             local
-                .visit_executable_expressions(&mut meter(), |occurrence, _| {
+                .visit_executable_expressions(|occurrence| {
                     if let hir::concrete::ExprKind::Call {
                         args,
                         receiver: hir::SourceCallReceiver::Receiver { static_type },

@@ -14,7 +14,7 @@ fn default_type_access_pointer_demands_use_real_bootstrap_default_templates() {
     )
     .unwrap();
     let decoded: hir::DecodedHirFoundation =
-        decode_canonical(&encode(&canonical).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&canonical).unwrap()).unwrap();
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending
         .register_authority(scoop_identity::ConeIdentity::CORE)
@@ -38,10 +38,9 @@ fn default_type_access_pointer_demands_use_real_bootstrap_default_templates() {
                     &output.export,
                     hir::ExportParameterOwner::Function(function),
                     1,
-                    &mut meter(),
                 )
                 .unwrap()
-                .into_source_template(&mut meter())
+                .into_source_template()
                 .unwrap(),
             )
         })

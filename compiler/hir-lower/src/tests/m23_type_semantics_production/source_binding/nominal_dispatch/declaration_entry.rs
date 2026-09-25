@@ -24,25 +24,21 @@ fn with_entry(
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let dispatch = Dispatch::from_output(output, &mut fixture);
-        let produced = hir::ProtectedDeclarationSourceProductionV1::from_export_hir(
-            &output.output().export,
-            &mut meter(),
-        )
-        .unwrap();
+        let produced =
+            hir::ProtectedDeclarationSourceProductionV1::from_export_hir(&output.output().export)
+                .unwrap();
         let (table, protocols) =
             super::super::protected_declarations::support::restore(&mut fixture, &produced);
         let foundation = fixture.bind().unwrap();
         let core = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = core.protocols().fundamental_types();
-        let dispatch = dispatch.bind(&foundation, &mut meter()).unwrap();
-        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
+        let dispatch = dispatch.bind(&foundation).unwrap();
+        let slots = dispatch.bind_slot_sources().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let mut joined = parameters
-                .bind_dispatch_sources(&slots, &mut meter())
-                .unwrap();
+            let mut joined = parameters.bind_dispatch_sources(&slots).unwrap();
             run(
                 &mut joined,
                 &table,
@@ -77,13 +73,7 @@ fn section_declaration_entry_replays_complete_restored_source_contracts() {
             source,
             |authority, table, protocols, representations, graph| {
                 let checked = authority
-                    .validate_protected_sources(
-                        table,
-                        protocols,
-                        representations,
-                        graph,
-                        &mut meter(),
-                    )
+                    .validate_protected_sources(table, protocols, representations, graph)
                     .unwrap();
                 assert!(std::ptr::eq(checked.table(), table));
                 if source == ENTRY {

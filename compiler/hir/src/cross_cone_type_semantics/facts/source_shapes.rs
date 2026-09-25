@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use scoop_identity::{PersistentEnumVariantId, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, Encoder, WireEncode, WireError, WirePath};
+use scoop_wire::{Encoder, WireEncode, WireError, WirePath};
 
 use super::{ExactEnumVariantFactsV1, ExactTypeFactShapeV1, wire};
 
@@ -41,34 +41,21 @@ pub struct CanonicalExactTypeFactShapesV1 {
 impl CanonicalExactTypeFactShapesV1 {
     pub fn try_new(
         mut records: Vec<ExactTypeFactShapeRecordV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, TypeFactShapeSourceError> {
-        let path = WirePath::root();
-        let count = records.len() as u64;
-        meter.check_table_entries(count, &path)?;
-        meter.charge_work(
-            count.saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-            &path,
-        )?;
         records.sort_unstable_by_key(ExactTypeFactShapeRecordV1::exact);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
 
     fn from_ordered(
         records: Vec<ExactTypeFactShapeRecordV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, TypeFactShapeSourceError> {
-        let path = WirePath::root();
-        meter.check_table_entries(records.len() as u64, &path)?;
-        meter.charge_nodes(records.len() as u64, &path)?;
-        meter.charge_work(records.len() as u64, &path)?;
         for pair in records.windows(2) {
             if pair[0].exact >= pair[1].exact {
                 return Err(TypeFactShapeSourceError::NonCanonicalOrder(pair[1].exact));
             }
         }
-        for (index, record) in records.iter().enumerate() {
-            validate_shape(&record.shape, meter, &path.clone().index(index as u64))?;
+        for record in records.iter() {
+            validate_shape(&record.shape)?;
         }
         Ok(Self { records })
     }
@@ -85,52 +72,30 @@ impl CanonicalExactTypeFactShapesV1 {
     }
 }
 
-fn validate_shape(
-    shape: &ExactTypeFactShapeV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<(), TypeFactShapeSourceError> {
-    meter.check_semantic_depth(1, path)?;
-    meter.charge_work(1, path)?;
+fn validate_shape(shape: &ExactTypeFactShapeV1) -> Result<(), TypeFactShapeSourceError> {
     match shape {
         ExactTypeFactShapeV1::Unit
         | ExactTypeFactShapeV1::Scalar
         | ExactTypeFactShapeV1::Pointer
         | ExactTypeFactShapeV1::Reference => Ok(()),
-        ExactTypeFactShapeV1::OrdinaryStruct { fields }
-        | ExactTypeFactShapeV1::CLayoutStruct { fields } => check_fields(fields.len(), meter, path),
+        ExactTypeFactShapeV1::OrdinaryStruct { .. }
+        | ExactTypeFactShapeV1::CLayoutStruct { .. } => Ok(()),
         ExactTypeFactShapeV1::Tuple { elements } => {
             if elements.is_empty() {
                 return Err(TypeFactShapeSourceError::EmptyTuple);
             }
-            check_fields(elements.len(), meter, path)
+            Ok(())
         }
         ExactTypeFactShapeV1::Enum { variants } => {
-            meter.check_table_entries(variants.len() as u64, path)?;
-            meter.charge_nodes(variants.len() as u64, path)?;
             let mut seen = BTreeSet::new();
-            for (index, variant) in variants.iter().enumerate() {
-                let path = path.clone().index(index as u64);
-                meter.check_semantic_depth(2, &path)?;
-                meter.charge_work(u64::from((index + 1).ilog2()) + 1, &path)?;
+            for variant in variants.iter() {
                 if !seen.insert(variant.variant) {
                     return Err(TypeFactShapeSourceError::DuplicateVariant(variant.variant));
                 }
-                check_fields(variant.fields.len(), meter, &path)?;
             }
             Ok(())
         }
     }
-}
-
-fn check_fields(
-    count: usize,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<(), TypeFactShapeSourceError> {
-    meter.check_table_entries(count as u64, path)?;
-    meter.charge_work(count as u64, path)?;
-    Ok(())
 }
 
 #[derive(Debug)]

@@ -46,9 +46,9 @@ impl<'input> ValidatedGraphArtifact<'input> {
         let mir_payload = member_payload(&self, MetadataLocation::Mir, mir_member_id)?;
         let lir_payload = member_payload(&self, MetadataLocation::Lir, lir_member_id)?;
 
-        let hir_envelope = decode_metadata_envelope(&mut self, hir_payload, MetadataLocation::Hir)?;
-        let mir_envelope = decode_metadata_envelope(&mut self, mir_payload, MetadataLocation::Mir)?;
-        let lir_envelope = decode_metadata_envelope(&mut self, lir_payload, MetadataLocation::Lir)?;
+        let hir_envelope = decode_metadata_envelope(hir_payload, MetadataLocation::Hir)?;
+        let mir_envelope = decode_metadata_envelope(mir_payload, MetadataLocation::Mir)?;
+        let lir_envelope = decode_metadata_envelope(lir_payload, MetadataLocation::Lir)?;
         profile
             .validate_link_metadata_inventory(MetadataLocation::Hir, hir_envelope.sections())
             .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
@@ -84,54 +84,42 @@ impl<'input> ValidatedGraphArtifact<'input> {
             if profile == ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG {
                 let capability = lir_cross_cone_link_closure_capability();
                 let payload = required_metadata_section(&lir_envelope, &capability)?;
-                Some(decode_inner(
-                    &mut self,
-                    MetadataLocation::Lir,
-                    capability,
-                    payload,
-                )?)
+                Some(decode_inner(MetadataLocation::Lir, capability, payload)?)
             } else {
                 None
             };
 
         let hir_foundation = decode_inner(
-            &mut self,
             MetadataLocation::Hir,
             hir_foundation_capability,
             hir_foundation_payload,
         )?;
         let hir_production = decode_inner(
-            &mut self,
             MetadataLocation::Hir,
             hir_production_capability,
             hir_production_payload,
         )?;
         let mir_foundation = decode_inner(
-            &mut self,
             MetadataLocation::Mir,
             mir_foundation_capability,
             mir_foundation_payload,
         )?;
         let mir_production = decode_inner(
-            &mut self,
             MetadataLocation::Mir,
             mir_production_capability,
             mir_production_payload,
         )?;
         let lir_foundation = decode_inner(
-            &mut self,
             MetadataLocation::Lir,
             lir_foundation_capability,
             lir_foundation_payload,
         )?;
         let strong_production = decode_inner(
-            &mut self,
             MetadataLocation::Lir,
             strong_production_capability,
             strong_payload,
         )?;
         let link_identity_closure = decode_inner(
-            &mut self,
             MetadataLocation::Lir,
             link_identity_closure_capability,
             closure_payload,
@@ -166,10 +154,6 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {
@@ -262,10 +246,6 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {
@@ -374,10 +354,6 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {

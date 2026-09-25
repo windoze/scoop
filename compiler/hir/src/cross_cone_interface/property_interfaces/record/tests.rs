@@ -10,7 +10,7 @@ use scoop_identity::{
     PersistentTypeId, PropertyAccessorKey, PropertyOwner, SignatureTypeKey, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{TypeParameterBinderV1, TypeParameterBoundsV1};
@@ -244,9 +244,7 @@ fn reader_replays_record_invariants_and_exact_map_shape() {
         ))
     ));
 
-    let error =
-        decode_canonical::<DecodedPropertyInterfaceRecordV1>(&[0xa0], DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedPropertyInterfaceRecordV1>(&[0xa0]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -442,7 +440,7 @@ fn read_only(getter: PersistentPropertyAccessorId) -> PropertyCapabilityV1 {
 }
 
 fn decode_record(value: &PropertyInterfaceRecordV1) -> DecodedPropertyInterfaceRecordV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn one_binder() -> CanonicalBinderListV1 {

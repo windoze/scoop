@@ -16,8 +16,7 @@ fn dispatch_source_binding_requires_all_four_inventories() {
             match expected {
                 "inheritance owners" => {
                     incomplete.inventory =
-                        hir::CanonicalSourceInheritanceInventoriesV1::try_new(vec![], &mut meter())
-                            .unwrap()
+                        hir::CanonicalSourceInheritanceInventoriesV1::try_new(vec![]).unwrap()
                 }
                 "interface owners" => {
                     incomplete.interfaces = hir::CanonicalInterfaceSourceDispatchesV1::default()
@@ -32,7 +31,7 @@ fn dispatch_source_binding_requires_all_four_inventories() {
                 _ => unreachable!(),
             }
             assert!(
-                matches!(incomplete.bind(&foundation, &mut meter()), Err(Error::Inventory(actual)) if actual == expected)
+                matches!(incomplete.bind(&foundation), Err(Error::Inventory(actual)) if actual == expected)
             );
         }
     });
@@ -72,10 +71,9 @@ fn unused_callable_sources_are_not_silently_accepted() {
             record.modality(),
             record.declaration_access().clone(),
         ));
-        sources.callables =
-            hir::CanonicalInheritanceSourceCallablesV1::try_new(records, &mut meter()).unwrap();
+        sources.callables = hir::CanonicalInheritanceSourceCallablesV1::try_new(records).unwrap();
         assert!(matches!(
-            sources.bind(&foundation, &mut meter()),
+            sources.bind(&foundation),
             Err(Error::Inventory("dispatch callables"))
         ));
     });
@@ -112,23 +110,20 @@ fn identity_binding_does_not_replace_independent_slot_order_validation() {
                 hir::InheritanceSlotSchemaV1::try_new(schema.role(), reversed.clone()).unwrap(),
             ])
             .unwrap(),
-            &mut meter(),
         )
         .unwrap();
-        sources.inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter()).unwrap();
-        let bound = sources.bind(&foundation, &mut meter()).unwrap();
+        sources.inventory = hir::CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap();
+        let bound = sources.bind(&foundation).unwrap();
         assert_eq!(bound.schemas(owner).unwrap().records()[0].slots(), reversed);
         let entries = fixture.source.entries();
         let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
             entries.local_inheritance_edges.records().iter(),
             entries.source_roots.values().iter().copied(),
             &foundation,
-            &mut meter(),
         )
         .unwrap();
         assert!(matches!(
-            graph.validate_slot_schemas(owner, &bound, &mut meter()),
+            graph.validate_slot_schemas(owner, &bound),
             Err(hir::InheritanceSlotSchemaSemanticError::InheritedSlots(actual)) if actual == owner
         ));
     });
@@ -162,10 +157,9 @@ fn extra_selection_for_a_real_owner_and_slot_is_rejected() {
             hir::InheritanceSourceSlotSelectionV1::Abstract,
         ));
         sources.selections =
-            hir::CanonicalInheritanceSourceSlotSelectionsV1::try_new(records, &mut meter())
-                .unwrap();
+            hir::CanonicalInheritanceSourceSlotSelectionsV1::try_new(records).unwrap();
         assert!(matches!(
-            sources.bind(&foundation, &mut meter()),
+            sources.bind(&foundation),
             Err(Error::Inventory("slot selections"))
         ));
     });

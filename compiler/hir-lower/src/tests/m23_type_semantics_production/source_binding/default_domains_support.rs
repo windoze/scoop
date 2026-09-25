@@ -23,8 +23,7 @@ pub(super) fn with_inputs(
     with_sources(source, |output, fixture, sources, core_types| {
         let templates = super::default_origins::templates(output);
         let required = required(&fixture.bind().unwrap(), &templates);
-        let access =
-            Access::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let access = Access::from_export_hir(&output.output().export, &required).unwrap();
         run(&Inputs {
             output,
             fixture,
@@ -47,14 +46,13 @@ impl Inputs<'_> {
     ) {
         let foundation = self.fixture.bind().unwrap();
         let access = foundation
-            .bind_default_access_declarations(&self.access, &self.required, &mut meter())
+            .bind_default_access_declarations(&self.access, &self.required)
             .unwrap();
-        let domains =
-            hir::DefaultSourceDomainsV1::new(&access, &[], self.core_types, &mut meter()).unwrap();
+        let domains = hir::DefaultSourceDomainsV1::new(&access, &[], self.core_types).unwrap();
         self.sources
             .with_bound(&foundation, self.core_types, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &self.sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &self.sources.protocols)
                     .unwrap();
                 run(&domains, &parameters, &foundation);
             });

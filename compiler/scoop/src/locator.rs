@@ -12,7 +12,6 @@ use scoop_slib::{
     ArtifactFingerprint, ConeKind, ConeSourceForm, PrebuiltManifestSummaryError,
     PrebuiltManifestSummaryV1, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::DecodeLimits;
 
 use crate::ArtifactSearchRoot;
 
@@ -127,7 +126,6 @@ pub(crate) fn locate_manifest_dependency(
     key: &DependencyCoordinateKey,
     search_roots: &[ArtifactSearchRoot],
     target: scoop_lir::ValidatedLirTargetSelection,
-    limits: DecodeLimits,
 ) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
     let coordinate = parent
         .parsed()
@@ -152,7 +150,6 @@ pub(crate) fn locate_manifest_dependency(
                 resolve_from_manifest(parent, path.as_path()),
                 coordinate,
                 target,
-                limits,
             )?;
             Ok(LocatedDependencyClaim::Prebuilt(Box::new(
                 PrebuiltArtifactProjection {
@@ -166,7 +163,7 @@ pub(crate) fn locate_manifest_dependency(
             )))
         }
         DependencyLocator::SearchRoots => {
-            locate_from_search_roots(coordinate, search_roots, target, limits)
+            locate_from_search_roots(coordinate, search_roots, target)
                 .map(|prebuilt| LocatedDependencyClaim::Prebuilt(Box::new(prebuilt)))
         }
     }
@@ -221,7 +218,6 @@ pub(crate) fn locate_from_search_roots(
     coordinate: &ConeCoordinate,
     search_roots: &[ArtifactSearchRoot],
     target: scoop_lir::ValidatedLirTargetSelection,
-    limits: DecodeLimits,
 ) -> Result<PrebuiltArtifactProjection, DependencyLocatorError> {
     let mut checked = Vec::new();
     let mut resolved = Vec::new();
@@ -266,11 +262,11 @@ pub(crate) fn locate_from_search_roots(
             checked,
         });
     };
-    let first = probe_artifact_candidate(first_path, coordinate, target, limits)?;
+    let first = probe_artifact_candidate(first_path, coordinate, target)?;
     let expected_fingerprint = first.summary.artifact_fingerprint();
     let mut rest = Vec::new();
     for path in paths {
-        rest.push(probe_artifact_candidate(path, coordinate, target, limits)?);
+        rest.push(probe_artifact_candidate(path, coordinate, target)?);
     }
     if rest
         .iter()
@@ -301,10 +297,9 @@ fn probe_artifact_candidate(
     path: PathBuf,
     expected: &ConeCoordinate,
     target: scoop_lir::ValidatedLirTargetSelection,
-    limits: DecodeLimits,
 ) -> Result<PrebuiltArtifactCandidate, DependencyLocatorError> {
     let resolved_path = canonicalize(&path)?;
-    let file = File::open(&resolved_path).map_err(|source| DependencyLocatorError::Io {
+    let mut file = File::open(&resolved_path).map_err(|source| DependencyLocatorError::Io {
         operation: LocatorIoOperation::Open,
         path: resolved_path.clone(),
         source,
@@ -321,44 +316,40 @@ fn probe_artifact_candidate(
             resolved_path,
         ));
     }
-    if metadata.len() > limits.owned_bytes {
-        return Err(DependencyLocatorError::ArtifactTooLarge {
-            path: resolved_path,
-            limit: limits.owned_bytes,
-            actual: metadata.len(),
-        });
-    }
-    let expected_length =
-        usize::try_from(metadata.len()).map_err(|_| DependencyLocatorError::ArtifactTooLarge {
-            path: resolved_path.clone(),
-            limit: limits.owned_bytes,
-            actual: metadata.len(),
-        })?;
+    let expected_length = usize::try_from(metadata.len())
+        .map_err(|_| DependencyLocatorError::LengthOverflow(resolved_path.clone()))?;
     let mut bytes = Vec::new();
     bytes
         .try_reserve_exact(expected_length)
         .map_err(|_| DependencyLocatorError::Allocation(resolved_path.clone()))?;
-    let read_limit = limits.owned_bytes.saturating_add(1);
-    file.take(read_limit)
+    let read_bound = metadata
+        .len()
+        .checked_add(1)
+        .ok_or_else(|| DependencyLocatorError::LengthOverflow(resolved_path.clone()))?;
+    file.by_ref()
+        .take(read_bound)
         .read_to_end(&mut bytes)
         .map_err(|source| DependencyLocatorError::Io {
             operation: LocatorIoOperation::Read,
             path: resolved_path.clone(),
             source,
         })?;
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > limits.owned_bytes {
-        return Err(DependencyLocatorError::ArtifactTooLarge {
-            path: resolved_path,
-            limit: limits.owned_bytes,
-            actual: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
-        });
-    }
-    if bytes.len() != expected_length {
+    let after = file
+        .metadata()
+        .map_err(|source| DependencyLocatorError::Io {
+            operation: LocatorIoOperation::Inspect,
+            path: resolved_path.clone(),
+            source,
+        })?;
+    if bytes.len() != expected_length
+        || after.len() != metadata.len()
+        || after.modified().ok() != metadata.modified().ok()
+    {
         return Err(DependencyLocatorError::ArtifactChangedDuringRead(
             resolved_path,
         ));
     }
-    let summary = probe_prebuilt_manifest_summary(&bytes, limits, target).map_err(|source| {
+    let summary = probe_prebuilt_manifest_summary(&bytes, target).map_err(|source| {
         DependencyLocatorError::Summary {
             path: resolved_path.clone(),
             source,
@@ -444,11 +435,7 @@ pub enum DependencyLocatorError {
         source: std::io::Error,
     },
     ArtifactNotRegularFile(PathBuf),
-    ArtifactTooLarge {
-        path: PathBuf,
-        limit: u64,
-        actual: u64,
-    },
+    LengthOverflow(PathBuf),
     ArtifactChangedDuringRead(PathBuf),
     Allocation(PathBuf),
     Summary {
@@ -513,13 +500,9 @@ impl fmt::Display for DependencyLocatorError {
                     path.display()
                 )
             }
-            Self::ArtifactTooLarge {
-                path,
-                limit,
-                actual,
-            } => write!(
+            Self::LengthOverflow(path) => write!(
                 formatter,
-                "artifact {} exceeds byte limit {limit}: found {actual}",
+                "artifact {} length cannot be represented",
                 path.display()
             ),
             Self::ArtifactChangedDuringRead(path) => {
@@ -680,14 +663,7 @@ mod tests {
             "[dependencies]\n\"test:dep\" = { version = \"1.0.0\", path = \"../dependency\" }\n",
         );
 
-        let claim = locate_manifest_dependency(
-            &parent,
-            &first_key(&parent),
-            &[],
-            TARGET,
-            DecodeLimits::M23_DEFAULT,
-        )
-        .unwrap();
+        let claim = locate_manifest_dependency(&parent, &first_key(&parent), &[], TARGET).unwrap();
         let LocatedDependencyClaim::Source(source) = claim else {
             panic!("source locator must produce a source claim")
         };
@@ -709,25 +685,13 @@ mod tests {
             "[dependencies]\n\"test:dep\" = { version = \"1.0.0\", path = \"../dependency\" }\n",
         );
         assert!(matches!(
-            locate_manifest_dependency(
-                &parent,
-                &first_key(&parent),
-                &[],
-                TARGET,
-                DecodeLimits::M23_DEFAULT,
-            ),
+            locate_manifest_dependency(&parent, &first_key(&parent), &[], TARGET,),
             Err(DependencyLocatorError::CoordinateMismatch { .. })
         ));
 
         write_manifest(&dependency_root, "dep", "executable", "");
         assert!(matches!(
-            locate_manifest_dependency(
-                &parent,
-                &first_key(&parent),
-                &[],
-                TARGET,
-                DecodeLimits::M23_DEFAULT,
-            ),
+            locate_manifest_dependency(&parent, &first_key(&parent), &[], TARGET,),
             Err(DependencyLocatorError::ExecutableDependency { .. })
         ));
     }
@@ -745,14 +709,7 @@ mod tests {
             "[dependencies]\n\"test:dep\" = { version = \"1.0.0\", artifact = \"../dep.slib\" }\n",
         );
 
-        let claim = locate_manifest_dependency(
-            &parent,
-            &first_key(&parent),
-            &[],
-            TARGET,
-            DecodeLimits::M23_DEFAULT,
-        )
-        .unwrap();
+        let claim = locate_manifest_dependency(&parent, &first_key(&parent), &[], TARGET).unwrap();
         let LocatedDependencyClaim::Prebuilt(prebuilt) = claim else {
             panic!("artifact locator must produce a prebuilt claim")
         };
@@ -772,25 +729,11 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            locate_manifest_dependency(
-                &parent,
-                &first_key(&parent),
-                &[],
-                TARGET,
-                DecodeLimits::M23_DEFAULT,
-            ),
+            locate_manifest_dependency(&parent, &first_key(&parent), &[], TARGET,),
             Err(DependencyLocatorError::CoordinateMismatch { .. })
         ));
 
         std::fs::write(&artifact, &bytes).unwrap();
-        let small_limits = DecodeLimits {
-            owned_bytes: u64::try_from(bytes.len() - 1).unwrap(),
-            ..DecodeLimits::M23_DEFAULT
-        };
-        assert!(matches!(
-            locate_manifest_dependency(&parent, &first_key(&parent), &[], TARGET, small_limits,),
-            Err(DependencyLocatorError::ArtifactTooLarge { .. })
-        ));
     }
 
     #[test]
@@ -812,14 +755,8 @@ mod tests {
         );
         let roots = [ArtifactSearchRoot::new(&search_root).unwrap()];
 
-        let claim = locate_manifest_dependency(
-            &parent,
-            &first_key(&parent),
-            &roots,
-            TARGET,
-            DecodeLimits::M23_DEFAULT,
-        )
-        .unwrap();
+        let claim =
+            locate_manifest_dependency(&parent, &first_key(&parent), &roots, TARGET).unwrap();
         let LocatedDependencyClaim::Prebuilt(prebuilt) = claim else {
             panic!("search root must produce a prebuilt claim")
         };
@@ -838,13 +775,7 @@ mod tests {
         let search_root = temp.path().join("search");
         let roots = [ArtifactSearchRoot::new(&search_root).unwrap()];
         assert!(matches!(
-            locate_manifest_dependency(
-                &parent,
-                &first_key(&parent),
-                &roots,
-                TARGET,
-                DecodeLimits::M23_DEFAULT,
-            ),
+            locate_manifest_dependency(&parent, &first_key(&parent), &roots, TARGET,),
             Err(DependencyLocatorError::ArtifactNotFound { .. })
         ));
 
@@ -856,13 +787,7 @@ mod tests {
         std::fs::create_dir_all(candidate.parent().unwrap()).unwrap();
         std::fs::create_dir(&candidate).unwrap();
         assert!(matches!(
-            locate_manifest_dependency(
-                &parent,
-                &first_key(&parent),
-                &roots,
-                TARGET,
-                DecodeLimits::M23_DEFAULT,
-            ),
+            locate_manifest_dependency(&parent, &first_key(&parent), &roots, TARGET,),
             Err(DependencyLocatorError::ArtifactNotRegularFile(_))
         ));
 
@@ -880,13 +805,7 @@ mod tests {
             symlink(dangling_root.join("missing.slib"), &dangling).unwrap();
             let dangling_roots = [ArtifactSearchRoot::new(dangling_root).unwrap()];
             assert!(matches!(
-                locate_manifest_dependency(
-                    &parent,
-                    &first_key(&parent),
-                    &dangling_roots,
-                    TARGET,
-                    DecodeLimits::M23_DEFAULT,
-                ),
+                locate_manifest_dependency(&parent, &first_key(&parent), &dangling_roots, TARGET,),
                 Err(DependencyLocatorError::Io {
                     operation: LocatorIoOperation::Canonicalize,
                     ..
@@ -915,27 +834,17 @@ mod tests {
             std::fs::write(path, &bytes).unwrap();
         }
         let search_roots = roots.map(ArtifactSearchRoot::new).map(Result::unwrap);
-        let LocatedDependencyClaim::Prebuilt(prebuilt) = locate_manifest_dependency(
-            &parent,
-            &first_key(&parent),
-            &search_roots,
-            TARGET,
-            DecodeLimits::M23_DEFAULT,
-        )
-        .unwrap() else {
+        let LocatedDependencyClaim::Prebuilt(prebuilt) =
+            locate_manifest_dependency(&parent, &first_key(&parent), &search_roots, TARGET)
+                .unwrap()
+        else {
             panic!("search root must produce a prebuilt claim")
         };
         assert_eq!(prebuilt.candidate_count(), 2);
 
         std::fs::write(&paths[1], foundation_artifact(coordinate, "different")).unwrap();
         assert!(matches!(
-            locate_manifest_dependency(
-                &parent,
-                &first_key(&parent),
-                &search_roots,
-                TARGET,
-                DecodeLimits::M23_DEFAULT,
-            ),
+            locate_manifest_dependency(&parent, &first_key(&parent), &search_roots, TARGET,),
             Err(DependencyLocatorError::AmbiguousArtifact { .. })
         ));
     }

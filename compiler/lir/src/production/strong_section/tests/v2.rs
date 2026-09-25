@@ -61,24 +61,14 @@ fn layout_schema_retains_ten_fields_and_the_shared_initialization_payload() {
     assert_eq!(bytes[0], 0xaa);
     assert_initialization_field(&bytes);
     assert_eq!(bytes, encode(&old).unwrap());
-    let decoded: DecodedStrongProductionSectionV2 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongProductionSectionV2 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let mut truncated = bytes.clone();
     truncated.pop();
-    assert!(
-        decode_canonical::<DecodedStrongProductionSectionV2>(&truncated, DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&truncated).is_err());
     for field_count in [0xa9, 0xab] {
         let mut malformed = bytes.clone();
         malformed[0] = field_count;
-        assert!(
-            decode_canonical::<DecodedStrongProductionSectionV2>(
-                &malformed,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&malformed).is_err());
     }
 }

@@ -3,7 +3,7 @@ use scoop_identity::{
     DeclarationScope, DefinitionOwnerChain, PackagePath, PendingIdentityValidation,
     PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -18,8 +18,7 @@ fn key_has_fixed_wire_and_resolves_typed_owner() {
         "a201a2000101582012104f4f6e246d6533e24859a416718ca33e20fa88c78d1285c694aa56c3766402182a"
     );
 
-    let decoded: DecodedExportDefaultTemplateKeyV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExportDefaultTemplateKeyV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut authority(&function)).unwrap(), key);
 }
 
@@ -30,7 +29,7 @@ fn resolution_rejects_an_owner_without_identity_authority() {
         0,
     );
     let decoded: DecodedExportDefaultTemplateKeyV1 =
-        decode_canonical(&encode(&key).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&key).unwrap()).unwrap();
     let mut empty = PendingIdentityValidation::new().finish().unwrap();
 
     assert!(decoded.resolve(&mut empty).is_err());
@@ -43,9 +42,7 @@ fn decoder_rejects_positions_larger_than_u32() {
     bytes.extend(encode(&CallableTemplateOrigin::Function(function.id())).unwrap());
     bytes.extend([0x02, 0x1b, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]);
 
-    let error =
-        decode_canonical::<DecodedExportDefaultTemplateKeyV1>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedExportDefaultTemplateKeyV1>(&bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::IntegerOutOfRange);
 }
 

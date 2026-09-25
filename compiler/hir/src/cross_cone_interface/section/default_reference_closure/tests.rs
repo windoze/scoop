@@ -13,7 +13,7 @@ use scoop_identity::{
     SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -540,11 +540,7 @@ impl Fixture {
         section: &CrossConeHirInterfaceSectionV1,
         authority: &mut Authority,
     ) -> Result<(), ExternalHirDefaultClosureValidationError<AuthorityError>> {
-        section.validate_default_reference_closure(
-            authority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        section.validate_default_reference_closure(authority, &WirePath::root())
     }
 }
 
@@ -901,33 +897,15 @@ impl PublicExportBindingClosureAuthority for Authority {
         0
     }
 
-    fn is_direct_dependency(
-        &self,
-        _provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(false)
+    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
+        false
     }
 
-    fn binding_key(
-        &self,
-        _binding: PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    fn binding_key(&self, _binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        None
     }
 
-    fn public_bindings(
-        &self,
-        _exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    fn public_bindings(&self, _exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
+        None
     }
 }

@@ -1,6 +1,5 @@
 use scoop_wire::{
     Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
 };
 
 use super::{CanonicalCAbiResolutionError, DecodedCanonicalCStorageType};
@@ -49,7 +48,7 @@ impl WireEncode for DecodedCanonicalCAbiParameter {
 }
 
 impl WireDecode for DecodedCanonicalCAbiParameter {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             source_exact_type: decoder.field(1, DecodedPersistentId::decode)?,
@@ -108,7 +107,7 @@ impl WireEncode for DecodedCanonicalCAbiReturn {
 }
 
 impl WireDecode for DecodedCanonicalCAbiReturn {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = super::decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -173,7 +172,7 @@ impl WireEncode for DecodedCanonicalCAbiFunctionSignature {
 }
 
 impl WireDecode for DecodedCanonicalCAbiFunctionSignature {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             calling_convention: decoder.field(1, TargetCallingConvention::decode)?,
@@ -203,10 +202,6 @@ impl DecodedCanonicalCAbiSignatureFingerprintRecord {
     pub fn candidate_fingerprint(&self) -> Result<CanonicalCAbiSignatureFingerprint, HashError> {
         domain_separated_cbor_hash("scoop-c-abi-signature-v1", &self.signature)
             .map(|digest| CanonicalCAbiSignatureFingerprint(*digest.as_array()))
-    }
-
-    pub(crate) fn candidate_hash_stream_length(&self) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length("scoop-c-abi-signature-v1", &self.signature)
     }
 
     pub fn resolve<R, E>(
@@ -262,7 +257,7 @@ impl WireEncode for DecodedCanonicalCAbiSignatureFingerprintRecord {
 }
 
 impl WireDecode for DecodedCanonicalCAbiSignatureFingerprintRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             fingerprint: decoder.field(1, DecodedPersistentId::decode)?,

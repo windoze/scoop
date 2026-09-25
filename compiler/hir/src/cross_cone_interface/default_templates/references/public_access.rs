@@ -1,6 +1,6 @@
 use super::*;
 use crate::{CallableInterfaceRecordV1, PublicLookupAccessV1};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 impl ExportDefaultReferenceSetV1 {
     /// Narrows source snapshots to the public domain required by a public
@@ -8,51 +8,25 @@ impl ExportDefaultReferenceSetV1 {
     pub fn validate_public_access(
         &self,
         owner: &CallableInterfaceRecordV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), ExportDefaultPublicWitnessValidationError> {
         check(
             self.callables(),
             ExportDefaultReferenceKindV1::Callable,
             owner,
-            meter,
-            path,
         )?;
         check(
             self.constructors(),
             ExportDefaultReferenceKindV1::Constructor,
             owner,
-            meter,
-            path,
         )?;
-        check(
-            self.types(),
-            ExportDefaultReferenceKindV1::Type,
-            owner,
-            meter,
-            path,
-        )?;
-        check(
-            self.globals(),
-            ExportDefaultReferenceKindV1::Global,
-            owner,
-            meter,
-            path,
-        )?;
+        check(self.types(), ExportDefaultReferenceKindV1::Type, owner)?;
+        check(self.globals(), ExportDefaultReferenceKindV1::Global, owner)?;
         check(
             self.singleton_values(),
             ExportDefaultReferenceKindV1::Singleton,
             owner,
-            meter,
-            path,
         )?;
-        check(
-            self.fields(),
-            ExportDefaultReferenceKindV1::Field,
-            owner,
-            meter,
-            path,
-        )
+        check(self.fields(), ExportDefaultReferenceKindV1::Field, owner)
     }
 }
 
@@ -60,16 +34,13 @@ fn check<T>(
     references: &[ExportDefaultReferenceV1<T>],
     kind: ExportDefaultReferenceKindV1,
     owner: &CallableInterfaceRecordV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), ExportDefaultPublicWitnessValidationError> {
     let domain = match owner.access() {
         PublicLookupAccessV1::DirectOnly => ExportDefaultCallDomainV1::DirectPublic,
         PublicLookupAccessV1::PublicSlot => ExportDefaultCallDomainV1::DirectAndPublicSlot,
     };
-    meter.check_table_entries(references.len() as u64, path)?;
+
     for (index, reference) in references.iter().enumerate() {
-        meter.charge_work(1, path)?;
         reference
             .witness()
             .validate_public_access(owner.declaration(), domain)

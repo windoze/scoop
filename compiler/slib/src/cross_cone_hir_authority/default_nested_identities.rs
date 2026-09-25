@@ -13,17 +13,15 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
     pub(crate) fn validate_default_nested_identities(&mut self) -> Result<(), Error> {
         let path = WirePath::root().field(7);
         let templates = self.current_interface.default_templates().records();
-        self.meter
-            .check_table_entries(templates.len() as u64, &path)?;
+
         for (index, template) in templates.iter().enumerate() {
             let path = path.clone().index(index as u64);
-            let mut validate = || -> Result<(), Error> {
-                let nested = template.index_nested_callables(self.meter, &path)?;
+            let validate = || -> Result<(), Error> {
+                let nested = template.index_nested_callables(&path)?;
                 for occurrence in nested.occurrences() {
                     let origin = occurrence.definition_origin();
                     let provider = origin.origin().source().cone();
-                    self.meter
-                        .charge_work(self.dependencies.len() as u64 + 1, &path)?;
+
                     let foundation = if provider == self.current {
                         self.current_foundation
                     } else {
@@ -34,12 +32,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                             .ok_or(Error::UnreachableProvider(provider))?
                     };
                     DefaultTargetIdentityQueriesV1::new(provider, foundation, self.identities)
-                        .validate_nested_callable_identity(
-                            occurrence.descriptor(),
-                            origin,
-                            self.meter,
-                            &path,
-                        )
+                        .validate_nested_callable_identity(occurrence.descriptor(), origin, &path)
                         .map_err(|source| Error::Occurrence {
                             site: occurrence.site(),
                             source: Box::new(source),

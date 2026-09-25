@@ -8,20 +8,18 @@ pub(super) fn validate(
     metadata: hir::SharedTypeMetadataV1<'_>,
     callables: &mir::CanonicalMirCallableBindingsV1,
     unit: PersistentInitializationUnitId,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongCallableDefinitionOwner, Error> {
-    let result = metadata.signature_exact_type(
-        &SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
-        meter,
-    )?;
-    let initializer = identity(unit, InitializationCallableRole::Initializer, meter)?;
-    let ensure = identity(unit, InitializationCallableRole::Ensure, meter)?;
+    let result = metadata.signature_exact_type(&SignatureTypeKey::Nominal(
+        CoreBuiltinNominal::Unit.identity_record().id(),
+    ))?;
+    let initializer = identity(unit, InitializationCallableRole::Initializer)?;
+    let ensure = identity(unit, InitializationCallableRole::Ensure)?;
     for (role, callable) in [
         (InitializationCallableRole::Initializer, initializer),
         (InitializationCallableRole::Ensure, ensure),
     ] {
         let target = StrongCallableDefinitionOwner::GeneratedCallable(callable);
-        lookup(callables.entries().len(), meter)?;
+
         let binding = callables
             .get(target)
             .ok_or(Error::MissingCallable(callable))?;
@@ -49,7 +47,7 @@ pub(super) fn validate(
         )?;
         for signature in [binding.semantic_signature(), binding.lowered_signature()] {
             let exact = signature.exact();
-            meter.charge_work(exact.parameters().len() as u64 + 5, &WirePath::root())?;
+
             Error::callable(
                 callable,
                 Component::Signature,
@@ -67,12 +65,8 @@ pub(super) fn validate(
 fn identity(
     unit: PersistentInitializationUnitId,
     role: InitializationCallableRole,
-    meter: &mut BudgetMeter,
 ) -> Result<PersistentGeneratedCallableId, Error> {
     let key = GeneratedCallableKey::Initialization { unit, role };
-    meter.charge_sha256(
-        PersistentGeneratedCallableId::hash_stream_length(&key).map_err(Error::Key)?,
-        &WirePath::root(),
-    )?;
+
     PersistentGeneratedCallableId::from_key(&key).map_err(Error::Key)
 }

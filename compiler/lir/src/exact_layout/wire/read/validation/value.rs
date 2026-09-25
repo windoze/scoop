@@ -4,7 +4,6 @@ impl RawValue {
     pub(super) fn validate_against(
         self,
         expected: &ExactRepresentationLayoutV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactLayoutWireError> {
         use ExactRepresentationKindV1 as E;
         match (self, expected.kind()) {
@@ -25,10 +24,10 @@ impl RawValue {
                     return Err(ExactLayoutWireError::RepresentationMismatch);
                 }
                 policy.validate_against(expected.policy())?;
-                fields::nominal_fields(raw, expected.fields(), meter)
+                fields::nominal_fields(raw, expected.fields())
             }
             (Self::Tuple(raw), E::Tuple(expected)) => {
-                table_length(raw.len(), expected.elements().len(), meter)?;
+                table_length(raw.len(), expected.elements().len())?;
                 for (raw, expected) in raw.into_iter().zip(expected.elements()) {
                     raw.validate_against(expected)?;
                 }
@@ -44,14 +43,14 @@ impl RawValue {
             ) => {
                 tag.validate_against(expected.geometry().tag_layout())?;
                 pure.validate_against(expected.geometry().pure_region())?;
-                table_length(variants.len(), expected.variants().len(), meter)?;
+                table_length(variants.len(), expected.variants().len())?;
                 for ((raw, expected), geometry) in variants
                     .into_iter()
                     .zip(expected.variants())
                     .zip(expected.geometry().variants())
                 {
                     raw.slot.validate_against(geometry)?;
-                    raw.variant.validate_against(expected, meter)?;
+                    raw.variant.validate_against(expected)?;
                 }
                 Ok(())
             }
@@ -67,9 +66,9 @@ impl RawValue {
                     return Err(ExactLayoutWireError::RepresentationMismatch);
                 }
                 verify(payload, expected.payload_variant())?;
-                table_length(variants.len(), expected.variants().len(), meter)?;
+                table_length(variants.len(), expected.variants().len())?;
                 for (raw, expected) in variants.into_iter().zip(expected.variants()) {
-                    raw.validate_against(expected, meter)?;
+                    raw.validate_against(expected)?;
                 }
                 Ok(())
             }

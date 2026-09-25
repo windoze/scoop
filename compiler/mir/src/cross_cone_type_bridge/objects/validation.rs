@@ -63,10 +63,7 @@ impl MirObjectBridgeAuthority<'_> {
         unit: PersistentInitializationUnitId,
         ensure: StrongCallableDefinitionOwner,
         read: MirObjectValueReadPlanV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ConeIdentity, MirObjectBridgeError> {
-        meter.charge_nodes(1, &WirePath::root())?;
-        meter.charge_work(16, &WirePath::root())?;
         let source = self
             .identities
             .canonical_key::<_, SourceDeclarationKey>(value)?;
@@ -84,8 +81,7 @@ impl MirObjectBridgeAuthority<'_> {
                 .canonical_key::<_, SourceDeclarationKey>(*nominal)?
                 .as_ref(),
             &source,
-            meter,
-        )? || object.representation() != &(MirTypeRepresentationV1::Object { backing })
+        ) || object.representation() != &(MirTypeRepresentationV1::Object { backing })
         {
             return Err(MirObjectBridgeError::ObjectIdentity);
         }
@@ -121,15 +117,6 @@ impl MirObjectBridgeAuthority<'_> {
     }
 }
 
-pub(super) fn source_keys_equal(
-    left: &SourceDeclarationKey,
-    right: &SourceDeclarationKey,
-    meter: &mut BudgetMeter,
-) -> Result<bool, MirObjectBridgeError> {
-    for source in [left, right] {
-        let bytes =
-            scoop_wire::encoded_length(source).map_err(MirObjectBridgeError::SourceEncoding)?;
-        meter.charge_work(bytes, &WirePath::root())?;
-    }
-    Ok(left == right)
+pub(super) fn source_keys_equal(left: &SourceDeclarationKey, right: &SourceDeclarationKey) -> bool {
+    left == right
 }

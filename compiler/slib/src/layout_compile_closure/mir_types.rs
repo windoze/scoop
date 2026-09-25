@@ -66,7 +66,7 @@ impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
             let resolve = || -> Result<_, Error> {
                 let (mut prepared, mir, lir) = artifact.prepare_mir_semantics()?;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
                 let mir = mir.resolve_types::<Infallible>(
                     provider,
                     parts.mir_foundation,
@@ -74,11 +74,8 @@ impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
                         .iter()
                         .map(|position| resolved[*position].mir.types()),
                     parts.identities,
-                    parts.meter,
                 )?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut resolved, 1, &WirePath::root())?;
+                scoop_wire::allocation::try_reserve(&mut resolved, 1, &WirePath::root())?;
                 Ok(MirTypesValidatedCrossConeLayoutSections { prepared, mir, lir })
             };
             let artifact =
@@ -106,9 +103,9 @@ fn validate_sources(
         let provider = artifact.identity();
         let parts = artifact.prepared.semantic_parts();
         let mut validate = || -> Result<_, Error> {
-            let reachable = transitive_positions(position, dependency_positions, parts.meter)?;
+            let reachable = transitive_positions(position, dependency_positions)?;
             let mut dependencies = Vec::new();
-            parts.meter.try_reserve_collection_slots(
+            scoop_wire::allocation::try_reserve(
                 &mut dependencies,
                 reachable.len(),
                 &WirePath::root(),
@@ -122,14 +119,11 @@ fn validate_sources(
                     public: parts.hir_interface,
                 },
                 &dependencies,
-                parts.meter,
             )?;
-            source.with_inheritance_graph(&dependencies, parts.meter, |graph, meter| {
-                validation::validate(source, graph, parts.hir_core, &artifact.mir, meter)
+            source.with_inheritance_graph(&dependencies, |graph| {
+                validation::validate(source, graph, parts.hir_core, &artifact.mir)
             })??;
-            parts
-                .meter
-                .try_reserve_collection_slots(&mut checked, 1, &WirePath::root())?;
+            scoop_wire::allocation::try_reserve(&mut checked, 1, &WirePath::root())?;
             Ok(source)
         };
         let source =

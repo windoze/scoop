@@ -8,9 +8,7 @@ mod types;
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    meter.charge_work(9, &scoop_wire::WirePath::root())?;
     let provider = production.type_registrations().producer();
     for (component, actual) in [
         ("layout_abi", section.provider()),
@@ -51,8 +49,8 @@ pub(super) fn validate(
     if production.type_registrations().target() != &section.target_profile().wire_id() {
         return Err(StrongProductionLayoutJoinError::Target);
     }
-    layouts::validate(production, section, meter)?;
-    types::validate(production, section, meter)?;
-    callables::validate(production, section, meter)?;
-    shape_support::validate(production, section, meter)
+    layouts::validate(production, section)?;
+    types::validate(production, section)?;
+    callables::validate(production, section)?;
+    shape_support::validate(production, section)
 }

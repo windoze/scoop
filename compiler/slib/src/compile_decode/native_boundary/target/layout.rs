@@ -10,8 +10,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<CanonicalCStorageType, NativeBoundaryCompileError> {
-        let path = WirePath::root().field(16);
-        charge_relations(self.meter, 1, &path)?;
         enum Shape {
             DataPointer(PersistentExactTypeId),
             CodePointer,
@@ -86,13 +84,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<CanonicalCAbiLayoutFingerprint, NativeBoundaryCompileError> {
-        charge_relations(self.meter, 1, &WirePath::root().field(16))?;
         if let Some(fingerprint) = self.layouts_by_type.get(&exact) {
             return Ok(*fingerprint);
         }
         if !self
             .visiting_c_layouts
-            .push(exact, self.meter, &WirePath::root().field(16))?
+            .push(exact, &WirePath::root().field(16))?
         {
             return Err(NativeBoundaryTargetError::CLayoutCycle { exact }.into());
         }
@@ -105,7 +102,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         };
         let aligned = *aligned;
         let packed = *packed;
-        let mut normalized = metered_vec(self.meter, fields.len(), &WirePath::root().field(16))?;
+        let mut normalized = allocate_vec(fields.len(), &WirePath::root().field(16))?;
         let mut size = 0_u64;
         let mut alignment = override_bytes(aligned).unwrap_or(1);
         for field in fields {
@@ -129,23 +126,17 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         let alignment = NonZeroU64::new(alignment)
             .ok_or(NativeBoundaryTargetError::LayoutOverflow { exact })?;
         let layout = CanonicalCAbiLayout::new(exact, size, alignment, aligned, packed, normalized);
-        let stream_length = CanonicalCAbiLayoutFingerprint::hash_stream_length(&layout)
-            .map_err(NativeBoundaryTargetError::Hash)?;
-        self.meter
-            .charge_sha256(stream_length, &WirePath::root().field(16))
-            .map_err(NativeBoundaryCompileError::Resource)?;
+
         let record = CanonicalCAbiLayoutFingerprintRecord::new(layout)
             .map_err(NativeBoundaryTargetError::Hash)?;
         let fingerprint = record.fingerprint();
-        insert_metered(
-            self.meter,
+        insert_entry(
             &mut self.expected_layouts,
             fingerprint,
             record,
             &WirePath::root().field(16),
         )?;
-        insert_metered(
-            self.meter,
+        insert_entry(
             &mut self.layouts_by_type,
             exact,
             fingerprint,
@@ -177,7 +168,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 Ok((layout.size_bytes(), layout.alignment_bytes()))
             }
             CanonicalCStorageType::Struct { layout, .. } => {
-                charge_relations(self.meter, 1, &WirePath::root().field(16))?;
                 let record = self
                     .expected_layouts
                     .get(&layout)
@@ -201,7 +191,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         NativeBoundaryCompileError,
     > {
         let path = WirePath::root().field(1);
-        charge_relations(self.meter, 1, &path)?;
+
         let mut binders = Vec::new();
         let key = self
             .exact_types
@@ -211,12 +201,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             ExactTypeKey::Nominal(owner) => NativeBoundaryNominalOwner::Concrete(*owner),
             ExactTypeKey::NominalApplication { origin, arguments } => {
                 let owner = NativeBoundaryNominalOwner::GenericTemplate(*origin);
-                push_binder_group(self.meter, &mut binders, arguments.as_slice(), &path)?;
+                push_binder_group(&mut binders, arguments.as_slice(), &path)?;
                 owner
             }
             _ => return Err(NativeBoundaryTargetError::ExpectedNominal { exact }.into()),
         };
-        charge_relations(self.meter, 1, &path)?;
+
         self.definitions
             .get(&owner)
             .map(|definition| (definition, binders))

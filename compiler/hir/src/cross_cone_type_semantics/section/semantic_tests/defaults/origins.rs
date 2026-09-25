@@ -5,7 +5,6 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for DefaultAuthority {
         &mut self,
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
-        _meter: &mut BudgetMeter,
     ) -> Result<DefaultTemplateProviderShapeV1, &'static str> {
         Err("fixture has no default template")
     }
@@ -13,7 +12,6 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for DefaultAuthority {
         &mut self,
         _root: crate::PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
-        _meter: &mut BudgetMeter,
     ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, &'static str> {
         Err("fixture has no default template")
     }
@@ -22,7 +20,6 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for DefaultAuthority {
         &mut self,
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
-        _meter: &mut BudgetMeter,
     ) -> Result<Option<SignatureTypeKey>, &'static str> {
         Err("fixture has no default template")
     }
@@ -32,7 +29,6 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for DefaultAuthority {
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
         _mapping: &CanonicalBinderUseListV1,
-        _meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         Err("fixture has no default template")
     }
@@ -45,7 +41,6 @@ impl ProtectedDefaultOriginSemanticAuthority<&'static str> for DefaultAuthority 
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
         _origin: &ExportDefinitionSourceV1,
-        _meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         Err("fixture has no default template")
     }
@@ -56,7 +51,6 @@ impl ProtectedDefaultOriginSemanticAuthority<&'static str> for DefaultAuthority 
         _path: &StructuralDefinitionPath,
         _selector: &LocalValueSelector,
         _origin: &ExportDefinitionSourceV1,
-        _meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         Err("fixture has no default template")
     }

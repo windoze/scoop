@@ -11,7 +11,6 @@ pub(crate) fn declaration_access(
     metadata: SharedTypeMetadataV1<'_>,
     declaration: &NominalInterfaceRecordV1,
     key: &SourceDeclarationKey,
-    meter: &mut BudgetMeter,
 ) -> Result<DeclarationAccessSourceV1, Error> {
     let owner = declaration.declaration();
     let subject = match owner {
@@ -28,7 +27,6 @@ pub(crate) fn declaration_access(
         subject,
         key,
         declaration.declaration_details().declared_visibility(),
-        meter,
     )
 }
 
@@ -37,14 +35,13 @@ pub(super) fn source_access(
     subject: DefinitionOriginSubject,
     key: &SourceDeclarationKey,
     visibility: DeclaredVisibilityV1,
-    meter: &mut BudgetMeter,
 ) -> Result<DeclarationAccessSourceV1, Error> {
     if key.origin() != metadata.provider {
         return Err(Error::DeclarationMetadata(subject));
     }
     let path = WirePath::root();
     let mut lexical = Vec::new();
-    meter.try_reserve_collection_slots(&mut lexical, key.owners().owners().len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut lexical, key.owners().owners().len(), &path)?;
     for parent in key.owners().owners() {
         lexical.push(match parent {
             DefinitionOwnerAtom::Type(owner) => SourceNominalId::Concrete(*owner),
@@ -52,7 +49,7 @@ pub(super) fn source_access(
             _ => return Err(Error::DeclarationMetadata(subject)),
         });
     }
-    let source = definition_source(metadata, subject, meter)?;
+    let source = definition_source(metadata, subject)?;
     DeclarationAccessSourceV1::try_new(visibility, lexical, source)
         .map_err(|_| Error::DeclarationMetadata(subject))
 }
@@ -60,21 +57,16 @@ pub(super) fn source_access(
 pub(super) fn definition_source(
     metadata: SharedTypeMetadataV1<'_>,
     subject: DefinitionOriginSubject,
-    meter: &mut BudgetMeter,
 ) -> Result<ExportDefinitionSourceV1, Error> {
-    let path = WirePath::root();
     let origin = metadata
         .foundation
         .definition_origin(subject)
         .ok_or(Error::DeclarationMetadata(subject))?;
-    let length =
-        scoop_wire::encoded_length(origin).map_err(|error| Error::Key(error.to_string()))?;
-    meter.charge_work(length, &path)?;
-    meter.charge_owned_bytes(length, &path)?;
+
     let source = ExportDefinitionSourceV1::new(origin.origin().clone());
     metadata
         .foundation
-        .validate_definition_source_location(metadata.provider, &source, meter, &path)
+        .validate_definition_source_location(metadata.provider, &source)
         .map_err(|_| Error::DeclarationMetadata(subject))?;
     Ok(source)
 }

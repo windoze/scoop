@@ -31,16 +31,11 @@ pub(super) fn check(
                     callables: &[core_mir.callables()],
                     dispatch: &[core_mir.dispatch()],
                 };
-                let exports = scoop_mir_lower::lower_type_bridge_exports(
-                    mir_input,
-                    dependencies,
-                    &mut meter(),
-                )
-                .unwrap();
+                let exports =
+                    scoop_mir_lower::lower_type_bridge_exports(mir_input, dependencies).unwrap();
                 let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
                     mir_input,
                     dependencies,
-                    &mut meter(),
                 )
                 .unwrap();
                 let mir = mir::CrossConeMirTypeBridgeSectionV1::try_new(
@@ -53,7 +48,6 @@ pub(super) fn check(
                     &[core_mir],
                     &source,
                     mir_input.identities,
-                    &mut meter(),
                 )
                 .unwrap_or_else(|error| panic!("{name} MIR dependency section: {error}"));
                 let input = scoop_lir_lower::LayoutAbiExportInputV1 {
@@ -65,13 +59,11 @@ pub(super) fn check(
                     callables: &[core_lir.callables()],
                 };
                 let exports =
-                    scoop_lir_lower::lower_layout_abi_exports(input, dependencies, &mut meter())
-                        .unwrap();
+                    scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
                 let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
                     input,
                     dependencies,
                     &source,
-                    &mut meter(),
                 )
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(
@@ -79,7 +71,6 @@ pub(super) fn check(
                     &[core_lir],
                     vec![],
                     &source,
-                    &mut meter(),
                 )
                 .unwrap_or_else(|error| panic!("{name} LIR dependency section: {error}"));
                 assert!(!layout.selected().is_empty());

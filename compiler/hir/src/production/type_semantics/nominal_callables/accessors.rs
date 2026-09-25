@@ -1,15 +1,14 @@
 use super::*;
 use scoop_identity::{CanonicalIdentifier, CoreBuiltinNominal, SignatureTypeKey};
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn accessors(&mut self) -> Result<(), Error> {
         for (id, property) in self.export.properties.iter() {
-            work(self.meter, 1)?;
             let getter = property.capability.getter();
             let declaration = CallableTemplateOrigin::Accessor(
                 self.export.property_accessor_identities[getter].id(),
             );
-            if self.take(declaration)? {
+            if self.take(declaration) {
                 let getter = &self.export.property_getters[getter];
                 self.accessor(
                     id,
@@ -24,7 +23,7 @@ impl Projection<'_, '_> {
                 let declaration = CallableTemplateOrigin::Accessor(
                     self.export.property_accessor_identities[setter].id(),
                 );
-                if self.take(declaration)? {
+                if self.take(declaration) {
                     let setter = &self.export.property_setters[setter];
                     self.accessor(
                         id,
@@ -84,21 +83,17 @@ impl Projection<'_, '_> {
                 "nominal source accessor identity has a different owner",
             ));
         }
-        resources::binders(self.export, parameters, parameters.len(), self.meter)?;
+
         let binders = self
             .signatures
             .binder_frame(parameters, 0)
             .map_err(invalid)?;
-        resources::ty(self.export, property_value.ty, binders.len(), 3, self.meter)?;
+
         let value_type = self
             .signatures
             .map_type(property_value.ty, &binders)
             .map_err(invalid)?;
         let (parameters, result) = if let Some(name) = setter_name {
-            resources::name(name, self.meter)?;
-            self.meter
-                .charge_collection_slots(1, &WirePath::root())
-                .map_err(resource)?;
             (
                 vec![SourceParameterShapeV1::new(
                     CanonicalIdentifier::new(name).map_err(invalid)?,

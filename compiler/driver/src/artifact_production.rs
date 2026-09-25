@@ -8,7 +8,6 @@ use scoop_slib::{
     CrossConeStrongArtifactInputV1, CrossConeStrongArtifactWriteError, DependencyRecord,
     ProducerRecord, PublishedCrossConeArtifact, publish_cross_cone_artifact,
 };
-use scoop_wire::DecodeLimits;
 
 use crate::CrossConeCodeFingerprintedObjectProductionV1;
 
@@ -118,12 +117,10 @@ impl AssembledCrossConeArtifactProductionV1 {
         self,
         destination: &Path,
         dependency_first: Vec<&[u8]>,
-        limits: DecodeLimits,
     ) -> Result<PublishedCrossConeArtifact, CrossConeArtifactProductionError> {
         publish_cross_cone_artifact(
             self.artifact.as_bytes(),
             destination,
-            limits,
             self.current,
             self.direct,
             dependency_first,

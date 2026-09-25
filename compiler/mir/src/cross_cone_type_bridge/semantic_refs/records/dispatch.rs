@@ -5,9 +5,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
         record: &ParamFreeMirDispatchSchemaV1,
         graph: &ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
+        let mut collector = Collector::new(graph);
         collector.exact(record.owner())?;
         let owner = types
             .get(record.owner())

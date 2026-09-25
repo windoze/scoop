@@ -1,7 +1,7 @@
 use super::*;
 use crate::*;
 use scoop_identity::*;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod support;
 use support::*;
@@ -11,7 +11,7 @@ fn decoded<T: scoop_wire::WireDecode + scoop_wire::WireEncode>(
     value: &impl scoop_wire::WireEncode,
 ) -> T {
     let bytes = encode(value).unwrap();
-    let restored = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let restored = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&restored).unwrap(), bytes);
     restored
 }
@@ -41,7 +41,7 @@ fn concrete_and_generic_source_roots_follow_canonical_bytes() {
     let mut resolver = Resolver::new();
     let mut values = resolver.roots();
     values.reverse();
-    let table = CanonicalSourceNominalIdsV1::try_new(values, &mut meter()).unwrap();
+    let table = CanonicalSourceNominalIdsV1::try_new(values).unwrap();
     let bytes = table
         .values()
         .iter()
@@ -49,7 +49,7 @@ fn concrete_and_generic_source_roots_follow_canonical_bytes() {
         .collect::<Vec<_>>();
     assert!(bytes.windows(2).all(|pair| pair[0] < pair[1]));
     let restored = decoded::<DecodedCanonicalSourceNominalIdsV1>(&table)
-        .resolve(&mut resolver, &mut meter())
+        .resolve(&mut resolver)
         .unwrap();
     assert_eq!(table, restored);
 }
@@ -66,9 +66,9 @@ fn nominal_snapshots_retain_access_lexical_order_and_origin() {
     ]
     .concat();
     assert_eq!(encode(&record).unwrap(), expected);
-    let table = CanonicalTypeSourceNominalsV1::try_new(vec![record.clone()], &mut meter()).unwrap();
+    let table = CanonicalTypeSourceNominalsV1::try_new(vec![record.clone()]).unwrap();
     let restored = decoded::<DecodedCanonicalTypeSourceNominalsV1>(&table)
-        .resolve(&mut resolver, &mut meter())
+        .resolve(&mut resolver)
         .unwrap();
     assert_eq!(restored, table);
     assert_eq!(restored.get(record.owner()), Some(&record));
@@ -93,9 +93,9 @@ fn dependency_inventory_orders_by_exact_and_retains_provider() {
         ]
         .concat()
     );
-    let table = CanonicalTypeSectionDependencyFactsV1::try_new(records, &mut meter()).unwrap();
+    let table = CanonicalTypeSectionDependencyFactsV1::try_new(records).unwrap();
     let restored = decoded::<DecodedCanonicalTypeSectionDependencyFactsV1>(&table)
-        .resolve(&mut resolver, &mut meter())
+        .resolve(&mut resolver)
         .unwrap();
     assert_eq!(restored, table);
     assert!(
@@ -110,14 +110,13 @@ fn dependency_inventory_orders_by_exact_and_retains_provider() {
 fn edge_inventory_reuses_existing_four_field_wire() {
     let mut resolver = Resolver::new();
     let edge = resolver.edge();
-    let table =
-        CanonicalNominalInheritanceEdgesV1::try_new(vec![edge.clone()], &mut meter()).unwrap();
+    let table = CanonicalNominalInheritanceEdgesV1::try_new(vec![edge.clone()]).unwrap();
     assert_eq!(
         encode(&table).unwrap(),
         [vec![0x81], encode(&edge).unwrap()].concat()
     );
     let restored = decoded::<DecodedCanonicalNominalInheritanceEdgesV1>(&table)
-        .resolve(&mut resolver, &mut meter())
+        .resolve(&mut resolver)
         .unwrap();
     assert_eq!(restored, table);
 }

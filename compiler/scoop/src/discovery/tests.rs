@@ -35,19 +35,13 @@ fn request(
     sysroot: &std::path::Path,
     search_roots: Vec<ArtifactSearchRoot>,
 ) -> BuildGraphRequest {
-    request_with_limits(
-        root,
-        sysroot,
-        search_roots,
-        BuildLimitsProfileV1::M23_DEFAULT,
-    )
+    request_with_limits(root, sysroot, search_roots)
 }
 
 fn request_with_limits(
     root: &std::path::Path,
     sysroot: &std::path::Path,
     search_roots: Vec<ArtifactSearchRoot>,
-    limits: BuildLimitsProfileV1,
 ) -> BuildGraphRequest {
     BuildGraphRequest::new(
         crate::BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
@@ -57,7 +51,6 @@ fn request_with_limits(
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
         DiagnosticsPolicy::Structured,
-        limits,
     )
     .unwrap()
 }

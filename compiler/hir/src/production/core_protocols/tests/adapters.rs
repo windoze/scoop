@@ -106,5 +106,5 @@ fn protocol_constructor_adapters_replay_actual_source_and_result_for_each_provid
 }
 
 fn decode(callable: &CoreProtocolCallableV1) -> DecodedCoreProtocolCallableV1 {
-    decode_canonical(&encode(callable).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(callable).unwrap()).unwrap()
 }

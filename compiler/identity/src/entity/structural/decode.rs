@@ -15,7 +15,7 @@ use crate::{
 };
 
 impl WireDecode for StructuralDefinitionSiteRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::LocalDeclaration),
             2 => Ok(Self::Lambda),
@@ -35,7 +35,7 @@ impl WireDecode for StructuralDefinitionSiteRole {
 }
 
 impl WireDecode for StructuralPathSegment {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self::new(
             decoder.field(1, StructuralDefinitionSiteRole::decode)?,
@@ -45,7 +45,7 @@ impl WireDecode for StructuralPathSegment {
 }
 
 impl WireDecode for StructuralDefinitionPath {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let segments = decoder.decode_array(|decoder, _| StructuralPathSegment::decode(decoder))?;
         Self::new(segments).map_err(|_| {
             wire_error(
@@ -84,7 +84,7 @@ impl WireEncode for DecodedDeclarationName {
 }
 
 impl WireDecode for DecodedDeclarationName {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -173,7 +173,7 @@ impl WireEncode for DecodedDefinitionOwnerAtom {
 }
 
 impl WireDecode for DecodedDefinitionOwnerAtom {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 2)?;
@@ -259,7 +259,7 @@ impl WireEncode for DecodedDefinitionOwnerChain {
 }
 
 impl WireDecode for DecodedDefinitionOwnerChain {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedDefinitionOwnerAtom::decode(decoder))
             .map(Self)
@@ -333,7 +333,7 @@ impl WireEncode for DecodedDeclarationScope {
 }
 
 impl WireDecode for DecodedDeclarationScope {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -377,11 +377,7 @@ fn encode_sum<T: WireEncode + ?Sized>(
     value.encode(encoder)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -392,13 +388,13 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::{DecodedDeclarationName, DecodedDeclarationScope, DecodedDefinitionOwnerChain};
     use crate::{
@@ -484,9 +480,7 @@ mod tests {
             DefinitionOwnerAtom::EnumVariant(PersistentEnumVariantId::from_test_bytes()),
         ]);
         let bytes = encode(&owners).unwrap();
-        let decoded =
-            decode_canonical::<DecodedDefinitionOwnerChain>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedDefinitionOwnerChain>(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), owners);
     }
 
@@ -503,16 +497,13 @@ mod tests {
             ),
         };
         let bytes = encode(&scope).unwrap();
-        let decoded =
-            decode_canonical::<DecodedDeclarationScope>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedDeclarationScope>(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), scope);
     }
 
     #[test]
     fn structural_decoder_rejects_empty_paths_unknown_roles_and_bad_names() {
-        let empty_path =
-            decode_canonical::<StructuralDefinitionPath>(b"\x80", DecodeLimits::default())
-                .unwrap_err();
+        let empty_path = decode_canonical::<StructuralDefinitionPath>(b"\x80").unwrap_err();
         assert_eq!(
             empty_path.kind(),
             &WireErrorKind::InvalidLength {
@@ -521,18 +512,12 @@ mod tests {
             }
         );
 
-        let unknown_role = decode_canonical::<StructuralPathSegment>(
-            b"\xa2\x01\x0d\x02\x00",
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let unknown_role =
+            decode_canonical::<StructuralPathSegment>(b"\xa2\x01\x0d\x02\x00").unwrap_err();
         assert_eq!(unknown_role.kind(), &WireErrorKind::UnknownTag { tag: 13 });
 
-        let bad_name = decode_canonical::<DecodedDeclarationName>(
-            b"\xa2\x00\x01\x01\x69not-valid",
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let bad_name =
+            decode_canonical::<DecodedDeclarationName>(b"\xa2\x00\x01\x01\x69not-valid").unwrap();
         assert!(bad_name.validate().is_err());
     }
 }

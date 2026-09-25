@@ -23,36 +23,19 @@ fn definition(
     }
 }
 
-pub(super) fn nominal_cost(
-    id: PersistentTypeId,
-    graph: &impl ExactTypeDiagnosticGraph,
-    meter: &mut BudgetMeter,
-) -> Result<usize, ExactTypeDiagnosticError> {
-    match definition(id, graph)? {
-        NominalDefinition::Source(source) => nominal_atom_cost(source, graph, meter),
-        NominalDefinition::Generated(key) => {
-            let path = WirePath::root();
-            let bytes = scoop_wire::encode_canonical_temporary_with_meter(key, meter, &path)?;
-            meter.charge_owned_bytes(bytes.len() as u64, &path)?;
-            meter.charge_sha256((bytes.len() as u64).saturating_add(64), &path)?;
-            if PersistentTypeId::from_generated_key(key).ok() != Some(id) {
-                return Err(ExactTypeDiagnosticError::InvalidGeneratedNominal(id));
-            }
-            Ok("g(r=;i=)".len() + 8 + 64)
-        }
-    }
-}
-
 pub(super) fn write_nominal(
     id: PersistentTypeId,
     graph: &impl ExactTypeDiagnosticGraph,
-    output: &mut String,
+    output: &mut NameOutput,
 ) -> Result<(), ExactTypeDiagnosticError> {
     match definition(id, graph)? {
         NominalDefinition::Source(source) => {
             super::render::write_nominal_atom(source, graph, output)
         }
         NominalDefinition::Generated(key) => {
+            if PersistentTypeId::from_generated_key(key).ok() != Some(id) {
+                return Err(ExactTypeDiagnosticError::InvalidGeneratedNominal(id));
+            }
             let tag: u32 = match key {
                 GeneratedNominalKey::ClosureEnvironment { .. } => 1,
                 GeneratedNominalKey::CallableAdapterEnvironment { .. } => 2,
@@ -63,22 +46,23 @@ pub(super) fn write_nominal(
                 GeneratedNominalKey::CoroutineSlot { .. } => 7,
                 GeneratedNominalKey::ObjectBackingClass { .. } => 8,
             };
-            output.push_str("g(r=");
+            output.push_str("g(r=")?;
             for byte in tag.to_be_bytes() {
-                write_hex(byte, output);
+                write_hex(byte, output)?;
             }
-            output.push_str(";i=");
+            output.push_str(";i=")?;
             for byte in id.as_array() {
-                write_hex(*byte, output);
+                write_hex(*byte, output)?;
             }
-            output.push(')');
+            output.push(')')?;
             Ok(())
         }
     }
 }
 
-fn write_hex(byte: u8, output: &mut String) {
+fn write_hex(byte: u8, output: &mut NameOutput) -> Result<(), ExactTypeDiagnosticError> {
     const HEX: &[u8; 16] = b"0123456789abcdef";
-    output.push(char::from(HEX[(byte >> 4) as usize]));
-    output.push(char::from(HEX[(byte & 15) as usize]));
+    output.push(char::from(HEX[(byte >> 4) as usize]))?;
+    output.push(char::from(HEX[(byte & 15) as usize]))?;
+    Ok(())
 }

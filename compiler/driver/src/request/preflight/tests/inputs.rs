@@ -40,14 +40,13 @@ fn explicit_artifact_is_read_during_preflight() {
     let dependencies = ExplicitDependencyInputs::new(
         vec![HostArtifactLocator::new(&missing).unwrap()],
         Vec::new(),
-    )
-    .unwrap();
+    );
 
     assert!(matches!(
         LoadedExplicitDependencyInputs::load(
             dependencies.direct(),
             dependencies.support(),
-            DecodeLimits::default(),
+
         ),
         Err(ExplicitDependencyLoadError::Io {
             input,
@@ -64,13 +63,10 @@ fn empty_core_dependencies_run_the_shared_closure() {
     let Ok(target) = scoop_toolchain::ResolvedTargetProfile::resolve_host() else {
         return;
     };
-    let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap();
-    let loaded = LoadedExplicitDependencyInputs::load(
-        dependencies.direct(),
-        dependencies.support(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new());
+    let loaded =
+        LoadedExplicitDependencyInputs::load(dependencies.direct(), dependencies.support())
+            .unwrap();
 
     let validated = loaded
         .validate_inner(None, ConeIdentity::CORE, &target)
@@ -98,12 +94,9 @@ fn core_dependency_inputs_use_the_shared_artifact_summary_validation() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("malformed.slib");
     std::fs::write(&path, b"malformed library").unwrap();
-    let loaded = LoadedExplicitDependencyInputs::load(
-        &[HostArtifactLocator::new(&path).unwrap()],
-        &[],
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let loaded =
+        LoadedExplicitDependencyInputs::load(&[HostArtifactLocator::new(&path).unwrap()], &[])
+            .unwrap();
     assert!(matches!(
         loaded.validate_inner(None, ConeIdentity::CORE, &target),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::Summary { input, .. }

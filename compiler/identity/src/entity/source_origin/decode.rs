@@ -104,7 +104,7 @@ impl WireEncode for DecodedSourceContextKey {
 }
 
 impl WireDecode for DecodedSourceContextKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -170,7 +170,7 @@ impl WireEncode for DecodedSourceSpan {
 }
 
 impl WireDecode for DecodedSourceSpan {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             start_byte: decoder.field(1, Decoder::unsigned)?,
@@ -213,7 +213,7 @@ impl WireEncode for DecodedDefinitionOrigin {
 }
 
 impl WireDecode for DecodedDefinitionOrigin {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             source: decoder.field(1, DecodedSourceIdentity::decode)?,
@@ -252,7 +252,7 @@ impl WireEncode for DecodedEvaluationOrigin {
 }
 
 impl WireDecode for DecodedEvaluationOrigin {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             source: decoder.field(1, DecodedSourceIdentity::decode)?,
@@ -294,7 +294,7 @@ impl WireEncode for DecodedConcreteExpressionOrigin {
 }
 
 impl WireDecode for DecodedConcreteExpressionOrigin {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             definition: decoder.field(1, DecodedDefinitionOrigin::decode)?,
@@ -342,7 +342,7 @@ impl WireEncode for DecodedExpressionOrigin {
 }
 
 impl WireDecode for DecodedExpressionOrigin {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -477,11 +477,7 @@ fn encode_origin(
     context.encode(encoder)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -493,7 +489,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

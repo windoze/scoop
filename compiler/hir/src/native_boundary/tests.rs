@@ -8,7 +8,7 @@ use scoop_identity::{
     PersistentIdResolver, PersistentKeyResolver, PersistentTypeId, SignatureTypeKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     DecodedNativeBoundaryTypeDefinitionRecord, NativeBoundaryCLayoutPolicy,
@@ -111,11 +111,8 @@ fn reference_struct_and_enum_shapes_roundtrip_without_reordering() {
         fixture.generic_struct_record(),
     ] {
         let bytes = encode(&record).unwrap();
-        let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
-            &bytes,
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), record);
     }
@@ -256,11 +253,7 @@ fn decoded_record_rejects_an_owner_count_mismatch() {
         + 34;
     assert_eq!(&bytes[owner_end..owner_end + 2], &[0x02, 0x01]);
     bytes[owner_end + 1] = 2;
-    let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(&bytes).unwrap();
     assert!(decoded.resolve(&mut fixture.resolver()).is_err());
 }
 
@@ -284,11 +277,7 @@ fn decoded_record_rejects_a_field_from_another_owner() {
         fixture.foreign_struct.0.as_array(),
         fixture.structure.0.as_array(),
     );
-    let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(&bytes).unwrap();
     assert!(decoded.resolve(&mut fixture.resolver()).is_err());
 }
 
@@ -302,13 +291,7 @@ fn unknown_shape_tag_is_rejected() {
         .unwrap()
         + 2;
     bytes[tag] = 4;
-    assert!(
-        decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(
-            &bytes,
-            DecodeLimits::default(),
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedNativeBoundaryTypeDefinitionRecord>(&bytes,).is_err());
 }
 
 struct Fixture {

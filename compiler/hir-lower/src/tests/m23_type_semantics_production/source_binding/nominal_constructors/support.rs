@@ -10,28 +10,22 @@ impl Sources {
         let source = hir::CanonicalNominalSourceContractsV1::from_export_hir(
             &output.output().export,
             &fixture.source.entries().source_roots,
-            &mut meter(),
         )
         .unwrap();
         let decoded: hir::DecodedCanonicalNominalSourceContractsV1 =
-            decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
-        let nominals = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&encode(&source).unwrap()).unwrap();
+        let nominals = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(nominals, source);
         let required = nominals
             .records()
             .iter()
             .flat_map(|n| n.constructors().values().iter().copied())
             .collect();
-        let source =
-            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let source = Table::from_export_hir(&output.output().export, &required).unwrap();
         let bytes = encode(&source).unwrap();
         let decoded: hir::DecodedCanonicalNominalSourceConstructorsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let constructors = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&bytes).unwrap();
+        let constructors = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(encode(&constructors).unwrap(), bytes);
         Self {
             nominals,
@@ -58,7 +52,6 @@ impl Sources {
                     }
                 })
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
     }

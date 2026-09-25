@@ -9,8 +9,6 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::SourceNominalIdResolver;
 
 mod errors;
-mod metered_resolution;
-mod metered_semantics;
 mod scope;
 mod semantics;
 
@@ -19,7 +17,6 @@ pub use errors::{
     TypeParameterBinderBuildError, TypeParameterBinderResolutionError,
     TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError,
 };
-pub use metered_semantics::MeteredSignatureTypeSemanticError;
 pub use scope::{
     SignatureBinderScopeError, SignatureBinderScopeV1, TypeParameterBinderScopeValidationError,
     TypeParameterBoundLocation,
@@ -111,7 +108,7 @@ impl WireEncode for DecodedCanonicalSignatureTypesV1 {
 }
 
 impl WireDecode for DecodedCanonicalSignatureTypesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
             .map(|values| Self { values })
@@ -255,7 +252,7 @@ impl WireEncode for DecodedTypeParameterBoundsV1 {
 }
 
 impl WireDecode for DecodedTypeParameterBoundsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -350,7 +347,7 @@ impl WireEncode for DecodedTypeParameterBinderV1 {
 }
 
 impl WireDecode for DecodedTypeParameterBinderV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             name: decoder.field(1, DecodedCanonicalIdentifier::decode)?,
@@ -447,7 +444,7 @@ impl WireEncode for DecodedCanonicalBinderListV1 {
 }
 
 impl WireDecode for DecodedCanonicalBinderListV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedTypeParameterBinderV1::decode(decoder))
             .map(|binders| Self { binders })
@@ -460,11 +457,7 @@ fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::c
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -475,7 +468,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

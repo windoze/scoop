@@ -18,7 +18,7 @@ pub(crate) fn encode_initialization_abi(
 }
 
 pub(crate) fn decode_initialization_abi(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Option<Box<DecodedCallableAbiRecordV1>>, WireError> {
     match decoder.array()? {
         0 => Ok(None),

@@ -25,8 +25,8 @@ fn default_provider_slots_reject_forged_presence_and_domains_in_every_reference_
                 .unwrap();
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
-                let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-                parameters.bind_default_declarations(&table, &[], &mut meter()).unwrap();
+                let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+                parameters.bind_default_declarations(&table, &[]).unwrap();
                 let replacements = if has_slot {
                     vec![Slot::Absent, Slot::Present(Domain::empty()), Slot::Present(Domain::universal())]
                 } else { vec![Slot::Present(Domain::universal())] };
@@ -36,7 +36,7 @@ fn default_provider_slots_reject_forged_presence_and_domains_in_every_reference_
                             hir::DefaultSourceAccessWitnessV1::try_new(w.owner(), w.direct_call_domain().clone(), slot.clone(), w.target_domain().clone()).unwrap()
                         }, output);
                         let changed = replace(&table, changed);
-                        let error = parameters.bind_default_declarations(&changed, &[], &mut meter()).unwrap_err();
+                        let error = parameters.bind_default_declarations(&changed, &[]).unwrap_err();
                         let Error::Record { key, error } = error else { panic!("record error") };
                         assert_eq!(key, original.key());
                         assert!(matches!(*error, Error::ProviderSlot(error) if matches!(*error, hir::DefaultSourceProviderSlotError::Witness { kind: actual, index: 0 } if actual == kind)));

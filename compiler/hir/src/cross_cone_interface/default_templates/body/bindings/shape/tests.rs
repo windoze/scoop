@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::CanonicalBooleanV1;
@@ -69,8 +69,7 @@ fn nested_shape_canonicalizes_fields_and_preserves_component_order() {
     let mut locals = LocalResolver::new(vec![parameter(0), parameter(1)]);
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
     assert_eq!(bytes[2], 4);
-    let decoded: DecodedDefaultBindingShapeV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultBindingShapeV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver, &mut locals), Ok(expected));
 }
 
@@ -117,11 +116,8 @@ fn producer_rejects_duplicate_struct_fields_and_class_components() {
 #[test]
 fn reader_rejects_noncanonical_fields_and_duplicate_components() {
     let mut locals = LocalResolver::new(Vec::new());
-    let decoded: DecodedDefaultBindingShapeV1 = decode_canonical(
-        &encode(&RawStructShape { fields: [2, 1] }).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultBindingShapeV1 =
+        decode_canonical(&encode(&RawStructShape { fields: [2, 1] }).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver, &mut locals),
         Err(DefaultBindingShapeResolutionError::Shape(
@@ -133,11 +129,8 @@ fn reader_rejects_noncanonical_fields_and_duplicate_components() {
         ))
     );
 
-    let decoded: DecodedDefaultBindingShapeV1 = decode_canonical(
-        &encode(&RawClassShape { components: [2, 2] }).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultBindingShapeV1 =
+        decode_canonical(&encode(&RawClassShape { components: [2, 2] }).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver, &mut locals),
         Err(DefaultBindingShapeResolutionError::Shape(
@@ -175,17 +168,12 @@ fn shape_indexing_error_preserves_nested_field_location() {
 
 #[test]
 fn shape_decoder_rejects_unknown_tags_and_zero_component_indices() {
-    let error = decode_canonical::<DecodedDefaultBindingShapeV1>(
-        &[0xa1, 0x00, 0x06],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultBindingShapeV1>(&[0xa1, 0x00, 0x06]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 6 });
 
-    let error = decode_canonical::<DecodedDefaultBindingClassComponentV1>(
-        &[0xa2, 0x01, 0x00, 0x02, 0xa1, 0x00, 0x02],
-        DecodeLimits::default(),
-    )
+    let error = decode_canonical::<DecodedDefaultBindingClassComponentV1>(&[
+        0xa2, 0x01, 0x00, 0x02, 0xa1, 0x00, 0x02,
+    ])
     .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::IntegerOutOfRange);
 }

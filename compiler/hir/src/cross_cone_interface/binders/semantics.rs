@@ -52,32 +52,50 @@ impl SignatureBinderScopeV1 {
     where
         A: NominalInterfaceShapeAuthority<E>,
     {
-        match signature {
-            SignatureTypeKey::Nominal(declaration) => {
-                validate_concrete_nominal(*declaration, authority).map(|_| ())
-            }
-            SignatureTypeKey::NominalApplication { origin, arguments } => {
-                validate_generic_nominal(*origin, arguments.as_slice(), self, authority).map(|_| ())
-            }
-            SignatureTypeKey::Tuple(elements) => {
-                self.validate_sequence_semantics(elements.as_slice(), authority)
-            }
-            SignatureTypeKey::Function {
-                parameters, result, ..
-            }
-            | SignatureTypeKey::NativeFunctionPointer {
-                parameters, result, ..
-            } => {
-                self.validate_sequence_semantics(parameters, authority)?;
-                self.validate_signature_semantics(result, authority)
-            }
-            SignatureTypeKey::RawPointer(pointee) => {
-                self.validate_signature_semantics(pointee, authority)
-            }
-            SignatureTypeKey::Binder { .. } => self
-                .validate(signature)
-                .map_err(SignatureTypeSemanticError::BinderScope),
+        use scoop_wire::allocation::try_reserve;
+        let path = &scoop_wire::WirePath::root();
+        let mut pending = Vec::new();
+        try_reserve(&mut pending, 1, path).map_err(SignatureTypeSemanticError::Allocation)?;
+        pending.push(signature);
+        while let Some(signature) = pending.pop() {
+            let children = match signature {
+                SignatureTypeKey::Nominal(declaration) => {
+                    validate_concrete_nominal(*declaration, authority)?;
+                    continue;
+                }
+                SignatureTypeKey::NominalApplication { origin, arguments } => {
+                    validate_generic_nominal_shape(*origin, arguments.as_slice().len(), authority)?;
+                    arguments.as_slice()
+                }
+                SignatureTypeKey::Tuple(elements) => elements.as_slice(),
+                SignatureTypeKey::Function {
+                    parameters, result, ..
+                }
+                | SignatureTypeKey::NativeFunctionPointer {
+                    parameters, result, ..
+                } => {
+                    try_reserve(&mut pending, 1, path)
+                        .map_err(SignatureTypeSemanticError::Allocation)?;
+                    pending.push(result.as_ref());
+                    parameters.as_slice()
+                }
+                SignatureTypeKey::RawPointer(pointee) => {
+                    try_reserve(&mut pending, 1, path)
+                        .map_err(SignatureTypeSemanticError::Allocation)?;
+                    pending.push(pointee.as_ref());
+                    continue;
+                }
+                SignatureTypeKey::Binder { .. } => {
+                    self.validate(signature)
+                        .map_err(SignatureTypeSemanticError::BinderScope)?;
+                    continue;
+                }
+            };
+            try_reserve(&mut pending, children.len(), path)
+                .map_err(SignatureTypeSemanticError::Allocation)?;
+            pending.extend(children.iter().rev());
         }
+        Ok(())
     }
 
     pub fn validate_nominal_signature_semantics<A, E>(
@@ -93,7 +111,11 @@ impl SignatureBinderScopeV1 {
                 validate_concrete_nominal(*declaration, authority)
             }
             SignatureTypeKey::NominalApplication { origin, arguments } => {
-                validate_generic_nominal(*origin, arguments.as_slice(), self, authority)
+                validate_generic_nominal_shape(*origin, arguments.as_slice().len(), authority)
+                    .and_then(|shape| {
+                        self.validate_sequence_semantics(arguments.as_slice(), authority)?;
+                        Ok(shape)
+                    })
             }
             signature => {
                 return Err(NominalSignatureSemanticError::NonNominal {
@@ -207,10 +229,9 @@ where
     Ok(shape)
 }
 
-fn validate_generic_nominal<A, E>(
+fn validate_generic_nominal_shape<A, E>(
     declaration: PersistentGenericTypeId,
-    arguments: &[SignatureTypeKey],
-    scope: &SignatureBinderScopeV1,
+    actual: usize,
     authority: &mut A,
 ) -> Result<PublicNominalShapeV1, SignatureTypeSemanticError<E>>
 where
@@ -219,14 +240,13 @@ where
     let shape = authority
         .generic_nominal_shape(declaration)
         .map_err(SignatureTypeSemanticError::Reference)?;
-    if usize::try_from(shape.type_parameter_arity()).ok() != Some(arguments.len()) {
+    if usize::try_from(shape.type_parameter_arity()).ok() != Some(actual) {
         return Err(SignatureTypeSemanticError::GenericNominalArity {
             declaration,
             expected: shape.type_parameter_arity(),
-            actual: arguments.len(),
+            actual,
         });
     }
-    scope.validate_sequence_semantics(arguments, authority)?;
     Ok(shape)
 }
 
@@ -276,6 +296,7 @@ impl<E: std::error::Error + 'static> std::error::Error for NominalSignatureSeman
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SignatureTypeSemanticError<E> {
+    Allocation(scoop_wire::WireError),
     BinderScope(SignatureBinderScopeError),
     Reference(E),
     ConcreteNominalArity {
@@ -292,6 +313,7 @@ pub enum SignatureTypeSemanticError<E> {
 impl<E: fmt::Display> fmt::Display for SignatureTypeSemanticError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Allocation(error) => error.fmt(formatter),
             Self::BinderScope(error) => error.fmt(formatter),
             Self::Reference(error) => write!(formatter, "invalid nominal reference: {error}"),
             Self::ConcreteNominalArity {

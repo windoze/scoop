@@ -79,22 +79,14 @@ fn nested_enum_shape_closes_variant_constructor_through_typed_variant_protocol()
     )
     .unwrap();
     let decoded: DecodedProtectedNestedNominalInterfaceV1 =
-        decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+        decode_canonical(&encode(&record).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     record
-        .validate_source(
-            &graph,
-            &representations(&fixture),
-            &mut fixture,
-            &mut meter(),
-        )
+        .validate_source(&graph, &representations(&fixture), &mut fixture)
         .unwrap();
     let mut missing = record.payload().source_interface().clone();
     missing.source_support = CanonicalNestedSourceSupportV1::default();

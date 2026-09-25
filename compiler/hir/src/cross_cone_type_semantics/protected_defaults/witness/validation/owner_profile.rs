@@ -58,7 +58,6 @@ impl<'a> ProtectedDefaultOwnerSourceV1<'a> {
         self,
         key: ProtectedDefaultTemplateKeyV1,
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedDefaultOwnerProfileV1<'a>, ProtectedDefaultWitnessSourceError<E>>
     {
         use ProtectedDefaultWitnessSourceError as Error;
@@ -67,14 +66,12 @@ impl<'a> ProtectedDefaultOwnerSourceV1<'a> {
         }
         let access = self.declaration_access();
         let owners = access.source().lexical_owners();
-        meter
-            .charge_work(owners.len() as u64, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let generic = owners
             .iter()
             .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)));
         let profile = authority
-            .default_access_profile(key, meter)
+            .default_access_profile(key)
             .map_err(Error::Foundation)?;
         let valid = match profile {
             ProtectedDefaultWitnessSourceProfileV1::ParamFree => {

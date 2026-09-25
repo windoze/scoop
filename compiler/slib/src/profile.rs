@@ -1,10 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
-use scoop_wire::{
-    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use crate::MemberPurposeSet;
 
@@ -111,7 +108,6 @@ impl ArtifactCapabilityProfile {
                         odr: OdrValidationPolicy::IdentityOnlyNonPublishable,
                         extra_sections:
                             ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-                        decode_cost_model: SlibDecodeCostModel::DeterministicLogicalCost,
                         link_proof: LinkProofPolicy::Forbidden,
                     },
                 }
@@ -140,7 +136,6 @@ impl ArtifactCapabilityProfile {
                         odr: OdrValidationPolicy::RejectAll,
                         extra_sections:
                             ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-                        decode_cost_model: SlibDecodeCostModel::DeterministicLogicalCost,
                         link_proof: LinkProofPolicy::Required,
                     },
                 }
@@ -173,7 +168,6 @@ impl ArtifactCapabilityProfile {
                         odr: OdrValidationPolicy::RejectAll,
                         extra_sections:
                             ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-                        decode_cost_model: SlibDecodeCostModel::DeterministicLogicalCost,
                         link_proof: LinkProofPolicy::Required,
                     },
                 }

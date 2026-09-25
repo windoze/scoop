@@ -8,7 +8,7 @@ use scoop_hir::{
 use scoop_identity::{
     CallableTemplateOrigin, StructuralDefinitionPath, StructuralDefinitionSiteRole,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{DefaultNominalShapes, Error};
 
@@ -34,34 +34,20 @@ pub(super) fn contract<'a>(
     declaration: CallableTemplateOrigin,
     selection: ParameterSelection,
     shapes: &DefaultNominalShapes<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<DefaultTemplateDeclarationContractV1<'a>, Error> {
-    meter.charge_work(
-        u64::from(
-            interface
-                .callable_interfaces()
-                .declaration_count()
-                .max(1)
-                .ilog2(),
-        ) + 1,
-        path,
-    )?;
     let callable = interface
         .callable_interfaces()
         .declaration(declaration)
         .ok_or(Error::MissingDeclaration(declaration))?;
-    meter.charge_work(
-        u64::from(interface.source_interfaces().records().len().max(1).ilog2()) + 1,
-        path,
-    )?;
+
     let protocol = interface
         .source_interfaces()
         .get(declaration)
         .ok_or(Error::MissingProtocol(declaration))?;
     let parameters = protocol.parameters().parameters();
-    meter.check_table_entries(parameters.len() as u64, path)?;
-    meter.charge_work(parameters.len() as u64 * 2 + 1, path)?;
+
     let position = match selection {
         ParameterSelection::Position(position) => position as usize,
         ParameterSelection::DefaultOrdinal(ordinal) => parameters
@@ -96,7 +82,7 @@ pub(super) fn contract<'a>(
         .map_err(|_| Error::MissingDeclaration(declaration))?;
     let receiver = match callable.owner() {
         PublicDeclarationOwnerV1::Nominal(owner) => shape
-            .nominal_source_receiver(root, owner, meter, path)
+            .nominal_source_receiver(root, owner, path)
             .map_err(Error::ReceiverShape)?
             .map(Cow::Owned),
         PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => {

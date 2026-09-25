@@ -64,7 +64,6 @@ pub(super) fn check(
             callables: &[],
             dispatch: &[],
         },
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(
@@ -101,7 +100,6 @@ fn reject_missing_shared_occurrences(
             callables: &[],
             dispatch: &[],
         },
-        &mut meter(),
     );
     assert!(matches!(
         result,

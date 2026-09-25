@@ -10,8 +10,7 @@ fn seven_field_wire_round_trips_only_after_full_closure_replay() {
     let section = consumer.section(&[&terminal], &graph).unwrap();
     let bytes = encode(&section).unwrap();
     assert_eq!(bytes[0], 0xa7);
-    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let replayed = decoded
         .validate(
@@ -19,7 +18,6 @@ fn seven_field_wire_round_trips_only_after_full_closure_replay() {
             &[&terminal],
             &consumer.source,
             &mut graph,
-            &mut meter(),
         )
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);
@@ -52,11 +50,7 @@ fn decoded_with_selected(
             sequence(encoder, self.1)
         }
     }
-    decode_canonical(
-        &encode(&Records(section, selected)).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
+    decode_canonical(&encode(&Records(section, selected)).unwrap()).unwrap()
 }
 
 #[test]
@@ -73,8 +67,7 @@ fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
                 consumer.authority(),
                 &[&terminal],
                 &consumer.source,
-                &mut graph,
-                &mut meter()
+                &mut graph
             ),
             Err(MirTypeBridgeSectionError::SelectedClosure)
         ));
@@ -84,8 +77,7 @@ fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
             consumer.authority(),
             &[&terminal],
             &consumer.source,
-            &mut graph,
-            &mut meter()
+            &mut graph
         ),
         Err(MirTypeBridgeSectionError::NonCanonicalSelected { .. })
     ));
@@ -94,8 +86,7 @@ fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
             consumer.authority(),
             &[&terminal],
             &consumer.source,
-            &mut graph,
-            &mut meter()
+            &mut graph
         ),
         Err(MirTypeBridgeSectionError::SelectedCurrentProvider)
     ));
@@ -107,16 +98,10 @@ fn wire_requires_all_seven_fields_and_their_registered_tags() {
     let section = fixture.section(&[], &fixture.types.graph).unwrap();
     let mut bytes = encode(&section).unwrap();
     bytes[0] = 0xa6;
-    assert!(
-        decode_canonical::<DecodedCrossConeMirTypeBridgeSectionV1>(&bytes, DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedCrossConeMirTypeBridgeSectionV1>(&bytes).is_err());
     let mut bytes = encode(&section).unwrap();
     let last = bytes.len() - 2;
     assert_eq!(bytes[last], 7);
     bytes[last] = 8;
-    assert!(
-        decode_canonical::<DecodedCrossConeMirTypeBridgeSectionV1>(&bytes, DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedCrossConeMirTypeBridgeSectionV1>(&bytes).is_err());
 }

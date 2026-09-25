@@ -9,9 +9,9 @@ fn exports(fixture: &DispatchFixture) -> MirTypeBridgeExportConstituentsV1 {
         fixture.types.clone(),
         fixture.callables.clone(),
         fixture.table(),
-        CanonicalMirObjectValuesV1::try_new(vec![], &mut meter()).unwrap(),
+        CanonicalMirObjectValuesV1::try_new(vec![]).unwrap(),
         empty_shapes(&fixture.graph, &fixture.types),
-        CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
+        CanonicalMirExternalInitializationUsesV1::try_new(vec![]).unwrap(),
     )
 }
 
@@ -79,7 +79,6 @@ fn independently_valid_dispatch_cannot_change_the_source_override_selection() {
         actual.owner(),
         MirClassVtableSchemaV1::ClassVtable(vec![fixture.virtual_entry(false)]),
         actual.itables().to_vec(),
-        &mut meter(),
     )
     .unwrap();
     source.expected.dispatch = CanonicalMirDispatchSchemasV1::try_new(
@@ -97,7 +96,6 @@ fn independently_valid_dispatch_cannot_change_the_source_override_selection() {
                 }
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(source.check(&exports(&fixture), &fixture.graph),

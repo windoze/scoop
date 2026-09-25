@@ -40,7 +40,7 @@ impl WireEncode for DecodedStrongTypeDescriptorRefV2 {
 }
 
 impl WireDecode for DecodedStrongTypeDescriptorRefV2 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = d.map()?;
         let kind = d.field(0, Decoder::unsigned)?;
         match kind {
@@ -102,7 +102,7 @@ impl WireEncode for DecodedOptionalStrongTypeDescriptorRefV2 {
 }
 
 impl WireDecode for DecodedOptionalStrongTypeDescriptorRefV2 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = d.map()?;
         let kind = d.field(0, Decoder::unsigned)?;
         match kind {
@@ -171,7 +171,7 @@ impl WireEncode for DecodedStrongTypeDispatchCallableRefV2 {
 }
 
 impl WireDecode for DecodedStrongTypeDispatchCallableRefV2 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = d.map()?;
         let kind = d.field(0, Decoder::unsigned)?;
         match kind {

@@ -141,51 +141,6 @@ pub(super) fn projection(
     rows.concat()
 }
 
-pub(super) fn resources(
-    input: &scoop_mir::SingleConeStrongMirInput,
-    graph: &scoop_identity::ValidatedIdentityGraph,
-    sources: &CanonicalParamFreeMirTypeExportsV1,
-) {
-    let limits = DecodeLimits::default();
-    let mut meter = BudgetMeter::new(limits);
-    CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-        input, sources, graph, &mut meter,
-    )
-    .unwrap();
-    let first = meter.usage();
-    assert!(first.validation_work_units > 0 && first.owned_bytes > 0);
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: first.validation_work_units,
-        ..limits
-    });
-    CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-        input,
-        sources,
-        graph,
-        &mut shared,
-    )
-    .unwrap();
-    assert!(matches!(
-        CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-            input,
-            sources,
-            graph,
-            &mut shared
-        ),
-        Err(scoop_mir::MirTypeBridgeError::Resource(_))
-    ));
-    let mut empty = BudgetMeter::new(DecodeLimits {
-        owned_bytes: 0,
-        ..limits
-    });
-    assert!(matches!(
-        CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-            input, sources, graph, &mut empty
-        ),
-        Err(scoop_mir::MirTypeBridgeError::Resource(_))
-    ));
-}
-
 pub(super) fn hidden_box(
     input: &scoop_mir::SingleConeStrongMirInput,
     records: &CanonicalParamFreeMirTypeExportsV1,

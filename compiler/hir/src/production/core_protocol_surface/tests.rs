@@ -1,18 +1,12 @@
 use scoop_identity::{Effect, SignatureCallableShape, SignatureTypeKey};
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
 #[test]
 fn compiler_protocol_surface_is_a_closed_eight_field_product() {
     for bytes in [vec![0xa7], vec![0xa9], vec![0xa8, 0x09, 0x00]] {
-        assert!(
-            decode_canonical::<DecodedCoreCompilerProtocolSurfaceV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCoreCompilerProtocolSurfaceV1>(&bytes,).is_err());
     }
 
     let (surface, foundation) = test_support::standalone();
@@ -21,9 +15,7 @@ fn compiler_protocol_surface_is_a_closed_eight_field_product() {
     let mut retired = bytes.clone();
     retired[0] = 0xa9;
     retired.extend([0x09, 0x80]);
-    let error =
-        decode_canonical::<DecodedCoreCompilerProtocolSurfaceV1>(&retired, DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedCoreCompilerProtocolSurfaceV1>(&retired).unwrap_err();
     assert!(matches!(
         error.kind(),
         scoop_wire::WireErrorKind::InvalidLength {
@@ -31,8 +23,7 @@ fn compiler_protocol_surface_is_a_closed_eight_field_product() {
             actual: 9
         }
     ));
-    let decoded: DecodedCoreCompilerProtocolSurfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCoreCompilerProtocolSurfaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.validate_against(&foundation), Ok(surface));
 }
 
@@ -165,7 +156,7 @@ fn compiler_protocol_surface_replays_owner_variant_and_dispatch_relations() {
 }
 
 fn decode(surface: &CoreCompilerProtocolSurfaceV1) -> DecodedCoreCompilerProtocolSurfaceV1 {
-    decode_canonical(&encode(surface).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(surface).unwrap()).unwrap()
 }
 
 #[test]

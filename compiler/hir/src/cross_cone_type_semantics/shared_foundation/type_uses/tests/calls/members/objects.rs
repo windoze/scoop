@@ -40,9 +40,7 @@ fn shared_member_calls_keep_source_objects_distinct_from_their_backing_classes()
     ]);
     let actual = consumer.uses(&dependencies).unwrap();
     assert_eq!(actual, selected(expected));
-    consumer
-        .validate(&actual, &dependencies, &mut meter())
-        .unwrap();
+    consumer.validate(&actual, &dependencies).unwrap();
     snapshot("member-source-object", &actual);
     consumer.change_last_receiver(exact(backing.id()));
     assert!(matches!(

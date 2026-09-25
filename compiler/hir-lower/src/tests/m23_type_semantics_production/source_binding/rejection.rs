@@ -14,7 +14,7 @@ fn source_origins_require_foundation_context_file_points_and_typed_subject() {
         let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let error = fixture
             .source
-            .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+            .bind_to_foundation(&incomplete, &fixture.identities)
             .unwrap_err();
         assert!(matches!(
             (field, error),
@@ -38,9 +38,9 @@ fn source_origins_require_foundation_context_file_points_and_typed_subject() {
     let mut sources = entries.definition_sources.sources().to_vec();
     sources.push(hir::ExportDefinitionSourceV1::new(new_origin));
     entries.definition_sources = hir::CanonicalExportDefinitionSourcesV1::try_new(sources).unwrap();
-    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries, &mut meter()).unwrap();
+    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries).unwrap();
     assert!(matches!(
-        source.bind_to_foundation(&fixture.foundation, &fixture.identities, &mut meter()),
+        source.bind_to_foundation(&fixture.foundation, &fixture.identities),
         Err(hir::TypeFoundationBindingError::MissingSourcePoint(1))
     ));
 }
@@ -50,9 +50,9 @@ fn a_source_snapshot_cannot_choose_a_foreign_provider_or_fake_lexical_owner() {
     let fixture = Fixture::from_output(&lower_public_nominals());
     let mut entries = fixture.source.clone().into_entries();
     entries.provider = ConeIdentity::CORE;
-    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries, &mut meter()).unwrap();
+    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries).unwrap();
     assert!(matches!(
-        source.bind_to_foundation(&fixture.foundation, &fixture.identities, &mut meter()),
+        source.bind_to_foundation(&fixture.foundation, &fixture.identities),
         Err(hir::TypeFoundationBindingError::ForeignNominal(_))
     ));
 
@@ -84,12 +84,11 @@ fn a_source_snapshot_cannot_choose_a_foreign_provider_or_fake_lexical_owner() {
                 )
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap();
-    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries, &mut meter()).unwrap();
+    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries).unwrap();
     assert!(matches!(
-        source.bind_to_foundation(&fixture.foundation, &fixture.identities, &mut meter()),
+        source.bind_to_foundation(&fixture.foundation, &fixture.identities),
         Err(hir::TypeFoundationBindingError::Access { .. })
     ));
 }
@@ -130,9 +129,9 @@ fn object_binding_requires_both_declared_generated_and_exact_source_refs() {
         PersistentExactTypeId::from_key(&scoop_identity::ExactTypeKey::Nominal(backing)).unwrap();
     let mut entries = fixture.source.clone().into_entries();
     entries.generated_nominals = hir::CanonicalPersistentIdsV1::empty();
-    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries, &mut meter()).unwrap();
+    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries).unwrap();
     assert!(matches!(
-        source.bind_to_foundation(&fixture.foundation, &fixture.identities, &mut meter()),
+        source.bind_to_foundation(&fixture.foundation, &fixture.identities),
         Err(hir::TypeFoundationBindingError::MissingGenerated(id)) if id == backing
     ));
     let mut entries = fixture.source.clone().into_entries();
@@ -146,8 +145,8 @@ fn object_binding_requires_both_declared_generated_and_exact_source_refs() {
             .collect(),
     )
     .unwrap();
-    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries, &mut meter()).unwrap();
+    let source = hir::TypeFoundationSourceAuthorityV1::try_new(entries).unwrap();
     assert!(
-        matches!(source.bind_to_foundation(&fixture.foundation, &fixture.identities, &mut meter()), Err(hir::TypeFoundationBindingError::MissingExact(id)) if id == exact)
+        matches!(source.bind_to_foundation(&fixture.foundation, &fixture.identities), Err(hir::TypeFoundationBindingError::MissingExact(id)) if id == exact)
     );
 }

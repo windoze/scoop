@@ -1,6 +1,5 @@
 use super::{CheckedExactTypeFactsV1, ExactTypeFactsV1};
 use scoop_identity::PersistentExactTypeId;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 /// A single fact obtained from an already validated table. It cannot be
 /// created from a transported fact record alone.
@@ -27,19 +26,12 @@ pub trait ExactTypeFactsDependencyLookupV1 {
     fn get_dependency_fact(
         &self,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<CheckedExactTypeFactV1<'_>>, WireError>;
+    ) -> Option<CheckedExactTypeFactV1<'_>>;
 }
 pub(super) struct NoDependencies;
 impl ExactTypeFactsDependencyLookupV1 for NoDependencies {
-    fn get_dependency_fact(
-        &self,
-        _: PersistentExactTypeId,
-        _: &mut BudgetMeter,
-        _: &WirePath,
-    ) -> Result<Option<CheckedExactTypeFactV1<'_>>, WireError> {
-        Ok(None)
+    fn get_dependency_fact(&self, _: PersistentExactTypeId) -> Option<CheckedExactTypeFactV1<'_>> {
+        None
     }
 }
 

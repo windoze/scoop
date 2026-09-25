@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     CheckedDeclarationAccessSourceV1, DeclarationAccessSourceV1, DeclaredVisibilityV1,
@@ -51,9 +51,8 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
     pub fn validate_access_domain<'g>(
         &'g self,
         domain: &PersistentAccessDomainV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedPersistentAccessDomainV1<'g, 'a>, AccessDomainSemanticError> {
-        let normalized = normalization::normalize(self, domain, meter)?;
+        let normalized = normalization::normalize(self, domain)?;
         if &normalized != domain {
             return Err(AccessDomainSemanticError::NonCanonicalEmpty);
         }
@@ -66,36 +65,32 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
     pub fn replay_nominal_access<'g>(
         &'g self,
         owner: SourceNominalId,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedDeclarationAccessDomainsV1<'g, 'a>, AccessDomainSemanticError> {
         let source = self
             .source(owner)
             .ok_or(InheritanceQueryError::UnknownSource(owner))?;
-        self.replay_access(source.access, meter)
+        self.replay_access(source.access)
     }
 
     pub fn replay_declaration_access<'g>(
         &'g self,
         source: CheckedDeclarationAccessSourceV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedDeclarationAccessDomainsV1<'g, 'a>, AccessDomainSemanticError> {
-        self.replay_access(source.source(), meter)
+        self.replay_access(source.source())
     }
 
     pub fn replay_variant_access<'g>(
         &'g self,
         source: crate::CheckedEnumVariantAccessSourceV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedDeclarationAccessDomainsV1<'g, 'a>, AccessDomainSemanticError> {
-        self.replay_access(source.source(), meter)
+        self.replay_access(source.source())
     }
 
     pub(in crate::cross_cone_type_semantics) fn replay_access<'g>(
         &'g self,
         source: &DeclarationAccessSourceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedDeclarationAccessDomainsV1<'g, 'a>, AccessDomainSemanticError> {
-        let declared = self.declared_domain(source, meter)?;
+        let declared = self.declared_domain(source)?;
         let mut lookup = declared.clone();
         for owner in source.lexical_owners() {
             let ancestor = self
@@ -106,20 +101,14 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
             {
                 return Err(AccessDomainSemanticError::OwnerSource(*owner));
             }
-            let domain = self.declared_domain(ancestor.access, meter)?;
-            let slots = lookup.constraints().len() as u64 + domain.constraints().len() as u64;
-            meter
-                .charge_collection_slots(slots, &WirePath::root())
-                .map_err(AccessDomainSemanticError::Resource)?;
-            meter
-                .charge_work(slots.saturating_mul(slots), &WirePath::root())
-                .map_err(AccessDomainSemanticError::Resource)?;
+            let domain = self.declared_domain(ancestor.access)?;
+
             lookup = lookup
                 .intersect(&domain)
                 .map_err(AccessDomainSemanticError::Encoding)?;
         }
-        let declared = normalization::normalize(self, &declared, meter)?;
-        let lookup = normalization::normalize(self, &lookup, meter)?;
+        let declared = normalization::normalize(self, &declared)?;
+        let lookup = normalization::normalize(self, &lookup)?;
         Ok(ReplayedDeclarationAccessDomainsV1 {
             declared: CheckedPersistentAccessDomainV1 {
                 graph: self,
@@ -135,11 +124,7 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
     fn declared_domain(
         &self,
         source: &DeclarationAccessSourceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<PersistentAccessDomainV1, AccessDomainSemanticError> {
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(AccessDomainSemanticError::Resource)?;
         let constraints = match (source.declared_visibility(), source.lexical_owners().last()) {
             (DeclaredVisibilityV1::Public, _) => vec![],
             (DeclaredVisibilityV1::Internal, _) => vec![Constraint::Cone(
@@ -159,9 +144,7 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
                 return Err(AccessDomainSemanticError::NotProtectedMember);
             }
         };
-        meter
-            .charge_collection_slots(constraints.len() as u64, &WirePath::root())
-            .map_err(AccessDomainSemanticError::Resource)?;
+
         PersistentAccessDomainV1::try_from_constraints(constraints)
             .map_err(AccessDomainSemanticError::Encoding)
     }
@@ -169,23 +152,18 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
     fn scope_classes(
         &self,
         scope: SourceNominalId,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<scoop_identity::PersistentExactTypeId>, AccessDomainSemanticError> {
         let source = self
             .source(scope)
             .ok_or(InheritanceQueryError::UnknownSource(scope))?;
         let mut classes = Vec::new();
-        meter
-            .try_reserve_collection_slots(
-                &mut classes,
-                source.access.lexical_owners().len() + 1,
-                &WirePath::root(),
-            )
-            .map_err(AccessDomainSemanticError::Resource)?;
+        scoop_wire::allocation::try_reserve(
+            &mut classes,
+            source.access.lexical_owners().len() + 1,
+            &WirePath::root(),
+        )
+        .map_err(AccessDomainSemanticError::Resource)?;
         for owner in std::iter::once(&scope).chain(source.access.lexical_owners().iter().rev()) {
-            meter
-                .charge_work(1, &WirePath::root())
-                .map_err(AccessDomainSemanticError::Resource)?;
             if self.is_class_access_scope(*owner)? {
                 let exact = self.source_exact(*owner)?;
                 self.access_class_exact(exact)?;

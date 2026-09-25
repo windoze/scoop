@@ -7,7 +7,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::*;
 
 impl WireDecode for DecodedExactDispatchExportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             semantic: DecodedExactDispatchSemanticProjectionV1::decode_fields(decoder)?,
@@ -17,7 +17,7 @@ impl WireDecode for DecodedExactDispatchExportV1 {
 }
 
 impl WireDecode for DecodedCanonicalExactDispatchExportsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExactDispatchExportV1::decode(decoder))
             .map(|records| Self { records })
@@ -25,7 +25,7 @@ impl WireDecode for DecodedCanonicalExactDispatchExportsV1 {
 }
 
 impl WireDecode for DecodedExactDispatchRoleV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match (fields, tag) {
@@ -39,7 +39,7 @@ impl WireDecode for DecodedExactDispatchRoleV1 {
 }
 
 impl WireDecode for DecodedExactDispatchEntryV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             position: decoder.field(1, Decoder::u32)?,
@@ -52,7 +52,7 @@ impl WireDecode for DecodedExactDispatchEntryV1 {
 }
 
 impl WireDecode for DecodedExactDispatchSlotSignatureV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             exact: decoder.field(1, DecodedExactCallableSignature::decode)?,
@@ -62,7 +62,7 @@ impl WireDecode for DecodedExactDispatchSlotSignatureV1 {
 }
 
 impl WireDecode for DecodedExactDispatchReceiverAdaptationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::Identity),
@@ -73,7 +73,7 @@ impl WireDecode for DecodedExactDispatchReceiverAdaptationV1 {
 }
 
 impl WireDecode for DecodedExactDispatchImplementationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match (fields, tag) {
@@ -234,7 +234,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),
@@ -243,7 +243,7 @@ fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
 }
 
 impl DecodedExactDispatchSemanticProjectionV1 {
-    fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(Self {
             table: decoder.field(1, DecodedPersistentId::decode)?,
             owner_exact: decoder.field(2, DecodedPersistentId::decode)?,
@@ -265,7 +265,7 @@ impl DecodedExactDispatchSemanticProjectionV1 {
     }
 }
 impl WireDecode for DecodedExactDispatchSemanticProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Self::decode_fields(decoder)
     }

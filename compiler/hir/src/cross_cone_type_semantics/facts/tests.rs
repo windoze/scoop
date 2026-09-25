@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentIdMismatch, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
     SourceNominalKind,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -59,8 +59,7 @@ fn fact_wire_has_fixed_closed_products_and_typed_identity() {
     ]
     .concat();
     assert_eq!(encode(&record).unwrap(), expected);
-    let decoded: DecodedExactTypeFactsV1 =
-        decode_canonical(&expected, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExactTypeFactsV1 = decode_canonical(&expected).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver(record.exact())).unwrap(),
         record
@@ -95,7 +94,7 @@ fn impossible_gc_combinations_cannot_form_resolved_facts() {
         &[0xa2, 0, 2, 1, 0][..],
         &[0xa1, 1, 1][..],
     ] {
-        assert!(decode_canonical::<ExactTypeKindV1>(bytes, DecodeLimits::default()).is_err());
+        assert!(decode_canonical::<ExactTypeKindV1>(bytes).is_err());
     }
 }
 
@@ -109,8 +108,7 @@ fn facts_table_canonicalizes_production_and_rejects_duplicate_wire() {
         &encode(&record).unwrap(),
     ]
     .concat();
-    let decoded: DecodedCanonicalExactTypeFactsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalExactTypeFactsV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut Resolver(record.exact())),
         Err(ExactTypeFactsTableResolutionError::Order(_))
@@ -126,10 +124,6 @@ impl ExactTypeFactsSemanticAuthority<&'static str> for Shapes {
     fn fact_shape(&self, id: PersistentExactTypeId) -> Result<&ExactTypeFactShapeV1, &'static str> {
         self.0.get(&id).ok_or("missing shape")
     }
-}
-
-fn budget() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 #[test]
@@ -150,7 +144,7 @@ fn nested_zst_and_pointer_facts_are_replayed_from_semantic_shapes() {
     let table = CanonicalExactTypeFactsV1::try_new(vec![unit, nested, pointer]).unwrap();
     assert_eq!(
         table
-            .validate_semantics(&shapes, &mut budget())
+            .validate_semantics(&shapes)
             .unwrap()
             .get(nested.exact()),
         Some(&nested)
@@ -162,7 +156,7 @@ fn nested_zst_and_pointer_facts_are_replayed_from_semantic_shapes() {
     ])
     .unwrap();
     assert!(matches!(
-        forged.validate_semantics(&shapes, &mut budget()),
+        forged.validate_semantics(&shapes),
         Err(ExactTypeFactsSemanticError::Mismatch { .. })
     ));
 }
@@ -175,11 +169,11 @@ fn enum_is_nonzero_even_when_its_payload_is_empty() {
         ExactTypeFactShapeV1::Enum { variants: vec![] },
     )]));
     let table = CanonicalExactTypeFactsV1::try_new(vec![enumeration]).unwrap();
-    table.validate_semantics(&shapes, &mut budget()).unwrap();
+    table.validate_semantics(&shapes).unwrap();
     let forged =
         CanonicalExactTypeFactsV1::try_new(vec![facts("Flag", ZstStatus::ZeroSized)]).unwrap();
     assert!(matches!(
-        forged.validate_semantics(&shapes, &mut budget()),
+        forged.validate_semantics(&shapes),
         Err(ExactTypeFactsSemanticError::Mismatch { .. })
     ));
 }
@@ -204,12 +198,12 @@ fn by_value_cycles_missing_closure_and_zst_c_layout_fields_are_rejected() {
         ),
     ]));
     assert!(matches!(
-        table.validate_semantics(&cycle, &mut budget()),
+        table.validate_semantics(&cycle),
         Err(ExactTypeFactsSemanticError::ByValueCycle(_))
     ));
     let only_a = CanonicalExactTypeFactsV1::try_new(vec![a]).unwrap();
     assert!(matches!(
-        only_a.validate_semantics(&cycle, &mut budget()),
+        only_a.validate_semantics(&cycle),
         Err(ExactTypeFactsSemanticError::MissingFacts(_))
     ));
     let c_layout = Shapes(BTreeMap::from([
@@ -222,26 +216,8 @@ fn by_value_cycles_missing_closure_and_zst_c_layout_fields_are_rejected() {
         (b.exact(), ExactTypeFactShapeV1::Unit),
     ]));
     assert!(matches!(
-        table.validate_semantics(&c_layout, &mut budget()),
+        table.validate_semantics(&c_layout),
         Err(ExactTypeFactsSemanticError::ZeroSizedCLayoutField { .. })
-    ));
-}
-
-#[test]
-fn replay_respects_shared_logical_budget_before_traversal() {
-    let a = facts("A", ZstStatus::ZeroSized);
-    let shapes = Shapes(BTreeMap::from([(
-        a.exact(),
-        ExactTypeFactShapeV1::OrdinaryStruct { fields: vec![] },
-    )]));
-    let table = CanonicalExactTypeFactsV1::try_new(vec![a]).unwrap();
-    let mut budget = BudgetMeter::new(DecodeLimits {
-        decoded_nodes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        table.validate_semantics(&shapes, &mut budget),
-        Err(ExactTypeFactsSemanticError::Resource(_))
     ));
 }
 
@@ -298,12 +274,12 @@ fn enum_gc_is_the_and_of_variant_gc_and_reference_values_remain_managed() {
         ),
     ]));
     let table = CanonicalExactTypeFactsV1::try_new(vec![enumeration, reference]).unwrap();
-    table.validate_semantics(&shapes, &mut budget()).unwrap();
+    table.validate_semantics(&shapes).unwrap();
     let gc_free_enum =
         ExactTypeFactsV1::try_new(enum_exact, enumeration.kind(), ExactTypeGcV1::GcFree).unwrap();
     let forged = CanonicalExactTypeFactsV1::try_new(vec![gc_free_enum, reference]).unwrap();
     assert!(matches!(
-        forged.validate_semantics(&shapes, &mut budget()),
+        forged.validate_semantics(&shapes),
         Err(ExactTypeFactsSemanticError::Mismatch { .. })
     ));
     shapes.0.insert(
@@ -319,7 +295,7 @@ fn enum_gc_is_the_and_of_variant_gc_and_reference_values_remain_managed() {
         },
     );
     assert!(matches!(
-        table.validate_semantics(&shapes, &mut budget()),
+        table.validate_semantics(&shapes),
         Err(ExactTypeFactsSemanticError::VariantGc { .. })
     ));
 }

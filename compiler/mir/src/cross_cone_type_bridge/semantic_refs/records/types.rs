@@ -4,15 +4,13 @@ impl MirTypeBridgeSemanticReferencesV1 {
     pub fn of_type(
         record: &ParamFreeMirTypeExportV1,
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
-        collector.meter.charge_nodes(1, &WirePath::root())?;
+        let mut collector = Collector::new(graph);
+
         for field in record.representation().fields() {
             collector.field(field.value)?;
         }
         for variant in record.representation().variants() {
-            collector.meter.charge_work(1, &WirePath::root())?;
             for field in &variant.fields {
                 collector.field(field.value)?;
             }
@@ -41,9 +39,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
     pub fn of_shape(
         record: &ParamFreeMirShapeSupportV1,
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
+        let mut collector = Collector::new(graph);
         collector.exact(record.exact())?;
         if let MirBoxedShapeSupportV1::Available(boxed) = record.boxed() {
             collector.exact(boxed)?;

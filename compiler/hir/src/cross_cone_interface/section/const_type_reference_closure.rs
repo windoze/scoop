@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{CrossConeHirInterfaceSectionV1, signature_nominal_walk::SignatureNominalWalker};
 use crate::{
@@ -13,7 +13,7 @@ impl CrossConeHirInterfaceSectionV1 {
     pub fn validate_const_type_reference_closure<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExternalHirConstTypeClosureValidationError<E>>
     where
@@ -22,9 +22,12 @@ impl CrossConeHirInterfaceSectionV1 {
         let references = self.external_references();
         let references_path = path.clone().field(10);
         let mut seen = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut seen, references.records().len(), &references_path)
-            .map_err(ExternalHirConstTypeClosureValidationError::Resource)?;
+        scoop_wire::allocation::try_reserve(
+            &mut seen,
+            references.records().len(),
+            &references_path,
+        )
+        .map_err(ExternalHirConstTypeClosureValidationError::Resource)?;
         seen.resize(references.records().len(), false);
         let current = authority.current_cone();
 
@@ -32,11 +35,10 @@ impl CrossConeHirInterfaceSectionV1 {
             (0_u64..).zip(self.constants().records().iter().enumerate())
         {
             let signature_path = path.clone().field(8).index(wire_index).field(2);
-            let mut walker =
-                SignatureNominalWalker::new(constant.value_type(), meter, &signature_path)
-                    .map_err(ExternalHirConstTypeClosureValidationError::Resource)?;
+            let mut walker = SignatureNominalWalker::new(constant.value_type(), &signature_path)
+                .map_err(ExternalHirConstTypeClosureValidationError::Resource)?;
             while let Some(declaration) = walker
-                .next(meter, &signature_path)
+                .next(&signature_path)
                 .map_err(ExternalHirConstTypeClosureValidationError::Resource)?
             {
                 let target = ExternalHirTargetV1::from(declaration);
@@ -53,15 +55,12 @@ impl CrossConeHirInterfaceSectionV1 {
                     continue;
                 }
 
-                let record_index = references
-                    .find_index_metered(target, meter, &signature_path)
-                    .map_err(ExternalHirConstTypeClosureValidationError::Resource)?
-                    .ok_or(
-                        ExternalHirConstTypeClosureValidationError::MissingReference {
-                            constant_index,
-                            target,
-                        },
-                    )?;
+                let record_index = references.find_index(target).ok_or(
+                    ExternalHirConstTypeClosureValidationError::MissingReference {
+                        constant_index,
+                        target,
+                    },
+                )?;
                 let record = &references.records()[record_index];
                 if record.origin() != expected {
                     return Err(ExternalHirConstTypeClosureValidationError::OriginMismatch {
@@ -87,9 +86,6 @@ impl CrossConeHirInterfaceSectionV1 {
         }
 
         for (record_index, record) in references.records().iter().enumerate() {
-            meter
-                .charge_work(1, &references_path)
-                .map_err(ExternalHirConstTypeClosureValidationError::Resource)?;
             if record
                 .roles()
                 .contains(ExternalHirReferenceRoleV1::ConstType)

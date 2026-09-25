@@ -17,10 +17,7 @@ pub(super) fn collect<E>(output: &mut Collector<'_>) -> Result<(), Error<E>> {
             output.signature(root, Part::Parameter(parameter_index(index)?), parameter.ty)?;
             output.local(values.class_parameter(id, index).id(), parameter.ty)?;
         }
-        output
-            .meter
-            .charge_work(constructor.body().locals.len() as u64, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         for (local_id, local) in constructor.body().locals.iter() {
             if matches!(local.definition, crate::LocalValueDefinitionSite::Source(_)) {
                 output.local(values.class_local(id, local_id).id(), local.ty)?;
@@ -39,13 +36,6 @@ pub(super) fn collect<E>(output: &mut Collector<'_>) -> Result<(), Error<E>> {
             arguments, body, ..
         } = &constructor.kind
         {
-            output
-                .meter
-                .charge_work(
-                    (arguments.locals.len() as u64).saturating_add(body.locals.len() as u64),
-                    &WirePath::root(),
-                )
-                .map_err(Error::Resource)?;
             let receiver = values.struct_receiver(id).ok_or(Error::MissingLocalValue)?;
             output.local(receiver.id(), result)?;
             for (local_id, local) in arguments.locals.iter() {

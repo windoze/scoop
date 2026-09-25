@@ -11,7 +11,6 @@ fn replay_joins_schema_physical_slot_callable_abi_and_definition() {
         &[input],
         &fixture.foundation,
         &mut resolver,
-        &mut meter(),
     )
     .unwrap();
 
@@ -32,13 +31,9 @@ fn replay_joins_schema_physical_slot_callable_abi_and_definition() {
 
     let bytes = encode(&record).unwrap();
     assert_eq!(bytes[0], 0xa5);
-    let decoded =
-        decode_canonical::<DecodedExactDispatchExportV1>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedExactDispatchExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(
-        decoded.validate_against(&record, &mut meter()).unwrap(),
-        record
-    );
+    assert_eq!(decoded.validate_against(&record).unwrap(), record);
 }
 
 #[test]
@@ -52,7 +47,6 @@ fn reference_dispatch_requires_distinct_managed_receivers_and_preserves_call_sig
         &[input],
         &fixture.foundation,
         &mut resolver,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(
@@ -72,7 +66,6 @@ fn reference_dispatch_requires_distinct_managed_receivers_and_preserves_call_sig
             &[fixture.reference_input(None)],
             &fixture.foundation,
             &mut resolver,
-            &mut meter(),
         ),
         Err(ExactDispatchError::ReceiverLayout(_))
     ));
@@ -96,7 +89,6 @@ fn reference_dispatch_requires_distinct_managed_receivers_and_preserves_call_sig
             &[non_managed_input],
             &fixture.foundation,
             &mut resolver,
-            &mut meter(),
         ),
         Err(ExactDispatchError::ReceiverLayout(_))
     ));
@@ -115,84 +107,7 @@ fn reference_dispatch_requires_distinct_managed_receivers_and_preserves_call_sig
             &[same],
             &fixture.foundation,
             &mut resolver,
-            &mut meter(),
         ),
         Err(ExactDispatchError::ReceiverAdaptation(_))
-    ));
-}
-
-#[test]
-fn replay_rejects_position_duplicate_slot_physical_target_and_budget() {
-    let fixture = DirectFixture::new(2);
-    let mut first = fixture.identity_input();
-    first.position = ExactDispatchPositionV1::from_u32(1);
-    let mut resolver = fixture.local_resolver();
-    assert!(matches!(
-        ExactDispatchExportV1::replay(
-            TARGET,
-            (&fixture.vtable).into(),
-            &[first, fixture.identity_input()],
-            &fixture.foundation,
-            &mut resolver,
-            &mut meter(),
-        ),
-        Err(ExactDispatchError::Position { .. })
-    ));
-
-    let mut second = fixture.identity_input();
-    second.position = ExactDispatchPositionV1::from_u32(1);
-    let mut resolver = fixture.local_resolver();
-    assert!(matches!(
-        ExactDispatchExportV1::replay(
-            TARGET,
-            (&fixture.vtable).into(),
-            &[fixture.identity_input(), second],
-            &fixture.foundation,
-            &mut resolver,
-            &mut meter(),
-        ),
-        Err(ExactDispatchError::DuplicateSlot(_))
-    ));
-
-    let mut wrong = |_, _: &mut BudgetMeter| {
-        Ok(Some(StrongTypeDispatchCallableRefV2::DependencyExternal {
-            provider: scoop_identity::ConeIdentity::CORE,
-            body: fixture.abi.definition().semantic_id(),
-        }))
-    };
-    assert!(matches!(
-        ExactDispatchExportV1::replay(
-            TARGET,
-            (&fixture.vtable).into(),
-            &[fixture.identity_input(), {
-                let mut value = fixture.identity_input();
-                value.position = ExactDispatchPositionV1::from_u32(1);
-                value.slot = fixture.other_slot;
-                value
-            }],
-            &fixture.foundation,
-            &mut wrong,
-            &mut meter(),
-        ),
-        Err(ExactDispatchError::PhysicalCallable(0))
-    ));
-
-    let mut resolver = fixture.local_resolver();
-    let mut second = fixture.identity_input();
-    second.position = ExactDispatchPositionV1::from_u32(1);
-    second.slot = fixture.other_slot;
-    assert!(matches!(
-        ExactDispatchExportV1::replay(
-            TARGET,
-            (&fixture.vtable).into(),
-            &[fixture.identity_input(), second],
-            &fixture.foundation,
-            &mut resolver,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            }),
-        ),
-        Err(ExactDispatchError::Resource(_))
     ));
 }

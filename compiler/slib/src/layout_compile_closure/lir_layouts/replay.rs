@@ -11,7 +11,7 @@ use scoop_identity::{
 };
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::SharedLirLayoutValidationError as Error;
 
@@ -32,14 +32,13 @@ pub fn replay_shared_mir_layouts(
     foundation: &lir::OdrFreeLirFoundation,
     identities: &ValidatedIdentityGraph,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalExactLayoutExportsV1> {
     let mut replay = Replay {
         target,
         types,
         foundation,
         identities,
-        meter,
+
         dependencies: BTreeMap::new(),
         completed: BTreeMap::new(),
         active: BTreeSet::new(),
@@ -58,7 +57,7 @@ pub fn replay_shared_mir_layouts(
             RepresentationRole::ManagedValue,
             RepresentationRole::ManagedObject,
         ] {
-            replay.layout(source.exact(), role, 1)?;
+            replay.layout(source.exact(), role)?;
         }
         if matches!(
             source.representation(),
@@ -67,35 +66,34 @@ pub fn replay_shared_mir_layouts(
                 ..
             }
         ) {
-            replay.layout(source.exact(), RepresentationRole::CValue, 1)?;
+            replay.layout(source.exact(), RepresentationRole::CValue)?;
         }
     }
     let mut records = replay.reserve(replay.completed.len())?;
     records.extend(replay.completed.into_values());
     Ok(lir::CanonicalExactLayoutExportsV1::try_new(
-        target, foundation, records, meter,
+        target, foundation, records,
     )?)
 }
 
-struct Replay<'a, 'm> {
+struct Replay<'a> {
     target: lir::LirTargetProfile,
     types: &'a mir::CanonicalParamFreeMirTypeExportsV1,
     foundation: &'a lir::OdrFreeLirFoundation,
     identities: &'a ValidatedIdentityGraph,
-    meter: &'m mut BudgetMeter,
+
     dependencies: BTreeMap<PersistentLayoutId, &'a lir::ExactLayoutExportV1>,
     completed: BTreeMap<PersistentLayoutId, lir::ExactLayoutExportV1>,
     active: BTreeSet<PersistentLayoutId>,
 }
 
-impl<'a> Replay<'a, '_> {
+impl<'a> Replay<'a> {
     fn index_dependencies(
         &mut self,
         dependencies: &[&'a lir::CanonicalExactLayoutExportsV1],
     ) -> Result<()> {
         let mut providers = BTreeSet::new();
         for dependency in dependencies {
-            self.lookup(providers.len())?;
             let provider = dependency.provider();
             if provider == self.foundation.producer() || providers.contains(&provider) {
                 return Err(Error::DependencyProvider(provider));
@@ -103,15 +101,15 @@ impl<'a> Replay<'a, '_> {
             if dependency.target() != self.target {
                 return Err(Error::DependencyTarget(provider));
             }
-            self.index_entry::<scoop_identity::ConeIdentity>()?;
+
             providers.insert(provider);
             for record in dependency.records() {
                 let id = record.identity().layout();
-                self.lookup(self.dependencies.len())?;
+
                 if self.dependencies.contains_key(&id) {
                     return Err(Error::AmbiguousDependency(id));
                 }
-                self.index_entry::<(PersistentLayoutId, &lir::ExactLayoutExportV1)>()?;
+
                 self.dependencies.insert(id, record);
             }
         }
@@ -122,50 +120,41 @@ impl<'a> Replay<'a, '_> {
         &mut self,
         exact: PersistentExactTypeId,
         role: RepresentationRole,
-        depth: u64,
     ) -> Result<lir::ExactLayoutExportV1> {
-        let path = WirePath::root();
-        self.meter.check_semantic_depth(depth, &path)?;
-        self.meter.charge_work(1, &path)?;
-        self.meter.charge_edges(1, &path)?;
         let key = LayoutKey::new(exact, self.target.wire_id(), role);
         let id = PersistentLayoutId::from_key(&key)?;
-        self.lookup(self.completed.len())?;
+
         if let Some(record) = self.completed.get(&id) {
             return Ok(record.clone());
         }
-        self.lookup(self.types.records().len())?;
+
         let Some(source) = self.types.get(exact) else {
-            self.lookup(self.dependencies.len())?;
             return self
                 .dependencies
                 .get(&id)
                 .map(|record| (*record).clone())
                 .ok_or(Error::MissingDependency(id));
         };
-        self.lookup(self.active.len())?;
+
         if self.active.contains(&id) {
             return Err(Error::Cycle(id));
         }
-        self.meter.charge_nodes(1, &path)?;
-        self.index_entry::<PersistentLayoutId>()?;
+
         self.active.insert(id);
         let identity = lir::ExactLayoutIdentityV1::from_foundation(
             self.target,
             self.identities.canonical_record(exact)?,
             role,
             self.foundation,
-            self.meter,
         )?;
-        let next = depth.checked_add(1).ok_or(Error::ArithmeticOverflow)?;
         let record: lir::ExactLayoutExportV1 = match role {
             RepresentationRole::ManagedValue | RepresentationRole::CValue => {
-                self.value(identity, source, next)?.into()
+                self.value(identity, source)?.into()
             }
-            RepresentationRole::ManagedObject => self.instance(identity, source, next)?.into(),
+            RepresentationRole::ManagedObject => self.instance(identity, source)?.into(),
             _ => return Err(Error::Role(id)),
         };
-        self.index_entry::<(PersistentLayoutId, lir::ExactLayoutExportV1)>()?;
+
         self.completed.insert(id, record.clone());
         self.active.remove(&id);
         Ok(record)
@@ -174,9 +163,8 @@ impl<'a> Replay<'a, '_> {
     fn value_dependency(
         &mut self,
         exact: PersistentExactTypeId,
-        depth: u64,
     ) -> Result<Arc<lir::ExactValueLayoutV1>> {
-        self.layout(exact, RepresentationRole::ManagedValue, depth)?
+        self.layout(exact, RepresentationRole::ManagedValue)?
             .value_handle()
             .ok_or(Error::DependencyKind(exact))
     }

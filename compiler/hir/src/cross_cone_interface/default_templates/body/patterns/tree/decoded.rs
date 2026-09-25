@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use scoop_identity::DecodedSignatureTypeKey;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -139,7 +137,7 @@ impl WireEncode for DecodedDefaultPatternV1 {
 }
 
 impl WireDecode for DecodedDefaultPatternV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -205,7 +203,7 @@ impl WireEncode for DecodedDefaultPatternFieldV1 {
 }
 
 impl WireDecode for DecodedDefaultPatternFieldV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             declaration_index: decoder.field(1, Decoder::u32)?,
@@ -261,7 +259,7 @@ where
 }
 
 fn decode_fields(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedDefaultPatternFieldV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedDefaultPatternFieldV1::decode(decoder))
 }
@@ -271,11 +269,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -286,6 +280,6 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

@@ -4,7 +4,7 @@ use crate::{
     ProtectedCallableInterfaceResolutionError, ProtectedCallableInterfaceResolver,
 };
 use scoop_identity::{DecodedCallableTemplateOrigin, DecodedPersistentId};
-use scoop_wire::{BudgetMeter, Decoder, WireDecode, WireError, WirePath};
+use scoop_wire::{Decoder, WireDecode, WireError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedNominalSupportCallableInterfaceV1 {
@@ -16,22 +16,19 @@ impl DecodedNominalSupportCallableInterfaceV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSupportCallableInterfaceV1, ProtectedCallableInterfaceResolutionError<E>>
     {
         use ProtectedCallableInterfaceResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let declaration = self
             .declaration
             .resolve(resolver)
             .map_err(Error::Identity)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Source)?;
-        let payload = self.payload.resolve(declaration, resolver, meter)?;
+        let payload = self.payload.resolve(declaration, resolver)?;
         NominalSupportCallableInterfaceV1::try_new(declaration, access, payload)
             .map_err(Error::Interface)
     }
@@ -56,14 +53,14 @@ impl DecodedNominalSupportCallableInterfaceV1 {
     }
 }
 impl WireDecode for DecodedNominalSupportCallableInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Self::decode_fields(decoder)
     }
 }
 impl DecodedNominalSupportCallableInterfaceV1 {
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
-        decoder: &mut Decoder<'_, '_>,
+        decoder: &mut Decoder<'_>,
     ) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,
@@ -83,25 +80,20 @@ impl DecodedNominalSupportConstructorInterfaceV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSupportConstructorInterfaceV1, ProtectedCallableInterfaceResolutionError<E>>
     {
         use ProtectedCallableInterfaceResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let declaration = resolver
             .resolve(self.declaration)
             .map_err(Error::Identity)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Source)?;
-        let payload = self.payload.resolve(
-            CallableTemplateOrigin::Constructor(declaration),
-            resolver,
-            meter,
-        )?;
+        let payload = self
+            .payload
+            .resolve(CallableTemplateOrigin::Constructor(declaration), resolver)?;
         NominalSupportConstructorInterfaceV1::try_new(declaration, access, payload)
             .map_err(Error::Interface)
     }
@@ -126,14 +118,14 @@ impl DecodedNominalSupportConstructorInterfaceV1 {
     }
 }
 impl WireDecode for DecodedNominalSupportConstructorInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Self::decode_fields(decoder)
     }
 }
 impl DecodedNominalSupportConstructorInterfaceV1 {
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
-        decoder: &mut Decoder<'_, '_>,
+        decoder: &mut Decoder<'_>,
     ) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedPersistentId::decode)?,

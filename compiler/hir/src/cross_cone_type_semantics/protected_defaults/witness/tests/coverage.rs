@@ -18,14 +18,11 @@ fn check(case: u8) -> Result<(), ProtectedDefaultDomainCoverageError<&'static st
         .graph
         .visibility(bundle.derived, DeclaredVisibilityV1::Internal);
     let graph_source = bundle.fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let domains = graph
-        .replay_nominal_domains(bundle.derived.exact, &mut meter())
+        .replay_nominal_domains(bundle.derived.exact)
         .unwrap()
         .to_record();
     bundle.change(bundle.derived, |record| {
@@ -45,12 +42,11 @@ fn check(case: u8) -> Result<(), ProtectedDefaultDomainCoverageError<&'static st
             &graph,
             &CanonicalNominalRepresentationSupportV1::try_new(vec![]).unwrap(),
             &mut bundle.fixture,
-            &mut meter(),
         )
         .unwrap();
     let inheritance = bundle
         .table
-        .validate_interfaces(&graph, protected, &mut bundle.fixture, &mut meter())
+        .validate_interfaces(&graph, protected, &mut bundle.fixture)
         .unwrap();
     let InheritanceCallableDeclarationV1::Function(function) = bundle.target else {
         panic!("fixture has a function slot")
@@ -82,9 +78,7 @@ fn check(case: u8) -> Result<(), ProtectedDefaultDomainCoverageError<&'static st
     )
     .unwrap();
     let source = ProtectedDefaultOwnerSourceV1::NominalSupport(
-        record
-            .validate_source(&graph, &mut bundle.fixture, &mut meter())
-            .unwrap(),
+        record.validate_source(&graph, &mut bundle.fixture).unwrap(),
     );
     let direct =
         PersistentAccessDomainV1::try_from_constraints(vec![PersistentAccessConstraintV1::Cone(
@@ -122,18 +116,18 @@ fn check(case: u8) -> Result<(), ProtectedDefaultDomainCoverageError<&'static st
         profile: ProtectedDefaultWitnessSourceProfileV1::ParamFree,
     };
     let CheckedProtectedDefaultWitnessSourceV1::ParamFree(checked) = witness
-        .validate_source_profile(key, source, &profile, &mut meter())
+        .validate_source_profile(key, source, &profile)
         .unwrap()
     else {
         panic!("param-free owner expected")
     };
-    let target = graph.validate_access_domain(&target, &mut meter()).unwrap();
+    let target = graph.validate_access_domain(&target).unwrap();
     let roots = Roots(
         CanonicalProtectedSlotRefsV1::try_new(if case == 5 { vec![] } else { vec![bundle.slot] })
             .unwrap(),
     );
     checked
-        .validate_domains(&graph, inheritance, &target, &roots, &mut meter())
+        .validate_domains(&graph, inheritance, &target, &roots)
         .map(|_| ())
 }
 

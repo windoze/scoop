@@ -19,7 +19,7 @@ use scoop_identity::{
     PersistentExportBindingId, PersistentTypeAliasId, SourceContextKey, SourceDeclarationKey,
     SourceDeclarationSite, SourceIdentity, SourceSpan,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::cross_cone_closure::route_validation::RouteProviderView;
@@ -38,15 +38,14 @@ fn authorizes_and_expands_a_foreign_alias_through_a_direct_witness() {
         &fixture.current_interface,
         &direct,
         &providers,
-        &mut route_meter(),
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let path = WirePath::root();
     fixture
         .current_interface
-        .validate_external_reference_closure(&mut route_authority, &mut meter, &path)
+        .validate_external_reference_closure(&mut route_authority, &path)
         .unwrap();
     let authorized =
         validate_alias_authority(&fixture.current_interface, &mut route_authority).unwrap();
@@ -65,7 +64,7 @@ fn authorizes_and_expands_a_foreign_alias_through_a_direct_witness() {
     let expansions = fixture
         .current_interface
         .type_aliases()
-        .expand_alias_closure(&authority, &mut meter, &path.field(5))
+        .expand_alias_closure(&authority, &path.field(5))
         .unwrap();
 
     assert_eq!(
@@ -87,16 +86,14 @@ fn rejects_a_foreign_alias_witness_that_does_not_start_at_a_direct_provider() {
         &fixture.current_interface,
         &[],
         &providers,
-        &mut route_meter(),
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
 
     assert!(matches!(
         fixture.current_interface.validate_external_reference_closure(
             &mut route_authority,
-            &mut meter,
+
             &WirePath::root(),
         ),
         Err(CrossConeHirExternalReferenceValidationError::Records(
@@ -142,7 +139,6 @@ fn rejects_a_same_cone_alias_target_absent_from_the_public_alias_table() {
         &interface,
         &[],
         &[],
-        &mut route_meter(),
         &scoop_wire::WirePath::root(),
     )
     .unwrap();
@@ -348,8 +344,4 @@ fn cone(name: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

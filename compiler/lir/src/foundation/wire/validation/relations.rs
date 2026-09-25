@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentSourceNativeExternalContractId, SafepointSiteRole, SourceNativeExternalContractKey,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 
@@ -15,27 +15,22 @@ pub(super) fn validate_safepoints(
     callable_bodies: &[CallableBodyRecord],
     sites: &[SafepointSiteRecord],
     mappings: &[SafepointMappingRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<(), LirFoundationValidationError> {
     let path = WirePath::root().field(10);
     let mut bodies = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut bodies, callable_bodies.len(), &path)
+    scoop_wire::allocation::try_reserve_set(&mut bodies, callable_bodies.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     bodies.extend(callable_bodies.iter().map(RuntimeIdentityRecord::id));
 
     let mut ordinal_values = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut ordinal_values, sites.len(), &path)
+    scoop_wire::allocation::try_reserve_set(&mut ordinal_values, sites.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     let mut ordinal_groups =
         HashMap::<(PersistentCallableBodyId, SafepointSiteRole), (u64, u32)>::new();
-    meter
-        .try_reserve_map_slots(&mut ordinal_groups, sites.len(), &path)
+    scoop_wire::allocation::try_reserve_map(&mut ordinal_groups, sites.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     let mut site_ids = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut site_ids, sites.len(), &path)
+    scoop_wire::allocation::try_reserve_set(&mut site_ids, sites.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     for site in sites {
         let key = site.key();
@@ -67,21 +62,6 @@ pub(super) fn validate_safepoints(
         *maximum = (*maximum).max(key.ordinal());
     }
 
-    let ordinal_work = ordinal_groups
-        .values()
-        .try_fold(0_u64, |total, &(_, maximum)| {
-            total.checked_add(u64::from(maximum) + 1)
-        })
-        .ok_or_else(|| {
-            LirFoundationValidationError::Resource(scoop_wire::WireError::new(
-                scoop_wire::WireErrorKind::IntegerOutOfRange,
-                path.clone(),
-                None,
-            ))
-        })?;
-    meter
-        .charge_work(ordinal_work, &path)
-        .map_err(LirFoundationValidationError::Resource)?;
     let mut first_gap = None;
     for (&group, &(count, maximum)) in &ordinal_groups {
         if count == u64::from(maximum) + 1 {
@@ -114,8 +94,7 @@ pub(super) fn validate_safepoints(
 
     let mapping_path = WirePath::root().field(12);
     let mut mapped = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut mapped, mappings.len(), &mapping_path)
+    scoop_wire::allocation::try_reserve_set(&mut mapped, mappings.len(), &mapping_path)
         .map_err(LirFoundationValidationError::Resource)?;
     for mapping in mappings {
         if !site_ids.contains(&mapping.site()) {
@@ -144,24 +123,20 @@ pub(super) fn validate_safepoints(
 pub(super) fn validate_native_contracts(
     identities: &ValidatedIdentityGraph,
     contracts: &[NativeExternalContractRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<(), LirFoundationValidationError> {
     let source_records = identities
         .records::<PersistentSourceNativeExternalContractId, SourceNativeExternalContractKey>(
             IdentityLayer::Hir,
-            meter,
             &WirePath::root().field(26),
         )
         .map_err(LirFoundationValidationError::Identity)?;
     let path = WirePath::root().field(14);
     let mut sources = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut sources, source_records.len(), &path)
+    scoop_wire::allocation::try_reserve_set(&mut sources, source_records.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     sources.extend(source_records.iter().map(CborIdentityRecord::id));
     let mut seen = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut seen, contracts.len(), &path)
+    scoop_wire::allocation::try_reserve_set(&mut seen, contracts.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     for contract in contracts {
         if !sources.contains(&contract.source()) {
@@ -201,20 +176,21 @@ pub(super) fn validate_bridges(
     identities: &ValidatedIdentityGraph,
     producer: ConeIdentity,
     tables: BridgeTables<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LirFoundationValidationError> {
     let application_records = identities
         .records::<PersistentCallbackApplicationId, CallbackApplicationKey>(
             IdentityLayer::Mir,
-            meter,
             &WirePath::root().field(9),
         )
         .map_err(LirFoundationValidationError::Identity)?;
     let callback_path = WirePath::root().field(19);
     let mut applications = HashMap::new();
-    meter
-        .try_reserve_map_slots(&mut applications, application_records.len(), &callback_path)
-        .map_err(LirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_map(
+        &mut applications,
+        application_records.len(),
+        &callback_path,
+    )
+    .map_err(LirFoundationValidationError::Resource)?;
     applications.extend(
         application_records
             .iter()
@@ -224,18 +200,16 @@ pub(super) fn validate_bridges(
     let registration_records = identities
         .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(
             IdentityLayer::Hir,
-            meter,
             &WirePath::root().field(25),
         )
         .map_err(LirFoundationValidationError::Identity)?;
     let mut registrations = HashMap::new();
-    meter
-        .try_reserve_map_slots(
-            &mut registrations,
-            registration_records.len(),
-            &callback_path,
-        )
-        .map_err(LirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_map(
+        &mut registrations,
+        registration_records.len(),
+        &callback_path,
+    )
+    .map_err(LirFoundationValidationError::Resource)?;
     registrations.extend(
         registration_records
             .iter()
@@ -244,13 +218,12 @@ pub(super) fn validate_bridges(
 
     let contract_path = WirePath::root().field(14);
     let mut contract_fingerprints = HashSet::new();
-    meter
-        .try_reserve_set_slots(
-            &mut contract_fingerprints,
-            tables.contracts.len(),
-            &contract_path,
-        )
-        .map_err(LirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut contract_fingerprints,
+        tables.contracts.len(),
+        &contract_path,
+    )
+    .map_err(LirFoundationValidationError::Resource)?;
     contract_fingerprints.extend(
         tables
             .contracts
@@ -260,13 +233,12 @@ pub(super) fn validate_bridges(
 
     let signature_path = WirePath::root().field(15);
     let mut signature_fingerprints = HashSet::new();
-    meter
-        .try_reserve_set_slots(
-            &mut signature_fingerprints,
-            tables.signatures.len(),
-            &signature_path,
-        )
-        .map_err(LirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut signature_fingerprints,
+        tables.signatures.len(),
+        &signature_path,
+    )
+    .map_err(LirFoundationValidationError::Resource)?;
     signature_fingerprints.extend(
         tables
             .signatures
@@ -276,9 +248,12 @@ pub(super) fn validate_bridges(
 
     let layout_path = WirePath::root().field(16);
     let mut layout_fingerprints = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut layout_fingerprints, tables.layouts.len(), &layout_path)
-        .map_err(LirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut layout_fingerprints,
+        tables.layouts.len(),
+        &layout_path,
+    )
+    .map_err(LirFoundationValidationError::Resource)?;
     layout_fingerprints.extend(
         tables
             .layouts
@@ -288,8 +263,7 @@ pub(super) fn validate_bridges(
 
     let unit_path = WirePath::root().field(17);
     let mut units = HashMap::new();
-    meter
-        .try_reserve_map_slots(&mut units, tables.units.len(), &unit_path)
+    scoop_wire::allocation::try_reserve_map(&mut units, tables.units.len(), &unit_path)
         .map_err(LirFoundationValidationError::Resource)?;
     units.extend(
         tables
@@ -323,21 +297,19 @@ pub(super) fn validate_bridges(
     }
 
     let mut seen_applications = HashSet::new();
-    meter
-        .try_reserve_set_slots(
-            &mut seen_applications,
-            tables.callbacks.len(),
-            &callback_path,
-        )
-        .map_err(LirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut seen_applications,
+        tables.callbacks.len(),
+        &callback_path,
+    )
+    .map_err(LirFoundationValidationError::Resource)?;
     let mut referenced_callback_units = HashSet::new();
-    meter
-        .try_reserve_set_slots(
-            &mut referenced_callback_units,
-            tables.callbacks.len(),
-            &callback_path,
-        )
-        .map_err(LirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut referenced_callback_units,
+        tables.callbacks.len(),
+        &callback_path,
+    )
+    .map_err(LirFoundationValidationError::Resource)?;
     for callback in tables.callbacks {
         let application = callback.application();
         if !seen_applications.insert(application) {

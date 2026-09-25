@@ -1,5 +1,5 @@
 use scoop_identity::StructuralDefinitionSiteRole;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{NominalInterfaceShapeAuthority, compare_default_signature_reference_targets};
@@ -12,16 +12,14 @@ impl DefaultTemplateContractViewV1<'_> {
         publisher: &DefaultTemplateDeclarationContractV1<'_>,
         provider: &DefaultTemplateDeclarationContractV1<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultTemplateDeclarationContractError<E>>
     where
         A: NominalInterfaceShapeAuthority<E>,
     {
         use DefaultTemplateDeclarationContractError as Error;
-        meter.check_semantic_depth(1, path)?;
-        meter.charge_nodes(1, path)?;
-        meter.charge_work(1, path)?;
+
         if publisher.declaration != self.owner || provider.declaration != self.root.declaration() {
             return Err(Error::Declaration);
         }
@@ -33,7 +31,7 @@ impl DefaultTemplateContractViewV1<'_> {
         if publisher.parameter.parameters().len_u32() != provider.parameter.parameters().len_u32() {
             return Err(Error::ParameterArity);
         }
-        meter.charge_work(self.definition_path.segments().len() as u64 + 1, path)?;
+
         if !matches!(self.definition_path.segments(), [segment]
             if segment.site_role() == StructuralDefinitionSiteRole::DefaultValue
                 && segment.ordinal() == provider.default_ordinal)
@@ -48,15 +46,10 @@ impl DefaultTemplateContractViewV1<'_> {
             return Err(Error::DirectShape);
         }
         let scope = publisher.shape.signature_scope();
-        meter.check_table_entries(self.mapping.len_u32() as u64, path)?;
-        meter.check_table_entries(provider.parameter.parameters().len_u32() as u64, path)?;
-        meter.charge_work(
-            self.mapping.len_u32() as u64 + provider.parameter.parameters().len_u32() as u64,
-            path,
-        )?;
+
         for (index, argument) in self.mapping.arguments().iter().enumerate() {
             scope
-                .validate_signature_semantics_metered(argument, authority, meter, path)
+                .validate_signature_semantics(argument, authority)
                 .map_err(|error| Error::Signature(Box::new(error)))?;
             if direct && provider.shape.identity_binder_at(index as u32).as_ref() != Some(argument)
             {
@@ -73,43 +66,30 @@ impl DefaultTemplateContractViewV1<'_> {
         {
             let mapped = self
                 .mapping
-                .substitute_provider_type_metered(provider.shape, source.value_type(), meter, path)
+                .substitute_provider_type(provider.shape, source.value_type())
                 .map_err(Error::Substitution)?;
-            if !compare_default_signature_reference_targets(
-                &mapped,
-                target.value_type(),
-                meter,
-                path,
-            )?
-            .is_eq()
+            if !compare_default_signature_reference_targets(&mapped, target.value_type(), path)?
+                .is_eq()
             {
                 return Err(Error::ParameterType { index });
             }
         }
         self.receiver
-            .validate_provider_semantics_metered(
-                provider.receiver.as_deref(),
-                self.locals,
-                meter,
-                path,
-            )
+            .validate_provider_semantics(provider.receiver.as_deref(), self.locals)
             .map_err(Error::Receiver)?;
         self.value_parameters
-            .validate_provider_prefix_types_metered(
+            .validate_provider_prefix_types(
                 provider
                     .parameter
                     .prefix()
                     .iter()
                     .map(|parameter| parameter.value_type()),
                 self.locals,
-                meter,
-                path,
             )
             .map_err(Error::Prefix)?;
         if !compare_default_signature_reference_targets(
             self.result,
             provider.parameter.current().value_type(),
-            meter,
             path,
         )?
         .is_eq()

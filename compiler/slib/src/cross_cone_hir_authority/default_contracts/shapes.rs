@@ -8,7 +8,7 @@ use scoop_identity::{
     CallableTemplateOrigin, ConeIdentity, CoreBuiltinNominal, IdentityReferenceError,
     PersistentGenericTypeId, PersistentTypeId, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 /// A transient type-shape index over already checked metadata. It grants no
 /// lookup or access rights to the private declarations used for source typing.
@@ -21,21 +21,16 @@ impl<'g> DefaultNominalShapes<'g> {
     pub(super) fn new<'a>(
         identities: &'g ValidatedIdentityGraph,
         providers: impl IntoIterator<Item = (ConeIdentity, &'a CrossConeHirInterfaceSectionV1)>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<Self, DefaultMetadataNominalError> {
         let mut result = Self {
             shapes: BTreeMap::new(),
             identities,
         };
         for (provider, interface) in providers {
-            meter.charge_work(1, path)?;
             for record in interface.nominal_interfaces().all_records() {
                 result.insert(
                     record.declaration(),
                     PublicNominalShapeV1::new(record.kind(), record.type_parameters().len_u32()),
-                    meter,
-                    path,
                 )?;
             }
             for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
@@ -48,8 +43,6 @@ impl<'g> DefaultNominalShapes<'g> {
                     result.insert(
                         SourceNominalId::Concrete(record.id()),
                         PublicNominalShapeV1::new(kind, 0),
-                        meter,
-                        path,
                     )?;
                 }
             }
@@ -61,13 +54,7 @@ impl<'g> DefaultNominalShapes<'g> {
         &mut self,
         declaration: SourceNominalId,
         shape: PublicNominalShapeV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), DefaultMetadataNominalError> {
-        meter.check_table_entries(self.shapes.len() as u64 + 1, path)?;
-        meter.charge_work(u64::from(self.shapes.len().max(1).ilog2()) + 1, path)?;
-        meter.charge_nodes(1, path)?;
-        meter.charge_collection_slots(1, path)?;
         if self.shapes.insert(declaration, shape).is_some() {
             return Err(DefaultMetadataNominalError::Duplicate(declaration));
         }

@@ -12,14 +12,12 @@ impl StrongTypeReferenceDefinitionsV2 {
         foundation: &OdrFreeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
         external: &StrongExternalLirBridgeSurfaceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<StrongTypeDescriptorRefV2, Error> {
         self.check_producer(foundation.producer())?;
         self.check_producer(external.producer())?;
-        let path = WirePath::root();
+
         match decoded {
             DecodedStrongTypeDescriptorRefV2::Local(exact) => {
-                meter.charge_work(registrations.type_registrations().len() as u64, &path)?;
                 let exact = registrations
                     .type_registrations()
                     .iter()
@@ -29,13 +27,11 @@ impl StrongTypeReferenceDefinitionsV2 {
                 StrongShapeDefinitionRefV1::from_foundation(
                     ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
                     foundation,
-                    meter,
                 )
                 .map_err(Error::LocalDefinition)?;
                 Ok(StrongTypeDescriptorRefV2::Local(exact))
             }
             DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact } => {
-                meter.charge_work(foundation.definition_plans().len() as u64, &path)?;
                 for definition in foundation.definition_plans() {
                     if let Some(PersistentSymbolKey::TypeDescriptor(candidate)) =
                         definition.key().primary_symbol_key()
@@ -44,11 +40,11 @@ impl StrongTypeReferenceDefinitionsV2 {
                         return Err(Error::LocalDescriptorPartition(candidate));
                     }
                 }
-                meter.charge_work(external.bridges().len() as u64, &path)?;
+
                 let service = external
                     .resolve_descriptor_reference(provider, exact)
                     .map(|descriptor| (descriptor.provider(), descriptor.target()));
-                meter.charge_work(self.descriptors.len() as u64, &path)?;
+
                 let layout = self.descriptors.iter().find_map(|definition| {
                     let ExternalStrongShapeSubjectV1::TypeDescriptor(candidate) =
                         definition.subject()
@@ -79,7 +75,6 @@ impl StrongTypeReferenceDefinitionsV2 {
         foundation: &OdrFreeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
         external: &StrongExternalLirBridgeSurfaceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<StrongTypeDescriptorRefV2>, Error> {
         self.check_producer(foundation.producer())?;
         self.check_producer(external.producer())?;
@@ -92,7 +87,7 @@ impl StrongTypeReferenceDefinitionsV2 {
                 DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact }
             }
         };
-        self.resolve_descriptor(descriptor, foundation, registrations, external, meter)
+        self.resolve_descriptor(descriptor, foundation, registrations, external)
             .map(Some)
     }
 
@@ -101,14 +96,12 @@ impl StrongTypeReferenceDefinitionsV2 {
         decoded: DecodedStrongTypeDispatchCallableRefV2,
         foundation: &OdrFreeLirFoundation,
         external: &StrongExternalLirBridgeSurfaceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<StrongTypeDispatchCallableRefV2, Error> {
         self.check_producer(foundation.producer())?;
         self.check_producer(external.producer())?;
-        let path = WirePath::root();
+
         match decoded {
             DecodedStrongTypeDispatchCallableRefV2::Local(body) => {
-                meter.charge_work(foundation.callable_bodies().len() as u64, &path)?;
                 let record = foundation
                     .callable_bodies()
                     .iter()
@@ -120,7 +113,6 @@ impl StrongTypeReferenceDefinitionsV2 {
                 Ok(StrongTypeDispatchCallableRefV2::Runtime(function))
             }
             DecodedStrongTypeDispatchCallableRefV2::DependencyExternal { provider, body } => {
-                meter.charge_work(foundation.definition_plans().len() as u64, &path)?;
                 for definition in foundation.definition_plans() {
                     if let Some(PersistentSymbolKey::CallableBody(candidate)) =
                         definition.key().primary_symbol_key()
@@ -129,9 +121,9 @@ impl StrongTypeReferenceDefinitionsV2 {
                         return Err(Error::LocalCallablePartition(candidate));
                     }
                 }
-                meter.charge_work(external.bridges().len() as u64, &path)?;
+
                 let service = external.resolve_callable_reference(provider, body);
-                meter.charge_work(self.callables.len() as u64, &path)?;
+
                 let layout = self.callables.iter().find_map(|definition| {
                     let PersistentSymbolKey::CallableBody(candidate) = definition.symbol().key()
                     else {

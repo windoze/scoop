@@ -7,10 +7,6 @@ use scoop_mir::{
 mod assertions;
 mod rejections;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-mir-boxing-production");
@@ -32,7 +28,6 @@ fn sources(
         input,
         graph,
         types,
-        &mut meter(),
     )
     .unwrap()
 }
@@ -43,22 +38,17 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
         let (directory, source) = fixture(name);
         let (bytes, dump) = with_production(&source, |output, input, hir, graph, types| {
             let unit = dependencies::unit(input, graph);
-            let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit], &mut meter()).unwrap();
+            let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
             let source = sources(output, hir, input, graph, &index);
             let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-                input,
-                types,
-                graph,
-                &index,
-                &source,
-                &mut meter(),
+                input, types, graph, &index, &source,
             )
             .unwrap();
             assertions::actual(input, types, &source, &bindings);
             let restored: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
             assert_eq!(
                 restored
-                    .validate(graph, input.foundation(), &index, &mut meter())
+                    .validate(graph, input.foundation(), &index)
                     .unwrap(),
                 bindings
             );
@@ -80,16 +70,10 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
             &format!("private struct Unrelated() {{}}\n{source}"),
             |output, input, hir, graph, types| {
                 let unit = dependencies::unit(input, graph);
-                let index =
-                    MirTypeBridgeTypeIndexV1::try_new(&[types, &unit], &mut meter()).unwrap();
+                let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
                 let source = sources(output, hir, input, graph, &index);
                 let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-                    input,
-                    types,
-                    graph,
-                    &index,
-                    &source,
-                    &mut meter(),
+                    input, types, graph, &index, &source,
                 )
                 .unwrap();
                 assert_eq!(encode(&bindings).unwrap(), bytes);
@@ -112,7 +96,7 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
 }
 
 #[test]
-fn actual_boxing_callables_require_target_bindings_types_and_shared_budget() {
+fn actual_boxing_callables_require_target_bindings_and_types() {
     let (_, source) = fixture("standalone");
     with_production(&source, |output, input, hir, graph, types| {
         let source = sources(output, hir, input, graph, types);
@@ -121,17 +105,10 @@ fn actual_boxing_callables_require_target_bindings_types_and_shared_budget() {
     with_production("public struct Empty() {}", |_, input, _, graph, types| {
         let empty = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
         assert!(
-            CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-                input,
-                types,
-                graph,
-                types,
-                &empty,
-                &mut meter()
-            )
-            .unwrap()
-            .entries()
-            .is_empty()
+            CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, &empty)
+                .unwrap()
+                .entries()
+                .is_empty()
         );
     });
 }

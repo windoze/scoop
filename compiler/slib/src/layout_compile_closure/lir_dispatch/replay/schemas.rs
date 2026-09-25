@@ -23,14 +23,13 @@ pub(super) fn for_owner<'a>(
     types: &'a mir::CanonicalParamFreeMirTypeExportsV1,
     schemas: &'a mir::CanonicalMirDispatchSchemasV1,
     ty: &'a mir::ParamFreeMirTypeExportV1,
-    meter: &mut BudgetMeter,
 ) -> Result<Schema<'a>, Error> {
     use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Representation};
     match ty.representation() {
         Representation::Class { .. }
         | Representation::Object { .. }
         | Representation::Intrinsic(Intrinsic::String)
-        | Representation::BoxedValue { .. } => source(types, schemas, ty, meter, 1),
+        | Representation::BoxedValue { .. } => source(types, schemas, ty),
         Representation::Intrinsic(_)
         | Representation::Struct { .. }
         | Representation::Enum { .. }
@@ -45,20 +44,13 @@ fn source<'a>(
     types: &'a mir::CanonicalParamFreeMirTypeExportsV1,
     schemas: &'a mir::CanonicalMirDispatchSchemasV1,
     ty: &'a mir::ParamFreeMirTypeExportV1,
-    meter: &mut BudgetMeter,
-    depth: u64,
 ) -> Result<Schema<'a>, Error> {
-    let path = WirePath::root();
-    meter.check_semantic_depth(depth, &path)?;
-    meter.charge_work(1, &path)?;
     match ty.representation() {
         mir::MirTypeRepresentationV1::BoxedValue { payload } => {
-            meter.charge_edges(1, &path)?;
-            meter.charge_work(u64::from(types.records().len().max(1).ilog2()) + 1, &path)?;
             let payload = types
                 .get(payload.value)
                 .ok_or(Error::MissingType(payload.value))?;
-            source(types, schemas, payload, meter, depth + 1)
+            source(types, schemas, payload)
         }
         mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
         | mir::MirTypeRepresentationV1::CoroutineStep { .. }
@@ -70,12 +62,9 @@ fn source<'a>(
             }
             Ok(Schema::Empty)
         }
-        _ => {
-            meter.charge_work(u64::from(schemas.records().len().max(1).ilog2()) + 1, &path)?;
-            schemas
-                .get(ty.exact())
-                .map(Schema::Source)
-                .ok_or(Error::MissingSchema(ty.exact()))
-        }
+        _ => schemas
+            .get(ty.exact())
+            .map(Schema::Source)
+            .ok_or(Error::MissingSchema(ty.exact())),
     }
 }

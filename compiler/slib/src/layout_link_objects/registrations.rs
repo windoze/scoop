@@ -6,15 +6,12 @@ pub(super) fn replay<'input>(
     patches: VerifiedScoopLirDigestPatchSiteSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     strong: &lir::ReplayedStrongProductionSectionV2,
-    costs: resources::ReplayCosts,
-    meter: &mut BudgetMeter,
 ) -> Result<ReplayedLayoutLinkObjectContentsV1<'input>, LayoutLinkObjectContentsError> {
     let candidates = objects.candidates();
-    strong.charge_registration_plan_copies(meter)?;
+
     macro_rules! verify {
         ($plan:ident, $verifier:ident) => {{
             let plan = strong.$plan();
-            costs.registrations(&patches, plan.registrations().len(), meter)?;
             $verifier(patches.clone(), plan.clone(), &candidates)?
         }};
     }
@@ -36,7 +33,6 @@ pub(super) fn replay<'input>(
         verify_strong_initialization_registrations_v2
     );
     let plan = strong.safepoint_registrations();
-    costs.registrations(&patches, plan.registrations().len(), meter)?;
     let safepoints =
         verify_strong_safepoint_registrations_v1(stackmaps, patches, plan.clone(), &candidates)?;
     Ok(ReplayedLayoutLinkObjectContentsV1 {
@@ -48,6 +44,5 @@ pub(super) fn replay<'input>(
         immortals,
         storages,
         initializations,
-        costs,
     })
 }

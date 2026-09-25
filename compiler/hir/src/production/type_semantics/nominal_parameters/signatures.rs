@@ -8,21 +8,16 @@ pub(super) fn expected<'a>(
     owner: ExportParameterOwner,
     key: &'a SourceDeclarationKey,
     binders: &[HirSignatureBinder],
-    meter: &mut BudgetMeter,
 ) -> Result<Cow<'a, [SignatureTypeKey]>, Error> {
     if let ExportParameterOwner::VariantConstructor(reference) = owner {
         let variant =
             &export.enums[reference.enumeration()].variants[reference.local_index() as usize];
         let path = WirePath::root();
-        meter
-            .check_table_entries(variant.fields.len() as u64, &path)
-            .map_err(resource)?;
+
         let mut fields = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut fields, variant.fields.len(), &path)
+        scoop_wire::allocation::try_reserve(&mut fields, variant.fields.len(), &path)
             .map_err(resource)?;
         for field in &variant.fields {
-            resources::ty(export, field.ty, binders.len(), 3, meter)?;
             fields.push(signatures.map_type(field.ty, binders).map_err(invalid)?);
         }
         Ok(Cow::Owned(fields))

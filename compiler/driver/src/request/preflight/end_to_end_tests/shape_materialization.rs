@@ -31,7 +31,7 @@ fn ordinary_public_nominals_materialize_and_publish_the_shared_shape_plan() {
                 Vec::new(),
             );
             request.emit = StageDumpPolicy::Stage(kind);
-            let library = request.build_and_publish(DecodeLimits::default()).unwrap();
+            let library = request.build_and_publish().unwrap();
             let dump = library.emitted_dump().unwrap();
             assert_eq!(dump.kind(), kind);
             snapshot(fixture, stage, dump.text());
@@ -47,7 +47,6 @@ fn ordinary_public_nominals_materialize_and_publish_the_shared_shape_plan() {
                 vec![ConeIdentity::CORE],
                 vec![&core_bytes],
                 &bytes,
-                DecodeLimits::default(),
                 target.c_bridge_toolchain().profile(),
                 &mut session,
             )

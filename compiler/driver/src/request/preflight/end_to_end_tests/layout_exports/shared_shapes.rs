@@ -3,25 +3,15 @@ use scoop_lir_lower::LayoutAbiExportInputV1;
 use scoop_slib::SharedLirShapeSupportValidationError as Error;
 
 mod corruption;
-mod resources;
 
 pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
-    let shapes = replay(
-        input,
-        expected.layouts(),
-        expected.descriptors(),
-        &mut meter(),
-    )
-    .unwrap();
+    let shapes = replay(input, expected.layouts(), expected.descriptors()).unwrap();
     assert_eq!(&shapes, expected.shape_support());
     let wire: lir::DecodedCanonicalParamFreeShapeSupportExportsV1 = decoded(&shapes);
-    assert_eq!(
-        wire.validate_against(&shapes, &mut meter()).unwrap(),
-        shapes
-    );
+    assert_eq!(wire.validate_against(&shapes).unwrap(), shapes);
     assert_eq!(
         shapes.records().len(),
         input.bridge.shapes().records().len()
@@ -57,14 +47,12 @@ pub(super) fn probe(
     expected: &lir::LayoutAbiExportConstituentsV1,
 ) {
     corruption::check(input, expected);
-    resources::check(input, expected);
 }
 
 fn replay(
     input: LayoutAbiExportInputV1<'_>,
     layouts: &lir::CanonicalExactLayoutExportsV1,
     descriptors: &lir::CanonicalExactDescriptorExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::CanonicalParamFreeShapeSupportExportsV1, Error> {
     scoop_slib::replay_shared_mir_shape_support(
         input.bridge.shapes(),
@@ -72,6 +60,5 @@ fn replay(
         descriptors,
         input.identities,
         input.lir.foundation(),
-        meter,
     )
 }

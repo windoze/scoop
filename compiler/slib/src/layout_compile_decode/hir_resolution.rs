@@ -16,12 +16,12 @@ use super::{
 
 impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
     /// Resolves the old public interface and the new type-semantics transport
-    /// against one foundation identity graph and one artifact budget.
+    /// against the artifact's foundation identity graph.
     pub fn resolve_hir_sections(
         self,
     ) -> Result<ResolvedCrossConeLayoutHirSections<'input>, CrossConeLayoutHirResolutionError> {
         let Self {
-            mut graph,
+            graph,
             view,
             mut identities,
             foundations,
@@ -36,14 +36,10 @@ impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
             lir_layout_abi,
         } = self;
         let hir_interface = hir_interface
-            .resolve_metered(&mut identities, graph.envelope.meter_mut())
+            .resolve(&mut identities)
             .map_err(|error| CrossConeLayoutHirResolutionError::Public(Box::new(error)))?;
         let hir_type_semantics = hir_type_semantics
-            .resolve(
-                &mut identities,
-                graph.envelope.meter_mut(),
-                &WirePath::root(),
-            )
+            .resolve(&mut identities, &WirePath::root())
             .map_err(|error| CrossConeLayoutHirResolutionError::TypeSemantics(Box::new(error)))?;
         Ok(ResolvedCrossConeLayoutHirSections {
             graph,

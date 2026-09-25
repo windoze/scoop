@@ -10,9 +10,8 @@ impl ExternalShapeLinkImportV1<'_> {
     pub(crate) fn semantic_target(
         &self,
         layouts: &CanonicalExactLayoutExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
-        semantic_target(self.subject(), layouts, meter)
+        semantic_target(self.subject(), layouts)
     }
     /// Rebinds the semantic contract to the terminal section's actual tables.
     /// Storage and initialization retain the enclosing closure's support join.
@@ -22,7 +21,6 @@ impl ExternalShapeLinkImportV1<'_> {
         callables: &CanonicalExactCallableAbiExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
         dispatch: &CanonicalExactDispatchExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ShapeLinkError> {
         if [
             layouts.provider(),
@@ -36,10 +34,9 @@ impl ExternalShapeLinkImportV1<'_> {
             return Err(ShapeLinkError::Provider);
         }
         use ExternalStrongShapeSubjectV1 as Subject;
-        let path = scoop_wire::WirePath::root();
+
         let expected = match self.subject {
             Subject::Callable(target) => {
-                meter.charge_work(callables.records().len() as u64, &path)?;
                 let record = callables
                     .get(target)
                     .ok_or(ShapeLinkError::MissingSubject(self.subject))?;
@@ -49,16 +46,12 @@ impl ExternalShapeLinkImportV1<'_> {
                     protocol: record.call_protocol(),
                 }
             }
-            Subject::Layout(id) => {
-                meter.charge_work(layouts.records().len() as u64, &path)?;
-                ShapeLinkContractV1::Layout {
-                    record: layouts
-                        .get(id)
-                        .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
-                }
-            }
+            Subject::Layout(id) => ShapeLinkContractV1::Layout {
+                record: layouts
+                    .get(id)
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
+            },
             Subject::Scan(id) => {
-                meter.charge_work(layouts.records().len() as u64, &path)?;
                 let record = layouts
                     .records()
                     .iter()
@@ -87,27 +80,23 @@ impl ExternalShapeLinkImportV1<'_> {
                 }
             }
             Subject::TypeDescriptor(id) | Subject::TypeRegistration(id) => {
-                meter.charge_work(descriptors.records().len() as u64, &path)?;
                 ShapeLinkContractV1::Type {
                     descriptor_projection: descriptors
                         .get(id)
                         .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
                 }
             }
-            Subject::DispatchTable(id) => {
-                meter.charge_work(dispatch.records().len() as u64, &path)?;
-                ShapeLinkContractV1::Dispatch {
-                    table_projection: dispatch
-                        .get(id)
-                        .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
-                }
-            }
+            Subject::DispatchTable(id) => ShapeLinkContractV1::Dispatch {
+                table_projection: dispatch
+                    .get(id)
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
+            },
             Subject::StaticStorage(_)
             | Subject::StaticStorageRegistration(_)
             | Subject::InitializationCell(_)
             | Subject::InitializationDescriptor(_) => return Ok(()),
         };
-        if !super::super::wire::equal_fields(self.contract(), &expected, meter)? {
+        if !super::super::wire::equal_fields(self.contract(), &expected)? {
             return Err(ShapeLinkError::Contract);
         }
         Ok(())
@@ -117,28 +106,21 @@ impl ExternalShapeLinkImportV1<'_> {
 pub(in crate::shape_link) fn semantic_target(
     subject: ExternalStrongShapeSubjectV1,
     layouts: &CanonicalExactLayoutExportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
     use crate::{ExternalStrongShapeSubjectV1 as Subject, LayoutAbiSemanticTargetV1 as Target};
-    meter.charge_work(1, &scoop_wire::WirePath::root())?;
+
     Ok(match subject {
         Subject::Callable(owner) => Some(Target::Callable(owner)),
         Subject::Layout(id) => Some(Target::Layout(id)),
-        Subject::Scan(id) => {
-            meter.charge_work(
-                layouts.records().len() as u64,
-                &scoop_wire::WirePath::root(),
-            )?;
-            Some(Target::Layout(
-                layouts
-                    .records()
-                    .iter()
-                    .find(|record| record.scan() == id)
-                    .ok_or(ShapeLinkError::MissingSubject(subject))?
-                    .identity()
-                    .layout(),
-            ))
-        }
+        Subject::Scan(id) => Some(Target::Layout(
+            layouts
+                .records()
+                .iter()
+                .find(|record| record.scan() == id)
+                .ok_or(ShapeLinkError::MissingSubject(subject))?
+                .identity()
+                .layout(),
+        )),
         Subject::TypeDescriptor(id) | Subject::TypeRegistration(id) => Some(Target::Descriptor(id)),
         Subject::DispatchTable(id) => Some(Target::Dispatch(id)),
         Subject::StaticStorage(_)

@@ -1,4 +1,4 @@
-use scoop_wire::{BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, WirePath, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -12,10 +12,6 @@ mod runtime;
 pub(super) mod support;
 use support::Fixture;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn seven_field_call_sites_round_trip_without_erasing_repeated_unit_arguments() {
     let fixture = Fixture::new();
@@ -24,11 +20,10 @@ fn seven_field_call_sites_round_trip_without_erasing_repeated_unit_arguments() {
     assert_eq!(bytes[0], 0xa7);
     assert_eq!(site.arguments(), &[fixture.unit, fixture.unit]);
     assert_eq!(site.witness_indices(), &[0, 3]);
-    let decoded: DecodedHirDependencyCallSiteV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedHirDependencyCallSiteV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded
-            .resolve(&mut fixture.graph(), &mut meter(), &WirePath::root())
+            .resolve(&mut fixture.graph(), &WirePath::root())
             .unwrap(),
         site
     );
@@ -58,10 +53,9 @@ fn call_routes_are_nonempty_ordered_and_unique_on_both_sides_of_the_codec() {
         bytes.extend(suffix);
         bytes.push(7);
         bytes.extend(receiver);
-        let decoded: DecodedHirDependencyCallSiteV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedHirDependencyCallSiteV1 = decode_canonical(&bytes).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture.graph(), &mut meter(), &WirePath::root()),
+            decoded.resolve(&mut fixture.graph(), &WirePath::root()),
             Err(HirDependencyCallSiteResolutionError::Shape(_))
         ));
     }
@@ -85,50 +79,12 @@ fn producer_orders_positions_while_reader_rejects_duplicates_and_reordering() {
             encode(&sites[1]).unwrap(),
         ]
         .concat();
-        let decoded: DecodedCanonicalHirDependencyCallSitesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedCanonicalHirDependencyCallSitesV1 = decode_canonical(&bytes).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture.graph(), &mut meter(), &WirePath::root()),
+            decoded.resolve(&mut fixture.graph(), &WirePath::root()),
             Err(HirDependencyCallSiteResolutionError::Shape(_))
         ));
     }
-}
-
-#[test]
-fn call_metadata_shares_work_and_memory_budgets() {
-    let fixture = Fixture::new();
-    let decoded: DecodedHirDependencyCallSiteV1 = decode_canonical(
-        &encode(&fixture.site(0, vec![0]).unwrap()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    let mut first = meter();
-    decoded
-        .clone()
-        .resolve(&mut fixture.graph(), &mut first, &WirePath::root())
-        .unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: first.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    decoded
-        .clone()
-        .resolve(&mut fixture.graph(), &mut shared, &WirePath::root())
-        .unwrap();
-    assert!(matches!(
-        decoded
-            .clone()
-            .resolve(&mut fixture.graph(), &mut shared, &WirePath::root()),
-        Err(HirDependencyCallSiteResolutionError::Resource(_))
-    ));
-    let mut exhausted = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        decoded.resolve(&mut fixture.graph(), &mut exhausted, &WirePath::root()),
-        Err(HirDependencyCallSiteResolutionError::Resource(_))
-    ));
 }
 
 #[test]
@@ -174,7 +130,7 @@ fn concrete_function_roles_require_actual_sites_and_valid_witness_indices() {
     )
     .unwrap();
     let decoded: DecodedExternalHirReferenceV1 =
-        decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&record).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.graph()).unwrap(), record);
 }
 
@@ -197,7 +153,7 @@ fn old_four_field_references_are_rejected_even_without_calls() {
     bytes[0] = 0xa4;
     bytes.truncate(bytes.len() - 2);
     assert!(matches!(
-        decode_canonical::<DecodedExternalHirReferenceV1>(&bytes, DecodeLimits::default())
+        decode_canonical::<DecodedExternalHirReferenceV1>(&bytes)
             .unwrap_err()
             .kind(),
         WireErrorKind::InvalidLength {

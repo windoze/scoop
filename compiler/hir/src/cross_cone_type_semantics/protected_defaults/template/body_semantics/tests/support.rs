@@ -1,8 +1,5 @@
 use super::*;
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 pub(super) fn value(f: &Fixture) -> SignatureTypeKey {
     SignatureTypeKey::Nominal(f.type_id)
 }
@@ -68,19 +65,15 @@ pub(super) fn template(
 }
 pub(super) struct Observation<'a> {
     pub template: &'a ProtectedDefaultTemplateV1,
-    meter: *const BudgetMeter,
+
     path: &'a WirePath,
     pub calls: usize,
 }
 impl<'a> Observation<'a> {
-    pub fn new(
-        template: &'a ProtectedDefaultTemplateV1,
-        meter: &BudgetMeter,
-        path: &'a WirePath,
-    ) -> Self {
+    pub fn new(template: &'a ProtectedDefaultTemplateV1, path: &'a WirePath) -> Self {
         Self {
             template,
-            meter,
+
             path,
             calls: 0,
         }
@@ -88,13 +81,13 @@ impl<'a> Observation<'a> {
     pub fn check(
         &mut self,
         template: &ProtectedDefaultTemplateV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), &'static str> {
         assert!(std::ptr::eq(template, self.template));
-        assert!(std::ptr::eq(meter, self.meter));
+
         assert!(std::ptr::eq(path, self.path));
         self.calls += 1;
-        meter.charge_work(13, path).map_err(|_| "callback budget")
+        Ok(())
     }
 }

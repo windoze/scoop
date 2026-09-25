@@ -122,7 +122,7 @@ impl WireEncode for DecodedGeneratedBridgeUnitKey {
 }
 
 impl WireDecode for DecodedGeneratedBridgeUnitKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => decode_id_variant(decoder, fields, Self::OutboundFunction),
@@ -220,7 +220,7 @@ impl WireEncode for DecodedGeneratedBridgeAtomRoleKey {
 }
 
 impl WireDecode for DecodedGeneratedBridgeAtomRoleKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -287,7 +287,7 @@ impl WireEncode for DecodedGeneratedBridgeAtomKey {
 }
 
 impl WireDecode for DecodedGeneratedBridgeAtomKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             producer: decoder.field(1, DecodedPersistentId::decode)?,
@@ -321,7 +321,7 @@ impl WireEncode for DecodedGeneratedBridgeSemanticTarget {
 }
 
 impl WireDecode for DecodedGeneratedBridgeSemanticTarget {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         Ok(Self {
             unit: decoder.field(1, DecodedPersistentId::decode)?,
@@ -329,14 +329,14 @@ impl WireDecode for DecodedGeneratedBridgeSemanticTarget {
     }
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -347,11 +347,7 @@ where
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -363,7 +359,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

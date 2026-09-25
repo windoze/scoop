@@ -100,7 +100,7 @@ pub(super) fn check(
             ));
             reject(current, core, structural);
         }
-        budget(current, core);
+
         let dump = original
             .iter()
             .map(|record| format!("{} {:?}\n", record.provider(), record.usage()))
@@ -142,26 +142,7 @@ fn reject(
         current.metadata().validate_materialized_type_uses(
             &CanonicalSelectedExternalTypeUsesV1::try_new(records).unwrap(),
             &[core.metadata()],
-            &mut meter(),
         ),
         Err(Error::TypeUseInventory)
-    ));
-}
-
-fn budget(current: CheckedSharedTypeFoundationV1<'_>, core: CheckedSharedTypeFoundationV1<'_>) {
-    let mut measured = meter();
-    current
-        .validate_materialized_type_uses(&[core], &mut measured)
-        .unwrap();
-    let mut bounded = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    current
-        .validate_materialized_type_uses(&[core], &mut bounded)
-        .unwrap();
-    assert!(matches!(
-        current.validate_materialized_type_uses(&[core], &mut bounded),
-        Err(Error::Resource(_))
     ));
 }

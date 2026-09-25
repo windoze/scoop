@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentExportBindingId, PersistentTypeAliasId, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -92,14 +92,11 @@ fn signature_collection_deduplicates_foreign_nominal_leaves() {
         .observe_signature(
             &signature,
             ExternalHirReferenceRoleV1::SignatureDependency,
-            &mut BudgetMeter::new(DecodeLimits::default()),
             &WirePath::root(),
         )
         .unwrap();
 
-    let references = accumulator
-        .finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default()))
-        .unwrap();
+    let references = accumulator.finish::<AuthorityError>().unwrap();
     assert_eq!(references.records().len(), 1);
     assert_eq!(references.records()[0].target(), target);
     assert_eq!(
@@ -124,7 +121,7 @@ fn source_name_roles_require_an_actual_selected_witness() {
         .unwrap();
 
     assert!(matches!(
-        accumulator.finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default())),
+        accumulator.finish::<AuthorityError>(),
         Err(ExternalHirReferenceProductionError::MissingWitnessUse {
             target: actual,
             role: ExternalHirReferenceRoleV1::AliasTarget,
@@ -224,34 +221,16 @@ impl PublicExportBindingClosureAuthority for Authority {
         2
     }
 
-    fn is_direct_dependency(
-        &self,
-        provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(provider != self.current)
+    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
+        provider != self.current
     }
 
-    fn binding_key(
-        &self,
-        binding: PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(self.bindings.get(&binding))
+    fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        self.bindings.get(&binding)
     }
 
-    fn public_bindings(
-        &self,
-        _exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    fn public_bindings(&self, _exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
+        None
     }
 }
 

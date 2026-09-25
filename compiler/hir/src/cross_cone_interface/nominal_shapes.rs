@@ -13,7 +13,6 @@ use crate::{IntrinsicTypeTarget, NominalCLayoutPolicyV1, NominalIntrinsicReprese
 mod enumeration;
 mod errors;
 mod fields;
-mod metered_resolution;
 mod semantics;
 mod wire;
 
@@ -288,11 +287,7 @@ fn encode_sequence<T: WireEncode>(
     Ok(())
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -303,7 +298,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

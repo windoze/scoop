@@ -7,7 +7,7 @@ use scoop_identity::{NonEmptyVec, SignatureTypeKey as Type};
 use scoop_wire::WirePath;
 mod generics;
 mod rejection;
-mod resources;
+
 mod support;
 use support::*;
 

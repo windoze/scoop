@@ -14,10 +14,9 @@ fn semantic_projection_replays_all_layout_families_without_definition_fields() {
     ] {
         let bytes = encode(&expected.semantic_projection()).unwrap();
         assert_eq!(bytes[0], 0xa6);
-        let decoded: DecodedExactLayoutSemanticProjectionV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedExactLayoutSemanticProjectionV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        decoded.validate_against(&expected, &mut meter()).unwrap();
+        decoded.validate_against(&expected).unwrap();
         // The complete legacy record is exactly the same six-field prefix
         // followed by the original field 7, without renumbering any field.
         let mut complete = bytes;
@@ -32,8 +31,7 @@ fn semantic_projection_replays_all_layout_families_without_definition_fields() {
 fn semantic_projection_rejects_changed_typed_geometry_and_full_record_payload() {
     let expected = fixtures::aggregate();
     let bytes = encode(&expected.semantic_projection()).unwrap();
-    let mut decoded: DecodedExactLayoutSemanticProjectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let mut decoded: DecodedExactLayoutSemanticProjectionV1 = decode_canonical(&bytes).unwrap();
     let RawBody::Value {
         representation: RawValue::Struct { fields, .. },
         ..
@@ -42,25 +40,9 @@ fn semantic_projection_rejects_changed_typed_geometry_and_full_record_payload() 
         panic!("struct")
     };
     fields[1].alignment = 1;
-    assert!(decoded.validate_against(&expected, &mut meter()).is_err());
+    assert!(decoded.validate_against(&expected).is_err());
     assert!(
-        decode_canonical::<DecodedExactLayoutSemanticProjectionV1>(
-            &encode(&expected).unwrap(),
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
-    let decoded: DecodedExactLayoutSemanticProjectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert!(
-        decoded
-            .validate_against(
-                &expected,
-                &mut BudgetMeter::new(DecodeLimits {
-                    validation_work_units: 5,
-                    ..DecodeLimits::default()
-                })
-            )
+        decode_canonical::<DecodedExactLayoutSemanticProjectionV1>(&encode(&expected).unwrap())
             .is_err()
     );
 }

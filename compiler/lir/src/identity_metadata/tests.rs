@@ -8,24 +8,17 @@ use scoop_identity::{
     GeneratedBridgeUnitId, GeneratedBridgeUnitKey, LexicalCallableParent, PackagePath,
     PersistentCallableBodyId, PersistentCallbackApplicationId, PersistentExactTypeId,
     PersistentFunctionId, PersistentIdMismatch, PersistentIdResolver, PersistentSafepointSiteId,
-    PersistentTypeId, RuntimeTypeId, SafepointId, SafepointSiteKey, SafepointSiteRole,
-    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
+    PersistentTypeId, SafepointSiteKey, SafepointSiteRole, SignatureCallableShape,
+    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
+    SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{
-    BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath, decode_canonical, encode,
-};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     CallbackBridgeRecord, DecodedCallbackBridgeRecord, DecodedRuntimeTypeMappingRecord,
-    DecodedSafepointMappingRecord, RuntimeTypeMappingRecord, RuntimeTypeMappingResolutionError,
-    SafepointMappingRecord, SafepointMappingResolutionError,
+    DecodedSafepointMappingRecord, RuntimeTypeMappingRecord, SafepointMappingRecord,
 };
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct ResolutionError;
@@ -71,100 +64,22 @@ fn derived_mapping_records_roundtrip_and_recompute_ids() {
     let safepoint = SafepointMappingRecord::new(fixture.site).unwrap();
 
     let runtime_bytes = encode(&runtime).unwrap();
-    let decoded_runtime = decode_canonical::<DecodedRuntimeTypeMappingRecord>(
-        &runtime_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded_runtime =
+        decode_canonical::<DecodedRuntimeTypeMappingRecord>(&runtime_bytes).unwrap();
     assert_eq!(encode(&decoded_runtime).unwrap(), runtime_bytes);
     assert_eq!(
-        decoded_runtime
-            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
-            .unwrap(),
+        decoded_runtime.resolve(&mut fixture.resolver()).unwrap(),
         runtime
     );
 
     let safepoint_bytes = encode(&safepoint).unwrap();
-    let decoded_safepoint = decode_canonical::<DecodedSafepointMappingRecord>(
-        &safepoint_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded_safepoint =
+        decode_canonical::<DecodedSafepointMappingRecord>(&safepoint_bytes).unwrap();
     assert_eq!(encode(&decoded_safepoint).unwrap(), safepoint_bytes);
     assert_eq!(
-        decoded_safepoint
-            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
-            .unwrap(),
+        decoded_safepoint.resolve(&mut fixture.resolver()).unwrap(),
         safepoint
     );
-}
-
-#[test]
-fn derived_mapping_hashes_are_precharged_at_the_exact_limit() {
-    let fixture = Fixture::new();
-    let runtime = RuntimeTypeMappingRecord::new(fixture.exact).unwrap();
-    let decoded_runtime = decode_canonical::<DecodedRuntimeTypeMappingRecord>(
-        &encode(&runtime).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    let runtime_work = (RuntimeTypeId::hash_stream_length().unwrap() + 72) / 64;
-    for (limit, accepted) in [
-        (runtime_work - 1, false),
-        (runtime_work, true),
-        (runtime_work + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            validation_work_units: limit,
-            ..DecodeLimits::default()
-        });
-        let result =
-            decoded_runtime.resolve(&mut fixture.resolver(), &mut meter, &WirePath::root());
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result,
-                Err(RuntimeTypeMappingResolutionError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::ValidationWorkUnits,
-                        limit,
-                        observed: runtime_work,
-                    }
-            ));
-        }
-    }
-
-    let safepoint = SafepointMappingRecord::new(fixture.site).unwrap();
-    let decoded_safepoint = decode_canonical::<DecodedSafepointMappingRecord>(
-        &encode(&safepoint).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    let safepoint_work = (SafepointId::hash_stream_length().unwrap() + 72) / 64;
-    for (limit, accepted) in [
-        (safepoint_work - 1, false),
-        (safepoint_work, true),
-        (safepoint_work + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            validation_work_units: limit,
-            ..DecodeLimits::default()
-        });
-        let result =
-            decoded_safepoint.resolve(&mut fixture.resolver(), &mut meter, &WirePath::root());
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result,
-                Err(SafepointMappingResolutionError::Resource(ref error))
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::ValidationWorkUnits,
-                        limit,
-                        observed: safepoint_work,
-                    }
-            ));
-        }
-    }
 }
 
 #[test]
@@ -174,31 +89,17 @@ fn stale_derived_runtime_ids_are_rejected() {
     let mut runtime_bytes = encode(&runtime).unwrap();
     let last = runtime_bytes.last_mut().unwrap();
     *last ^= 1;
-    let decoded_runtime = decode_canonical::<DecodedRuntimeTypeMappingRecord>(
-        &runtime_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    assert!(
-        decoded_runtime
-            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
-            .is_err()
-    );
+    let decoded_runtime =
+        decode_canonical::<DecodedRuntimeTypeMappingRecord>(&runtime_bytes).unwrap();
+    assert!(decoded_runtime.resolve(&mut fixture.resolver()).is_err());
 
     let safepoint = SafepointMappingRecord::new(fixture.site).unwrap();
     let mut safepoint_bytes = encode(&safepoint).unwrap();
     let last = safepoint_bytes.last_mut().unwrap();
     *last ^= 1;
-    let decoded_safepoint = decode_canonical::<DecodedSafepointMappingRecord>(
-        &safepoint_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    assert!(
-        decoded_safepoint
-            .resolve(&mut fixture.resolver(), &mut meter(), &WirePath::root())
-            .is_err()
-    );
+    let decoded_safepoint =
+        decode_canonical::<DecodedSafepointMappingRecord>(&safepoint_bytes).unwrap();
+    assert!(decoded_safepoint.resolve(&mut fixture.resolver()).is_err());
 }
 
 #[test]
@@ -207,10 +108,7 @@ fn zero_derived_runtime_ids_are_rejected_during_decode() {
     let mut bytes = vec![0xa2, 0x01];
     bytes.extend(encode(&fixture.exact).unwrap());
     bytes.extend([0x02, 0x00]);
-    assert!(
-        decode_canonical::<DecodedRuntimeTypeMappingRecord>(&bytes, DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedRuntimeTypeMappingRecord>(&bytes).is_err());
 }
 
 #[test]
@@ -218,8 +116,7 @@ fn callback_bridge_record_roundtrips_typed_references() {
     let fixture = Fixture::new();
     let record = CallbackBridgeRecord::new(fixture.application, fixture.signature, fixture.unit);
     let bytes = encode(&record).unwrap();
-    let decoded =
-        decode_canonical::<DecodedCallbackBridgeRecord>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedCallbackBridgeRecord>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), record);
 }
@@ -228,11 +125,8 @@ fn callback_bridge_record_roundtrips_typed_references() {
 fn callback_bridge_rejects_a_missing_typed_unit() {
     let fixture = Fixture::new();
     let record = CallbackBridgeRecord::new(fixture.application, fixture.signature, fixture.unit);
-    let decoded = decode_canonical::<DecodedCallbackBridgeRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCallbackBridgeRecord>(&encode(&record).unwrap()).unwrap();
     let mut resolver = fixture.resolver();
     resolver.unit = GeneratedBridgeUnitId::from_key(&GeneratedBridgeUnitKey::CallbackTrampoline {
         signature: fixture.signature,

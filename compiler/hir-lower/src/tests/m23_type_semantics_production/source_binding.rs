@@ -38,10 +38,6 @@ mod protected_declarations;
 mod rejection;
 mod replay;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 struct Fixture {
     source: hir::TypeFoundationSourceAuthorityV1,
     foundation: hir::OdrFreeHirFoundation,
@@ -50,25 +46,24 @@ struct Fixture {
 
 impl Fixture {
     fn from_output(output: &hir::DependencyHirOutput) -> Self {
-        let source =
-            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output, &mut meter())
-                .unwrap()
-                .source_transcript(&mut meter())
-                .unwrap();
+        let source = hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output)
+            .unwrap()
+            .source_transcript()
+            .unwrap();
         let canonical = hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap();
         let mut identities = identity_closure(output);
         let decoded: hir::DecodedHirFoundation =
-            decode_canonical(&encode(&canonical).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&canonical).unwrap()).unwrap();
         let coordinate = ConeCoordinate::new("test", "scoop-hir-lower", "0.0.0").unwrap();
         let foundation = hir::OdrFreeHirFoundation::from_validated(
             decoded
-                .validate_with_dependency_sources(&coordinate, &mut identities, &mut meter())
+                .validate_with_dependency_sources(&coordinate, &mut identities)
                 .unwrap(),
         )
         .unwrap();
         let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 =
-            decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
-        let source = decoded.resolve(&mut identities, &mut meter()).unwrap();
+            decode_canonical(&encode(&source).unwrap()).unwrap();
+        let source = decoded.resolve(&mut identities).unwrap();
         Self {
             source,
             foundation,
@@ -80,7 +75,7 @@ impl Fixture {
         &self,
     ) -> Result<hir::BoundTypeFoundationSourcesV1<'_>, hir::TypeFoundationBindingError> {
         self.source
-            .bind_to_foundation(&self.foundation, &self.identities, &mut meter())
+            .bind_to_foundation(&self.foundation, &self.identities)
     }
 }
 
@@ -122,7 +117,7 @@ fn binding_rejects_keys_absent_from_owner_even_when_dependency_graph_resolves_th
         let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let error = fixture
             .source
-            .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+            .bind_to_foundation(&incomplete, &fixture.identities)
             .unwrap_err();
         assert!(matches!(
             (field, error),
@@ -142,41 +137,9 @@ fn binding_requires_the_same_validated_identity_graph() {
     assert!(matches!(
         fixture
             .source
-            .bind_to_foundation(&fixture.foundation, &empty, &mut meter()),
+            .bind_to_foundation(&fixture.foundation, &empty),
         Err(hir::TypeFoundationBindingError::Identity(_))
     ));
-}
-
-#[test]
-fn binding_checks_index_budget_before_publishing_borrowed_keys() {
-    let fixture = Fixture::from_output(&lower_public_nominals());
-    for limits in [
-        DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            fixture.source.bind_to_foundation(
-                &fixture.foundation,
-                &fixture.identities,
-                &mut BudgetMeter::new(limits)
-            ),
-            Err(hir::TypeFoundationBindingError::Resource(_))
-        ));
-    }
 }
 
 mod default_declarations;

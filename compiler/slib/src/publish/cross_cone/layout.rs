@@ -18,7 +18,7 @@ use CrossConeLayoutArtifactValidationError as Error;
 #[allow(clippy::too_many_arguments)]
 pub fn validate_publishable_cross_cone_layout_artifact(
     final_bytes: &[u8],
-    limits: DecodeLimits,
+
     current: ConeIdentity,
     direct: &[ConeIdentity],
     dependency_first: &[&[u8]],
@@ -29,17 +29,11 @@ pub fn validate_publishable_cross_cone_layout_artifact(
     for (index, bytes) in dependency_first.iter().enumerate() {
         dependencies.push(decode(
             bytes,
-            limits,
             target,
             CrossConeClosureArtifactSlotV1::Dependency(index),
         )?);
     }
-    let front = decode(
-        final_bytes,
-        limits,
-        target,
-        CrossConeClosureArtifactSlotV1::Current,
-    )?;
+    let front = decode(final_bytes, target, CrossConeClosureArtifactSlotV1::Current)?;
     let semantic = DecodedCrossConeLayoutCompileClosure::with_current_artifact(
         current,
         target,
@@ -78,7 +72,7 @@ pub fn validate_publishable_cross_cone_layout_artifact(
 pub fn publish_cross_cone_layout_artifact(
     final_bytes: &[u8],
     destination: &Path,
-    limits: DecodeLimits,
+
     current: ConeIdentity,
     direct: &[ConeIdentity],
     dependency_first: &[&[u8]],
@@ -88,7 +82,6 @@ pub fn publish_cross_cone_layout_artifact(
     atomic::publish(final_bytes, destination, |bytes| {
         validate_publishable_cross_cone_layout_artifact(
             bytes,
-            limits,
             current,
             direct,
             dependency_first,
@@ -101,11 +94,11 @@ pub fn publish_cross_cone_layout_artifact(
 
 fn decode<'input>(
     bytes: &'input [u8],
-    limits: DecodeLimits,
+
     target: ValidatedLirTargetSelection,
     slot: CrossConeClosureArtifactSlotV1,
 ) -> Result<DecodedCrossConeLayoutCompileSections<'input>, Error> {
-    DecodedSlibEnvelope::open(bytes, limits, target)
+    DecodedSlibEnvelope::open(bytes, target)
         .map_err(|source| Error::Envelope {
             slot,
             source: Box::new(source),

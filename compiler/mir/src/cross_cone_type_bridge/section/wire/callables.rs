@@ -24,36 +24,29 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
             ),
         >,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<CallablesResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError<E>>
     {
         let count = dependencies
             .len()
             .checked_add(1)
             .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
-        let mut tables = reserve(count, meter)?;
-        let mut callable_tables = reserve(count, meter)?;
-        let mut schemas = reserve(count - 1, meter)?;
+        let mut tables = reserve(count)?;
+        let mut callable_tables = reserve(count)?;
+        let mut schemas = reserve(count - 1)?;
         tables.push(&self.types);
         for (types, callables, dispatch) in dependencies {
             tables.push(types);
             callable_tables.push(callables);
             schemas.push(dispatch);
         }
-        let index = MirTypeBridgeTypeIndexV1::try_new(&tables, meter)?;
-        let callables = self.callables.validate(graph, foundation, &index, meter)?;
-        let object_values = self
-            .object_values
-            .validate(graph, &index, &callables, meter)?;
+        let index = MirTypeBridgeTypeIndexV1::try_new(&tables)?;
+        let callables = self.callables.validate(graph, foundation, &index)?;
+        let object_values = self.object_values.validate(graph, &index, &callables)?;
         callable_tables.push(&callables);
-        let callable_index = MirTypeBridgeCallableIndexV1::try_new(&callable_tables, meter)?;
-        let dispatch = self.dispatch.validate_with_dependencies(
-            graph,
-            &index,
-            &callable_index,
-            &schemas,
-            meter,
-        )?;
+        let callable_index = MirTypeBridgeCallableIndexV1::try_new(&callable_tables)?;
+        let dispatch =
+            self.dispatch
+                .validate_with_dependencies(graph, &index, &callable_index, &schemas)?;
         Ok(CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
             types: self.types,
             callables,
@@ -87,17 +80,16 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
         self,
         authority: MirTypeBridgeLocalAuthorityV1<'_>,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<DependencyResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError<E>>
     {
-        authority.validate(meter)?;
+        authority.validate()?;
         let provider = authority.provider();
-        let initialization_uses = self.initialization_uses.validate(provider, graph, meter)?;
-        let mut selected = reserve(self.selected.len(), meter)?;
+        let initialization_uses = self.initialization_uses.validate(provider, graph)?;
+        let mut selected = reserve(self.selected.len())?;
         for decoded in self.selected {
-            selected.push(decoded.resolve(graph, meter)?);
+            selected.push(decoded.resolve(graph)?);
         }
-        build::validate_selected_records(provider, &selected, meter)?;
+        build::validate_selected_records(provider, &selected)?;
         Ok(DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
             provider,
             exports: MirTypeBridgeExportConstituentsV1::new(
@@ -108,7 +100,7 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
                 self.shape_support,
                 initialization_uses,
             ),
-            legacy: authority.legacy_callables(meter)?,
+            legacy: authority.legacy_callables()?,
             selected,
         })
     }
@@ -119,10 +111,9 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
         dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
-        let dependencies = dependencies::complete(authority.provider(), dependencies, meter)?;
-        self.complete(authority, dependencies, source, graph, meter)
+        let dependencies = dependencies::complete(authority.provider(), dependencies)?;
+        self.complete(authority, dependencies, source, graph)
     }
 
     pub(super) fn complete<'a, E>(
@@ -131,11 +122,10 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
         dependencies: Vec<&'a CrossConeMirTypeBridgeSectionV1<'a>>,
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
         let DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
             exports, selected, ..
-        } = self.resolve_dependencies(authority, graph, meter)?;
+        } = self.resolve_dependencies(authority, graph)?;
         build::complete(
             build::SectionInput {
                 authority,
@@ -145,7 +135,6 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
             },
             source,
             graph,
-            meter,
         )
     }
 }

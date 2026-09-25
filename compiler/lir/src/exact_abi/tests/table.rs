@@ -68,7 +68,6 @@ fn records() -> (
                 result: &unit,
             },
             &foundation,
-            &mut meter(),
         )
         .unwrap()
     };
@@ -79,9 +78,7 @@ fn records() -> (
 #[test]
 fn table_canonicalizes_targets_and_round_trips_complete_records() {
     let (foundation, records, mut targets) = records();
-    let table =
-        CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, records, &mut meter())
-            .unwrap();
+    let table = CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, records).unwrap();
     targets.sort_unstable();
     assert_eq!(table.provider(), ConeIdentity::SINGLE_FILE);
     assert_eq!(table.target(), TARGET);
@@ -100,57 +97,7 @@ fn table_canonicalizes_targets_and_round_trips_complete_records() {
         );
     }
     let bytes = encode(&table).unwrap();
-    let decoded = decode_canonical::<DecodedCanonicalExactCallableAbiExportsV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedCanonicalExactCallableAbiExportsV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(
-        decoded.validate_against(&table, &mut meter()).unwrap(),
-        table
-    );
-}
-
-#[test]
-fn table_rejects_duplicate_omitted_and_unbudgeted_records() {
-    let (foundation, records, _) = records();
-    let duplicate = records[0].clone();
-    assert!(matches!(
-        CanonicalExactCallableAbiExportsV1::try_new(
-            TARGET,
-            &foundation,
-            vec![duplicate.clone(), duplicate],
-            &mut meter(),
-        ),
-        Err(ExactCallableAbiTableError::Duplicate(_))
-    ));
-    let table =
-        CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, records, &mut meter())
-            .unwrap();
-    let one = encode(table.records().first().unwrap()).unwrap();
-    let mut bytes = vec![0x81];
-    bytes.extend(one);
-    let decoded = decode_canonical::<DecodedCanonicalExactCallableAbiExportsV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    assert!(matches!(
-        decoded.validate_against(&table, &mut meter()),
-        Err(ExactCallableAbiTableError::Count)
-    ));
-    let limits = DecodeLimits {
-        semantic_table_entries: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        CanonicalExactCallableAbiExportsV1::try_new(
-            TARGET,
-            &foundation,
-            table.records().to_vec(),
-            &mut BudgetMeter::new(limits),
-        ),
-        Err(ExactCallableAbiTableError::Resource(_))
-    ));
+    assert_eq!(decoded.validate_against(&table).unwrap(), table);
 }

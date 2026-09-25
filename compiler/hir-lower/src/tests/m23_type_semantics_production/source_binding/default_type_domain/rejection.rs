@@ -5,16 +5,11 @@ fn default_type_domains_reject_wrong_arity_and_provider_binder_scope() {
     with_local(|core, fixture, table, required, templates| {
         let foundation = fixture.bind().unwrap();
         let declarations = foundation
-            .bind_default_access_declarations(table, required, &mut meter())
+            .bind_default_access_declarations(table, required)
             .unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-        let domains = Domains::new(
-            &declarations,
-            &[],
-            inputs.protocols().fundamental_types(),
-            &mut meter(),
-        )
-        .unwrap();
+        let domains =
+            Domains::new(&declarations, &[], inputs.protocols().fundamental_types()).unwrap();
         let applied = templates
             .iter()
             .find(|(name, _)| *name == "applied")
@@ -32,7 +27,7 @@ fn default_type_domains_reject_wrong_arity_and_provider_binder_scope() {
             ),
         };
         assert!(matches!(
-            domains.type_source_domain(&wrong, &scope("applied"), &mut meter()),
+            domains.type_source_domain(&wrong, &scope("applied")),
             Err(Error::Arity {
                 expected: 1,
                 actual: 2,
@@ -44,7 +39,7 @@ fn default_type_domains_reject_wrong_arity_and_provider_binder_scope() {
             Type::Binder { depth: 0, index: 1 },
         ] {
             assert!(matches!(
-                domains.type_source_domain(&binder, &scope("binder"), &mut meter()),
+                domains.type_source_domain(&binder, &scope("binder")),
                 Err(Error::Binder(_))
             ));
         }
@@ -55,7 +50,7 @@ fn default_type_domains_reject_wrong_arity_and_provider_binder_scope() {
             .1
             .result();
         assert!(matches!(
-            domains.type_source_domain(combined, &scope("binder"), &mut meter()),
+            domains.type_source_domain(combined, &scope("binder")),
             Err(Error::Binder(_))
         ));
     });
@@ -65,18 +60,13 @@ fn default_type_domains_reject_wrong_arity_and_provider_binder_scope() {
 fn default_type_domains_require_declaration_sources_even_for_known_type_identities() {
     with_local(|core, fixture, _, _, templates| {
         let foundation = fixture.bind().unwrap();
-        let table = Table::try_new(vec![], &mut meter()).unwrap();
+        let table = Table::try_new(vec![]).unwrap();
         let declarations = foundation
-            .bind_default_access_declarations(&table, &BTreeSet::new(), &mut meter())
+            .bind_default_access_declarations(&table, &BTreeSet::new())
             .unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-        let domains = Domains::new(
-            &declarations,
-            &[],
-            inputs.protocols().fundamental_types(),
-            &mut meter(),
-        )
-        .unwrap();
+        let domains =
+            Domains::new(&declarations, &[], inputs.protocols().fundamental_types()).unwrap();
         for ty in [
             templates[0].1.result(),
             templates
@@ -87,14 +77,14 @@ fn default_type_domains_require_declaration_sources_even_for_known_type_identiti
                 .result(),
         ] {
             assert!(
-                matches!(domains.type_source_domain(ty, &scope("nominal"), &mut meter()), Err(Error::Access(error)) if matches!(*error, hir::DefaultSourceAccessBindingError::MissingKey(_)))
+                matches!(domains.type_source_domain(ty, &scope("nominal")), Err(Error::Access(error)) if matches!(*error, hir::DefaultSourceAccessBindingError::MissingKey(_)))
             );
         }
         for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
             let ty = Type::Nominal(builtin.identity_record().id());
             assert!(
                 domains
-                    .type_source_domain(&ty, &scope("builtin"), &mut meter())
+                    .type_source_domain(&ty, &scope("builtin"))
                     .unwrap()
                     .is_universal()
             );
@@ -109,7 +99,7 @@ fn default_type_domains_require_declaration_sources_even_for_known_type_identiti
             },
         ] {
             assert!(matches!(
-                domains.type_source_domain(&ty, &scope("builtin"), &mut meter()),
+                domains.type_source_domain(&ty, &scope("builtin")),
                 Err(Error::MissingProvider(scoop_identity::ConeIdentity::CORE))
             ));
         }

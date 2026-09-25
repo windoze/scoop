@@ -62,7 +62,7 @@ impl WireEncode for DecodedNativeBoundaryNominalShape {
 }
 
 impl WireDecode for DecodedNativeBoundaryNominalShape {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{ResourceKind, WirePath};
+use crate::WirePath;
 
 /// The wire kinds admitted by Wire CBOR v1.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -28,44 +28,18 @@ impl fmt::Display for WireType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WireErrorKind {
     UnexpectedEnd,
-    WrongType {
-        expected: WireType,
-    },
-    IndefiniteLength {
-        expected: WireType,
-    },
+    WrongType { expected: WireType },
+    IndefiniteLength { expected: WireType },
     NonCanonicalCbor,
     TrailingData,
-    DuplicateField {
-        field: u32,
-    },
-    MissingField {
-        field: u32,
-    },
-    ExtraField {
-        field: u64,
-    },
-    UnexpectedField {
-        expected: u32,
-        actual: u64,
-    },
-    UnknownTag {
-        tag: u64,
-    },
-    InvalidLength {
-        expected: u64,
-        actual: u64,
-    },
+    DuplicateField { field: u32 },
+    MissingField { field: u32 },
+    ExtraField { field: u64 },
+    UnexpectedField { expected: u32, actual: u64 },
+    UnknownTag { tag: u64 },
+    InvalidLength { expected: u64, actual: u64 },
     IntegerOutOfRange,
-    LimitExceeded {
-        resource: ResourceKind,
-        limit: u64,
-        observed: u64,
-    },
-    ResourceAllocation {
-        requested_logical_bytes: u64,
-        requested_slots: u64,
-    },
+    Allocation,
 }
 
 /// A structured wire failure with a stable payload path and byte offset.
@@ -124,21 +98,7 @@ impl fmt::Display for WireError {
                 write!(formatter, "expected length {expected}, found {actual}")
             }
             WireErrorKind::IntegerOutOfRange => formatter.write_str("integer out of range"),
-            WireErrorKind::LimitExceeded {
-                resource,
-                limit,
-                observed,
-            } => write!(
-                formatter,
-                "{resource} limit exceeded: limit {limit}, observed {observed}"
-            ),
-            WireErrorKind::ResourceAllocation {
-                requested_logical_bytes,
-                requested_slots,
-            } => write!(
-                formatter,
-                "allocation failed for {requested_logical_bytes} logical bytes and {requested_slots} slots"
-            ),
+            WireErrorKind::Allocation => formatter.write_str("allocation failed"),
         }
     }
 }

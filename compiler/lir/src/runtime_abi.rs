@@ -5,10 +5,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{BackendProfileWireId, TargetProfileWireId};
-use scoop_wire::{
-    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use crate::{
     BackendProfileFingerprint, LirTargetProfile, ManagedRuntimeFunction, NoGcRuntimeFunction,
@@ -51,10 +48,6 @@ impl RuntimeAbiContract {
     pub fn fingerprint(self) -> Result<RuntimeAbiFingerprint, HashError> {
         domain_separated_cbor_hash(RUNTIME_ABI_DOMAIN, &self)
             .map(|digest| RuntimeAbiFingerprint(*digest.as_array()))
-    }
-
-    pub fn hash_stream_length(self) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(RUNTIME_ABI_DOMAIN, &self)
     }
 }
 

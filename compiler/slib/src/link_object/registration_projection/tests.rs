@@ -1,5 +1,5 @@
 use scoop_identity::ConeIdentity;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -66,11 +66,8 @@ fn table_builder_sorts_and_rejects_duplicate_semantic_ids() {
 fn decoded_fingerprint_tables_require_the_rebuilt_projection() {
     let expected = empty_projection();
     let bytes = encode(&expected).unwrap();
-    let decoded = decode_canonical::<DecodedCanonicalStrongRegistrationFingerprintSetV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalStrongRegistrationFingerprintSetV1>(&bytes).unwrap();
     assert_eq!(decoded.validate(&expected).unwrap(), expected);
 
     let mut changed = bytes;
@@ -79,11 +76,8 @@ fn decoded_fingerprint_tables_require_the_rebuilt_projection() {
     entry.extend_from_slice(&[0x02, 0x58, 0x20]);
     entry.extend_from_slice(&[2; 32]);
     changed.splice(2..=2, entry);
-    let decoded = decode_canonical::<DecodedCanonicalStrongRegistrationFingerprintSetV1>(
-        &changed,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalStrongRegistrationFingerprintSetV1>(&changed).unwrap();
     assert!(matches!(
         decoded.validate(&expected),
         Err(StrongRegistrationFingerprintSetValidationError::ProjectionMismatch)
@@ -94,11 +88,7 @@ fn decoded_fingerprint_tables_require_the_rebuilt_projection() {
 fn decoded_fingerprint_tables_reject_old_and_extended_shapes() {
     for bytes in [vec![0xa5], vec![0xa7]] {
         assert!(
-            decode_canonical::<DecodedCanonicalStrongRegistrationFingerprintSetV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
+            decode_canonical::<DecodedCanonicalStrongRegistrationFingerprintSetV1>(&bytes).is_err()
         );
     }
 }

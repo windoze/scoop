@@ -29,9 +29,7 @@ fn canonical_selected_targets_preserve_provider_use_and_exact_distinctions() {
     let decoded: DecodedCanonicalSelectedExternalTypeUsesV1 = parsed(&canonical);
     assert_eq!(encode(&decoded).unwrap(), encode(&canonical).unwrap());
     assert_eq!(
-        decoded
-            .resolve(&mut f.resolver(), &mut meter(), &path())
-            .unwrap(),
+        decoded.resolve(&mut f.resolver(), &path()).unwrap(),
         canonical
     );
 }
@@ -59,7 +57,7 @@ fn producer_rejects_duplicates_and_reader_never_repairs_target_order() {
     ));
     let repeated = decoded(&[first, first]);
     assert!(matches!(
-        repeated.resolve(&mut f.resolver(), &mut meter(), &path()),
+        repeated.resolve(&mut f.resolver(), &path()),
         Err(SelectedTypeUseResolutionError::Duplicate { index: 1 }),
     ));
     let other = f.record(SelectedTypeUseV1::Representation { exact: f.owner });
@@ -71,7 +69,7 @@ fn producer_rejects_duplicates_and_reader_never_repairs_target_order() {
         encode(&Sequence(&reversed)).unwrap()
     );
     assert!(matches!(
-        parsed.resolve(&mut f.resolver(), &mut meter(), &path()),
+        parsed.resolve(&mut f.resolver(), &path()),
         Err(SelectedTypeUseResolutionError::NonCanonicalOrder { index: 1 }),
     ));
 }

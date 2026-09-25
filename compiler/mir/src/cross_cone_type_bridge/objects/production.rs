@@ -19,17 +19,16 @@ impl MirObjectValueProductionV1 {
         local_types: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirObjectProductionError> {
-        let sources = sources::project(input, local_types, meter)?;
-        let callables = callables::project(input, &sources, identities, types, meter)?;
+        let sources = sources::project(input, local_types)?;
+        let callables = callables::project(input, &sources, identities, types)?;
         let authority = MirObjectBridgeAuthority {
             identities,
             types,
             callables: &callables,
         };
         let mut objects = Vec::new();
-        reserve(&mut objects, sources.len(), meter)?;
+        reserve(&mut objects, sources.len())?;
         for source in sources {
             objects.push(ParamFreeMirObjectValueV1::try_new(
                 authority,
@@ -40,12 +39,11 @@ impl MirObjectValueProductionV1 {
                 MirObjectValueReadPlanV1::PublishedSingletonRoot {
                     object: source.exact,
                 },
-                meter,
             )?);
         }
         Ok(Self {
             callables,
-            objects: CanonicalMirObjectValuesV1::try_new(objects, meter)?,
+            objects: CanonicalMirObjectValuesV1::try_new(objects)?,
         })
     }
 
@@ -111,15 +109,8 @@ impl std::fmt::Display for MirObjectProductionError {
 }
 impl std::error::Error for MirObjectProductionError {}
 
-fn reserve<T>(
-    records: &mut Vec<T>,
-    count: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), WireError> {
+fn reserve<T>(records: &mut Vec<T>, count: usize) -> Result<(), WireError> {
     let path = WirePath::root();
-    meter.charge_owned_bytes(
-        (count as u64).saturating_mul(std::mem::size_of::<T>() as u64),
-        &path,
-    )?;
-    meter.try_reserve_collection_slots(records, count, &path)
+
+    scoop_wire::allocation::try_reserve(records, count, &path)
 }

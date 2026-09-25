@@ -22,8 +22,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     ))
                 })?;
                 self.next_expression += 1;
-                self.visitor
-                    .expression(index, expression, self.meter, self.path)?;
+                self.visitor.expression(index, expression, self.path)?;
                 Attachment::Expression { index, expression }
             }
             BodyNode::Pattern { pattern, .. } => Attachment::Metadata(Metadata::Pattern(pattern)),
@@ -92,22 +91,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 site,
                 attachment: self.current,
             },
-            self.meter,
             self.path,
         )
-    }
-
-    pub(in super::super) fn enter_leaf(&mut self) -> Result<(), V::Error> {
-        self.meter.check_semantic_depth(1, self.path)?;
-        self.meter.charge_edges(1, self.path)?;
-        self.meter.charge_work(1, self.path)?;
-        self.enter_node(1)
-    }
-
-    pub(in super::super) fn enter_node(&mut self, depth: u64) -> Result<(), V::Error> {
-        self.meter.check_semantic_depth(depth, self.path)?;
-        self.meter.charge_nodes(1, self.path)?;
-        self.meter.charge_work(1, self.path)?;
-        Ok(())
     }
 }

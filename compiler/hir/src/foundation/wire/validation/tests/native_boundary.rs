@@ -24,9 +24,7 @@ fn native_boundary_reads_actual_local_and_external_declarations_through_one_grap
                     let input = fixture.input();
                     let decoded = decode(&input);
                     let mut identities = fixture.graph(&decoded, &current, true);
-                    let validated = decoded
-                        .validate(&current, &mut identities, &mut meter())
-                        .unwrap();
+                    let validated = decoded.validate(&current, &mut identities).unwrap();
                     assert_eq!(encode(&validated).unwrap(), encode(&input).unwrap());
                     assert_eq!(validated.counts().fields, 0);
                     assert_eq!(validated.counts().enum_variants, 0);
@@ -47,7 +45,7 @@ fn native_boundary_requires_dependency_keys_and_complete_field_variant_coverage(
         let decoded = decode(&input);
         let mut identities = fixture.graph(&decoded, &current, false);
         assert!(matches!(
-            decoded.validate(&current, &mut identities, &mut meter()),
+            decoded.validate(&current, &mut identities),
             Err(HirFoundationValidationError::NativeBoundaryType {
                 index: 0,
                 error: NativeBoundaryResolutionError::Reference(
@@ -62,10 +60,7 @@ fn native_boundary_requires_dependency_keys_and_complete_field_variant_coverage(
             .unwrap();
         let decoded = decode(&input);
         let mut identities = fixture.graph(&decoded, &current, true);
-        let error = decoded
-            .validate(&current, &mut identities, &mut meter())
-            .err()
-            .unwrap();
+        let error = decoded.validate(&current, &mut identities).err().unwrap();
         assert!(
             matches!(error,
                 HirFoundationValidationError::NativeBoundaryShapeCoverage(NativeBoundaryShapeCoverageError::MissingStructField { .. }) if !enumeration
@@ -74,24 +69,4 @@ fn native_boundary_requires_dependency_keys_and_complete_field_variant_coverage(
             )
         );
     }
-}
-
-#[test]
-fn native_boundary_graph_queries_keep_the_callers_continuous_budget() {
-    let current = ConeCoordinate::reserved_core();
-    let provider = ConeCoordinate::new("example", "budget", "1.0.0").unwrap();
-    let fixture = BoundaryFixture::new(provider.identity().unwrap(), false, true);
-    let input = fixture.input();
-    let mut identities = fixture.graph(&decode(&input), &current, true);
-    let run = |identities: &mut ValidatedIdentityGraph, meter: &mut BudgetMeter| {
-        decode(&input).validate(&current, identities, meter)
-    };
-    let mut measured = meter();
-    run(&mut identities, &mut measured).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    run(&mut identities, &mut shared).unwrap();
-    assert!(run(&mut identities, &mut shared).is_err());
 }

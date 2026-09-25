@@ -6,7 +6,6 @@ use scoop_identity::{
     DependencyCallableDeclarationId,
 };
 use scoop_mir::{CrossConeMirBridgeSectionV1, StrongCallableBridgeSurfaceV1};
-use scoop_wire::{BudgetMeter, WirePath};
 
 use crate::CrossConeMirClosureRelationError;
 
@@ -17,26 +16,9 @@ pub(crate) fn validate_executable_hir_calls(
     interface: &CrossConeHirInterfaceSectionV1,
     strong: &StrongCallableBridgeSurfaceV1,
     bridge: &CrossConeMirBridgeSectionV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     use CrossConeMirClosureRelationError as Error;
-    let path = WirePath::root();
-    meter
-        .charge_work(
-            (interface.external_references().records().len() + bridge.selected().len()) as u64
-                * (u64::from(bridge.selected().len().max(1).ilog2())
-                    + u64::from(
-                        interface
-                            .external_references()
-                            .records()
-                            .len()
-                            .max(1)
-                            .ilog2(),
-                    )
-                    + 2),
-            &path,
-        )
-        .map_err(Error::Resource)?;
+
     validate_hir_selected_set(interface, bridge)?;
     for selected in bridge.selected() {
         let reference = interface
@@ -47,14 +29,7 @@ pub(crate) fn validate_executable_hir_calls(
             })?;
         for site in reference.call_sites().records() {
             let position = site.position();
-            meter
-                .charge_work(
-                    site.arguments().len() as u64
-                        + u64::from(strong.bridges().len().max(1).ilog2())
-                        + 2,
-                    &path,
-                )
-                .map_err(Error::Resource)?;
+
             if position.root.context() != CallableMaterializationContext::NoSubstitution {
                 return Err(Error::CallRoot { position });
             }

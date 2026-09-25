@@ -64,12 +64,10 @@ impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
                 let path = WirePath::root();
                 let mut layouts = Vec::new();
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut layouts, reachable.len(), &path)?;
+                scoop_wire::allocation::try_reserve(&mut layouts, reachable.len(), &path)?;
                 for position in reachable {
                     layouts.push(complete[position].lir_exports().layouts());
                 }
@@ -79,12 +77,9 @@ impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
                     layout.exports().layouts(),
                     &layouts,
                     parts.lir_foundation,
-                    parts.meter,
                 )?;
-                let strong = strong.validate_initialization_abi(expected, parts.meter)?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &path)?;
+                let strong = strong.validate_initialization_abi(expected)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
                 Ok(LirInitializationAbiValidatedCrossConeLayoutSections {
                     prepared,
                     mir,

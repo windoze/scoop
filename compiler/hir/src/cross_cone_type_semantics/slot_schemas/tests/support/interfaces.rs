@@ -1,6 +1,5 @@
 use super::*;
 use crate::{CanonicalPersistentIdsV1, InterfaceSourceDispatchV1, InterfaceSourceMemberV1};
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 impl Fixture {
     pub fn interface_source(
@@ -21,7 +20,6 @@ impl Fixture {
                     )
                 })
                 .collect(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
         )
         .unwrap();
         self.interface_sources.insert(owner.exact, source);
@@ -33,13 +31,9 @@ impl Fixture {
                 slot,
                 CanonicalPersistentIdsV1::empty(),
             ));
-            let source = InterfaceSourceDispatchV1::try_new(
-                owner.exact,
-                source.parents().to_vec(),
-                members,
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+            let source =
+                InterfaceSourceDispatchV1::try_new(owner.exact, source.parents().to_vec(), members)
+                    .unwrap();
             self.interface_sources.insert(owner.exact, source);
         }
     }

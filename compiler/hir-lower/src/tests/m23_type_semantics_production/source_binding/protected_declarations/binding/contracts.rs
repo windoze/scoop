@@ -143,7 +143,6 @@ fn protected_binding_compares_every_kind_of_complete_source_contract() {
                     &forged,
                     protocols,
                     &fixture.source.entries().representations,
-                    &mut meter(),
                 )
                 .unwrap_err()
             else {

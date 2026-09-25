@@ -18,12 +18,7 @@ fn physical_abi_preserves_managed_pointer_provenance_and_complete_scan() {
     };
     let valid = signature(nonzero(8, 8, MANAGED_PTR, RefScan::References(vec![0])));
     expected
-        .validate_physical_signature(
-            &EnumDefs::default(),
-            &valid,
-            crate::GcEffect::NoGc,
-            &mut meter(),
-        )
+        .validate_physical_signature(&EnumDefs::default(), &valid, crate::GcEffect::NoGc)
         .unwrap();
     for invalid in [
         nonzero(8, 8, MANAGED_PTR, RefScan::None),
@@ -35,8 +30,7 @@ fn physical_abi_preserves_managed_pointer_provenance_and_complete_scan() {
             expected.validate_physical_signature(
                 &EnumDefs::default(),
                 &signature(invalid),
-                crate::GcEffect::NoGc,
-                &mut meter()
+                crate::GcEffect::NoGc
             ),
             Err(ExactCallablePhysicalAbiError::Argument(0))
         ));
@@ -45,8 +39,7 @@ fn physical_abi_preserves_managed_pointer_provenance_and_complete_scan() {
         expected.validate_physical_signature(
             &EnumDefs::default(),
             &valid,
-            crate::GcEffect::Managed,
-            &mut meter()
+            crate::GcEffect::Managed
         ),
         Err(ExactCallablePhysicalAbiError::Protocol)
     ));
@@ -60,14 +53,13 @@ fn physical_abi_distinguishes_unit_void_user_zst_and_indirect_aggregate() {
     let enums = EnumDefs::default();
     let empty = ScoopAbiSignature::new(vec![], AbiReturn::UnitVoid, CallingConvention::Cdecl);
     fixtures::function(&unit, &[])
-        .validate_physical_signature(&enums, &empty, crate::GcEffect::NoGc, &mut meter())
+        .validate_physical_signature(&enums, &empty, crate::GcEffect::NoGc)
         .unwrap();
     assert!(matches!(
         fixtures::function(&zst, &[]).validate_physical_signature(
             &enums,
             &empty,
-            crate::GcEffect::NoGc,
-            &mut meter()
+            crate::GcEffect::NoGc
         ),
         Err(ExactCallablePhysicalAbiError::Result)
     ));
@@ -80,7 +72,7 @@ fn physical_abi_distinguishes_unit_void_user_zst_and_indirect_aggregate() {
         CallingConvention::Cdecl,
     );
     fixtures::function(&zst, &[])
-        .validate_physical_signature(&enums, &zst_signature, crate::GcEffect::NoGc, &mut meter())
+        .validate_physical_signature(&enums, &zst_signature, crate::GcEffect::NoGc)
         .unwrap();
     let value = nonzero(1, 1, structure_type, RefScan::None);
     let indirect = ScoopAbiSignature::new(
@@ -90,7 +82,7 @@ fn physical_abi_distinguishes_unit_void_user_zst_and_indirect_aggregate() {
     );
     let expected = fixtures::function(&structure, &[&structure]);
     expected
-        .validate_physical_signature(&enums, &indirect, crate::GcEffect::NoGc, &mut meter())
+        .validate_physical_signature(&enums, &indirect, crate::GcEffect::NoGc)
         .unwrap();
     let direct = ScoopAbiSignature::new(
         vec![AbiArgument::Direct(value.clone())],
@@ -98,7 +90,7 @@ fn physical_abi_distinguishes_unit_void_user_zst_and_indirect_aggregate() {
         CallingConvention::Cdecl,
     );
     assert!(matches!(
-        expected.validate_physical_signature(&enums, &direct, crate::GcEffect::NoGc, &mut meter()),
+        expected.validate_physical_signature(&enums, &direct, crate::GcEffect::NoGc),
         Err(ExactCallablePhysicalAbiError::Argument(0))
     ));
 }
@@ -113,25 +105,7 @@ fn physical_abi_rejects_wrong_integer_storage_type_and_bounds_validation_work() 
         CallingConvention::Cdecl,
     );
     assert!(matches!(
-        expected.validate_physical_signature(
-            &EnumDefs::default(),
-            &invalid,
-            crate::GcEffect::NoGc,
-            &mut meter()
-        ),
+        expected.validate_physical_signature(&EnumDefs::default(), &invalid, crate::GcEffect::NoGc),
         Err(ExactCallablePhysicalAbiError::Result)
-    ));
-    let limits = DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        expected.validate_physical_signature(
-            &EnumDefs::default(),
-            &invalid,
-            crate::GcEffect::NoGc,
-            &mut BudgetMeter::new(limits)
-        ),
-        Err(ExactCallablePhysicalAbiError::Resource(_))
     ));
 }

@@ -14,7 +14,6 @@ fn ordinary_reader_replays_default_type_access_from_published_bytes() {
         vec![],
         vec![],
         &core_bytes,
-        DecodeLimits::default(),
         target.c_bridge_toolchain().profile(),
         &mut session,
     )
@@ -42,7 +41,7 @@ fn ordinary_reader_replays_default_type_access_from_published_bytes() {
             vec![],
         );
         request.emit = StageDumpPolicy::Stage(StageDumpKind::Hir);
-        let library = request.build_and_publish(DecodeLimits::default()).unwrap();
+        let library = request.build_and_publish().unwrap();
         let dump = library.emitted_dump().unwrap();
         let snapshot = directory.join(format!("{case}.hir.snap"));
         if std::env::var_os("SCOOP_UPDATE_TYPE_ACCESS_SNAPSHOTS").is_some() {
@@ -61,7 +60,6 @@ fn ordinary_reader_replays_default_type_access_from_published_bytes() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )
@@ -120,7 +118,7 @@ fn bootstrap_pointer_core(
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(slot.source_root()),
         },
-        ExplicitDependencyInputs::new(vec![], vec![]).unwrap(),
+        ExplicitDependencyInputs::new(vec![], vec![]),
         TrustedCoreInput::BootstrapSelf,
         target.clone(),
         SlibOutputDestination::new(&artifact_path).unwrap(),
@@ -128,6 +126,6 @@ fn bootstrap_pointer_core(
         StageDumpPolicy::None,
     )
     .unwrap()
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap()
 }

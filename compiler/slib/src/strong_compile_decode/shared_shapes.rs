@@ -32,7 +32,6 @@ pub(crate) fn validate_shared_strong_profile_production(
         foundations.hir.as_canonical(),
         interface.nominal_interfaces(),
         interface.callable_interfaces(),
-        graph.envelope.meter_mut(),
     )
     .and_then(|roots| roots.source_declarations(foundations.hir.as_canonical()))
     .map_err(StrongProfileLirProductionError::ShapeSources)

@@ -5,9 +5,7 @@ use crate::{
     DefaultSourceAccessResolutionError as Error, PersistentAccessResolver,
 };
 use scoop_identity::DecodedCallableTemplateOrigin;
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 pub trait DefaultSourceAccessWitnessResolver<E>:
     PersistentAccessResolver<E> + CallableDeclarationIdResolver<E>
@@ -34,30 +32,23 @@ impl DecodedDefaultSourceAccessWitnessV1 {
     pub fn resolve<R: DefaultSourceAccessWitnessResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultSourceAccessWitnessV1, Error<E>> {
-        let path = WirePath::root();
-        meter
-            .check_semantic_depth(4, &path)
-            .map_err(Error::Resource)?;
-        meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-        meter.charge_work(1, &path).map_err(Error::Resource)?;
         let owner = self.owner.resolve(resolver).map_err(Error::Owner)?;
-        let direct = self.direct.resolve(resolver, meter)?;
+        let direct = self.direct.resolve(resolver)?;
         let slot = match self.slot {
             DecodedOptionalDefaultSourceSlotDomainV1::Absent => {
                 OptionalDefaultSourceSlotDomainV1::Absent
             }
             DecodedOptionalDefaultSourceSlotDomainV1::Present(domain) => {
-                OptionalDefaultSourceSlotDomainV1::Present(domain.resolve(resolver, meter)?)
+                OptionalDefaultSourceSlotDomainV1::Present(domain.resolve(resolver)?)
             }
         };
-        let target = self.target.resolve(resolver, meter)?;
+        let target = self.target.resolve(resolver)?;
         DefaultSourceAccessWitnessV1::try_new(owner, direct, slot, target).map_err(Error::Build)
     }
 }
 impl WireDecode for DecodedDefaultSourceAccessWitnessV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(4)?;
         Ok(Self {
             owner: d.field(1, DecodedCallableTemplateOrigin::decode)?,
@@ -68,7 +59,7 @@ impl WireDecode for DecodedDefaultSourceAccessWitnessV1 {
     }
 }
 impl WireDecode for DecodedOptionalDefaultSourceSlotDomainV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = d.map()?;
         match d.field(0, Decoder::unsigned)? {
             1 => {

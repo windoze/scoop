@@ -18,14 +18,12 @@ use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
     IdentityFoundationArtifactInput, ProducerRecord, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::DecodeLimits;
 
 use super::*;
 use crate::{
-    ArtifactCacheRoot, BuildGraphExecutionError, BuildGraphRequest, BuildLimitsProfileV1,
-    BuildRootInput, ChildIoPlan, ChildTransportError, CompileCacheStoreV1, CompiledCompletionError,
-    DiagnosticsPolicy, PairedScoopcLocator, ResolvedPairedScoopc, SingleConeCompilerRunner,
-    TrustedSysrootRoot,
+    ArtifactCacheRoot, BuildGraphExecutionError, BuildGraphRequest, BuildRootInput, ChildIoPlan,
+    ChildTransportError, CompileCacheStoreV1, CompiledCompletionError, DiagnosticsPolicy,
+    PairedScoopcLocator, ResolvedPairedScoopc, SingleConeCompilerRunner, TrustedSysrootRoot,
 };
 
 mod core;
@@ -161,7 +159,6 @@ fn request(root: &Path, workspace: &Path) -> BuildGraphRequest {
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(compiler).unwrap(),
         DiagnosticsPolicy::Structured,
-        BuildLimitsProfileV1::M23_DEFAULT,
     )
     .unwrap()
 }
@@ -177,7 +174,6 @@ fn single_file_request(source: &Path, workspace: &Path) -> BuildGraphRequest {
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(compiler).unwrap(),
         DiagnosticsPolicy::Structured,
-        BuildLimitsProfileV1::M23_DEFAULT,
     )
     .unwrap()
 }
@@ -212,10 +208,9 @@ fn foundation_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
         &lir,
     ))
     .unwrap();
-    let fingerprints =
-        probe_prebuilt_manifest_summary(seed.as_bytes(), DecodeLimits::M23_DEFAULT, selection)
-            .unwrap()
-            .semantic_fingerprints();
+    let fingerprints = probe_prebuilt_manifest_summary(seed.as_bytes(), selection)
+        .unwrap()
+        .semantic_fingerprints();
     let core = DependencyRecord::new(
         ConeCoordinate::reserved_core(),
         fingerprints.hir(),

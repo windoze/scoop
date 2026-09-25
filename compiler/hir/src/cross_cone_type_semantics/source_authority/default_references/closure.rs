@@ -1,6 +1,6 @@
 //! Exact, ordered correspondence between source records and typed body occurrences.
 use crate::*;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 mod errors;
 mod records;
 mod visitor;
@@ -23,25 +23,23 @@ pub struct DefaultSourceReferenceOccurrenceV1<'a> {
 impl DefaultSourceTemplateV1 {
     pub fn bind_reference_occurrences(
         &self,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<DefaultSourceReferenceClosureV1<'_>, DefaultSourceReferenceClosureError> {
         let expressions = DefaultReferenceExpressionIndexV1::collect(
             self.body(),
             self.locals(),
             self.definition_origin(),
-            meter,
             path,
         )?;
-        let mut visitor = visitor::Visitor::new(self, &expressions, meter, path)?;
+        let mut visitor = visitor::Visitor::new(self, &expressions, path)?;
         self.body().visit_direct_references(
             self.locals(),
             self.definition_origin(),
             &mut visitor,
-            meter,
             path,
         )?;
-        visitor.finish(meter, path)
+        visitor.finish()
     }
 }
 impl<'a> DefaultSourceReferenceClosureV1<'a> {

@@ -12,7 +12,7 @@ use scoop_lir::{
     StrongExternalLirBridgeSurfaceV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
     StrongProductionSectionV1, ValidatedLirTargetSelection,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -708,7 +708,6 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
         let mir_proof = scoop_mir::OdrFreeMirFoundation::try_new(mir_foundation).unwrap();
         let hir_production = decode_canonical::<scoop_hir::DecodedCoreBootstrapInterfaceSectionV1>(
             &empty_hir_library_section(),
-            DecodeLimits::default(),
         )
         .unwrap()
         .validate_against_strong_foundation(cone().identity(), &hir_proof)
@@ -1037,7 +1036,7 @@ fn known_sections(sections: &[MetadataSection]) -> Vec<MetadataSection> {
 }
 
 fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
-    crate::DecodedSlibEnvelope::open(bytes, DecodeLimits::default(), selection())
+    crate::DecodedSlibEnvelope::open(bytes, selection())
         .unwrap()
         .validate_graph()
         .unwrap()

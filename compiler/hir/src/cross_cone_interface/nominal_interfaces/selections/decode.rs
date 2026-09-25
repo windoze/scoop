@@ -20,7 +20,7 @@ impl WireEncode for DecodedNominalDispatchSelectionV1 {
 }
 
 impl WireDecode for DecodedNominalDispatchSelectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             slot: decoder.field(1, DecodedPersistentId::decode)?,
@@ -75,22 +75,12 @@ impl WireEncode for DecodedCanonicalNominalDispatchSelectionsV1 {
 }
 
 impl WireDecode for DecodedCanonicalNominalDispatchSelectionsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let records = decoder.decode_array(|d, _| DecodedNominalDispatchSelectionV1::decode(d))?;
-        let path = decoder.path().clone();
-        let count = records.len() as u64;
+
         // Account for the complete resolution and canonical-order pass before
         // invoking an identity resolver outside the decoder.
-        decoder.meter().charge_collection_slots(count, &path)?;
-        decoder
-            .meter()
-            .charge_nodes(count.saturating_mul(2), &path)?;
-        decoder
-            .meter()
-            .charge_edges(count.saturating_mul(2), &path)?;
-        decoder
-            .meter()
-            .charge_work(count.saturating_mul(128), &path)?;
+
         Ok(Self { records })
     }
 }

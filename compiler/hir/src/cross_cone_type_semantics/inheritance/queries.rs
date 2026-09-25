@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{ExactTypeKey, PersistentExactTypeId, SourceDeclarationKind};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::{CheckedNominalInheritanceGraphV1, DirectClassBaseV1};
 use crate::SourceNominalId;
@@ -13,19 +13,10 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         &self,
         derived: PersistentExactTypeId,
         base: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
     ) -> Result<bool, InheritanceQueryError> {
         self.require_class(base)?;
         let mut current = derived;
-        let mut depth = 1;
         loop {
-            let path = WirePath::root();
-            meter
-                .charge_work(1, &path)
-                .map_err(InheritanceQueryError::Resource)?;
-            meter
-                .check_semantic_depth(depth, &path)
-                .map_err(InheritanceQueryError::Resource)?;
             let node = self
                 .nodes
                 .get(&current)
@@ -43,7 +34,6 @@ impl CheckedNominalInheritanceGraphV1<'_> {
                 DirectClassBaseV1::NoClassBase => return Ok(false),
                 DirectClassBaseV1::ClassBase { exact } => current = exact,
             }
-            depth += 1;
         }
     }
 

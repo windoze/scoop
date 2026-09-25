@@ -21,7 +21,7 @@ fn shared_call_signatures_reject_missing_extra_and_misdirected_selections() {
     let mut missing = actual.records().to_vec();
     missing.remove(position);
     assert!(matches!(
-        consumer.validate(&selected(missing), &dependencies, &mut meter()),
+        consumer.validate(&selected(missing), &dependencies),
         Err(Error::TypeUseInventory)
     ));
     for replacement in [
@@ -31,14 +31,14 @@ fn shared_call_signatures_reject_missing_extra_and_misdirected_selections() {
         let mut changed = actual.records().to_vec();
         changed[position] = replacement;
         assert!(matches!(
-            consumer.validate(&selected(changed), &dependencies, &mut meter()),
+            consumer.validate(&selected(changed), &dependencies),
             Err(Error::TypeUseInventory)
         ));
     }
     let mut extra = actual.records().to_vec();
     extra.push(signature(provider.provider(), other));
     assert!(matches!(
-        consumer.validate(&selected(extra), &dependencies, &mut meter()),
+        consumer.validate(&selected(extra), &dependencies),
         Err(Error::TypeUseInventory)
     ));
     assert!(

@@ -21,7 +21,6 @@ fn protected_binding_requires_zero_parameter_protocols_and_validates_calling_kin
                     table,
                     &missing,
                     &fixture.source.entries().representations,
-                    &mut meter(),
                 )
                 .unwrap_err()
             else {
@@ -72,7 +71,6 @@ fn protected_binding_requires_zero_parameter_protocols_and_validates_calling_kin
                     table,
                     &forged,
                     &fixture.source.entries().representations,
-                    &mut meter(),
                 )
                 .unwrap_err()
             else {
@@ -103,12 +101,7 @@ fn protected_binding_only_retains_protocols_used_by_the_verified_surface() {
         .unwrap();
         assert!(all.records().len() > protocols.records().len());
         let checked = authority
-            .validate_protected_declarations(
-                table,
-                &all,
-                &fixture.source.entries().representations,
-                &mut meter(),
-            )
+            .validate_protected_declarations(table, &all, &fixture.source.entries().representations)
             .unwrap();
         assert_eq!(
             checked

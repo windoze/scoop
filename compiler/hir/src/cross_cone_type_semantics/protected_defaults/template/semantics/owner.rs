@@ -11,11 +11,10 @@ pub(super) struct OwnerShape {
 pub(super) fn shape<A: NominalInterfaceShapeAuthority<E>, E>(
     source: ProtectedDefaultOwnerSourceV1<'_>,
     authority: &mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<OwnerShape, ProtectedDefaultTemplateContractSemanticError<E>> {
     use ProtectedDefaultTemplateContractSemanticError as Error;
     let path = WirePath::root();
-    meter.charge_work(1, &path).map_err(Error::Resource)?;
+
     let payload = source.payload();
     let arity = match payload.owner() {
         SourceNominalId::Concrete(id) => {
@@ -43,7 +42,7 @@ pub(super) fn shape<A: NominalInterfaceShapeAuthority<E>, E>(
     let root = crate::PersistentLexicalRootV1::try_from(source.declaration())
         .map_err(|_| Error::OwnerShape)?;
     let receiver = binders
-        .nominal_source_receiver(root, payload.owner(), meter, &path)
+        .nominal_source_receiver(root, payload.owner(), &path)
         .map_err(|error| match error {
             crate::DefaultNominalReceiverBuildError::Resource(error) => Error::Resource(error),
             crate::DefaultNominalReceiverBuildError::OwnerShape => Error::OwnerShape,

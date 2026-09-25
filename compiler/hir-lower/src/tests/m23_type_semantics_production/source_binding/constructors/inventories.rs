@@ -9,7 +9,6 @@ fn with_constructors(
         hir::CanonicalPersistentIdsV1::try_new(constructors).unwrap(),
         owner.protected_members().clone(),
         owner.slot_schemas().clone(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -26,17 +25,15 @@ fn constructor_binding_requires_exact_owner_and_constructor_inventories() {
                 let mut records = incomplete.inventory.records().to_vec();
                 records.pop().unwrap();
                 incomplete.inventory =
-                    hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter())
-                        .unwrap();
+                    hir::CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap();
             } else {
                 let mut records = incomplete.constructors.records().to_vec();
                 records.pop().unwrap();
                 incomplete.constructors =
-                    hir::CanonicalInheritanceSourceConstructorsV1::try_new(records, &mut meter())
-                        .unwrap();
+                    hir::CanonicalInheritanceSourceConstructorsV1::try_new(records).unwrap();
             }
             assert!(
-                matches!(incomplete.bind(&foundation, &mut meter()), Err(Error::Inventory(actual)) if actual == expected)
+                matches!(incomplete.bind(&foundation), Err(Error::Inventory(actual)) if actual == expected)
             );
         }
     });
@@ -82,9 +79,9 @@ fn unused_real_constructor_is_not_accepted_as_inheritance_source() {
         let mut records = sources.constructors.records().to_vec();
         records.push(extra);
         sources.constructors =
-            hir::CanonicalInheritanceSourceConstructorsV1::try_new(records, &mut meter()).unwrap();
+            hir::CanonicalInheritanceSourceConstructorsV1::try_new(records).unwrap();
         assert!(matches!(
-            sources.bind(&foundation, &mut meter()),
+            sources.bind(&foundation),
             Err(Error::Inventory("constructor sources"))
         ));
     });
@@ -121,12 +118,9 @@ fn constructor_inventory_cannot_duplicate_or_move_a_constructor_between_owners()
                 records[owner] = with_constructors(&records[owner], values);
             }
             forged.inventory =
-                hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter())
-                    .unwrap();
-            assert!(
-                matches!((duplicate, forged.bind(&foundation, &mut meter()).unwrap_err()),
-                (true, Error::RepeatedOwner(actual)) | (false, Error::Owner(actual)) if actual == declaration)
-            );
+                hir::CanonicalSourceInheritanceInventoriesV1::try_new(records).unwrap();
+            assert!(matches!((duplicate, forged.bind(&foundation).unwrap_err()),
+                (true, Error::RepeatedOwner(actual)) | (false, Error::Owner(actual)) if actual == declaration));
         }
     });
 }

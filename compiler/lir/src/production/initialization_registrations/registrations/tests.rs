@@ -247,17 +247,13 @@ pub(in crate::production) fn external_dependency_for_layout_join(
     let definition =
         crate::StrongInitializationUnitDefinitionRefV2::from_registrations(&plans, provider.unit)
             .unwrap();
-    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
     let catalog =
-        crate::StrongInitializationDefinitionCatalogV2::new(consumer, &[definition], &mut meter)
-            .unwrap();
-    let dependency = scoop_wire::decode_canonical(
-        &scoop_wire::encode(&provider.unit).unwrap(),
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap();
+        crate::StrongInitializationDefinitionCatalogV2::new(consumer, &[definition]).unwrap();
+    let dependency =
+        scoop_wire::decode_canonical(&scoop_wire::encode(&provider.unit).unwrap()).unwrap();
     catalog
-        .resolve(local.unit, &[dependency], &mut meter)
+        .resolve(local.unit, &[dependency])
         .unwrap()
         .references()[0]
 }

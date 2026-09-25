@@ -3,11 +3,9 @@ use std::fmt;
 use scoop_identity::{
     BindableEntity, BindingNamespace, BindingRole, ConeIdentity, PersistentExportBindingId,
 };
-use scoop_wire::WireError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PublicExportBindingClosureValidationError {
-    Resource(WireError),
     MissingCurrentBindingKey {
         binding: PersistentExportBindingId,
     },
@@ -107,7 +105,6 @@ pub enum PublicExportBindingClosureValidationError {
 impl fmt::Display for PublicExportBindingClosureValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resource(error) => error.fmt(formatter),
             Self::MissingCurrentBindingKey { binding } => {
                 write!(formatter, "public binding {binding} has no canonical key")
             }
@@ -248,17 +245,4 @@ impl fmt::Display for PublicExportBindingClosureValidationError {
     }
 }
 
-impl From<WireError> for PublicExportBindingClosureValidationError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
-}
-
-impl std::error::Error for PublicExportBindingClosureValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Resource(error) => Some(error),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for PublicExportBindingClosureValidationError {}

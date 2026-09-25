@@ -21,34 +21,21 @@ fn interface_default_target_requires_transitive_conformance_even_without_a_paren
         slot,
         InheritanceSlotImplementationV1::InterfaceDefault(target),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
-    let schemas = graph
-        .validate_slot_schemas(child.exact, &fixture, &mut meter())
-        .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
+    let schemas = graph.validate_slot_schemas(child.exact, &fixture).unwrap();
     assert_eq!(schemas.schemas().records().len(), 1);
-    assert!(
-        schemas
-            .supports_interface(parent.exact, &mut meter())
-            .unwrap()
-    );
-    assert!(
-        !schemas
-            .supports_interface(unrelated.exact, &mut meter())
-            .unwrap()
-    );
+    assert!(schemas.supports_interface(parent.exact));
+    assert!(!schemas.supports_interface(unrelated.exact));
     graph
-        .validate_slot_contract(child.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(child.exact, &record, &fixture)
         .unwrap();
     let mut unrelated_target = fixture.concrete(unrelated, other_slot);
     unrelated_target.modality = CallableModalityV1::InterfaceDefault;
     record.implementation = InheritanceSlotImplementationV1::InterfaceDefault(unrelated_target);
     assert!(matches!(
-        graph.validate_slot_contract(child.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(child.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::TargetOwner)
     ));
 }
@@ -80,14 +67,11 @@ fn interface_default_targets_keep_provider_identity_and_conformance() {
         slot,
         InheritanceSlotImplementationV1::InterfaceDefault(target.clone()),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     graph
-        .validate_slot_contract(owner.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(owner.exact, &record, &fixture)
         .unwrap();
     assert!(matches!(
         InheritanceSlotContractV1::try_new(
@@ -100,20 +84,6 @@ fn interface_default_targets_keep_provider_identity_and_conformance() {
             record.declaration_access.clone()
         ),
         Err(InheritanceSlotContractBuildError::DefaultModality)
-    ));
-    assert!(matches!(
-        graph.validate_slot_contract(
-            owner.exact,
-            &record,
-            &fixture,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(InheritanceSlotContractSemanticError::Schema(
-            InheritanceSlotSchemaSemanticError::Resource(_)
-        ))
     ));
 }
 

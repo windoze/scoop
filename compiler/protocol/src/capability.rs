@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, Decoder, Digest256, Encoder, WireDecode, WireEncode, sha256};
+use scoop_wire::{Decoder, Digest256, Encoder, WireDecode, WireEncode, sha256};
 
 use crate::framing::{ProtocolReadError, ProtocolWriteError, decode_frame_payload, encode_frame};
 use crate::{PROTOCOL_VERSION, ProtocolValidationError};
@@ -131,7 +131,7 @@ impl WireEncode for ScoopcProtocolCapabilityV1 {
 }
 
 impl WireDecode for ScoopcProtocolCapabilityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
         DecodedScoopcProtocolCapabilityV1::decode(decoder)?
             .validate()
             .map_err(|error| validation_wire_error(decoder, error))
@@ -139,7 +139,7 @@ impl WireDecode for ScoopcProtocolCapabilityV1 {
 }
 
 impl WireDecode for ScoopcMachineCapabilityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
         decoder.expect_map(5)?;
         let magic = decoder.field(1, Decoder::owned_text)?;
         if magic != MACHINE_IDENTITY_MAGIC {
@@ -162,7 +162,7 @@ impl WireDecode for ScoopcMachineCapabilityV1 {
 }
 
 fn validation_wire_error(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     error: ProtocolValidationError,
 ) -> scoop_wire::WireError {
     let kind = match error {
@@ -218,7 +218,7 @@ impl DecodedScoopcProtocolCapabilityV1 {
 }
 
 impl WireDecode for DecodedScoopcProtocolCapabilityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
         decoder.expect_map(5)?;
         let magic = decoder.field(1, Decoder::owned_text)?;
         let version = decoder.field(2, Decoder::unsigned)?;
@@ -243,7 +243,7 @@ impl WireDecode for DecodedScoopcProtocolCapabilityV1 {
 }
 
 fn decode_machine_transport(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<MachineTransportCapabilityV1, scoop_wire::WireError> {
     let tag = decoder.unsigned()?;
     match tag {
@@ -266,13 +266,10 @@ pub fn decode_capability_frame(
     frame: &[u8],
 ) -> Result<ScoopcProtocolCapabilityV1, ProtocolReadError> {
     let payload = decode_frame_payload(frame).map_err(ProtocolReadError::Frame)?;
-    scoop_wire::decode_canonical::<DecodedScoopcProtocolCapabilityV1>(
-        payload,
-        capability_decode_limits(),
-    )
-    .map_err(ProtocolReadError::Wire)?
-    .validate()
-    .map_err(ProtocolReadError::Validation)
+    scoop_wire::decode_canonical::<DecodedScoopcProtocolCapabilityV1>(payload)
+        .map_err(ProtocolReadError::Wire)?
+        .validate()
+        .map_err(ProtocolReadError::Validation)
 }
 
 pub fn encode_machine_capability_frame(
@@ -285,22 +282,8 @@ pub fn decode_machine_capability_frame(
     frame: &[u8],
 ) -> Result<ScoopcMachineCapabilityV1, ProtocolReadError> {
     let payload = decode_frame_payload(frame).map_err(ProtocolReadError::Frame)?;
-    scoop_wire::decode_canonical::<ScoopcMachineCapabilityV1>(payload, capability_decode_limits())
+    scoop_wire::decode_canonical::<ScoopcMachineCapabilityV1>(payload)
         .map_err(ProtocolReadError::Wire)
-}
-
-fn capability_decode_limits() -> DecodeLimits {
-    DecodeLimits {
-        cbor_nesting: 8,
-        semantic_table_entries: 16,
-        semantic_leaf_bytes: 1_024,
-        semantic_recursion: 8,
-        logical_heap_bytes: 4_096,
-        decoded_nodes: 64,
-        decoded_edges: 0,
-        owned_bytes: 1_024,
-        validation_work_units: 256,
-    }
 }
 
 #[cfg(test)]

@@ -16,13 +16,9 @@ fn six_target_kinds_have_distinct_fixed_wire_and_typed_resolution() {
     for (index, value) in values.into_iter().enumerate() {
         let bytes = encode(&value).unwrap();
         assert_eq!(bytes[..4], [0xa2, 0, index as u8 + 1, 1]);
-        let decoded: DecodedMirTypeBridgeTargetV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedMirTypeBridgeTargetV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(
-            decoded.resolve(&mut fixture.graph, &mut meter()).unwrap(),
-            value
-        );
+        assert_eq!(decoded.resolve(&mut fixture.graph).unwrap(), value);
     }
 }
 
@@ -34,17 +30,13 @@ fn target_reader_rejects_unknown_tags_fields_and_wrong_identity_kind() {
     for prefix in [[0xa1, 0, 4], [0xa3, 0, 4], [0xa2, 0, 7]] {
         let mut bytes = original.clone();
         bytes[..3].copy_from_slice(&prefix);
-        assert!(
-            decode_canonical::<DecodedMirTypeBridgeTargetV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedMirTypeBridgeTargetV1>(&bytes).is_err());
     }
     let mut wrong = original;
     wrong[2] = 1;
-    let decoded: DecodedMirTypeBridgeTargetV1 =
-        decode_canonical(&wrong, DecodeLimits::default()).unwrap();
+    let decoded: DecodedMirTypeBridgeTargetV1 = decode_canonical(&wrong).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture.graph, &mut meter()),
+        decoded.resolve(&mut fixture.graph),
         Err(MirTypeBridgeReferenceError::Identity(_))
     ));
 }

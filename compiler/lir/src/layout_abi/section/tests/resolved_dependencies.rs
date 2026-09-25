@@ -12,18 +12,10 @@ fn owned_lir_dependency_graph_replays_explicit_roots_and_transitive_fields() {
     assert_eq!(resolved.exports(), &fixture.local);
     assert_eq!(resolved.selected_relations(), expected);
     resolved
-        .replay_dependency_closure::<Infallible>(
-            &fixture.dependencies(),
-            &[fixture.middle_use()],
-            &mut meter(),
-        )
+        .replay_dependency_closure::<Infallible>(&fixture.dependencies(), &[fixture.middle_use()])
         .unwrap();
     assert!(matches!(
-        resolved.replay_dependency_closure::<Infallible>(
-            &fixture.dependencies(),
-            &[],
-            &mut meter()
-        ),
+        resolved.replay_dependency_closure::<Infallible>(&fixture.dependencies(), &[]),
         Err(LayoutAbiSectionError::SelectedClosure)
     ));
 
@@ -48,11 +40,11 @@ fn owned_lir_dependency_graph_also_closes_every_local_export() {
         .resolve_with(&fixture.middle, &[fixture.leaf_use()])
         .unwrap();
     resolved
-        .replay_dependency_closure::<Infallible>(&[&fixture.leaf], &[], &mut meter())
+        .replay_dependency_closure::<Infallible>(&[&fixture.leaf], &[])
         .unwrap();
     let missing = fixture.resolve_with(&fixture.middle, &[]).unwrap();
     assert!(matches!(
-        missing.replay_dependency_closure::<Infallible>(&[&fixture.leaf], &[], &mut meter()),
+        missing.replay_dependency_closure::<Infallible>(&[&fixture.leaf], &[]),
         Err(LayoutAbiSectionError::SelectedClosure)
     ));
 }
@@ -68,8 +60,7 @@ fn owned_lir_dependency_graph_rejects_missing_extra_and_noncanonical_selected() 
         assert!(matches!(
             resolved.replay_dependency_closure::<Infallible>(
                 &fixture.dependencies(),
-                &[fixture.middle_use()],
-                &mut meter()
+                &[fixture.middle_use()]
             ),
             Err(LayoutAbiSectionError::SelectedClosure)
         ));
@@ -93,8 +84,7 @@ fn owned_lir_dependency_graph_rejects_missing_extra_and_noncanonical_selected() 
     assert!(matches!(
         resolved.replay_dependency_closure::<Infallible>(
             &fixture.dependencies(),
-            &[fixture.middle_use()],
-            &mut meter()
+            &[fixture.middle_use()]
         ),
         Err(LayoutAbiSectionError::SelectedClosure)
     ));
@@ -105,7 +95,7 @@ fn owned_lir_dependency_graph_rejects_missing_duplicate_and_wrong_providers() {
     let fixture = Fixture::new();
     let resolved = fixture.resolve(&fixture.relations()).unwrap();
     let replay = |dependencies: &[_], roots: &[_]| {
-        resolved.replay_dependency_closure::<Infallible>(dependencies, roots, &mut meter())
+        resolved.replay_dependency_closure::<Infallible>(dependencies, roots)
     };
     assert!(matches!(
         replay(&[&fixture.middle], &[fixture.middle_use()]),
@@ -145,50 +135,4 @@ fn owned_lir_dependency_graph_rejects_missing_duplicate_and_wrong_providers() {
             LayoutAbiSemanticClosureError::NonCanonicalRoots
         ))
     ));
-}
-
-#[test]
-fn owned_lir_dependency_graph_charges_inclusive_and_cumulative_budgets() {
-    let fixture = Fixture::new();
-    let resolved = fixture.resolve(&fixture.relations()).unwrap();
-    let replay = |meter: &mut BudgetMeter| {
-        resolved.replay_dependency_closure::<Infallible>(
-            &fixture.dependencies(),
-            &[fixture.middle_use()],
-            meter,
-        )
-    };
-    let mut measured = meter();
-    replay(&mut measured).unwrap();
-    let required = measured.usage().validation_work_units;
-    let mut inclusive = BudgetMeter::new(DecodeLimits {
-        validation_work_units: required,
-        ..DecodeLimits::default()
-    });
-    replay(&mut inclusive).unwrap();
-    assert!(replay(&mut inclusive).is_err());
-    for limits in [
-        DecodeLimits {
-            validation_work_units: required - 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_table_entries: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            decoded_edges: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 1,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(replay(&mut BudgetMeter::new(limits)).is_err());
-    }
 }

@@ -15,7 +15,7 @@ pub(super) fn with_source(
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let protocols = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             run(output, &protocols, core);
         });
@@ -40,10 +40,9 @@ pub(super) fn template(
         output,
         hir::ExportParameterOwner::Function(id),
         position,
-        &mut meter(),
     )
     .unwrap()
-    .into_source_template(&mut meter())
+    .into_source_template()
     .unwrap()
 }
 pub(super) fn callables(template: &hir::DefaultSourceTemplateV1) -> Vec<hir::DefaultCallableRefV1> {

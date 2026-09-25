@@ -45,28 +45,23 @@ impl DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
         dependencies: &[MirTypeBridgeDependencyViewV1<'_>],
         committed: &[MirTypeBridgeDependencyV1],
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirTypeBridgeSectionError<E>> {
         let count = dependencies
             .len()
             .checked_add(1)
             .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
-        let mut tables = reserve(count, meter)?;
+        let mut tables = reserve(count)?;
         tables.push(self.exports.types());
         tables.extend(dependencies.iter().map(|view| view.exports.types()));
-        let types = MirTypeBridgeTypeIndexV1::try_new(&tables, meter)?;
+        let types = MirTypeBridgeTypeIndexV1::try_new(&tables)?;
         let expected = closure::close_views(
             self.dependency_view(units),
             dependencies,
             committed,
             graph,
             &types,
-            meter,
         )?;
-        meter.charge_work(
-            self.selected.len() as u64 + expected.len() as u64,
-            &WirePath::root(),
-        )?;
+
         if !self
             .selected
             .iter()

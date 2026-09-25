@@ -3,7 +3,7 @@ use scoop_identity::{
     DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionIdentityError,
     ObjectDefinitionPlanId, PersistentSymbolError, PersistentSymbolRequest,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 /// A complete physical definition relation. This does not authorize an import.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -19,12 +19,9 @@ impl StrongShapeDefinitionRefV1 {
     pub fn from_foundation(
         subject: ExternalStrongShapeSubjectV1,
         foundation: &crate::OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, StrongShapeDefinitionError> {
-        let path = WirePath::root();
-        meter.charge_work(1, &path)?;
         let (key, symbol) = subject.expected_definition(foundation.producer())?;
-        meter.charge_work(foundation.definition_plans().len() as u64, &path)?;
+
         let definition = foundation
             .definition_plans()
             .iter()
@@ -32,11 +29,11 @@ impl StrongShapeDefinitionRefV1 {
             .ok_or(StrongShapeDefinitionError::MissingDefinition(key))?;
         let symbol = PersistentSymbolRequest::new(symbol, LinkageClass::ConeStrong)
             .map_err(StrongShapeDefinitionError::Symbol)?;
-        meter.charge_work(foundation.symbol_requests().len() as u64, &path)?;
+
         if !foundation.contains_symbol_request(symbol) {
             return Err(StrongShapeDefinitionError::MissingSymbol(symbol));
         }
-        meter.charge_work(foundation.definition_atoms().len() as u64, &path)?;
+
         let mut primary = foundation.definition_atoms().iter().filter(|record| {
             record.key().plan() == definition.id()
                 && record.key().role() == DefinitionAtomRole::Primary

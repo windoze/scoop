@@ -91,7 +91,7 @@ pub struct DecodedDefaultSourceReferencesV1 {
     pub(super) fields: Vec<DecodedDefaultSourceReferenceV1<DecodedDefaultFieldRefV1>>,
 }
 impl WireDecode for DecodedDefaultSourceReferencesV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(6)?;
         Ok(Self {
             callables: d.field(1, |d| {

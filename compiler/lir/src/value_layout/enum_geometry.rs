@@ -1,7 +1,7 @@
 //! Target-qualified tagged-enum geometry shared by local construction and
 //! cross-Cone replay. GC facts and niche eligibility remain caller-owned.
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     NonZeroPow2, StorageGeometryV1, StorageLayoutCursorV1, StoragePlacementPolicyV1,
@@ -80,18 +80,12 @@ impl EnumStorageGeometryV1 {
     pub fn tagged(
         target: LirTargetProfile,
         inputs: &[EnumVariantGeometryInputV1<'_>],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, EnumStorageGeometryErrorV1> {
         let path = WirePath::root();
-        let mut natural = reserve(inputs.len(), meter, &path)?;
-        for (index, input) in inputs.iter().enumerate() {
-            let path = path.clone().index(index as u64);
-            meter.charge_nodes(1, &path)?;
-            meter.charge_edges(input.fields.len() as u64, &path)?;
-            meter.charge_work(8, &path)?;
+        let mut natural = reserve(inputs.len(), &path)?;
+        for input in inputs.iter() {
             // Natural layout and absolute field projection each visit once.
-            meter.charge_work(input.fields.len() as u64, &path)?;
-            meter.charge_work(input.fields.len() as u64, &path)?;
+
             let mut cursor =
                 StorageLayoutCursorV1::new(target, StoragePlacementPolicyV1::Ordinary)?;
             for field in input.fields {
@@ -120,7 +114,7 @@ impl EnumStorageGeometryV1 {
             byte_size: pure_size,
             alignment: pure_alignment,
         };
-        let mut variants = reserve(inputs.len(), meter, &path)?;
+        let mut variants = reserve(inputs.len(), &path)?;
         for (index, (input, storage)) in inputs.iter().zip(natural).enumerate() {
             let slot = if input.gc_free {
                 EnumVariantSlotV1::SharedPure(pure_region)
@@ -133,7 +127,7 @@ impl EnumStorageGeometryV1 {
                     alignment: storage.alignment(),
                 })
             };
-            let mut fields = reserve(input.fields.len(), meter, &path.clone().index(index as u64))?;
+            let mut fields = reserve(input.fields.len(), &path.clone().index(index as u64))?;
             let prefix =
                 StorageGeometryV1::new(target, slot.region().offset(), storage.alignment().get())?;
             let mut field_cursor = StorageLayoutCursorV1::with_prefix(prefix);
@@ -190,10 +184,9 @@ impl std::fmt::Display for EnumStorageGeometryErrorV1 {
 }
 impl std::error::Error for EnumStorageGeometryErrorV1 {}
 
-fn reserve<T>(count: usize, meter: &mut BudgetMeter, path: &WirePath) -> Result<Vec<T>, WireError> {
-    meter.check_table_entries(count as u64, path)?;
+fn reserve<T>(count: usize, path: &WirePath) -> Result<Vec<T>, WireError> {
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, path)?;
+    scoop_wire::allocation::try_reserve(&mut values, count, path)?;
     Ok(values)
 }
 

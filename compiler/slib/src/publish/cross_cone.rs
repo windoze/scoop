@@ -7,7 +7,6 @@ use scoop_identity::{
     ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity, SemanticIdentitySession,
 };
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::DecodeLimits;
 
 use super::{CompileViewSummaryV1, LinkViewSummaryV1, PublishViewMismatchError, output_matches};
 use crate::{
@@ -68,14 +67,13 @@ impl PublishableCrossConeArtifact {
             target_selection: compile.target_selection(),
             profile: compile.compatibility().artifact_profile().clone(),
             direct_dependencies: compile.direct_dependencies().to_vec(),
-            compile_summary: CompileViewSummaryV1::new(compile_semantic, compile.decode_usage()),
+            compile_summary: CompileViewSummaryV1::new(compile_semantic),
             link_summary: LinkViewSummaryV1 {
                 distribution: manifest.distribution(),
                 output: manifest.output().clone(),
                 image_owner_member: manifest.image_owner_member(),
                 link_object_count,
                 semantic_fingerprints: link_semantic,
-                decode_usage: link.decode_usage(),
             },
         })
     }
@@ -235,7 +233,7 @@ impl std::error::Error for CrossConePublishViewMismatchError {
 pub fn publish_cross_cone_artifact(
     final_bytes: &[u8],
     destination: &Path,
-    limits: DecodeLimits,
+
     current: ConeIdentity,
     direct: Vec<ConeIdentity>,
     dependency_first: Vec<&[u8]>,
@@ -250,7 +248,6 @@ pub fn publish_cross_cone_artifact(
             direct,
             dependency_first,
             round_trip_bytes,
-            limits,
             c_bridge_profile,
             &mut session,
         )

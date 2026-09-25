@@ -22,10 +22,9 @@ pub(super) fn named<'a>(
         inputs.output,
         hir::ExportParameterOwner::Function(function),
         position,
-        &mut meter(),
     )
     .unwrap();
-    let key = source.into_source_template(&mut meter()).unwrap().key();
+    let key = source.into_source_template().unwrap().key();
     inputs.templates.get(key).unwrap()
 }
 
@@ -49,7 +48,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn required(
             add(foundation, reference.target(), &mut result);
         }
         let nested = template
-            .index_nested_callables(&mut meter(), &scoop_wire::WirePath::root())
+            .index_nested_callables(&scoop_wire::WirePath::root())
             .unwrap();
         for occurrence in nested.occurrences() {
             if let hir::DefaultSourceNestedCallableDescriptorV1::CallableReference(reference) =
@@ -89,9 +88,8 @@ fn add(
     target: &Target,
     required: &mut BTreeSet<Subject>,
 ) {
-    if let hir::DefaultSourceCallableAccessSubjectV1::Declaration(subject) = foundation
-        .default_callable_access_subject(target, &mut meter())
-        .unwrap()
+    if let hir::DefaultSourceCallableAccessSubjectV1::Declaration(subject) =
+        foundation.default_callable_access_subject(target).unwrap()
     {
         required.insert(subject);
     }

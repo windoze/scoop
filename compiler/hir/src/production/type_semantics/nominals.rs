@@ -36,7 +36,6 @@ pub(super) fn produce(
     output: &DependencyHirOutput,
     metadata: SharedTypeMetadataV1<'_>,
     dependencies: &[SharedTypeMetadataV1<'_>],
-    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<CrossConeTypeSemanticsProductionV1, Error> {
     let export = output.output().export.module();
     let local = output.output().local.module();
@@ -51,7 +50,7 @@ pub(super) fn produce(
         root_exacts,
         public: projected_public,
         foundation,
-    } = source_foundation::project(output.output(), meter)?;
+    } = source_foundation::project(output.output())?;
     if &projected_public != public.nominal_interfaces() {
         return Err(Error::PublicInterface(
             "the supplied M23-5 section was not projected from this Export HIR".into(),
@@ -64,19 +63,13 @@ pub(super) fn produce(
             Error::GeneratedPublicNominal { kind, index }
         })?;
     }
-    meter
-        .charge_collection_slots(
-            foundation.source_roots().len() as u64,
-            &scoop_wire::WirePath::root(),
-        )
-        .map_err(|error| Error::SourceInventory(SourceInventoryError::Resource(error)))?;
+
     let required_nominals =
-        CanonicalSourceNominalIdsV1::try_new(foundation.source_roots().to_vec(), meter)
+        CanonicalSourceNominalIdsV1::try_new(foundation.source_roots().to_vec())
             .map_err(Error::SourceInventory)?;
     let source_nominals = CanonicalNominalSourceContractsV1::from_export_hir(
         &output.output().export,
         &required_nominals,
-        meter,
     )?;
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
     let facts = facts::candidate(export, local, &root_exacts, &fact_requirements)?;
@@ -112,35 +105,32 @@ pub(super) fn produce(
             "the supplied source-call table was not projected from this Export HIR".into(),
         ));
     }
-    let inheritance_inventory = inheritance::source_inventory(export, &concrete, meter)?;
-    let interface_sources = inheritance::interface_sources(export, &concrete, meter)?;
-    let slot_selections = inheritance::slot_selections(export, &concrete, meter)?;
+    let inheritance_inventory = inheritance::source_inventory(export, &concrete)?;
+    let interface_sources = inheritance::interface_sources(export, &concrete)?;
+    let slot_selections = inheritance::slot_selections(export, &concrete)?;
     let source_callables =
-        inheritance::source_callables(export, &inheritance_inventory, &slot_selections, meter)?;
+        inheritance::source_callables(export, &inheritance_inventory, &slot_selections)?;
     let source_constructors =
-        inheritance::source_constructors(export, &concrete, &inheritance_inventory, meter)?;
+        inheritance::source_constructors(export, &concrete, &inheritance_inventory)?;
     let source_protected_callables =
-        inheritance::source_protected_callables(export, &inheritance_inventory, meter)?;
+        inheritance::source_protected_callables(export, &inheritance_inventory)?;
     let source_properties =
-        inheritance::source_properties(export, &inheritance_inventory, &slot_selections, meter)?;
-    let source_parameters = inheritance::source_parameters(export, &inheritance_inventory, meter)?;
-    let slots =
-        inheritance::SlotContracts::new(export, &source_callables, &slot_selections, meter)?;
+        inheritance::source_properties(export, &inheritance_inventory, &slot_selections)?;
+    let source_parameters = inheritance::source_parameters(export, &inheritance_inventory)?;
+    let slots = inheritance::SlotContracts::new(export, &source_callables, &slot_selections)?;
     let inheritance = inheritance::produce(
         export,
         &concrete,
         &inheritance_inventory,
         &source_constructors,
         &slots,
-        meter,
     )?;
     let (protected_declarations, protected_sources) =
-        interfaces::project(output, &source_parameters, meter)?;
+        interfaces::project(output, &source_parameters)?;
     let protected_defaults = CanonicalProtectedDefaultTemplatesV1::from_dependency_hir(
         output,
         &protected_sources,
         &inheritance,
-        meter,
     )?;
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)
@@ -155,7 +145,7 @@ pub(super) fn produce(
         source_interfaces: &protected_sources,
         defaults: &protected_defaults,
     }
-    .collect_definition_sources(meter, &scoop_wire::WirePath::root())
+    .collect_definition_sources(&scoop_wire::WirePath::root())
     .map_err(|error| Error::InvalidSourceDeclaration(error.to_string()))?;
     let definition_sources =
         CanonicalExportDefinitionSourcesV1::try_new(origins).map_err(|error| {
@@ -173,7 +163,7 @@ pub(super) fn produce(
         protected_defaults,
         definition_sources,
         metadata
-            .materialized_type_uses(dependencies, meter)
+            .materialized_type_uses(dependencies)
             .map_err(|error| Error::SharedTypeMetadata(Box::new(error)))?,
     );
     Ok(CrossConeTypeSemanticsProductionV1 {

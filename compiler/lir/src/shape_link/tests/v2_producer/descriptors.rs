@@ -36,10 +36,8 @@ fn only_the_explicit_runtime_string_enters_the_legacy_descriptor_partition() {
             exact: string.target()
         })
     );
-    let empty =
-        StrongProductionDependencySelectionV2::empty(module.cone, TARGET, &mut meter()).unwrap();
-    let v2 =
-        StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty, &mut meter()).unwrap();
+    let empty = StrongProductionDependencySelectionV2::empty(module.cone, TARGET).unwrap();
+    let v2 = StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty).unwrap();
     assert_eq!(
         v2.descriptors()[0].parent(),
         Some(StrongTypeDescriptorRefV2::DependencyExternal {
@@ -77,10 +75,9 @@ fn every_ordinary_descriptor_requires_a_committed_layout_selection() {
             .unwrap()
             .1
             .parent = Some(TypeDescriptorRef::External(id));
-        let empty = StrongProductionDependencySelectionV2::empty(module.cone, TARGET, &mut meter())
-            .unwrap();
+        let empty = StrongProductionDependencySelectionV2::empty(module.cone, TARGET).unwrap();
         assert!(matches!(
-            StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty, &mut meter()),
+            StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty),
             Err(StrongTypeDescriptorSemanticPlanBuildError::ExternalMaterialization(
                 LayoutExternalMaterializationError::MissingDescriptor { provider: found, exact }
             )) if found == provider && exact == external.target()
@@ -100,9 +97,8 @@ fn an_ordinary_runtime_string_role_preserves_its_provider_without_descriptor_edg
         &[StrongExternalLirBridgeV1::TypeDescriptor(string)]
     );
     StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap();
-    let empty =
-        StrongProductionDependencySelectionV2::empty(module.cone, TARGET, &mut meter()).unwrap();
-    StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty, &mut meter()).unwrap();
+    let empty = StrongProductionDependencySelectionV2::empty(module.cone, TARGET).unwrap();
+    StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty).unwrap();
 }
 
 fn descriptor(provider: ConeIdentity, name: &str) -> ExternalTypeDescriptor {

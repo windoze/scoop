@@ -16,11 +16,10 @@ pub(in super::super) fn check_dependency_uses(
         input.lir.foundation(),
         input.identities,
         dependencies.layouts,
-        &mut meter(),
     )
     .unwrap();
     super::super::shared_initialization::check_consumption(input, &layouts, dependencies.layouts);
-    let replay = |callables: &[&lir::CrossConeLirBridgeSectionV1], meter: &mut BudgetMeter| {
+    let replay = |callables: &[&lir::CrossConeLirBridgeSectionV1]| {
         scoop_slib::replay_shared_ordinary_lir_bridge(
             input.lir.module().meta.target_profile,
             source,
@@ -32,39 +31,25 @@ pub(in super::super) fn check_dependency_uses(
                 callables,
             },
             input.lir.foundation(),
-            meter,
         )
     };
     let expected =
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, ordinary, input.lir).unwrap();
-    let actual = replay(&[terminal], &mut meter()).unwrap();
+    let actual = replay(&[terminal]).unwrap();
     assert_eq!(actual, expected);
     let wire: lir::DecodedCrossConeLirBridgeSectionV1 = decoded(&expected);
-    assert_eq!(
-        wire.validate_against(actual, &mut meter()).unwrap(),
-        expected
-    );
+    assert_eq!(wire.validate_against(actual).unwrap(), expected);
     assert!(matches!(
-        replay(&[terminal, terminal], &mut meter()),
+        replay(&[terminal, terminal]),
         Err(Error::DependencySources)
     ));
-    assert!(matches!(
-        replay(&[], &mut meter()),
-        Err(Error::DependencySources)
-    ));
+    assert!(matches!(replay(&[]), Err(Error::DependencySources)));
     if !ordinary.selected().is_empty() {
-        let absent = lir::CrossConeLirBridgeSectionV1::try_new_with_meter(
-            foundation,
-            vec![],
-            vec![],
-            &mut meter(),
-        )
-        .unwrap();
+        let absent = lir::CrossConeLirBridgeSectionV1::try_new(foundation, vec![], vec![]).unwrap();
         assert!(matches!(
-            replay(&[&absent], &mut meter()),
+            replay(&[&absent]),
             Err(Error::MissingSelectedExport { .. })
         ));
-        resources::check(|meter| replay(&[terminal], meter));
     }
 }
 

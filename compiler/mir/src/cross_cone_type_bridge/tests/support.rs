@@ -153,10 +153,8 @@ impl Fixture {
             slot.value_payload_record().clone(),
         ])
         .unwrap();
-        let hir: DecodedHirFoundation =
-            decode_canonical(&encode(&hir).unwrap(), DecodeLimits::default()).unwrap();
-        let mir: DecodedMirFoundation =
-            decode_canonical(&encode(&mir).unwrap(), DecodeLimits::default()).unwrap();
+        let hir: DecodedHirFoundation = decode_canonical(&encode(&hir).unwrap()).unwrap();
+        let mir: DecodedMirFoundation = decode_canonical(&encode(&mir).unwrap()).unwrap();
         let mut pending = PendingIdentityValidation::new();
         pending
             .register_authority(ConeIdentity::SINGLE_FILE)
@@ -170,8 +168,7 @@ impl Fixture {
         mir.resolve_identities(&mut pending).unwrap();
         let mut graph = pending.finish().unwrap();
         let foundation =
-            OdrFreeMirFoundation::from_validated(mir.validate(&mut graph, &mut meter()).unwrap())
-                .unwrap();
+            OdrFreeMirFoundation::from_validated(mir.validate(&mut graph).unwrap()).unwrap();
         Self {
             graph,
             foundation,
@@ -350,7 +347,4 @@ pub(super) fn no_bases() -> MirBaseAndInterfacesV1 {
 }
 pub(super) fn facts(kind: MirValueKindV1, gc: MirGcKindV1) -> MirTypeFactsV1 {
     MirTypeFactsV1::try_new(kind, gc).unwrap()
-}
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

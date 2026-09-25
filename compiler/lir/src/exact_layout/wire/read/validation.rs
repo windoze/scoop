@@ -11,16 +11,14 @@ impl DecodedExactLayoutExportV1 {
     pub fn validate_against(
         self,
         expected: &ExactLayoutExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ExactLayoutExportV1, ExactLayoutWireError> {
-        meter.charge_work(1, &WirePath::root())?;
         if !self
             .definition
-            .matches_definition(expected.identity().definition(), meter)?
+            .matches_definition(expected.identity().definition())?
         {
             return Err(ExactLayoutWireError::DefinitionMismatch);
         }
-        self.semantic.validate_against(expected, meter)?;
+        self.semantic.validate_against(expected)?;
         Ok(expected.clone())
     }
 }
@@ -29,9 +27,7 @@ impl DecodedExactLayoutSemanticProjectionV1 {
     pub fn validate_against(
         self,
         expected: &ExactLayoutExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactLayoutWireError> {
-        meter.charge_work(6, &WirePath::root())?;
         let identity = expected.identity();
         verify(self.layout, identity.layout())?;
         verify(self.exact, identity.exact())?;
@@ -56,8 +52,8 @@ impl DecodedExactLayoutSemanticProjectionV1 {
                 },
                 ExactLayoutBodyKindV1::Value(value),
             ) => {
-                storage.validate_against(value.value().storage(), meter)?;
-                representation.validate_against(value.representation(), meter)?;
+                storage.validate_against(value.value().storage())?;
+                representation.validate_against(value.representation())?;
             }
             (
                 RawBody::Instance {
@@ -66,8 +62,8 @@ impl DecodedExactLayoutSemanticProjectionV1 {
                 },
                 ExactLayoutBodyKindV1::Instance(instance),
             ) => {
-                shape.validate_against(instance.shape(), meter)?;
-                representation.validate_against(instance.representation(), meter)?;
+                shape.validate_against(instance.shape())?;
+                representation.validate_against(instance.representation())?;
             }
             _ => return Err(ExactLayoutWireError::BodyMismatch),
         }
@@ -85,15 +81,11 @@ fn verify<I: scoop_identity::PersistentId>(
         .map_err(|_| ExactLayoutWireError::IdentityMismatch)
 }
 
-fn table_length(
-    actual: usize,
-    expected: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), ExactLayoutWireError> {
+fn table_length(actual: usize, expected: usize) -> Result<(), ExactLayoutWireError> {
     if actual != expected {
         return Err(ExactLayoutWireError::TableLengthMismatch);
     }
-    meter.charge_work(actual as u64, &WirePath::root())?;
+
     Ok(())
 }
 

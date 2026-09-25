@@ -17,7 +17,7 @@ use scoop_lir::{
     StrongProducerUnitPartitionError, StrongProducerUnitPartitionV1,
 };
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
-use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
+use scoop_wire::{WireDecode, WireError, WirePath, decode_canonical};
 
 use crate::compile_decode::validate_foundation_identity_graph_with_authorities;
 use crate::strong_compile_decode::{
@@ -87,8 +87,6 @@ use crate::{
     mir_identity_foundation_capability,
 };
 
-const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
-
 mod states;
 pub use states::*;
 
@@ -101,7 +99,6 @@ pub use cross_cone::*;
 mod layout;
 pub use layout::*;
 mod fingerprinting;
-pub(crate) mod materializations;
 pub(crate) mod object_directory;
 mod object_validation;
 
@@ -236,7 +233,7 @@ fn decode_production_manifest(
     graph: &mut ValidatedGraphArtifact<'_>,
     profile: ArtifactCapabilityProfile,
 ) -> Result<DecodedSingleConeProductionManifestV1, SingleConeLinkSectionDecodeError> {
-    let (manifest, meter) = graph.envelope.manifest_and_meter();
+    let manifest = graph.envelope.manifest();
     profile
         .validate_link_manifest_inventory(manifest.sections())
         .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
@@ -244,15 +241,14 @@ fn decode_production_manifest(
         manifest.sections(),
         manifest_single_cone_production_capability(),
     )?;
-    meter
-        .charge_work(LINK_SECTION_HANDLER_BASE_WORK, &Default::default())
-        .map_err(SingleConeLinkSectionDecodeError::Resource)?;
-    decode_canonical_with_meter::<DecodedSingleConeProductionManifestV1>(section.payload(), meter)
-        .map_err(|source| SingleConeLinkSectionDecodeError::InnerSection {
+
+    decode_canonical::<DecodedSingleConeProductionManifestV1>(section.payload()).map_err(|source| {
+        SingleConeLinkSectionDecodeError::InnerSection {
             location: None,
             capability: manifest_single_cone_production_capability(),
             source,
-        })
+        }
+    })
 }
 
 fn metadata_member_id(
@@ -288,11 +284,10 @@ fn member_payload<'input>(
 }
 
 fn decode_metadata_envelope<'input>(
-    graph: &mut ValidatedGraphArtifact<'input>,
     payload: &'input [u8],
     location: MetadataLocation,
 ) -> Result<DecodedMetadataEnvelope<'input>, SingleConeLinkSectionDecodeError> {
-    DecodedMetadataEnvelope::decode_with_meter(payload, location, graph.envelope.meter_mut())
+    DecodedMetadataEnvelope::decode(payload, location)
         .map_err(|source| SingleConeLinkSectionDecodeError::OuterEnvelope { location, source })
 }
 
@@ -325,25 +320,14 @@ fn required_metadata_section<'input>(
 }
 
 fn decode_inner<T: WireDecode>(
-    graph: &mut ValidatedGraphArtifact<'_>,
     location: MetadataLocation,
     capability: CapabilityId,
     payload: &[u8],
 ) -> Result<T, SingleConeLinkSectionDecodeError> {
-    let meter = graph.envelope.meter_mut();
-    meter
-        .charge_work(LINK_SECTION_HANDLER_BASE_WORK, &WirePath::root())
-        .map_err(|source| SingleConeLinkSectionDecodeError::InnerSection {
-            location: Some(location),
-            capability: capability.clone(),
-            source,
-        })?;
-    decode_canonical_with_meter(payload, meter).map_err(|source| {
-        SingleConeLinkSectionDecodeError::InnerSection {
-            location: Some(location),
-            capability,
-            source,
-        }
+    decode_canonical(payload).map_err(|source| SingleConeLinkSectionDecodeError::InnerSection {
+        location: Some(location),
+        capability,
+        source,
     })
 }
 
@@ -354,14 +338,13 @@ fn validate_semantic_fingerprints(
     lir: &DecodedMetadataEnvelope<'_>,
 ) -> Result<(), SingleConeLinkSectionDecodeError> {
     let actual = {
-        let (manifest, meter) = graph.envelope.manifest_and_meter();
+        let manifest = graph.envelope.manifest();
         SemanticFingerprintRecord::from_decoded_compile_metadata_sections(
             manifest.compatibility(),
             manifest.direct_dependencies(),
             hir.sections(),
             mir.sections(),
             lir.sections(),
-            meter,
         )
     }
     .map_err(SingleConeLinkSectionDecodeError::SemanticFingerprints)?;
@@ -410,6 +393,12 @@ pub enum StrongLinkMaterializationError {
     MissingObjectMember(SlibMemberId),
     ObjectRecordMismatch(SlibMemberId),
     MissingObjectPayload(SlibMemberId),
+}
+
+impl From<WireError> for StrongLinkMaterializationError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
 }
 
 impl fmt::Display for StrongLinkMaterializationError {

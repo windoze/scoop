@@ -8,7 +8,7 @@ pub(super) fn check(
     unit: &CanonicalParamFreeMirTypeExportsV1,
 ) {
     assert!(matches!(
-        Production::from_strong_input(input, types, graph, types, &mut meter()),
+        Production::from_strong_input(input, types, graph, types),
         Err(Error::Callable(
             scoop_mir::MirCallableBridgeError::MissingType { .. }
         ))
@@ -28,8 +28,8 @@ pub(super) fn check(
                 .collect(),
         )
         .unwrap();
-        let index = MirTypeBridgeTypeIndexV1::try_new(&[&partial, unit], &mut meter()).unwrap();
-        let error = Production::from_strong_input(input, types, graph, &index, &mut meter())
+        let index = MirTypeBridgeTypeIndexV1::try_new(&[&partial, unit]).unwrap();
+        let error = Production::from_strong_input(input, types, graph, &index)
             .err()
             .unwrap();
         assert!(
@@ -37,47 +37,23 @@ pub(super) fn check(
             "{error}"
         );
     }
-    let index = MirTypeBridgeTypeIndexV1::try_new(&[types, unit], &mut meter()).unwrap();
+    let index = MirTypeBridgeTypeIndexV1::try_new(&[types, unit]).unwrap();
     with_production("public val unrelated: Int = 1", |_, other, _, _, _| {
         assert!(matches!(
-            Production::from_strong_input(other, types, graph, &index, &mut meter()),
+            Production::from_strong_input(other, types, graph, &index),
             Err(Error::IncompleteObjects {
                 expected: 1,
                 actual: 0
             })
         ));
     });
-    let mut measured = meter();
-    let product =
-        Production::from_strong_input(input, types, graph, &index, &mut measured).unwrap();
-    let usage = measured.usage();
-    assert!(usage.validation_work_units > 0 && usage.owned_bytes > 0);
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: usage.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    Production::from_strong_input(input, types, graph, &index, &mut shared).unwrap();
-    assert!(matches!(
-        Production::from_strong_input(input, types, graph, &index, &mut shared),
-        Err(Error::Resource(_) | Error::Object(scoop_mir::MirObjectBridgeError::Resource(_)))
-    ));
-    assert!(matches!(
-        Production::from_strong_input(
-            input,
-            types,
-            graph,
-            &index,
-            &mut BudgetMeter::new(DecodeLimits {
-                owned_bytes: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(Error::Resource(_))
-    ));
+
+    let product = Production::from_strong_input(input, types, graph, &index).unwrap();
+
     let decoded: scoop_mir::DecodedCanonicalMirObjectValuesV1 = decoded(product.objects());
     let empty = scoop_mir::CanonicalMirCallableBindingsV1::try_new(vec![]).unwrap();
     assert!(matches!(
-        decoded.validate(graph, &index, &empty, &mut meter()),
+        decoded.validate(graph, &index, &empty),
         Err(scoop_mir::MirObjectBridgeError::MissingEnsure { .. })
     ));
 }

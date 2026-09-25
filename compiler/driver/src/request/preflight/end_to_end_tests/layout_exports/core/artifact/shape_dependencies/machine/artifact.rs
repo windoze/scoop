@@ -32,7 +32,6 @@ pub(super) fn check(
         .complete_cross_cone_interface_source_points(
             input.hir.output().export.module(),
             input.public,
-            &mut meter(),
         )
         .unwrap();
     let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
@@ -65,7 +64,7 @@ pub(super) fn check(
         source.bridge,
         layout,
     )
-    .assemble(emitted, &generated, provider.owners, &mut meter())
+    .assemble(emitted, &generated, provider.owners)
     .unwrap_or_else(|error| panic!("{} layout artifact assembly: {error:?}", destination.name));
     reader::check(
         destination.name,

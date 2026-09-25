@@ -39,8 +39,7 @@ fn definition_reader_checks_plan_and_complete_symbol_even_when_semantic_id_match
                 plan,
                 symbol,
             };
-            raw.definition =
-                decode_canonical(&encode(&wire).unwrap(), DecodeLimits::default()).unwrap();
+            raw.definition = decode_canonical(&encode(&wire).unwrap()).unwrap();
         });
     }
 }

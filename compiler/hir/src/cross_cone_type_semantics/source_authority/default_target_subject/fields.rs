@@ -1,12 +1,11 @@
 use super::*;
 
-impl Query<'_, '_, '_> {
+impl Query<'_, '_> {
     pub(super) fn field(
         &mut self,
         target: Target,
         id: PersistentFieldId,
     ) -> Result<(Subject, SourceNominalId), Error> {
-        self.meter.charge_edges(1, &self.path)?;
         let canonical = self.foundation.foundation.as_canonical();
         let key = self.key(canonical.type_source_field_records(), id, || {
             Error::MissingTarget(target)

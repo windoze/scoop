@@ -1,6 +1,5 @@
 use super::*;
 use scoop_identity::StrongCallableDefinitionOwner;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 pub(super) fn fixture() -> (
     mir::SingleConeStrongMirInput,
@@ -67,16 +66,15 @@ pub(super) fn unit_layout(output: &lir::SingleConeStrongLirOutput) -> lir::Exact
         CoreBuiltinNominal::Unit.identity_record().id(),
     ))
     .unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     let identity = lir::ExactLayoutIdentityV1::from_foundation(
         output.module().meta.target_profile,
         exact,
         scoop_identity::RepresentationRole::ManagedValue,
         output.foundation(),
-        &mut meter,
     )
     .unwrap();
-    lir::ExactValueLayoutV1::unit(identity, output.foundation(), &mut meter)
+    lir::ExactValueLayoutV1::unit(identity, output.foundation())
         .unwrap()
         .into()
 }
@@ -95,7 +93,6 @@ fn callable_abi_producer_binds_real_materialization_and_emitted_unit_signature()
             parameters: &[],
             result: &unit,
         },
-        &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
     assert_eq!(result.target(), target);
@@ -136,8 +133,7 @@ fn callable_abi_producer_rejects_signature_and_effect_before_export() {
                 receiver: lir::CallableAbiReceiverInputV1::NoReceiver,
                 parameters: &[],
                 result: &unit
-            },
-            &mut BudgetMeter::new(DecodeLimits::default())
+            }
         ),
         Err(ExactCallableAbiLoweringError::GcEffect)
     ));
@@ -160,8 +156,7 @@ fn callable_abi_producer_rejects_signature_and_effect_before_export() {
                 receiver: lir::CallableAbiReceiverInputV1::NoReceiver,
                 parameters: &[],
                 result: &unit
-            },
-            &mut BudgetMeter::new(DecodeLimits::default())
+            }
         ),
         Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MirSignature(actual))) if actual == target
     ));

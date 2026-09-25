@@ -17,23 +17,20 @@ pub struct NominalLayoutFieldInputV1<'a> {
 pub(super) fn nominal_fields<'a>(
     identity: &ExactLayoutIdentityV1,
     fields: &[NominalLayoutFieldInputV1<'a>],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<DeclaredFieldStorageV1<'a>>, ExactLayoutReplayError> {
     let owner = nominal(identity.exact_key())?;
-    nominal_fields_for_owner(identity, owner, fields, meter)
+    nominal_fields_for_owner(identity, owner, fields)
 }
 
 pub(super) fn nominal_fields_for_owner<'a>(
     identity: &ExactLayoutIdentityV1,
     owner: NominalDeclarationOwner,
     fields: &[NominalLayoutFieldInputV1<'a>],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<DeclaredFieldStorageV1<'a>>, ExactLayoutReplayError> {
-    let mut declared = reserve(fields.len(), meter)?;
-    meter.charge_work(fields.len() as u64, &WirePath::root())?;
+    let mut declared = reserve(fields.len())?;
+
     // The storage replay allocates its placed fields and duplicate-id set.
-    meter.charge_collection_slots(fields.len() as u64, &WirePath::root())?;
-    meter.charge_collection_slots(fields.len() as u64, &WirePath::root())?;
+
     for field in fields {
         let actual = match field.field.key().view() {
             FieldIdentityView::SourceDeclared { owner, .. }
@@ -62,10 +59,9 @@ impl ExactValueLayoutV1 {
         interior_mutable: bool,
         fields: &[NominalLayoutFieldInputV1<'_>],
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
-        let declared = nominal_fields(&identity, fields, meter)?;
+        let declared = nominal_fields(&identity, fields)?;
         let aggregate = AggregateStorageLayoutV1::ordinary(identity.target(), &declared)?;
         let storage = aggregate.storage().clone();
         let representation = StructRepresentationLayoutV1 {
@@ -77,7 +73,6 @@ impl ExactValueLayoutV1 {
             storage,
             ValueRepresentation::Struct(representation),
             foundation,
-            meter,
         )
     }
 
@@ -87,7 +82,6 @@ impl ExactValueLayoutV1 {
         fields: &[NominalLayoutFieldInputV1<'_>],
         contract: &scoop_identity::CanonicalCAbiLayoutFingerprintRecord,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(
             &identity,
@@ -96,12 +90,12 @@ impl ExactValueLayoutV1 {
         if contract.layout().exact_type() != identity.exact() {
             return Err(ExactLayoutReplayError::IdentityKind);
         }
-        meter.charge_work(foundation.c_abi_layouts().len() as u64, &WirePath::root())?;
+
         if !foundation.c_abi_layouts().contains(contract) {
             return Err(ExactLayoutReplayError::MissingCLayout);
         }
-        let declared = nominal_fields(&identity, fields, meter)?;
-        let mut nested = reserve(fields.len(), meter)?;
+        let declared = nominal_fields(&identity, fields)?;
+        let mut nested = reserve(fields.len())?;
         for field in fields {
             if let ValueRepresentation::Struct(StructRepresentationLayoutV1 {
                 policy: StructLayoutPolicyV1::CLayout(layout),
@@ -111,7 +105,7 @@ impl ExactValueLayoutV1 {
                 nested.push(layout);
             }
         }
-        meter.charge_canonical_sequence(nested.len() as u64, &WirePath::root())?;
+
         nested.sort_by_key(|layout| layout.contract().fingerprint());
         nested.dedup_by_key(|layout| layout.contract().fingerprint());
         let layout =
@@ -126,7 +120,6 @@ impl ExactValueLayoutV1 {
             storage,
             ValueRepresentation::Struct(representation),
             foundation,
-            meter,
         )
     }
 
@@ -134,23 +127,17 @@ impl ExactValueLayoutV1 {
         identity: ExactLayoutIdentityV1,
         elements: &[&ExactValueLayoutV1],
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
-        let mut values = reserve(elements.len(), meter)?;
+        let mut values = reserve(elements.len())?;
         values.extend(elements.iter().map(|value| &value.value));
-        let layout = TupleStorageLayoutV1::replay(
-            identity.target(),
-            identity.exact_record(),
-            &values,
-            meter,
-        )?;
+        let layout =
+            TupleStorageLayoutV1::replay(identity.target(), identity.exact_record(), &values)?;
         finish_value(
             identity,
             layout.storage().clone(),
             ValueRepresentation::Tuple(layout),
             foundation,
-            meter,
         )
     }
 }

@@ -60,18 +60,17 @@ impl Fixture {
             semantic,
         };
         let bytes = encode(&wire).unwrap();
-        let decoded: DecodedCrossConeLayoutAbiSectionV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
         let exports = decoded
-            .validate_layouts(local.layouts(), &mut meter())
+            .validate_layouts(local.layouts())
             .unwrap()
-            .validate_callables(local.callables(), &mut meter())
+            .validate_callables(local.callables())
             .unwrap()
-            .validate_dispatch(local.dispatch(), &mut meter())
+            .validate_dispatch(local.dispatch())
             .unwrap()
-            .validate_descriptors(local.descriptors(), &mut meter())
+            .validate_descriptors(local.descriptors())
             .unwrap()
-            .validate_shape_support::<Infallible>(local.shape_support(), &mut meter())
+            .validate_shape_support::<Infallible>(local.shape_support())
             .unwrap();
         assert_eq!(encode(&exports).unwrap(), bytes);
         let mut pending = PendingIdentityValidation::new();
@@ -83,7 +82,7 @@ impl Fixture {
                     .unwrap();
             }
         }
-        exports.resolve_dependencies(&mut pending.finish().unwrap(), &mut meter())
+        exports.resolve_dependencies(&mut pending.finish().unwrap())
     }
 }
 

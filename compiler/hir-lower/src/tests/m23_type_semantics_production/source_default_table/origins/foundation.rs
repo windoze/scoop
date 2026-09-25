@@ -11,7 +11,7 @@ fn default_source_points_survive_foundation_bytes_and_public_completion() {
         )),
     ] {
         with_hir_source(source, |output, _| {
-            let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
+            let production = Production::from_dependency_hir(output).unwrap();
             let origins = occurrences(production.templates());
             let legacy = hir::OdrFreeHirFoundation::try_new(
                 hir::CanonicalHirFoundation::from_dependency_output(output).unwrap(),
@@ -26,16 +26,12 @@ fn default_source_points_survive_foundation_bytes_and_public_completion() {
                 )
                 .unwrap();
             let decoded: hir::DecodedHirFoundation =
-                decode_canonical(&encode(&completed).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(&completed).unwrap()).unwrap();
             let coordinate =
                 scoop_identity::ConeCoordinate::new("test", "scoop-hir-lower", "0.0.0").unwrap();
             let completed = hir::OdrFreeHirFoundation::from_validated(
                 decoded
-                    .validate_with_dependency_sources(
-                        &coordinate,
-                        &mut identity_closure(output),
-                        &mut meter(),
-                    )
+                    .validate_with_dependency_sources(&coordinate, &mut identity_closure(output))
                     .unwrap(),
             )
             .unwrap();
@@ -82,28 +78,4 @@ fn default_source_points_survive_foundation_bytes_and_public_completion() {
             }
         });
     }
-}
-
-#[test]
-fn default_source_foundation_projection_uses_the_remaining_caller_budget() {
-    with_hir_source(ORIGINS, |output, _| {
-        let mut measured = meter();
-        hir::CanonicalHirFoundation::from_type_semantics_output_with_budget(output, &mut measured)
-            .unwrap();
-        let work = measured.usage().validation_work_units;
-        let mut shared = BudgetMeter::new(DecodeLimits {
-            validation_work_units: work * 2 - 1,
-            ..DecodeLimits::default()
-        });
-        hir::CanonicalHirFoundation::from_type_semantics_output_with_budget(output, &mut shared)
-            .unwrap();
-        assert!(matches!(
-            hir::CanonicalHirFoundation::from_type_semantics_output_with_budget(
-                output,
-                &mut shared
-            ),
-            Err(hir::HirFoundationBuildError::DefaultSourceProduction(_))
-                | Err(hir::HirFoundationBuildError::DefaultSourceResource(_))
-        ));
-    });
 }

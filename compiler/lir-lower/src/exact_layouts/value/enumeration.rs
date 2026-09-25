@@ -11,24 +11,21 @@ struct Variant {
     values: Vec<Arc<lir::ExactValueLayoutV1>>,
 }
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn enumeration(
         &mut self,
         identity: lir::ExactLayoutIdentityV1,
         source: &[mir::MirRepresentationVariantV1],
-        depth: u64,
     ) -> Result<lir::ExactValueLayoutV1> {
         let owner = identity.exact();
         let mut variants = self.reserve(source.len())?;
         for variant in source {
-            self.meter.charge_work(1, &WirePath::root())?;
             let identity = self.identities.canonical_record(variant.variant)?;
             let mut fields = self.reserve(variant.fields.len())?;
             let mut values = self.reserve(variant.fields.len())?;
             for field in &variant.fields {
-                self.meter.charge_work(1, &WirePath::root())?;
                 fields.push(self.identities.canonical_record(field.field)?);
-                values.push(self.value_dependency(field.value, depth)?);
+                values.push(self.value_dependency(field.value)?);
             }
             let has_references = values.iter().any(|value| {
                 value.value().storage().nonzero().is_some_and(|storage| {
@@ -67,7 +64,6 @@ impl Projection<'_, '_> {
             identity,
             &inputs,
             self.output.foundation(),
-            self.meter,
         )?)
     }
 }

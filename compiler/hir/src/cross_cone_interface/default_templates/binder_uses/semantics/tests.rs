@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 
 use super::*;
-use crate::{PublicNominalShapeV1, SignatureBinderScopeError};
+use crate::{DefaultTemplateProviderShapeV1, PublicNominalShapeV1, SignatureBinderScopeError};
 
 #[test]
 fn validates_exact_provider_arity_and_key_owner_scope() {

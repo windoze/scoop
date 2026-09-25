@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use scoop_hir as hir;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use super::*;
 
@@ -10,10 +9,6 @@ mod metadata;
 mod rejection;
 mod support;
 use support::{lower, root_name};
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(fixture_root().join(format!("{name}.scoop"))).unwrap()
@@ -28,9 +23,7 @@ fn fixture_root() -> PathBuf {
 fn actual_dependency_call_occurrences_keep_shared_targets_and_distinct_origins() {
     for name in ["standalone", "routes", "combined", "rejected"] {
         let output = lower(&fixture(name));
-        let calls = output
-            .committed_dependency_call_occurrences(&mut meter())
-            .unwrap();
+        let calls = output.committed_dependency_call_occurrences().unwrap();
         assert_eq!(
             output.imported_dependencies().callable_count(),
             usize::from(name != "rejected")
@@ -118,7 +111,7 @@ fn occurrence_positions_do_not_depend_on_unrelated_arena_entries() {
     ));
     let positions = |output: &hir::DependencyHirOutput| {
         output
-            .committed_dependency_call_occurrences(&mut meter())
+            .committed_dependency_call_occurrences()
             .unwrap()
             .iter()
             .map(|call| call.position())

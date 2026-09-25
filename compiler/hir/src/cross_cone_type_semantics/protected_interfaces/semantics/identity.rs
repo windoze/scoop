@@ -8,24 +8,17 @@ use scoop_identity::{
     PersistentFunctionId, PersistentGenericFunctionId, PersistentPropertyAccessorId,
     PersistentPropertyId, PropertyOwner, SignatureTypeKey, SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
 pub(super) fn validate<'a, A: ProtectedCallableSemanticAuthority<E>, E>(
     declaration: CallableTemplateOrigin,
     payload: &NominalSourceCallablePayloadV1,
     owner: &SourceDeclarationKey,
     authority: &'a A,
-    meter: &mut BudgetMeter,
 ) -> Result<&'a SourceDeclarationKey, Error<E>> {
     let key = authority
         .callable_source_key(declaration)
         .map_err(Error::Foundation)?;
-    meter
-        .charge_sha256(
-            scoop_wire::encoded_length(key).map_err(Error::Encoding)?,
-            &WirePath::root(),
-        )
-        .map_err(Error::Resource)?;
+
     if key.origin() != owner.origin()
         || key.package() != owner.package()
         || key.owners().owners().split_last().map(|(_, outer)| outer)

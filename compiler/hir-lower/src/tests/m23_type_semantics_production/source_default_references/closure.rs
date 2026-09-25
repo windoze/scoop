@@ -1,6 +1,6 @@
 use super::*;
 mod rejection;
-mod resources;
+
 mod snapshots;
 mod support;
 use support::*;
@@ -52,17 +52,13 @@ fn source_reference_closure_matches_every_collector_occurrence_in_order() {
                     ) {
                         continue;
                     }
-                    let template = Body::from_dependency_hir(
-                        output,
-                        interface.owner,
-                        position as u32,
-                        &mut meter(),
-                    )
-                    .unwrap()
-                    .into_source_template(&mut meter())
-                    .unwrap();
+                    let template =
+                        Body::from_dependency_hir(output, interface.owner, position as u32)
+                            .unwrap()
+                            .into_source_template()
+                            .unwrap();
                     let bound = template
-                        .bind_reference_occurrences(&mut meter(), &scoop_wire::WirePath::root())
+                        .bind_reference_occurrences(&scoop_wire::WirePath::root())
                         .unwrap_or_else(|e| {
                             panic!(
                                 "{name}, owner {:?}, position {position}: {e:?}",
@@ -94,17 +90,12 @@ fn source_reference_closure_preserves_array_assembly_order() {
     ));
     let output = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()]).unwrap();
     let export = output.export.module();
-    let template = Body::from_export_hir(
-        export,
-        function(export, "ClosureArrayHost.arrays"),
-        1,
-        &mut meter(),
-    )
-    .unwrap()
-    .into_source_template(&mut meter())
-    .unwrap();
+    let template = Body::from_export_hir(export, function(export, "ClosureArrayHost.arrays"), 1)
+        .unwrap()
+        .into_source_template()
+        .unwrap();
     let bound = template
-        .bind_reference_occurrences(&mut meter(), &WirePath::root())
+        .bind_reference_occurrences(&WirePath::root())
         .unwrap();
     assert_eq!(
         bound.occurrences().len(),

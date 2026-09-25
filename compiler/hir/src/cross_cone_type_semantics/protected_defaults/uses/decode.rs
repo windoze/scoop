@@ -1,8 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
     CanonicalProtectedDefaultExpressionUsesV1, ProtectedDefaultExpressionUseV1,
@@ -10,7 +8,7 @@ use super::{
 };
 
 impl WireDecode for ProtectedDefaultReceiverUseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         if tag == 3 {
@@ -33,7 +31,7 @@ impl WireDecode for ProtectedDefaultReceiverUseV1 {
 }
 
 impl WireDecode for ProtectedDefaultExpressionUseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self::new(
             decoder.field(1, Decoder::u32)?,
@@ -50,25 +48,17 @@ pub struct DecodedCanonicalProtectedDefaultExpressionUsesV1 {
 impl DecodedCanonicalProtectedDefaultExpressionUsesV1 {
     pub fn resolve(
         self,
-        meter: &mut BudgetMeter,
     ) -> Result<
         CanonicalProtectedDefaultExpressionUsesV1,
         ProtectedDefaultExpressionUsesResolutionError,
     > {
-        let path = WirePath::root();
-        meter
-            .charge_nodes(1, &path)
-            .map_err(ProtectedDefaultExpressionUsesResolutionError::Resource)?;
-        meter
-            .charge_work(self.values.len() as u64, &path)
-            .map_err(ProtectedDefaultExpressionUsesResolutionError::Resource)?;
         CanonicalProtectedDefaultExpressionUsesV1::from_ordered(self.values)
             .map_err(ProtectedDefaultExpressionUsesResolutionError::Build)
     }
 }
 
 impl WireDecode for DecodedCanonicalProtectedDefaultExpressionUsesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| ProtectedDefaultExpressionUseV1::decode(decoder))
             .map(|values| Self { values })

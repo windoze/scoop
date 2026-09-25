@@ -22,7 +22,7 @@ fn ordinary_reader_replays_default_call_domains_from_published_bytes() {
             vec![],
         );
         request.emit = StageDumpPolicy::Stage(StageDumpKind::Hir);
-        let library = request.build_and_publish(DecodeLimits::default()).unwrap();
+        let library = request.build_and_publish().unwrap();
         let dump = library.emitted_dump().unwrap();
         let snapshot = directory.join(format!("{case}.hir.snap"));
         if std::env::var_os("SCOOP_UPDATE_CALL_DOMAINS_SNAPSHOTS").is_some() {
@@ -41,7 +41,6 @@ fn ordinary_reader_replays_default_call_domains_from_published_bytes() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

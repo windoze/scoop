@@ -8,17 +8,12 @@ pub(super) struct InitializationContracts {
 }
 
 impl InitializationContracts {
-    pub fn from_input(
-        input: MirTypeBridgeExportInputV1<'_>,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
+    pub fn from_input(input: MirTypeBridgeExportInputV1<'_>) -> Result<Self, Error> {
         let module = input.hir.output().local.module();
         let roots = input.mir.materialization().initialization_roots();
-        let mut sources = inventory::collect(
-            module.initialization_units.iter().map(|(_, unit)| unit),
-            meter,
-        )?;
-        inventory::sort_cost(sources.len(), meter)?;
+        let mut sources =
+            inventory::collect(module.initialization_units.iter().map(|(_, unit)| unit))?;
+
         sources.sort_unstable_by_key(|unit| unit.identity.id());
         if sources.len() != roots.len()
             || sources
@@ -27,23 +22,19 @@ impl InitializationContracts {
         {
             return Err(Error::InitializationInventory);
         }
-        let inventory = inventory::collect(sources.iter().map(|unit| unit.identity.id()), meter)?;
-        meter.charge_work(roots.len() as u64, &WirePath::root())?;
+        let inventory = inventory::collect(sources.iter().map(|unit| unit.identity.id()))?;
+
         for root in roots {
-            meter.charge_work(
-                u64::from(inventory.len().checked_ilog2().unwrap_or(0)) + 1,
-                &WirePath::root(),
-            )?;
             if inventory.binary_search(&root.identity()).is_err() {
                 return Err(Error::MissingInitializationUnit(root.identity()));
             }
         }
         let mut signatures = Vec::new();
-        meter.try_reserve_collection_slots(&mut signatures, sources.len(), &WirePath::root())?;
+        scoop_wire::allocation::try_reserve(&mut signatures, sources.len(), &WirePath::root())?;
         for unit in sources {
             signatures.push([
-                signature(module, unit.initializer, meter)?,
-                signature(module, unit.ensure, meter)?,
+                signature(module, unit.initializer)?,
+                signature(module, unit.ensure)?,
             ]);
         }
         Ok(Self {
@@ -71,17 +62,9 @@ impl InitializationContracts {
 fn signature(
     module: &hir::concrete::Module,
     function: hir::concrete::FunctionId,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::MirBridgeCallableSignatureV1, Error> {
     let source = &module.functions[function];
-    let path = WirePath::root();
-    meter.charge_work(source.params.len() as u64 + 1, &path)?;
-    meter.charge_owned_bytes(
-        std::mem::size_of::<mir::MirBridgeCallableSignatureV1>() as u64
-            + (source.params.len() as u64)
-                .saturating_mul(std::mem::size_of::<PersistentExactTypeId>() as u64),
-        &path,
-    )?;
+
     Ok(mir::MirBridgeCallableSignatureV1::new(
         crate::source_callables::exact_function_signature(module, function),
         match source.attributes.gc_effect {

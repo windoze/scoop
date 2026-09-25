@@ -1,9 +1,9 @@
 //! Frozen physical shape product. Its scalars are compared with a shape
 //! rebuilt from the representation's typed dependencies before promotion.
 
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::{DecodedRefScanV1, MeteredScanValidationError, TypeInstanceShapeV1};
+use crate::{DecodedRefScanV1, RefScanValidationError, TypeInstanceShapeV1};
 
 #[derive(Debug)]
 pub struct DecodedTypeInstanceShapeV1 {
@@ -16,14 +16,12 @@ impl DecodedTypeInstanceShapeV1 {
     pub fn validate_against(
         self,
         expected: &TypeInstanceShapeV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), TypeInstanceShapeWireError> {
-        meter.charge_work(8, &scoop_wire::WirePath::root())?;
         if self.scalars != shape_scalars(expected) {
             return Err(TypeInstanceShapeWireError::ShapeMismatch);
         }
-        let object_scan = self.object_scan.validate_metered(meter)?;
-        let inline_scan = self.inline_scan.validate_metered(meter)?;
+        let object_scan = self.object_scan.validate()?;
+        let inline_scan = self.inline_scan.validate()?;
         if object_scan.as_ref_scan() != expected.object_scan()
             || inline_scan.as_ref_scan() != expected.inline_scan()
         {
@@ -54,7 +52,7 @@ impl WireEncode for DecodedTypeInstanceShapeV1 {
 }
 
 impl WireDecode for DecodedTypeInstanceShapeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         let mut scalars = [0; 8];
         for (index, scalar) in scalars.iter_mut().enumerate() {
@@ -97,11 +95,11 @@ fn encode_scalars(
 pub enum TypeInstanceShapeWireError {
     ShapeMismatch,
     ScanMismatch,
-    Scan(MeteredScanValidationError),
+    Scan(RefScanValidationError),
     Resource(WireError),
 }
-impl From<MeteredScanValidationError> for TypeInstanceShapeWireError {
-    fn from(error: MeteredScanValidationError) -> Self {
+impl From<RefScanValidationError> for TypeInstanceShapeWireError {
+    fn from(error: RefScanValidationError) -> Self {
         Self::Scan(error)
     }
 }

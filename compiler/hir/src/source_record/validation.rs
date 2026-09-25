@@ -26,7 +26,7 @@ impl scoop_wire::WireEncode for DecodedSourcePointRecord {
 }
 
 impl scoop_wire::WireDecode for DecodedSourcePointRecord {
-    fn decode(decoder: &mut scoop_wire::Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+    fn decode(decoder: &mut scoop_wire::Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
         decoder.expect_map(3)?;
         let byte_offset = decoder.field(1, scoop_wire::Decoder::unsigned)?;
         let line = decoder.field(2, scoop_wire::Decoder::unsigned)?;
@@ -184,7 +184,7 @@ impl scoop_wire::WireEncode for DecodedSourceRecord {
 }
 
 impl scoop_wire::WireDecode for DecodedSourceRecord {
-    fn decode(decoder: &mut scoop_wire::Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+    fn decode(decoder: &mut scoop_wire::Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
         decoder.expect_map(5)?;
         let identity = decoder.field(1, scoop_identity::DecodedSourceIdentity::decode)?;
         let byte_length = decoder.field(2, scoop_wire::Decoder::unsigned)?;

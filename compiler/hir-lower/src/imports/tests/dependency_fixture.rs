@@ -3,7 +3,7 @@ use scoop_identity::{
     ConeCoordinate, ConeIdentity, PendingIdentityValidation, PersistentTypeAliasId,
     SemanticIdentitySession, SemanticOriginFingerprint,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath, decode_canonical, encode};
+use scoop_wire::{WirePath, decode_canonical, encode};
 
 mod provider;
 
@@ -180,11 +180,8 @@ fn import_foundation(
     fixture: &ProviderFixture,
     fingerprint: u8,
 ) -> hir::ImportedHirFoundation {
-    let decoded: hir::DecodedHirFoundation = decode_canonical(
-        &encode(fixture.foundation()).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: hir::DecodedHirFoundation =
+        decode_canonical(&encode(fixture.foundation()).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(fixture.identity()).unwrap();
     decoded.register_identities(&mut pending).unwrap();
@@ -211,11 +208,7 @@ fn import_foundation(
 fn empty_alias_expansions() -> hir::CanonicalTypeAliasExpansionsV1 {
     hir::CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
         .unwrap()
-        .expand_alias_closure(
-            &EmptyAliasAuthority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
         .unwrap()
 }
 

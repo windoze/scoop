@@ -22,11 +22,9 @@ fn nested_owner_binders_follow_canonical_parents_and_static_nested_boundaries() 
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let mut snapshot = String::new();
             for (name, expected) in [
                 ("BinderHost.lambda", 4),
@@ -36,9 +34,7 @@ fn nested_owner_binders_follow_canonical_parents_and_static_nested_boundaries() 
                 ("BinderHost.Plain.callback", 1),
                 ("BinderHost.Generic.callback", 2),
             ] {
-                let contract = bound
-                    .declaration(key(output, name, 0), &mut meter())
-                    .unwrap();
+                let contract = bound.declaration(key(output, name, 0)).unwrap();
                 let occurrences = contract.nested_callables().occurrences();
                 assert_eq!(occurrences.len(), 1, "{name}");
                 let descriptor = occurrences[0].descriptor();
@@ -85,10 +81,10 @@ fn expanded_nested_binders_keep_the_original_unused_and_local_parent_parameters(
         let table = templates(output);
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-            let bound = parameters.bind_default_declarations(&table, &[], &mut meter()).unwrap();
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             for name in ["BinderCombinationHost.expanded", "BinderCombinationHost.anonymous"] {
-                let contract = bound.declaration(key(output, name, 0), &mut meter()).unwrap();
+                let contract = bound.declaration(key(output, name, 0)).unwrap();
                 assert_eq!(contract.provider_binders().binder_arity(), 2);
                 let occurrences = contract.nested_callables().occurrences();
                 assert_eq!(occurrences.len(), 1);
@@ -97,7 +93,7 @@ fn expanded_nested_binders_keep_the_original_unused_and_local_parent_parameters(
                 assert!(descriptor.captures().is_empty());
                 assert!(matches!(descriptor.body_arguments(), hir::DefaultNestedCallableBodyArgumentsV1::Explicit(args) if args.len() == 3));
             }
-            let contract = bound.declaration(key(output, "BinderCombinationHost.local", 0), &mut meter()).unwrap();
+            let contract = bound.declaration(key(output, "BinderCombinationHost.local", 0)).unwrap();
             let counts = contract.nested_callables().occurrences().iter()
                 .map(|o| o.descriptor().owner_type_parameter_count()).collect::<Vec<_>>();
             assert_eq!(counts, [2, 3, 2]);

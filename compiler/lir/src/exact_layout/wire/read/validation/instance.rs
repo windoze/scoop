@@ -4,7 +4,6 @@ impl RawInstance {
     pub(super) fn validate_against(
         self,
         expected: &InstanceRepresentationV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactLayoutWireError> {
         use InstanceRepresentationKindV1 as E;
         match (self, expected.kind()) {
@@ -17,8 +16,8 @@ impl RawInstance {
                 E::ClassObject(expected),
             ) => {
                 base.validate_against(expected.base_prefix())?;
-                fields::nominal_fields(declared, expected.declared_fields(), meter)?;
-                fields::nominal_fields(complete, expected.complete_fields(), meter)
+                fields::nominal_fields(declared, expected.declared_fields())?;
+                fields::nominal_fields(complete, expected.complete_fields())
             }
             (Self::Box { exact, layout }, E::BoxedPayload(expected)) => {
                 verify(exact, expected.exact())?;
@@ -34,7 +33,7 @@ impl RawInstance {
                 },
             ) => {
                 verify(exact, element.exact())?;
-                storage.validate_against(expected, meter)?;
+                storage.validate_against(expected)?;
                 Ok(())
             }
             _ => Err(ExactLayoutWireError::RepresentationMismatch),

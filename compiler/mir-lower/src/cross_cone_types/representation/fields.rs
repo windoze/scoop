@@ -3,9 +3,7 @@ use super::*;
 pub(super) fn exact(
     module: &mir::Module,
     ty: &mir::Type,
-    meter: &mut BudgetMeter,
 ) -> Result<PersistentExactTypeId, SourceMirTypeProductionError> {
-    work(module.meta.source_exact_types.len(), meter)?;
     module
         .meta
         .source_exact_types
@@ -19,7 +17,6 @@ pub(super) fn class(
     class: &mir::ClassDef,
     owner: PersistentTypeId,
     expected: &[hir::ClassRepresentationFieldV1],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<mir::MirRepresentationFieldV1>, SourceMirTypeProductionError> {
     let mismatch = || SourceMirTypeProductionError::RepresentationMismatch(owner);
     let mir::ClassRepresentation::Declared { fields, base_class } = &class.representation else {
@@ -31,11 +28,11 @@ pub(super) fn class(
         return Err(mismatch());
     }
     let mut projected = Vec::new();
-    reserve(&mut projected, fields.len(), meter)?;
+    reserve(&mut projected, fields.len())?;
     for (field, expected) in fields.iter().zip(expected) {
         projected.push(mir::MirRepresentationFieldV1 {
             field: expected.field(),
-            value: exact(module, &field.ty, meter)?,
+            value: exact(module, &field.ty)?,
         });
     }
     Ok(projected)
@@ -44,17 +41,16 @@ pub(super) fn class(
 pub(super) fn variants(
     module: &mir::Module,
     variants: &[mir::VariantDef],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<mir::MirRepresentationVariantV1>, SourceMirTypeProductionError> {
     let mut projected = Vec::new();
-    reserve(&mut projected, variants.len(), meter)?;
+    reserve(&mut projected, variants.len())?;
     for variant in variants {
         let mut fields = Vec::new();
-        reserve(&mut fields, variant.fields.len(), meter)?;
+        reserve(&mut fields, variant.fields.len())?;
         for field in &variant.fields {
             fields.push(mir::MirRepresentationVariantFieldV1 {
                 field: field.identity,
-                value: exact(module, &field.ty, meter)?,
+                value: exact(module, &field.ty)?,
             });
         }
         projected.push(mir::MirRepresentationVariantV1 {

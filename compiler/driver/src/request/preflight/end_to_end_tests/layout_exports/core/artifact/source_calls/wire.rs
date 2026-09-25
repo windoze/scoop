@@ -18,7 +18,7 @@ pub(super) fn replace_types(
     artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
     types: &hir::CrossConeTypeSemanticsSectionV1,
 ) -> Vec<u8> {
-    let replacement = encode(&types.index_for_wire(&mut meter()).unwrap()).unwrap();
+    let replacement = encode(&types.index_for_wire().unwrap()).unwrap();
     replace_hir_section(
         artifact,
         &slib::hir_cross_cone_type_semantics_capability(),
@@ -36,25 +36,19 @@ fn replace_hir_section(
     let mut entries = archive.members();
     let entry = entries.next().unwrap().unwrap();
     assert_eq!(entry.name(), b"manifest.cbor");
-    let manifest = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        entry.data(bytes).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap()
-    .validate(artifact.target_selection(), &mut meter())
-    .unwrap();
+    let manifest =
+        scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(entry.data(bytes).unwrap())
+            .unwrap()
+            .validate(artifact.target_selection())
+            .unwrap();
     let mut members = Vec::new();
     let mut replaced = 0;
     let mut hir_fingerprint = None;
     for record in manifest.members() {
         let data = entries.next().unwrap().unwrap().data(bytes).unwrap();
         let payload = if matches!(record.role(), slib::SlibMemberRole::HirMetadata) {
-            let decoded = slib::DecodedMetadataEnvelope::decode(
-                data,
-                slib::MetadataLocation::Hir,
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                slib::DecodedMetadataEnvelope::decode(data, slib::MetadataLocation::Hir).unwrap();
             let sections = decoded
                 .sections()
                 .iter()
@@ -114,13 +108,10 @@ fn replace_hir_section(
     )
     .unwrap();
     let manifest = manifest::with_hir_fingerprint(&manifest, hir_fingerprint.unwrap());
-    scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        &manifest,
-        DecodeLimits::default(),
-    )
-    .unwrap()
-    .validate(artifact.target_selection(), &mut meter())
-    .unwrap();
+    scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(&manifest)
+        .unwrap()
+        .validate(artifact.target_selection())
+        .unwrap();
     slib::CanonicalSlibArchive::write(&manifest, members)
         .unwrap()
         .into_bytes()

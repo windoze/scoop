@@ -5,12 +5,7 @@ pub(super) struct DefinitionSourceVisitor<'a, V> {
 }
 impl<V, E> BodyWalkMode for DefinitionSourceVisitor<'_, V>
 where
-    V: FnMut(
-        &ExportDefinitionSourceV1,
-        DefaultBodyOriginSiteV1,
-        &mut BudgetMeter,
-        &WirePath,
-    ) -> Result<(), E>,
+    V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
     E: From<WireError>,
 {
     type Error = E;
@@ -22,7 +17,7 @@ where
         _: &SignatureTypeKey,
         _: DefaultBodyProviderTypeSiteV1,
         _: &ExportDefinitionSourceV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -31,7 +26,7 @@ where
         &mut self,
         _: &DefaultLocalFunctionV1,
         _: &ExportDefinitionSourceV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -49,9 +44,9 @@ where
         &mut self,
         source: &ExportDefinitionSourceV1,
         site: DefaultBodyOriginSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Self::Error> {
-        (self.visitor)(source, site, meter, path)
+        (self.visitor)(source, site, path)
     }
 }

@@ -30,17 +30,16 @@ impl TypeSectionDeclarationSemanticAuthority<Error>
         protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
         representations: &'c CanonicalNominalRepresentationSupportV1,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedDeclarationSourcesV1<'c>, ProtectedDeclarationSemanticError<Error>>
     {
         // This Copy duplicates only immutable source borrows and a typed id.
         let mut parameters = *self.parameters;
         parameters
-            .validate_protected_declarations(table, protocols, representations, meter)
+            .validate_protected_declarations(table, protocols, representations)
             .map_err(|error| match Error::from(error) {
                 Error::Resource(error) => ProtectedDeclarationSemanticError::Resource(error),
                 error => ProtectedDeclarationSemanticError::Foundation(error),
             })?;
-        table.validate_sources(graph, representations, self, meter)
+        table.validate_sources(graph, representations, self)
     }
 }

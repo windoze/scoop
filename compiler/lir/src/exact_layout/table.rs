@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentLayoutId, RepresentationRole};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::*;
 use crate::{ExternalStrongShapeSubjectV1, LirTargetProfile, OdrFreeLirFoundation};
@@ -29,15 +29,7 @@ impl CanonicalExactLayoutExportsV1 {
         target: LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         mut records: Vec<ExactLayoutExportV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutTableError> {
-        let path = WirePath::root();
-        let count = records.len() as u64;
-        let comparisons = count
-            .checked_mul(u64::from(count.max(1).ilog2()) + 1)
-            .ok_or(ExactLayoutTableError::CountOverflow)?;
-        meter.charge_work(comparisons, &path)?;
-        meter.charge_collection_slots(count, &path)?;
         records.sort_unstable_by_key(|record| record.identity().layout());
         for (index, record) in records.iter().enumerate() {
             let identity = record.identity();
@@ -55,12 +47,11 @@ impl CanonicalExactLayoutExportsV1 {
                 identity.exact_record().clone(),
                 identity.layout_key().representation(),
                 foundation,
-                meter,
             )?;
             if &expected != identity {
                 return Err(ExactLayoutTableError::Identity(identity.layout()));
             }
-            meter.charge_work(foundation.scans().len() as u64, &path)?;
+
             if !foundation
                 .scans()
                 .iter()
@@ -71,7 +62,6 @@ impl CanonicalExactLayoutExportsV1 {
             let scan = crate::StrongShapeDefinitionRefV1::from_foundation(
                 ExternalStrongShapeSubjectV1::Scan(record.scan()),
                 foundation,
-                meter,
             )?;
             if scan != record.scan_definition() {
                 return Err(ExactLayoutTableError::Scan(identity.layout()));

@@ -10,7 +10,7 @@ pub(super) struct Authority<'a> {
     pub source: SourceFixture,
     pub provider_parameters: CanonicalSourceParameterShapesV1,
     pub template: &'a ProtectedDefaultTemplateV1,
-    pub resources: *const BudgetMeter,
+
     pub path: &'a WirePath,
     pub case: Case,
     pub provider_calls: usize,
@@ -26,7 +26,7 @@ impl<'a> Authority<'a> {
     pub fn new(
         fixture: &'a Fixture,
         template: &'a ProtectedDefaultTemplateV1,
-        meter: &BudgetMeter,
+
         path: &'a WirePath,
         case: Case,
     ) -> Self {
@@ -47,7 +47,7 @@ impl<'a> Authority<'a> {
                 })
                 .expect("fixture contains the default provider declaration"),
             template,
-            resources: std::ptr::from_ref(meter),
+
             path,
             case,
             provider_calls: 0,
@@ -63,27 +63,20 @@ impl<'a> Authority<'a> {
     fn check(
         &mut self,
         template: &ProtectedDefaultTemplateV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), &'static str> {
         assert!(std::ptr::eq(self.template, template));
-        assert!(std::ptr::eq(self.resources, meter));
+
         assert!(std::ptr::eq(self.path, path));
-        meter
-            .charge_work(7, path)
-            .map_err(|_| "shared authority budget")
+        Ok(())
     }
     fn check_source(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
-        assert!(std::ptr::eq(self.resources, meter));
-        meter
-            .charge_work(3, self.path)
-            .map_err(|_| "source authority budget")?;
         if key == self.fixture.key
             && root.declaration() == key.owner()
             && path == &definition_path()
@@ -113,9 +106,8 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority<'_> {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultTemplateProviderShapeV1, &'static str> {
-        self.check_source(self.fixture.key, root, path, meter)?;
+        self.check_source(self.fixture.key, root, path)?;
         self.provider_calls += 1;
         DefaultTemplateProviderShapeV1::try_new(u32::from(self.case.generic()), 0)
             .map_err(|_| "invalid provider binders")
@@ -124,9 +116,8 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority<'_> {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, &'static str> {
-        self.check_source(self.fixture.key, root, path, meter)?;
+        self.check_source(self.fixture.key, root, path)?;
         crate::DefaultTemplateProviderParameterV1::try_new(
             &self.provider_parameters,
             self.fixture.key.parameter_position(),
@@ -138,9 +129,8 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority<'_> {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<SignatureTypeKey>, &'static str> {
-        self.check_source(self.fixture.key, root, path, meter)?;
+        self.check_source(self.fixture.key, root, path)?;
         Ok(Some(self.fixture.receiver.clone()))
     }
     fn validate_inherited_protected_default_provider(
@@ -149,7 +139,6 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority<'_> {
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
         _mapping: &CanonicalBinderUseListV1,
-        _meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         Err("fixture has no inherited default provider")
     }
@@ -158,7 +147,6 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<&'static str> for Authority<
     fn default_access_profile(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
-        _meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, &'static str> {
         if key != self.fixture.key {
             return Err("unknown source default profile");
@@ -187,8 +175,6 @@ impl crate::DefaultLocalFunctionSignatureAuthority<&'static str> for Authority<'
     fn default_local_function_own_binder_arity(
         &mut self,
         _declaration: scoop_identity::CallableTemplateOrigin,
-        _meter: &mut scoop_wire::BudgetMeter,
-        _path: &scoop_wire::WirePath,
     ) -> Result<u32, &'static str> {
         Err("fixture has no local function")
     }

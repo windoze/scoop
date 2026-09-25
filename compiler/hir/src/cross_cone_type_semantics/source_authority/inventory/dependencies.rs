@@ -1,7 +1,7 @@
 use scoop_identity::{
     ConeIdentity, DecodedPersistentId, PersistentExactTypeId, PersistentIdResolver,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::*;
 use crate::TypeSectionDependencyFactV1;
@@ -24,18 +24,15 @@ pub struct CanonicalTypeSectionDependencyFactsV1 {
 impl CanonicalTypeSectionDependencyFactsV1 {
     pub fn try_new(
         mut records: Vec<TypeSectionDependencyFactV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(|record| record.exact);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
 
     fn from_ordered(
         records: Vec<TypeSectionDependencyFactV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        validate_order(&records, |record| record.exact, "dependency facts", meter)?;
+        validate_order(&records, |record| record.exact, "dependency facts")?;
         Ok(Self { records })
     }
 
@@ -57,7 +54,7 @@ pub struct DecodedTypeSectionDependencyFactV1 {
 }
 
 impl WireDecode for DecodedTypeSectionDependencyFactV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             provider: decoder.field(1, DecodedPersistentId::decode)?,
@@ -85,26 +82,25 @@ impl DecodedCanonicalTypeSectionDependencyFactsV1 {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalTypeSectionDependencyFactsV1, SourceInventoryError>
     where
         R: PersistentIdResolver<ConeIdentity, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>,
         E: fmt::Display,
     {
-        let mut records = reserve(self.records.len(), meter)?;
+        let mut records = reserve(self.records.len())?;
         for record in self.records {
             records.push(TypeSectionDependencyFactV1 {
                 provider: resolver.resolve(record.provider).map_err(reference)?,
                 exact: resolver.resolve(record.exact).map_err(reference)?,
             });
         }
-        CanonicalTypeSectionDependencyFactsV1::from_ordered(records, meter)
+        CanonicalTypeSectionDependencyFactsV1::from_ordered(records)
     }
 }
 
 impl WireDecode for DecodedCanonicalTypeSectionDependencyFactsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedTypeSectionDependencyFactV1::decode(d))
             .map(|records| Self { records })

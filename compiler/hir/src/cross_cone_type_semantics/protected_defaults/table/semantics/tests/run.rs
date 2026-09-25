@@ -10,14 +10,12 @@ pub(super) struct Outcome {
     pub expression_calls: usize,
     pub concrete_calls: usize,
     pub nested_calls: usize,
-    pub work: u64,
 }
 pub(super) fn run(case: Case) -> Result<Outcome, ProtectedDefaultTableSemanticError<&'static str>> {
-    run_with_limits(case, DecodeLimits::default())
+    run_with_limits(case)
 }
 pub(super) fn run_with_limits(
     case: Case,
-    limits: DecodeLimits,
 ) -> Result<Outcome, ProtectedDefaultTableSemanticError<&'static str>> {
     let fixture = Fixture::new(case);
     let graph_source = fixture.source.graph.clone();
@@ -25,18 +23,17 @@ pub(super) fn run_with_limits(
         graph_source.records.values(),
         graph_source.keys.keys().copied(),
         &graph_source,
-        &mut meter(),
     )
     .unwrap();
     let mut source = fixture.source.clone();
     let representation = CanonicalNominalRepresentationSupportV1::default();
     let protected = fixture
         .protected
-        .validate_sources(&graph, &representation, &mut source, &mut meter())
+        .validate_sources(&graph, &representation, &mut source)
         .unwrap();
     let inheritance = fixture
         .inheritance
-        .validate_interfaces(&graph, protected, &mut source, &mut meter())
+        .validate_interfaces(&graph, protected, &mut source)
         .unwrap();
     let template = template::build(&fixture, case, 1);
     let complete = CanonicalProtectedDefaultTemplatesV1::try_new(vec![template.clone()]).unwrap();
@@ -49,7 +46,6 @@ pub(super) fn run_with_limits(
             complete.keys(),
             &mut source,
             &mut protocol::Authority::new(&fixture),
-            &mut meter(),
         )
         .unwrap();
     let defaults = match case {
@@ -62,16 +58,15 @@ pub(super) fn run_with_limits(
         _ => complete,
     };
     let path = WirePath::root();
-    let mut resources = BudgetMeter::new(limits);
+
     let actual = defaults.get(fixture.key).unwrap_or(&template);
-    let mut authority = Authority::new(&fixture, actual, &resources, &path, case);
+    let mut authority = Authority::new(&fixture, actual, &path, case);
     let checked = defaults.validate_semantics(
         &sources,
         &graph,
         inheritance,
         &mut source,
         &mut authority,
-        &mut resources,
         &path,
     )?;
     assert!(std::ptr::eq(checked.table(), &defaults));
@@ -111,6 +106,5 @@ pub(super) fn run_with_limits(
         expression_calls: authority.expression_calls,
         concrete_calls: authority.concrete_calls,
         nested_calls: authority.nested_calls,
-        work: resources.usage().validation_work_units,
     })
 }

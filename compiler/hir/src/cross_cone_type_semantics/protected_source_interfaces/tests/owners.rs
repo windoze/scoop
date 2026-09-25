@@ -14,11 +14,10 @@ fn protected_default_index_cannot_rebind_a_parameter_to_another_callable() {
         ProtectedDefaultTemplateKeyV1::try_new(other, 1).unwrap(),
     ])
     .unwrap();
-    let bytes = encode(&source.index_templates(&keys, &mut meter()).unwrap()).unwrap();
-    let decoded: DecodedProtectedCallableSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let bytes = encode(&source.index_templates(&keys).unwrap()).unwrap();
+    let decoded: DecodedProtectedCallableSourceInterfaceV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &foreign_keys, &mut meter()),
+        decoded.resolve(&mut fixture, &foreign_keys),
         Err(ProtectedSourceResolutionError::Build(
             ProtectedSourceBuildError::TemplateOwner { position: 1 }
         ))
@@ -53,13 +52,13 @@ fn source_reader_rejects_reversed_distinct_owners_without_sorting() {
     let ordered = OrderedRecords(
         sources
             .iter()
-            .map(|source| source.index_templates(&keys, &mut meter()).unwrap())
+            .map(|source| source.index_templates(&keys).unwrap())
             .collect(),
     );
     let decoded: DecodedCanonicalProtectedCallableSourceInterfacesV1 =
-        decode_canonical(&encode(&ordered).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&ordered).unwrap()).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &keys, &mut meter()),
+        decoded.resolve(&mut fixture, &keys),
         Err(ProtectedSourceResolutionError::Build(
             ProtectedSourceBuildError::NonCanonicalOrder
         ))
@@ -67,13 +66,10 @@ fn source_reader_rejects_reversed_distinct_owners_without_sorting() {
     let canonical =
         CanonicalProtectedCallableSourceInterfacesV1::try_new(sources.to_vec()).unwrap();
     assert_eq!(canonical.records()[0].owner(), function);
-    let bytes = encode(&canonical.index_templates(&keys, &mut meter()).unwrap()).unwrap();
+    let bytes = encode(&canonical.index_templates(&keys).unwrap()).unwrap();
     let decoded: DecodedCanonicalProtectedCallableSourceInterfacesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert_eq!(
-        decoded.resolve(&mut fixture, &keys, &mut meter()).unwrap(),
-        canonical
-    );
+        decode_canonical(&bytes).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture, &keys).unwrap(), canonical);
 }
 
 #[test]
@@ -105,8 +101,7 @@ fn protected_default_keys_preserve_all_source_callable_kinds_and_reject_accessor
     ] {
         let key = ProtectedDefaultTemplateKeyV1::try_new(owner, 7).unwrap();
         let bytes = encode(&key).unwrap();
-        let decoded: DecodedProtectedDefaultTemplateKeyV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedProtectedDefaultTemplateKeyV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut fixture).unwrap(), key);
     }
     let unit = SignatureTypeKey::Nominal(
@@ -120,8 +115,7 @@ fn protected_default_keys_preserve_all_source_callable_kinds_and_reject_accessor
         Err(ProtectedSourceBuildError::AccessorOwner)
     ));
     let bytes = encode(&ExportDefaultTemplateKeyV1::new(accessor, 0)).unwrap();
-    let decoded: DecodedProtectedDefaultTemplateKeyV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedProtectedDefaultTemplateKeyV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut fixture),
         Err(ProtectedSourceResolutionError::Build(

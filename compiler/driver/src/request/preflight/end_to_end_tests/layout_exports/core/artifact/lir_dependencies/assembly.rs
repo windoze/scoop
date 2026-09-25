@@ -12,12 +12,9 @@ pub(super) fn assemble(
     owners: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
 ) -> scoop_slib::AssembledCrossConeLayoutStrongArtifactV1 {
     let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
-    let selected = lir::StrongProductionDependencySelectionV2::empty(
-        lir.module().cone,
-        target.lir_target(),
-        &mut meter(),
-    )
-    .unwrap();
+    let selected =
+        lir::StrongProductionDependencySelectionV2::empty(lir.module().cone, target.lir_target())
+            .unwrap();
     let production = lir
         .build_production_section_v2(
             coordinate.clone(),
@@ -25,10 +22,9 @@ pub(super) fn assemble(
             lir::EntryProductionSourceV1::Library,
             &selected,
             &[],
-            &mut meter(),
         )
         .unwrap()
-        .validate_layout_abi(layout, &mut meter())
+        .validate_layout_abi(layout)
         .unwrap();
     assemble_with_production(
         directory, target, core, input, lir, mir, layout, owners, production,
@@ -65,7 +61,6 @@ pub(in super::super) fn assemble_with_production(
         .complete_cross_cone_interface_source_points(
             input.hir.output().export.module(),
             input.public,
-            &mut meter(),
         )
         .unwrap();
     let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
@@ -93,6 +88,6 @@ pub(in super::super) fn assemble_with_production(
         mir,
         layout,
     )
-    .assemble(emitted, &generated, owners, &mut meter())
+    .assemble(emitted, &generated, owners)
     .unwrap()
 }

@@ -14,7 +14,6 @@ mod envelope;
 mod errors;
 mod locals;
 mod references;
-mod resources;
 mod source_access;
 mod source_body;
 mod source_callable_keys;
@@ -72,8 +71,8 @@ impl CanonicalExportDefaultTemplatesV1 {
     ) -> Result<Self, DefaultTemplateProductionError> {
         let owners = shared_source_callable_owners(export, callables)
             .map_err(DefaultTemplateProductionError::SourceInterfaces)?;
-        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
-        let entities = DefaultEntityProjector::new(export, imported_dependencies, &mut meter);
+
+        let entities = DefaultEntityProjector::new(export, imported_dependencies);
         let mut templates = Vec::new();
 
         for owner in owners {

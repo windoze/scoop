@@ -6,13 +6,9 @@ fn finite_boxes_export_direct_interfaces_while_machine_dispatch_keeps_the_diamon
         .join("../../tests/fixtures/m23-mir-boxing-production");
     let source = std::fs::read_to_string(directory.join("combined.scoop")).unwrap();
     with_production(&source, |_, input, _, graph, sources| {
-        let finite = CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-            input,
-            sources,
-            graph,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-        .unwrap();
+        let finite =
+            CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(input, sources, graph)
+                .unwrap();
         let mut diamonds = 0;
         for root in input.materialization().shape_support() {
             let scoop_mir::StrongBoxedShapeSupportRoot::Available(boxed) = root.boxed() else {
@@ -51,7 +47,7 @@ fn finite_boxes_export_direct_interfaces_while_machine_dispatch_keeps_the_diamon
                 input,
                 &missing,
                 graph,
-                &mut BudgetMeter::new(DecodeLimits::default()),
+
             ),
             Err(scoop_mir::MirTypeBridgeError::MissingShapeSupportSource { exact })
                 if exact == root.shape().exact()

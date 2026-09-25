@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentExactTypeId, PersistentInitializationUnitId, PersistentLayoutId, PersistentScanId,
     PersistentTypeId, StrongCallableDefinitionOwner,
 };
-use scoop_wire::{BudgetMeter, HashError, WireError};
+use scoop_wire::{HashError, WireError};
 
 mod local;
 mod selected;
@@ -41,9 +41,8 @@ impl ReplayedStrongProductionSectionV2 {
     pub fn validate_layout_abi(
         self,
         layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<ValidatedStrongProductionSectionV2, StrongProductionLayoutJoinError> {
-        validate_layout_abi(self, layout_abi, meter)
+        validate_layout_abi(self, layout_abi)
     }
 }
 
@@ -54,12 +53,10 @@ impl crate::StrongProductionSectionV2 {
     pub fn validate_layout_abi(
         self,
         layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<ValidatedStrongProductionSectionV2, StrongProductionLayoutJoinError> {
         validate_layout_abi(
             ReplayedStrongProductionSectionV2 { section: self },
             layout_abi,
-            meter,
         )
     }
 }
@@ -173,13 +170,11 @@ impl ValidatedStrongProductionSectionV2 {
 fn validate_layout_abi(
     replayed: ReplayedStrongProductionSectionV2,
     layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<ValidatedStrongProductionSectionV2, StrongProductionLayoutJoinError> {
-    local::validate(&replayed, layout_abi.exports(), meter)?;
+    local::validate(&replayed, layout_abi.exports())?;
     selected::validate(
         &replayed,
         selected::Selection::Complete(layout_abi.selected()),
-        meter,
     )?;
     Ok(ValidatedStrongProductionSectionV2 {
         replayed,

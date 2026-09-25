@@ -8,11 +8,7 @@ impl AutomaticNominalRoots {
     pub(super) fn new(
         source: &export::Module,
     ) -> Result<Self, export::PublicNominalShapeProjectionError> {
-        export::NominalMaterializationClosure::from_current_declarations(
-            source,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-        )
-        .map(Self)
+        export::NominalMaterializationClosure::from_current_declarations(source).map(Self)
     }
 
     fn permits(&self, source: &export::Module, identity: &export::HirNominalIdentity) -> bool {

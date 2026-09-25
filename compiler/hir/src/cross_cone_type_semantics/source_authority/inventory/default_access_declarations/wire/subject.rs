@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn decode(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<DecodedDefinitionOriginSubject, WireError> {
     use DecodedDefinitionOriginSubject::*;
     let subject = DecodedDefinitionOriginSubject::decode(decoder)?;

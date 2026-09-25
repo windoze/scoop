@@ -74,10 +74,7 @@ impl Closure<'_, '_> {
                 .map_err(CrossConeHirNominalAuthorityError::Identity)?;
             return self.property(key.owner());
         }
-        query(
-            self.world.meter,
-            interface.source_interfaces().records().len(),
-        )?;
+
         let protocol = interface
             .source_interfaces()
             .get(id)
@@ -87,10 +84,6 @@ impl Closure<'_, '_> {
                 self.signature(element)?;
             }
             if let Some(key) = parameter.calling().template() {
-                query(
-                    self.world.meter,
-                    interface.default_templates().records().len(),
-                )?;
                 let template = interface
                     .default_templates()
                     .get(key)

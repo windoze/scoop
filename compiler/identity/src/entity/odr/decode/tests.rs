@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedOdrMemberDiscriminator, DecodedOdrMemberKey, DecodedSpecializationKey,
@@ -103,7 +103,7 @@ fn every_specialization_shape_round_trips_and_validates_its_record() {
         let record = CborIdentityRecord::<OdrGroupId, _>::from_key(key.clone()).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<OdrGroupId, DecodedSpecializationKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         let resolved = decoded
             .resolve(|key| key.resolve(&mut resolver(record.id())))
@@ -122,7 +122,6 @@ fn every_member_role_and_discriminator_round_trips_and_validates_its_record() {
         let decoded =
             decode_canonical::<DecodedCborIdentityRecord<OdrMemberId, DecodedOdrMemberKey>>(
                 &encode(&record).unwrap(),
-                DecodeLimits::default(),
             )
             .unwrap();
         let resolved = decoded
@@ -140,9 +139,7 @@ fn member_resolution_rechecks_the_role_discriminator_matrix() {
         role: OdrMemberRole::TypeDescriptor,
         discriminator: OdrMemberDiscriminator::Layout(layout()),
     };
-    let decoded =
-        decode_canonical::<DecodedOdrMemberKey>(&encode(&raw).unwrap(), DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedOdrMemberKey>(&encode(&raw).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut resolver(group())),
@@ -158,11 +155,7 @@ fn specialization_resolution_rejects_a_reference_from_another_identity_graph() {
         origin: PersistentGenericTypeId([99; 32]),
         arguments: NonEmptyVec::from_first(exact_type(), []),
     };
-    let decoded = decode_canonical::<DecodedSpecializationKey>(
-        &encode(&key).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedSpecializationKey>(&encode(&key).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut resolver(group())),
@@ -175,9 +168,7 @@ fn decoders_reject_empty_specialization_arguments_and_unknown_tags() {
     let mut empty_arguments = vec![0xa3, 0x00, 0x01, 0x01, 0x58, 0x20];
     empty_arguments.extend_from_slice(generic_type().as_array());
     empty_arguments.extend_from_slice(&[0x02, 0x80]);
-    let error =
-        decode_canonical::<DecodedSpecializationKey>(&empty_arguments, DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedSpecializationKey>(&empty_arguments).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -186,17 +177,13 @@ fn decoders_reject_empty_specialization_arguments_and_unknown_tags() {
         }
     );
 
-    let error =
-        decode_canonical::<DecodedSpecializationKey>(b"\xa1\x00\x05", DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedSpecializationKey>(b"\xa1\x00\x05").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
-    let error = decode_canonical::<OdrMemberRole>(b"\x11", DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<OdrMemberRole>(b"\x11").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 17 });
 
-    let error =
-        decode_canonical::<DecodedOdrMemberDiscriminator>(b"\xa1\x00\x10", DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedOdrMemberDiscriminator>(b"\xa1\x00\x10").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 16 });
 }
 

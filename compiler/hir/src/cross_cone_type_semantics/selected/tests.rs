@@ -9,12 +9,10 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 use scoop_wire::{
-    BudgetMeter, DecodeLimits, Encoder, ResourceKind, WireDecode, WireEncode, WireErrorKind,
-    WirePath, decode_canonical, encode,
+    Encoder, WireDecode, WireEncode, WireErrorKind, WirePath, decode_canonical, encode,
 };
 
 mod canonical;
-mod depth;
 mod fixture;
 mod malformed;
 mod resolver;

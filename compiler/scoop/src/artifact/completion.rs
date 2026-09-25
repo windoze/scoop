@@ -10,7 +10,6 @@ use scoop_slib::{
     ArtifactFingerprint, CompileArtifactPurpose, DependencyRecord, LinkArtifactPurpose,
     SemanticFingerprintRecord,
 };
-use scoop_wire::DecodeLimits;
 
 use super::{
     ArtifactClosurePlan, ArtifactClosureValidationError, CrossConeArtifactValidationError,
@@ -185,7 +184,7 @@ pub(crate) fn complete_compiled_candidate(
     materialized_path: PathBuf,
     completed: &[&CompletedNode],
     warnings: Vec<StructuredDiagnosticV1>,
-    limits: DecodeLimits,
+
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<CompletedNode, CompiledCompletionError> {
     let mut artifacts = BTreeMap::new();
@@ -203,7 +202,7 @@ pub(crate) fn complete_compiled_candidate(
         }
     }
     let artifact = plan
-        .validate_completed_artifact(identity, snapshot, &artifacts, limits, c_bridge_profile)
+        .validate_completed_artifact(identity, snapshot, &artifacts, c_bridge_profile)
         .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Arc::clone(&artifact));
     let closures = plan
@@ -327,7 +326,7 @@ pub(crate) fn complete_prebuilt_candidates(
     identity: ConeIdentity,
     candidates: Vec<PreparedArtifactCandidate>,
     completed: &[&CompletedNode],
-    limits: DecodeLimits,
+
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<CompletedNode, PrebuiltCompletionError> {
     let mut artifacts = BTreeMap::new();
@@ -352,7 +351,6 @@ pub(crate) fn complete_prebuilt_candidates(
                 identity,
                 Arc::clone(candidate.snapshot()),
                 &artifacts,
-                limits,
                 c_bridge_profile,
             )
             .map_err(|source| PrebuiltCompletionError::CandidateArtifact {

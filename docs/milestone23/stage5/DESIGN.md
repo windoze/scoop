@@ -4,7 +4,7 @@
 
 版本衔接：本设计中的 profile 清单记录 M23-5 冻结时的版本；M23-6 的 HIR identity-foundation 已升级为 `/2`，完整当前 inventory 与退役字段规则见 `../stage6/DESIGN.md`。
 
-2026-09-22 当前callable生产约定：LIR初始化服务、普通调用桥和通用layout/ABI发布共用实际callable关联：从typed StrongCallableDefinitionOwner取得同一MIR strong记录、实际物化root与对应LIR body，并核对exact签名。普通调用与初始化调用使用同一canonical ABI投影，统一检查GC effect、calling convention及逻辑参数数量，再构造完整CallableAbiRecordV1；初始化角色额外限定function、ordinary、无receiver。通用layout/ABI继续重放自己的layout/physical证明，但不再重复查找MIR/LIR函数；其resource meter在共有查找前按相同表长度计量，不免除预算。投影失败返回携带typed target的共有错误，不按core名称或symbol字符串补目标。此批合并生产实现，不改变角色外层wire和public可见性。
+2026-09-22 当前callable生产约定：LIR初始化服务、普通调用桥和通用layout/ABI发布共用实际callable关联：从typed StrongCallableDefinitionOwner取得同一MIR strong记录、实际物化root与对应LIR body，并核对exact签名。普通调用与初始化调用使用同一canonical ABI投影，统一检查GC effect、calling convention及逻辑参数数量，再构造完整CallableAbiRecordV1；初始化角色额外限定function、ordinary、无receiver。通用layout/ABI复用同一完整typed记录，检查实际layout与physical关系，不重复查找MIR/LIR函数，也不累计查询成本。投影失败返回携带typed target的共有错误，不按core名称或symbol字符串补目标。此批合并生产实现，不改变角色外层wire和public可见性。
 
 版本：1.0（设计完成，待实现；2026-09-16）
 
@@ -39,7 +39,7 @@ M23-5 第一次让普通 dependency 成为**语言名称来源**，但 artifact 
 9. non-generic typealias保留自己的persistent alias identity、visibility与target。跨Cone import/re-export保留alias binding；使用时由一个bounded、memoized的closure-wide expander透明展开。alias identity不因target变化而改变，但HIR fingerprint必须改变；
 10. M23-5 的 executable external-use成功子集严格限定为：public `const val`的core-closed常量值，以及非generic、non-suspend、non-extern的top-level function、top-level property accessor或top-level extension function/property accessor，其完整exact签名只含trusted core已经由M23-3证明的param-free ABI leaf。consumer只发typed undefined requirement，不重发provider body或任何Strong definition；
 11. 名称解析本身可以成功指向class/struct/enum/interface/object、constructor/member、generic declaration或任意公开property；但一旦具体使用需要foreign nominal layout/scan/TypeDescriptor、constructor/materialization、member/virtual dispatch、receiver-dependent protected access、function-value representation、generic application或native provider，就在HIR winner commit前以对应阶段的唯一能力诊断失败，不产生`LocalConcreteHir`残片；
-12. 本阶段新增`cross-cone-semantics-strong/1` artifact profile，以及HIR general interface、MIR/LIR param-free bridge和Link-only cross-Cone use closure四条capability。M23-3的`single-cone-strong/1`仍可被旧reader识别，但不能进入M23-5 build；trusted core、prebuilt与cache artifact必须按新profile重建；
+12. 本阶段新增`cross-cone-semantics-strong/2` artifact profile，以及HIR general interface、MIR/LIR param-free bridge和Link-only cross-Cone use closure四条capability。M23-3的`single-cone-strong/2`仍可被旧reader识别，但不能进入M23-5 build；trusted core、prebuilt与cache artifact必须按新profile重建；
 13. M23-3既有`core-bootstrap-interface/1`、`core-bootstrap-bridge/1`、`strong-production/1`与`link-identity-closure/1`字节和语义不变。ordinary dependency callable不伪装成`CoreStrong`；它在新的LIR semantic arena与新的Link-only physical-use closure中形成互斥分区，Code fingerprint通过既有known Link-required extension contribution机制覆盖该分区；
 14. HIR layer在M23 v1继续保守纳入全部direct dependency HIR fingerprint；MIR/LIR也继续沿用全部direct dependency对应层fingerprint作为cache安全基线。`LookupObservationSet`和`SelectedExternalSet`本阶段完整产生并测试，但不用于减少cache edge，避免negative lookup、star snapshot或re-export变化被错误复用；
 15. 每个成功artifact仍必须从最终bytes分别通过Compile与Link view，并在closure级证明所有ordinary external callable requirement精确命中route终点provider的strong definition。任一wire、route、visibility、bridge、object use或fingerprint关系不一致均原子失败；
@@ -75,11 +75,11 @@ external code use = committed HIR winner
 - public/internal/private跨Cone边界及kind-specific access provenance；
 - M16/M18 candidate layer接入、duplicate-origin folding、overload group与negative lookup observation；
 - M17 exported default template的wire、closure validation、winner-only实例化与definition/evaluation origin；
-- M22 non-generic typealias的wire、跨Cone展开、re-export与cycle/budget检查；
+- M22 non-generic typealias的wire、跨Cone展开、re-export与cycle检查；
 - `CrossConeUseSet { lookup_observations, selected_external }`；
 - `LocalConcreteHir`、MIR与LIR中的external param-free callable target；
 - ordinary dependency strong callable的producer export bridge、consumer selected bridge、typed object relocation与Link-only requirement closure；
-- `cross-cone-semantics-strong/1` profile、四条新增capability与profile migration；
+- `cross-cone-semantics-strong/2` profile、四条新增capability与profile migration；
 - HIR/MIR/LIR Merkle contribution/support-edge及M23-4 cache invalidation衔接；
 - direct/transitive、split package、re-export、visibility、default、alias、stage gate、corruption、dual-view与determinism测试矩阵；
 - M23总设计、language/implementation spec与ROADMAP的阶段链接和profile说明。
@@ -219,7 +219,7 @@ WorldProviderRole = Current
 新增：
 
 ```text
-org.scoop-lang.slib-profile/cross-cone-semantics-strong/1
+org.scoop-lang.slib-profile/cross-cone-semantics-strong/2
 ```
 
 descriptor固定为：
@@ -255,7 +255,6 @@ publication_class   = Publishable
 validation_policy   = {
   odr: RejectAll,
   extra_sections: AllowPurposeDisjointOpaqueAndEnvelopeOptional,
-  decode_cost_model: DeterministicLogicalCostV1,
   link_proof: Required,
 }
 ```
@@ -288,7 +287,7 @@ validation_policy   = {
 M23-5 production graph只接受新profile：
 
 - source Cone、single-file、trusted core都写新profile，即使新section为空；
-- M23-3 `single-cone-strong/1` prebuilt/cache entry报告明确的profile mismatch并要求重建，不做in-memory upgrade；
+- M23-3 `single-cone-strong/2` prebuilt/cache entry报告明确的profile mismatch并要求重建，不做in-memory upgrade；
 - trusted core slot receipt和compile cache key都绑定新profile id/fingerprint；
 - graph summary仍可读取旧artifact用于报告coordinate，但旧artifact不能成为completed node或dependency authority；
 - writer从最终bytes独立构造`ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>`与对应Link view；publish gate再比较Compile LIR bridge的import projection与Link closure的semantic projection，逐byte不等即失败。
@@ -329,7 +328,7 @@ DecodedCrossConeClosure
 ```
 
 1. 按M23-4 canonical dependency-first order重开每个Compile view；
-2. 验证profile inventory、section canonical bytes、resource budget与三层fingerprint；
+2. 验证profile inventory、section canonical bytes、实际输入边界与三层fingerprint；
 3. 在一个closure transaction中先登记全部artifact自己声明的identity delta，再登记已经验证的external reference leaf；同kind/id的canonical key冲突、重复owner或origin fingerprint冲突使整个transaction失败；
 4. 验证每个general HIR surface只声明本Cone拥有的declaration/binding，foreign target只作typed ref；
 5. 验证re-export route、signature/default/alias external reference closure和direct/support reachability；
@@ -1291,9 +1290,8 @@ struct binding fields按field declaration index严格递增，class component se
 body semantic validation还必须检查：所有expression result type和operation期望类型一致；局部声明的
 definition-before-use、可变性、pattern/action完整性与循环嵌套成立；嵌套callable descriptor的
 identity/path/role/signature/capture ABI与provider foundation一致；任何callable、constructor、type、global、
-singleton和field引用都与`references`的规范去重闭包精确相等。解码和这些递归检查共用顶层
-`BudgetMeter`；每个node、edge、owned byte、collection reserve和semantic depth均在分配/下潜前扣费，
-不另起无限制递归或私有budget。
+singleton和field引用都与`references`的规范去重闭包精确相等。解码按实际输入边界和checked长度读取，
+遍历使用显式工作栈与必要的局部环检查，不累计node、edge、owned byte或semantic depth费用。
 
 local data-flow pass以canonical local table的record index建立definite-definition bitset；初始集合只能包含
 `receiver`与`value_parameters`显式列出的local。可达路径上的`Local` expression、local `AddressOf`、nested
@@ -1321,9 +1319,8 @@ Struct shape只有declaration index而projection保存persistent field id；二�
 authority返回精确index，不能按action位置、persistent id字节顺序或显示名称猜测。该查询只服务shape/action
 identity闭包；source/result type及field applied-owner关系仍由operation-typing pass独立证明。
 
-local data-flow pass的bitset、branch snapshot、definition-owner集合、shape-consumption表与显式work stack都在
-分配前向调用方`BudgetMeter`计费；每次状态转移、local lookup、merge比较与shape/action匹配均扣
-validation work，嵌套control-flow/expression/pattern深度使用同一`WirePath`检查。该pass只证明local与控制流
+local data-flow pass的bitset、branch snapshot、definition-owner集合、shape-consumption表与显式work stack按
+实际输入创建，分配失败携带相应`WirePath`。状态转移、lookup、merge与shape/action匹配不逐项计费。该pass检查local与控制流
 关系；constructor/call/field/protocol的类型关系仍由operation-typing pass证明，nested descriptor本身的
 identity/path/signature/capture顺序仍由nested-callable ABI pass证明。
 
@@ -1350,12 +1347,12 @@ substitution投影function/capture ABI后，validator再比较projection，不�
 的callee/receiver operation由operation-typing pass证明；本pass证明其invoke identity/path及生成wrapper的
 function/capture ABI，避免把同签名但不同generated role或lexical site混为一体。
 
-完整正文的site为`Body { ordinal }`，ordinal从0开始按descriptor的完整前序遍历递增，只计算四类nested descriptor，包含内联receiver中的descriptor；不是expression index或六类reference序号。同一次descriptor的identity与ABI查询必须携带相同site。相同persistent identity可以因同一泛型default的多次展开出现在不同site并具有不同ABI，authority须以template、site及query种类定位独立来源，不能按identity去重或只查询第一个匹配项。独立descriptor验证使用明确的`Standalone` site，不冒充正文ordinal 0；这类验证不声明正文闭包。site只属于非wire语义查询协议，不改变冻结的descriptor字段或persistent identity。全部ordinal推进受同一预算约束，溢出为资源错误。
+完整正文的site为`Body { ordinal }`，ordinal从0开始按descriptor的完整前序遍历递增，只计算四类nested descriptor，包含内联receiver中的descriptor；不是expression index或六类reference序号。同一次descriptor的identity与ABI查询必须携带相同site。相同persistent identity可以因同一泛型default的多次展开出现在不同site并具有不同ABI，authority须以template、site及query种类定位独立来源，不能按identity去重或只查询第一个匹配项。独立descriptor验证使用明确的`Standalone` site，不冒充正文ordinal 0；这类验证不声明正文闭包。site只属于非wire语义查询协议，不改变冻结的descriptor字段或persistent identity。ordinal推进使用checked算术，实际表示溢出为格式错误。
 
 nested-callable ABI pass与其他body pass一样使用显式work stack完整覆盖control-flow、pattern literal、assign
-target、for/binding plan及callable-reference内联receiver；每个node、edge、authority lookup、capture/argument
-比较和stack reserve都使用调用方同一个`BudgetMeter`/`WirePath`。它必须在operation typing之后、reference
-closure之前成功，任何authority、shape、arity、provenance或resource错误都阻止template进入canonical table。
+target、for/binding plan及callable-reference内联receiver；lookup、capture/argument比较直接消费typed数据，
+stack按实际容量分配，错误携带所在`WirePath`。它必须在operation typing之后、reference closure之前成功，
+声明引用、shape、arity、来源关系或实际分配错误均阻止template进入canonical table。
 
 operation-typing pass把每个expression的**principal type**与wire保存的`result_type`分开。principal type是该
 operation在发生任何上下文适配前必然产生的类型：例如local table中的local类型、field declaration的value
@@ -1425,7 +1422,7 @@ binding action source/result和shape subject之间的exact type链；trusted pro
 index或field shape产生对应type，`Component` call的receiver/source与result temporary匹配，`Bind`两端exact。
 
 operation-typing pass必须以显式work stack覆盖body、statement、expression、pattern、assignment target、for与
-binding plan；node/edge/work/reserve/depth全部复用调用方`BudgetMeter`和`WirePath`。它只消费已通过provider
+binding plan，错误保留实际`WirePath`；不为node/edge/work/reserve/depth建立累计成本。它只消费已通过provider
 envelope与local data-flow的template，不以`unwrap`、缺省shape或后续MIR断言补救corruption；通过后才可运行
 nested-callable ABI和reference closure并把template提交到canonical table。
 
@@ -1433,10 +1430,8 @@ nested-callable ABI和reference closure并把template提交到canonical table。
 provider-envelope pass遍历整棵body（包括control-flow、binding plan、pattern、嵌套callable descriptor与
 capture），验证每个内联`SignatureTypeKey`都处于definition root的provider binder scope，并验证每个内联
 `ExportDefinitionSourceV1`都属于当前Cone且命中foundation source/context/point；它不代替operation类型关系、
-local数据流、nested callable ABI或reference精确闭包检查。body/type根的semantic depth均为1；每个首次访问
-的logical node扣一个decoded node和一个validation work unit，每条实际下潜的edge扣一个decoded edge和一个
-validation work unit。显式work stack在压入前用同一个meter预留collection slots，类型子树与body树接收同一个
-调用方`WirePath`，任何resource failure立即终止当前template验证且不得提交部分结果。
+local数据流、nested callable ABI或reference精确闭包检查。显式work stack按实际容量分配，类型子树与body树
+保留所在`WirePath`，长度溢出、格式错误或实际分配失败立即终止当前template读取，不提交部分结果。
 
 default reference closure沿用M17的六个互不兼容的typed domain，不把target压成无类型entity id：
 
@@ -1578,7 +1573,7 @@ CanonicalBooleanV1 = False // unsigned 1
                    | True  // unsigned 2
 ```
 
-signed integer payload继续保存对应宽度的二进制补码raw bits；reader必须在构造variant前检查payload可由对应`u8/u16/u32/u64`表示，不能截断、符号扩展或按数值大小改写variant。String是解码后拥有的有效UTF-8字节序列，保持源码求值结果的byte identity，不做Unicode normalization、NUL过滤或host编码转换，并服从semantic-leaf与owned-byte累计budget。Wire CBOR v1不接受native boolean，因此boolean payload必须使用上述显式unsigned枚举。当前尚未开放的`Char`与floating const没有保留的伪variant；开放对应语言能力前必须显式修订该versioned schema与profile。
+signed integer payload继续保存对应宽度的二进制补码raw bits；reader必须在构造variant前检查payload可由对应`u8/u16/u32/u64`表示，不能截断、符号扩展或按数值大小改写variant。String是解码后拥有的有效UTF-8字节序列，保持源码求值结果的byte identity，不做Unicode normalization、NUL过滤或host编码转换，并按实际字节长度进行边界与溢出检查。Wire CBOR v1不接受native boolean，因此boolean payload必须使用上述显式unsigned枚举。当前尚未开放的`Char`与floating const没有保留的伪variant；开放对应语言能力前必须显式修订该versioned schema与profile。
 
 const table精确覆盖public const property，不含ordinary property storage/initializer。每条record的property必须是当前artifact foundation中的canonical、`ConeWide`的ordinary property，且同id的property interface必须为`Const + ReadOnly + DirectOnly`；`value_type`逐结构等于property interface的类型。definition origin逐字段等于foundation中`DefinitionOriginSubject::Property(property)`，并属于当前Cone。value/type一致性由trusted core const-type authority证明：八种integer variant分别只匹配其canonical fixed-width有/无符号core nominal，Boolean与String只匹配各自canonical non-generic core nominal；不能按显示名称、bit width或同布局用户类型接受。const table按property raw id严格递增、拒绝重复，并与property interface中全部且仅有的`Const`记录形成双向精确闭包。
 
@@ -1590,9 +1585,9 @@ alias在M23-5仍只允许top-level、non-generic声明，因此record的`access`
 
 closure-wide expander以`PersistentTypeAliasId`作memo key，沿`Alias` edge展开；authority只可返回已经完成单record语义验证的alias interface，并对每条`(source alias, target alias)`分别证明：同Cone target确实位于该Cone public alias table，或foreign target具有从source Cone出发的direct public binding/完整re-export route。不能用“target record存在”替代可达性证明，也不能从FQN、名称或support artifact枚举取得target。展开器按当前alias table的canonical顺序启动root，成功输出同顺序的`alias -> final SignatureTypeKey` typed map；transitive foreign alias只进入共享memo而不凭遍历副作用加入当前table输出。
 
-展开入口必须接收closure共用的`BudgetMeter`与调用方提供的`WirePath`，不得创建或重置私有meter。资源计量固定如下：每个首次访问且尚未memo的distinct alias扣一个decoded logical node和一个validation work unit；每条实际跟随的`Alias` edge扣一个decoded edge和一个validation work unit；root记semantic depth 1，每跟随一条非cycle edge加1并在lookup前调用`check_semantic_depth`。root输出vector、memo map、active-position map、显式DFS stack与cycle chain都必须在分配前使用meter的collection/map reserve API预扣logical heap；实现必须使用显式stack，不能让untrusted chain消耗Rust调用栈。已memo节点不重复扣node/edge/work，其final target以共享只读值复用，不能按入边数量深拷贝完整type tree。
+展开入口保留调用方的`WirePath`。root输出vector、memo map、active-position map、DFS stack与cycle chain按实际容量分配并处理失败。遍历使用显式stack与当前路径环检测；已memo节点直接复用其final target，不按入边数量深拷贝完整type tree，也不按节点、边、深度或复制量计费。
 
-发现active target时，cycle错误保存从该target首次进入active stack的位置起、直到当前source、再追加一次该target的完整typed id链；例如`A -> B -> C -> A`必须报告`[A, B, C, A]`，不能只报告首节点或截断前缀。构造该链前先checked计算其canonical diagnostic文本上界`64 * id_count + 4 * (id_count - 1)` bytes（每个id为64位小写hex，分隔符为` -> `），并用`check_semantic_leaf`核对；错误本身保存typed ids、按需格式化，不保存来自artifact的任意文本。单边失败次序固定为：先扣edge/work并验证访问授权，再检查active cycle，随后检查下一depth并查找target record；因此未授权edge不会泄漏target是否存在，资源上限也不能通过cycle诊断绕过。任何checked算术、meter或fallible allocation失败均返回原`WireError`和传入path，且不提交alias expansion cache。
+发现active target时，cycle错误保存从该target首次进入active stack的位置起、直到当前source、再追加一次该target的完整typed id链；例如`A -> B -> C -> A`必须报告`[A, B, C, A]`，不能只报告首节点或截断前缀。错误保存typed ids并按需格式化；查找每条edge时检查实际声明、可见性与依赖可达性，再通过active path识别环。长度与索引使用checked算术，分配失败携带传入path；失败不提交alias expansion cache，不增加访问授权或诊断费用机制。
 
 由于正常resolved dependency graph无环，跨Cone环也属于artifact损坏而不是允许的递归类型；同artifact自环/多节点环同样拒绝。使用点`as` alias和import local name不是typealias identity，不进入该图。展开完成后所有type equality、overload signature和persistent application都使用最终`SignatureTypeKey`；diagnostic可保留alias spelling作decorator。alias table按`alias` raw id严格递增并拒绝重复；reader不得排序修复。
 
@@ -2119,7 +2114,7 @@ role继续使用M23-2现有`all-direct/1`。由于每个provider自己的layer f
 
 M23-4 scheduler只改三点：
 
-1. planned/actual profile期望改为`cross-cone-semantics-strong/1`；
+1. planned/actual profile期望改为`cross-cone-semantics-strong/2`；
 2. 删除`SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE`作为普通dependency的预期终点；
 3. child success后除原双view/graph match外，增加cross-Cone semantic closure与physical requirement closure验证。
 
@@ -2214,7 +2209,7 @@ candidate-local失败可在resolver内部回滚selection plan并继续下一cand
 - public member可见但具体use触发M23-6；protected receiver触发独立dispatch/protected诊断；
 - imported callable named/default mapping、winner-only实例化、definition/evaluation origin、default引用另一个public dependency callable；
 - default直接引用internal/private、缺refined witness或body/reference closure不等的corruption negative；
-- alias import/re-export/chain、target change invalidation、transparent type equality、跨Conecycle/budget；
+- alias import/re-export/chain、target change invalidation、transparent type equality、跨Cone cycle；
 - `as` alias与typealias identity严格区分。
 
 ### 16.6 capability矩阵
@@ -2293,8 +2288,8 @@ negative：
 
 M23-5只有同时满足以下条件才完成：
 
-- 所有production Cone（含core/single-file）使用`cross-cone-semantics-strong/1`，旧profile不会被静默upgrade或混入closure；
-- 四条新capability的wire、registry contract、fingerprint contribution、resource budget与fixed vector完成；
+- 所有production Cone（含core/single-file）使用`cross-cone-semantics-strong/2`，旧profile不会被静默upgrade或混入closure；
+- 四条新capability的wire、registry contract、fingerprint contribution、实际边界检查与fixed vector完成；
 - direct/support semantic closure在parser前原子验证，support artifact不能枚举名称，direct artifact不能伪造core authority；
 - persistent identity按kind/origin统一intern，re-export binding复用M23-2 identity key并在terminal provider authority下验证；
 - exact/star/alias、longest package prefix、static owner、split package、candidate layer和MSC全部按规范工作；

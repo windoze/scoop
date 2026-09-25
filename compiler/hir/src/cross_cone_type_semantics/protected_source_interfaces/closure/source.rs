@@ -46,7 +46,6 @@ impl<'a> Source<'a> {
         self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'s mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedDefaultOwnerSourceV1<'s>, ProtectedSourceClosureError<E>>
     where
         'a: 's,
@@ -55,28 +54,28 @@ impl<'a> Source<'a> {
         let owner = self.owner();
         match self {
             Self::ProtectedCallable(record) => record
-                .validate_source(graph, authority, meter)
+                .validate_source(graph, authority)
                 .map(ProtectedDefaultOwnerSourceV1::Protected)
                 .map_err(|error| Error::Protected {
                     owner,
                     error: Box::new(error),
                 }),
             Self::ProtectedConstructor(record) => record
-                .validate_source(graph, authority, meter)
+                .validate_source(graph, authority)
                 .map(ProtectedDefaultOwnerSourceV1::Protected)
                 .map_err(|error| Error::Protected {
                     owner,
                     error: Box::new(error),
                 }),
             Self::SupportCallable(record) => record
-                .validate_source(graph, authority, meter)
+                .validate_source(graph, authority)
                 .map(ProtectedDefaultOwnerSourceV1::NominalSupport)
                 .map_err(|error| Error::Support {
                     owner,
                     error: Box::new(error),
                 }),
             Self::SupportConstructor(record) => record
-                .validate_source(graph, authority, meter)
+                .validate_source(graph, authority)
                 .map(ProtectedDefaultOwnerSourceV1::NominalSupport)
                 .map_err(|error| Error::Support {
                     owner,

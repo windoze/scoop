@@ -33,12 +33,10 @@ impl DecodedLayoutAbiDependencyV1 {
     pub fn resolve(
         self,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<LayoutAbiDependencyV1, LayoutAbiDependencyError> {
-        meter.charge_work(1, &WirePath::root())?;
         Ok(LayoutAbiDependencyV1::new(
             identities.resolve(self.provider)?,
-            self.target.resolve(identities, meter)?,
+            self.target.resolve(identities)?,
         ))
     }
 }

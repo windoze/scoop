@@ -11,7 +11,6 @@ use scoop_identity::{
     AccessorRole, CallableTemplateOrigin, CoreBuiltinNominal, Effect, PersistentPropertyAccessorId,
     SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 use std::collections::BTreeMap;
 
 mod errors;
@@ -32,24 +31,10 @@ impl CanonicalPropertyInterfacesV1 {
         &self,
         callables: &CanonicalCallableInterfacesV1,
     ) -> Result<(), PropertyAccessorClosureValidationError> {
-        self.validate_accessor_closure_with_budget(
-            callables,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-    }
-
-    pub fn validate_accessor_closure_with_budget(
-        &self,
-        callables: &CanonicalCallableInterfacesV1,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), PropertyAccessorClosureValidationError> {
         use PropertyAccessorClosureValidationError as Error;
-        let path = WirePath::root().field(4);
+
         let mut expected = BTreeMap::new();
         for property in self.all_declarations() {
-            meter
-                .charge_work(u64::from(self.records().len().max(1).ilog2()) + 1, &path)
-                .map_err(Error::Resource)?;
             let public = self.get(property.declaration());
             let access = public.map(|p| match p.access() {
                 PropertyPublicAccessV1::DirectOnly => PublicLookupAccessV1::DirectOnly,
@@ -70,15 +55,7 @@ impl CanonicalPropertyInterfacesV1 {
                 )
             {
                 let accessor = source.accessor();
-                meter
-                    .check_table_entries(expected.len() as u64 + 1, &path)
-                    .map_err(Error::Resource)?;
-                meter
-                    .charge_collection_slots(1, &path)
-                    .map_err(Error::Resource)?;
-                meter
-                    .charge_work(u64::from(expected.len().max(1).ilog2()) + 1, &path)
-                    .map_err(Error::Resource)?;
+
                 if let Some(previous) = expected.insert(
                     accessor,
                     AccessorExpectation {
@@ -97,12 +74,6 @@ impl CanonicalPropertyInterfacesV1 {
             }
         }
         for (&accessor, expectation) in &expected {
-            meter
-                .charge_work(
-                    2 * (u64::from(callables.declaration_count().max(1).ilog2()) + 1),
-                    &path,
-                )
-                .map_err(Error::Resource)?;
             let id = CallableTemplateOrigin::Accessor(accessor);
             let lookup = callables.get(id);
             match (expectation.public, lookup) {
@@ -154,9 +125,6 @@ impl CanonicalPropertyInterfacesV1 {
             }
         }
         for callable in callables.all_declarations() {
-            meter
-                .charge_work(u64::from(expected.len().max(1).ilog2()) + 1, &path)
-                .map_err(Error::Resource)?;
             let CallableTemplateOrigin::Accessor(accessor) = callable.declaration() else {
                 continue;
             };

@@ -28,11 +28,7 @@ pub(super) fn validate(
     parent: CallableTemplateOwner,
     identity: Identity,
     origin: &ExportDefinitionSourceV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), Error> {
-    let canonical = foundation.foundation.as_canonical();
-    query_cost(canonical.counts().source_contexts, meter, path)?;
     let context = foundation
         .foundation
         .source_context_key(origin.origin().context())
@@ -44,10 +40,10 @@ pub(super) fn validate(
         CallableTemplateOwner::Accessor(id) => CallableOwner::Accessor(id),
         CallableTemplateOwner::Generated(id) => CallableOwner::Generated(id),
         CallableTemplateOwner::VariantConstructor(id) => {
-            return variant(foundation, id, identity, origin, context, meter, path);
+            return variant(foundation, id, identity, origin, context);
         }
     };
-    meter.charge_work(65, path)?;
+
     if !matches!(context, SourceContextKey::Callable { owner, .. } if *owner == expected) {
         return Err(failure(identity, Failure::DefinitionContext));
     }
@@ -60,8 +56,6 @@ fn variant(
     identity: Identity,
     origin: &ExportDefinitionSourceV1,
     context: &SourceContextKey,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), Error> {
     let canonical = foundation.foundation.as_canonical();
     let key = key(
@@ -69,8 +63,6 @@ fn variant(
         canonical.type_source_enum_variant_records(),
         variant,
         identity,
-        meter,
-        path,
     )?;
     let expected = match key
         .source_owner()
@@ -79,24 +71,17 @@ fn variant(
         SourceNominalId::Concrete(id) => NominalDeclarationOwner::Concrete(id),
         SourceNominalId::GenericTemplate(id) => NominalDeclarationOwner::GenericTemplate(id),
     };
-    meter.charge_work(65, path)?;
+
     if !matches!(context, SourceContextKey::Nominal { owner, .. } if *owner == expected) {
         return Err(failure(identity, Failure::DefinitionContext));
     }
-    query_cost(canonical.counts().definition_origins, meter, path)?;
+
     let declaration = foundation
         .foundation
         .definition_origin(DefinitionOriginSubject::EnumVariant(variant))
         .ok_or_else(|| failure(identity, Failure::LexicalParent))?
         .origin();
-    let bytes = declaration
-        .source()
-        .logical_path()
-        .as_str()
-        .len()
-        .saturating_add(origin.origin().source().logical_path().as_str().len())
-        as u64;
-    meter.charge_work(bytes.saturating_add(66), path)?;
+
     let outer = declaration.span();
     let inner = origin.origin().span();
     if declaration.source() != origin.origin().source()

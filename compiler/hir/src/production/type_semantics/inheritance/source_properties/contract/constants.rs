@@ -8,7 +8,6 @@ pub(super) fn project(
     value: &ConstPropertyValue,
     value_type: SignatureTypeKey,
     access: &DeclarationAccessSourceV1,
-    meter: &mut BudgetMeter,
 ) -> Result<ExportConstValueV1, Error> {
     if !matches!(property.owner, PropertyOwner::Object(_))
         || !matches!(property.capability, PropertyCapability::ReadOnly { .. })
@@ -18,9 +17,7 @@ pub(super) fn project(
             "nominal const source must be a direct read-only object property",
         ));
     }
-    if let ConstPropertyValue::String(value) = value {
-        resources::name(value, meter)?;
-    }
+
     let value = CanonicalConstValueV1::from(value.clone());
     let expected = match export.types[property.ty] {
         Type::Integer(kind) => CanonicalConstValueKindV1::Integer(kind),
@@ -33,15 +30,7 @@ pub(super) fn project(
             "nominal const source value differs from its declared type",
         ));
     }
-    resources::name(
-        access
-            .definition_origin()
-            .origin()
-            .source()
-            .logical_path()
-            .as_str(),
-        meter,
-    )?;
+
     Ok(ExportConstValueV1::new(
         id,
         value_type,

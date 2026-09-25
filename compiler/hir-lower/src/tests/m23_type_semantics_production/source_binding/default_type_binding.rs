@@ -5,7 +5,7 @@ use hir::{
     DefaultSourceTypeDomainBindingError as Error,
 };
 mod rejection;
-mod resources;
+
 mod support;
 use support::with_inputs;
 const SOURCE: &str = include_str!(concat!(
@@ -24,10 +24,10 @@ fn default_type_binding_joins_artifact_occurrences_and_original_provider_scopes(
         with_inputs(source, |inputs| {
             inputs.with_bound(|domains, parameters, _| {
                 let bound = parameters
-                    .bind_default_declarations(&inputs.templates, &[], &mut meter())
+                    .bind_default_declarations(&inputs.templates, &[])
                     .unwrap();
                 let proof = domains
-                    .bind_nominal_default_type_domains(&bound, &mut meter())
+                    .bind_nominal_default_type_domains(&bound)
                     .unwrap();
                 assert!(std::ptr::eq(proof.declarations(), &bound));
                 let counts = inspect(&proof, domains);
@@ -81,7 +81,6 @@ fn inspect(
                     let result = domains.type_source_domain(
                         reference.target(),
                         &contract.provider_binders().signature_scope(),
-                        &mut meter(),
                     );
                     assert!(matches!(
                         result,

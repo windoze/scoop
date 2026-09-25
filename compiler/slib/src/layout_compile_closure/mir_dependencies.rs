@@ -72,7 +72,7 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
                 let mir = mir.resolve_dependencies::<Infallible>(
                     mir::MirTypeBridgeLocalAuthorityV1::Reader {
                         provider,
@@ -81,28 +81,18 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                         ordinary: parts.mir_ordinary,
                     },
                     parts.identities,
-                    parts.meter,
                 )?;
                 let path = WirePath::root();
                 let mut dependencies = Vec::new();
-                parts.meter.try_reserve_collection_slots(
-                    &mut dependencies,
-                    reachable.len(),
-                    &path,
-                )?;
+                scoop_wire::allocation::try_reserve(&mut dependencies, reachable.len(), &path)?;
                 dependencies.extend(
                     reachable
                         .iter()
                         .map(|&index| complete[index].mir.dependency_view(&complete[index].units)),
                 );
                 let mut source_dependencies = Vec::new();
-                parts.meter.charge_owned_bytes(
-                    (reachable.len() as u64).saturating_mul(std::mem::size_of::<
-                        scoop_hir::SharedTypeMetadataV1<'_>,
-                    >() as u64),
-                    &path,
-                )?;
-                parts.meter.try_reserve_collection_slots(
+
+                scoop_wire::allocation::try_reserve(
                     &mut source_dependencies,
                     reachable.len(),
                     &path,
@@ -123,11 +113,8 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                     &mir,
                     &units,
                     &dependencies,
-                    parts.meter,
                 )?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &path)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
                 Ok(MirDependencyGraphReplayedCrossConeLayoutSections {
                     prepared,
                     mir,

@@ -14,13 +14,12 @@ impl DecodedEntry {
     fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<MirDispatchEntryV1, MirDispatchSchemaError> {
         Ok(MirDispatchEntryV1::new(
             graph.resolve(self.slot)?,
             self.position,
             self.signature
-                .resolve(graph, meter)
+                .resolve(graph)
                 .map_err(|error| MirDispatchSchemaError::Signature(Box::new(error)))?,
             self.implementation.resolve(graph)?,
         ))
@@ -46,7 +45,7 @@ macro_rules! encode_entry {
 encode_entry!(MirDispatchEntryV1);
 encode_entry!(DecodedEntry);
 impl WireDecode for DecodedEntry {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             slot: decoder.field(1, DecodedPersistentId::decode)?,
@@ -81,7 +80,7 @@ macro_rules! encode_vtable {
 encode_vtable!(MirClassVtableSchemaV1);
 encode_vtable!(DecodedVtable);
 impl WireDecode for DecodedVtable {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -119,7 +118,7 @@ macro_rules! encode_itable {
 encode_itable!(MirInterfaceDispatchTableV1);
 encode_itable!(DecodedItable);
 impl WireDecode for DecodedItable {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             interface: decoder.field(1, DecodedPersistentId::decode)?,
@@ -141,20 +140,19 @@ impl DecodedParamFreeMirDispatchSchemaV1 {
         graph: &mut ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
         callables: &dyn MirTypeBridgeCallableLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirDispatchSchemaV1, MirDispatchSchemaError> {
         let owner = graph.resolve(self.owner)?;
         let vtable = match self.vtable {
             DecodedVtable::NoClassVtable => MirClassVtableSchemaV1::NoClassVtable,
             DecodedVtable::ClassVtable(entries) => {
-                MirClassVtableSchemaV1::ClassVtable(resolve_entries(entries, graph, meter)?)
+                MirClassVtableSchemaV1::ClassVtable(resolve_entries(entries, graph)?)
             }
         };
-        let mut itables = reserve(self.itables.len(), meter)?;
+        let mut itables = reserve(self.itables.len())?;
         for itable in self.itables {
             itables.push(MirInterfaceDispatchTableV1::new(
                 graph.resolve(itable.interface)?,
-                resolve_entries(itable.entries, graph, meter)?,
+                resolve_entries(itable.entries, graph)?,
             ));
         }
         ParamFreeMirDispatchSchemaV1::try_new(
@@ -166,19 +164,16 @@ impl DecodedParamFreeMirDispatchSchemaV1 {
             owner,
             vtable,
             itables,
-            meter,
         )
     }
 }
 fn resolve_entries(
     entries: Vec<DecodedEntry>,
     graph: &mut ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<MirDispatchEntryV1>, MirDispatchSchemaError> {
-    let mut result = reserve(entries.len(), meter)?;
+    let mut result = reserve(entries.len())?;
     for entry in entries {
-        meter.charge_nodes(1, &WirePath::root())?;
-        result.push(entry.resolve(graph, meter)?);
+        result.push(entry.resolve(graph)?);
     }
     Ok(result)
 }
@@ -200,7 +195,7 @@ macro_rules! encode_schema {
 encode_schema!(ParamFreeMirDispatchSchemaV1);
 encode_schema!(DecodedParamFreeMirDispatchSchemaV1);
 impl WireDecode for DecodedParamFreeMirDispatchSchemaV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
@@ -221,9 +216,8 @@ impl DecodedCanonicalMirDispatchSchemasV1 {
         graph: &mut ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
         callables: &dyn MirTypeBridgeCallableLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirDispatchSchemasV1, MirDispatchSchemaError> {
-        self.validate_with_dependencies(graph, types, callables, &[], meter)
+        self.validate_with_dependencies(graph, types, callables, &[])
     }
     pub fn validate_with_dependencies(
         self,
@@ -231,11 +225,10 @@ impl DecodedCanonicalMirDispatchSchemasV1 {
         types: &dyn MirTypeBridgeTypeLookupV1,
         callables: &dyn MirTypeBridgeCallableLookupV1,
         dependencies: &[&CanonicalMirDispatchSchemasV1],
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirDispatchSchemasV1, MirDispatchSchemaError> {
-        let mut records: Vec<ParamFreeMirDispatchSchemaV1> = reserve(self.records.len(), meter)?;
+        let mut records: Vec<ParamFreeMirDispatchSchemaV1> = reserve(self.records.len())?;
         for (index, record) in self.records.into_iter().enumerate() {
-            let record = record.validate(graph, types, callables, meter)?;
+            let record = record.validate(graph, types, callables)?;
             if records
                 .last()
                 .is_some_and(|previous| previous.owner() >= record.owner())
@@ -250,12 +243,12 @@ impl DecodedCanonicalMirDispatchSchemasV1 {
             types,
             callables,
         }
-        .validate_with_dependencies(&table, dependencies, meter)?;
+        .validate_with_dependencies(&table, dependencies)?;
         Ok(table)
     }
 }
 impl WireDecode for DecodedCanonicalMirDispatchSchemasV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedParamFreeMirDispatchSchemaV1::decode(decoder))
             .map(|records| Self { records })

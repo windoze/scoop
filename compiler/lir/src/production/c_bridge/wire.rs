@@ -5,8 +5,8 @@ use std::marker::PhantomData;
 
 use scoop_identity::{DecodedCapabilityId, DecodedPersistentId, GeneratedBridgeUnitId};
 use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-    encode_canonical_temporary_with_meter,
+    Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
+    encode_canonical_temporary,
 };
 
 use super::CBridgeProductionSetV1;
@@ -28,7 +28,7 @@ impl<F> WireEncode for DecodedFingerprintV1<F> {
 }
 
 impl<F> WireDecode for DecodedFingerprintV1<F> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let bytes = decoder.bytes()?;
         let bytes = <&[u8; 32]>::try_from(bytes).copied().map_err(|_| {
             wire_error(
@@ -70,17 +70,11 @@ impl DecodedCBridgeProductionSetV1 {
     pub fn validate(
         &self,
         expected: CBridgeProductionSetV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CBridgeProductionSetV1, CBridgeProductionValidationError> {
         let path = WirePath::root().field(10);
-        let actual = encode_canonical_temporary_with_meter(self, meter, &path)?;
-        let expected_bytes = encode_canonical_temporary_with_meter(&expected, meter, &path)?;
-        meter.charge_work(
-            (actual.len() as u64)
-                .saturating_add(expected_bytes.len() as u64)
-                .saturating_mul(3),
-            &path,
-        )?;
+        let actual = encode_canonical_temporary(self, &path)?;
+        let expected_bytes = encode_canonical_temporary(&expected, &path)?;
+
         if actual != expected_bytes {
             return Err(CBridgeProductionValidationError::ProjectionMismatch);
         }
@@ -120,7 +114,7 @@ impl WireEncode for DecodedCBridgeProductionSetV1 {
 }
 
 impl WireDecode for DecodedCBridgeProductionSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let branch = match tag {
@@ -189,11 +183,7 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.unsigned(tag)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -204,6 +194,6 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }

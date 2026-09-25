@@ -1,6 +1,6 @@
 use super::*;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn validate_enum(
         &mut self,
         value: &lir::ExactValueLayoutV1,
@@ -21,8 +21,6 @@ impl Projection<'_, '_> {
                     payload_variant,
                 },
             ) => {
-                self.meter
-                    .charge_work(expected.variants().len() as u64, &WirePath::root())?;
                 if expected.pointer_kind() != *kind
                     || expected
                         .variants()
@@ -46,8 +44,7 @@ impl Projection<'_, '_> {
                 {
                     return Err(error());
                 }
-                self.meter
-                    .charge_work(variants.len() as u64, &WirePath::root())?;
+
                 for (((variant, geometry), actual), source) in expected
                     .variants()
                     .iter()
@@ -64,8 +61,7 @@ impl Projection<'_, '_> {
                     {
                         return Err(error());
                     }
-                    self.meter
-                        .charge_work(actual.fields.len() as u64, &WirePath::root())?;
+
                     for ((field, actual), source) in variant
                         .fields()
                         .iter()
@@ -86,7 +82,7 @@ impl Projection<'_, '_> {
             lir::ValueStorageKindV1::ZeroSized { .. } => &lir::RefScan::None,
             lir::ValueStorageKindV1::Inline { scan, .. } => scan.as_ref_scan(),
         };
-        if !super::scan::matches(scan, &actual.scan, self.meter, 1)? {
+        if !super::scan::matches(scan, &actual.scan)? {
             return Err(error());
         }
         Ok(())

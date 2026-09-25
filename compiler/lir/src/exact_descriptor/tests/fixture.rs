@@ -1,5 +1,4 @@
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use super::super::*;
 use crate::*;
@@ -33,7 +32,6 @@ impl Fixture {
             false,
             &[],
             &value_bound.foundation,
-            &mut meter(),
         )
         .unwrap();
         let instance_bound = crate::exact_layout::tests::Bound::instance(exact_record.clone());
@@ -41,7 +39,6 @@ impl Fixture {
             instance_bound.identity.clone(),
             &value,
             &instance_bound.foundation,
-            &mut meter(),
         )
         .unwrap();
         let vtable_record =
@@ -55,13 +52,11 @@ impl Fixture {
             TARGET,
             &foundation,
             vec![value.clone().into(), instance.clone().into()],
-            &mut meter(),
         )
         .unwrap();
         let physical = StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::TypeRegistration(exact_record.id()),
             &foundation,
-            &mut meter(),
         )
         .unwrap();
         let fingerprint_node =
@@ -129,10 +124,6 @@ impl Fixture {
         &self.name
     }
 
-    pub(super) fn meter(&self) -> BudgetMeter {
-        meter()
-    }
-
     pub(super) fn semantic(&self) -> StrongTypeDescriptorSemanticPlanV2 {
         self.semantic_parts(
             self.name.clone(),
@@ -173,26 +164,17 @@ impl Fixture {
             self.registration,
             &self.diagnostics,
             &self.foundation,
-            &mut meter(),
         )
     }
 
-    pub(super) fn replay_shared(
-        &self,
-        meter: &mut BudgetMeter,
-    ) -> Result<ExactDescriptorExportV1, ExactDescriptorError> {
+    pub(super) fn replay_shared(&self) -> Result<ExactDescriptorExportV1, ExactDescriptorError> {
         let identity =
             CborIdentityRecord::from_key(DispatchTableKey::vtable(self.exact())).unwrap();
-        let table = ExactDispatchExportV1::replay_from_schema(
-            TARGET,
-            &identity,
-            &[],
-            &self.foundation,
-            meter,
-        )
-        .expect("the fixture has an empty physical vtable");
+        let table =
+            ExactDispatchExportV1::replay_from_schema(TARGET, &identity, &[], &self.foundation)
+                .expect("the fixture has an empty physical vtable");
         let dispatch =
-            CanonicalExactDispatchExportsV1::try_new(TARGET, &self.foundation, vec![table], meter)
+            CanonicalExactDispatchExportsV1::try_new(TARGET, &self.foundation, vec![table])
                 .expect("the fixture dispatch definition belongs to its foundation");
         ExactDescriptorExportV1::replay_from_constituents(
             TARGET,
@@ -205,7 +187,6 @@ impl Fixture {
             &dispatch,
             &self.diagnostics,
             &self.foundation,
-            meter,
         )
     }
 
@@ -235,10 +216,6 @@ fn source(name: &str) -> SourceDeclarationKey {
 
 fn exact(source: &SourceDeclarationKey) -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
     crate::exact_layout::tests::exact(source)
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 fn foundation(

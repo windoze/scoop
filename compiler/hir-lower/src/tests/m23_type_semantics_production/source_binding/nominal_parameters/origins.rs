@@ -18,7 +18,7 @@ fn complete_parameter_origins_cannot_borrow_valid_points_from_another_source_fil
                 inputs.protocols().fundamental_types(),
                 |members, constructors| {
                     members
-                        .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                        .bind_parameter_protocols(constructors, &sources.protocols)
                         .unwrap();
                     for record in sources
                         .protocols
@@ -44,11 +44,10 @@ fn complete_parameter_origins_cannot_borrow_valid_points_from_another_source_fil
                             first.calling_kind(),
                             other.clone(),
                         );
-                        let forged = sources.replacing(
-                            Record::try_new(record.owner(), parameters, &mut meter()).unwrap(),
-                        );
+                        let forged =
+                            sources.replacing(Record::try_new(record.owner(), parameters).unwrap());
                         let Error::Contract(error) = members
-                            .bind_parameter_protocols(constructors, &forged, &mut meter())
+                            .bind_parameter_protocols(constructors, &forged)
                             .unwrap_err()
                         else {
                             panic!("source file rejection");

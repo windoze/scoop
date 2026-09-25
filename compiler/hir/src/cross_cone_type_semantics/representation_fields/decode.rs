@@ -9,8 +9,6 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::*;
 use crate::SignatureTypeReferenceResolver;
-mod metered;
-pub use metered::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DecodedField<I: PersistentId> {
@@ -19,7 +17,7 @@ struct DecodedField<I: PersistentId> {
 }
 
 impl<I: PersistentId> WireDecode for DecodedField<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             field: decoder.field(1, DecodedPersistentId::decode)?,
@@ -67,7 +65,7 @@ macro_rules! decoded_field {
             }
         }
         impl WireDecode for $decoded {
-            fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+            fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
                 DecodedField::decode(decoder).map(Self)
             }
         }

@@ -10,7 +10,7 @@ use scoop_identity::{
     ConeCoordinate, ConeIdentity, NormalizedSourcePath, PendingIdentityValidation,
     SemanticIdentitySession, SemanticOriginFingerprint, SourceIdentity,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::super::{
     complete_core_file, fun_expr, int_lit, make_core_public, test_source_identity, ty_named,
@@ -72,7 +72,7 @@ impl TrustedCoreFixture {
         >],
     ) -> scoop_hir::ImportedHirFoundation {
         let decoded: scoop_hir::DecodedHirFoundation =
-            decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(foundation).unwrap()).unwrap();
         let mut pending = PendingIdentityValidation::new();
         pending
             .register_authority(coordinate.identity().unwrap())
@@ -164,7 +164,7 @@ pub(crate) fn trusted_core_from_source(
         general_interface.type_aliases(),
     );
     let decoded: scoop_hir::DecodedHirFoundation =
-        decode_canonical(&encode(&canonical).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&canonical).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     decoded.register_identities(&mut pending).unwrap();

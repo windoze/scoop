@@ -16,17 +16,15 @@ fn complete_constructor_binding_rejects_missing_and_extra_sources() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
+        let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
         let mut missing = sources.constructors.records().to_vec();
         missing.pop().unwrap();
         let mut surplus = sources.constructors.records().to_vec();
         surplus.push(extra.clone());
         for records in [vec![], missing, surplus] {
-            let forged = Table::try_new(records, &mut meter()).unwrap();
+            let forged = Table::try_new(records).unwrap();
             assert!(matches!(
-                nominals.bind_constructor_sources(&forged, &mut meter()),
+                nominals.bind_constructor_sources(&forged),
                 Err(Error::Inventory)
             ));
         }
@@ -43,12 +41,12 @@ fn complete_constructor_binding_cannot_use_dependency_only_keys() {
         let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+            .bind_to_foundation(&incomplete, &fixture.identities)
             .unwrap();
         // The prerequisite nominal inventory already refuses to publish a
         // proof when its constructor keys only exist in the dependency graph.
         assert!(matches!(
-            foundation.bind_nominal_sources(&sources.nominals, &mut meter()),
+            foundation.bind_nominal_sources(&sources.nominals),
             Err(hir::NominalSourceBindingError::Inventory(
                 "nominal constructors"
             ))
@@ -62,9 +60,7 @@ fn complete_constructor_binding_rejects_owner_and_lexical_chain_changes() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
+        let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
         let record = sources.named(&fixture, "Box", &["value"]);
         let payload = record.payload();
         let other = sources
@@ -95,7 +91,7 @@ fn complete_constructor_binding_rejects_owner_and_lexical_chain_changes() {
             let mut forged = sources.clone();
             forged.replace(record);
             assert!(matches!(
-                nominals.bind_constructor_sources(&forged.constructors, &mut meter()),
+                nominals.bind_constructor_sources(&forged.constructors),
                 Err(Error::Contract { .. })
             ));
         }

@@ -4,7 +4,6 @@ use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, OdrFreeHirFoundation,
 };
 use scoop_identity::{ConeIdentity, ValidatedIdentityGraph};
-use scoop_wire::BudgetMeter;
 
 use crate::cross_cone_hir_authority::{
     CanonicalCrossConeHirSurfaceAuthority, ValidatedNominalProviderView,

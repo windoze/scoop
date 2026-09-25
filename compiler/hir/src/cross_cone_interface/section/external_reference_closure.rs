@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     CrossConeHirInterfaceSectionV1, ExternalHirAliasClosureValidationError,
@@ -21,42 +21,37 @@ impl CrossConeHirInterfaceSectionV1 {
     pub fn validate_external_reference_closure<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), CrossConeHirExternalReferenceValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         self.external_references()
-            .validate_semantics(authority, meter, &path.clone().field(10))
+            .validate_semantics(authority)
             .map_err(CrossConeHirExternalReferenceValidationError::Records)?;
         self.external_references()
-            .validate_reexport_closure(
-                self.public_bindings(),
-                authority,
-                meter,
-                &path.clone().field(10),
-            )
+            .validate_reexport_closure(self.public_bindings(), authority, &path.clone().field(10))
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::Reexports(Box::new(error))
             })?;
-        self.validate_signature_reference_closure(authority, meter, path)
+        self.validate_signature_reference_closure(authority, path)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::Signatures(Box::new(error))
             })?;
-        self.validate_alias_reference_closure(authority, meter, path)
+        self.validate_alias_reference_closure(authority, path)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::Aliases(Box::new(error))
             })?;
-        self.validate_default_reference_closure(authority, meter, path)
+        self.validate_default_reference_closure(authority, path)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::Defaults(Box::new(error))
             })?;
-        self.validate_const_type_reference_closure(authority, meter, path)
+        self.validate_const_type_reference_closure(authority, path)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::ConstTypes(Box::new(error))
             })?;
-        self.validate_inheritance_reference_closure(authority, meter, path)
+        self.validate_inheritance_reference_closure(authority)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::Inheritance(Box::new(error))
             })

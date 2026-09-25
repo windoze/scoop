@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn protected_production_rejects_missing_source_and_budget_exhaustion() {
+fn protected_production_rejects_missing_source() {
     with_hir_source(SOURCE, |output, _| {
         let export = &output.output().export;
         for field in ["origins", "parameters", "defaults"] {
@@ -14,41 +14,7 @@ fn protected_production_rejects_missing_source_and_budget_exhaustion() {
             }
             let forged =
                 hir::ExportHirOutput::try_new(module, export.output_kind().clone()).unwrap();
-            assert!(
-                Production::from_export_hir(&forged, &mut meter()).is_err(),
-                "{field}"
-            );
-        }
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(
-                Production::from_export_hir(export, &mut BudgetMeter::new(limits)).is_err(),
-                "{limits:?}"
-            );
+            assert!(Production::from_export_hir(&forged).is_err(), "{field}");
         }
     });
 }
@@ -82,7 +48,7 @@ fn protected_wrappers_reject_other_declared_visibilities() {
 #[test]
 fn protected_production_has_an_explicit_empty_surface() {
     with_hir_source("public class Plain {}", |output, _| {
-        let produced = Production::from_export_hir(&output.output().export, &mut meter()).unwrap();
+        let produced = Production::from_export_hir(&output.output().export).unwrap();
         assert!(produced.required().values().is_empty());
         assert!(produced.declarations().records().is_empty());
         assert!(produced.protocols().records().is_empty());

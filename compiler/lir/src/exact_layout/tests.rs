@@ -1,5 +1,5 @@
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, encode};
+use scoop_wire::encode;
 
 use super::*;
 use crate::*;
@@ -12,10 +12,6 @@ mod value_descriptors;
 mod values;
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
-
-pub(crate) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 pub(crate) fn source(name: &str, kind: SourceNominalKind, parameters: u32) -> SourceDeclarationKey {
     SourceDeclarationKey::nominal(
@@ -92,8 +88,7 @@ impl Bound {
         foundation.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
         let foundation = OdrFreeLirFoundation::try_new(provider, foundation).unwrap();
         let identity =
-            ExactLayoutIdentityV1::from_foundation(TARGET, exact, role, &foundation, &mut meter())
-                .unwrap();
+            ExactLayoutIdentityV1::from_foundation(TARGET, exact, role, &foundation).unwrap();
         Self {
             identity,
             foundation,
@@ -121,14 +116,13 @@ pub(crate) fn integer(name: &str, kind: IntegerKind) -> ExactValueLayoutV1 {
         bound.identity,
         ScalarRepresentationKindV1::Integer(kind),
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap()
 }
 
 pub(crate) fn unit() -> ExactValueLayoutV1 {
     let bound = Bound::value(exact(&CoreBuiltinNominal::Unit.declaration_key()));
-    ExactValueLayoutV1::unit(bound.identity, &bound.foundation, &mut meter()).unwrap()
+    ExactValueLayoutV1::unit(bound.identity, &bound.foundation).unwrap()
 }
 
 pub(crate) fn managed() -> ExactValueLayoutV1 {
@@ -137,7 +131,6 @@ pub(crate) fn managed() -> ExactValueLayoutV1 {
         bound.identity,
         NichePointerKind::Managed,
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap()
 }
@@ -159,12 +152,7 @@ fn scan(value: &ExactValueLayoutV1) -> &RefScan {
 fn assert_wire_roundtrip(value: impl Into<ExactLayoutExportV1>) {
     let expected = value.into();
     let bytes = encode(&expected).unwrap();
-    let raw =
-        scoop_wire::decode_canonical::<DecodedExactLayoutExportV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let raw = scoop_wire::decode_canonical::<DecodedExactLayoutExportV1>(&bytes).unwrap();
     assert_eq!(encode(&raw).unwrap(), bytes);
-    assert_eq!(
-        raw.validate_against(&expected, &mut meter()).unwrap(),
-        expected
-    );
+    assert_eq!(raw.validate_against(&expected).unwrap(), expected);
 }

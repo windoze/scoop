@@ -60,12 +60,9 @@ impl<'input> LirDescriptorsValidatedCrossConeLayoutClosure<'input> {
                     layout.descriptors(),
                     parts.identities,
                     parts.lir_foundation,
-                    parts.meter,
                 )?;
-                let layout = layout.validate_shape_support(&expected, parts.meter)?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &WirePath::root())?;
+                let layout = layout.validate_shape_support(&expected)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirExportsValidatedCrossConeLayoutSections {
                     prepared,
                     mir,

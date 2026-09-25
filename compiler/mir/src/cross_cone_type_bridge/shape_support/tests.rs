@@ -1,14 +1,10 @@
 use super::*;
 use crate::cross_cone_type_bridge::tests::support::Fixture;
 use scoop_identity::SourceNominalKind;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod records;
 mod wire;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 struct Family {
     fixture: Fixture,
@@ -78,10 +74,7 @@ impl Family {
             types: &self.types,
         }
     }
-    fn build(
-        &self,
-        meter: &mut BudgetMeter,
-    ) -> Result<ParamFreeMirShapeSupportV1, MirShapeSupportError> {
+    fn build(&self) -> Result<ParamFreeMirShapeSupportV1, MirShapeSupportError> {
         ParamFreeMirShapeSupportV1::try_new(
             self.authority(),
             self.fixture.empty.id(),
@@ -89,15 +82,13 @@ impl Family {
             self.boxed,
             self.fixture.step_export().exact(),
             self.fixture.slot_export().exact(),
-            meter,
         )
     }
     fn table(&self) -> CanonicalMirShapeSupportsV1 {
         CanonicalMirShapeSupportsV1::try_new(
             ConeIdentity::SINGLE_FILE,
             self.authority(),
-            vec![self.build(&mut meter()).unwrap()],
-            &mut meter(),
+            vec![self.build().unwrap()],
         )
         .unwrap()
     }

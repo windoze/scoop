@@ -32,25 +32,20 @@ impl<'w> CheckedParamFreeProtectedDefaultWitnessSourceV1<'w, '_> {
         inheritance: CheckedNominalInheritanceInterfacesV1<'_>,
         target: &CheckedPersistentAccessDomainV1<'g, 'a>,
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedDefaultDomainCoverageV1<'w>, ProtectedDefaultDomainCoverageError<E>>
     {
         use ProtectedDefaultDomainCoverageError as Error;
         let direct = self
             .source
             .declaration_access()
-            .replay(graph, meter)
+            .replay(graph)
             .map_err(Error::Domain)?;
         compare_domain(
             self.witness.direct_call_domain.domain(),
             direct.lookup().domain(),
-            meter,
         )?;
-        compare_domain(self.witness.target_domain.domain(), target.domain(), meter)?;
-        if !target
-            .covers(direct.lookup(), meter)
-            .map_err(Error::Domain)?
-        {
+        compare_domain(self.witness.target_domain.domain(), target.domain())?;
+        if !target.covers(direct.lookup()).map_err(Error::Domain)? {
             return Err(Error::DirectCoverage);
         }
         let roots = authority
@@ -58,13 +53,7 @@ impl<'w> CheckedParamFreeProtectedDefaultWitnessSourceV1<'w, '_> {
             .map_err(Error::Foundation)?;
         let claimed = self.witness.slot_call_domains.records();
         let source_roots = self.source.payload().slot_relations().slots();
-        meter
-            .charge_work(
-                (roots.slots().len() as u64 + claimed.len() as u64 + source_roots.len() as u64)
-                    .saturating_mul(128),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+
         if source_roots != roots.slots()
             || !claimed
                 .iter()
@@ -78,27 +67,9 @@ impl<'w> CheckedParamFreeProtectedDefaultWitnessSourceV1<'w, '_> {
                 .source_exact(self.source.payload().owner())
                 .map_err(Error::Inheritance)?;
             let interfaces = inheritance.table();
-            meter
-                .charge_work(
-                    128 * u64::from(
-                        u64::BITS - (interfaces.records().len() as u64).leading_zeros(),
-                    ),
-                    &WirePath::root(),
-                )
-                .map_err(Error::Resource)?;
+
             let owner = interfaces.get(exact).ok_or(Error::InheritanceOwner)?;
             for domain in claimed {
-                meter
-                    .charge_nodes(1, &WirePath::root())
-                    .map_err(Error::Resource)?;
-                meter
-                    .charge_work(
-                        128 * u64::from(
-                            u64::BITS - (owner.slots().records().len() as u64).leading_zeros(),
-                        ),
-                        &WirePath::root(),
-                    )
-                    .map_err(Error::Resource)?;
                 let slot = owner
                     .slots()
                     .get(domain.slot())
@@ -113,11 +84,11 @@ impl<'w> CheckedParamFreeProtectedDefaultWitnessSourceV1<'w, '_> {
                 {
                     return Err(Error::SlotOwner);
                 }
-                compare_domain(domain.domain().domain(), slot.domain().domain(), meter)?;
+                compare_domain(domain.domain().domain(), slot.domain().domain())?;
                 let required = graph
-                    .validate_access_domain(slot.domain().domain(), meter)
+                    .validate_access_domain(slot.domain().domain())
                     .map_err(Error::Domain)?;
-                if !target.covers(&required, meter).map_err(Error::Domain)? {
+                if !target.covers(&required).map_err(Error::Domain)? {
                     return Err(Error::SlotCoverage(domain.slot()));
                 }
             }
@@ -130,16 +101,7 @@ impl<'w> CheckedParamFreeProtectedDefaultWitnessSourceV1<'w, '_> {
 fn compare_domain<E>(
     left: &PersistentAccessDomainV1,
     right: &PersistentAccessDomainV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ProtectedDefaultDomainCoverageError<E>> {
-    meter
-        .charge_work(
-            (left.constraints().len() as u64 + right.constraints().len() as u64)
-                .saturating_mul(128)
-                .saturating_add(1),
-            &WirePath::root(),
-        )
-        .map_err(ProtectedDefaultDomainCoverageError::Resource)?;
     if left != right {
         Err(ProtectedDefaultDomainCoverageError::DomainMismatch)
     } else {

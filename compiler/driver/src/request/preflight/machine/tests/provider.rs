@@ -109,11 +109,8 @@ impl Provider {
     }
 
     pub(super) fn import(&self) -> scoop_hir::ImportedHirFoundation {
-        let decoded: scoop_hir::DecodedHirFoundation = scoop_wire::decode_canonical(
-            &scoop_wire::encode(&self.foundation).unwrap(),
-            scoop_wire::DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded: scoop_hir::DecodedHirFoundation =
+            scoop_wire::decode_canonical(&scoop_wire::encode(&self.foundation).unwrap()).unwrap();
         let mut pending = scoop_identity::PendingIdentityValidation::new();
         pending
             .register_authority(self.coordinate.identity().unwrap())

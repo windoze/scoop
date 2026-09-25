@@ -33,12 +33,10 @@ pub enum DefaultSourceNominalOperationError {
     Substitution(DefaultTemplateTypeSubstitutionError),
 }
 impl Error {
-    pub(super) fn transform(error: MeteredDefaultTemplateTypeSubstitutionError) -> Self {
+    pub(super) fn transform(error: DefaultTemplateTypeSubstitutionError) -> Self {
         match error {
-            MeteredDefaultTemplateTypeSubstitutionError::Resource(error) => Self::Resource(error),
-            MeteredDefaultTemplateTypeSubstitutionError::Substitution(error) => {
-                Self::Substitution(error)
-            }
+            DefaultTemplateTypeSubstitutionError::Wire(error) => Self::Resource(error),
+            error => Self::Substitution(error),
         }
     }
     pub(super) fn target(error: DefaultSourceTargetSubjectError) -> Self {

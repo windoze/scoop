@@ -7,7 +7,7 @@ use scoop_identity::{
     OdrMemberId, OdrMemberIdentityError, OdrMemberKey, PersistentCallbackRegistrationId,
     PersistentId, PersistentIdResolver, PersistentKeyResolver, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode_canonical_temporary_with_meter};
+use scoop_wire::{WireEncode, WirePath, encode_canonical_temporary};
 
 use super::*;
 use crate::{
@@ -54,18 +54,16 @@ impl DecodedMirFoundation {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<ValidatedMirFoundation, MirFoundationValidationError> {
-        validate_foundation(self, identities, meter)
+        validate_foundation(self, identities)
     }
 }
 
 fn validate_foundation(
     foundation: DecodedMirFoundation,
     identities: &mut ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<ValidatedMirFoundation, MirFoundationValidationError> {
-    let original = encode_canonical_temporary_with_meter(&foundation, meter, &WirePath::root())
+    let original = encode_canonical_temporary(&foundation, &WirePath::root())
         .map_err(MirFoundationValidationError::Resource)?;
     let DecodedMirFoundationWire {
         exact_types: _,
@@ -85,7 +83,7 @@ fn validate_foundation(
     macro_rules! records {
         ($field:literal, $id:ty, $key:ty) => {
             identities
-                .records::<$id, $key>(IdentityLayer::Mir, meter, &WirePath::root().field($field))
+                .records::<$id, $key>(IdentityLayer::Mir, &WirePath::root().field($field))
                 .map_err(MirFoundationValidationError::Identity)?
         };
     }
@@ -107,13 +105,12 @@ fn validate_foundation(
 
     let mut resolver = FoundationResolver { identities };
     let mut signatures = Vec::new();
-    meter
-        .try_reserve_collection_slots(
-            &mut signatures,
-            callable_signatures.len(),
-            &WirePath::root().field(7),
-        )
-        .map_err(MirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve(
+        &mut signatures,
+        callable_signatures.len(),
+        &WirePath::root().field(7),
+    )
+    .map_err(MirFoundationValidationError::Resource)?;
     for (index, signature) in callable_signatures.into_iter().enumerate() {
         signatures.push(
             signature.resolve(&mut resolver).map_err(|error| {
@@ -122,13 +119,12 @@ fn validate_foundation(
         );
     }
     let mut applications = Vec::new();
-    meter
-        .try_reserve_collection_slots(
-            &mut applications,
-            callback_application_records.len(),
-            &WirePath::root().field(10),
-        )
-        .map_err(MirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve(
+        &mut applications,
+        callback_application_records.len(),
+        &WirePath::root().field(10),
+    )
+    .map_err(MirFoundationValidationError::Resource)?;
     for (index, application) in callback_application_records.into_iter().enumerate() {
         applications.push(
             application.resolve(&mut resolver).map_err(|error| {
@@ -141,7 +137,6 @@ fn validate_foundation(
         &callback_applications,
         &applications,
         &signatures,
-        meter,
     )?;
 
     let mut canonical = CanonicalMirFoundation::empty();
@@ -165,7 +160,7 @@ fn validate_foundation(
     set!(set_odr_groups, odr_groups);
     set!(set_odr_members, odr_members);
 
-    let rebuilt = encode_canonical_temporary_with_meter(&canonical, meter, &WirePath::root())
+    let rebuilt = encode_canonical_temporary(&canonical, &WirePath::root())
         .map_err(MirFoundationValidationError::Resource)?;
     if rebuilt != original {
         return Err(MirFoundationValidationError::NonCanonicalFoundation);
@@ -209,13 +204,15 @@ fn validate_callback_applications(
     identity_records: &[CallbackApplicationIdentityRecord],
     records: &[CallbackApplicationRecord],
     signatures: &[CallableSignatureRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<(), MirFoundationValidationError> {
     let identity_path = WirePath::root().field(9);
     let mut identity_keys = HashMap::new();
-    meter
-        .try_reserve_map_slots(&mut identity_keys, identity_records.len(), &identity_path)
-        .map_err(MirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_map(
+        &mut identity_keys,
+        identity_records.len(),
+        &identity_path,
+    )
+    .map_err(MirFoundationValidationError::Resource)?;
     identity_keys.extend(
         identity_records
             .iter()
@@ -225,19 +222,17 @@ fn validate_callback_applications(
     let registration_records = identities
         .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(
             IdentityLayer::Hir,
-            meter,
             &WirePath::root().field(25),
         )
         .map_err(MirFoundationValidationError::Identity)?;
     let registration_path = WirePath::root().field(10);
     let mut registrations = HashMap::new();
-    meter
-        .try_reserve_map_slots(
-            &mut registrations,
-            registration_records.len(),
-            &registration_path,
-        )
-        .map_err(MirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_map(
+        &mut registrations,
+        registration_records.len(),
+        &registration_path,
+    )
+    .map_err(MirFoundationValidationError::Resource)?;
     registrations.extend(
         registration_records
             .iter()
@@ -247,29 +242,25 @@ fn validate_callback_applications(
     let hir_generated = identities
         .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(
             IdentityLayer::Hir,
-            meter,
             &WirePath::root().field(18),
         )
         .map_err(MirFoundationValidationError::Identity)?;
     let mir_generated = identities
         .records::<PersistentGeneratedCallableId, GeneratedCallableKey>(
             IdentityLayer::Mir,
-            meter,
             &WirePath::root().field(2),
         )
         .map_err(MirFoundationValidationError::Identity)?;
     let generated_path = WirePath::root().field(2);
     let mut generated = HashMap::new();
-    meter
-        .try_reserve_map_slots(&mut generated, hir_generated.len(), &generated_path)
+    scoop_wire::allocation::try_reserve_map(&mut generated, hir_generated.len(), &generated_path)
         .map_err(MirFoundationValidationError::Resource)?;
     generated.extend(
         hir_generated
             .iter()
             .map(|record| (record.id(), record.key())),
     );
-    meter
-        .try_reserve_map_slots(&mut generated, mir_generated.len(), &generated_path)
+    scoop_wire::allocation::try_reserve_map(&mut generated, mir_generated.len(), &generated_path)
         .map_err(MirFoundationValidationError::Resource)?;
     generated.extend(
         mir_generated
@@ -278,39 +269,28 @@ fn validate_callback_applications(
     );
 
     let hir_members = identities
-        .records::<OdrMemberId, OdrMemberKey>(
-            IdentityLayer::Hir,
-            meter,
-            &WirePath::root().field(28),
-        )
+        .records::<OdrMemberId, OdrMemberKey>(IdentityLayer::Hir, &WirePath::root().field(28))
         .map_err(MirFoundationValidationError::Identity)?;
     let mir_members = identities
-        .records::<OdrMemberId, OdrMemberKey>(
-            IdentityLayer::Mir,
-            meter,
-            &WirePath::root().field(12),
-        )
+        .records::<OdrMemberId, OdrMemberKey>(IdentityLayer::Mir, &WirePath::root().field(12))
         .map_err(MirFoundationValidationError::Identity)?;
     let member_path = WirePath::root().field(12);
     let mut members = HashMap::new();
-    meter
-        .try_reserve_map_slots(&mut members, hir_members.len(), &member_path)
+    scoop_wire::allocation::try_reserve_map(&mut members, hir_members.len(), &member_path)
         .map_err(MirFoundationValidationError::Resource)?;
     members.extend(hir_members.iter().map(|record| (record.id(), record.key())));
-    meter
-        .try_reserve_map_slots(&mut members, mir_members.len(), &member_path)
+    scoop_wire::allocation::try_reserve_map(&mut members, mir_members.len(), &member_path)
         .map_err(MirFoundationValidationError::Resource)?;
     members.extend(mir_members.iter().map(|record| (record.id(), record.key())));
 
     let signature_path = WirePath::root().field(7);
     let mut signatures_by_subject = HashMap::new();
-    meter
-        .try_reserve_map_slots(
-            &mut signatures_by_subject,
-            signatures.len(),
-            &signature_path,
-        )
-        .map_err(MirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_map(
+        &mut signatures_by_subject,
+        signatures.len(),
+        &signature_path,
+    )
+    .map_err(MirFoundationValidationError::Resource)?;
     for signature in signatures {
         signatures_by_subject
             .entry(signature.subject())
@@ -319,8 +299,7 @@ fn validate_callback_applications(
 
     let record_path = WirePath::root().field(10);
     let mut seen = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut seen, records.len(), &record_path)
+    scoop_wire::allocation::try_reserve_set(&mut seen, records.len(), &record_path)
         .map_err(MirFoundationValidationError::Resource)?;
     for record in records {
         let application = record.application();

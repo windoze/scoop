@@ -6,12 +6,9 @@ fn shared_table_rejects_legacy_arrays_and_records_without_declaration_details() 
     let record = fixture("Legacy").record;
     let legacy_table = [vec![0x81], encode(&record).unwrap()].concat();
     assert!(matches!(
-        decode_canonical::<DecodedCanonicalNominalInterfacesV1>(
-            &legacy_table,
-            DecodeLimits::default()
-        )
-        .unwrap_err()
-        .kind(),
+        decode_canonical::<DecodedCanonicalNominalInterfacesV1>(&legacy_table)
+            .unwrap_err()
+            .kind(),
         scoop_wire::WireErrorKind::WrongType {
             expected: scoop_wire::WireType::Map
         }
@@ -20,12 +17,9 @@ fn shared_table_rejects_legacy_arrays_and_records_without_declaration_details() 
     legacy[0] = 0xa8;
     legacy.truncate(legacy.len() - encode(record.declaration_details()).unwrap().len() - 1);
     assert!(matches!(
-        decode_canonical::<super::super::super::DecodedNominalInterfaceRecordV1>(
-            &legacy,
-            DecodeLimits::default()
-        )
-        .unwrap_err()
-        .kind(),
+        decode_canonical::<super::super::super::DecodedNominalInterfaceRecordV1>(&legacy)
+            .unwrap_err()
+            .kind(),
         scoop_wire::WireErrorKind::InvalidLength {
             expected: 9,
             actual: 8

@@ -5,13 +5,10 @@ use scoop_identity::{
     AccessorRole, CallableTemplateOrigin, PersistentTypeId, PropertyOwner, SignatureTypeKey,
     SourceNominalKind,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod constants;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 impl NominalSupportPropertySemanticAuthority<&'static str> for Fixture {
     fn const_source(
         &self,
@@ -104,39 +101,36 @@ fn nested_public_property_preserves_its_protected_owner_and_real_setter_access()
         )
         .unwrap();
         let bytes = encode(&record).unwrap();
-        let decoded: DecodedNominalSupportPropertyInterfaceV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+        let decoded: DecodedNominalSupportPropertyInterfaceV1 = decode_canonical(&bytes).unwrap();
+        assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
         let graph_source = fixture.graph.clone();
         let graph = CheckedNominalInheritanceGraphV1::validate(
             graph_source.records.values(),
             &graph_source,
-            &mut meter(),
         )
         .unwrap();
         let mut getter_authority = fixture.clone();
         let mut setter_authority = fixture.clone();
         let checked_getter = getter
-            .validate_source(&graph, &mut getter_authority, &mut meter())
+            .validate_source(&graph, &mut getter_authority)
             .unwrap();
         let checked_setter = setter
-            .validate_source(&graph, &mut setter_authority, &mut meter())
+            .validate_source(&graph, &mut setter_authority)
             .unwrap();
-        let CheckedNominalSupportPropertySourceV1::Runtime(checked) = record
-            .validate_source(&graph, &mut fixture, &mut meter())
-            .unwrap()
+        let CheckedNominalSupportPropertySourceV1::Runtime(checked) =
+            record.validate_source(&graph, &mut fixture).unwrap()
         else {
             panic!("runtime property required")
         };
         checked
-            .validate_accessor_contracts(checked_getter, Some(checked_setter), &mut meter())
+            .validate_accessor_contracts(checked_getter, Some(checked_setter))
             .unwrap();
         assert!(matches!(
-            checked.validate_accessor_contracts(checked_getter, None, &mut meter()),
+            checked.validate_accessor_contracts(checked_getter, None),
             Err(ProtectedPropertyAccessorClosureError::Setter)
         ));
         let access = graph
-            .replay_declaration_access(checked.declaration_access(), &mut meter())
+            .replay_declaration_access(checked.declaration_access())
             .unwrap();
         assert!(!access.lookup().domain().is_universal());
     }

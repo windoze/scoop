@@ -1,7 +1,6 @@
 use super::*;
 use crate::CanonicalDefinedLinkSymbolOwnerSetV1;
 use scoop_identity::ConeCoordinate;
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind};
 
 #[test]
 fn incremental_terminal_owners_reject_siblings_in_both_arrival_orders() {
@@ -19,7 +18,6 @@ fn incremental_terminal_owners_reject_siblings_in_both_arrival_orders() {
             TARGET,
             imports,
             owners.iter().copied(),
-            &mut meter(),
         )
     };
     run(&[&fixture.provider_owners, &owners]).unwrap();
@@ -48,66 +46,4 @@ fn incremental_terminal_owners_reject_siblings_in_both_arrival_orders() {
                 && context.subject == import.subject() && symbol == import.expected_symbol()
         ));
     }
-}
-
-#[test]
-fn incremental_terminal_owner_checks_consume_the_existing_budget() {
-    let fixture = Fixture::new();
-    let consumer = Consumer::new(&fixture.provider);
-    let run = |meter: &mut BudgetMeter| {
-        reject_layout_foreign_strong_owners_v1(
-            consumer.identity(),
-            TARGET,
-            consumer.section.selected().physical_imports(),
-            std::iter::once(&consumer.defined_symbols),
-            meter,
-        )
-    };
-    let mut measured = meter();
-    run(&mut measured).unwrap();
-    let usage = measured.usage();
-    let exact = DecodeLimits {
-        validation_work_units: usage.validation_work_units,
-        owned_bytes: usage.owned_bytes,
-        ..DecodeLimits::default()
-    };
-    run(&mut BudgetMeter::new(exact)).unwrap();
-    for (resource, limits) in [
-        (
-            ResourceKind::ValidationWorkUnits,
-            DecodeLimits {
-                validation_work_units: usage.validation_work_units - 1,
-                ..exact
-            },
-        ),
-        (
-            ResourceKind::OwnedBytes,
-            DecodeLimits {
-                owned_bytes: usage.owned_bytes - 1,
-                ..exact
-            },
-        ),
-        (
-            ResourceKind::LogicalHeapBytes,
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..exact
-            },
-        ),
-    ] {
-        assert!(matches!(
-            run(&mut BudgetMeter::new(limits)),
-            Err(CrossConeLayoutTerminalValidationError::Resource(error))
-                if matches!(error.kind(), WireErrorKind::LimitExceeded { resource: actual, .. }
-                    if *actual == resource)
-        ));
-    }
-    let mut consumed = BudgetMeter::new(exact);
-    consumed
-        .charge_work(1, &scoop_wire::WirePath::root())
-        .unwrap();
-    assert!(matches!(
-        run(&mut consumed),
-        Err(CrossConeLayoutTerminalValidationError::Resource(_))
-    ));
 }

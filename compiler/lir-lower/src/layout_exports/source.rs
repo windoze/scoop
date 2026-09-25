@@ -18,11 +18,10 @@ impl LayoutAbiSourceProjectionV1 {
         input: LayoutAbiExportInputV1<'_>,
         dependencies: LayoutAbiExportDependenciesV1<'_>,
         mir_source: &impl mir::MirTypeBridgeSectionSourceAuthorityV1<E>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         input
             .bridge
-            .validate_sources(input.mir.module().cone, input.identities, mir_source, meter)
+            .validate_sources(input.mir.module().cone, input.identities, mir_source)
             .map_err(|error| Error::MirSource(Box::new(error)))?;
         input
             .bridge
@@ -32,16 +31,15 @@ impl LayoutAbiSourceProjectionV1 {
                     .registration
                     .registration_production()
                     .initialization_units()
-                    .external_dependency_edges(meter)?,
-                meter,
+                    .external_dependency_edges()?,
             )
             .map_err(|error| Error::InitializationEdges(Box::new(error)))?;
         let committed = mir_source.committed_external_uses().map_err(|error| {
             Error::MirSource(Box::new(mir::MirTypeBridgeSourceJoinError::Source(error)))
         })?;
-        let expected = lower_layout_abi_exports(input, dependencies, meter)?;
-        let uses = uses::project(input, dependencies, &expected, committed, meter)?;
-        let physical = physical::project(input, meter)?;
+        let expected = lower_layout_abi_exports(input, dependencies)?;
+        let uses = uses::project(input, dependencies, &expected, committed)?;
+        let physical = physical::project(input)?;
         Ok(Self {
             expected,
             uses,
@@ -54,38 +52,32 @@ impl lir::LayoutAbiSectionSourceAuthorityV1<Error> for LayoutAbiSourceProjection
     fn validate_local_exports(
         &self,
         exports: &lir::LayoutAbiExportConstituentsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
         use LayoutAbiSourceInventoryV1 as Inventory;
         compare(
             exports.layouts(),
             self.expected.layouts(),
             Inventory::Layouts,
-            meter,
         )?;
         compare(
             exports.descriptors(),
             self.expected.descriptors(),
             Inventory::Descriptors,
-            meter,
         )?;
         compare(
             exports.dispatch(),
             self.expected.dispatch(),
             Inventory::Dispatch,
-            meter,
         )?;
         compare(
             exports.callables(),
             self.expected.callables(),
             Inventory::Callables,
-            meter,
         )?;
         compare(
             exports.shape_support(),
             self.expected.shape_support(),
             Inventory::ShapeSupport,
-            meter,
         )
     }
 
@@ -96,9 +88,8 @@ impl lir::LayoutAbiSectionSourceAuthorityV1<Error> for LayoutAbiSourceProjection
     fn validate_physical_imports(
         &self,
         imports: &[lir::ExternalShapeLinkImportV1<'_>],
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
-        physical::validate(&self.physical, imports, meter)
+        physical::validate(&self.physical, imports)
     }
 }
 
@@ -106,31 +97,19 @@ fn compare<T: WireEncode + Eq>(
     actual: &T,
     expected: &T,
     inventory: LayoutAbiSourceInventoryV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    for value in [actual, expected] {
-        meter.charge_work(scoop_wire::encoded_length(value)?, &WirePath::root())?;
-    }
     if actual != expected {
         return Err(Error::Inventory(inventory));
     }
     Ok(())
 }
 
-fn push<T>(values: &mut Vec<T>, value: T, meter: &mut BudgetMeter) -> Result<(), Error> {
+fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), Error> {
     let path = WirePath::root();
-    meter.check_table_entries(values.len() as u64 + 1, &path)?;
-    meter.charge_owned_bytes(std::mem::size_of::<T>() as u64, &path)?;
-    meter.try_reserve_collection_slots(values, 1, &path)?;
+
+    scoop_wire::allocation::try_reserve(values, 1, &path)?;
     values.push(value);
     Ok(())
-}
-
-fn sort_cost(count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    Ok(meter.charge_work(
-        (count as u64).saturating_mul(u64::from(count.checked_ilog2().unwrap_or(0)) + 2),
-        &WirePath::root(),
-    )?)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

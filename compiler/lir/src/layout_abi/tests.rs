@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentFunctionId, PersistentLayoutId, PersistentTypeId, RepresentationRole,
     SourceDeclarationKey, SourceDeclarationSite,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 fn fixture() -> (
     ConeIdentity,
@@ -65,33 +65,21 @@ fn fixture() -> (
     (provider, targets, pending.finish().unwrap())
 }
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn five_targets_and_dependency_have_closed_canonical_wire() {
     let (provider, targets, mut identities) = fixture();
     for (index, target) in targets.into_iter().enumerate() {
         let bytes = encode(&target).unwrap();
         assert_eq!(bytes[..4], [0xa2, 0, index as u8 + 1, 1]);
-        let decoded: DecodedLayoutAbiSemanticTargetV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedLayoutAbiSemanticTargetV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(
-            decoded.resolve(&mut identities, &mut meter()).unwrap(),
-            target
-        );
+        assert_eq!(decoded.resolve(&mut identities).unwrap(), target);
 
         let relation = LayoutAbiDependencyV1::new(provider, target);
         let relation_bytes = encode(&relation).unwrap();
-        let decoded: DecodedLayoutAbiDependencyV1 =
-            decode_canonical(&relation_bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedLayoutAbiDependencyV1 = decode_canonical(&relation_bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), relation_bytes);
-        assert_eq!(
-            decoded.resolve(&mut identities, &mut meter()).unwrap(),
-            relation
-        );
+        assert_eq!(decoded.resolve(&mut identities).unwrap(), relation);
     }
 }
 
@@ -102,17 +90,13 @@ fn reader_rejects_open_products_unknown_tags_and_wrong_identity_kinds() {
     for prefix in [[0xa1, 0, 1], [0xa3, 0, 1], [0xa2, 0, 6]] {
         let mut bytes = original.clone();
         bytes[..3].copy_from_slice(&prefix);
-        assert!(
-            decode_canonical::<DecodedLayoutAbiSemanticTargetV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedLayoutAbiSemanticTargetV1>(&bytes).is_err());
     }
     let mut wrong = original;
     wrong[2] = 2;
-    let decoded: DecodedLayoutAbiSemanticTargetV1 =
-        decode_canonical(&wrong, DecodeLimits::default()).unwrap();
+    let decoded: DecodedLayoutAbiSemanticTargetV1 = decode_canonical(&wrong).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut identities, &mut meter()),
+        decoded.resolve(&mut identities),
         Err(LayoutAbiDependencyError::Identity(_))
     ));
 }

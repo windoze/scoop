@@ -18,11 +18,9 @@ fn local_generic_signatures_keep_their_own_frame_and_shift_all_provider_frames()
             let foundation = fixture.bind().unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
-                let bound = parameters
-                    .bind_default_declarations(&table, &[], &mut meter())
-                    .unwrap();
+                let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
                 assert!(!bound.declarations().is_empty());
                 for contract in bound.declarations() {
                     let template = table.get(contract.key()).unwrap();

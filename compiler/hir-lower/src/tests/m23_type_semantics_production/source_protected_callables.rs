@@ -17,11 +17,8 @@ const DIRECT: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/protected-direct.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_dependency_hir(output, &mut meter()).unwrap()
+    Table::from_dependency_hir(output).unwrap()
 }
 
 #[test]
@@ -68,11 +65,8 @@ fn protected_source_inventory_excludes_other_visibilities_and_logical_properties
     ] {
         with_source(source, |output, _| {
             let table = table(output);
-            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+            let inventory =
+                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
             let expected = inventory
                 .records()
                 .iter()
@@ -114,13 +108,10 @@ fn protected_source_bytes_replay_without_candidate_or_compiler_local_ids() {
             let table = table(output);
             let bytes = encode(&table).unwrap();
             let decoded: hir::DecodedCanonicalInheritanceSourceProtectedCallablesV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             assert_eq!(encode(&decoded).unwrap(), bytes);
             let mut identities = source_inventory::identity_closure(output);
-            assert_eq!(
-                decoded.resolve(&mut identities, &mut meter()).unwrap(),
-                table
-            );
+            assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
             bytes
         });
         assert_eq!(
@@ -128,39 +119,4 @@ fn protected_source_bytes_replay_without_candidate_or_compiler_local_ids() {
             with_source(source, |output, _| encode(&table(output)).unwrap())
         );
     }
-}
-
-#[test]
-fn protected_source_projection_obeys_shared_resources() {
-    with_source(SOURCE, |output, _| {
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
-                Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                    hir::SourceInventoryError::Resource(_)
-                ))
-            ));
-        }
-    });
 }

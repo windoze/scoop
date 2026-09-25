@@ -4,7 +4,6 @@ use super::lir_dependencies::reader;
 use super::*;
 use scoop_slib as slib;
 
-mod budget;
 mod code;
 mod coverage;
 mod mutations;
@@ -47,7 +46,6 @@ pub(super) fn check(
     let current = reader::open_link(artifact).identity();
     let mut dump = String::new();
     let mut cases = Vec::new();
-    let mut usage = None;
     let mut runtime_dump = String::new();
     let mut runtime_cases = Vec::new();
     let mut coverage_dump = String::new();
@@ -91,7 +89,6 @@ pub(super) fn check(
                             .1
                             .defined_symbols()
                     );
-                    usage = Some(physical.decode_usage());
                     cases = mutations::cases(proof);
                     runtime_cases = runtime::cases(proof);
                 } else {
@@ -113,12 +110,12 @@ pub(super) fn check(
     }
     rejection::dependency_owner(core, artifact, profile);
     dump.push_str("reject DependencyDefinedMember\n");
-    budget::check(core, artifact, profile, usage.unwrap());
+
     rejection::views(core, artifact, profile);
     runtime::check(path, core, artifact, profile, runtime_cases, runtime_dump);
     coverage::check(path, core, artifact, profile, coverage_dump);
     code::check(path, core, artifact, profile, code_dump);
-    dump.push_str("reject WorkBudget\nreject OwnedBudget\nreject CompileView\nreject MixedView\n");
+    dump.push_str("reject CompileView\nreject MixedView\n");
     if std::env::var_os("SCOOP_UPDATE_LINK_SYMBOL_USES").is_some() {
         std::fs::write(path, &dump).unwrap();
     }

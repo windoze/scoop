@@ -63,9 +63,9 @@ fn check_source(source: &str, expected: &str) {
         dump.sort();
         assert_eq!(dump.concat(), expected);
         let bytes = encode(&table).unwrap();
-        let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: Decoded = decode_canonical(&bytes).unwrap();
         let mut graph = source_inventory::identity_closure(output);
-        assert_eq!(decoded.resolve(&mut graph, &mut meter()).unwrap(), table);
+        assert_eq!(decoded.resolve(&mut graph).unwrap(), table);
     });
 }
 

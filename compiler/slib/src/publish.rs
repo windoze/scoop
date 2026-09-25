@@ -9,7 +9,6 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
 use scoop_lir::{
     CBridgeToolchainProfileV1, StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
 };
-use scoop_wire::{DecodeLimits, DecodeUsage};
 
 use crate::{
     ArtifactDistributionClassV1, ArtifactFingerprint, CanonicalDefinedLinkSymbolOwnerSetV1,
@@ -29,26 +28,17 @@ pub use cross_cone::*;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CompileViewSummaryV1 {
     semantic_fingerprints: SemanticFingerprintRecord,
-    decode_usage: DecodeUsage,
 }
 
 impl CompileViewSummaryV1 {
-    pub(crate) const fn new(
-        semantic_fingerprints: SemanticFingerprintRecord,
-        decode_usage: DecodeUsage,
-    ) -> Self {
+    pub(crate) const fn new(semantic_fingerprints: SemanticFingerprintRecord) -> Self {
         Self {
             semantic_fingerprints,
-            decode_usage,
         }
     }
 
     pub const fn semantic_fingerprints(self) -> SemanticFingerprintRecord {
         self.semantic_fingerprints
-    }
-
-    pub const fn decode_usage(self) -> DecodeUsage {
-        self.decode_usage
     }
 }
 
@@ -59,7 +49,6 @@ pub struct LinkViewSummaryV1 {
     image_owner_member: SlibMemberId,
     link_object_count: usize,
     semantic_fingerprints: SemanticFingerprintRecord,
-    decode_usage: DecodeUsage,
 }
 
 impl LinkViewSummaryV1 {
@@ -81,10 +70,6 @@ impl LinkViewSummaryV1 {
 
     pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
         self.semantic_fingerprints
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.decode_usage
     }
 }
 
@@ -170,7 +155,6 @@ impl PublishableSingleConeArtifact {
             direct_dependencies: compile.direct_dependencies().to_vec(),
             compile_summary: CompileViewSummaryV1 {
                 semantic_fingerprints: compile_semantic,
-                decode_usage: compile.decode_usage(),
             },
             link_summary: LinkViewSummaryV1 {
                 distribution: manifest.distribution(),
@@ -178,7 +162,6 @@ impl PublishableSingleConeArtifact {
                 image_owner_member: manifest.image_owner_member(),
                 link_object_count,
                 semantic_fingerprints: link_semantic,
-                decode_usage: link.decode_usage(),
             },
         })
     }
@@ -239,13 +222,13 @@ impl PublishableSingleConeArtifact {
 /// proof accepted by the strong single-Cone writer.
 pub fn validate_publishable_single_cone_artifact(
     final_bytes: &[u8],
-    limits: DecodeLimits,
+
     target_selection: ValidatedLirTargetSelection,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<PublishableSingleConeArtifact, PublishableArtifactValidationError> {
-    let compile_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
+    let compile_graph = DecodedSlibEnvelope::open(final_bytes, target_selection)
         .map_err(|error| PublishableArtifactValidationError::CompileEnvelope(Box::new(error)))?
         .validate_graph()
         .map_err(|error| PublishableArtifactValidationError::CompileGraph(Box::new(error)))?;
@@ -257,7 +240,7 @@ pub fn validate_publishable_single_cone_artifact(
     )
     .map_err(|error| PublishableArtifactValidationError::Compile(Box::new(error)))?;
 
-    let link_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
+    let link_graph = DecodedSlibEnvelope::open(final_bytes, target_selection)
         .map_err(|error| PublishableArtifactValidationError::LinkEnvelope(Box::new(error)))?
         .validate_graph()
         .map_err(|error| PublishableArtifactValidationError::LinkGraph(Box::new(error)))?;
@@ -279,14 +262,13 @@ pub fn validate_publishable_single_cone_artifact(
 /// explicit caller-supplied authority.
 pub fn validate_self_describing_publishable_single_cone_artifact(
     final_bytes: &[u8],
-    limits: DecodeLimits,
+
     target_selection: ValidatedLirTargetSelection,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<PublishableSingleConeArtifact, PublishableArtifactValidationError> {
     let (compile, link) = validate_self_describing_single_cone_strong_views(
         final_bytes,
-        limits,
         target_selection,
         dependency_owners,
         c_bridge_profile,
@@ -298,7 +280,7 @@ pub fn validate_self_describing_publishable_single_cone_artifact(
 
 pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
     final_bytes: &'input [u8],
-    limits: DecodeLimits,
+
     target_selection: ValidatedLirTargetSelection,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
@@ -309,7 +291,7 @@ pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
     ),
     PublishableArtifactValidationError,
 > {
-    let compile_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
+    let compile_graph = DecodedSlibEnvelope::open(final_bytes, target_selection)
         .map_err(|error| PublishableArtifactValidationError::CompileEnvelope(Box::new(error)))?
         .validate_graph()
         .map_err(|error| PublishableArtifactValidationError::CompileGraph(Box::new(error)))?;
@@ -318,7 +300,7 @@ pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
         validate_self_describing_single_cone_strong_compile_artifact(compile_graph, &mut session)
             .map_err(|error| PublishableArtifactValidationError::Compile(Box::new(error)))?;
 
-    let link_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
+    let link_graph = DecodedSlibEnvelope::open(final_bytes, target_selection)
         .map_err(|error| PublishableArtifactValidationError::LinkEnvelope(Box::new(error)))?
         .validate_graph()
         .map_err(|error| PublishableArtifactValidationError::LinkGraph(Box::new(error)))?;
@@ -342,7 +324,7 @@ pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
 pub fn publish_single_cone_artifact(
     final_bytes: &[u8],
     destination: &Path,
-    limits: DecodeLimits,
+
     target_selection: ValidatedLirTargetSelection,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
@@ -400,7 +382,6 @@ pub fn publish_single_cone_artifact(
     })?;
     let validation = validate_publishable_single_cone_artifact(
         &round_trip_bytes,
-        limits,
         target_selection,
         expected_external_bridges,
         dependency_owners,
@@ -599,7 +580,6 @@ mod tests {
         let dependency_owners = Vec::new();
         let publishable = validate_publishable_single_cone_artifact(
             &bytes,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
             &dependency_owners,
@@ -623,7 +603,6 @@ mod tests {
 
         let publishable = validate_self_describing_publishable_single_cone_artifact(
             &bytes,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &dependency_owners,
             &crate::link_decode::c_bridge_profile_for_test(),
@@ -651,7 +630,6 @@ mod tests {
         let dependency_owners = Vec::new();
         let error = validate_publishable_single_cone_artifact(
             &bytes,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
             &dependency_owners,
@@ -678,7 +656,6 @@ mod tests {
         let published = publish_single_cone_artifact(
             &bytes,
             &destination,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
             &dependency_owners,
@@ -708,7 +685,6 @@ mod tests {
         let error = publish_single_cone_artifact(
             &bytes,
             &destination,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
             &dependency_owners,

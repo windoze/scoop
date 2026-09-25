@@ -67,8 +67,7 @@ fn all_intrinsic_families_roundtrip_with_their_actual_declaration_owner() {
         )
         .unwrap();
         let bytes = encode(&record).unwrap();
-        let decoded: DecodedNativeBoundaryTypeDefinitionRecord =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedNativeBoundaryTypeDefinitionRecord = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.resolve(&mut resolver).unwrap(), record);
     }
@@ -80,11 +79,7 @@ fn intrinsic_shape_has_a_distinct_fixed_wire_tag() {
         IntrinsicTypeKind::Boolean,
     ));
     assert_eq!(encode(&boolean).unwrap(), [0xa2, 0, 4, 1, 0xa1, 0, 2]);
-    let unknown = decode_canonical::<DecodedNativeBoundaryNominalShape>(
-        &[0xa1, 0, 5],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown = decode_canonical::<DecodedNativeBoundaryNominalShape>(&[0xa1, 0, 5]).unwrap_err();
     assert_eq!(
         unknown.kind(),
         &scoop_wire::WireErrorKind::UnknownTag { tag: 5 }
@@ -142,8 +137,7 @@ fn reader_rechecks_intrinsic_kind_against_the_resolved_declaration() {
     let shape_end = bytes.len() - 5;
     assert_eq!(bytes[shape_end], 3);
     bytes[shape_end] = 2;
-    let decoded: DecodedNativeBoundaryTypeDefinitionRecord =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedNativeBoundaryTypeDefinitionRecord = decode_canonical(&bytes).unwrap();
     let mut resolver = Resolver {
         types: vec![(
             PersistentTypeId::from_source_declaration(&source).unwrap(),

@@ -54,7 +54,7 @@ impl DecodedNominalDeclarationDetailsV1 {
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(7)?;
         let value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
@@ -70,16 +70,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
             dispatch_selections: decoder
                 .field(7, DecodedCanonicalNominalDispatchSelectionsV1::decode)?,
         };
-        // Reserve the resolution/ordering work in the artifact's decode meter
-        // before any external identity resolver can be called.
-        let path = decoder.path().clone();
-        let count = (value.members.len() + value.children.len()) as u64;
-        decoder
-            .meter()
-            .charge_collection_slots(count.saturating_mul(2), &path)?;
-        decoder
-            .meter()
-            .charge_work(count.saturating_mul(128), &path)?;
+
         Ok(value)
     }
 }

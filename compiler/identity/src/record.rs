@@ -150,7 +150,7 @@ impl<I: PersistentId, K: CborIdentityKey<I>> DecodedCborIdentityRecord<I, K> {
 }
 
 impl<I: PersistentId, K: WireDecode> WireDecode for DecodedCborIdentityRecord<I, K> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let id = decoder.field(1, DecodedPersistentId::<I>::decode)?;
         let key = decoder.field(2, K::decode)?;
@@ -263,7 +263,7 @@ impl<I: PersistentId> DecodedRuntimeIdentityRecord<I> {
 }
 
 impl<I: PersistentId> WireDecode for DecodedRuntimeIdentityRecord<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let id = decoder.field(1, DecodedPersistentId::<I>::decode)?;
         let key_bytes = decoder.field(2, Decoder::owned_bytes)?;
@@ -619,9 +619,7 @@ impl<I: PersistentId> std::error::Error for StableIdentityOrderError<I> {}
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{
-        DecodeLimits, Decoder, Encoder, WireDecode, WireEncode, decode_canonical, encode,
-    };
+    use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, decode_canonical, encode};
 
     use super::{
         CborIdentityKey, CborIdentityRecord, DecodedCborIdentityRecord,
@@ -655,13 +653,13 @@ mod tests {
     }
 
     impl WireDecode for TestKey {
-        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+        fn decode(decoder: &mut Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
             decoder.unsigned().map(Self)
         }
     }
 
     impl WireDecode for DecodedTestKey {
-        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+        fn decode(decoder: &mut Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
             decoder.unsigned().map(Self)
         }
     }
@@ -681,11 +679,8 @@ mod tests {
         let record = CborIdentityRecord::<PersistentExactTypeId, _>::from_key(TestKey(7)).unwrap();
         let encoded = encode(&record).unwrap();
         let decoded =
-            decode_canonical::<DecodedCborIdentityRecord<PersistentExactTypeId, TestKey>>(
-                &encoded,
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            decode_canonical::<DecodedCborIdentityRecord<PersistentExactTypeId, TestKey>>(&encoded)
+                .unwrap();
 
         assert_eq!(decoded.key(), &TestKey(7));
         assert_eq!(decoded.decoded_id().as_array(), record.id().as_array());
@@ -694,11 +689,8 @@ mod tests {
         let mut corrupt = encoded;
         corrupt[4] ^= 1;
         let decoded =
-            decode_canonical::<DecodedCborIdentityRecord<PersistentExactTypeId, TestKey>>(
-                &corrupt,
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            decode_canonical::<DecodedCborIdentityRecord<PersistentExactTypeId, TestKey>>(&corrupt)
+                .unwrap();
         assert!(matches!(
             decoded.validate(),
             Err(IdentityRecordValidationError::Id(_))
@@ -711,7 +703,7 @@ mod tests {
         let encoded = encode(&record).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentExactTypeId, DecodedTestKey>,
-        >(&encoded, DecodeLimits::default())
+        >(&encoded)
         .unwrap();
 
         let resolved = decoded
@@ -721,7 +713,7 @@ mod tests {
 
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentExactTypeId, DecodedTestKey>,
-        >(&encoded, DecodeLimits::default())
+        >(&encoded)
         .unwrap();
         assert!(matches!(
             decoded.resolve(|_| Ok::<_, TestReferenceError>(TestKey(8))),
@@ -730,7 +722,7 @@ mod tests {
 
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentExactTypeId, DecodedTestKey>,
-        >(&encoded, DecodeLimits::default())
+        >(&encoded)
         .unwrap();
         assert_eq!(
             decoded.resolve::<TestKey, _>(|_| Err(TestReferenceError)),
@@ -765,11 +757,9 @@ mod tests {
         ));
         let record = RuntimeIdentityRecord::<PersistentCallableBodyId>::from_key(&key).unwrap();
         let encoded = encode(&record).unwrap();
-        let decoded = decode_canonical::<DecodedRuntimeIdentityRecord<PersistentCallableBodyId>>(
-            &encoded,
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedRuntimeIdentityRecord<PersistentCallableBodyId>>(&encoded)
+                .unwrap();
         let (validated, decoded_key) = decoded.validate_key::<DecodedCallableBodyKey>().unwrap();
 
         assert_eq!(validated, record);

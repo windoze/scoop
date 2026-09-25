@@ -12,7 +12,6 @@ pub(super) struct StableFileBytes {
 
 pub(super) fn read_stable_regular_file(
     locator: &Path,
-    byte_limit: u64,
 ) -> Result<StableFileBytes, SnapshotFileError> {
     let resolved_path = std::fs::canonicalize(locator).map_err(|source| SnapshotFileError::Io {
         operation: SnapshotIoOperation::Canonicalize,
@@ -33,13 +32,7 @@ pub(super) fn read_stable_regular_file(
         return Err(SnapshotFileError::NotRegularFile(resolved_path));
     }
     let observation = FileObservation::new(&before);
-    if observation.len > byte_limit {
-        return Err(SnapshotFileError::TooLarge {
-            path: resolved_path,
-            limit: byte_limit,
-            observed: observation.len,
-        });
-    }
+
     let capacity =
         usize::try_from(observation.len).map_err(|_| SnapshotFileError::LengthOverflow {
             path: resolved_path.clone(),
@@ -104,7 +97,6 @@ pub(super) fn read_stable_regular_file(
 
 pub(super) fn read_stable_regular_file_no_follow(
     locator: &Path,
-    byte_limit: u64,
 ) -> Result<StableFileBytes, SnapshotFileError> {
     let before_path =
         std::fs::symlink_metadata(locator).map_err(|source| SnapshotFileError::Io {
@@ -133,13 +125,7 @@ pub(super) fn read_stable_regular_file_no_follow(
             after: locator.to_path_buf(),
         });
     }
-    if observation.len > byte_limit {
-        return Err(SnapshotFileError::TooLarge {
-            path: locator.to_path_buf(),
-            limit: byte_limit,
-            observed: observation.len,
-        });
-    }
+
     let capacity =
         usize::try_from(observation.len).map_err(|_| SnapshotFileError::LengthOverflow {
             path: locator.to_path_buf(),
@@ -281,11 +267,7 @@ pub enum SnapshotFileError {
         source: std::io::Error,
     },
     NotRegularFile(PathBuf),
-    TooLarge {
-        path: PathBuf,
-        limit: u64,
-        observed: u64,
-    },
+
     LengthOverflow {
         path: PathBuf,
     },
@@ -315,15 +297,7 @@ impl fmt::Display for SnapshotFileError {
                     path.display()
                 )
             }
-            Self::TooLarge {
-                path,
-                limit,
-                observed,
-            } => write!(
-                formatter,
-                "snapshot input {} exceeds byte limit {limit}: observed {observed}",
-                path.display()
-            ),
+
             Self::LengthOverflow { path } => write!(
                 formatter,
                 "snapshot input length does not fit the bounded reader: {}",

@@ -44,7 +44,7 @@ impl WireEncode for DecodedPropertyAccessorKey {
 }
 
 impl WireDecode for DecodedPropertyAccessorKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPropertyOwner::decode)?,
@@ -100,7 +100,7 @@ impl WireEncode for DecodedCallableTemplateOrigin {
 }
 
 impl WireDecode for DecodedCallableTemplateOrigin {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 2)?;
         match tag {
@@ -166,7 +166,7 @@ impl WireEncode for DecodedCallableInstantiationOwner {
 }
 
 impl WireDecode for DecodedCallableInstantiationOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -221,7 +221,7 @@ impl WireEncode for DecodedCallableArguments {
 }
 
 impl WireDecode for DecodedCallableArguments {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -290,7 +290,7 @@ impl WireEncode for DecodedCallableApplicationKey {
 }
 
 impl WireDecode for DecodedCallableApplicationKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             origin: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,
@@ -370,7 +370,7 @@ impl WireEncode for DecodedCallableTemplateOwner {
 }
 
 impl WireDecode for DecodedCallableTemplateOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 2)?;
         match tag {
@@ -433,7 +433,7 @@ impl WireEncode for DecodedCallableMaterializationContext {
 }
 
 impl WireDecode for DecodedCallableMaterializationContext {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => {
@@ -493,7 +493,7 @@ impl WireEncode for DecodedCallableMaterialization {
 }
 
 impl WireDecode for DecodedCallableMaterialization {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             template: decoder.field(1, DecodedCallableTemplateOwner::decode)?,
@@ -564,7 +564,7 @@ fn rebuild_application<E>(
     }
 }
 
-fn decode_accessor_role(decoder: &mut Decoder<'_, '_>) -> Result<AccessorRole, WireError> {
+fn decode_accessor_role(decoder: &mut Decoder<'_>) -> Result<AccessorRole, WireError> {
     match decoder.unsigned()? {
         1 => Ok(AccessorRole::Getter),
         2 => Ok(AccessorRole::Setter),
@@ -572,17 +572,13 @@ fn decode_accessor_role(decoder: &mut Decoder<'_, '_>) -> Result<AccessorRole, W
     }
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -594,7 +590,7 @@ fn expect_sum_length(
     }
 }
 
-fn invalid_empty_sequence(decoder: &Decoder<'_, '_>) -> WireError {
+fn invalid_empty_sequence(decoder: &Decoder<'_>) -> WireError {
     WireError::new(
         WireErrorKind::InvalidLength {
             expected: 1,
@@ -605,7 +601,7 @@ fn invalid_empty_sequence(decoder: &Decoder<'_, '_>) -> WireError {
     )
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

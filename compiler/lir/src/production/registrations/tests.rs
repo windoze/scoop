@@ -2,7 +2,7 @@ use scoop_identity::{
     CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DigestNodeKey, ExactTypeKey,
     ObjectDefinitionPlanKey, PersistentExactTypeId, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     DecodedStrongRegistrationIdentitySurfaceV1, RegistrationTableV1,
@@ -66,8 +66,7 @@ fn registration_role_derives_typed_table_plan_and_digest_node() {
     assert_eq!(entry.fingerprint_node(), expected_node);
 
     let bytes = encode(&surface).unwrap();
-    let decoded: DecodedStrongRegistrationIdentitySurfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongRegistrationIdentitySurfaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         encode(&decoded.validate(&foundation, &digest_plan).unwrap()).unwrap(),
         bytes
@@ -122,7 +121,7 @@ fn reader_rebuilds_tables_instead_of_accepting_missing_entries() {
     let surface =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let mut decoded: DecodedStrongRegistrationIdentitySurfaceV1 =
-        decode_canonical(&encode(&surface).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&surface).unwrap()).unwrap();
     decoded.type_registrations.clear();
 
     assert_eq!(

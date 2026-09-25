@@ -22,45 +22,40 @@ impl ValidatedIdentityGraph {
     pub fn records<I, K>(
         &self,
         layer: IdentityLayer,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Vec<CborIdentityRecord<I, K>>, IdentityValidationError>
     where
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Send + Sync + 'static,
     {
-        self.records_in_scope(RecordScope::Layer(layer), meter, path)
+        self.records_in_scope(RecordScope::Layer(layer), path)
     }
 
     /// Borrows canonical keys from this artifact and its resolved dependency
     /// closure. Imported records keep their ownership and are not redeclared.
     pub fn closure_records<I, K>(
         &self,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Vec<CborIdentityRecord<I, K>>, IdentityValidationError>
     where
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Send + Sync + 'static,
     {
-        self.records_in_scope(RecordScope::Closure, meter, path)
+        self.records_in_scope(RecordScope::Closure, path)
     }
 
     fn records_in_scope<I, K>(
         &self,
         scope: RecordScope,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Vec<CborIdentityRecord<I, K>>, IdentityValidationError>
     where
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Send + Sync + 'static,
     {
-        if matches!(scope, RecordScope::Closure) {
-            meter
-                .charge_work((self.candidates.len() as u64).saturating_mul(2), path)
-                .map_err(IdentityValidationError::Resource)?;
-        }
         let record_count = self
             .candidates
             .iter()
@@ -79,17 +74,8 @@ impl ValidatedIdentityGraph {
                 None,
             ))
         })?;
-        if matches!(scope, RecordScope::Closure) {
-            meter
-                .charge_work(
-                    record_count.saturating_mul(u64::from(record_count.max(1).ilog2()) + 1),
-                    path,
-                )
-                .map_err(IdentityValidationError::Resource)?;
-        }
         let mut records = Vec::new();
-        meter
-            .try_reserve_exact(&mut records, record_count, COLLECTION_ELEMENT_BYTES, path)
+        scoop_wire::allocation::try_reserve_count(&mut records, record_count, path)
             .map_err(IdentityValidationError::Resource)?;
         for (node, candidate) in &self.candidates {
             if node.kind != I::KIND || !scope.includes(candidate.layer) {

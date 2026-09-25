@@ -19,7 +19,6 @@ pub(super) fn project_property_signature(
     projector: &HirInterfaceSignatureProjector<'_>,
     property_id: crate::PropertyId,
     property: &crate::Property,
-    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<PropertySignatureProjection, PropertyInterfaceBuildError> {
     let persistent = persistent_property_owner(export, property_id)?;
     let (owner, own_parameters, outer_parameters, receiver) = match property.owner {
@@ -55,18 +54,6 @@ pub(super) fn project_property_signature(
         }
     };
 
-    let visible = own_parameters.len() + outer_parameters.len();
-    let resources = |error| PropertyInterfaceBuildError::Resource(error);
-    super::super::signatures::resources::binders(export, own_parameters, visible, meter)
-        .map_err(resources)?;
-    super::super::signatures::resources::binders(export, outer_parameters, visible, meter)
-        .map_err(resources)?;
-    if let Some(receiver) = receiver {
-        super::super::signatures::resources::ty(export, receiver, visible, 1, meter)
-            .map_err(resources)?;
-    }
-    super::super::signatures::resources::ty(export, property.ty, visible, 1, meter)
-        .map_err(resources)?;
     let mut binders = projector
         .binder_frame(own_parameters, 0)
         .map_err(|source| PropertyInterfaceBuildError::Signature {

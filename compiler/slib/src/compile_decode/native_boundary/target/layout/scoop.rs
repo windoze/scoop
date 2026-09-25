@@ -40,13 +40,12 @@ impl NativeBoundaryNormalizer<'_> {
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<PhysicalType, NativeBoundaryCompileError> {
-        charge_relations(self.meter, 1, &WirePath::root().field(1))?;
         if let Some(layout) = self.scoop_layouts.get(&exact) {
             return Ok(*layout);
         }
         if !self
             .visiting_scoop_layouts
-            .push(exact, self.meter, &WirePath::root().field(1))?
+            .push(exact, &WirePath::root().field(1))?
         {
             return Err(NativeBoundaryTargetError::ScoopLayoutCycle { exact }.into());
         }
@@ -69,7 +68,7 @@ impl NativeBoundaryNormalizer<'_> {
             _ => None,
         } {
             let path = WirePath::root().field(1);
-            let mut fields = metered_vec(self.meter, element_count, &path)?;
+            let mut fields = allocate_vec(element_count, &path)?;
             for index in 0..element_count {
                 let field = match self.exact(exact)? {
                     ExactTypeKey::Tuple(elements) => elements.as_slice()[index],
@@ -93,8 +92,7 @@ impl NativeBoundaryNormalizer<'_> {
             }
         };
         self.visiting_scoop_layouts.remove(&exact);
-        insert_metered(
-            self.meter,
+        insert_entry(
             &mut self.scoop_layouts,
             exact,
             layout,
@@ -116,8 +114,7 @@ impl NativeBoundaryNormalizer<'_> {
                 Ok(pointer(self.target, scoop_lir::PointerKind::Managed, false))
             }
             NativeBoundaryNominalShape::Struct { c_layout, fields } => {
-                let mut normalized =
-                    metered_vec(self.meter, fields.len(), &WirePath::root().field(1))?;
+                let mut normalized = allocate_vec(fields.len(), &WirePath::root().field(1))?;
                 for field in fields {
                     let exact = self.signature_exact(field.ty(), &binders)?;
                     normalized.push(self.scoop_layout(exact)?);
@@ -126,9 +123,9 @@ impl NativeBoundaryNormalizer<'_> {
             }
             NativeBoundaryNominalShape::Enum { variants } => {
                 let path = WirePath::root().field(1);
-                let mut normalized = metered_vec(self.meter, variants.len(), &path)?;
+                let mut normalized = allocate_vec(variants.len(), &path)?;
                 for variant in variants {
-                    let mut fields = metered_vec(self.meter, variant.fields().len(), &path)?;
+                    let mut fields = allocate_vec(variant.fields().len(), &path)?;
                     for field in variant.fields() {
                         let exact = self.signature_exact(field.ty(), &binders)?;
                         fields.push((exact, self.scoop_layout(exact)?));
@@ -160,7 +157,7 @@ impl NativeBoundaryNormalizer<'_> {
             return Ok(layout);
         }
 
-        let mut payloads = metered_vec(self.meter, variants.len(), &WirePath::root().field(1))?;
+        let mut payloads = allocate_vec(variants.len(), &WirePath::root().field(1))?;
         for variant in variants {
             payloads.push(aggregate_values(
                 variant.iter().map(|(_, field)| *field),

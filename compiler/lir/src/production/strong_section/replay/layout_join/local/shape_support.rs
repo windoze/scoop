@@ -1,18 +1,11 @@
 use super::*;
-use scoop_wire::WirePath;
 
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let registrations = production.type_registrations().registrations();
-    meter.charge_work(
-        (section.shape_support().records().len() as u64)
-            .saturating_mul(registrations.len().max(1) as u64)
-            .saturating_mul(4),
-        &WirePath::root(),
-    )?;
+
     for record in section.shape_support().records() {
         let roles = record.roles();
         let source_descriptor = roles.type_descriptor().available();

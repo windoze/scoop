@@ -12,14 +12,10 @@ fn shared_constructor_selection_keeps_only_required_source_constructor_bodies() 
         source_dispatch::with_hir_source(&source, |output, _| {
             let public = public_interface(output);
             let identities = source_inventory::identity_closure(output);
-            let select = |provider, meter: &mut BudgetMeter| {
-                hir::select_param_free_source_constructors(provider, &public, &identities, meter)
+            let select = |provider| {
+                hir::select_param_free_source_constructors(provider, &public, &identities)
             };
-            let selected = select(
-                output.output().export.cone,
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+            let selected = select(output.output().export.cone).unwrap();
             assert_eq!(selected.len(), count, "{case}");
             let mut rows = Vec::new();
             for source in public.callable_interfaces().all_declarations() {
@@ -48,14 +44,7 @@ fn shared_constructor_selection_keeps_only_required_source_constructor_bodies() 
                 std::fs::write(&snapshot, rows.concat()).unwrap();
             }
             assert_eq!(rows.concat(), std::fs::read_to_string(snapshot).unwrap());
-            assert!(
-                select(
-                    ConeIdentity::CORE,
-                    &mut BudgetMeter::new(DecodeLimits::default())
-                )
-                .unwrap()
-                .is_empty()
-            );
+            assert!(select(ConeIdentity::CORE).unwrap().is_empty());
         });
     }
 }

@@ -6,15 +6,12 @@ impl<'a> Query<'_, 'a> {
     pub(super) fn source(
         &mut self,
         declaration: CallableTemplateOrigin,
-        path: &WirePath,
     ) -> Result<Source<'a>, Error> {
         let provider = DefaultTargetIdentityQueriesV1::source_callable_provider(
             declaration,
             self.authority.identities,
-            self.authority.meter,
-            path,
         )?;
-        let foundation = self.foundation(provider, path)?;
+        let foundation = self.foundation(provider)?;
         let query =
             DefaultTargetIdentityQueriesV1::new(provider, foundation, self.authority.identities);
         let subject = match declaration {
@@ -24,24 +21,12 @@ impl<'a> Query<'_, 'a> {
             }
             CallableTemplateOrigin::Constructor(id) => DefinitionOriginSubject::Constructor(id),
             CallableTemplateOrigin::VariantConstructor(id) => query
-                .default_indirect_access_subject(
-                    DefaultSourceIndirectTargetV1::EnumVariant(id),
-                    self.authority.meter,
-                )?,
+                .default_indirect_access_subject(DefaultSourceIndirectTargetV1::EnumVariant(id))?,
             CallableTemplateOrigin::Accessor(_) => return Err(Error::CallableRole(declaration)),
         };
-        let key = query.source_declaration_key(subject, self.authority.meter)?;
+        let key = query.source_declaration_key(subject)?;
         let interface = self.authority.provider_interface(provider)?;
-        self.authority.meter.charge_work(
-            u64::from(
-                interface
-                    .callable_interfaces()
-                    .declaration_count()
-                    .max(1)
-                    .ilog2(),
-            ) + 1,
-            path,
-        )?;
+
         let record = interface
             .callable_interfaces()
             .declaration(declaration)
@@ -65,14 +50,7 @@ impl<'a> Query<'_, 'a> {
         })
     }
 
-    fn foundation(
-        &mut self,
-        provider: ConeIdentity,
-        path: &WirePath,
-    ) -> Result<&'a OdrFreeHirFoundation, Error> {
-        self.authority
-            .meter
-            .charge_work(self.authority.dependencies.len() as u64 + 1, path)?;
+    fn foundation(&mut self, provider: ConeIdentity) -> Result<&'a OdrFreeHirFoundation, Error> {
         if provider == self.authority.current {
             return Ok(self.authority.current_foundation);
         }
@@ -92,12 +70,7 @@ impl<'a> Query<'_, 'a> {
     pub(super) fn slot_key(
         &mut self,
         slot: PersistentDispatchSlotId,
-        path: &WirePath,
     ) -> Result<DispatchSlotKey, Error> {
-        self.authority.meter.charge_work(
-            (u64::from(self.authority.identities.identity_count().max(1).ilog2()) + 1) * 65,
-            path,
-        )?;
         let key = self
             .authority
             .identities
@@ -110,12 +83,10 @@ impl<'a> Query<'_, 'a> {
         let provider = DefaultTargetIdentityQueriesV1::source_callable_provider(
             declaration,
             self.authority.identities,
-            self.authority.meter,
-            path,
         )?;
-        let foundation = self.foundation(provider, path)?;
+        let foundation = self.foundation(provider)?;
         let query =
             DefaultTargetIdentityQueriesV1::new(provider, foundation, self.authority.identities);
-        Ok(*query.source_dispatch_slot_key(slot, self.authority.meter, path)?)
+        Ok(*query.source_dispatch_slot_key(slot)?)
     }
 }

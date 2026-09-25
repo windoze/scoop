@@ -6,7 +6,7 @@ use scoop_identity::{
     ExactCallableSignature, ValidatedIdentityGraph,
 };
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 mod binding;
 mod roles;
 
@@ -20,28 +20,21 @@ pub fn lower_source_callable_bindings(
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirCallableProductionError> {
     let mut required = hir::select_param_free_source_callables(
         input.module().cone,
         public,
         source.section(),
         identities,
-        meter,
     )
     .map_err(|error| match error {
         hir::SharedTypeMetadataError::Resource(error) => Error::Resource(error),
         error => Error::SharedSource(Box::new(error)),
     })?;
     let mut records = Vec::new();
-    reserve(&mut records, required.len(), meter)?;
+    reserve(&mut records, required.len())?;
     let local = output.output().local.module();
     for (id, function) in local.functions.iter() {
-        meter.charge_nodes(1, &WirePath::root())?;
-        work(
-            u64::from(required.len().checked_ilog2().unwrap_or(0)) + 1,
-            meter,
-        )?;
         let declaration = match function.materialization.template() {
             CallableTemplateOwner::Function(id) => Declaration::Function(id),
             CallableTemplateOwner::Accessor(id) => Declaration::PropertyAccessor(id),
@@ -54,14 +47,7 @@ pub fn lower_source_callable_bindings(
         if function.materialization.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::OdrRequired(declaration));
         }
-        work(function.params.len() as u64 * 3 + 1, meter)?;
-        meter.charge_collection_slots(function.params.len() as u64 * 2, &WirePath::root())?;
-        meter.charge_owned_bytes(
-            (function.params.len() as u64).saturating_mul(
-                2 * std::mem::size_of::<scoop_identity::PersistentExactTypeId>() as u64,
-            ),
-            &WirePath::root(),
-        )?;
+
         let expected = crate::source_callables::exact_function_signature(local, id);
         let role = roles::project(local, function, declaration, contract.modality)?;
         records.push(binding::project(
@@ -72,17 +58,12 @@ pub fn lower_source_callable_bindings(
             contract,
             expected,
             role,
-            meter,
         )?);
     }
     if let Some((&missing, _)) = required.first_key_value() {
         return Err(Error::MissingSourceMaterialization(missing));
     }
-    work(
-        (records.len() as u64)
-            .saturating_mul(u64::from(records.len().checked_ilog2().unwrap_or(0)) + 1),
-        meter,
-    )?;
+
     Ok(mir::CanonicalMirCallableBindingsV1::try_new(records)?)
 }
 
@@ -139,13 +120,10 @@ impl std::fmt::Display for Error {
 }
 impl std::error::Error for Error {}
 
-fn work(count: u64, meter: &mut BudgetMeter) -> Result<(), Error> {
-    Ok(meter.charge_work(count, &WirePath::root())?)
-}
-fn reserve<T>(values: &mut Vec<T>, count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    meter.charge_owned_bytes(
-        (count as u64).saturating_mul(std::mem::size_of::<T>() as u64),
+fn reserve<T>(values: &mut Vec<T>, count: usize) -> Result<(), Error> {
+    Ok(scoop_wire::allocation::try_reserve(
+        values,
+        count,
         &WirePath::root(),
-    )?;
-    Ok(meter.try_reserve_collection_slots(values, count, &WirePath::root())?)
+    )?)
 }

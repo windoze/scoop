@@ -9,9 +9,7 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     SyntheticLocalRole,
 };
-use scoop_wire::{
-    DecodeLimits, Encoder, WireEncode, WireErrorKind, WireType, decode_canonical, encode,
-};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, WireType, decode_canonical, encode};
 
 use super::*;
 
@@ -179,17 +177,13 @@ fn reader_rejects_duplicate_noncanonical_and_invalid_records() {
 
 #[test]
 fn definition_decoder_rejects_unknown_tags_and_native_booleans() {
-    let unknown = decode_canonical::<DecodedTemplateLocalDefinitionV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown =
+        decode_canonical::<DecodedTemplateLocalDefinitionV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error = decode_canonical::<DecodedTemplateLocalRecordV1>(
-        &hex_bytes("a401a300060181a2010b0200020102a300070100020003f404a10002"),
-        DecodeLimits::default(),
-    )
+    let error = decode_canonical::<DecodedTemplateLocalRecordV1>(&hex_bytes(
+        "a401a300060181a2010b0200020102a300070100020003f404a10002",
+    ))
     .unwrap_err();
     assert_eq!(
         error.kind(),
@@ -386,7 +380,7 @@ impl WireEncode for InvalidSyntheticSourceRecord {
 }
 
 fn decode_table(value: &impl WireEncode) -> DecodedCanonicalTemplateLocalTableV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn hex(bytes: &[u8]) -> String {

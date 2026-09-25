@@ -2,7 +2,7 @@ use scoop_lir::{
     CanonicalLirFoundation, NoShapeLinkSupportV1, OdrFreeLirFoundation, ShapeLinkProductionV1,
 };
 
-use super::fixture::{empty_section, meter};
+use super::fixture::empty_section;
 use super::*;
 
 mod support;
@@ -18,8 +18,7 @@ fn terminal_closure_replays_real_v2_provider_and_final_strong_owner() {
         &fixture.provider_owners,
         &consumer.defined_symbols,
     );
-    let validated =
-        validate_cross_cone_layout_terminal_closure_v1(&artifacts, &mut meter()).unwrap();
+    let validated = validate_cross_cone_layout_terminal_closure_v1(&artifacts).unwrap();
 
     assert_eq!(validated.artifact_count(), 2);
     assert_eq!(validated.import_count(), 1);
@@ -30,7 +29,7 @@ fn terminal_closure_replays_real_v2_provider_and_final_strong_owner() {
 #[test]
 fn terminal_closure_requires_the_explicit_unique_provider() {
     assert!(matches!(
-        validate_cross_cone_layout_terminal_closure_v1(&[], &mut meter()),
+        validate_cross_cone_layout_terminal_closure_v1(&[]),
         Err(CrossConeLayoutTerminalValidationError::NoArtifacts)
     ));
     let fixture = Fixture::new();
@@ -42,7 +41,7 @@ fn terminal_closure_requires_the_explicit_unique_provider() {
     );
     artifacts.remove(0);
     assert!(matches!(
-        validate_cross_cone_layout_terminal_closure_v1(&artifacts, &mut meter()),
+        validate_cross_cone_layout_terminal_closure_v1(&artifacts),
         Err(CrossConeLayoutTerminalValidationError::MissingProvider {
             consumer: actual_consumer,
             provider,
@@ -62,7 +61,7 @@ fn terminal_closure_requires_the_explicit_unique_provider() {
     );
     artifacts.push(duplicate);
     assert!(matches!(
-        validate_cross_cone_layout_terminal_closure_v1(&artifacts, &mut meter()),
+        validate_cross_cone_layout_terminal_closure_v1(&artifacts),
         Err(CrossConeLayoutTerminalValidationError::DuplicateProvider { provider, .. })
             if provider == fixture.provider_id()
     ));
@@ -83,8 +82,7 @@ fn terminal_closure_rejects_missing_subject_and_changed_contract() {
     let consumer_entry = consumer_artifact(&consumer, &consumer.defined_symbols);
     assert!(matches!(
         validate_cross_cone_layout_terminal_closure_v1(
-            &[wrong_provider, consumer_entry],
-            &mut meter()
+            &[wrong_provider, consumer_entry]
         ),
         Err(CrossConeLayoutTerminalValidationError::ImportReplay { source, .. })
             if matches!(source.as_ref(), scoop_lir::ShapeLinkError::MissingSubject(_))
@@ -100,10 +98,7 @@ fn terminal_closure_rejects_missing_subject_and_changed_contract() {
     );
     let consumer_entry = consumer_artifact(&consumer, &consumer.defined_symbols);
     assert!(matches!(
-        validate_cross_cone_layout_terminal_closure_v1(
-            &[wrong_provider, consumer_entry],
-            &mut meter()
-        ),
+        validate_cross_cone_layout_terminal_closure_v1(&[wrong_provider, consumer_entry]),
         Err(CrossConeLayoutTerminalValidationError::ContractMismatch(_))
     ));
 }
@@ -115,24 +110,21 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
     let missing =
         OdrFreeLirFoundation::try_new(fixture.provider_id(), CanonicalLirFoundation::empty())
             .unwrap();
-    let result = CrossConeLayoutTerminalArtifactV1::try_new(
-        CrossConeLayoutTerminalArtifactPartsV1 {
+    let result =
+        CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
             foundation: &missing,
             production: ShapeLinkProductionV1::Reader(&fixture.provider.production),
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
             support: &NoShapeLinkSupportV1,
             defined_symbols: &fixture.provider_owners,
-        },
-        &mut meter(),
-    );
+        });
     assert!(result.is_ok());
     let missing_provider = result.unwrap();
     let consumer_entry = consumer_artifact(&consumer, &consumer.defined_symbols);
     assert!(matches!(
         validate_cross_cone_layout_terminal_closure_v1(
-            &[missing_provider, consumer_entry],
-            &mut meter()
+            &[missing_provider, consumer_entry]
         ),
         Err(CrossConeLayoutTerminalValidationError::ImportReplay { source, .. })
             if matches!(source.as_ref(), scoop_lir::ShapeLinkError::Definition(_))
@@ -142,23 +134,20 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
         fixture.provider_id(),
         scoop_lir::ExternalStrongShapeSubjectV1::Layout(fixture.provider.layout),
     );
-    let missing_provider = CrossConeLayoutTerminalArtifactV1::try_new(
-        CrossConeLayoutTerminalArtifactPartsV1 {
+    let missing_provider =
+        CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
             foundation: &missing_symbol,
             production: ShapeLinkProductionV1::Reader(&fixture.provider.production),
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
             support: &NoShapeLinkSupportV1,
             defined_symbols: &fixture.provider_owners,
-        },
-        &mut meter(),
-    )
-    .unwrap();
+        })
+        .unwrap();
     let consumer_entry = consumer_artifact(&consumer, &consumer.defined_symbols);
     assert!(matches!(
         validate_cross_cone_layout_terminal_closure_v1(
-            &[missing_provider, consumer_entry],
-            &mut meter()
+            &[missing_provider, consumer_entry]
         ),
         Err(CrossConeLayoutTerminalValidationError::ImportReplay { source, .. })
             if matches!(source.as_ref(), scoop_lir::ShapeLinkError::Definition(
@@ -166,17 +155,15 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
             ))
     ));
 
-    let result = CrossConeLayoutTerminalArtifactV1::try_new(
-        CrossConeLayoutTerminalArtifactPartsV1 {
+    let result =
+        CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
             foundation: &fixture.provider.foundation,
             production: ShapeLinkProductionV1::Reader(&fixture.provider.production),
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
             support: &NoShapeLinkSupportV1,
             defined_symbols: &consumer.defined_symbols,
-        },
-        &mut meter(),
-    );
+        });
     assert!(matches!(
         result,
         Err(CrossConeLayoutTerminalValidationError::ArtifactIdentityMismatch { .. })
@@ -190,7 +177,7 @@ fn terminal_closure_requires_exact_final_symbol_owner_and_unique_ownership() {
     let wrong_symbols = owner_set_for_callable(fixture.provider_id(), "wrongLayoutOwner");
     let artifacts = fixture.artifacts(&consumer, &wrong_symbols, &consumer.defined_symbols);
     assert!(matches!(
-        validate_cross_cone_layout_terminal_closure_v1(&artifacts, &mut meter()),
+        validate_cross_cone_layout_terminal_closure_v1(&artifacts),
         Err(CrossConeLayoutTerminalValidationError::MissingStrongDefinition { .. })
     ));
 
@@ -207,7 +194,7 @@ fn terminal_closure_requires_exact_final_symbol_owner_and_unique_ownership() {
         .replace_owner_for_test(&name, wrong_owner);
     let artifacts = fixture.artifacts(&consumer, &wrong_owners, &consumer.defined_symbols);
     assert!(matches!(
-        validate_cross_cone_layout_terminal_closure_v1(&artifacts, &mut meter()),
+        validate_cross_cone_layout_terminal_closure_v1(&artifacts),
         Err(CrossConeLayoutTerminalValidationError::StrongOwnerMismatch { .. })
     ));
 
@@ -217,7 +204,7 @@ fn terminal_closure_requires_exact_final_symbol_owner_and_unique_ownership() {
         .insert_foreign_owner_for_test(name, expected_owner);
     let artifacts = fixture.artifacts(&consumer, &fixture.provider_owners, &foreign);
     assert!(matches!(
-        validate_cross_cone_layout_terminal_closure_v1(&artifacts, &mut meter()),
+        validate_cross_cone_layout_terminal_closure_v1(&artifacts),
         Err(CrossConeLayoutTerminalValidationError::ForeignStrongDefinition {
             actual_owner,
             ..

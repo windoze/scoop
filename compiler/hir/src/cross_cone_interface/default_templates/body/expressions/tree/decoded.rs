@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use scoop_identity::{
     ConeIdentity, DecodedCallableTemplateOrigin, DecodedPersistentId, DecodedSignatureTypeKey,
     PersistentCallbackRegistrationId, PersistentIdResolver, PersistentKeyResolver,

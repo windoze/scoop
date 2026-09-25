@@ -115,7 +115,6 @@ fn source_only_descriptors(
     let closure = hir::NominalMaterializationClosure::from_declarations(
         public.nominal_interfaces(),
         public.callable_interfaces(),
-        &mut meter(),
     )
     .unwrap();
     let mut names = Vec::new();
@@ -196,6 +195,6 @@ fn reject_missing_string_vtable(input: LayoutAbiExportInputV1<'_>) {
         exact,
         mir::MirClassVtableSchemaV1::NoClassVtable,
         schema.itables().to_vec(),
-        &mut meter(),
+
     ), Err(mir::MirDispatchSchemaError::OwnerKind { owner }) if owner == exact));
 }

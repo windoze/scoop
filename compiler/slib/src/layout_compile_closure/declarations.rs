@@ -2,7 +2,7 @@
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::HirProductionValidatedCrossConeLayoutClosure;
 use crate::dependency_reachability::transitive_positions;
@@ -50,8 +50,7 @@ impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
 }
 
 impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
-    /// Uses only this closure's decoded metadata, actual typed identities and
-    /// per-artifact budget. No producer source factory participates in replay.
+    /// Checks declarations using the closure's decoded metadata and typed identities.
     pub fn validate_hir_declarations(
         mut self,
     ) -> Result<
@@ -81,33 +80,31 @@ fn validate_provider(
     dependency_positions: &[Vec<usize>],
 ) -> Result<(), Error> {
     let current = artifact.identity();
-    let (identities, foundation, core, interface, _, meter) = artifact.hir_semantic_parts();
+    let (identities, foundation, core, interface, _) = artifact.hir_semantic_parts();
     let path = WirePath::root();
     let reachable =
-        transitive_positions(position, dependency_positions, meter).map_err(Error::Resource)?;
+        transitive_positions(position, dependency_positions).map_err(Error::Resource)?;
     let dependencies = collect_views(
         reachable
             .iter()
             .map(|position| previous[*position].nominal_provider_view()),
-        meter,
     )?;
     let direct = collect_views(
         dependency_positions[position]
             .iter()
             .map(|position| previous[*position].identity()),
-        meter,
     )?;
-    let definition_sources = collect_views(
-        dependencies
-            .iter()
-            .map(|provider| DefinitionSourceProviderView {
-                identity: provider.identity,
-                foundation: provider.foundation,
-            }),
-        meter,
-    )?;
+    let definition_sources =
+        collect_views(
+            dependencies
+                .iter()
+                .map(|provider| DefinitionSourceProviderView {
+                    identity: provider.identity,
+                    foundation: provider.foundation,
+                }),
+        )?;
     interface
-        .validate_internal_closures(core.direct_public_surface(), meter, &path)
+        .validate_internal_closures(core.direct_public_surface(), &path)
         .map_err(|error| Error::Internal(Box::new(error)))?;
     let input = HirInterfaceValidationInput {
         current,
@@ -117,49 +114,42 @@ fn validate_provider(
         interface,
     };
     input
-        .definition_sources(&definition_sources, meter)
+        .definition_sources(&definition_sources)
         .map_err(Error::DefinitionSources)?;
     input
-        .nominals(copy_dependencies(&dependencies, meter)?, meter)
+        .nominals(copy_dependencies(&dependencies)?)
         .map_err(Error::Nominals)?;
     input
-        .properties(copy_dependencies(&dependencies, meter)?, meter)
+        .properties(copy_dependencies(&dependencies)?)
         .map_err(Error::Properties)?;
     input
-        .callables(copy_dependencies(&dependencies, meter)?, meter)
+        .callables(copy_dependencies(&dependencies)?)
         .map_err(Error::Callables)?;
     input
-        .type_aliases(copy_dependencies(&dependencies, meter)?, meter)
+        .type_aliases(copy_dependencies(&dependencies)?)
         .map_err(Error::TypeAliases)?;
     input
-        .sources(copy_dependencies(&dependencies, meter)?, meter)
+        .sources(copy_dependencies(&dependencies)?)
         .map_err(Error::Sources)?;
     input
-        .constants(copy_dependencies(&dependencies, meter)?, meter)
+        .constants(copy_dependencies(&dependencies)?)
         .map_err(Error::Constants)?;
     input
-        .references(&direct, &dependencies, meter)
+        .references(&direct, &dependencies)
         .map_err(Error::References)
 }
 
 fn copy_dependencies<'a>(
     dependencies: &[ValidatedNominalProviderView<'a>],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<ValidatedNominalProviderView<'a>>, Error> {
-    collect_views(dependencies.iter().copied(), meter)
+    collect_views(dependencies.iter().copied())
 }
 
-fn collect_views<T>(
-    values: impl ExactSizeIterator<Item = T>,
-    meter: &mut BudgetMeter,
-) -> Result<Vec<T>, Error> {
+fn collect_views<T>(values: impl ExactSizeIterator<Item = T>) -> Result<Vec<T>, Error> {
     let requested_slots = values.len();
-    meter
-        .charge_work(requested_slots as u64, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     let mut result = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut result, requested_slots, &WirePath::root())
+    scoop_wire::allocation::try_reserve(&mut result, requested_slots, &WirePath::root())
         .map_err(Error::Resource)?;
     result.extend(values);
     Ok(result)

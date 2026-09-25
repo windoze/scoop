@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
+use scoop_wire::{WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::ExternalHirReferenceRoleV1;
@@ -30,8 +30,7 @@ fn record_has_a_fixed_six_field_wire_and_round_trips() {
         ExternalHirTargetV1::TypeAlias(fixture.first_alias)
     );
 
-    let decoded: DecodedExternalHirReferenceV1 =
-        decode_canonical(&expected, DecodeLimits::default()).unwrap();
+    let decoded: DecodedExternalHirReferenceV1 = decode_canonical(&expected).unwrap();
     assert_eq!(decoded.resolve(&mut fixture.authority()).unwrap(), record);
 }
 
@@ -95,7 +94,7 @@ fn decoded_record_rechecks_role_witness_shape() {
         witnesses: CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
     };
     let decoded: DecodedExternalHirReferenceV1 =
-        decode_canonical(&encode(&malformed).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&malformed).unwrap()).unwrap();
 
     assert!(matches!(
         decoded.resolve(&mut fixture.authority()),

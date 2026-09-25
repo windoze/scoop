@@ -168,10 +168,7 @@ impl DirectImportedTargetBinding {
     pub(crate) fn is_selected_subset(
         &self,
         selected: &Self,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<bool, scoop_wire::WireError> {
-        let path = scoop_wire::WirePath::root();
-        meter.charge_work(3, &path)?;
         if self.binding_target != selected.binding_target
             || self.target != selected.target
             || self.conflict != selected.conflict
@@ -179,11 +176,6 @@ impl DirectImportedTargetBinding {
             return Ok(false);
         }
         for source in &self.sources {
-            let lookup = u64::from(selected.sources.len().max(1).ilog2()) + 1;
-            meter.charge_work(
-                lookup.saturating_mul(128 + source.witness.route().hops().len() as u64 * 64),
-                &path,
-            )?;
             let Ok(position) = selected
                 .sources
                 .binary_search_by(|candidate| candidate.canonical_cmp(source))

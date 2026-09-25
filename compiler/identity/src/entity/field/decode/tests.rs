@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{DecodedFieldIdentityKey, DecodedGeneratedFieldKey, FieldIdentityResolutionError};
 use crate::{
@@ -175,7 +175,7 @@ fn every_field_shape_resolves_through_its_canonical_owner_key() {
         let record = CborIdentityRecord::<PersistentFieldId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentFieldId, DecodedFieldIdentityKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut resolver)).unwrap(),
@@ -209,14 +209,10 @@ fn field_resolution_rejects_a_role_that_does_not_match_its_owner() {
 
 #[test]
 fn field_decoder_rejects_unknown_outer_and_generated_tags() {
-    let outer =
-        decode_canonical::<DecodedFieldIdentityKey>(b"\xa1\x00\x03", DecodeLimits::default())
-            .unwrap_err();
+    let outer = decode_canonical::<DecodedFieldIdentityKey>(b"\xa1\x00\x03").unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let generated =
-        decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x0e", DecodeLimits::default())
-            .unwrap_err();
+    let generated = decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x0e").unwrap_err();
     assert_eq!(generated.kind(), &WireErrorKind::UnknownTag { tag: 14 });
 }
 

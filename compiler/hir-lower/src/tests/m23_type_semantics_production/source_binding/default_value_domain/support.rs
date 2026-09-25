@@ -12,29 +12,27 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn required(
     let mut required = BTreeSet::new();
     for template in templates.records() {
         let closure = template
-            .bind_reference_occurrences(&mut meter(), &scoop_wire::WirePath::root())
+            .bind_reference_occurrences(&scoop_wire::WirePath::root())
             .unwrap();
         for occurrence in closure.occurrences() {
             let subject = match occurrence.source() {
                 Reference::Constructor(r) => foundation
-                    .default_constructor_access_subject(r.target(), &mut meter())
+                    .default_constructor_access_subject(r.target())
                     .unwrap(),
                 Reference::Global(r) => foundation
-                    .default_global_access_subject(*r.target(), &mut meter())
+                    .default_global_access_subject(*r.target())
                     .unwrap(),
                 Reference::Singleton(r) => foundation
-                    .default_indirect_access_subject(
-                        hir::DefaultSourceIndirectTargetV1::Singleton(*r.target()),
-                        &mut meter(),
-                    )
+                    .default_indirect_access_subject(hir::DefaultSourceIndirectTargetV1::Singleton(
+                        *r.target(),
+                    ))
                     .unwrap(),
-                Reference::Field(r) => match foundation
-                    .default_field_access_subject(r.target(), &mut meter())
-                    .unwrap()
-                {
-                    hir::DefaultSourceFieldAccessSubjectV1::Declaration(subject) => subject,
-                    hir::DefaultSourceFieldAccessSubjectV1::TupleElement { .. } => continue,
-                },
+                Reference::Field(r) => {
+                    match foundation.default_field_access_subject(r.target()).unwrap() {
+                        hir::DefaultSourceFieldAccessSubjectV1::Declaration(subject) => subject,
+                        hir::DefaultSourceFieldAccessSubjectV1::TupleElement { .. } => continue,
+                    }
+                }
                 Reference::Callable(_) | Reference::Type(_) => continue,
             };
             required.insert(subject);

@@ -168,29 +168,6 @@ pub(super) fn install(
     replace_template(front, template);
 }
 
-pub(super) fn replace_references(
-    front: &mut HirProductionValidatedCrossConeHirFrontSections<'_>,
-    references: ExportDefaultReferenceSetV1,
-) {
-    let t = &front.hir_interface.default_templates().records()[0];
-    let template = ExportDefaultTemplateV1::try_new(
-        t.key(),
-        t.definition_root(),
-        t.definition_path().clone(),
-        t.locals().clone(),
-        t.body().clone(),
-        t.result().clone(),
-        t.allows_suspend(),
-        t.type_parameters().clone(),
-        t.receiver().clone(),
-        t.value_parameters().clone(),
-        references,
-        t.definition_origin().clone(),
-    )
-    .unwrap();
-    replace_template(front, template);
-}
-
 fn replace_template(
     front: &mut HirProductionValidatedCrossConeHirFrontSections<'_>,
     template: ExportDefaultTemplateV1,
@@ -219,7 +196,6 @@ pub(super) fn validate(
         &front.foundations.hir,
         &front.hir_interface,
         vec![],
-        front.graph.envelope.meter_mut(),
     )
     .validate_default_callable_access(&front.hir_core_production)
 }

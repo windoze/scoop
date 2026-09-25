@@ -18,28 +18,24 @@ fn type_default_production_preserves_vararg_default_and_empty_omission() {
         Vec::new(),
     )
     .unwrap();
-    let (_, _, protocols) = hir::ProtectedDeclarationSourceProductionV1::from_export_hir(
-        &output.output().export,
-        &mut meter(),
-    )
-    .unwrap()
-    .into_parts();
+    let (_, _, protocols) =
+        hir::ProtectedDeclarationSourceProductionV1::from_export_hir(&output.output().export)
+            .unwrap()
+            .into_parts();
     let inheritance = hir::CanonicalNominalInheritanceInterfacesV1::try_new(Vec::new()).unwrap();
     let defaults = hir::CanonicalProtectedDefaultTemplatesV1::from_dependency_hir(
         &output,
         &protocols,
         &inheritance,
-        &mut meter(),
     )
     .unwrap();
-    let sources =
-        hir::NominalDefaultSourceProductionV1::from_dependency_hir(&output, &mut meter()).unwrap();
+    let sources = hir::NominalDefaultSourceProductionV1::from_dependency_hir(&output).unwrap();
     let domains = direct_domains(&output);
     for template in defaults.records() {
         let original = sources.templates().get(template.key()).unwrap();
         assert_source_body(template, original);
         let closure = original
-            .bind_reference_occurrences(&mut meter(), &WirePath::root())
+            .bind_reference_occurrences(&WirePath::root())
             .unwrap();
         let mut visitor = Occurrences::new(&closure, &domains[&template.key().owner()]);
         template
@@ -51,7 +47,6 @@ fn type_default_production_preserves_vararg_default_and_empty_omission() {
                 template.definition_origin(),
                 template.receiver(),
                 &mut visitor,
-                &mut meter(),
                 &WirePath::root(),
             )
             .unwrap();

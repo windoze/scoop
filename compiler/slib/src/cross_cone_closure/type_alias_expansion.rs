@@ -112,21 +112,19 @@ impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
                 let current = &mut current_and_later[0];
                 let identity = current.identity();
 
-                let (identities, interface, meter) = current.hir_semantic_parts();
+                let (identities, interface) = current.hir_semantic_parts();
                 let path = WirePath::root();
                 let resource =
                     |source| CrossConeClosureTypeAliasExpansionError::Resource { identity, source };
                 let reachable = crate::dependency_reachability::transitive_positions(
                     position,
                     dependency_positions,
-                    meter,
                 )
                 .map_err(resource)?;
                 let route_inputs = RouteAuthorityInputs::try_new(
                     previous,
                     &dependency_positions[position],
                     &reachable,
-                    meter,
                     &path,
                 )
                 .map_err(resource)?;
@@ -136,7 +134,6 @@ impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
                     interface,
                     route_inputs.direct(),
                     route_inputs.providers(),
-                    meter,
                     &path,
                 )
                 .map_err(resource)?;
@@ -173,7 +170,7 @@ impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
                         })?;
                 let expanded = interface
                     .type_aliases()
-                    .expand_alias_closure(&alias_authority, meter, &path.field(5))
+                    .expand_alias_closure(&alias_authority, &path.field(5))
                     .map_err(|source| {
                         CrossConeClosureTypeAliasExpansionError::ArtifactExpansion {
                             identity,

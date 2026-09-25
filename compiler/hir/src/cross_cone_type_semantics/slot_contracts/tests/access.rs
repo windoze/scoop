@@ -25,19 +25,16 @@ fn protected_override_preserves_only_the_inherited_protected_slot_region() {
         ])
         .unwrap(),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     graph
-        .validate_slot_contract(derived.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(derived.exact, &record, &fixture)
         .unwrap();
     record.declaration_access = fixture.access(base, DeclaredVisibilityV1::Public);
     record.domain = PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal());
     assert!(matches!(
-        graph.validate_slot_contract(derived.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(derived.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Domain)
     ));
 }
@@ -60,18 +57,15 @@ fn override_access_covers_root_domain_without_exporting_its_hidden_owner() {
         slot,
         InheritanceSlotImplementationV1::Concrete(fixture.concrete(hidden, target_slot)),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     graph
-        .validate_slot_contract(hidden.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(hidden.exact, &record, &fixture)
         .unwrap();
     assert!(
         !graph
-            .replay_nominal_domains(hidden.exact, &mut meter())
+            .replay_nominal_domains(hidden.exact)
             .unwrap()
             .lookup()
             .domain()
@@ -82,7 +76,7 @@ fn override_access_covers_root_domain_without_exporting_its_hidden_owner() {
     };
     target.declaration_access = fixture.access(hidden, DeclaredVisibilityV1::Internal);
     assert!(matches!(
-        graph.validate_slot_contract(hidden.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(hidden.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Domain)
     ));
     let InheritanceSlotImplementationV1::Concrete(target) = &mut record.implementation else {
@@ -90,7 +84,7 @@ fn override_access_covers_root_domain_without_exporting_its_hidden_owner() {
     };
     target.declaration_access = fixture.access(hidden, DeclaredVisibilityV1::Private);
     assert!(matches!(
-        graph.validate_slot_contract(hidden.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(hidden.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::PrivateDeclaration)
     ));
 }
@@ -120,22 +114,19 @@ fn abstract_obligations_must_be_reachable_and_implementable_by_the_owner() {
         )])
         .unwrap(),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     graph
-        .validate_slot_contract(hidden.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(hidden.exact, &record, &fixture)
         .unwrap();
     assert!(matches!(
-        graph.validate_slot_contract(public.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(public.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::AbstractObligation)
     ));
     record.domain = PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal());
     assert!(matches!(
-        graph.validate_slot_contract(hidden.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(hidden.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::Domain)
     ));
 }
@@ -162,18 +153,15 @@ fn protected_root_domain_is_independent_of_nominal_slot_and_target_name_is_not_a
         ])
         .unwrap(),
     );
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.inheritance.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.inheritance.records.values(), &fixture)
+            .unwrap();
     graph
-        .validate_slot_contract(derived.exact, &record, &fixture, &mut meter())
+        .validate_slot_contract(derived.exact, &record, &fixture)
         .unwrap();
     assert!(
         graph
-            .replay_nominal_domains(derived.exact, &mut meter())
+            .replay_nominal_domains(derived.exact)
             .unwrap()
             .to_record()
             .slot()
@@ -183,7 +171,7 @@ fn protected_root_domain_is_independent_of_nominal_slot_and_target_name_is_not_a
     record.implementation =
         InheritanceSlotImplementationV1::Concrete(fixture.concrete(derived, target_slot));
     assert!(matches!(
-        graph.validate_slot_contract(derived.exact, &record, &fixture, &mut meter()),
+        graph.validate_slot_contract(derived.exact, &record, &fixture),
         Err(InheritanceSlotContractSemanticError::TargetName)
     ));
 }

@@ -17,33 +17,30 @@ fn core_value_and_reference_shapes_use_common_replay_and_wire() {
             fixture.layouts(),
             fixture.descriptors(),
             fixture.foundation(),
-            &mut fixture.meter(),
         )
         .unwrap();
         assert_eq!(table.get(record.source_nominal()), Some(&record));
         let bytes = encode(&table).unwrap();
         let decoded: DecodedCanonicalParamFreeShapeSupportExportsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         let replayed = decoded
             .validate(
                 std::slice::from_ref(fixture.source()),
                 fixture.layouts(),
                 fixture.descriptors(),
                 fixture.foundation(),
-                &mut fixture.meter(),
             )
             .unwrap();
         assert_eq!(replayed, table);
         assert_eq!(encode(&replayed).unwrap(), bytes);
         let omitted: DecodedCanonicalParamFreeShapeSupportExportsV1 =
-            decode_canonical(b"\x80", DecodeLimits::default()).unwrap();
+            decode_canonical(b"\x80").unwrap();
         assert!(matches!(
             omitted.validate(
                 std::slice::from_ref(fixture.source()),
                 fixture.layouts(),
                 fixture.descriptors(),
                 fixture.foundation(),
-                &mut fixture.meter(),
             ),
             Err(ParamFreeShapeSupportTableError::Coverage)
         ));
@@ -84,11 +81,10 @@ fn core_shapes_require_the_same_descriptor_and_payload_relationships() {
             .filter(|record| record.exact() != missing)
             .cloned()
             .collect(),
-        &mut fixture.meter(),
     )
     .unwrap();
     assert!(matches!(ParamFreeShapeSupportExportV1::replay(
-        fixture.source(), fixture.layouts(), &descriptors, fixture.foundation(), &mut fixture.meter(),
+        fixture.source(), fixture.layouts(), &descriptors, fixture.foundation(),
     ), Err(ParamFreeShapeSupportExportError::MissingDescriptor(actual)) if actual == missing));
     let ordinary = Fixture::new(SourceNominalKind::Struct, false);
     assert!(matches!(
@@ -97,7 +93,6 @@ fn core_shapes_require_the_same_descriptor_and_payload_relationships() {
             fixture.layouts(),
             fixture.descriptors(),
             fixture.foundation(),
-            &mut fixture.meter(),
         ),
         Err(ParamFreeShapeSupportExportError::ForeignSource {
             expected: ConeIdentity::CORE,

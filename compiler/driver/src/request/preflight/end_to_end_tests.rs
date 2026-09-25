@@ -6,7 +6,6 @@ use scoop_slib::{
     ArtifactDistributionClassV1, ConeKind, ConeSourceForm, DecodedSlibEnvelope,
     SingleConeProductionOutputV1,
 };
-use scoop_wire::DecodeLimits;
 
 use super::*;
 use crate::{ExplicitDependencyInputs, HostArtifactLocator};

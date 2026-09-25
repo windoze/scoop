@@ -104,26 +104,20 @@ impl<'a> SharedTypeMetadataV1<'a> {
     pub fn materialized_type_uses(
         self,
         dependencies: &[SharedTypeMetadataV1<'a>],
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalSelectedExternalTypeUsesV1, Error> {
-        let mut graph = Graph::new(self, dependencies, meter)?;
-        graph.roots(meter)?;
-        graph.close(meter)?;
-        graph.finish(meter)
+        let mut graph = Graph::new(self, dependencies)?;
+        graph.roots()?;
+        graph.close()?;
+        graph.finish()
     }
 
     pub fn validate_materialized_type_uses(
         self,
         selected: &CanonicalSelectedExternalTypeUsesV1,
         dependencies: &[SharedTypeMetadataV1<'a>],
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
-        let path = WirePath::root().field(8);
-        let expected = self.materialized_type_uses(dependencies, meter)?;
-        meter.charge_work(
-            (expected.records().len() + selected.records().len()) as u64,
-            &path,
-        )?;
+        let expected = self.materialized_type_uses(dependencies)?;
+
         if !expected.records().iter().eq(selected
             .records()
             .iter()
@@ -138,17 +132,13 @@ impl<'a> SharedTypeMetadataV1<'a> {
 impl CheckedSharedTypeFoundationV1<'_> {
     /// Precisely compares type, inheritance, shape, construction and member calls.
     /// This does not construct a complete selected-use or artifact permit.
-    pub fn validate_materialized_type_uses(
-        self,
-        dependencies: &[Self],
-        meter: &mut BudgetMeter,
-    ) -> Result<(), Error> {
+    pub fn validate_materialized_type_uses(self, dependencies: &[Self]) -> Result<(), Error> {
         let path = WirePath::root().field(8);
         let mut metadata = Vec::new();
-        meter.try_reserve_collection_slots(&mut metadata, dependencies.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut metadata, dependencies.len(), &path)?;
         metadata.extend(dependencies.iter().map(|dependency| dependency.metadata()));
         self.metadata
-            .validate_materialized_type_uses(self.section.selected(), &metadata, meter)
+            .validate_materialized_type_uses(self.section.selected(), &metadata)
     }
 }
 

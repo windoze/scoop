@@ -24,12 +24,9 @@ fn source_override_replay_does_not_reintroduce_a_diamond_ancestor() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
-    graph
-        .validate_slot_schemas(join.exact, &fixture, &mut meter())
-        .unwrap();
+    graph.validate_slot_schemas(join.exact, &fixture).unwrap();
     for slots in [
         vec![old, keep, extra, replacement],
         vec![keep, replacement, extra],
@@ -40,7 +37,7 @@ fn source_override_replay_does_not_reintroduce_a_diamond_ancestor() {
             CanonicalInheritanceSlotSchemasV1::try_new(vec![interface(join, &slots)]).unwrap(),
         );
         assert!(
-            matches!(graph.validate_slot_schemas(join.exact, &fixture, &mut meter()), Err(InheritanceSlotSchemaSemanticError::InheritedSlots(owner)) if owner == join.exact)
+            matches!(graph.validate_slot_schemas(join.exact, &fixture), Err(InheritanceSlotSchemaSemanticError::InheritedSlots(owner)) if owner == join.exact)
         );
     }
 }
@@ -60,12 +57,9 @@ fn getter_override_leaves_the_independent_setter_slot() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
-    graph
-        .validate_slot_schemas(child.exact, &fixture, &mut meter())
-        .unwrap();
+    graph.validate_slot_schemas(child.exact, &fixture).unwrap();
     let wrong = crate::InterfaceSourceDispatchV1::try_new(
         child.exact,
         vec![root.exact],
@@ -73,12 +67,11 @@ fn getter_override_leaves_the_independent_setter_slot() {
             new_getter,
             crate::CanonicalPersistentIdsV1::try_new(vec![setter]).unwrap(),
         )],
-        &mut meter(),
     )
     .unwrap();
     fixture.interface_sources.insert(child.exact, wrong);
     assert!(
-        matches!(graph.validate_slot_schemas(child.exact, &fixture, &mut meter()), Err(InheritanceSlotSchemaSemanticError::InvalidOverride { slot, overridden, .. }) if slot == new_getter && overridden == setter)
+        matches!(graph.validate_slot_schemas(child.exact, &fixture), Err(InheritanceSlotSchemaSemanticError::InvalidOverride { slot, overridden, .. }) if slot == new_getter && overridden == setter)
     );
 }
 
@@ -99,27 +92,25 @@ fn source_parent_owner_and_override_ancestry_are_required() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
     assert!(matches!(
-        graph.validate_slot_schemas(child.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(child.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::InvalidOverride { .. })
     ));
     fixture.interface_sources.insert(
         child.exact,
-        crate::InterfaceSourceDispatchV1::try_new(child.exact, vec![], vec![], &mut meter())
-            .unwrap(),
+        crate::InterfaceSourceDispatchV1::try_new(child.exact, vec![], vec![]).unwrap(),
     );
     assert!(matches!(
-        graph.validate_slot_schemas(child.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(child.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::InterfaceSource(_))
     ));
     fixture
         .interface_sources
         .insert(child.exact, fixture.interface_sources[&root.exact].clone());
     assert!(matches!(
-        graph.validate_slot_schemas(child.exact, &fixture, &mut meter()),
+        graph.validate_slot_schemas(child.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::InterfaceSource(_))
     ));
 }
@@ -141,10 +132,7 @@ fn one_member_can_override_two_distinct_parent_declarations() {
     let graph = CheckedNominalInheritanceGraphV1::validate(
         fixture.inheritance.records.values(),
         &fixture.inheritance,
-        &mut meter(),
     )
     .unwrap();
-    graph
-        .validate_slot_schemas(child.exact, &fixture, &mut meter())
-        .unwrap();
+    graph.validate_slot_schemas(child.exact, &fixture).unwrap();
 }

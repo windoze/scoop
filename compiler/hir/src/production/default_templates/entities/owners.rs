@@ -2,7 +2,7 @@ use super::DefaultEntityProjector;
 use crate::{DefaultClassConstructorIdV1, ExportParameterOwner};
 use scoop_identity::CallableTemplateOrigin;
 
-impl DefaultEntityProjector<'_, '_> {
+impl DefaultEntityProjector<'_> {
     pub(in crate::production::default_templates) fn parameter_owner(
         &self,
         owner: ExportParameterOwner,

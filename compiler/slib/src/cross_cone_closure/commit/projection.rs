@@ -2,7 +2,7 @@
 
 use scoop_hir::DependencyHirOutput;
 use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::{ValidatedCrossConeSemanticClosure, world::provider_certificate};
 
@@ -32,19 +32,12 @@ impl ValidatedCrossConeSemanticClosure<'_> {
             });
         }
 
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
         let selected = hir
-            .executable_dependency_callables(&mut meter)
+            .executable_dependency_callables()
             .map_err(CrossConeMirSelectionProjectionError::Occurrences)?;
         let mut projected = Vec::new();
-        meter
-            .charge_owned_bytes(
-                (selected.len() * std::mem::size_of::<SelectedDependencyMirCallableV1>()) as u64,
-                &WirePath::root(),
-            )
-            .map_err(CrossConeMirSelectionProjectionError::Resource)?;
-        meter
-            .try_reserve_collection_slots(&mut projected, selected.len(), &WirePath::root())
+
+        scoop_wire::allocation::try_reserve(&mut projected, selected.len(), &WirePath::root())
             .map_err(CrossConeMirSelectionProjectionError::Resource)?;
         for use_ in selected {
             let callable = use_.callable();

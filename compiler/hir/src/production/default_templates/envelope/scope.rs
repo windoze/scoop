@@ -14,7 +14,7 @@ pub(in crate::production::default_templates) struct ProviderScope {
 
 pub(in crate::production::default_templates) fn provider_scope(
     export: &ExportHir,
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_>,
     root: crate::LexicalDefinitionRoot,
 ) -> Result<ProviderScope, DefaultTemplateEnvelopeProjectionError> {
     let signatures = HirInterfaceSignatureProjector::new(export);
@@ -28,21 +28,7 @@ pub(in crate::production::default_templates) fn provider_scope(
                     },
                 ),
             )?;
-            let count = match &function.genericity {
-                FunctionGenericity::Plain => 0,
-                FunctionGenericity::Generic { parameters, .. } => parameters.len(),
-                FunctionGenericity::OwnerParameterizedMethod {
-                    owner_parameters, ..
-                } => owner_parameters.len(),
-                FunctionGenericity::GenericMethod {
-                    owner_parameters,
-                    method_parameters,
-                    ..
-                } => owner_parameters
-                    .len()
-                    .saturating_add(method_parameters.len()),
-            };
-            charge_binders(entities, count)?;
+
             let binders = signatures
                 .function_binders(function)
                 .map_err(DefaultTemplateEnvelopeProjectionError::Signature)?;
@@ -66,7 +52,7 @@ pub(in crate::production::default_templates) fn provider_scope(
                     },
                 ),
             )?;
-            charge_binders(entities, owner.type_params.len())?;
+
             (
                 signatures
                     .binder_frame(&owner.type_params, 0)
@@ -91,7 +77,7 @@ pub(in crate::production::default_templates) fn provider_scope(
                     },
                 ),
             )?;
-            charge_binders(entities, owner.type_params.len())?;
+
             (
                 signatures
                     .binder_frame(&owner.type_params, 0)
@@ -108,7 +94,7 @@ pub(in crate::production::default_templates) fn provider_scope(
                     },
                 ),
             )?;
-            charge_binders(entities, enumeration.type_params.len())?;
+
             (
                 signatures
                     .binder_frame(&enumeration.type_params, 0)
@@ -147,12 +133,4 @@ fn flattened_function_parameters(genericity: &FunctionGenericity) -> Vec<TypePar
 
 fn parameter_ids(parameters: &[TypeParamDecl]) -> Vec<TypeParamId> {
     parameters.iter().map(|parameter| parameter.id).collect()
-}
-
-fn charge_binders(
-    entities: &DefaultEntityProjector<'_, '_>,
-    count: usize,
-) -> Result<(), scoop_wire::WireError> {
-    entities.resources.collection::<HirSignatureBinder>(count)?;
-    entities.resources.collection::<TypeParamId>(count)
 }

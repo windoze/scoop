@@ -1,6 +1,6 @@
 use super::*;
 use crate::production::image::tests::image_fixture;
-use scoop_wire::{DecodeLimits, decode_canonical};
+use scoop_wire::decode_canonical;
 
 fn provider(name: &str) -> ConeIdentity {
     ConeCoordinate::new("test", name, "1.0.0")
@@ -36,8 +36,7 @@ fn explicit_dependencies_are_preserved_for_every_producer() {
                 .unwrap();
                 assert_eq!(plan.dependencies(), expected);
                 let bytes = encode(&plan).unwrap();
-                let decoded: DecodedConeImagePlanV1 =
-                    decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                let decoded: DecodedConeImagePlanV1 = decode_canonical(&bytes).unwrap();
                 let replayed = decoded
                     .validate(
                         &coordinate,
@@ -99,27 +98,19 @@ fn reader_rejects_missing_extra_reordered_and_duplicate_image_dependencies() {
     .unwrap();
     let bytes = encode(&plan).unwrap();
     for case in ["missing", "extra", "reordered", "duplicate", "wrong"] {
-        let mut decoded: DecodedConeImagePlanV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let mut decoded: DecodedConeImagePlanV1 = decode_canonical(&bytes).unwrap();
         match case {
             "missing" => {
                 decoded.dependencies.pop();
             }
-            "extra" => decoded.dependencies.push(
-                decode_canonical(
-                    &encode(&provider("third")).unwrap(),
-                    DecodeLimits::default(),
-                )
-                .unwrap(),
-            ),
+            "extra" => decoded
+                .dependencies
+                .push(decode_canonical(&encode(&provider("third")).unwrap()).unwrap()),
             "reordered" => decoded.dependencies.swap(0, 1),
             "duplicate" => decoded.dependencies[1] = decoded.dependencies[0],
             "wrong" => {
-                decoded.dependencies[0] = decode_canonical(
-                    &encode(&provider("third")).unwrap(),
-                    DecodeLimits::default(),
-                )
-                .unwrap();
+                decoded.dependencies[0] =
+                    decode_canonical(&encode(&provider("third")).unwrap()).unwrap();
             }
             _ => unreachable!(),
         }

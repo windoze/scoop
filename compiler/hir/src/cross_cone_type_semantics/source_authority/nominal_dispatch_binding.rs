@@ -1,8 +1,8 @@
 //! Joins independent dispatch evidence to complete nominal source contracts.
-use super::nominal_nested_binding::{compare, query};
+use super::nominal_nested_binding::compare;
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity, ExactTypeKey, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod callables;
@@ -40,12 +40,7 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
     pub fn bind_dispatch_sources<'d>(
         &'d self,
         slots: &'d BoundInheritanceSlotSourcesV1<'s, 'a, 'f>,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNominalDispatchSourcesV1<'d, 'p, 's, 'a, 'f>, Error> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        meter.charge_work(2, &path)?;
         let foundation = self.members().nominals.foundation;
         if !std::ptr::eq(foundation, slots.dispatch.foundation) {
             return Err(Error::FoundationMismatch);
@@ -62,15 +57,15 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         {
             return Err(Error::UnitType);
         }
-        let required = super::protected_declaration_binding::required_declarations(self, meter)?;
+        let required = super::protected_declaration_binding::required_declarations(self)?;
         let bound = BoundNominalDispatchSourcesV1 {
             parameters: self,
             slots,
             required,
         };
-        inventory::validate(&bound, meter)?;
-        callables::validate(&bound, meter)?;
-        relations::validate(&bound, meter)?;
+        inventory::validate(&bound)?;
+        callables::validate(&bound)?;
+        relations::validate(&bound)?;
         Ok(bound)
     }
 }

@@ -14,34 +14,15 @@ fn protected_callable_wire_preserves_source_semantics_and_uses_an_independent_re
     );
     let record = fixture.record(owner, declaration, payload.clone());
     let bytes = encode(&record).unwrap();
-    let decoded: DecodedProtectedCallableInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedProtectedCallableInterfaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(
-        decoded.clone().resolve(&mut fixture, &mut meter()).unwrap(),
-        record
-    );
-    assert!(matches!(
-        decoded.resolve(
-            &mut fixture,
-            &mut BudgetMeter::new(DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(ProtectedCallableInterfaceResolutionError::Resource(_))
-    ));
+    assert_eq!(decoded.clone().resolve(&mut fixture).unwrap(), record);
+
     assert_eq!(
         encode(&ProtectedSourceInterfaceUseV1::AccessorNoSourceInterface).unwrap(),
         [0xa1, 0, 1]
     );
-    assert!(
-        decode_canonical::<DecodedProtectedSourceInterfaceUseV1>(
-            &[0xa1, 0, 5],
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedProtectedSourceInterfaceUseV1>(&[0xa1, 0, 5]).is_err());
     assert!(matches!(
         ProtectedCallableInterfaceV1::try_new(
             declaration,
@@ -82,9 +63,9 @@ fn protected_slot_refs_reject_reordered_or_duplicate_reader_input() {
         vec![slots[0], slots[0]],
     ] {
         let decoded: DecodedCanonicalProtectedSlotRefsV1 =
-            decode_canonical(&encode(&RawRefs(input)).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&RawRefs(input)).unwrap()).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture, &mut meter()),
+            decoded.resolve(&mut fixture),
             Err(ProtectedCallableInterfaceResolutionError::Interface(
                 ProtectedCallableInterfaceBuildError::SlotOrder { .. }
             ))

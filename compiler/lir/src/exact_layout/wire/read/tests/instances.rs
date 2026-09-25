@@ -66,7 +66,6 @@ fn instance_reader_compares_the_complete_shape_and_branch() {
     });
     let bound = Bound::instance(exact(&source("Interface", SourceNominalKind::Interface, 0)));
     let abstract_ref =
-        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation, &mut meter())
-            .unwrap();
+        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation).unwrap();
     roundtrip(&abstract_ref.into());
 }

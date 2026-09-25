@@ -58,8 +58,7 @@ fn c_layout_record_replays_packing_and_requires_its_canonical_foundation_contrac
             false,
             &inputs,
             &correct,
-            &bound.foundation,
-            &mut meter()
+            &bound.foundation
         ),
         Err(ExactLayoutReplayError::MissingCLayout)
     ));
@@ -75,7 +74,6 @@ fn c_layout_record_replays_packing_and_requires_its_canonical_foundation_contrac
             &inputs,
             &contract,
             &foundation,
-            &mut meter(),
         );
         if success {
             let result = result.unwrap();

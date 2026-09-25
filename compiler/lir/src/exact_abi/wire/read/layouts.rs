@@ -16,12 +16,11 @@ impl RawLayouts {
     pub(super) fn validate_against(
         self,
         expected: &CallableAbiLayoutDependenciesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExactCallableAbiWireError> {
         if self.parameters.len() != expected.parameters().len() {
             return Err(ExactCallableAbiWireError::Layout);
         }
-        meter.charge_work(self.parameters.len() as u64, &WirePath::root())?;
+
         let receiver = match (self.receiver, expected.receiver()) {
             (RawReceiver::NoReceiver, CallableAbiReceiverLayoutV1::NoReceiver) => true,
             (RawReceiver::Receiver(raw), CallableAbiReceiverLayoutV1::Receiver(expected)) => {
@@ -46,7 +45,7 @@ impl RawLayouts {
     }
 }
 impl WireDecode for RawLayouts {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             receiver: decoder.field(1, RawReceiver::decode)?,
@@ -58,7 +57,7 @@ impl WireDecode for RawLayouts {
     }
 }
 impl WireDecode for RawReceiver {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match (fields, tag) {

@@ -65,7 +65,7 @@ pub(super) fn declaration(
 }
 
 pub(super) fn require_fields(
-    decoder: &Decoder<'_, '_>,
+    decoder: &Decoder<'_>,
     actual: u64,
     expected: u64,
 ) -> Result<(), WireError> {
@@ -80,7 +80,7 @@ pub(super) fn require_fields(
     }
 }
 
-pub(super) fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+pub(super) fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

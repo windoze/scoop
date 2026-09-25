@@ -27,7 +27,7 @@ pub(super) fn check(
     let mut roots = metadata
         .public
         .external_references()
-        .materialized_type_dependencies(metadata.provider, metadata.identities, &mut meter())
+        .materialized_type_dependencies(metadata.provider, metadata.identities)
         .unwrap()
         .into_iter()
         .map(|(provider, exact)| {
@@ -53,25 +53,15 @@ pub(super) fn check(
         exports: &exports,
         roots: &roots,
     };
-    let section = lir::CrossConeLayoutAbiSectionV1::try_new(
-        exports.clone(),
-        &[core],
-        vec![],
-        &source,
-        &mut meter(),
-    )
-    .unwrap();
+    let section =
+        lir::CrossConeLayoutAbiSectionV1::try_new(exports.clone(), &[core], vec![], &source)
+            .unwrap();
     let expected = section.selected().semantic_relations().collect::<Vec<_>>();
     let resolved = wire::resolve(&section, &expected, input.identities).unwrap();
-    let replay = |candidate: &_, budget: &mut BudgetMeter| {
-        scoop_slib::replay_shared_lir_dependency_graph(
-            metadata,
-            candidate,
-            &[core.exports()],
-            budget,
-        )
+    let replay = |candidate: &_| {
+        scoop_slib::replay_shared_lir_dependency_graph(metadata, candidate, &[core.exports()])
     };
-    replay(&resolved, &mut meter()).unwrap();
+    replay(&resolved).unwrap();
     for (provider, owner) in shapes {
         let shape = lir::LayoutAbiDependencyV1::new(
             *provider,
@@ -84,7 +74,7 @@ pub(super) fn check(
             .filter(|relation| *relation != shape)
             .collect::<Vec<_>>();
         assert!(
-            matches!(replay(&wire::resolve(&section, &missing, input.identities).unwrap(), &mut meter()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
+            matches!(replay(&wire::resolve(&section, &missing, input.identities).unwrap()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
         );
     }
     let descriptors = expected
@@ -105,7 +95,7 @@ pub(super) fn check(
             .filter(|relation| relation != descriptor)
             .collect::<Vec<_>>();
         assert!(
-            matches!(replay(&wire::resolve(&section, &missing, input.identities).unwrap(), &mut meter()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
+            matches!(replay(&wire::resolve(&section, &missing, input.identities).unwrap()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
         );
     }
     let only_layouts = expected
@@ -114,16 +104,10 @@ pub(super) fn check(
         .filter(|relation| matches!(relation.target(), lir::LayoutAbiSemanticTargetV1::Layout(_)))
         .collect::<Vec<_>>();
     assert!(
-        matches!(replay(&wire::resolve(&section, &only_layouts, input.identities).unwrap(), &mut meter()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
+        matches!(replay(&wire::resolve(&section, &only_layouts, input.identities).unwrap()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
     );
-    let mut measured = meter();
-    replay(&resolved, &mut measured).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay(&resolved, &mut shared).unwrap();
-    assert!(replay(&resolved, &mut shared).is_err());
+
+    replay(&resolved).unwrap();
     let dump = expected
         .iter()
         .map(|relation| format!("{} {:?}\n", relation.provider(), relation.target()))

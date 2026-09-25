@@ -14,7 +14,7 @@ use crate::{
     CanonicalLirFoundation, DecodedStrongTypeRegistrationPlanV1, DigestNodeV1, RefScan,
     RuntimeTypeMappingRecord, StrongExternalLirBridgeSurfaceV1, TypeInstanceShapeV1,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 #[test]
 fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
@@ -82,11 +82,7 @@ fn wire_reader_reconstructs_the_complete_type_descriptor_semantics() {
         .registrations()
         .iter()
         .map(|plan| {
-            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(
-                &encode(plan).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap()
+            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encode(plan).unwrap()).unwrap()
         })
         .collect();
     let external_bridges =
@@ -119,10 +115,7 @@ fn wire_reader_rejects_the_old_27_field_type_registration_plan() {
     encoded[1] = 0x1b;
     encoded.truncate(encoded.len() - 7);
 
-    assert!(
-        decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded, DecodeLimits::default(),)
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded,).is_err());
 }
 
 #[test]
@@ -148,11 +141,7 @@ fn records_and_round_trips_the_exact_typed_itable_directory() {
         .registrations()
         .iter()
         .map(|plan| {
-            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(
-                &encode(plan).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap()
+            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encode(plan).unwrap()).unwrap()
         })
         .collect();
     let external_bridges =

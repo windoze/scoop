@@ -10,7 +10,7 @@ use scoop_identity::{
 };
 use scoop_lir::{ImportedLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::ImportedMirFoundation;
-use scoop_wire::{DecodeUsage, WireError, WireErrorKind, WirePath};
+use scoop_wire::WireError;
 
 use super::{NativeBoundaryValidatedFoundations, StructurallyValidatedFoundations};
 use crate::{
@@ -168,10 +168,6 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
         )
     }
 
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
-    }
-
     pub const fn hir(&self) -> &ImportedHirFoundation {
         &self.hir
     }
@@ -194,29 +190,10 @@ pub(crate) fn commit_identity_graph(
     identities: &ValidatedIdentityGraph,
     session: &mut SemanticIdentitySession,
 ) -> Result<ImportedIdentityLayers, CompileCommitError> {
-    charge_identity_import(graph, identities)?;
     let import = semantic_identity_import(graph, identities);
     session
         .import(import.origin(), import.fingerprint(), import.graph())
         .map_err(CompileCommitError::SemanticImport)
-}
-
-pub(crate) fn charge_identity_import(
-    graph: &mut ValidatedGraphArtifact<'_>,
-    identities: &ValidatedIdentityGraph,
-) -> Result<(), CompileCommitError> {
-    let remap_count = u64::try_from(identities.declared_identity_count()).map_err(|_| {
-        CompileCommitError::Resource(WireError::new(
-            WireErrorKind::IntegerOutOfRange,
-            WirePath::default(),
-            None,
-        ))
-    })?;
-    graph
-        .envelope
-        .meter_mut()
-        .charge_pending_remap(remap_count, &WirePath::default())
-        .map_err(CompileCommitError::Resource)
 }
 
 pub(crate) fn semantic_identity_import<'a>(

@@ -24,7 +24,6 @@ impl BuildGraphRequest {
             target,
             compiler,
             diagnostics,
-            limits,
         } = self.into_parts();
 
         let root = match root.into_kind() {
@@ -42,7 +41,6 @@ impl BuildGraphRequest {
                 target,
                 compiler,
                 diagnostics,
-                limits,
             },
         })
     }

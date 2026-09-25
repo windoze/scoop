@@ -11,7 +11,7 @@ use scoop_lir::{
     CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1,
     CrossConeLirBridgeSectionV1, LirTargetProfile, OdrFreeLirFoundation,
 };
-use scoop_wire::{DecodeLimits, decode_canonical};
+use scoop_wire::decode_canonical;
 
 use super::*;
 use crate::{
@@ -239,18 +239,12 @@ fn decoded_native_contracts_require_the_rebuilt_projection() {
     )
     .unwrap();
     let bytes = scoop_wire::encode(&expected).unwrap();
-    let decoded = decode_canonical::<DecodedCanonicalNativeExternalContractCodeSetV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalNativeExternalContractCodeSetV1>(&bytes).unwrap();
     assert_eq!(decoded.validate(&expected).unwrap(), expected);
 
-    let decoded = decode_canonical::<DecodedCanonicalNativeExternalContractCodeSetV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalNativeExternalContractCodeSetV1>(&bytes).unwrap();
     let empty = CanonicalNativeExternalContractCodeSetV1 {
         contracts: Vec::new(),
     };
@@ -264,11 +258,7 @@ fn decoded_native_contracts_require_the_rebuilt_projection() {
 fn decoded_native_contracts_reject_noncanonical_record_shapes() {
     for bytes in [vec![0x81, 0xa3], vec![0x81, 0xa5]] {
         assert!(
-            decode_canonical::<DecodedCanonicalNativeExternalContractCodeSetV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
+            decode_canonical::<DecodedCanonicalNativeExternalContractCodeSetV1>(&bytes).is_err()
         );
     }
 }

@@ -14,60 +14,42 @@ pub(super) use index::Index;
 impl CanonicalSourceNominalIdsV1 {
     /// Discovers public/inheritance roots, their storage dependencies, and
     /// protected nested support without granting public lookup authority.
-    pub fn from_export_hir(
-        output: &ExportHirOutput,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
-        Self::from_module(output.module(), meter)
+    pub fn from_export_hir(output: &ExportHirOutput) -> Result<Self, Error> {
+        Self::from_module(output.module())
     }
 
-    pub(in crate::production) fn from_module(
-        export: &ExportHir,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
-        Self::collect_module(export, false, meter)
+    pub(in crate::production) fn from_module(export: &ExportHir) -> Result<Self, Error> {
+        Self::collect_module(export, false)
     }
 
-    fn collect_module(
-        export: &ExportHir,
-        complete_children: bool,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
+    fn collect_module(export: &ExportHir, complete_children: bool) -> Result<Self, Error> {
         Self::collect_roots(
             export,
             complete_children,
             index::public(export).map(|local| index::source(export, local)),
-            meter,
         )
     }
 
     pub(in crate::production::nominal_interfaces) fn from_complete_roots(
         export: &ExportHir,
         roots: &[SourceNominalId],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        Self::collect_roots(export, true, roots.iter().copied().map(Ok), meter)
+        Self::collect_roots(export, true, roots.iter().copied().map(Ok))
     }
 
     fn collect_roots(
         export: &ExportHir,
         complete_children: bool,
         seeds: impl Iterator<Item = Result<SourceNominalId, Error>>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        meter
-            .check_semantic_depth(1, &WirePath::root())
-            .map_err(resource)?;
-        let index = Index::new(export, meter)?;
+        let index = Index::new(export)?;
         let mut roots = Roots {
             complete_children,
             required: BTreeMap::new(),
             pending: Vec::new(),
             field_types: BTreeSet::new(),
-            meter,
         };
         for owner in seeds {
-            work(roots.meter, index.nodes.len())?;
             let owner = owner?;
             if !index.nodes.contains_key(&owner) {
                 return Err(invalid("public source root is not owned by this Cone"));
@@ -80,25 +62,22 @@ impl CanonicalSourceNominalIdsV1 {
             }
         }
         let mut values = Vec::new();
-        roots
-            .meter
-            .try_reserve_collection_slots(&mut values, roots.required.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut values, roots.required.len(), &WirePath::root())
             .map_err(resource)?;
         values.extend(roots.required.into_keys());
-        Self::try_new(values, roots.meter).map_err(Error::SourceInventory)
+        Self::try_new(values).map_err(Error::SourceInventory)
     }
 }
 
-struct Roots<'m> {
+struct Roots {
     complete_children: bool,
     // A complete root recursively owns all lexical children, including private
     // support. A normal inheritance root only introduces protected children.
     required: BTreeMap<SourceNominalId, bool>,
     pending: Vec<(SourceNominalId, bool)>,
     field_types: BTreeSet<TypeId>,
-    meter: &'m mut BudgetMeter,
 }
-impl Roots<'_> {
+impl Roots {
     fn expand_next(
         &mut self,
         export: &ExportHir,
@@ -107,7 +86,7 @@ impl Roots<'_> {
         let Some((owner, complete)) = self.pending.pop() else {
             return Ok(None);
         };
-        work(self.meter, index.nodes.len())?;
+
         let node = index
             .nodes
             .get(&owner)
@@ -117,14 +96,9 @@ impl Roots<'_> {
         }
         index::visit_bases(export, node.local, |ty| {
             if self.complete_children {
-                self.require_field_type(export, index, ty, 1)?;
+                self.require_field_type(export, index, ty)?;
             }
-            work(self.meter, index.nodes.len())?;
-            if matches!(export.types[ty], Type::Class(_)) {
-                self.meter
-                    .charge_work(export.objects.len() as u64, &WirePath::root())
-                    .map_err(resource)?;
-            }
+
             let base = owner_resolution::from_type(export, ty)
                 .ok_or_else(|| invalid("source inheritance has no nominal identity"))?;
             // Foreign source owners are supplied by their provider closure.
@@ -134,20 +108,19 @@ impl Roots<'_> {
             Ok(())
         })?;
         storage::visit_fields(export, node.local, |ty| {
-            self.require_field_type(export, index, ty, 1)
+            self.require_field_type(export, index, ty)
         })?;
         if self.complete_children {
             callables::visit_types(export, node.local, |ty| {
-                self.require_field_type(export, index, ty, 1)
+                self.require_field_type(export, index, ty)
             })?;
             properties::visit_types(export, node.local, |ty| {
-                self.require_field_type(export, index, ty, 1)
+                self.require_field_type(export, index, ty)
             })?;
         }
-        work(self.meter, index.children.len())?;
+
         if let Some(children) = index.children.get(&owner) {
             for child in children {
-                work(self.meter, index.nodes.len())?;
                 if complete || index.nodes[child].visibility == DeclaredVisibility::Protected {
                     self.require(*child, true)?;
                 }
@@ -158,20 +131,13 @@ impl Roots<'_> {
 
     fn require(&mut self, owner: SourceNominalId, complete: bool) -> Result<(), Error> {
         let complete = complete || self.complete_children;
-        work(self.meter, self.required.len())?;
+
         let previous = self.required.get(&owner).copied();
         if previous.is_some_and(|already_complete| already_complete || !complete) {
             return Ok(());
         }
-        if previous.is_none() {
-            self.meter
-                .check_table_entries(self.required.len() as u64 + 1, &WirePath::root())
-                .map_err(resource)?;
-            self.meter
-                .charge_collection_slots(1, &WirePath::root())
-                .map_err(resource)?;
-        }
-        push(&mut self.pending, (owner, complete), self.meter)?;
+
+        push(&mut self.pending, (owner, complete))?;
         self.required.insert(owner, complete);
         Ok(())
     }

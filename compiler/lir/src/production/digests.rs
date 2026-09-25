@@ -10,7 +10,6 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
-pub(super) mod budget;
 mod validation;
 pub use validation::DigestPlanError;
 use validation::{
@@ -145,7 +144,7 @@ impl WireEncode for DecodedDigestInputRefV1 {
 }
 
 impl WireDecode for DecodedDigestInputRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => decode_id_variant(decoder, fields, Self::SourceSignature),
@@ -281,7 +280,7 @@ impl WireEncode for DecodedDigestNodeV1 {
 }
 
 impl WireDecode for DecodedDigestNodeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             identity: decoder.field(1, DecodedCborIdentityRecord::decode)?,
@@ -344,7 +343,7 @@ impl WireEncode for DecodedStrongDigestFinalizationPlanV1 {
 }
 
 impl WireDecode for DecodedStrongDigestFinalizationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedDigestNodeV1::decode(decoder))
             .map(|nodes| Self { nodes })
@@ -454,14 +453,14 @@ fn encode_array<T: WireEncode>(
     Ok(())
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_id_variant<T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<DigestNodeId>) -> T,
 ) -> Result<T, WireError> {
@@ -478,7 +477,7 @@ fn decode_id_variant<T>(
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         scoop_wire::WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

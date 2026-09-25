@@ -1,28 +1,29 @@
-use crate::budget::{BudgetMeter, COLLECTION_ELEMENT_BYTES, DecodeLimits};
 use crate::{PathSegment, WireError, WireErrorKind, WirePath, WireType};
 
 use super::encode::encode_with_limit;
 use super::{EncodeError, WireEncode};
 
 /// Type-directed strict decoder for the Wire CBOR v1 subset.
-pub struct Decoder<'input, 'meter> {
+pub struct Decoder<'input> {
     input: &'input [u8],
     inner: minicbor::Decoder<'input>,
-    meter: &'meter mut BudgetMeter,
+
     path: WirePath,
-    depth: u64,
 }
 
-impl<'input, 'meter> Decoder<'input, 'meter> {
-    pub fn new(input: &'input [u8], meter: &'meter mut BudgetMeter) -> Result<Self, WireError> {
-        let path = WirePath::default();
-        meter.check_cbor_depth(1, &path)?;
+impl<'input> Decoder<'input> {
+    pub fn new(input: &'input [u8]) -> Result<Self, WireError> {
+        if input.is_empty() {
+            return Err(WireError::new(
+                WireErrorKind::UnexpectedEnd,
+                WirePath::root(),
+                Some(0),
+            ));
+        }
         Ok(Self {
             input,
             inner: minicbor::Decoder::new(input),
-            meter,
-            path,
-            depth: 1,
+            path: WirePath::root(),
         })
     }
 
@@ -34,12 +35,7 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
         &self.path
     }
 
-    pub fn meter(&mut self) -> &mut BudgetMeter {
-        self.meter
-    }
-
     pub fn unsigned(&mut self) -> Result<u64, WireError> {
-        self.observe_item()?;
         let start = self.inner.position();
         let value = self
             .inner
@@ -55,20 +51,10 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
     }
 
     pub fn bytes(&mut self) -> Result<&'input [u8], WireError> {
-        self.decode_bytes(true)
+        self.decode_bytes()
     }
 
-    /// Decode bytes carried by an envelope whose own schema defines a larger
-    /// resource limit than the semantic-leaf limit.
-    ///
-    /// The occurrence still consumes node and work budget. Callers that copy
-    /// the returned slice must additionally charge owned bytes.
-    pub fn carrier_bytes(&mut self) -> Result<&'input [u8], WireError> {
-        self.decode_bytes(false)
-    }
-
-    fn decode_bytes(&mut self, check_semantic_leaf: bool) -> Result<&'input [u8], WireError> {
-        self.observe_item()?;
+    fn decode_bytes(&mut self) -> Result<&'input [u8], WireError> {
         let start = self.inner.position();
         if self.input.get(start) == Some(&0x5f) {
             return Err(self.error_at(
@@ -84,15 +70,11 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
             .map_err(|_| self.type_error(WireType::Bytes))?;
         let length =
             u64::try_from(value.len()).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
-        if check_semantic_leaf {
-            self.meter.check_semantic_leaf(length, &self.path)?;
-        }
         self.require_canonical_head(start, 2, length)?;
         Ok(value)
     }
 
     pub fn text(&mut self) -> Result<&'input str, WireError> {
-        self.observe_item()?;
         let start = self.inner.position();
         if self.input.get(start) == Some(&0x7f) {
             return Err(self.error_at(
@@ -108,7 +90,7 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
             .map_err(|_| self.type_error(WireType::Text))?;
         let length =
             u64::try_from(value.len()).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
-        self.meter.check_semantic_leaf(length, &self.path)?;
+
         self.require_canonical_head(start, 3, length)?;
         Ok(value)
     }
@@ -118,44 +100,27 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
         self.copy_bytes(value)
     }
 
-    pub fn owned_carrier_bytes(&mut self) -> Result<Vec<u8>, WireError> {
-        let value = self.carrier_bytes()?;
-        self.copy_bytes(value)
-    }
-
     fn copy_bytes(&mut self, value: &[u8]) -> Result<Vec<u8>, WireError> {
-        let length =
-            u64::try_from(value.len()).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
-        self.meter.charge_owned_bytes(length, &self.path)?;
         let mut owned = Vec::new();
-        owned.try_reserve_exact(value.len()).map_err(|_| {
-            self.error(WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: length,
-                requested_slots: length,
-            })
-        })?;
+        owned
+            .try_reserve_exact(value.len())
+            .map_err(|_| self.error(WireErrorKind::Allocation))?;
         owned.extend_from_slice(value);
         Ok(owned)
     }
 
     pub fn owned_text(&mut self) -> Result<String, WireError> {
         let value = self.text()?;
-        let length =
-            u64::try_from(value.len()).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
-        self.meter.charge_owned_bytes(length, &self.path)?;
+
         let mut owned = String::new();
-        owned.try_reserve_exact(value.len()).map_err(|_| {
-            self.error(WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: length,
-                requested_slots: length,
-            })
-        })?;
+        owned
+            .try_reserve_exact(value.len())
+            .map_err(|_| self.error(WireErrorKind::Allocation))?;
         owned.push_str(value);
         Ok(owned)
     }
 
     pub fn array(&mut self) -> Result<u64, WireError> {
-        self.observe_item()?;
         let start = self.inner.position();
         let length = self
             .inner
@@ -166,14 +131,15 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
                     expected: WireType::Array,
                 })
             })?;
-        self.meter.check_table_entries(length, &self.path)?;
-        self.meter.charge_collection_slots(length, &self.path)?;
+
         self.require_canonical_head(start, 4, length)?;
+        if length > (self.input.len() - self.inner.position()) as u64 {
+            return Err(self.error(WireErrorKind::UnexpectedEnd));
+        }
         Ok(length)
     }
 
     pub fn map(&mut self) -> Result<u64, WireError> {
-        self.observe_item()?;
         let start = self.inner.position();
         let length = self
             .inner
@@ -184,9 +150,11 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
                     expected: WireType::Map,
                 })
             })?;
-        self.meter.check_table_entries(length, &self.path)?;
-        self.meter.charge_collection_slots(length, &self.path)?;
+
         self.require_canonical_head(start, 5, length)?;
+        if length > ((self.input.len() - self.inner.position()) / 2) as u64 {
+            return Err(self.error(WireErrorKind::UnexpectedEnd));
+        }
         Ok(length)
     }
 
@@ -204,7 +172,7 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
         expected: u32,
         decode: impl FnOnce(&mut Self) -> Result<T, WireError>,
     ) -> Result<T, WireError> {
-        let actual = self.nested(|decoder| decoder.unsigned())?;
+        let actual = self.unsigned()?;
         if actual != u64::from(expected) {
             return Err(self.error(WireErrorKind::UnexpectedField { expected, actual }));
         }
@@ -234,14 +202,7 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
     ) -> Result<Vec<T>, WireError> {
         let length = self.array()?;
         let mut values = Vec::new();
-        let capacity =
-            usize::try_from(length).map_err(|_| self.error(WireErrorKind::IntegerOutOfRange))?;
-        values.try_reserve_exact(capacity).map_err(|_| {
-            self.error(WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: length.saturating_mul(COLLECTION_ELEMENT_BYTES),
-                requested_slots: length,
-            })
-        })?;
+        crate::allocation::try_reserve_count(&mut values, length, &self.path)?;
         for index in 0..length {
             values.push(self.index(index, |decoder| decode(decoder, index))?);
         }
@@ -256,35 +217,15 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
         }
     }
 
-    fn nested<T>(
-        &mut self,
-        decode: impl FnOnce(&mut Self) -> Result<T, WireError>,
-    ) -> Result<T, WireError> {
-        self.depth = self
-            .depth
-            .checked_add(1)
-            .ok_or_else(|| self.error(WireErrorKind::IntegerOutOfRange))?;
-        let depth_check = self.meter.check_cbor_depth(self.depth, &self.path);
-        let result = depth_check.and_then(|()| decode(self));
-        self.depth -= 1;
-        result
-    }
-
     fn with_nested<T>(
         &mut self,
         segment: PathSegment,
         decode: impl FnOnce(&mut Self) -> Result<T, WireError>,
     ) -> Result<T, WireError> {
         self.path.push(segment);
-        let result = self.nested(decode);
+        let result = decode(self);
         self.path.pop();
         result
-    }
-
-    fn observe_item(&mut self) -> Result<(), WireError> {
-        self.meter.check_cbor_depth(self.depth, &self.path)?;
-        self.meter.charge_nodes(1, &self.path)?;
-        self.meter.charge_work(1, &self.path)
     }
 
     fn require_canonical_head(
@@ -323,71 +264,43 @@ impl<'input, 'meter> Decoder<'input, 'meter> {
 }
 
 pub trait WireDecode: WireEncode + Sized {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError>;
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError>;
 }
 
 /// Strict decoding for documents that retain borrowed carrier byte strings.
 /// Every implementation still uses [`Decoder`]'s canonical primitives, so it
 /// does not need to copy the complete document for a re-encode check.
 pub trait BorrowedWireDecode<'input>: Sized {
-    fn decode(decoder: &mut Decoder<'input, '_>) -> Result<Self, WireError>;
+    fn decode(decoder: &mut Decoder<'input>) -> Result<Self, WireError>;
 }
 
-pub fn decode_canonical<T: WireDecode>(input: &[u8], limits: DecodeLimits) -> Result<T, WireError> {
-    let mut meter = BudgetMeter::new(limits);
-    decode_canonical_with_meter(input, &mut meter)
-}
-
-pub fn decode_canonical_with_meter<T: WireDecode>(
-    input: &[u8],
-    meter: &mut BudgetMeter,
-) -> Result<T, WireError> {
-    let mut decoder = Decoder::new(input, &mut *meter)?;
+pub fn decode_canonical<T: WireDecode>(input: &[u8]) -> Result<T, WireError> {
+    let mut decoder = Decoder::new(input)?;
     let value = T::decode(&mut decoder)?;
     decoder.finish()?;
-    drop(decoder);
-
-    // The primitive decoder proves minimal heads and definite lengths while
-    // each schema decoder proves its map/sequence order. Re-encoding is the
-    // final independent assertion required by Wire CBOR v1.
-    let input_length = u64::try_from(input.len())
-        .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, WirePath::default(), None))?;
-    meter.charge_owned_bytes(input_length, &WirePath::default())?;
-    let canonical = encode_with_limit(&value, input.len()).map_err(|error: EncodeError| {
+    let canonical = encode_with_limit(&value, input.len()).map_err(|error| {
         let kind = match error {
-            EncodeError::Allocation => WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: input_length,
-                requested_slots: input_length,
-            },
-            EncodeError::LengthLimit => WireErrorKind::NonCanonicalCbor,
-            EncodeError::OutputSinkMismatch => WireErrorKind::NonCanonicalCbor,
+            EncodeError::Allocation => WireErrorKind::Allocation,
+            EncodeError::LengthLimit | EncodeError::OutputSinkMismatch => {
+                WireErrorKind::NonCanonicalCbor
+            }
         };
-        WireError::new(kind, WirePath::default(), None)
+        WireError::new(kind, WirePath::root(), None)
     })?;
-    if canonical == input {
-        Ok(value)
-    } else {
-        Err(WireError::new(
+    if canonical != input {
+        return Err(WireError::new(
             WireErrorKind::NonCanonicalCbor,
-            WirePath::default(),
+            WirePath::root(),
             None,
-        ))
+        ));
     }
+    Ok(value)
 }
 
 pub fn decode_canonical_borrowed<'input, T: BorrowedWireDecode<'input>>(
     input: &'input [u8],
-    limits: DecodeLimits,
 ) -> Result<T, WireError> {
-    let mut meter = BudgetMeter::new(limits);
-    decode_canonical_borrowed_with_meter(input, &mut meter)
-}
-
-pub fn decode_canonical_borrowed_with_meter<'input, T: BorrowedWireDecode<'input>>(
-    input: &'input [u8],
-    meter: &mut BudgetMeter,
-) -> Result<T, WireError> {
-    let mut decoder = Decoder::new(input, meter)?;
+    let mut decoder = Decoder::new(input)?;
     let value = T::decode(&mut decoder)?;
     decoder.finish()?;
     Ok(value)
@@ -425,11 +338,11 @@ fn encode_head(output: &mut [u8; 9], major: u8, argument: u64) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DecodeLimits, Encoder, WireErrorKind, encode};
+    use crate::{Encoder, WireErrorKind, encode};
 
     use super::{
         BorrowedWireDecode, Decoder, EncodeError, WireDecode, WireEncode, decode_canonical,
-        decode_canonical_borrowed_with_meter, decode_canonical_with_meter,
+        decode_canonical_borrowed,
     };
 
     #[derive(Debug, Eq, PartialEq)]
@@ -454,7 +367,7 @@ mod tests {
     }
 
     impl WireDecode for UnsignedValue {
-        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
+        fn decode(decoder: &mut Decoder<'_>) -> Result<Self, crate::WireError> {
             Ok(Self(decoder.unsigned()?))
         }
     }
@@ -466,14 +379,14 @@ mod tests {
     }
 
     impl WireDecode for Carrier {
-        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
-            decoder.owned_carrier_bytes().map(Self)
+        fn decode(decoder: &mut Decoder<'_>) -> Result<Self, crate::WireError> {
+            decoder.owned_bytes().map(Self)
         }
     }
 
     impl<'input> BorrowedWireDecode<'input> for BorrowedCarrier<'input> {
-        fn decode(decoder: &mut Decoder<'input, '_>) -> Result<Self, crate::WireError> {
-            decoder.carrier_bytes().map(Self)
+        fn decode(decoder: &mut Decoder<'input>) -> Result<Self, crate::WireError> {
+            decoder.bytes().map(Self)
         }
     }
 
@@ -488,7 +401,7 @@ mod tests {
     }
 
     impl WireDecode for Pair {
-        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, crate::WireError> {
+        fn decode(decoder: &mut Decoder<'_>) -> Result<Self, crate::WireError> {
             decoder.expect_map(2)?;
             let first = decoder.field(1, Decoder::unsigned)?;
             let second = decoder.field(24, Decoder::owned_text)?;
@@ -504,7 +417,7 @@ mod tests {
         };
         assert_eq!(encode(&pair).unwrap(), b"\xa2\x01\x17\x18\x18\x62\xc3\xa9");
         assert_eq!(
-            decode_canonical::<Pair>(&encode(&pair).unwrap(), DecodeLimits::default()).unwrap(),
+            decode_canonical::<Pair>(&encode(&pair).unwrap()).unwrap(),
             pair
         );
     }
@@ -530,7 +443,7 @@ mod tests {
             let encoded = encode(&UnsignedValue(*value)).unwrap();
             assert_eq!(&encoded, expected);
             assert_eq!(
-                decode_canonical::<UnsignedValue>(&encoded, DecodeLimits::default()).unwrap(),
+                decode_canonical::<UnsignedValue>(&encoded).unwrap(),
                 UnsignedValue(*value)
             );
         }
@@ -539,7 +452,7 @@ mod tests {
     #[test]
     fn non_minimal_integer_is_rejected() {
         let bytes = b"\xa2\x01\x18\x17\x18\x18\x61x";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::NonCanonicalCbor);
         assert_eq!(error.path().to_string(), "$.1");
     }
@@ -547,7 +460,7 @@ mod tests {
     #[test]
     fn wrong_field_order_is_rejected_at_stable_path() {
         let bytes = b"\xa2\x18\x18\x61x\x01\x17";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnexpectedField {
@@ -561,7 +474,7 @@ mod tests {
     #[test]
     fn indefinite_map_is_rejected() {
         let bytes = b"\xbf\x01\x17\x18\x18\x61x\xff";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes).unwrap_err();
         assert!(matches!(
             error.kind(),
             WireErrorKind::IndefiniteLength { .. }
@@ -576,7 +489,7 @@ mod tests {
             b"\xa2\x01\xf6\x18\x18\x61x".as_slice(),
             b"\xa2\x01\xc0\x00\x18\x18\x61x".as_slice(),
         ] {
-            let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
+            let error = decode_canonical::<Pair>(bytes).unwrap_err();
             assert!(matches!(error.kind(), WireErrorKind::WrongType { .. }));
         }
     }
@@ -584,7 +497,7 @@ mod tests {
     #[test]
     fn indefinite_text_is_reported_explicitly() {
         let bytes = b"\xa2\x01\x17\x18\x18\x7f\x61x\xff";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes).unwrap_err();
         assert!(matches!(
             error.kind(),
             WireErrorKind::IndefiniteLength {
@@ -597,89 +510,51 @@ mod tests {
     #[test]
     fn trailing_data_is_rejected() {
         let bytes = b"\xa2\x01\x17\x18\x18\x61x\x00";
-        let error = decode_canonical::<Pair>(bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<Pair>(bytes).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::TrailingData);
     }
 
     #[test]
-    fn depth_limit_is_enforced_before_nested_value_decode() {
-        let bytes = b"\xa2\x01\x17\x18\x18\x61x";
-        let limits = DecodeLimits {
-            cbor_nesting: 1,
-            ..DecodeLimits::default()
-        };
-        let error = decode_canonical::<Pair>(bytes, limits).unwrap_err();
-        assert!(matches!(error.kind(), WireErrorKind::LimitExceeded { .. }));
+    fn declared_collection_lengths_must_fit_the_input() {
+        for bytes in [
+            &[0x9b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff][..],
+            &[0x83, 0x00, 0x00],
+        ] {
+            let mut decoder = Decoder::new(bytes).unwrap();
+            assert_eq!(
+                decoder
+                    .decode_array(|decoder, _| decoder.unsigned())
+                    .unwrap_err()
+                    .kind(),
+                &WireErrorKind::UnexpectedEnd
+            );
+        }
+        for bytes in [
+            &[0xbb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff][..],
+            &[0xa2, 0x00, 0x00, 0x01],
+        ] {
+            let mut decoder = Decoder::new(bytes).unwrap();
+            assert_eq!(
+                decoder.map().unwrap_err().kind(),
+                &WireErrorKind::UnexpectedEnd
+            );
+        }
     }
 
     #[test]
-    fn carrier_bytes_bypass_only_the_semantic_leaf_limit() {
+    fn borrowed_document_keeps_bytes_zero_copy() {
         let encoded = encode(&Carrier(vec![1, 2, 3, 4])).unwrap();
-        let limits = DecodeLimits {
-            semantic_leaf_bytes: 3,
-            ..DecodeLimits::default()
-        };
 
         assert_eq!(
-            decode_canonical::<Carrier>(&encoded, limits).unwrap(),
-            Carrier(vec![1, 2, 3, 4])
-        );
-        let mut meter = crate::BudgetMeter::new(limits);
-        let mut decoder = Decoder::new(&encoded, &mut meter).unwrap();
-        assert!(matches!(
-            decoder.bytes().unwrap_err().kind(),
-            WireErrorKind::LimitExceeded {
-                resource: crate::ResourceKind::SemanticLeafBytes,
-                limit: 3,
-                observed: 4,
-            }
-        ));
-    }
-
-    #[test]
-    fn shared_meter_accumulates_across_documents() {
-        let encoded = encode(&UnsignedValue(1)).unwrap();
-        let limits = DecodeLimits {
-            decoded_nodes: 1,
-            ..DecodeLimits::default()
-        };
-        let mut meter = crate::BudgetMeter::new(limits);
-
-        assert_eq!(
-            decode_canonical_with_meter::<UnsignedValue>(&encoded, &mut meter),
-            Ok(UnsignedValue(1))
-        );
-        assert!(matches!(
-            decode_canonical_with_meter::<UnsignedValue>(&encoded, &mut meter)
-                .unwrap_err()
-                .kind(),
-            WireErrorKind::LimitExceeded {
-                resource: crate::ResourceKind::DecodedNodes,
-                limit: 1,
-                observed: 2,
-            }
-        ));
-    }
-
-    #[test]
-    fn borrowed_document_keeps_carrier_bytes_zero_copy() {
-        let encoded = encode(&Carrier(vec![1, 2, 3, 4])).unwrap();
-        let mut meter = crate::BudgetMeter::new(DecodeLimits::default());
-
-        assert_eq!(
-            decode_canonical_borrowed_with_meter::<BorrowedCarrier<'_>>(&encoded, &mut meter),
+            decode_canonical_borrowed::<BorrowedCarrier<'_>>(&encoded),
             Ok(BorrowedCarrier(&encoded[1..]))
         );
-        assert_eq!(meter.usage().owned_bytes, 0);
 
         let non_minimal = [0x58, 0x01, 0x01];
         assert_eq!(
-            decode_canonical_borrowed_with_meter::<BorrowedCarrier<'_>>(
-                &non_minimal,
-                &mut crate::BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap_err()
-            .kind(),
+            decode_canonical_borrowed::<BorrowedCarrier<'_>>(&non_minimal,)
+                .unwrap_err()
+                .kind(),
             &WireErrorKind::NonCanonicalCbor
         );
     }

@@ -22,7 +22,7 @@ pub(super) fn bootstrap_core(
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(slot.source_root()),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::BootstrapSelf,
         target.clone(),
         SlibOutputDestination::new(&artifact_path).unwrap(),
@@ -30,7 +30,7 @@ pub(super) fn bootstrap_core(
         StageDumpPolicy::None,
     )
     .unwrap()
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap()
 }
 
@@ -78,7 +78,7 @@ pub(super) fn build_ordinary(
             .unwrap();
     SingleConeBuildRequest::new(
         current,
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
@@ -86,7 +86,7 @@ pub(super) fn build_ordinary(
         StageDumpPolicy::None,
     )
     .unwrap()
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap()
 }
 
@@ -117,8 +117,7 @@ pub(super) fn build_manifest_request(
                 .map(HostArtifactLocator::new)
                 .collect::<Result<_, _>>()
                 .unwrap(),
-        )
-        .unwrap(),
+        ),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
@@ -134,14 +133,10 @@ pub(super) fn assert_graph_dependencies(
     expected: &[ConeIdentity],
 ) {
     let bytes = std::fs::read(artifact.artifact().path()).unwrap();
-    let graph = DecodedSlibEnvelope::open(
-        &bytes,
-        DecodeLimits::default(),
-        target.lir_target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap();
+    let graph = DecodedSlibEnvelope::open(&bytes, target.lir_target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap();
     assert_eq!(
         graph
             .direct_dependencies()

@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 
 use scoop_identity::{CallableTemplateOrigin, LocalValueSelector};
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::super::super::expressions::test_support::{Fixture, LocalError, definition_path};
 use super::*;
@@ -106,8 +106,7 @@ fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
     for (expected_tag, expected) in (1_u64..=14).zip(cases) {
         let bytes = encode(&expected.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(statement_tag(&bytes), expected_tag);
-        let decoded: DecodedDefaultStatementV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultStatementV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(
             decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
@@ -123,8 +122,7 @@ fn control_flow_optional_sums_are_explicit_and_round_trip() {
     let absent = OptionalDefaultStatementListV1::absent();
     let bytes = encode(&absent.index_locals(&mut fixture.locals()).unwrap()).unwrap();
     assert_eq!(bytes, [0xa1, 0x00, 0x01]);
-    let decoded: DecodedOptionalDefaultStatementListV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedOptionalDefaultStatementListV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
@@ -135,8 +133,7 @@ fn control_flow_optional_sums_are_explicit_and_round_trip() {
         OptionalDefaultStatementListV1::try_present(vec![break_statement(&fixture)]).unwrap();
     let bytes = encode(&present.index_locals(&mut fixture.locals()).unwrap()).unwrap();
     assert_eq!(bytes[2], 2);
-    let decoded: DecodedOptionalDefaultStatementListV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedOptionalDefaultStatementListV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
@@ -146,8 +143,7 @@ fn control_flow_optional_sums_are_explicit_and_round_trip() {
     let absent_guard = OptionalDefaultWhenGuardV1::absent();
     let bytes = encode(&absent_guard.index_locals(&mut fixture.locals()).unwrap()).unwrap();
     assert_eq!(bytes, [0xa1, 0x00, 0x01]);
-    let decoded: DecodedOptionalDefaultWhenGuardV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedOptionalDefaultWhenGuardV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 
     let present_guard = OptionalDefaultWhenGuardV1::present(
@@ -155,8 +151,7 @@ fn control_flow_optional_sums_are_explicit_and_round_trip() {
     );
     let bytes = encode(&present_guard.index_locals(&mut fixture.locals()).unwrap()).unwrap();
     assert_eq!(bytes[2], 2);
-    let decoded: DecodedOptionalDefaultWhenGuardV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedOptionalDefaultWhenGuardV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
@@ -173,8 +168,7 @@ fn every_when_fallback_variant_keeps_its_frozen_wire_tag() {
     for (expected_tag, fallback) in (1_u8..=4).zip(fallbacks) {
         let bytes = encode(&fallback.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultWhenFallbackV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultWhenFallbackV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
     }
 }
@@ -214,8 +208,7 @@ fn every_binding_action_variant_keeps_its_frozen_wire_tag() {
     for (expected_tag, action) in (1_u8..=3).zip(actions) {
         let bytes = encode(&action.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultBindingActionV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultBindingActionV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
     }
 }
@@ -271,15 +264,13 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
 
     let mut unknown = bytes.clone();
     unknown[4] = 15;
-    let error = decode_canonical::<DecodedDefaultStatementV1>(&unknown, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultStatementV1>(&unknown).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 15 });
 
     let mut non_exact = bytes;
     non_exact[2] = 0xa2;
     non_exact.splice(5..5, [0x01, 0x00]);
-    let error = decode_canonical::<DecodedDefaultStatementV1>(&non_exact, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultStatementV1>(&non_exact).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -288,11 +279,8 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
         }
     );
 
-    let error = decode_canonical::<DecodedOptionalDefaultStatementListV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedOptionalDefaultStatementListV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 

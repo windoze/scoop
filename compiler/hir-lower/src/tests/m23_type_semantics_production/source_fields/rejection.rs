@@ -35,7 +35,7 @@ fn replace_fields(
 }
 
 #[test]
-fn reference_source_field_inventory_rejects_missing_foreign_and_unbudgeted_storage() {
+fn reference_source_field_inventory_rejects_missing_and_foreign_storage() {
     with_hir_source(STANDALONE, |output, _| {
         let public = public_interface(output);
         let table = public.nominal_interfaces();
@@ -45,7 +45,7 @@ fn reference_source_field_inventory_rejects_missing_foreign_and_unbudgeted_stora
         let removed = fields.remove(0);
         let corrupt = replace_fields(table, class.declaration(), fields);
         assert!(
-            matches!(corrupt.validate_declared_field_inventory(&foundation, &mut meter()),
+            matches!(corrupt.validate_declared_field_inventory(&foundation),
             Err(hir::NominalSourceFieldInventoryError::Missing { field, .. }) if field == removed.field())
         );
         let other = table
@@ -60,16 +60,8 @@ fn reference_source_field_inventory_rejects_missing_foreign_and_unbudgeted_stora
         fields.push(other.source_shape().declared_fields()[0].clone());
         let corrupt = replace_fields(table, class.declaration(), fields);
         assert!(matches!(
-            corrupt.validate_declared_field_inventory(&foundation, &mut meter()),
+            corrupt.validate_declared_field_inventory(&foundation),
             Err(hir::NominalSourceFieldInventoryError::Extra { .. })
-        ));
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        });
-        assert!(matches!(
-            table.validate_declared_field_inventory(&foundation, &mut meter),
-            Err(hir::NominalSourceFieldInventoryError::Resource(_))
         ));
     });
 }

@@ -7,8 +7,7 @@ use scoop_identity::{
 pub(super) fn check(replay: &Replay<'_>, name: &str) {
     let identities = replay.source.metadata().identities;
     let coordinates = [ConeCoordinate::reserved_core()];
-    let names =
-        ExactTypeDiagnosticCatalog::try_new(identities, &coordinates, &mut meter()).unwrap();
+    let names = ExactTypeDiagnosticCatalog::try_new(identities, &coordinates).unwrap();
     let exact = |id| {
         CanonicalExactTypeDiagnosticName::from_validated_graph(id, &names)
             .unwrap()

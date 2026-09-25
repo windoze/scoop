@@ -8,7 +8,7 @@ use scoop_identity::{
     PersistentPropertyId, PersistentTypeId, PropertyAccessorKey, SignatureTypeKey,
     SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::binding_keys;
 use crate::*;
@@ -34,16 +34,14 @@ impl<'a, 'f> BoundInheritancePropertySourcesV1<'a, 'f> {
     pub fn bind_protected_callable_sources(
         &self,
         callables: &'a CanonicalInheritanceSourceProtectedCallablesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<
         BoundInheritanceProtectedCallableSourcesV1<'a, 'f>,
         InheritanceProtectedCallableBindingError,
     > {
         use InheritanceProtectedCallableBindingError as Error;
-        meter.check_semantic_depth(1, &WirePath::root())?;
-        meter.charge_nodes(1, &WirePath::root())?;
-        inventory::validate(self, callables, meter)?;
-        let keys = keys::bind(self, callables, meter)?;
+
+        inventory::validate(self, callables)?;
+        let keys = keys::bind(self, callables)?;
         let mut bound = BoundInheritanceProtectedCallableSourcesV1 {
             foundation: self.foundation,
             inventory: self.inventory,
@@ -56,13 +54,12 @@ impl<'a, 'f> BoundInheritancePropertySourcesV1<'a, 'f> {
             entries.local_inheritance_edges.records().iter(),
             entries.source_roots.values().iter().copied(),
             self.foundation,
-            meter,
         )
         .map_err(Error::Inheritance)?;
         for record in callables.records() {
-            contracts::validate(&bound, record, meter)?;
+            contracts::validate(&bound, record)?;
             record
-                .validate_source(&graph, &mut bound, meter)
+                .validate_source(&graph, &mut bound)
                 .map_err(|error| match error {
                     ProtectedCallableSemanticError::Resource(error) => Error::Resource(error),
                     other => Error::Semantic(Box::new(other)),
@@ -95,14 +92,6 @@ impl<'a, 'f> BoundInheritanceProtectedCallableSourcesV1<'a, 'f> {
             InheritanceProtectedCallableBindingError::MissingSource(declaration),
         )
     }
-}
-
-fn query(
-    length: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), InheritanceProtectedCallableBindingError> {
-    meter.charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())?;
-    Ok(())
 }
 
 fn subject(

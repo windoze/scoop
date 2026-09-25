@@ -14,16 +14,9 @@ impl DefaultTargetIdentityQueriesV1<'_> {
     pub fn default_field_access_subject(
         &self,
         target: &DefaultFieldRefV1,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultSourceFieldAccessSubjectV1, Error> {
-        let mut query = Query {
-            foundation: self,
-            meter,
-            path: WirePath::root(),
-        };
-        query.meter.check_semantic_depth(1, &query.path)?;
-        query.meter.charge_nodes(1, &query.path)?;
-        query.meter.charge_work(1, &query.path)?;
+        let mut query = Query { foundation: self };
+
         let (target, id, owner_type) = match target {
             DefaultFieldRefV1::Struct {
                 declaration,

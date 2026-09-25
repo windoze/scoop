@@ -17,11 +17,10 @@ fn restored_protocol_authority_replays_candidates_and_rejects_calling_and_origin
                 entries.local_inheritance_edges.records().iter(),
                 entries.source_roots.values().iter().copied(),
                 &foundation,
-                &mut meter(),
             )
             .unwrap();
             let mut protected = sources.protected(&foundation);
-            let mut authority = sources.bind(&foundation, core, &mut meter()).unwrap();
+            let mut authority = sources.bind(&foundation, core).unwrap();
             let mut checked_count = 0;
             for record in sources.protocols.records().iter().filter(|r| {
                 matches!(
@@ -31,13 +30,11 @@ fn restored_protocol_authority_replays_candidates_and_rejects_calling_and_origin
                 )
             }) {
                 let callable = sources.callables.get(record.owner()).unwrap();
-                let checked = callable
-                    .validate_source(&graph, &mut protected, &mut meter())
-                    .unwrap();
+                let checked = callable.validate_source(&graph, &mut protected).unwrap();
                 let original = candidate(record.owner(), record.parameters());
                 assert_eq!(
                     original
-                        .validate_protected(checked, &mut authority, &mut meter())
+                        .validate_protected(checked, &mut authority)
                         .unwrap()
                         .record(),
                     &original
@@ -85,7 +82,7 @@ fn restored_protocol_authority_replays_candidates_and_rejects_calling_and_origin
                         )
                         .unwrap();
                         let error = forged
-                            .validate_protected(checked, &mut authority, &mut meter())
+                            .validate_protected(checked, &mut authority)
                             .unwrap_err();
                         match (change_origin, error) {
                             (

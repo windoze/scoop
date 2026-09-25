@@ -10,8 +10,7 @@ fn selected_nonvirtual_interface_implementations_require_their_complete_callable
             .nominal_interfaces()
             .visit_materialization_requirements::<Error>(
                 public.callable_interfaces(),
-                &mut meter(),
-                |requirement, _| {
+                |requirement| {
                     if let Requirement::Slot { owner, callable } = requirement {
                         let owner_name = name(owner, &identities);
                         if matches!(owner_name.as_str(), "Value" | "FinalReader") {

@@ -13,9 +13,6 @@ use crate::{
     SignatureTypeReferenceResolver,
 };
 
-mod metered;
-pub use metered::*;
-
 pub trait NominalRepresentationResolver<E>:
     SignatureTypeReferenceResolver<E>
     + PersistentIdResolver<ConeIdentity, Error = E>
@@ -49,23 +46,19 @@ impl DecodedEnumRepresentationVariantV1 {
         self,
         resolver: &mut R,
     ) -> Result<EnumRepresentationVariantV1, NominalRepresentationResolutionError<E>> {
+        use NominalRepresentationResolutionError as Error;
         let key = resolver
             .resolve_key(self.variant)
-            .map_err(NominalRepresentationResolutionError::Reference)?;
-        let fields = self
-            .fields
-            .into_iter()
-            .map(|field| {
-                field
-                    .resolve(resolver)
-                    .map_err(NominalRepresentationResolutionError::EnumField)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let record = EnumRepresentationVariantV1::try_new(&key, fields, self.gc)
-            .map_err(NominalRepresentationResolutionError::Record)?;
+            .map_err(Error::Reference)?;
+        let mut fields = reserve(self.fields.len())?;
+        for field in self.fields {
+            fields.push(field.resolve(resolver).map_err(Error::EnumField)?);
+        }
+        let record =
+            EnumRepresentationVariantV1::try_new(&key, fields, self.gc).map_err(Error::Record)?;
         self.variant
             .verify(record.variant())
-            .map_err(NominalRepresentationResolutionError::VariantIdentity)?;
+            .map_err(Error::VariantIdentity)?;
         Ok(record)
     }
 }
@@ -82,7 +75,7 @@ impl WireEncode for DecodedEnumRepresentationVariantV1 {
     }
 }
 impl WireDecode for DecodedEnumRepresentationVariantV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             variant: decoder.field(1, DecodedPersistentId::decode)?,
@@ -122,34 +115,33 @@ impl DecodedNominalRepresentationShapeV1 {
         self,
         resolver: &mut R,
     ) -> Result<NominalRepresentationShapeV1, NominalRepresentationResolutionError<E>> {
+        use NominalRepresentationResolutionError as Error;
         Ok(match self {
             Self::Struct {
                 fields,
                 c_layout_policy,
-            } => NominalRepresentationShapeV1::Struct {
-                fields: fields
-                    .into_iter()
-                    .map(|field| {
-                        field
-                            .resolve(resolver)
-                            .map_err(NominalRepresentationResolutionError::Field)
-                    })
-                    .collect::<Result<Vec<_>, _>>()?,
-                c_layout_policy,
-            },
-            Self::Enum { variants } => NominalRepresentationShapeV1::Enum {
-                variants: variants
-                    .into_iter()
-                    .map(|variant| variant.resolve(resolver))
-                    .collect::<Result<Vec<_>, _>>()?,
-            },
+            } => {
+                let mut values = reserve(fields.len())?;
+                for field in fields {
+                    values.push(field.resolve(resolver).map_err(Error::Field)?);
+                }
+                NominalRepresentationShapeV1::Struct {
+                    fields: values,
+                    c_layout_policy,
+                }
+            }
+            Self::Enum { variants } => {
+                let mut values = reserve(variants.len())?;
+                for variant in variants {
+                    values.push(variant.resolve(resolver)?);
+                }
+                NominalRepresentationShapeV1::Enum { variants: values }
+            }
             Self::Class {
                 base,
                 declared_fields,
             } => NominalRepresentationShapeV1::Class {
-                base: base
-                    .resolve(resolver)
-                    .map_err(NominalRepresentationResolutionError::Reference)?,
+                base: base.resolve(resolver).map_err(Error::Reference)?,
                 declared_fields: resolve_class_fields(declared_fields, resolver)?,
             },
             Self::Interface => NominalRepresentationShapeV1::Interface,
@@ -157,9 +149,7 @@ impl DecodedNominalRepresentationShapeV1 {
                 backing_class,
                 declared_fields,
             } => NominalRepresentationShapeV1::Object {
-                backing_class: resolver
-                    .resolve(backing_class)
-                    .map_err(NominalRepresentationResolutionError::Reference)?,
+                backing_class: resolver.resolve(backing_class).map_err(Error::Reference)?,
                 declared_fields: resolve_class_fields(declared_fields, resolver)?,
             },
             Self::Intrinsic { representation } => {
@@ -173,14 +163,22 @@ fn resolve_class_fields<R: NominalRepresentationResolver<E>, E>(
     fields: Vec<DecodedClassRepresentationFieldV1>,
     resolver: &mut R,
 ) -> Result<Vec<ClassRepresentationFieldV1>, NominalRepresentationResolutionError<E>> {
-    fields
-        .into_iter()
-        .map(|field| {
+    let mut values = reserve(fields.len())?;
+    for field in fields {
+        values.push(
             field
                 .resolve(resolver)
-                .map_err(NominalRepresentationResolutionError::Field)
-        })
-        .collect()
+                .map_err(NominalRepresentationResolutionError::Field)?,
+        );
+    }
+    Ok(values)
+}
+
+fn reserve<T, E>(count: usize) -> Result<Vec<T>, NominalRepresentationResolutionError<E>> {
+    let mut values = Vec::new();
+    scoop_wire::allocation::try_reserve(&mut values, count, &scoop_wire::WirePath::root())
+        .map_err(NominalRepresentationResolutionError::Allocation)?;
+    Ok(values)
 }
 
 impl WireEncode for DecodedNominalRepresentationShapeV1 {
@@ -232,7 +230,7 @@ impl WireEncode for DecodedNominalRepresentationShapeV1 {
 }
 
 impl WireDecode for DecodedNominalRepresentationShapeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -334,7 +332,7 @@ impl WireEncode for DecodedNominalRepresentationSupportV1 {
     }
 }
 impl WireDecode for DecodedNominalRepresentationSupportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,

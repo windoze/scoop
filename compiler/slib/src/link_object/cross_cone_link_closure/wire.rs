@@ -7,8 +7,8 @@ use scoop_identity::{
     DecodedPersistentSymbolRequest, DecodedStrongCallableDefinitionOwner, ObjectDefinitionPlanId,
 };
 use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode,
-    encode_canonical_temporary_with_meter,
+    Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode,
+    encode_canonical_temporary,
 };
 
 use super::{
@@ -45,7 +45,7 @@ impl WireEncode for DecodedCrossConeLinkSemanticImportV1 {
 }
 
 impl WireDecode for DecodedCrossConeLinkSemanticImportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             provider: decoder.field(1, DecodedPersistentId::decode)?,
@@ -84,7 +84,7 @@ impl WireEncode for DecodedCrossConeLinkSemanticImportSetV1 {
 }
 
 impl WireDecode for DecodedCrossConeLinkSemanticImportSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedCrossConeLinkSemanticImportV1::decode(decoder))
             .map(|imports| Self { imports })
@@ -108,7 +108,7 @@ impl WireEncode for DecodedCrossConeUndefinedRequirementV1 {
 }
 
 impl WireDecode for DecodedCrossConeUndefinedRequirementV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             use_site: decoder.field(1, DecodedCanonicalUndefinedRelocationUseV1::decode)?,
@@ -134,7 +134,7 @@ impl WireEncode for DecodedCrossConeObjectCoverageProofV1 {
 }
 
 impl WireDecode for DecodedCrossConeObjectCoverageProofV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             verified_link_objects: decoder.field(1, DecodedCodeLinkObjectMemberSetV1::decode)?,
@@ -156,9 +156,8 @@ impl DecodedCrossConeLinkClosureSectionV1 {
     pub fn replay_object_coverage_against(
         &self,
         expected: &super::CrossConeObjectCoverageProofV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), CrossConeLinkClosureSectionValidationError> {
-        if !same_bytes(&self.object_coverage, expected, 3, meter)? {
+        if !same_bytes(&self.object_coverage, expected, 3)? {
             return Err(CrossConeLinkClosureSectionValidationError::ProjectionMismatch);
         }
         Ok(())
@@ -169,21 +168,14 @@ impl DecodedCrossConeLinkClosureSectionV1 {
     pub fn replay_requirements_against(
         &self,
         expected: &crate::VerifiedCrossConeStrongRequirementClosureV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), CrossConeLinkClosureSectionValidationError> {
-        if !same_bytes(
-            &self.semantic_imports,
-            expected.semantic_imports(),
-            1,
-            meter,
-        )? {
+        if !same_bytes(&self.semantic_imports, expected.semantic_imports(), 1)? {
             return Err(CrossConeLinkClosureSectionValidationError::SemanticProjectionMismatch);
         }
         if !same_bytes(
             &WireArray(&self.requirements),
             &WireArray(expected.requirements()),
             2,
-            meter,
         )? {
             return Err(CrossConeLinkClosureSectionValidationError::ProjectionMismatch);
         }
@@ -226,7 +218,7 @@ impl WireEncode for DecodedCrossConeLinkClosureSectionV1 {
 }
 
 impl WireDecode for DecodedCrossConeLinkClosureSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             semantic_imports: decoder.field(1, DecodedCrossConeLinkSemanticImportSetV1::decode)?,
@@ -263,12 +255,11 @@ fn same_bytes(
     actual: &impl WireEncode,
     expected: &impl WireEncode,
     field: u32,
-    meter: &mut BudgetMeter,
 ) -> Result<bool, CrossConeLinkClosureSectionValidationError> {
     let path = WirePath::root().field(field);
-    let actual = encode_canonical_temporary_with_meter(actual, meter, &path)?;
-    let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
-    meter.charge_work(actual.len().min(expected.len()) as u64, &path)?;
+    let actual = encode_canonical_temporary(actual, &path)?;
+    let expected = encode_canonical_temporary(expected, &path)?;
+
     Ok(actual == expected)
 }
 

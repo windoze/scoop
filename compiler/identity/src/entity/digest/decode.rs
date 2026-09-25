@@ -13,7 +13,7 @@ use crate::{
 };
 
 impl WireDecode for DigestKind {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::SourceSignature),
             2 => Ok(Self::Layout),
@@ -31,7 +31,7 @@ impl WireDecode for DigestKind {
 }
 
 impl WireDecode for DigestSemanticFieldRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::RegistrationDefinition),
             2 => Ok(Self::SourceSignature),
@@ -115,7 +115,7 @@ impl WireEncode for DecodedDigestOwnerAndRoleKey {
 }
 
 impl WireDecode for DecodedDigestOwnerAndRoleKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
             1 => decode_id_variant(decoder, fields, Self::SourceSignature),
@@ -208,7 +208,7 @@ impl WireEncode for DecodedDigestNodeKey {
 }
 
 impl WireDecode for DecodedDigestNodeKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             kind: decoder.field(1, DigestKind::decode)?,
@@ -296,7 +296,7 @@ impl WireEncode for DecodedDigestPatchIntentKey {
 }
 
 impl WireDecode for DecodedDigestPatchIntentKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             source: decoder.field(1, DecodedPersistentId::decode)?,
@@ -336,14 +336,14 @@ impl<E: fmt::Display> fmt::Display for DigestPatchIntentResolutionError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for DigestPatchIntentResolutionError<E> {}
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
 fn decode_id_variant<I, T>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     fields: u64,
     build: impl FnOnce(DecodedPersistentId<I>) -> T,
 ) -> Result<T, WireError>
@@ -354,11 +354,7 @@ where
     decoder.field(1, DecodedPersistentId::decode).map(build)
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -370,7 +366,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),
@@ -396,7 +392,7 @@ fn encode_value_sum(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::{DecodedDigestNodeKey, DecodedDigestPatchIntentKey, DigestNodeKeyResolutionError};
     use crate::{
@@ -427,18 +423,12 @@ mod tests {
         pending.register_authority(target_definition).unwrap();
         let mut identities = pending.finish().unwrap();
 
-        let decoded_node = decode_canonical::<DecodedDigestNodeKey>(
-            &encode(&node_key).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded_node =
+            decode_canonical::<DecodedDigestNodeKey>(&encode(&node_key).unwrap()).unwrap();
         assert_eq!(decoded_node.resolve(&mut identities).unwrap(), node_key);
 
-        let decoded_patch = decode_canonical::<DecodedDigestPatchIntentKey>(
-            &encode(&patch_key).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded_patch =
+            decode_canonical::<DecodedDigestPatchIntentKey>(&encode(&patch_key).unwrap()).unwrap();
         assert_eq!(decoded_patch.resolve(&mut identities).unwrap(), patch_key);
     }
 
@@ -447,8 +437,7 @@ mod tests {
         let body = PersistentCallableBodyId(ConeIdentity::SINGLE_FILE.0);
         let mut bytes = encode(&DigestNodeKey::source_signature(body)).unwrap();
         bytes[2] = 2;
-        let decoded =
-            decode_canonical::<DecodedDigestNodeKey>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedDigestNodeKey>(&bytes).unwrap();
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(body).unwrap();
         let mut identities = pending.finish().unwrap();
@@ -466,7 +455,6 @@ mod tests {
                 .into_iter()
                 .chain([0_u8; 32])
                 .collect::<Vec<_>>(),
-            DecodeLimits::default(),
         )
         .unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 11 });
@@ -482,9 +470,7 @@ mod tests {
         ))
         .unwrap();
         *bytes.last_mut().unwrap() = 10;
-        let error =
-            decode_canonical::<DecodedDigestPatchIntentKey>(&bytes, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<DecodedDigestPatchIntentKey>(&bytes).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 10 });
     }
 }

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::ExportDefaultBodyV1;
 use crate::{
@@ -19,8 +19,6 @@ pub trait DefaultLocalFunctionSignatureAuthority<E> {
     fn default_local_function_own_binder_arity(
         &mut self,
         declaration: scoop_identity::CallableTemplateOrigin,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<u32, E>;
 }
 
@@ -32,7 +30,7 @@ impl ExportDefaultBodyV1 {
         &self,
         provider: DefaultTemplateProviderShapeV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>
     where
@@ -40,7 +38,7 @@ impl ExportDefaultBodyV1 {
             + ExportDefinitionSourceSemanticAuthority<E>
             + DefaultLocalFunctionSignatureAuthority<E>,
     {
-        walk::validate(self, provider, authority, meter, path)
+        walk::validate(self, provider, authority, path)
     }
 
     /// Validates the complete provider type envelope without reinterpreting
@@ -52,46 +50,24 @@ impl ExportDefaultBodyV1 {
         &self,
         provider: DefaultTemplateProviderShapeV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
-        walk::validate_types(self, provider, authority, meter, path)
+        walk::validate_types(self, provider, authority, path)
     }
 
-    /// Visits every inline definition source using the same complete,
-    /// resource-bounded traversal as provider-envelope validation.
-    pub(crate) fn visit_definition_sources(
-        &self,
-        visitor: &mut dyn FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1),
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), WireError> {
-        self.visit_definition_sources_metered(
-            &mut |source, site, _, _| {
-                visitor(source, site);
-                Ok(())
-            },
-            meter,
-            path,
-        )
-    }
-    /// Shares the walk's meter with each fallible inline-origin consumer.
-    pub(crate) fn visit_definition_sources_metered<V, E>(
+    /// Visits each inline definition source with its actual diagnostic path.
+    pub(crate) fn visit_definition_sources<V, E>(
         &self,
         visitor: &mut V,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), E>
     where
-        V: FnMut(
-            &ExportDefinitionSourceV1,
-            DefaultBodyOriginSiteV1,
-            &mut BudgetMeter,
-            &WirePath,
-        ) -> Result<(), E>,
+        V: FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1, &WirePath) -> Result<(), E>,
         E: From<WireError>,
     {
-        walk::visit_definition_sources(self, visitor, meter, path)
+        walk::visit_definition_sources(self, visitor, path)
     }
 }
 

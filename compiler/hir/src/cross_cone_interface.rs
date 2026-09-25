@@ -10,7 +10,6 @@ mod declaration_references;
 mod default_templates;
 mod definition_sources;
 mod external_references;
-mod metered_resolution;
 mod nominal_callables;
 mod nominal_interfaces;
 mod nominal_shapes;
@@ -26,15 +25,13 @@ pub use source_access::{
 };
 mod type_alias_interfaces;
 
-pub use metered_resolution::MeteredInterfaceResolutionError;
-
 pub use binders::{
     BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1,
     DecodedCanonicalBinderListV1, DecodedCanonicalSignatureTypesV1,
     DecodedNominalTypeParameterBoundsV1, DecodedTypeParameterBinderV1,
-    DecodedTypeParameterBoundsV1, MeteredSignatureTypeSemanticError, NominalBoundSemanticError,
-    NominalInterfaceShapeAuthority, NominalSignatureSemanticError, NominalTypeParameterBoundsV1,
-    PublicNominalShapeV1, SignatureBinderScopeError, SignatureBinderScopeV1, SignatureTypeFormV1,
+    DecodedTypeParameterBoundsV1, NominalBoundSemanticError, NominalInterfaceShapeAuthority,
+    NominalSignatureSemanticError, NominalTypeParameterBoundsV1, PublicNominalShapeV1,
+    SignatureBinderScopeError, SignatureBinderScopeV1, SignatureTypeFormV1,
     SignatureTypeReferenceResolver, SignatureTypeSemanticError, SignatureTypeSetBuildError,
     SignatureTypeSetValidationError, TypeParameterBinderBuildError,
     TypeParameterBinderResolutionError, TypeParameterBinderScopeValidationError,
@@ -98,6 +95,7 @@ pub use declaration_references::{
     PropertyDeclarationIdResolver, PublicMemberRefBuildError, PublicMemberRefResolver,
     PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId, SourceNominalIdResolver,
 };
+pub use default_templates::copy_default_signature_type;
 pub use default_templates::{
     BinderUseListBuildError, BinderUseListSemanticValidationError, BinderUseListValidationError,
     CanonicalBinderUseListV1, CanonicalExportDefaultTemplatesV1, CanonicalTemplateLocalTableV1,
@@ -270,16 +268,12 @@ pub(crate) use default_templates::{
     DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,
     DefaultBodyValidationInputV1,
 };
-pub use default_templates::{
-    MeteredDefaultTemplateTypeSubstitutionError, MeteredTemplateReceiverSemanticValidationError,
-    MeteredTemplateValueParameterSemanticValidationError, copy_default_signature_type_metered,
-};
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceSemanticAuthority,
     ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceSetBuildError,
     ExportDefinitionSourceSetSemanticValidationError, ExportDefinitionSourceSetValidationError,
-    ExportDefinitionSourceV1, MeteredDefinitionSourcesResolutionError,
+    ExportDefinitionSourceV1,
 };
 pub use external_references::{
     CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,

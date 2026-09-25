@@ -4,9 +4,7 @@ use super::*;
 fn independent_representation_source_join_covers_all_shapes_and_borrows_the_table() {
     let fixture = fixtures::mixed();
     let table = fixture.table();
-    let checked = table
-        .validate_source_semantics(&fixture, &mut meter(), &path())
-        .unwrap();
+    let checked = table.validate_source_semantics(&fixture, &path()).unwrap();
     assert_eq!(table.records().len(), 6);
     assert!(std::ptr::eq(checked.table(), &table));
     for record in table.records() {
@@ -16,7 +14,7 @@ fn independent_representation_source_join_covers_all_shapes_and_borrows_the_tabl
     let empty = Fixture::new();
     empty
         .table()
-        .validate_source_semantics(&empty, &mut meter(), &path())
+        .validate_source_semantics(&empty, &path())
         .unwrap();
 }
 
@@ -28,18 +26,18 @@ fn independent_inventory_requires_exact_local_coverage_and_real_sources() {
     let missing =
         CanonicalNominalRepresentationSupportV1::try_new(table.records()[1..].to_vec()).unwrap();
     assert!(
-        matches!(missing.validate_source_semantics(&fixture, &mut meter(), &path()), Err(NominalRepresentationSourceSemanticError::Missing { owner: actual }) if actual == owner)
+        matches!(missing.validate_source_semantics(&fixture,  &path()), Err(NominalRepresentationSourceSemanticError::Missing { owner: actual }) if actual == owner)
     );
     let mut less = fixture.clone();
     less.required =
         CanonicalPersistentIdsV1::try_new(fixture.required.values()[1..].to_vec()).unwrap();
     assert!(
-        matches!(table.validate_source_semantics(&less, &mut meter(), &path()), Err(NominalRepresentationSourceSemanticError::Extra { index: 0, owner: actual }) if actual == owner)
+        matches!(table.validate_source_semantics(&less,  &path()), Err(NominalRepresentationSourceSemanticError::Extra { index: 0, owner: actual }) if actual == owner)
     );
     let mut absent = fixture.clone();
     absent.sources.remove(&owner);
     assert!(matches!(
-        table.validate_source_semantics(&absent, &mut meter(), &path()),
+        table.validate_source_semantics(&absent, &path()),
         Err(NominalRepresentationSourceSemanticError::Source {
             index: 0,
             error: "independent source unavailable",
@@ -49,7 +47,7 @@ fn independent_inventory_requires_exact_local_coverage_and_real_sources() {
     let mut unavailable = fixture.clone();
     unavailable.inventory_failure = true;
     assert!(matches!(
-        table.validate_source_semantics(&unavailable, &mut meter(), &path()),
+        table.validate_source_semantics(&unavailable, &path()),
         Err(NominalRepresentationSourceSemanticError::Inventory(
             "independent inventory unavailable"
         ))
@@ -100,6 +98,6 @@ fn nonpublic_lexical_support_does_not_gain_a_public_value_requirement() {
     );
     fixture
         .table()
-        .validate_source_semantics(&fixture, &mut meter(), &path())
+        .validate_source_semantics(&fixture, &path())
         .unwrap();
 }

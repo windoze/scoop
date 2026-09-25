@@ -3,7 +3,7 @@ use scoop_identity::{
     LocalValueSelector, PackagePath, PersistentIdResolver, PersistentPropertyId,
     SourceDeclarationKey, SourceDeclarationSite,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -23,7 +23,7 @@ fn local_place_uses_canonical_table_index_and_round_trips() {
     let bytes = encode(&expected.index_local(&mut locals).unwrap()).unwrap();
 
     assert_eq!(hex(&bytes), "a200010101");
-    let decoded: DecodedDefaultPlaceV1 = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultPlaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut PropertyResolver::empty(), &mut locals),
         Ok(expected)
@@ -36,7 +36,7 @@ fn global_place_uses_persistent_property_identity() {
     let expected = DefaultPlaceV1::Global { property };
     let mut locals = LocalResolver::new(Vec::new());
     let bytes = encode(&expected.index_local(&mut locals).unwrap()).unwrap();
-    let decoded: DecodedDefaultPlaceV1 = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultPlaceV1 = decode_canonical(&bytes).unwrap();
 
     assert_eq!(bytes[2], 2);
     assert_eq!(
@@ -61,11 +61,9 @@ fn place_indexing_and_resolution_report_the_failing_domain() {
         )))
     );
 
-    let decoded: DecodedDefaultPlaceV1 = decode_canonical(
-        &encode(&IndexedDefaultPlaceV1::Local { local_index: 2 }).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultPlaceV1 =
+        decode_canonical(&encode(&IndexedDefaultPlaceV1::Local { local_index: 2 }).unwrap())
+            .unwrap();
     assert_eq!(
         decoded.resolve(&mut PropertyResolver::empty(), &mut locals),
         Err(DefaultPlaceResolutionError::Local(
@@ -74,11 +72,9 @@ fn place_indexing_and_resolution_report_the_failing_domain() {
     );
 
     let missing = property("missing");
-    let decoded: DecodedDefaultPlaceV1 = decode_canonical(
-        &encode(&IndexedDefaultPlaceV1::Global { property: missing }).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultPlaceV1 =
+        decode_canonical(&encode(&IndexedDefaultPlaceV1::Global { property: missing }).unwrap())
+            .unwrap();
     assert_eq!(
         decoded.resolve(&mut PropertyResolver::empty(), &mut locals),
         Err(DefaultPlaceResolutionError::Global(PropertyError))
@@ -87,16 +83,11 @@ fn place_indexing_and_resolution_report_the_failing_domain() {
 
 #[test]
 fn place_decoder_rejects_unknown_tags_and_non_exact_maps() {
-    let error = decode_canonical::<DecodedDefaultPlaceV1>(
-        &[0xa2, 0x00, 0x03, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultPlaceV1>(&[0xa2, 0x00, 0x03, 0x01, 0x00]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error =
-        decode_canonical::<DecodedDefaultPlaceV1>(&[0xa1, 0x00, 0x01], DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultPlaceV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

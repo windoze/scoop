@@ -12,7 +12,6 @@ pub(super) fn project(
     source: &ParamFreeMirTypeExportV1,
     location: GeneratedExactTypeLocation,
     role: &GeneratedNominalKey,
-    meter: &mut BudgetMeter,
 ) -> Result<Projection, MirTypeBridgeError> {
     let module = input.module();
     let mut bases = MirBaseAndInterfacesV1 {
@@ -21,9 +20,6 @@ pub(super) fn project(
     };
     let (facts, representation) = match (location, role) {
         (GeneratedExactTypeLocation::Class(class), GeneratedNominalKey::BoxedValue { .. }) => {
-            meter
-                .charge_work(module.meta.boxed_types.len() as u64, &WirePath::root())
-                .map_err(MirTypeBridgeError::Resource)?;
             let boxed = module
                 .meta
                 .boxed_types
@@ -35,10 +31,8 @@ pub(super) fn project(
                 unreachable!("validated boxes have exactly one payload field")
             };
             let interfaces = &source.base_and_interfaces().interfaces;
-            reserve(&mut bases.interfaces, interfaces.len(), meter)?;
-            meter
-                .charge_work(interfaces.len() as u64, &WirePath::root())
-                .map_err(MirTypeBridgeError::Resource)?;
+            reserve(&mut bases.interfaces, interfaces.len())?;
+
             bases.interfaces.extend_from_slice(interfaces);
             (
                 MirTypeFactsV1::try_new(
@@ -48,7 +42,7 @@ pub(super) fn project(
                 MirTypeRepresentationV1::BoxedValue {
                     payload: MirRepresentationFieldV1 {
                         field: boxed.identity().payload_field_record().id(),
-                        value: exact(module, &payload.ty, meter)?,
+                        value: exact(module, &payload.ty),
                     },
                 },
             )
@@ -58,7 +52,7 @@ pub(super) fn project(
             GeneratedNominalKey::CoroutineStep { .. } | GeneratedNominalKey::CoroutineSlot { .. },
         ) => {
             let definition = &module.enums[id];
-            let variants = variants(module, &definition.variants, meter)?;
+            let variants = variants(module, &definition.variants)?;
             let representation = if matches!(role, GeneratedNominalKey::CoroutineStep { .. }) {
                 MirTypeRepresentationV1::CoroutineStep { variants }
             } else {
@@ -77,21 +71,16 @@ pub(super) fn project(
 fn variants(
     module: &Module,
     definitions: &[crate::VariantDef],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<MirRepresentationVariantV1>, MirTypeBridgeError> {
-    let path = WirePath::root();
     let mut variants = Vec::new();
-    reserve(&mut variants, definitions.len(), meter)?;
+    reserve(&mut variants, definitions.len())?;
     for variant in definitions {
-        meter
-            .charge_nodes(1, &path)
-            .map_err(MirTypeBridgeError::Resource)?;
         let mut fields = Vec::new();
-        reserve(&mut fields, variant.fields.len(), meter)?;
+        reserve(&mut fields, variant.fields.len())?;
         for field in &variant.fields {
             fields.push(MirRepresentationVariantFieldV1 {
                 field: field.identity,
-                value: exact(module, &field.ty, meter)?,
+                value: exact(module, &field.ty),
             });
         }
         variants.push(MirRepresentationVariantV1 {
@@ -103,24 +92,14 @@ fn variants(
     Ok(variants)
 }
 
-fn exact(
-    module: &Module,
-    ty: &Type,
-    meter: &mut BudgetMeter,
-) -> Result<PersistentExactTypeId, MirTypeBridgeError> {
-    meter
-        .charge_work(
-            module.meta.source_exact_types.len() as u64,
-            &WirePath::root(),
-        )
-        .map_err(MirTypeBridgeError::Resource)?;
-    Ok(module
+fn exact(module: &Module, ty: &Type) -> PersistentExactTypeId {
+    module
         .meta
         .source_exact_types
         .get(ty)
         .expect("finite helper payloads and conformance types retain source exact identities")
         .identity_record()
-        .id())
+        .id()
 }
 
 fn gc(gc_free: bool) -> MirGcKindV1 {

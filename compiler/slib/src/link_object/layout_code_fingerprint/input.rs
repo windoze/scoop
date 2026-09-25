@@ -2,10 +2,7 @@
 
 use super::*;
 use crate::{SingleConeProductionCodeProjectionV1, VerifiedCodeLinkObjectMemberSetV2};
-use scoop_wire::{
-    Encoder, WireEncode, WirePath, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash};
 
 const CODE_FINGERPRINT_DOMAIN: &str = "scoop-code-v1";
 
@@ -25,20 +22,6 @@ impl<S: WireEncode> LayoutCodeFingerprintInputV1<'_, S> {
         domain_separated_cbor_hash(CODE_FINGERPRINT_DOMAIN, self)
             .map(|digest| CodeFingerprint::from_array(*digest.as_array()))
             .map_err(LayoutCodeFingerprintError::Hash)
-    }
-
-    pub(crate) fn fingerprint_with_meter(
-        &self,
-        meter: &mut BudgetMeter,
-    ) -> Result<CodeFingerprint, LayoutCodeFingerprintError> {
-        let bytes = domain_separated_cbor_hash_stream_length(CODE_FINGERPRINT_DOMAIN, self)
-            .map_err(LayoutCodeFingerprintError::Hash)?;
-        // Both the length walk and streaming hash use the original artifact's
-        // cumulative budget. No full encoded Strong section is retained.
-        meter
-            .charge_work(bytes.saturating_mul(2), &WirePath::root())
-            .map_err(LayoutCodeFingerprintError::Resource)?;
-        self.fingerprint()
     }
 }
 

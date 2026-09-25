@@ -3,7 +3,7 @@ use scoop_identity::{
     PackagePath, PendingIdentityValidation, PersistentFunctionId, PersistentPropertyId,
     SourceDeclarationKey, SourceDeclarationSite, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 
@@ -74,11 +74,8 @@ fn reader_rejects_duplicate_and_noncanonical_member_order() {
 
 #[test]
 fn reader_rejects_unknown_outer_member_tags() {
-    let error = decode_canonical::<DecodedPublicMemberRefV1>(
-        &[0xa2, 0x00, 0x03, 0x01, 0xf6],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedPublicMemberRefV1>(&[0xa2, 0x00, 0x03, 0x01, 0xf6]).unwrap_err();
 
     assert!(matches!(
         error.kind(),
@@ -139,7 +136,7 @@ fn authority(fixture: &Fixture) -> ValidatedIdentityGraph {
 }
 
 fn decode_members<T: WireEncode>(value: &T) -> DecodedCanonicalPublicMemberRefsV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 struct MemberSequence(Vec<PublicMemberRefV1>);

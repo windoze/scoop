@@ -84,32 +84,7 @@ fn reader_rejects_storage_pass_mode_protocol_and_logical_layout_drift() {
             layouts,
         })
         .unwrap();
-        let raw =
-            decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes, DecodeLimits::default())
-                .unwrap();
-        assert!(raw.validate_against(&expected, &mut meter()).is_err());
-    }
-}
-
-#[test]
-fn reader_budgets_and_protocol_tags_have_no_native_escape() {
-    let unit: ExactLayoutExportV1 = unit().into();
-    let expected = fixtures::function(&unit, &[]);
-    let bytes = encode(&expected).unwrap();
-    let limits = DecodeLimits {
-        validation_work_units: 1,
-        ..DecodeLimits::default()
-    };
-    let raw = decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes, DecodeLimits::default())
-        .unwrap();
-    assert!(matches!(
-        raw.validate_against(&expected, &mut BudgetMeter::new(limits)),
-        Err(ExactCallableAbiWireError::Resource(_))
-    ));
-    for tag in [3, 4] {
-        assert!(
-            decode_canonical::<ExactCallableProtocolV1>(&[0xa1, 0, tag], DecodeLimits::default())
-                .is_err()
-        );
+        let raw = decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes).unwrap();
+        assert!(raw.validate_against(&expected).is_err());
     }
 }

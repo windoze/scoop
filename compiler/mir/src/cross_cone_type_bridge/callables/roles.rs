@@ -135,7 +135,7 @@ macro_rules! encode_role {
 encode_role!(MirCallableLoweringRoleV1);
 encode_role!(DecodedMirCallableLoweringRoleV1);
 impl WireDecode for DecodedMirCallableLoweringRoleV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         let kind = decoder.field(0, Decoder::unsigned)?;
         fields(decoder, count, if matches!(kind, 1 | 4) { 1 } else { 2 })?;

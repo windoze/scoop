@@ -1,5 +1,5 @@
 use scoop_identity::SourceNominalKind;
-use scoop_wire::{BudgetMeter, DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::NominalRepresentationShapeV1;
@@ -31,39 +31,13 @@ fn representation_table_has_explicit_empty_wire_and_rejects_duplicate_production
 }
 
 #[test]
-fn reader_resolves_canonical_records_with_the_shared_budget() {
-    let mut fixture = Fixture::new(SourceNominalKind::Interface);
-    let record = record(&fixture);
-    let table = CanonicalNominalRepresentationSupportV1::try_new(vec![record]).unwrap();
-    let bytes = encode(&table).unwrap();
-    let decoded: DecodedCanonicalNominalRepresentationSupportV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert_eq!(encode(&decoded).unwrap(), bytes);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    assert_eq!(
-        decoded.clone().resolve(&mut fixture, &mut meter).unwrap(),
-        table
-    );
-    assert!(meter.usage().decoded_nodes > 0);
-    let mut exhausted = BudgetMeter::new(DecodeLimits {
-        decoded_nodes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        decoded.resolve(&mut fixture, &mut exhausted),
-        Err(NominalRepresentationTableResolutionError::Resource(_))
-    ));
-}
-
-#[test]
 fn reader_rejects_duplicate_records_without_silently_normalizing() {
     let mut fixture = Fixture::new(SourceNominalKind::Interface);
     let record = record(&fixture);
     let bytes = encode(&Sequence(vec![record.clone(), record])).unwrap();
-    let decoded: DecodedCanonicalNominalRepresentationSupportV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalNominalRepresentationSupportV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut BudgetMeter::new(DecodeLimits::default())),
+        decoded.resolve(&mut fixture),
         Err(NominalRepresentationTableResolutionError::Order(_))
     ));
 }

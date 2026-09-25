@@ -3,28 +3,18 @@ mod constructors;
 use super::*;
 use crate::PublicDeclarationOwnerV1;
 use scoop_identity::{ExactTypeKey, NonEmptyVec};
-use scoop_wire::DecodeLimits;
 
 mod fixture;
 mod receivers;
-mod resources;
+
 use fixture::*;
 
 fn validate(
     fixture: &Fixture,
     site: &HirDependencyCallSiteV1,
 ) -> Result<(), HirDependencyCallSignatureError> {
-    site.validate_source_signature(
-        fixture.target,
-        fixture.metadata(),
-        &mut meter(),
-        &WirePath::root(),
-    )
-    .map(|_| ())
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
+    site.validate_source_signature(fixture.target, fixture.metadata())
+        .map(|_| ())
 }
 
 #[test]

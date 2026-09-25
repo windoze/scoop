@@ -11,16 +11,12 @@ pub(super) struct MaterializableSignatures<'a> {
 }
 
 impl<'a> MaterializableSignatures<'a> {
-    pub(super) fn new(
-        public: &'a CrossConeHirInterfaceSectionV1,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
+    pub(super) fn new(public: &'a CrossConeHirInterfaceSectionV1) -> Result<Self, Error> {
         Ok(Self {
             nominals: public.nominal_interfaces(),
             closure: NominalMaterializationClosure::from_declarations(
                 public.nominal_interfaces(),
                 public.callable_interfaces(),
-                meter,
             )
             .map_err(|error| match error {
                 crate::NominalMaterializationClosureError::Resource(error) => {
@@ -31,21 +27,13 @@ impl<'a> MaterializableSignatures<'a> {
         })
     }
 
-    pub(super) fn callable(
-        &self,
-        source: &CallableDeclarationRecordV1,
-        meter: &mut BudgetMeter,
-    ) -> Result<bool, Error> {
-        meter.charge_work(
-            scoop_wire::encoded_length(source).map_err(|error| Error::Key(error.to_string()))?,
-            &WirePath::root(),
-        )?;
+    pub(super) fn callable(&self, source: &CallableDeclarationRecordV1) -> bool {
         if source.effects().implementation() != CallableImplementationV1::Scoop
             || source.effects().execution() != Effect::Ordinary
             || !source.type_parameters().is_empty()
-            || !self.owner(source.owner().nominal_owner(), meter)?
+            || !self.owner(source.owner().nominal_owner())
         {
-            return Ok(false);
+            return false;
         }
         for ty in source
             .receiver()
@@ -59,21 +47,15 @@ impl<'a> MaterializableSignatures<'a> {
             )
             .chain(std::iter::once(source.result()))
         {
-            if !self.ty(ty, 1, meter)? {
-                return Ok(false);
+            if !self.ty(ty) {
+                return false;
             }
         }
-        Ok(true)
+        true
     }
 
-    pub(super) fn owner(
-        &self,
-        owner: Option<SourceNominalId>,
-        meter: &mut BudgetMeter,
-    ) -> Result<bool, Error> {
-        lookup(self.nominals.declaration_count(), meter)?;
-        lookup(self.closure.sources().len(), meter)?;
-        Ok(match owner {
+    pub(super) fn owner(&self, owner: Option<SourceNominalId>) -> bool {
+        match owner {
             Some(SourceNominalId::Concrete(source)) => {
                 self.nominals
                     .declaration(SourceNominalId::Concrete(source))
@@ -82,32 +64,22 @@ impl<'a> MaterializableSignatures<'a> {
             }
             Some(SourceNominalId::GenericTemplate(_)) => false,
             None => true,
-        })
+        }
     }
 
-    fn ty(
-        &self,
-        ty: &SignatureTypeKey,
-        depth: u64,
-        meter: &mut BudgetMeter,
-    ) -> Result<bool, Error> {
-        meter.check_semantic_depth(depth, &WirePath::root())?;
-        meter.charge_nodes(1, &WirePath::root())?;
-        meter.charge_work(1, &WirePath::root())?;
+    fn ty(&self, ty: &SignatureTypeKey) -> bool {
         match ty {
             SignatureTypeKey::Nominal(source) => {
-                self.owner(Some(SourceNominalId::Concrete(*source)), meter)
+                self.owner(Some(SourceNominalId::Concrete(*source)))
             }
-            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
-                Ok(false)
-            }
+            SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => false,
             SignatureTypeKey::Tuple(elements) => {
                 for element in elements.as_slice() {
-                    if !self.ty(element, depth + 1, meter)? {
-                        return Ok(false);
+                    if !self.ty(element) {
+                        return false;
                     }
                 }
-                Ok(true)
+                true
             }
             SignatureTypeKey::Function {
                 parameters, result, ..
@@ -116,13 +88,13 @@ impl<'a> MaterializableSignatures<'a> {
                 parameters, result, ..
             } => {
                 for parameter in parameters {
-                    if !self.ty(parameter, depth + 1, meter)? {
-                        return Ok(false);
+                    if !self.ty(parameter) {
+                        return false;
                     }
                 }
-                self.ty(result, depth + 1, meter)
+                self.ty(result)
             }
-            SignatureTypeKey::RawPointer(pointee) => self.ty(pointee, depth + 1, meter),
+            SignatureTypeKey::RawPointer(pointee) => self.ty(pointee),
         }
     }
 }

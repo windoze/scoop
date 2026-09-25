@@ -22,15 +22,9 @@ const CALLABLES: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-nominals/callables.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 pub(super) fn required(export: &hir::ExportHirOutput) -> BTreeSet<CallableTemplateOrigin> {
-    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
-    let nominals =
-        hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots, &mut meter())
-            .unwrap();
+    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export).unwrap();
+    let nominals = hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots).unwrap();
     let mut required = BTreeSet::new();
     for nominal in nominals.records() {
         required.extend(
@@ -64,7 +58,7 @@ pub(super) fn required(export: &hir::ExportHirOutput) -> BTreeSet<CallableTempla
     required
 }
 fn table(export: &hir::ExportHirOutput) -> Table {
-    Table::from_export_hir(export, &required(export), &mut meter()).unwrap()
+    Table::from_export_hir(export, &required(export)).unwrap()
 }
 fn declaration(
     export: &hir::ExportHir,
@@ -119,11 +113,8 @@ fn complete_parameter_sources_keep_legacy_records_and_bytes_unchanged() {
     ));
     with_source(source, |output, _| {
         let full = table(&output.output().export);
-        let old = hir::CanonicalInheritanceSourceParameterProtocolsV1::from_dependency_hir(
-            output,
-            &mut meter(),
-        )
-        .unwrap();
+        let old = hir::CanonicalInheritanceSourceParameterProtocolsV1::from_dependency_hir(output)
+            .unwrap();
         assert!(full.records().len() >= old.records().len());
         for record in old.records() {
             let complete = full.get(record.owner()).unwrap();

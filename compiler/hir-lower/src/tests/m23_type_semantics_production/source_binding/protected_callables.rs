@@ -26,13 +26,11 @@ struct Sources {
 impl Sources {
     fn from_output(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Self {
         let properties = super::properties::Sources::from_output(output, fixture);
-        let source = Table::from_dependency_hir(output, &mut meter()).unwrap();
+        let source = Table::from_dependency_hir(output).unwrap();
         let bytes = encode(&source).unwrap();
         let decoded: hir::DecodedCanonicalInheritanceSourceProtectedCallablesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let callables = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&bytes).unwrap();
+        let callables = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(encode(&callables).unwrap(), bytes);
         Self {
             properties,
@@ -42,12 +40,11 @@ impl Sources {
     fn bind<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
-        meter: &mut BudgetMeter,
     ) -> Result<hir::BoundInheritanceProtectedCallableSourcesV1<'a, 'f>, Error> {
         self.properties
-            .bind(foundation, &mut super::meter())
+            .bind(foundation)
             .unwrap()
-            .bind_protected_callable_sources(&self.callables, meter)
+            .bind_protected_callable_sources(&self.callables)
     }
     fn replace(&mut self, record: Record) {
         let declaration = record.declaration();
@@ -56,7 +53,7 @@ impl Sources {
             .iter_mut()
             .find(|r| r.declaration() == declaration)
             .unwrap() = record;
-        self.callables = Table::try_new(records, &mut meter()).unwrap();
+        self.callables = Table::try_new(records).unwrap();
     }
 }
 
@@ -68,7 +65,7 @@ fn restored_protected_sources_bind_methods_generics_accessors_and_overrides() {
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
 
-            let bound = sources.bind(&foundation, &mut meter()).unwrap();
+            let bound = sources.bind(&foundation).unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
             assert_eq!(bound.table(), &sources.callables);
             assert_eq!(
@@ -106,41 +103,4 @@ fn restored_protected_sources_bind_methods_generics_accessors_and_overrides() {
             }
         });
     }
-}
-
-#[test]
-fn protected_binding_uses_shared_resource_limits_before_publication() {
-    with_source(SOURCE, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let sources = Sources::from_output(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                sources.bind(&foundation, &mut BudgetMeter::new(limits)),
-                Err(Error::Resource(_))
-            ));
-        }
-    });
 }

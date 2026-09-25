@@ -1,7 +1,7 @@
 use super::*;
 use scoop_hir::{
-    DefaultSourceTargetSubjectError, ExportDefaultReferenceKindV1, ExportDefaultTemplateKeyV1,
-    MeteredDefaultTemplateTypeSubstitutionError,
+    DefaultSourceTargetSubjectError, DefaultTemplateTypeSubstitutionError,
+    ExportDefaultReferenceKindV1, ExportDefaultTemplateKeyV1,
 };
 use scoop_wire::WireError;
 
@@ -10,7 +10,7 @@ pub enum CrossConeHirDefaultCallDomainError {
     Resource(WireError),
     Source(Box<DefaultSourceTargetSubjectError>),
     DeclarationSource(Box<super::super::CrossConeHirNominalAuthorityError>),
-    Substitution(Box<MeteredDefaultTemplateTypeSubstitutionError>),
+    Substitution(Box<DefaultTemplateTypeSubstitutionError>),
     Encoding(String),
     MissingDeclaration(CallableTemplateOrigin),
     CallableRole(CallableTemplateOrigin),
@@ -61,8 +61,8 @@ impl From<super::super::CrossConeHirNominalAuthorityError> for Error {
         Self::DeclarationSource(Box::new(e))
     }
 }
-impl From<MeteredDefaultTemplateTypeSubstitutionError> for Error {
-    fn from(e: MeteredDefaultTemplateTypeSubstitutionError) -> Self {
+impl From<DefaultTemplateTypeSubstitutionError> for Error {
+    fn from(e: DefaultTemplateTypeSubstitutionError) -> Self {
         Self::Substitution(Box::new(e))
     }
 }

@@ -4,7 +4,7 @@ use scoop_identity::{
     SignatureTypeKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 mod local_signatures;
@@ -29,14 +29,12 @@ fn validates_all_six_domains_in_canonical_order() {
     let fixture = Fixture::new();
     let template = template(&fixture, all_references(&fixture));
     let mut authority = Authority::new(&fixture);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
 
     assert_eq!(
         template.validate_reference_envelope_semantics(
             &owner_interface(&fixture, PublicLookupAccessV1::DirectOnly),
             DefaultTemplateProviderShapeV1::try_new(0, 0).unwrap(),
             &mut authority,
-            &mut meter,
             &WirePath::root(),
         ),
         Ok(())
@@ -54,7 +52,6 @@ fn validates_all_six_domains_in_canonical_order() {
     );
     assert_eq!(authority.origins, 6);
     assert_eq!(authority.nominals, 3);
-    assert_eq!(meter.usage().decoded_nodes, 12);
 }
 
 #[test]
@@ -80,7 +77,6 @@ fn maps_owner_public_slot_access_to_the_refined_call_domain() {
             &owner_interface(&fixture, PublicLookupAccessV1::PublicSlot),
             DefaultTemplateProviderShapeV1::try_new(0, 0).unwrap(),
             &mut authority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
             &WirePath::root(),
         ),
         Ok(())
@@ -156,7 +152,6 @@ fn rejects_mismatched_owner_interface_and_foreign_reference_origin() {
             &other,
             DefaultTemplateProviderShapeV1::try_new(0, 0).unwrap(),
             &mut authority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
             &WirePath::root(),
         ),
         Err(
@@ -282,58 +277,6 @@ fn preserves_typed_target_authority_failures() {
     assert_eq!(authority.origins, 6);
 }
 
-#[test]
-fn shares_the_callers_resource_meter() {
-    let fixture = Fixture::new();
-    let references = reference_set(
-        Vec::new(),
-        Vec::new(),
-        vec![reference(
-            SignatureTypeKey::Nominal(fixture.type_id),
-            &fixture,
-            ExportDefaultCallDomainV1::DirectPublic,
-        )],
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-    );
-    let template = template(&fixture, references);
-    let limits = DecodeLimits {
-        validation_work_units: 1,
-        ..DecodeLimits::default()
-    };
-    let mut meter = BudgetMeter::new(limits);
-
-    let error = template
-        .validate_reference_envelope_semantics(
-            &owner_interface(&fixture, PublicLookupAccessV1::DirectOnly),
-            DefaultTemplateProviderShapeV1::try_new(0, 0).unwrap(),
-            &mut Authority::new(&fixture),
-            &mut meter,
-            &WirePath::root(),
-        )
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        ExportDefaultReferenceSetSemanticValidationError::Record {
-            kind: ExportDefaultReferenceKindV1::Type,
-            index: 0,
-            error,
-        } if matches!(
-            error.as_ref(),
-            ExportDefaultReferenceValidationError::Resource(resource)
-                if matches!(
-                    resource.kind(),
-                    WireErrorKind::LimitExceeded {
-                        resource: ResourceKind::ValidationWorkUnits,
-                        ..
-                    }
-                )
-        )
-    ));
-    assert_eq!(meter.usage().validation_work_units, 1);
-}
-
 fn validate(
     template: &ExportDefaultTemplateV1,
     fixture: &Fixture,
@@ -343,7 +286,6 @@ fn validate(
         &owner_interface(fixture, PublicLookupAccessV1::DirectOnly),
         DefaultTemplateProviderShapeV1::try_new(0, 0).unwrap(),
         authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
         &WirePath::root(),
     )
 }
@@ -642,8 +584,6 @@ impl crate::DefaultLocalFunctionSignatureAuthority<AuthorityError> for Authority
     fn default_local_function_own_binder_arity(
         &mut self,
         declaration: scoop_identity::CallableTemplateOrigin,
-        _meter: &mut scoop_wire::BudgetMeter,
-        _path: &scoop_wire::WirePath,
     ) -> Result<u32, AuthorityError> {
         self.local_keys
             .get(&declaration)

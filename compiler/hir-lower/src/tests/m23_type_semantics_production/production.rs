@@ -4,20 +4,15 @@ pub(super) fn produce_cross_cone_type_semantics(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
-    produce_type_semantics_metered(
-        output,
-        public,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
+    produce_type_semantics(output, public)
 }
 
-pub(super) fn produce_type_semantics_metered(
+pub(super) fn produce_type_semantics(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    meter: &mut BudgetMeter,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
     with_metadata(output, public, |metadata, dependencies| {
-        crate::produce_cross_cone_type_semantics(output, metadata, dependencies, meter)
+        crate::produce_cross_cone_type_semantics(output, metadata, dependencies)
     })
 }
 

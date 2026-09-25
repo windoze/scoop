@@ -5,7 +5,7 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     SyntheticLocalRole,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::cross_cone_interface::default_templates::body::expression_test_support::{
@@ -29,60 +29,6 @@ use crate::{
 };
 
 mod receivers;
-
-#[test]
-fn validates_a_nested_option_and_boolean_expression_with_one_meter() {
-    let fixture = Fixture::new();
-    let string = core(DefaultOperationCoreTypeV1::String);
-    let boolean = core(DefaultOperationCoreTypeV1::Boolean);
-    let option = ty(100);
-    let literal = expression(
-        &fixture,
-        DefaultExpressionKindV1::StringLiteral {
-            value: "value".to_owned(),
-            owner: DefaultStringOwnerV1::CurrentInstantiation,
-        },
-        string.clone(),
-    );
-    let some = expression(
-        &fixture,
-        DefaultExpressionKindV1::SomeWrap(Box::new(literal)),
-        option.clone(),
-    );
-    let present = expression(
-        &fixture,
-        DefaultExpressionKindV1::IsSome(Box::new(some)),
-        boolean.clone(),
-    );
-    let other = expression(
-        &fixture,
-        DefaultExpressionKindV1::BooleanLiteral(CanonicalBooleanV1::True),
-        boolean.clone(),
-    );
-    let value = expression(
-        &fixture,
-        DefaultExpressionKindV1::Binary {
-            operator: crate::DefaultBinaryOperatorV1::And,
-            lhs: Box::new(present),
-            rhs: Box::new(other),
-        },
-        boolean,
-    );
-    let template = template(&fixture, value, Vec::new(), Vec::new(), false);
-    let mut authority = Authority::new();
-    authority
-        .applications
-        .push((option, DefaultCoreApplicationV1::Option { element: string }));
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-
-    assert_eq!(
-        validate_with_meter(&template, &mut authority, &mut meter),
-        Ok(())
-    );
-    assert_eq!(meter.usage().decoded_nodes, 5);
-    assert_eq!(meter.usage().decoded_edges, 4);
-    assert!(meter.usage().validation_work_units > meter.usage().decoded_nodes);
-}
 
 #[test]
 fn permits_authorized_reference_retype_but_requires_explicit_function_coercion() {
@@ -448,47 +394,6 @@ fn rejects_field_authority_kind_mismatch() {
         }) if site.operation() == DefaultExpressionOperationV1::FieldAccess
             && site.role() == DefaultOperationValueRoleV1::Target
     ));
-}
-
-#[test]
-fn enforces_expression_semantic_depth_before_scheduling_children() {
-    let fixture = Fixture::new();
-    let unit = core(DefaultOperationCoreTypeV1::Unit);
-    let option = ty(130);
-    let value = expression(
-        &fixture,
-        DefaultExpressionKindV1::SomeWrap(Box::new(expression(
-            &fixture,
-            DefaultExpressionKindV1::UnitLiteral,
-            unit.clone(),
-        ))),
-        option.clone(),
-    );
-    let template = template(&fixture, value, Vec::new(), Vec::new(), false);
-    let mut authority = Authority::new();
-    authority
-        .applications
-        .push((option, DefaultCoreApplicationV1::Option { element: unit }));
-    let path = WirePath::root().field(9);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    });
-    let error = validate_with_meter(&template, &mut authority, &mut meter).unwrap_err();
-
-    assert!(matches!(
-        error,
-        ExportDefaultOperationTypingValidationError::Resource(ref error)
-            if error.kind()
-                == &WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::SemanticRecursion,
-                    limit: 1,
-                    observed: 2,
-                }
-                && error.path() == &path
-    ));
-    assert_eq!(meter.usage().decoded_nodes, 1);
-    assert_eq!(meter.usage().decoded_edges, 0);
 }
 
 #[test]
@@ -1097,53 +1002,6 @@ fn validates_for_protocol_and_binding_component_projection_chain() {
     assert_eq!(authority.intrinsic_validations, 2);
 }
 
-#[test]
-fn enforces_body_semantic_depth_before_entering_the_result_expression() {
-    let fixture = Fixture::new();
-    let unit = core(DefaultOperationCoreTypeV1::Unit);
-    let template = template(
-        &fixture,
-        expression(&fixture, DefaultExpressionKindV1::UnitLiteral, unit),
-        Vec::new(),
-        Vec::new(),
-        false,
-    );
-    let path = WirePath::root().field(10);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    });
-    let error = template
-        .body()
-        .validate_operation_typing_semantics(&template, &mut Authority::new(), &mut meter, &path)
-        .unwrap_err();
-
-    assert!(matches!(
-        error,
-        ExportDefaultBodyOperationTypingValidationError::Resource(ref error)
-            if error.kind()
-                == &WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::SemanticRecursion,
-                    limit: 1,
-                    observed: 2,
-                }
-                && error.path() == &path
-    ));
-    assert_eq!(meter.usage().decoded_nodes, 1);
-    assert_eq!(meter.usage().decoded_edges, 0);
-}
-
-fn validate(
-    template: &ExportDefaultTemplateV1,
-    authority: &mut Authority,
-) -> Result<(), ExportDefaultOperationTypingValidationError<AuthorityError>> {
-    validate_with_meter(
-        template,
-        authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
-}
-
 fn validate_body(
     template: &ExportDefaultTemplateV1,
     authority: &mut Authority,
@@ -1151,20 +1009,17 @@ fn validate_body(
     template.body().validate_operation_typing_semantics(
         template,
         authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
         &WirePath::root().field(10),
     )
 }
 
-fn validate_with_meter(
+fn validate(
     template: &ExportDefaultTemplateV1,
     authority: &mut Authority,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExportDefaultOperationTypingValidationError<AuthorityError>> {
     template.body().value().validate_operation_typing_semantics(
         template,
         authority,
-        meter,
         &WirePath::root().field(9),
     )
 }

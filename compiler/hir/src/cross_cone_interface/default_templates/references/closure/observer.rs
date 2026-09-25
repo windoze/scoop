@@ -1,5 +1,5 @@
 use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::compare::{
     CallableTargetView, ConstructorTargetView, FieldTargetView, callable_target,
@@ -24,20 +24,16 @@ impl<'a> ClosureObserver<'a> {
     pub(super) fn new(
         references: &'a ExportDefaultReferenceSetV1,
         witness: WitnessExpectation,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, ExportDefaultReferenceClosureValidationError> {
-        let domains = ReferenceDomains::new(references, meter, path)
+        let domains = ReferenceDomains::new(references, path)
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
         Ok(Self { witness, domains })
     }
 
-    pub(super) fn finish(
-        &self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.domains.finish(meter, path)
+    pub(super) fn finish(&self) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        self.domains.finish()
     }
 
     fn observe_callable(
@@ -45,7 +41,7 @@ impl<'a> ClosureObserver<'a> {
         target: CallableTargetView<'_>,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
@@ -55,8 +51,7 @@ impl<'a> ClosureObserver<'a> {
             &self.witness,
             ExportDefaultReferenceKindV1::Callable,
             site,
-            |declared, meter, path| callable_target(declared, target, meter, path),
-            meter,
+            |declared, path| callable_target(declared, target, path),
             path,
         )
     }
@@ -66,7 +61,7 @@ impl<'a> ClosureObserver<'a> {
         target: ConstructorTargetView<'_>,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
@@ -76,8 +71,7 @@ impl<'a> ClosureObserver<'a> {
             &self.witness,
             ExportDefaultReferenceKindV1::Constructor,
             site,
-            |declared, meter, path| constructor_target(declared, target, meter, path),
-            meter,
+            |declared, path| constructor_target(declared, target, path),
             path,
         )
     }
@@ -87,7 +81,7 @@ impl<'a> ClosureObserver<'a> {
         target: &SignatureTypeKey,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         if matches!(target, SignatureTypeKey::Binder { .. }) {
@@ -100,8 +94,7 @@ impl<'a> ClosureObserver<'a> {
             &self.witness,
             ExportDefaultReferenceKindV1::Type,
             site,
-            |declared, meter, path| signature_type(declared, target, meter, path),
-            meter,
+            |declared, path| signature_type(declared, target, path),
             path,
         )
     }
@@ -111,7 +104,7 @@ impl<'a> ClosureObserver<'a> {
         target: PersistentPropertyId,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
@@ -121,8 +114,7 @@ impl<'a> ClosureObserver<'a> {
             &self.witness,
             ExportDefaultReferenceKindV1::Global,
             site,
-            |declared, _, _| Ok(declared.cmp(&target)),
-            meter,
+            |declared, _| Ok(declared.cmp(&target)),
             path,
         )
     }
@@ -132,7 +124,7 @@ impl<'a> ClosureObserver<'a> {
         target: PersistentObjectValueId,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
@@ -142,8 +134,7 @@ impl<'a> ClosureObserver<'a> {
             &self.witness,
             ExportDefaultReferenceKindV1::Singleton,
             site,
-            |declared, _, _| Ok(declared.cmp(&target)),
-            meter,
+            |declared, _| Ok(declared.cmp(&target)),
             path,
         )
     }
@@ -153,7 +144,7 @@ impl<'a> ClosureObserver<'a> {
         target: FieldTargetView<'_>,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
@@ -163,8 +154,7 @@ impl<'a> ClosureObserver<'a> {
             &self.witness,
             ExportDefaultReferenceKindV1::Field,
             site,
-            |declared, meter, path| field_target(declared, target, meter, path),
-            meter,
+            |declared, path| field_target(declared, target, path),
             path,
         )
     }
@@ -177,7 +167,7 @@ impl<'body> DefaultBodyReferenceVisitorV1<'body> for ClosureObserver<'_> {
         &mut self,
         _: u32,
         _: &crate::DefaultExpressionV1,
-        _: &mut BudgetMeter,
+
         _: &WirePath,
     ) -> Result<(), Self::Error> {
         Ok(())
@@ -186,7 +176,7 @@ impl<'body> DefaultBodyReferenceVisitorV1<'body> for ClosureObserver<'_> {
     fn reference(
         &mut self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'body>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), Self::Error> {
         let DefaultBodyReferenceOccurrenceV1 {
@@ -196,14 +186,12 @@ impl<'body> DefaultBodyReferenceVisitorV1<'body> for ClosureObserver<'_> {
             ..
         } = occurrence;
         match target {
-            Target::Callable(target) => self.observe_callable(target, origin, site, meter, path),
-            Target::Constructor(target) => {
-                self.observe_constructor(target, origin, site, meter, path)
-            }
-            Target::Type(target) => self.match_type(target, origin, site, meter, path),
-            Target::Global(target) => self.observe_global(target, origin, site, meter, path),
-            Target::Singleton(target) => self.observe_singleton(target, origin, site, meter, path),
-            Target::Field(target) => self.observe_field(target, origin, site, meter, path),
+            Target::Callable(target) => self.observe_callable(target, origin, site, path),
+            Target::Constructor(target) => self.observe_constructor(target, origin, site, path),
+            Target::Type(target) => self.match_type(target, origin, site, path),
+            Target::Global(target) => self.observe_global(target, origin, site, path),
+            Target::Singleton(target) => self.observe_singleton(target, origin, site, path),
+            Target::Field(target) => self.observe_field(target, origin, site, path),
         }
     }
 }

@@ -77,42 +77,23 @@ pub(super) fn rejections(
     graph: &scoop_identity::ValidatedIdentityGraph,
     table: &CanonicalParamFreeMirTypeExportsV1,
 ) {
-    let produce = |graph, meter: &mut BudgetMeter| {
-        scoop_mir_lower::lower_source_type_exports(source, strong, graph, meter)
-    };
-    let mut measured = BudgetMeter::new(DecodeLimits::default());
-    assert_eq!(produce(graph, &mut measured).unwrap(), *table);
-    let usage = measured.usage();
-    assert!(usage.validation_work_units > 0);
-    assert!(usage.owned_bytes > 0);
-    let limits = DecodeLimits {
-        validation_work_units: usage.validation_work_units,
-        ..DecodeLimits::default()
-    };
-    let mut shared = BudgetMeter::new(limits);
-    produce(graph, &mut shared).unwrap();
-    assert!(produce(graph, &mut shared).is_err());
-    let limits = DecodeLimits {
-        owned_bytes: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(produce(graph, &mut BudgetMeter::new(limits)).is_err());
+    let produce = |graph| scoop_mir_lower::lower_source_type_exports(source, strong, graph);
+
+    assert_eq!(produce(graph).unwrap(), *table);
+
+    produce(graph).unwrap();
+
     let empty = PendingIdentityValidation::new().finish().unwrap();
     assert!(matches!(
-        produce(&empty, &mut BudgetMeter::new(DecodeLimits::default())),
+        produce(&empty),
         Err(scoop_mir_lower::SourceMirTypeProductionError::Bridge(_))
     ));
-    let mut measured = BudgetMeter::new(DecodeLimits::default());
-    let complete =
-        scoop_mir_lower::lower_type_exports(source, strong, graph, &mut measured).unwrap();
+
+    let complete = scoop_mir_lower::lower_type_exports(source, strong, graph).unwrap();
     assert!(complete.records().len() > table.records().len());
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
+
     assert_eq!(
-        scoop_mir_lower::lower_type_exports(source, strong, graph, &mut shared).unwrap(),
+        scoop_mir_lower::lower_type_exports(source, strong, graph).unwrap(),
         complete
     );
-    assert!(scoop_mir_lower::lower_type_exports(source, strong, graph, &mut shared).is_err());
 }

@@ -37,7 +37,6 @@ fn class_record_preserves_complete_base_prefix_and_identity_bound_fields() {
             value: &byte,
         }],
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(base.shape().minimum_size(), 24);
@@ -50,7 +49,6 @@ fn class_record_preserves_complete_base_prefix_and_identity_bound_fields() {
             value: &byte,
         }],
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     let InstanceRepresentationKindV1::ClassObject(layout) = derived.representation().kind() else {
@@ -72,13 +70,8 @@ fn box_array_bytes_and_abstract_records_rebuild_all_shape_fields() {
     .unwrap();
     let bound =
         Bound::instance(CborIdentityRecord::from_key(ExactTypeKey::Nominal(boxed)).unwrap());
-    let boxed = ExactInstanceLayoutV1::boxed_payload(
-        bound.identity,
-        &unit,
-        &bound.foundation,
-        &mut meter(),
-    )
-    .unwrap();
+    let boxed =
+        ExactInstanceLayoutV1::boxed_payload(bound.identity, &unit, &bound.foundation).unwrap();
     assert_eq!(boxed.shape().minimum_size(), 16);
     assert_eq!(
         boxed.shape().inline_storage_kind(),
@@ -96,13 +89,8 @@ fn box_array_bytes_and_abstract_records_rebuild_all_shape_fields() {
         RepresentationRole::ManagedObject,
         ScanRole::ArrayElement,
     );
-    let array = ExactInstanceLayoutV1::inline_array(
-        bound.identity,
-        &element,
-        &bound.foundation,
-        &mut meter(),
-    )
-    .unwrap();
+    let array =
+        ExactInstanceLayoutV1::inline_array(bound.identity, &element, &bound.foundation).unwrap();
     assert_eq!(array.shape().inline_stride(), 8);
     assert!(matches!(
         array.shape().object_scan(),
@@ -121,14 +109,11 @@ fn box_array_bytes_and_abstract_records_rebuild_all_shape_fields() {
         .unwrap()
     );
     let bound = Bound::instance(exact(&source("String", SourceNominalKind::Class, 0)));
-    let bytes =
-        ExactInstanceLayoutV1::inline_bytes(bound.identity, &bound.foundation, &mut meter())
-            .unwrap();
+    let bytes = ExactInstanceLayoutV1::inline_bytes(bound.identity, &bound.foundation).unwrap();
     assert_eq!(bytes.shape().inline_stride(), 1);
     let bound = Bound::instance(exact(&source("Interface", SourceNominalKind::Interface, 0)));
     let abstract_ref =
-        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation, &mut meter())
-            .unwrap();
+        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation).unwrap();
     assert_eq!(abstract_ref.shape(), &TypeInstanceShapeV1::abstract_ref());
     assert_wire_roundtrip(boxed);
     assert_wire_roundtrip(record);
@@ -137,40 +122,12 @@ fn box_array_bytes_and_abstract_records_rebuild_all_shape_fields() {
 }
 
 #[test]
-fn instance_replay_rejects_box_identity_array_scan_role_and_bounded_prefix_copy() {
+fn instance_replay_rejects_box_payload_identity_mismatch() {
     let owner = source("Owner", SourceNominalKind::Class, 0);
     let bound = Bound::instance(exact(&owner));
     let unit = unit();
     assert!(matches!(
-        ExactInstanceLayoutV1::boxed_payload(
-            bound.identity.clone(),
-            &unit,
-            &bound.foundation,
-            &mut meter()
-        ),
+        ExactInstanceLayoutV1::boxed_payload(bound.identity.clone(), &unit, &bound.foundation),
         Err(ExactLayoutReplayError::BoxPayloadIdentity)
-    ));
-    let base = ExactInstanceLayoutV1::class(
-        bound.identity,
-        ClassLayoutBaseV1::NoBase,
-        &[],
-        &bound.foundation,
-        &mut meter(),
-    )
-    .unwrap();
-    let derived = Bound::instance(exact(&source("Derived", SourceNominalKind::Class, 0)));
-    let limits = DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        ExactInstanceLayoutV1::class(
-            derived.identity,
-            ClassLayoutBaseV1::Base(&base),
-            &[],
-            &derived.foundation,
-            &mut BudgetMeter::new(limits)
-        ),
-        Err(ExactLayoutReplayError::Resource(_))
     ));
 }

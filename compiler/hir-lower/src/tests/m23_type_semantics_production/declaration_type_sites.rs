@@ -49,12 +49,7 @@ fn unread_parameters_keep_complete_signature_and_local_value_type_sites() {
         .unwrap();
         for site in sites {
             foundation
-                .validate_declaration_type_position(
-                    local.cone,
-                    site.position(),
-                    &mut BudgetMeter::new(DecodeLimits::default()),
-                    &WirePath::root(),
-                )
+                .validate_declaration_type_position(local.cone, site.position())
                 .unwrap();
         }
     });
@@ -75,22 +70,12 @@ fn declaration_type_sites_reject_missing_identities_wrong_providers_and_invalid_
             hir::CanonicalHirFoundation::from_dependency_output(output).unwrap(),
         )
         .unwrap();
-        let validate = |current, position, meter: &mut BudgetMeter| {
-            foundation.validate_declaration_type_position(
-                current,
-                position,
-                meter,
-                &WirePath::root(),
-            )
-        };
+        let validate =
+            |current, position| foundation.validate_declaration_type_position(current, position);
         for part in [Part::Parameter(99), Part::Receiver] {
             let invalid = Position::CallableSignature(root, part);
             assert!(matches!(
-                validate(
-                    local.cone,
-                    invalid,
-                    &mut BudgetMeter::new(DecodeLimits::default())
-                ),
+                validate(local.cone, invalid),
                 Err(hir::DeclarationTypeSiteValidationError::SignaturePosition(
                     ..
                 ))
@@ -98,11 +83,7 @@ fn declaration_type_sites_reject_missing_identities_wrong_providers_and_invalid_
         }
         let position = Position::CallableSignature(root, Part::Parameter(0));
         assert!(matches!(
-            validate(
-                ConeIdentity::CORE,
-                position,
-                &mut BudgetMeter::new(DecodeLimits::default())
-            ),
+            validate(ConeIdentity::CORE, position),
             Err(hir::DeclarationTypeSiteValidationError::Provider { .. })
         ));
         let missing =
@@ -114,31 +95,10 @@ fn declaration_type_sites_reject_missing_identities_wrong_providers_and_invalid_
             ))
             .unwrap();
         assert!(matches!(
-            validate(
-                local.cone,
-                Position::LocalValue(missing),
-                &mut BudgetMeter::new(DecodeLimits::default())
-            ),
+            validate(local.cone, Position::LocalValue(missing)),
             Err(hir::DeclarationTypeSiteValidationError::MissingIdentity { .. })
         ));
-        let mut baseline = BudgetMeter::new(DecodeLimits::default());
-        validate(local.cone, position, &mut baseline).unwrap();
-        let mut shared = BudgetMeter::new(DecodeLimits {
-            validation_work_units: baseline.usage().validation_work_units,
-            ..DecodeLimits::default()
-        });
-        validate(local.cone, position, &mut shared).unwrap();
-        assert!(validate(local.cone, position, &mut shared).is_err());
-        assert!(
-            validate(
-                local.cone,
-                position,
-                &mut BudgetMeter::new(DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                })
-            )
-            .is_err()
-        );
+
+        validate(local.cone, position).unwrap();
     });
 }

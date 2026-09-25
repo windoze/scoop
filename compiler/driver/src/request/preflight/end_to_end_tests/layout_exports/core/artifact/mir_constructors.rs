@@ -20,41 +20,14 @@ pub(super) fn check(
         foundation,
         section,
     };
-    replay.validate(section.callables(), &mut meter()).unwrap();
+    replay.validate(section.callables()).unwrap();
     if !name.starts_with("shared-constructors-") {
         return;
     }
     inventory::check(&replay, name.ends_with("combined"));
     mutations::check(&replay);
-    let mut measured = meter();
-    replay.validate(section.callables(), &mut measured).unwrap();
-    let mut shared = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay.validate(section.callables(), &mut shared).unwrap();
-    assert!(matches!(
-        replay.validate(section.callables(), &mut shared),
-        Err(Error::Resource(_))
-    ));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            replay.validate(
-                section.callables(),
-                &mut scoop_wire::BudgetMeter::new(limits)
-            ),
-            Err(Error::Resource(_))
-        ));
-    }
+
+    replay.validate(section.callables()).unwrap();
 }
 
 struct Replay<'a> {
@@ -64,17 +37,13 @@ struct Replay<'a> {
 }
 
 impl Replay<'_> {
-    fn validate(
-        &self,
-        bindings: &mir::CanonicalMirCallableBindingsV1,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<(), Error> {
-        scoop_slib::validate_shared_mir_constructors(self.source, bindings, meter)
+    fn validate(&self, bindings: &mir::CanonicalMirCallableBindingsV1) -> Result<(), Error> {
+        scoop_slib::validate_shared_mir_constructors(self.source, bindings)
     }
 
     fn reject(&self, records: Vec<mir::ParamFreeMirCallableBindingV1>) -> Error {
         let records = mir::CanonicalMirCallableBindingsV1::try_new(records).unwrap();
-        self.validate(&records, &mut meter())
+        self.validate(&records)
             .expect_err("constructor bindings must agree with the retained shared HIR declarations")
     }
 

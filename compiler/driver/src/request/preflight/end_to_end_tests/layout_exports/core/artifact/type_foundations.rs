@@ -20,16 +20,6 @@ pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
     representations(checked);
     inheritance::check(checked);
     type_uses::check(checked, &[]);
-    let mut exhausted = scoop_wire::BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(
-        checked
-            .section()
-            .validate_shared_foundation(checked.metadata(), &[], &mut exhausted)
-            .is_err()
-    );
 }
 
 fn facts(checked: CheckedSharedTypeFoundationV1<'_>) {
@@ -179,7 +169,7 @@ fn reject(
     candidate: &CrossConeTypeSemanticsSectionV1,
 ) -> Error {
     candidate
-        .validate_shared_foundation(checked.metadata(), &[], &mut meter())
+        .validate_shared_foundation(checked.metadata(), &[])
         .err()
         .expect("mutated type foundation must fail against the original declarations")
 }

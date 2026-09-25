@@ -24,34 +24,6 @@ fn empty_bridge_scope_needs_no_special_provider() {
 }
 
 #[test]
-fn signature_replay_uses_the_artifact_budget() {
-    let fixture = fixture();
-    let bridge = CrossConeMirBridgeSectionV1::try_new(
-        fixture.artifact,
-        &fixture.foundation,
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let mut budget = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
-        validation_work_units: 0,
-        ..scoop_wire::DecodeLimits::default()
-    });
-    assert!(matches!(
-        validate_export_relation(
-            std::slice::from_ref(&fixture.callable),
-            &fixture.strong,
-            &bridge,
-            &fixture.classifier,
-            &mut budget,
-        ),
-        Err(CrossConeMirClosureRelationError::NominalClassification(
-            scoop_hir::NominalCallableClassificationError::Resource(_)
-        ))
-    ));
-}
-
-#[test]
 fn eligible_callable_is_required_in_the_maximal_export_set() {
     let fixture = fixture();
     let empty = CrossConeMirBridgeSectionV1::try_new(
@@ -67,7 +39,6 @@ fn eligible_callable_is_required_in_the_maximal_export_set() {
             &fixture.strong,
             &empty,
             &fixture.classifier,
-            &mut meter(),
         ),
         Err(CrossConeMirClosureRelationError::MissingMaximalExport {
             declaration: fixture.declaration,
@@ -92,13 +63,7 @@ fn bridge_cannot_export_a_callable_absent_from_the_public_hir_surface() {
     )
     .unwrap();
     assert_eq!(
-        validate_export_relation(
-            &[],
-            &fixture.strong,
-            &bridge,
-            &fixture.classifier,
-            &mut meter()
-        ),
+        validate_export_relation(&[], &fixture.strong, &bridge, &fixture.classifier),
         Err(CrossConeMirClosureRelationError::UnexpectedExport {
             declaration: fixture.declaration,
         })
@@ -184,8 +149,4 @@ fn fixture() -> Fixture {
         strong,
         classifier,
     }
-}
-
-fn meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

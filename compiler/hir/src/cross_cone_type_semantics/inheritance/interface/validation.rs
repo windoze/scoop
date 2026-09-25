@@ -7,7 +7,6 @@ use crate::{
     NominalSupportConstructorInterfaceV1,
 };
 use scoop_identity::{PersistentConstructorId, PersistentDispatchSlotId};
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod declarations;
 mod slots;
@@ -82,19 +81,13 @@ impl CanonicalNominalInheritanceInterfacesV1 {
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         protected: CheckedProtectedDeclarationSourcesV1<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedNominalInheritanceInterfacesV1<'a>, InheritanceInterfaceSemanticError<E>>
     {
         use InheritanceInterfaceSemanticError as Error;
         let required = authority
             .required_inheritance_owners()
             .map_err(Error::Foundation)?;
-        meter
-            .charge_work(
-                (self.records().len() as u64).saturating_add(required.values().len() as u64),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+
         if !self
             .records()
             .iter()
@@ -104,26 +97,23 @@ impl CanonicalNominalInheritanceInterfacesV1 {
             return Err(Error::Inventory);
         }
         for record in self.records() {
-            meter
-                .charge_nodes(1, &WirePath::root())
-                .map_err(Error::Resource)?;
             let node = graph.get(record.owner()).ok_or(Error::Edges)?;
-            compare(record.edges(), node.edges(), meter).map_err(|error| match error {
+            compare(record.edges(), node.edges()).map_err(|error| match error {
                 Error::SourceContract => Error::Edges,
                 other => other,
             })?;
             graph
-                .validate_nominal_domains(record.owner(), record.domains(), meter)
+                .validate_nominal_domains(record.owner(), record.domains())
                 .map_err(Error::Domains)?;
             let schemas = authority
                 .schemas(record.owner())
                 .map_err(Error::Foundation)?;
-            compare(record.slot_schemas(), schemas, meter)?;
+            compare(record.slot_schemas(), schemas)?;
             graph
-                .validate_slot_schemas(record.owner(), authority, meter)
+                .validate_slot_schemas(record.owner(), authority)
                 .map_err(Error::Schema)?;
-            declarations::validate(record, node.source(), graph, protected, authority, meter)?;
-            slots::validate(record, graph, authority, meter)?;
+            declarations::validate(record, node.source(), graph, protected, authority)?;
+            slots::validate(record, graph, authority)?;
         }
         Ok(CheckedNominalInheritanceInterfacesV1 { table: self })
     }
@@ -132,15 +122,9 @@ impl CanonicalNominalInheritanceInterfacesV1 {
 fn compare<T: WireEncode + PartialEq, E>(
     left: &T,
     right: &T,
-    meter: &mut BudgetMeter,
 ) -> Result<(), InheritanceInterfaceSemanticError<E>> {
     use InheritanceInterfaceSemanticError as Error;
-    let work = scoop_wire::encoded_length(left)
-        .map_err(Error::Encoding)?
-        .saturating_add(scoop_wire::encoded_length(right).map_err(Error::Encoding)?);
-    meter
-        .charge_work(work, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     if left != right {
         return Err(Error::SourceContract);
     }

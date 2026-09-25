@@ -2,7 +2,7 @@
 
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity, PersistentGenericTypeId};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 mod contracts;
 mod errors;
@@ -24,19 +24,16 @@ impl<'a, 'f> BoundInheritanceProtectedCallableSourcesV1<'a, 'f> {
         constructors: &BoundInheritanceConstructorSourcesV1<'a, 'f>,
         protocols: &'a CanonicalInheritanceSourceParameterProtocolsV1,
         core: &ImportedCoreFundamentalTypeProtocol,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundInheritanceParameterProtocolsV1<'a>, InheritanceParameterBindingError> {
         use InheritanceParameterBindingError as Error;
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
+
         if !std::ptr::eq(self.foundation, constructors.foundation) {
             return Err(Error::FoundationMismatch);
         }
-        inventory::validate(self, constructors, protocols, meter)?;
+        inventory::validate(self, constructors, protocols)?;
         let array = core.array().persistent();
         for protocol in protocols.records() {
-            contracts::validate(self, constructors, protocol, array, meter)?;
+            contracts::validate(self, constructors, protocol, array)?;
         }
         Ok(BoundInheritanceParameterProtocolsV1 {
             provider: self.provider(),
@@ -70,8 +67,4 @@ impl<'a> BoundInheritanceParameterProtocolsV1<'a> {
             .get(position as usize)
             .ok_or(InheritanceParameterBindingError::Position { owner, position })
     }
-}
-fn query(length: usize, meter: &mut BudgetMeter) -> Result<(), InheritanceParameterBindingError> {
-    meter.charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())?;
-    Ok(())
 }

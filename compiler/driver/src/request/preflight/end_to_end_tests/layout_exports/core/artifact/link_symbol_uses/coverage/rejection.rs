@@ -20,15 +20,14 @@ pub(super) fn check(
             }
         }))
     });
-    let changed =
-        DecodedSlibEnvelope::open(&bytes, DecodeLimits::default(), source.target_selection())
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_cross_cone_layout_link_sections()
-            .unwrap()
-            .into_shared_sections()
-            .unwrap();
+    let changed = DecodedSlibEnvelope::open(&bytes, source.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_link_sections()
+        .unwrap()
+        .into_shared_sections()
+        .unwrap();
     let shared = if dependency {
         reader::read_sections(
             changed,

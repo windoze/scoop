@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentDispatchSlotId, PersistentExactTypeId, StrongCallableDefinitionOwner,
 };
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 use std::collections::BTreeMap;
 
 mod context;
@@ -20,47 +20,38 @@ pub fn lower_dispatch_schemas(
     local_types: &mir::CanonicalParamFreeMirTypeExportsV1,
     authority: mir::MirDispatchSchemaAuthority<'_>,
     dependencies: &[&mir::CanonicalMirDispatchSchemasV1],
-    meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalMirDispatchSchemasV1, SourceMirDispatchProductionError> {
-    let context = Context::new(source, input, authority, meter)?;
+    let context = Context::new(source, input, authority)?;
     let mut records = reserve(
         source
             .inheritance_inventory()
             .records()
             .len()
             .saturating_mul(2),
-        meter,
     )?;
     for source in source.inheritance_inventory().records() {
-        work(search(local_types.records().len()), meter)?;
         let record = local_types
             .get(source.owner())
             .ok_or(Error::MissingType(source.owner()))?;
-        records.push(context.record(source, source.owner(), meter)?);
+        records.push(context.record(source, source.owner())?);
         if let mir::MirTypeRepresentationV1::Object { backing } = record.representation() {
-            work(search(local_types.records().len()), meter)?;
             if local_types.get(*backing).is_none() {
                 return Err(Error::MissingType(*backing));
             }
-            records.push(context.record(source, *backing, meter)?);
+            records.push(context.record(source, *backing)?);
         }
     }
-    work(input.module().meta.source_exact_types.len() as u64, meter)?;
+
     if let Some(builtin) = input.module().meta.source_exact_types.get(&mir::Type::Any) {
         let exact = builtin.identity_record().id();
-        work(search(local_types.records().len()), meter)?;
+
         if local_types.get(exact).is_some() {
-            meter.charge_owned_bytes(
-                std::mem::size_of::<mir::ParamFreeMirDispatchSchemaV1>() as u64,
-                &WirePath::root(),
-            )?;
-            meter.try_reserve_collection_slots(&mut records, 1, &WirePath::root())?;
+            scoop_wire::allocation::try_reserve(&mut records, 1, &WirePath::root())?;
             records.push(mir::ParamFreeMirDispatchSchemaV1::try_new(
                 authority,
                 exact,
                 mir::MirClassVtableSchemaV1::ClassVtable(vec![]),
                 vec![],
-                meter,
             )?);
         }
     }
@@ -69,7 +60,6 @@ pub fn lower_dispatch_schemas(
             authority,
             records,
             dependencies,
-            meter,
         )?,
     )
 }
@@ -121,18 +111,8 @@ impl std::fmt::Display for Error {
 }
 impl std::error::Error for Error {}
 
-fn search(count: usize) -> u64 {
-    u64::from(count.checked_ilog2().unwrap_or(0)) + 1
-}
-fn work(count: u64, meter: &mut BudgetMeter) -> Result<(), Error> {
-    Ok(meter.charge_work(count, &WirePath::root())?)
-}
-fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, Error> {
-    meter.charge_owned_bytes(
-        (count as u64).saturating_mul(std::mem::size_of::<T>() as u64),
-        &WirePath::root(),
-    )?;
+fn reserve<T>(count: usize) -> Result<Vec<T>, Error> {
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, &WirePath::root())?;
+    scoop_wire::allocation::try_reserve(&mut values, count, &WirePath::root())?;
     Ok(values)
 }

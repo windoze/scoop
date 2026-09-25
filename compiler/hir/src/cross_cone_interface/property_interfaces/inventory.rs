@@ -3,28 +3,23 @@ use crate::{
     PropertyDeclarationId, PublicDeclarationOwnerV1, SourceNominalId,
 };
 use scoop_identity::PropertyOwner;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 use std::collections::BTreeMap;
 
 impl CanonicalNominalInterfacesV1 {
     pub fn declared_source_properties(
         &self,
-        meter: &mut BudgetMeter,
     ) -> Result<BTreeMap<PropertyDeclarationId, SourceNominalId>, PropertyDeclarationInventoryError>
     {
         let mut required = BTreeMap::new();
-        let path = WirePath::root().field(4);
+
         for nominal in self.all_records() {
-            meter.charge_work(1, &path)?;
             for member in nominal.declaration_details().members().values() {
-                meter.charge_work(1, &path)?;
                 let NestedSourceMemberRefV1::Property(id) = member else {
                     continue;
                 };
                 let declaration = PropertyOwner::Property(*id);
-                meter.check_table_entries(required.len() as u64 + 1, &path)?;
-                meter.charge_collection_slots(1, &path)?;
-                meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
+
                 if let Some(first) = required.insert(declaration, nominal.declaration()) {
                     return Err(PropertyDeclarationInventoryError::DuplicateRelation {
                         declaration,
@@ -42,9 +37,8 @@ impl CanonicalPropertyInterfacesV1 {
     pub fn validate_declaration_inventory(
         &self,
         nominals: &CanonicalNominalInterfacesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), PropertyDeclarationInventoryError> {
-        self.validate_inventory(nominals, true, meter)
+        self.validate_inventory(nominals, true)
     }
 
     /// Checks member ownership and accessor relationships. Top-level support
@@ -52,24 +46,18 @@ impl CanonicalPropertyInterfacesV1 {
     pub fn validate_member_declaration_inventory(
         &self,
         nominals: &CanonicalNominalInterfacesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), PropertyDeclarationInventoryError> {
-        self.validate_inventory(nominals, false, meter)
+        self.validate_inventory(nominals, false)
     }
 
     fn validate_inventory(
         &self,
         nominals: &CanonicalNominalInterfacesV1,
         exact_members: bool,
-        meter: &mut BudgetMeter,
     ) -> Result<(), PropertyDeclarationInventoryError> {
-        let required = nominals.declared_source_properties(meter)?;
-        let path = WirePath::root().field(4);
+        let required = nominals.declared_source_properties()?;
+
         for (declaration, owner) in &required {
-            meter.charge_work(
-                u64::from(self.declaration_count().max(1).ilog2()) + 1,
-                &path,
-            )?;
             let record = self
                 .declaration(*declaration)
                 .ok_or(PropertyDeclarationInventoryError::Missing(*declaration))?;
@@ -82,7 +70,6 @@ impl CanonicalPropertyInterfacesV1 {
             }
         }
         for record in self.support_records() {
-            meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
             if !required.contains_key(&record.declaration())
                 && (exact_members
                     || !matches!(

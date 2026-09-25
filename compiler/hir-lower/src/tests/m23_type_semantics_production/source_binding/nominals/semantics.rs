@@ -96,48 +96,8 @@ fn nominal_binding_replays_source_kind_arity_bounds_and_supertype_rules() {
             multiple_bases,
         ] {
             let modified = replace(&table, record);
-            let result = foundation.bind_nominal_sources(&modified, &mut meter());
+            let result = foundation.bind_nominal_sources(&modified);
             assert!(matches!(result, Err(Error::Contract { .. })), "{result:?}");
         }
-    });
-}
-
-#[test]
-fn nominal_binding_limits_signature_depth_before_recursive_shape_replay() {
-    with_source(DECLARATIONS, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let table = sources(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-        let pair = named(&fixture, &table, "Pair");
-        let hir::NominalSourceShapeV1::Struct(shape) = pair.source_shape() else {
-            panic!("struct")
-        };
-        let mut fields = shape.fields().to_vec();
-        let mut nested = fields[0].value_type().clone();
-        for _ in 0..32 {
-            nested = SignatureTypeKey::RawPointer(Box::new(nested));
-        }
-        fields[0] = hir::NominalSourceFieldV1::new(fields[0].field(), nested);
-        let source = rebuild(
-            pair,
-            pair.constructors().clone(),
-            pair.members().clone(),
-            pair.children().clone(),
-            hir::NominalSourceShapeV1::Struct(
-                hir::StructSourceShapeV1::try_new(
-                    fields,
-                    hir::NominalCLayoutPolicyV1::Ordinary,
-                    false,
-                )
-                .unwrap(),
-            ),
-        );
-        let limits = DecodeLimits {
-            semantic_recursion: 8,
-            ..DecodeLimits::default()
-        };
-        let modified = replace(&table, source);
-        let result = foundation.bind_nominal_sources(&modified, &mut BudgetMeter::new(limits));
-        assert!(matches!(result, Err(Error::Resource(_))), "{result:?}");
     });
 }

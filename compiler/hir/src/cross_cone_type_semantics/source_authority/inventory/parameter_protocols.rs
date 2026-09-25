@@ -53,10 +53,9 @@ impl InheritanceSourceParameterProtocolV1 {
     pub fn try_new(
         owner: CallableTemplateOrigin,
         parameters: Vec<InheritanceSourceParameterV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         Self::try_from(NominalSourceParameterProtocolV1::try_new(
-            owner, parameters, meter,
+            owner, parameters,
         )?)
     }
     pub const fn owner(&self) -> CallableTemplateOrigin {
@@ -90,21 +89,17 @@ pub struct CanonicalInheritanceSourceParameterProtocolsV1 {
 impl CanonicalInheritanceSourceParameterProtocolsV1 {
     pub fn try_new(
         mut records: Vec<InheritanceSourceParameterProtocolV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(InheritanceSourceParameterProtocolV1::owner);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
     fn from_ordered(
         records: Vec<InheritanceSourceParameterProtocolV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             InheritanceSourceParameterProtocolV1::owner,
             "inheritance source parameter protocols",
-            meter,
         )?;
         Ok(Self { records })
     }

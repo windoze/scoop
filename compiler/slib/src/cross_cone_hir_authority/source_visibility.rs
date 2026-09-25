@@ -23,7 +23,6 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             .property_interfaces()
             .all_declarations()
         {
-            self.visibility_work(1)?;
             let Some(setter) = property.accessors().setter() else {
                 continue;
             };
@@ -32,15 +31,7 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
                 declaration,
                 reason,
             };
-            self.visibility_work(
-                u64::from(
-                    self.current_interface
-                        .callable_interfaces()
-                        .declaration_count()
-                        .max(1)
-                        .ilog2(),
-                ) + 1,
-            )?;
+
             let callable = self
                 .current_interface
                 .callable_interfaces()
@@ -60,7 +51,6 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             for wider in &property_domain {
                 let mut covered = false;
                 for narrower in &setter_domain {
-                    self.visibility_work(1)?;
                     if self.visibility_implies(narrower, wider)? {
                         covered = true;
                         break;
@@ -84,20 +74,9 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     ) -> Result<Vec<Constraint>, Error> {
         let path = WirePath::root();
         let count = key.owners().owners().len() as u64 + 1;
-        self.meter
-            .check_semantic_depth(count, &path)
-            .map_err(Error::Resource)?;
-        self.meter
-            .charge_nodes(count, &path)
-            .map_err(Error::Resource)?;
+
         let mut domain = Vec::new();
-        self.meter
-            .try_reserve_exact(
-                &mut domain,
-                count.saturating_mul(2),
-                std::mem::size_of::<Constraint>() as u64,
-                &path,
-            )
+        scoop_wire::allocation::try_reserve_count(&mut domain, count.saturating_mul(2), &path)
             .map_err(Error::Resource)?;
         self.visibility_declared(&mut domain, key, subject, visibility)?;
         for atom in key.owners().owners() {
@@ -122,16 +101,11 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     ) -> Result<(), Error> {
         let source = self.visibility_source(key.origin(), subject)?;
         match visibility {
-            DeclaredVisibilityV1::Public => self.visibility_work(1)?,
+            DeclaredVisibilityV1::Public => return Ok(()),
             DeclaredVisibilityV1::Internal => domain.push(Constraint::Cone(source.cone())),
             DeclaredVisibilityV1::Private => match key.owners().owners().last() {
                 Some(owner) => domain.push(Constraint::LexicalOwner(nominal_owner(owner)?)),
                 None => {
-                    let bytes = source.logical_path().as_str().len() as u64;
-                    self.meter
-                        .charge_owned_bytes(bytes, &WirePath::root())
-                        .map_err(Error::Resource)?;
-                    self.visibility_work(bytes)?;
                     domain.push(Constraint::Cone(source.cone()));
                     domain.push(Constraint::File(source.clone()));
                 }
@@ -172,26 +146,10 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             }
         }
         .map_err(Error::Identity)?;
-        let bytes =
-            scoop_wire::encoded_length(key.as_ref()).map_err(|_| Error::NominalDeclaration {
-                declaration,
-                reason: "cannot encode nominal source declaration key",
-            })?;
-        self.meter
-            .charge_owned_bytes(bytes, &WirePath::root())
-            .map_err(Error::Resource)?;
-        self.visibility_work(bytes.saturating_add(65))?;
+
         let key = key.as_ref().clone();
         let interface = self.provider_interface(key.origin())?;
-        self.visibility_work(
-            u64::from(
-                interface
-                    .nominal_interfaces()
-                    .declaration_count()
-                    .max(1)
-                    .ilog2(),
-            ) + 1,
-        )?;
+
         let record = interface
             .nominal_interfaces()
             .declaration(declaration)
@@ -207,7 +165,6 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
         provider: ConeIdentity,
         subject: DefinitionOriginSubject,
     ) -> Result<&'a SourceIdentity, Error> {
-        self.visibility_work(self.dependencies.len() as u64 + 1)?;
         let foundation = if provider == self.current {
             self.current_foundation
         } else {
@@ -228,12 +185,6 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             });
         }
         Ok(source)
-    }
-
-    fn visibility_work(&mut self, work: u64) -> Result<(), Error> {
-        self.meter
-            .charge_work(work, &WirePath::root())
-            .map_err(Error::Resource)
     }
 }
 

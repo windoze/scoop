@@ -5,14 +5,12 @@ use scoop_hir::{
     self as hir,
     concrete::{ConcreteCoreProtocols, ExecutableExpressionVisitError, ExprKind},
 };
-use scoop_wire::BudgetMeter;
 
 const SOURCE_ONLY: &str = "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: runtime cast failure constructor requires a materialized dependency layout; its owner has source-only representation";
 
 pub(super) fn validate(
     output: &hir::DependencyHirOutput,
     world: &hir::ImportedSemanticWorld<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Vec<Diagnostic>> {
     let module = output.output().local.module();
     let ConcreteCoreProtocols::Imported(protocols) = &module.core_protocols else {
@@ -21,7 +19,7 @@ pub(super) fn validate(
     let nominal = protocols.exceptions().class_cast_exception();
     let mut checked = false;
     module
-        .visit_executable_expressions(meter, |occurrence, meter| {
+        .visit_executable_expressions(|occurrence| {
             let cast = matches!(
                 occurrence.expression.kind,
                 ExprKind::Cast {
@@ -33,11 +31,8 @@ pub(super) fn validate(
                 return Ok(());
             }
             let span = occurrence.expression.span;
-            let available = world.has_materializable_nominal_source(
-                nominal.provider(),
-                nominal.persistent(),
-                meter,
-            );
+            let available =
+                world.has_materializable_nominal_source(nominal.provider(), nominal.persistent());
             let available = available.map_err(|error| {
                 Diagnostic::at(
                     span,

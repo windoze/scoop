@@ -7,7 +7,6 @@ pub(super) fn exact(
     source: &hir::CallableDeclarationRecordV1,
     inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     signature: &ExactCallableSignature,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     Error::require(
         declaration,
@@ -16,8 +15,8 @@ pub(super) fn exact(
     )?;
     let receiver = match source.owner().nominal_owner() {
         Some(hir::SourceNominalId::Concrete(owner)) => {
-            let exact = metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner), meter)?;
-            lookup(inheritance.node_count(), meter)?;
+            let exact = metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner))?;
+
             Error::require(
                 declaration,
                 Component::Receiver,
@@ -33,7 +32,7 @@ pub(super) fn exact(
         }
         None => source
             .receiver()
-            .map(|ty| metadata.signature_exact_type(ty, meter))
+            .map(|ty| metadata.signature_exact_type(ty))
             .transpose()?,
     };
     Error::require(
@@ -48,14 +47,14 @@ pub(super) fn exact(
         signature.parameters().len() == parameters.len(),
     )?;
     for (index, (actual, source)) in signature.parameters().iter().zip(parameters).enumerate() {
-        let expected = metadata.signature_exact_type(source.value_type(), meter)?;
+        let expected = metadata.signature_exact_type(source.value_type())?;
         Error::require(
             declaration,
             Component::Parameter { index },
             *actual == expected,
         )?;
     }
-    let expected = metadata.signature_exact_type(source.result(), meter)?;
+    let expected = metadata.signature_exact_type(source.result())?;
     Error::require(
         declaration,
         Component::Result,
@@ -69,12 +68,7 @@ pub(super) fn binding(
     source: &hir::CallableDeclarationRecordV1,
     inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     binding: &mir::ParamFreeMirCallableBindingV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    meter.charge_work(
-        scoop_wire::encoded_length(binding).map_err(Error::Encoding)?,
-        &WirePath::root(),
-    )?;
     let semantic = binding.semantic_signature();
     Error::require(
         declaration,
@@ -86,14 +80,7 @@ pub(super) fn binding(
         Component::LoweredSignature,
         binding.lowered_signature() == semantic,
     )?;
-    exact(
-        declaration,
-        metadata,
-        source,
-        inheritance,
-        semantic.exact(),
-        meter,
-    )?;
+    exact(declaration, metadata, source, inheritance, semantic.exact())?;
     let gc = match source.effects().gc_effect() {
         scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
         scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
@@ -107,7 +94,7 @@ pub(super) fn binding(
                 component: Component::LoweringRole,
             });
         };
-        lookup(source.slot_relations().values().len(), meter)?;
+
         Error::require(
             declaration,
             Component::TrapSlot,

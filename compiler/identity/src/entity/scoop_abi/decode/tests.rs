@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use scoop_wire::{DecodeLimits, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedCanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopStorage,
@@ -33,11 +33,8 @@ impl PersistentIdResolver<PersistentExactTypeId> for Resolver {
 #[test]
 fn scoop_storage_round_trips_and_resolves_exact_type() {
     let storage = scalar(first_type());
-    let decoded = decode_canonical::<DecodedCanonicalScoopStorage>(
-        &encode(&storage).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalScoopStorage>(&encode(&storage).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), storage);
 }
 
@@ -49,11 +46,8 @@ fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
         ScoopAbiArgument::indirect(aggregate(first_type())).unwrap(),
     ];
     for argument in arguments {
-        let decoded = decode_canonical::<DecodedScoopAbiArgument>(
-            &encode(&argument).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedScoopAbiArgument>(&encode(&argument).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), argument);
     }
 
@@ -64,11 +58,7 @@ fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
         ScoopAbiReturn::indirect(aggregate(second_type())).unwrap(),
     ];
     for result in returns {
-        let decoded = decode_canonical::<DecodedScoopAbiReturn>(
-            &encode(&result).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded = decode_canonical::<DecodedScoopAbiReturn>(&encode(&result).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), result);
     }
 }
@@ -76,11 +66,9 @@ fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
 #[test]
 fn canonical_scoop_signature_round_trips_and_rechecks_exact_signature() {
     let signature = canonical_signature();
-    let decoded = decode_canonical::<DecodedCanonicalScoopAbiFunctionSignature>(
-        &encode(&signature).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalScoopAbiFunctionSignature>(&encode(&signature).unwrap())
+            .unwrap();
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), signature);
 }
 
@@ -90,11 +78,7 @@ fn scoop_argument_decoder_does_not_bypass_passing_constructor() {
         tag: 2,
         storage: aggregate(first_type()),
     };
-    let decoded = decode_canonical::<DecodedScoopAbiArgument>(
-        &encode(&raw).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedScoopAbiArgument>(&encode(&raw).unwrap()).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(ScoopAbiResolutionError::Shape(
@@ -116,11 +100,9 @@ fn scoop_signature_decoder_does_not_bypass_signature_constructor() {
         result: ScoopAbiReturn::unit_void(),
         gc_effect: GcEffect::Managed,
     };
-    let decoded = decode_canonical::<DecodedCanonicalScoopAbiFunctionSignature>(
-        &encode(&raw).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalScoopAbiFunctionSignature>(&encode(&raw).unwrap())
+            .unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(ScoopAbiResolutionError::Shape(
@@ -137,8 +119,7 @@ fn scoop_storage_decoder_rejects_zero_alignment() {
         .position(|window| window == [0x03, 0x08, 0x04])
         .unwrap();
     bytes[offset + 1] = 0;
-    let error = decode_canonical::<DecodedCanonicalScoopStorage>(&bytes, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedCanonicalScoopStorage>(&bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::IntegerOutOfRange);
 }
 
@@ -150,7 +131,7 @@ fn scoop_abi_decoder_rejects_unknown_tags() {
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
-    let error = decode_canonical::<T>(bytes, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<T>(bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag });
 }
 

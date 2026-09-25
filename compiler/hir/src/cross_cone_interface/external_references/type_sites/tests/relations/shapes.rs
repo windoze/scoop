@@ -18,7 +18,7 @@ fn shape_roots_require_actual_operations_on_the_full_nominal_exact() {
             )]);
         types.validate(&table).unwrap();
         let roots = table
-            .materialized_shape_dependencies(types.fixture.current, &types.graph, &mut meter())
+            .materialized_shape_dependencies(types.fixture.current, &types.graph)
             .unwrap();
         let expected = if matches!(
             role,
@@ -42,7 +42,7 @@ fn shape_roots_require_actual_operations_on_the_full_nominal_exact() {
         types.validate(&table).unwrap();
         assert!(
             table
-                .materialized_shape_dependencies(types.fixture.current, &types.graph, &mut meter())
+                .materialized_shape_dependencies(types.fixture.current, &types.graph)
                 .unwrap()
                 .is_empty()
         );
@@ -62,25 +62,11 @@ fn repeated_operations_share_one_dependency_but_do_not_erase_type_sites() {
     )]);
     types.validate(&table).unwrap();
     assert_eq!(table.records()[0].type_sites().records().len(), 3);
-    let query = |budget: &mut BudgetMeter| {
-        table.materialized_shape_dependencies(types.fixture.current, &types.graph, budget)
-    };
-    let mut baseline = meter();
-    assert_eq!(
-        query(&mut baseline).unwrap(),
-        vec![(ConeIdentity::CORE, types.unit)]
-    );
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: baseline.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    query(&mut shared).unwrap();
-    assert!(matches!(query(&mut shared), Err(Error::Resource(_))));
-    let mut exhausted = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(query(&mut exhausted), Err(Error::Resource(_))));
+    let query = || table.materialized_shape_dependencies(types.fixture.current, &types.graph);
+
+    assert_eq!(query().unwrap(), vec![(ConeIdentity::CORE, types.unit)]);
+
+    query().unwrap();
 }
 
 #[test]
@@ -89,11 +75,7 @@ fn shape_roots_reject_wrong_nominal_provider_and_current_owner() {
     let occurrence = types.occurrence(types.fixture.unit, HirExpressionTypeRoleV1::BoxedValue);
     let wrong_type = types.table(vec![types.reference(types.any, vec![occurrence.clone()])]);
     assert!(matches!(
-        wrong_type.materialized_shape_dependencies(
-            types.fixture.current,
-            &types.graph,
-            &mut meter()
-        ),
+        wrong_type.materialized_shape_dependencies(types.fixture.current, &types.graph),
         Err(Error::Target(_))
     ));
     let reference = types.reference(types.unit, vec![occurrence]);
@@ -109,13 +91,13 @@ fn shape_roots_reject_wrong_nominal_provider_and_current_owner() {
     assert!(matches!(
         types
             .table(vec![wrong_provider])
-            .materialized_shape_dependencies(types.fixture.current, &types.graph, &mut meter()),
+            .materialized_shape_dependencies(types.fixture.current, &types.graph),
         Err(Error::Target(_))
     ));
     assert!(matches!(
         types
             .table(vec![reference])
-            .materialized_shape_dependencies(ConeIdentity::CORE, &types.graph, &mut meter()),
+            .materialized_shape_dependencies(ConeIdentity::CORE, &types.graph),
         Err(Error::Target(_))
     ));
 }

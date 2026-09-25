@@ -26,9 +26,7 @@ impl DecodedMirTypeBridgeTargetV1 {
     pub fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<MirTypeBridgeTargetV1, MirTypeBridgeReferenceError> {
-        meter.charge_work(1, &WirePath::root())?;
         Ok(match self {
             Self::Type(exact) => MirTypeBridgeTargetV1::Type(graph.resolve(exact)?),
             Self::Callable(target) => MirTypeBridgeTargetV1::Callable(target.resolve(graph)?),

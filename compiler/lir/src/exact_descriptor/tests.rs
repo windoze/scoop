@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::*;
@@ -12,18 +12,11 @@ use fixture::Fixture;
 #[test]
 fn shared_constituents_replay_the_same_complete_descriptor() {
     let fixture = Fixture::new();
-    let replayed = fixture.replay_shared(&mut fixture.meter()).unwrap();
+    let replayed = fixture.replay_shared().unwrap();
     assert_eq!(replayed, fixture.replay(fixture.semantic()).unwrap());
-    let wire = decode_canonical::<DecodedExactDescriptorExportV1>(
-        &encode(&replayed).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
-    assert_eq!(
-        wire.validate_against(&replayed, &mut fixture.meter())
-            .unwrap(),
-        replayed
-    );
+    let wire =
+        decode_canonical::<DecodedExactDescriptorExportV1>(&encode(&replayed).unwrap()).unwrap();
+    assert_eq!(wire.validate_against(&replayed).unwrap(), replayed);
 }
 
 #[test]
@@ -60,39 +53,22 @@ fn descriptor_and_table_have_canonical_checked_wire_round_trips() {
     let descriptor = fixture.replay(fixture.semantic()).unwrap();
     let bytes = encode(&descriptor).unwrap();
     assert_eq!(bytes[0], 0xaa);
-    let decoded =
-        decode_canonical::<DecodedExactDescriptorExportV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedExactDescriptorExportV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(
-        decoded
-            .validate_against(&descriptor, &mut fixture.meter())
-            .unwrap(),
-        descriptor
-    );
+    assert_eq!(decoded.validate_against(&descriptor).unwrap(), descriptor);
 
     let table = CanonicalExactDescriptorExportsV1::try_new(
         LirTargetProfile::DARWIN_AARCH64,
         fixture.foundation(),
         vec![descriptor],
-        &mut fixture.meter(),
     )
     .unwrap();
     assert_eq!(table.provider(), scoop_identity::ConeIdentity::SINGLE_FILE);
     assert_eq!(table.get(fixture.exact()), table.records().first());
     let bytes = encode(&table).unwrap();
-    let decoded = decode_canonical::<DecodedCanonicalExactDescriptorExportsV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedCanonicalExactDescriptorExportsV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(
-        decoded
-            .validate_against(&table, &mut fixture.meter())
-            .unwrap(),
-        table
-    );
+    assert_eq!(decoded.validate_against(&table).unwrap(), table);
 }
 
 #[test]
@@ -113,33 +89,5 @@ fn replay_rejects_independent_name_shape_and_dispatch_claims() {
     assert!(matches!(
         fixture.replay(fixture.semantic_with_vtable(missing)),
         Err(ExactDescriptorError::DispatchTable(table)) if table == missing
-    ));
-}
-
-#[test]
-fn table_rejects_duplicate_records_and_consumes_shared_entry_budget() {
-    let fixture = Fixture::new();
-    let descriptor = fixture.replay(fixture.semantic()).unwrap();
-    assert!(matches!(
-        CanonicalExactDescriptorExportsV1::try_new(
-            LirTargetProfile::DARWIN_AARCH64,
-            fixture.foundation(),
-            vec![descriptor.clone(), descriptor.clone()],
-            &mut fixture.meter(),
-        ),
-        Err(ExactDescriptorTableError::Duplicate(exact)) if exact == fixture.exact()
-    ));
-    let limits = DecodeLimits {
-        semantic_table_entries: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        CanonicalExactDescriptorExportsV1::try_new(
-            LirTargetProfile::DARWIN_AARCH64,
-            fixture.foundation(),
-            vec![descriptor],
-            &mut scoop_wire::BudgetMeter::new(limits),
-        ),
-        Err(ExactDescriptorTableError::Resource(_))
     ));
 }

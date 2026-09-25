@@ -155,7 +155,7 @@ fn build_core(source: &Path, artifact: &Path) -> SingleConeProductionSuccess {
         StageDumpPolicy::None,
     )
     .unwrap()
-    .build_and_publish(DecodeLimits::default())
+    .build_and_publish()
     .unwrap()
 }
 
@@ -168,7 +168,7 @@ fn assert_core_views_share_the_dependency_closure(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(source).unwrap(),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(source.with_extension("shared-views.slib")).unwrap(),
@@ -176,7 +176,7 @@ fn assert_core_views_share_the_dependency_closure(
         StageDumpPolicy::None,
     )
     .unwrap()
-    .load_preflight(DecodeLimits::default())
+    .load_preflight()
     .unwrap();
 
     let validated = loaded.validate_inner().unwrap();
@@ -249,7 +249,7 @@ fn assert_explicit_core_version_is_checked(
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(&root),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(workspace.join("wrong-version.slib")).unwrap(),
@@ -257,7 +257,7 @@ fn assert_explicit_core_version_is_checked(
         StageDumpPolicy::None,
     )
     .unwrap()
-    .load_preflight(DecodeLimits::default())
+    .load_preflight()
     .unwrap()
     .validate()
     .err()
@@ -282,7 +282,7 @@ fn assert_non_core_artifact_is_rejected(
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(&root),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(artifact).unwrap()),
         target.clone(),
         SlibOutputDestination::new(root.join("consumer.slib")).unwrap(),
@@ -290,7 +290,7 @@ fn assert_non_core_artifact_is_rejected(
         StageDumpPolicy::None,
     )
     .unwrap()
-    .load_preflight(DecodeLimits::default())
+    .load_preflight()
     .unwrap();
     assert!(matches!(loaded.validate(),
         Err(SingleConeDependencyValidationError::ExplicitDependencies(source))
@@ -315,7 +315,7 @@ fn build_consumer_emitting(
     emit: StageDumpPolicy,
 ) -> SingleConeProductionSuccess {
     consumer_request(target, source, output, core, emit)
-        .build_and_publish(DecodeLimits::default())
+        .build_and_publish()
         .unwrap()
 }
 
@@ -330,7 +330,7 @@ fn consumer_request(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(source).unwrap(),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),

@@ -5,14 +5,13 @@ pub(super) fn project(
     dependencies: LayoutAbiExportDependenciesV1<'_>,
     expected: &lir::LayoutAbiExportConstituentsV1,
     committed: &[mir::MirTypeBridgeDependencyV1],
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<lir::LayoutAbiDependencyV1>, Error> {
     let mut uses = Vec::new();
     let layouts = lookup::Layouts {
         local: expected.layouts(),
         dependencies: dependencies.layouts,
     };
-    meter.charge_work(committed.len() as u64, &WirePath::root())?;
+
     for usage in committed {
         let provider = usage.provider();
         if provider == input.mir.module().cone {
@@ -20,7 +19,7 @@ pub(super) fn project(
         }
         let target = match usage.target() {
             mir::MirTypeBridgeTargetV1::Type(exact) => {
-                let layout = layouts.value(exact, meter)?;
+                let layout = layouts.value(exact)?;
                 let actual = layout.identity().physical_definition().provider();
                 if actual != provider {
                     return Err(Error::TypeProvider {
@@ -41,17 +40,10 @@ pub(super) fn project(
             | mir::MirTypeBridgeTargetV1::Object(_)
             | mir::MirTypeBridgeTargetV1::InitializationUnit(_) => continue,
         };
-        push(
-            &mut uses,
-            lir::LayoutAbiDependencyV1::new(provider, target),
-            meter,
-        )?;
+        push(&mut uses, lir::LayoutAbiDependencyV1::new(provider, target))?;
     }
     let module = input.lir.module();
-    meter.charge_work(
-        module.meta.external_type_descriptors.len() as u64,
-        &WirePath::root(),
-    )?;
+
     for (id, descriptor) in module.meta.external_type_descriptors.iter() {
         if module.meta.well_known_type_descriptors.string == lir::TypeDescriptorRef::External(id) {
             continue;
@@ -62,13 +54,9 @@ pub(super) fn project(
                 descriptor.provider(),
                 lir::LayoutAbiSemanticTargetV1::Descriptor(descriptor.target()),
             ),
-            meter,
         )?;
     }
-    meter.charge_work(
-        module.meta.external_callables.len() as u64,
-        &WirePath::root(),
-    )?;
+
     for (_, callable) in module.meta.external_callables.iter() {
         if callable.origin() == lir::ExternalCallableOrigin::LayoutV1 {
             push(
@@ -77,11 +65,10 @@ pub(super) fn project(
                     callable.provider(),
                     lir::LayoutAbiSemanticTargetV1::Callable(callable.target()),
                 ),
-                meter,
             )?;
         }
     }
-    sort_cost(uses.len(), meter)?;
+
     uses.sort_unstable();
     uses.dedup();
     Ok(uses)

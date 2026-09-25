@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use scoop_identity::*;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::super::*;
 use super::fixture::{
@@ -172,11 +172,8 @@ fn native_producer_closes_mixed_direct_and_support_signature_dependencies() {
         let mut pending = PendingIdentityValidation::new();
         let decoded = [&root, &leaf, &choice, &generic].map(|fixture| {
             pending.register_authority(fixture.identity()).unwrap();
-            decode_canonical::<crate::DecodedHirFoundation>(
-                &encode(&fixture.foundation).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap()
+            decode_canonical::<crate::DecodedHirFoundation>(&encode(&fixture.foundation).unwrap())
+                .unwrap()
         });
         for foundation in &decoded {
             foundation.register_identities(&mut pending).unwrap();
@@ -188,7 +185,7 @@ fn native_producer_closes_mixed_direct_and_support_signature_dependencies() {
         for record in records {
             let bytes = encode(&record).unwrap();
             let decoded: crate::DecodedNativeBoundaryTypeDefinitionRecord =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             assert_eq!(encode(&decoded).unwrap(), bytes);
             assert_eq!(decoded.resolve(&mut graph).unwrap(), record);
         }

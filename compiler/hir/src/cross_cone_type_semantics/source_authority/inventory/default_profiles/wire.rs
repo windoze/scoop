@@ -16,25 +16,19 @@ impl DecodedCanonicalDefaultSourceProfilesV1 {
     pub fn resolve<R: CallableDeclarationIdResolver<E>, E: fmt::Display>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalDefaultSourceProfilesV1, SourceInventoryError> {
-        meter.charge_owned_bytes(
-            (self.records.len() as u64)
-                .saturating_mul(std::mem::size_of::<DefaultSourceProfileV1>() as u64),
-            &WirePath::root(),
-        )?;
-        let mut records = reserve(self.records.len(), meter)?;
+        let mut records = reserve(self.records.len())?;
         for record in self.records {
             records.push(DefaultSourceProfileV1::new(
                 record.key.resolve(resolver).map_err(reference)?,
                 record.profile,
             ));
         }
-        CanonicalDefaultSourceProfilesV1::from_ordered(records, meter)
+        CanonicalDefaultSourceProfilesV1::from_ordered(records)
     }
 }
 impl WireDecode for DecodedCanonicalDefaultSourceProfilesV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.decode_array(|d, _| {
             d.expect_map(2)?;
             Ok(DecodedRecord {

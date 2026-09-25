@@ -10,7 +10,7 @@ use scoop_identity::{
     GeneratedCallableKey, IdentityReferenceError, PersistentConstructorId, PersistentTypeId,
     SignatureTypeKey, SourceDeclarationKey, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 mod role;
 
@@ -23,14 +23,9 @@ impl HirDependencyCallSiteV1 {
         provider: ConeIdentity,
         identities: &ValidatedIdentityGraph,
         interface: &CrossConeHirInterfaceSectionV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(PersistentConstructorId, PersistentTypeId), HirRuntimeConstructorError> {
         use HirRuntimeConstructorError as Error;
-        let path = WirePath::root();
-        meter.charge_work(
-            8 * (1 + u64::from(identities.identity_count().max(1).ilog2())),
-            &path,
-        )?;
+
         if !matches!(self.reason(), HirDependencyCallReasonV1::CastFailure { .. })
             || !self.arguments().is_empty()
         {
@@ -62,11 +57,7 @@ impl HirDependencyCallSiteV1 {
         let declaration = CallableTemplateOrigin::Constructor(constructor);
         let callables = interface.callable_interfaces();
         let sources = interface.source_interfaces();
-        meter.charge_work(
-            2 + u64::from(callables.declaration_count().max(1).ilog2())
-                + u64::from(sources.records().len().max(1).ilog2()),
-            &path,
-        )?;
+
         let source = callables
             .declaration(declaration)
             .ok_or(Error::Declaration)?;
@@ -84,7 +75,7 @@ impl HirDependencyCallSiteV1 {
             .ok_or(Error::Parameters)?
             .parameters()
             .parameters();
-        meter.charge_work(parameters.len() as u64 + 1, &path)?;
+
         if if adapter {
             parameters.iter().any(|parameter| {
                 matches!(parameter.calling(), CallableParameterCallingV1::Required)

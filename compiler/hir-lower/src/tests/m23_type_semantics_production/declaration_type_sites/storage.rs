@@ -1,10 +1,6 @@
 use super::*;
 use scoop_identity::{ExactTypeKey, SourceDeclarationKey};
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
     for name in [
@@ -21,7 +17,6 @@ fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
                 .complete_cross_cone_interface_source_points(
                     output.output().export.module(),
                     &interface,
-                    &mut meter(),
                 )
                 .unwrap();
             let mut identities =
@@ -43,31 +38,17 @@ fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
                 };
                 counts[index] += 1;
                 foundation
-                    .validate_declaration_type_position(
-                        local.cone,
-                        site.position(),
-                        &mut meter(),
-                        &WirePath::root(),
-                    )
+                    .validate_declaration_type_position(local.cone, site.position())
                     .unwrap();
                 assert!(
                     foundation
-                        .validate_declaration_type_position(
-                            ConeIdentity::CORE,
-                            site.position(),
-                            &mut meter(),
-                            &WirePath::root()
-                        )
+                        .validate_declaration_type_position(ConeIdentity::CORE, site.position())
                         .is_err()
                 );
                 let bytes = scoop_wire::encode(site).unwrap();
                 let raw: hir::DecodedHirDependencyTypeSiteV1 =
-                    scoop_wire::decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-                assert_eq!(
-                    raw.resolve(&mut identities, &mut meter(), &WirePath::root())
-                        .unwrap(),
-                    *site
-                );
+                    scoop_wire::decode_canonical(&bytes).unwrap();
+                assert_eq!(raw.resolve(&mut identities).unwrap(), *site);
             }
             if name == "storage-standalone" {
                 assert_eq!(counts, [0, 0, 1, 0]);
@@ -75,7 +56,7 @@ fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
                 assert!(counts.iter().all(|count| *count > 0), "{counts:?}");
             }
             let actual = local
-                .materialized_type_closure(&mut meter())
+                .materialized_type_closure()
                 .unwrap()
                 .into_iter()
                 .filter_map(|ty| {
@@ -91,7 +72,7 @@ fn storage_and_generated_type_sites_cover_actual_materialized_dependencies() {
                 .collect::<BTreeSet<_>>();
             let shared = interface
                 .external_references()
-                .materialized_type_dependencies(local.cone, &identities, &mut meter())
+                .materialized_type_dependencies(local.cone, &identities)
                 .unwrap();
             assert_eq!(
                 shared.into_iter().collect::<BTreeSet<_>>(),
@@ -125,33 +106,10 @@ fn initializer_type_position_rejects_a_function_and_a_value_constructor() {
                 foundation
                     .validate_declaration_type_position(
                         local.cone,
-                        Position::ConstructorInitializerResult(root),
-                        &mut meter(),
-                        &WirePath::root()
+                        Position::ConstructorInitializerResult(root)
                     )
                     .is_err()
             );
         }
-        let mut limited = BudgetMeter::new(DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        });
-        let unit = local
-            .initialization_units
-            .iter()
-            .next()
-            .unwrap()
-            .1
-            .identity
-            .id();
-        assert!(matches!(
-            foundation.validate_declaration_type_position(
-                local.cone,
-                Position::InitializationCycleMessage(unit),
-                &mut limited,
-                &WirePath::root()
-            ),
-            Err(hir::DeclarationTypeSiteValidationError::Resource(_))
-        ));
     });
 }

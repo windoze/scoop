@@ -9,12 +9,11 @@ pub(in crate::production) struct NestedSourceNode {
 pub(in crate::production) fn project(
     output: &ExportHirOutput,
     root: SourceNominalId,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<NestedSourceNode>, Error> {
     let export = output.module();
-    let path = WirePath::root();
-    let mut index = roots::Index::new(export, meter)?;
-    work(meter, index.nodes.len())?;
+
+    let mut index = roots::Index::new(export)?;
+
     if index
         .nodes
         .get(&root)
@@ -25,11 +24,9 @@ pub(in crate::production) fn project(
         ));
     }
     let mut pending = Vec::new();
-    push(&mut pending, (root, 1_u64), meter)?;
+    push(&mut pending, (root, 1_u64))?;
     let mut records = Vec::new();
     while let Some((owner, depth)) = pending.pop() {
-        meter.check_semantic_depth(depth, &path).map_err(resource)?;
-        work(meter, index.nodes.len())?;
         let node = index
             .nodes
             .remove(&owner)
@@ -39,32 +36,27 @@ pub(in crate::production) fn project(
             .identity(export)
             .and_then(HirNominalIdentity::source)
             .ok_or_else(|| invalid("nested source lacks its sealed nominal identity"))?;
-        let contract = projection::project(export, node.local, source, meter)?;
+        let contract = projection::project(export, node.local, source)?;
         for child in contract.children().values() {
-            push(&mut pending, (*child, depth + 1), meter)?;
+            push(&mut pending, (*child, depth + 1))?;
         }
         let subject = match owner {
             SourceNominalId::Concrete(id) => DefinitionOriginSubject::Type(id),
             SourceNominalId::GenericTemplate(id) => DefinitionOriginSubject::GenericType(id),
         };
-        let owners = source.declaration().owners().owners().len() as u64;
-        meter
-            .charge_collection_slots(owners, &path)
-            .map_err(resource)?;
-        meter.charge_work(owners, &path).map_err(resource)?;
-        work(meter, export.export_definition_origins.records().len())?;
-        let origin = export
+
+        export
             .export_definition_origins
             .get(subject)
             .ok_or(Error::MissingDefinitionOrigin(subject))?;
-        resources::name(origin.origin().source().logical_path().as_str(), meter)?;
+
         let access = crate::production::type_semantics::declaration_access_for_subject(
             export,
             source.declaration(),
             subject,
             node.visibility.into(),
         )?;
-        push(&mut records, NestedSourceNode { contract, access }, meter)?;
+        push(&mut records, NestedSourceNode { contract, access })?;
     }
     Ok(records)
 }

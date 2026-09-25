@@ -16,7 +16,7 @@ pub struct DecodedDefaultSourceAccessDeclarationV1 {
     access: DecodedDeclarationAccessSourceV1,
 }
 impl WireDecode for DecodedDefaultSourceAccessDeclarationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             subject: decoder.field(1, subject::decode)?,
@@ -38,7 +38,7 @@ pub struct DecodedCanonicalDefaultSourceAccessDeclarationsV1 {
     records: Vec<DecodedDefaultSourceAccessDeclarationV1>,
 }
 impl WireDecode for DecodedCanonicalDefaultSourceAccessDeclarationsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedDefaultSourceAccessDeclarationV1::decode(d))
             .map(|records| Self { records })
@@ -53,7 +53,6 @@ impl DecodedCanonicalDefaultSourceAccessDeclarationsV1 {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<
         CanonicalDefaultSourceAccessDeclarationsV1,
         DefaultSourceAccessDeclarationResolutionError<E>,
@@ -65,26 +64,16 @@ impl DecodedCanonicalDefaultSourceAccessDeclarationsV1 {
             + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
     {
         use DefaultSourceAccessDeclarationResolutionError as Error;
-        let mut records = reserve(self.records.len(), meter).map_err(Error::Inventory)?;
-        for (index, record) in self.records.into_iter().enumerate() {
-            let path = WirePath::root().index(index as u64);
-            meter.charge_work(1, &path).map_err(Error::Resource)?;
-            record
-                .access
-                .charge_resolution_at(meter, &path.clone().field(2), 2)
-                .map_err(Error::Resource)?;
+        let mut records = reserve(self.records.len()).map_err(Error::Inventory)?;
+        for record in self.records.into_iter() {
             let subject = record.subject.resolve(resolver).map_err(Error::Identity)?;
-            let access = record
-                .access
-                .resolve_metered(resolver, meter)
-                .map_err(Error::Access)?;
+            let access = record.access.resolve(resolver).map_err(Error::Access)?;
             records.push(
                 DefaultSourceAccessDeclarationV1::try_new(subject, access)
                     .map_err(Error::Inventory)?,
             );
         }
-        CanonicalDefaultSourceAccessDeclarationsV1::from_ordered(records, meter)
-            .map_err(Error::Inventory)
+        CanonicalDefaultSourceAccessDeclarationsV1::from_ordered(records).map_err(Error::Inventory)
     }
 }
 #[derive(Debug)]

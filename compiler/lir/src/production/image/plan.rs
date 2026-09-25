@@ -225,7 +225,7 @@ impl WireEncode for DecodedConeImagePlanV1 {
 }
 
 impl WireDecode for DecodedConeImagePlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(7)?;
         Ok(Self {
             cone: decoder.field(1, DecodedConeRecordV1::decode)?,

@@ -12,7 +12,7 @@ pub enum DecodedNestedNominalSupportV1 {
     GenericTemplate,
 }
 impl WireDecode for DecodedNestedNominalSupportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {
@@ -57,27 +57,20 @@ impl DecodedProtectedNestedNominalPayloadV1 {
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedNestedNominalPayloadV1, NestedSourceResolutionError<E>> {
-        self.resolve_at(resolver, meter, 1)
+        self.resolve_at(resolver)
     }
     fn resolve_at<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        depth: u64,
     ) -> Result<ProtectedNestedNominalPayloadV1, NestedSourceResolutionError<E>> {
         use NestedSourceResolutionError as Error;
-        meter
-            .check_semantic_depth(depth, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let source_nominal = self
             .source_nominal
             .resolve(resolver)
             .map_err(Error::Foundation)?;
-        let source_interface = self
-            .source_interface
-            .resolve_at(resolver, meter, depth + 1)?;
+        let source_interface = self.source_interface.resolve_at(resolver)?;
         let support = match self.support {
             DecodedNestedNominalSupportV1::ParamFree {
                 inheritance_exact,
@@ -99,7 +92,7 @@ impl DecodedProtectedNestedNominalPayloadV1 {
     }
 }
 impl WireDecode for DecodedProtectedNestedNominalPayloadV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             source_nominal: decoder.field(1, DecodedSourceNominalId::decode)?,
@@ -130,32 +123,27 @@ impl DecodedNominalSupportNestedInterfaceV1 {
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSupportNestedInterfaceV1, NestedSourceResolutionError<E>> {
-        self.resolve_at(resolver, meter, 1)
+        self.resolve_at(resolver)
     }
     pub(super) fn resolve_at<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        depth: u64,
     ) -> Result<NominalSupportNestedInterfaceV1, NestedSourceResolutionError<E>> {
         use NestedSourceResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         let declaration = self
             .declaration
             .resolve(resolver)
             .map_err(Error::Foundation)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Access)?;
-        let payload = self.payload.resolve_at(resolver, meter, depth + 1)?;
+        let payload = self.payload.resolve_at(resolver)?;
         NominalSupportNestedInterfaceV1::try_new(declaration, access, payload).map_err(Error::Build)
     }
-    pub(super) fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    pub(super) fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedSourceNominalId::decode)?,
             declaration_access: decoder.field(2, DecodedDeclarationAccessSourceV1::decode)?,
@@ -175,7 +163,7 @@ impl DecodedNominalSupportNestedInterfaceV1 {
     }
 }
 impl WireDecode for DecodedNominalSupportNestedInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Self::decode_fields(decoder)
     }
@@ -196,16 +184,15 @@ impl DecodedProtectedNestedNominalInterfaceV1 {
         self.0.encode_fields(encoder)
     }
     pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
-        decoder: &mut Decoder<'_, '_>,
+        decoder: &mut Decoder<'_>,
     ) -> Result<Self, WireError> {
         DecodedNominalSupportNestedInterfaceV1::decode_fields(decoder).map(Self)
     }
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedNestedNominalInterfaceV1, NestedSourceResolutionError<E>> {
-        let source = self.0.resolve(resolver, meter)?;
+        let source = self.0.resolve(resolver)?;
         if source.declaration_access().declared_visibility() != DeclaredVisibilityV1::Protected {
             return Err(NestedSourceResolutionError::Build(
                 NestedSourceBuildError::Access,
@@ -215,7 +202,7 @@ impl DecodedProtectedNestedNominalInterfaceV1 {
     }
 }
 impl WireDecode for DecodedProtectedNestedNominalInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedNominalSupportNestedInterfaceV1::decode(decoder).map(Self)
     }
 }

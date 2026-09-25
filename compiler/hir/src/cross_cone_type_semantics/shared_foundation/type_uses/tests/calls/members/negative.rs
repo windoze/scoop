@@ -23,9 +23,7 @@ fn shared_member_calls_reject_later_unrelated_and_same_named_receivers() {
         consumer.change_last_receiver(exact(receiver));
         for error in [
             consumer.uses(&dependencies).unwrap_err(),
-            consumer
-                .validate(&actual, &dependencies, &mut meter())
-                .unwrap_err(),
+            consumer.validate(&actual, &dependencies).unwrap_err(),
         ] {
             assert!(matches!(error, Error::CallReceiver {
                 position,
@@ -83,7 +81,7 @@ fn shared_member_calls_require_the_exact_occurrence_derived_selected_partition()
 
 fn reject(consumer: &Loaded, dependencies: &[&Loaded], records: Vec<SelectedExternalTypeUseV1>) {
     assert!(matches!(
-        consumer.validate(&selected(records), dependencies, &mut meter()),
+        consumer.validate(&selected(records), dependencies),
         Err(Error::TypeUseInventory)
     ));
 }

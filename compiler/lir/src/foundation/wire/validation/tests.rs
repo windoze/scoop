@@ -12,34 +12,28 @@ use scoop_identity::{
     NativeLibraryBinding, ObjectDefinitionPlanKey, PackagePath, PendingIdentityValidation,
     PersistentCallbackApplicationId, PersistentCallbackRegistrationId, PersistentExactTypeId,
     PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, RuntimeIdentityRecord, RuntimeTypeId,
-    SafepointId, SafepointSiteKey, SafepointSiteRole, SignatureCallableShape, SignatureTypeKey,
-    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention, SourceDeclarationKey,
-    SourceDeclarationSite, SourceExternFunctionAbi, SourceNativeExternalContract,
-    SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
-    SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
-    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentSymbolRequestTable, PersistentTypeId, RuntimeIdentityRecord, SafepointSiteKey,
+    SafepointSiteRole, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceCallingConvention, SourceDeclarationKey, SourceDeclarationSite,
+    SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractKey,
+    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
+    SourceNominalKind, StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 #[test]
 fn empty_foundation_validates_and_reencodes_identically() {
     let canonical = CanonicalLirFoundation::empty();
     let bytes = encode(&canonical).unwrap();
-    let decoded =
-        decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap();
     let mut identities = graph_with_authorities(&[ConeIdentity::CORE]);
 
     let validated = decoded
-        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
+        .validate(ConeIdentity::CORE, &mut identities)
         .unwrap();
 
     assert_eq!(validated.producer(), ConeIdentity::CORE);
@@ -52,7 +46,7 @@ fn validates_callback_safepoint_runtime_and_symbol_relations_atomically() {
     let (decoded, mut identities, bytes) = callback_fixture(&[0, 1], 0);
 
     let validated = decoded
-        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
+        .validate(ConeIdentity::CORE, &mut identities)
         .unwrap();
 
     let counts = validated.counts();
@@ -73,7 +67,7 @@ fn rejects_noncanonical_mapping_order_after_all_relations_resolve() {
     decoded.decoded.safepoints.swap(0, 1);
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
+        decoded.validate(ConeIdentity::CORE, &mut identities),
         Err(LirFoundationValidationError::NonCanonicalFoundation)
     ));
 }
@@ -83,7 +77,7 @@ fn rejects_a_gap_in_role_local_safepoint_ordinals() {
     let (decoded, mut identities, _) = callback_fixture(&[1], 0);
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
+        decoded.validate(ConeIdentity::CORE, &mut identities),
         Err(LirFoundationValidationError::SafepointRelation(
             SafepointRelationError::NonContiguousOrdinal {
                 expected: 0,
@@ -95,33 +89,12 @@ fn rejects_a_gap_in_role_local_safepoint_ordinals() {
 }
 
 #[test]
-fn rejects_an_unbounded_safepoint_ordinal_scan_through_the_work_budget() {
-    let (decoded, mut identities, _) = callback_fixture(&[u32::MAX], 0);
-    let prior_hash_work = (RuntimeTypeId::hash_stream_length().unwrap() + 72) / 64
-        + (SafepointId::hash_stream_length().unwrap() + 72) / 64;
-    let observed = prior_hash_work + u64::from(u32::MAX) + 1;
-
-    let error = decoded
-        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        LirFoundationValidationError::Resource(ref error)
-            if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                resource: scoop_wire::ResourceKind::ValidationWorkUnits,
-                limit: DecodeLimits::default().validation_work_units,
-                observed,
-            }
-    ));
-}
-
-#[test]
 fn rejects_a_safepoint_site_without_its_runtime_mapping() {
     let (mut decoded, mut identities, _) = callback_fixture(&[0], 0);
     decoded.decoded.safepoints.clear();
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
+        decoded.validate(ConeIdentity::CORE, &mut identities),
         Err(LirFoundationValidationError::SafepointRelation(
             SafepointRelationError::MissingMapping { .. }
         ))
@@ -133,7 +106,7 @@ fn rejects_a_callback_unit_with_the_wrong_context_parameter() {
     let (decoded, mut identities, _) = callback_fixture(&[0], 1);
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
+        decoded.validate(ConeIdentity::CORE, &mut identities),
         Err(LirFoundationValidationError::BridgeRelation(
             BridgeRelationError::CallbackUnitMismatch { .. }
         ))
@@ -145,7 +118,7 @@ fn validates_native_contract_and_outbound_bridge_relations() {
     let (decoded, mut identities, bytes) = native_contract_fixture(None);
 
     let validated = decoded
-        .validate(ConeIdentity::CORE, &mut identities, &mut meter())
+        .validate(ConeIdentity::CORE, &mut identities)
         .unwrap();
 
     assert_eq!(validated.counts().native_contracts, 1);
@@ -159,7 +132,7 @@ fn rejects_a_missing_target_contract_for_a_hir_native_contract() {
     decoded.decoded.native_contracts.clear();
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
+        decoded.validate(ConeIdentity::CORE, &mut identities),
         Err(LirFoundationValidationError::NativeContractRelation(
             NativeContractRelationError::MissingRecord { .. }
         ))
@@ -175,7 +148,7 @@ fn rejects_a_bridge_atom_owned_by_another_cone() {
     let (decoded, mut identities, _) = native_contract_fixture(Some(foreign));
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
+        decoded.validate(ConeIdentity::CORE, &mut identities),
         Err(LirFoundationValidationError::Ownership(
             LirFoundationOwnershipError::ForeignBridgeAtom { actual, .. }
         )) if actual == foreign
@@ -200,8 +173,7 @@ fn rejects_a_strong_definition_plan_owned_by_another_cone() {
     let mut canonical = CanonicalLirFoundation::empty();
     canonical.set_definition_plans(vec![plan]).unwrap();
     let bytes = encode(&canonical).unwrap();
-    let decoded =
-        decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending.register_authority(foreign).unwrap();
@@ -210,7 +182,7 @@ fn rejects_a_strong_definition_plan_owned_by_another_cone() {
     let mut identities = pending.finish().unwrap();
 
     assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities, &mut meter()),
+        decoded.validate(ConeIdentity::CORE, &mut identities),
         Err(LirFoundationValidationError::Ownership(
             LirFoundationOwnershipError::ForeignStrongDefinitionPlan { actual, .. }
         )) if actual == foreign
@@ -337,32 +309,31 @@ fn callback_fixture(
         )])
         .unwrap();
     let bytes = encode(&canonical).unwrap();
-    let decoded =
-        decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap();
 
     let decoded_function = decode_canonical::<
         DecodedCborIdentityRecord<PersistentFunctionId, DecodedSourceDeclarationKey>,
-    >(&encode(&function).unwrap(), DecodeLimits::default())
+    >(&encode(&function).unwrap())
     .unwrap();
     let decoded_nominal = decode_canonical::<
         DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey>,
-    >(&encode(&nominal).unwrap(), DecodeLimits::default())
+    >(&encode(&nominal).unwrap())
     .unwrap();
     let decoded_exact = decode_canonical::<
         DecodedCborIdentityRecord<PersistentExactTypeId, DecodedExactTypeKey>,
-    >(&encode(&exact).unwrap(), DecodeLimits::default())
+    >(&encode(&exact).unwrap())
     .unwrap();
     let decoded_context_exact = decode_canonical::<
         DecodedCborIdentityRecord<PersistentExactTypeId, DecodedExactTypeKey>,
-    >(&encode(&context_exact).unwrap(), DecodeLimits::default())
+    >(&encode(&context_exact).unwrap())
     .unwrap();
     let decoded_registration = decode_canonical::<
         DecodedCborIdentityRecord<PersistentCallbackRegistrationId, DecodedCallbackRegistrationKey>,
-    >(&encode(&registration).unwrap(), DecodeLimits::default())
+    >(&encode(&registration).unwrap())
     .unwrap();
     let decoded_application = decode_canonical::<
         DecodedCborIdentityRecord<PersistentCallbackApplicationId, DecodedCallbackApplicationKey>,
-    >(&encode(&application).unwrap(), DecodeLimits::default())
+    >(&encode(&application).unwrap())
     .unwrap();
 
     let mut pending = PendingIdentityValidation::new();
@@ -458,18 +429,15 @@ fn native_contract_fixture(
         .set_bridge_atoms(atom.into_iter().collect())
         .unwrap();
     let bytes = encode(&canonical).unwrap();
-    let decoded =
-        decode_canonical::<DecodedLirFoundation>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap();
 
     let decoded_function = decode_canonical::<
         DecodedCborIdentityRecord<PersistentFunctionId, DecodedSourceDeclarationKey>,
-    >(&encode(&function).unwrap(), DecodeLimits::default())
+    >(&encode(&function).unwrap())
     .unwrap();
-    let decoded_source = decode_canonical::<DecodedSourceNativeExternalContractRecord>(
-        &encode(&source).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded_source =
+        decode_canonical::<DecodedSourceNativeExternalContractRecord>(&encode(&source).unwrap())
+            .unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     if let Some(producer) = atom_producer {

@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{DecodedDependencyCallableDeclarationId, DependencyCallableDeclarationId};
 use crate::{
@@ -29,9 +29,7 @@ fn dependency_callable_declaration_has_a_fixed_closed_wire_sum() {
 fn decoded_dependency_callable_requires_typed_resolution() {
     let function = PersistentFunctionId([0x33; 32]);
     let bytes = encode(&DependencyCallableDeclarationId::Function(function)).unwrap();
-    let decoded =
-        decode_canonical::<DecodedDependencyCallableDeclarationId>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedDependencyCallableDeclarationId>(&bytes).unwrap();
     let mut resolver = ExactResolver { function };
 
     let resolved = decoded.resolve(&mut resolver).unwrap();

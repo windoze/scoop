@@ -63,7 +63,7 @@ impl WireEncode for DecodedEnumVariantIdentityKey {
 }
 
 impl WireDecode for DecodedEnumVariantIdentityKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 3)?;
         match tag {
@@ -112,7 +112,7 @@ impl WireEncode for DecodedEnumVariantFieldSelector {
 }
 
 impl WireDecode for DecodedEnumVariantFieldSelector {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         expect_sum_length(decoder, fields, 2)?;
         match tag {
@@ -163,7 +163,7 @@ impl WireEncode for DecodedEnumVariantFieldKey {
 }
 
 impl WireDecode for DecodedEnumVariantFieldKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             variant: decoder.field(1, DecodedPersistentId::decode)?,
@@ -173,7 +173,7 @@ impl WireDecode for DecodedEnumVariantFieldKey {
 }
 
 impl WireDecode for GeneratedEnumVariantRole {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::CoroutineStepCompleted),
             2 => Ok(Self::CoroutineStepSuspended),
@@ -235,17 +235,13 @@ where
     .map_err(EnumVariantResolutionError::Reference)
 }
 
-fn decode_sum_header(decoder: &mut Decoder<'_, '_>) -> Result<(u64, u64), WireError> {
+fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     Ok((fields, tag))
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -257,7 +253,7 @@ fn expect_sum_length(
     }
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

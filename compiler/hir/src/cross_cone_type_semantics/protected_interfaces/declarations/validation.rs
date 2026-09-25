@@ -3,7 +3,6 @@ use crate::{
     CanonicalNominalRepresentationSupportV1, CheckedNominalInheritanceGraphV1, DeclaredVisibilityV1,
 };
 use scoop_identity::CallableTemplateOrigin;
-use scoop_wire::{BudgetMeter, WirePath};
 
 /// The required inventory comes from complete definition-side metadata. It
 /// must not be inferred from the records supplied to this validator.
@@ -28,21 +27,13 @@ impl CanonicalProtectedDeclarationInterfacesV1 {
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         representations: &CanonicalNominalRepresentationSupportV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedDeclarationSourcesV1<'a>, ProtectedDeclarationSemanticError<E>>
     {
         use ProtectedDeclarationSemanticError as Error;
         let required = authority
             .required_protected_declarations()
             .map_err(Error::Foundation)?;
-        meter
-            .charge_work(
-                (self.records().len() as u64)
-                    .saturating_add(required.values().len() as u64)
-                    .saturating_mul(128),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+
         if !self
             .records()
             .iter()
@@ -52,28 +43,25 @@ impl CanonicalProtectedDeclarationInterfacesV1 {
             return Err(Error::Table(ProtectedDeclarationTableError::Inventory));
         }
         for record in self.records() {
-            meter
-                .charge_nodes(1, &WirePath::root())
-                .map_err(Error::Resource)?;
             match record {
                 ProtectedDeclarationInterfaceV1::Callable(value) => {
                     value
-                        .validate_source(graph, authority, meter)
+                        .validate_source(graph, authority)
                         .map_err(Error::Callable)?;
                 }
                 ProtectedDeclarationInterfaceV1::Constructor(value) => {
                     value
-                        .validate_source(graph, authority, meter)
+                        .validate_source(graph, authority)
                         .map_err(Error::Callable)?;
                 }
                 ProtectedDeclarationInterfaceV1::Property(value) => {
                     value
-                        .validate_source(graph, authority, meter)
+                        .validate_source(graph, authority)
                         .map_err(Error::Property)?;
                 }
                 ProtectedDeclarationInterfaceV1::NestedNominal(value) => {
                     value
-                        .validate_source(graph, representations, authority, meter)
+                        .validate_source(graph, representations, authority)
                         .map_err(Error::Nested)?;
                 }
             }
@@ -84,21 +72,21 @@ impl CanonicalProtectedDeclarationInterfacesV1 {
             let ProtectedDeclarationInterfaceV1::Property(property) = record else {
                 continue;
             };
-            let getter = self.accessor(property.payload().getter(), meter)?;
+            let getter = self.accessor(property.payload().getter())?;
             let setter = match property.payload().mutability() {
                 ProtectedPropertyMutabilityV1::ReadWrite {
                     setter,
                     setter_access,
                 } if setter_access.declared_visibility() == DeclaredVisibilityV1::Protected => {
-                    Some(self.accessor(*setter, meter)?)
+                    Some(self.accessor(*setter)?)
                 }
                 ProtectedPropertyMutabilityV1::ReadOnly
                 | ProtectedPropertyMutabilityV1::ReadWrite { .. } => None,
             };
             property
-                .validate_source(graph, authority, meter)
+                .validate_source(graph, authority)
                 .map_err(Error::Property)?
-                .validate_resolved_accessor_records(getter, setter, meter)
+                .validate_resolved_accessor_records(getter, setter)
                 .map_err(Error::Accessor)?;
         }
         Ok(CheckedProtectedDeclarationSourcesV1 { table: self })
@@ -106,14 +94,7 @@ impl CanonicalProtectedDeclarationInterfacesV1 {
     fn accessor<E>(
         &self,
         accessor: scoop_identity::PersistentPropertyAccessorId,
-        meter: &mut BudgetMeter,
     ) -> Result<&ProtectedCallableInterfaceV1, ProtectedDeclarationSemanticError<E>> {
-        meter
-            .charge_work(
-                128 * (u64::BITS - (self.records().len() as u64).leading_zeros()) as u64,
-                &WirePath::root(),
-            )
-            .map_err(ProtectedDeclarationSemanticError::Resource)?;
         let reference = ProtectedDeclarationRefV1::Callable(ProtectedCallableDeclarationRefV1(
             CallableTemplateOrigin::Accessor(accessor),
         ));

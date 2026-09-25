@@ -30,17 +30,11 @@ fn complete_callable_products_round_trip_without_collapsing_the_two_signatures()
     ])
     .unwrap();
     let bytes = encode(&expected).unwrap();
-    let decoded: DecodedCanonicalMirCallableBindingsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalMirCallableBindingsV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(
         decoded
-            .validate(
-                &mut fixture.graph,
-                &fixture.foundation,
-                &fixture.types,
-                &mut meter()
-            )
+            .validate(&mut fixture.graph, &fixture.foundation, &fixture.types)
             .unwrap(),
         expected
     );
@@ -57,15 +51,9 @@ fn callable_tables_reject_duplicate_or_reordered_implementations() {
     let mut bytes = vec![0x82];
     bytes.extend(encode(&method).unwrap());
     bytes.extend(encode(&method).unwrap());
-    let decoded: DecodedCanonicalMirCallableBindingsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalMirCallableBindingsV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.validate(
-            &mut fixture.graph,
-            &fixture.foundation,
-            &fixture.types,
-            &mut meter()
-        ),
+        decoded.validate(&mut fixture.graph, &fixture.foundation, &fixture.types),
         Err(MirCallableBridgeError::NonCanonicalBindingOrder { index: 1 })
     ));
     let constructor = fixture
@@ -81,15 +69,9 @@ fn callable_tables_reject_duplicate_or_reordered_implementations() {
     let mut bytes = vec![0x82];
     bytes.extend(encode(&constructor).unwrap());
     bytes.extend(encode(&method).unwrap());
-    let decoded: DecodedCanonicalMirCallableBindingsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalMirCallableBindingsV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.validate(
-            &mut fixture.graph,
-            &fixture.foundation,
-            &fixture.types,
-            &mut meter()
-        ),
+        decoded.validate(&mut fixture.graph, &fixture.foundation, &fixture.types),
         Err(MirCallableBridgeError::NonCanonicalBindingOrder { index: 1 })
     ));
 }
@@ -102,35 +84,10 @@ fn signature_wire_preserves_gc_effect_and_rejects_unknown_tags() {
         let signature = MirBridgeCallableSignatureV1::new(exact.clone(), gc_effect);
         let bytes = encode(&signature).unwrap();
         assert_eq!(bytes[0], 0xa2);
-        let decoded: DecodedMirBridgeCallableSignatureV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedMirBridgeCallableSignatureV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         let mut bad = bytes;
         *bad.last_mut().unwrap() = 99;
-        assert!(
-            decode_canonical::<DecodedMirBridgeCallableSignatureV1>(&bad, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedMirBridgeCallableSignatureV1>(&bad).is_err());
     }
-}
-
-#[test]
-fn budget_failure_precedes_callable_identity_resolution() {
-    let mut fixture = Fixture::new();
-    let method = fixture.method_binding();
-    let decoded: DecodedParamFreeMirCallableBindingV1 =
-        decode_canonical(&encode(&method).unwrap(), DecodeLimits::default()).unwrap();
-    let mut limited = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        decoded.validate(
-            &mut fixture.graph,
-            &fixture.foundation,
-            &fixture.types,
-            &mut limited
-        ),
-        Err(MirCallableBridgeError::Resource(_))
-    ));
 }

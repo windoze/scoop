@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -17,14 +17,10 @@ fn storage_wire_has_explicit_closed_variants_and_no_array_size_duplicate() {
     );
     for value in [zst, value] {
         let bytes = encode(&value).unwrap();
-        let decoded =
-            decode_canonical::<DecodedValueStorageLayoutV1>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedValueStorageLayoutV1>(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(decoded.validate(TARGET).unwrap(), value);
-        let array =
-            decode_canonical::<DecodedArrayElementStorageV1>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let array = decode_canonical::<DecodedArrayElementStorageV1>(&bytes).unwrap();
         assert_eq!(
             array.validate(TARGET).unwrap(),
             ArrayElementStorageV1::from_value(&value)
@@ -39,21 +35,18 @@ fn wire_rejects_unknown_tags_extra_fields_and_zero_scan_stride() {
         b"\xa3\x00\x01\x01\x01\x02\x00",
         b"\xa5\x00\x02\x01\x08\x02\x08\x03\xa1\x00\x01\x04\x08",
     ] {
-        assert!(
-            decode_canonical::<DecodedValueStorageLayoutV1>(bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedValueStorageLayoutV1>(bytes).is_err());
     }
     // Runtime scan v1 has Array (tag 4), never a fixed Repeat (tag 5).
     assert!(matches!(
-        decode_canonical::<DecodedRefScanV1>(b"\xa1\x00\x05", DecodeLimits::default())
+        decode_canonical::<DecodedRefScanV1>(b"\xa1\x00\x05")
             .unwrap_err()
             .kind(),
         WireErrorKind::UnknownTag { tag: 5 }
     ));
     let array = b"\xa5\x00\x04\x01\x00\x02\x08\x03\x00\x04\xa2\x00\x02\x01\x81\x00";
     assert_eq!(
-        decode_canonical::<DecodedRefScanV1>(array, DecodeLimits::default())
+        decode_canonical::<DecodedRefScanV1>(array)
             .unwrap()
             .validate(),
         Err(crate::RefScanValidationError::ZeroArrayStride)
@@ -83,27 +76,22 @@ fn decoded_storage_rechecks_target_and_reference_extent() {
             }),
         ),
     ] {
-        let decoded =
-            decode_canonical::<DecodedValueStorageLayoutV1>(bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedValueStorageLayoutV1>(bytes).unwrap();
         assert_eq!(decoded.validate(TARGET), Err(expected));
     }
     let large = ValueStorageLayoutV1::inline(1_u64 << 63, 8, RefScan::None).unwrap();
     assert!(
-        decode_canonical::<DecodedValueStorageLayoutV1>(
-            &encode(&large).unwrap(),
-            DecodeLimits::default()
-        )
-        .unwrap()
-        .validate(TARGET)
-        .is_err()
+        decode_canonical::<DecodedValueStorageLayoutV1>(&encode(&large).unwrap())
+            .unwrap()
+            .validate(TARGET)
+            .is_err()
     );
 }
 
 #[test]
 fn scan_reader_preserves_wire_order_until_semantic_validation() {
     let bytes = b"\xa2\x00\x02\x01\x82\x08\x00";
-    let decoded = decode_canonical::<DecodedRefScanV1>(bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedRefScanV1>(bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(
         decoded.validate(),

@@ -7,7 +7,6 @@ use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
     OdrFreeMirFoundation,
 };
-use scoop_wire::BudgetMeter;
 
 use super::CrossConeLayoutStrongArtifactWriteError;
 use crate::strong_artifact::{LayerAssembly, StrongArtifactSectionV1, build_section};
@@ -50,7 +49,6 @@ pub(super) struct LayoutMetadataAssembly {
 
 pub(super) fn assemble_metadata(
     mut input: LayoutMetadataInput<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<LayoutMetadataAssembly, CrossConeLayoutStrongArtifactWriteError> {
     let hir_cross_cone = input
         .hir_cross_cone
@@ -58,7 +56,7 @@ pub(super) fn assemble_metadata(
         .map_err(CrossConeLayoutStrongArtifactWriteError::HirInterfaceIndex)?;
     let hir_type_semantics = input
         .hir_type_semantics
-        .index_for_wire(meter)
+        .index_for_wire()
         .map_err(CrossConeLayoutStrongArtifactWriteError::HirTypeSemanticsIndex)?;
     let hir = LayerAssembly::new(
         MetadataLocation::Hir,

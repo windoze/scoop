@@ -128,21 +128,15 @@ pub struct CanonicalNominalSourceContractsV1 {
 impl CanonicalNominalSourceContractsV1 {
     pub fn try_new(
         mut records: Vec<NominalSourceContractV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(NominalSourceContractV1::owner);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
-    fn from_ordered(
-        records: Vec<NominalSourceContractV1>,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, SourceInventoryError> {
+    fn from_ordered(records: Vec<NominalSourceContractV1>) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             NominalSourceContractV1::owner,
             "nominal source contracts",
-            meter,
         )?;
         Ok(Self { records })
     }

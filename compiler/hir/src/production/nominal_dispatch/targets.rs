@@ -1,6 +1,6 @@
 use super::*;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn method(&self, function: FunctionId) -> Result<Method, Error> {
         self.export.functions[function]
             .method

@@ -12,7 +12,7 @@ pub(super) fn check(
     let records = dispatch.records();
     let reject = |rows: &[lir::ExactDispatchExportV1]| {
         let wire: lir::DecodedCanonicalExactDispatchExportsV1 = decoded(&Rows(rows));
-        assert!(wire.validate_against(dispatch, &mut meter()).is_err());
+        assert!(wire.validate_against(dispatch).is_err());
     };
     for index in 0..records.len() {
         let mut missing = records.to_vec();
@@ -40,7 +40,7 @@ pub(super) fn check(
     ] {
         let wire: lir::DecodedExactDispatchExportV1 =
             decoded(&entry::Modified { table, component });
-        assert!(wire.validate_against(table, &mut meter()).is_err());
+        assert!(wire.validate_against(table).is_err());
     }
     let missing = table.entries()[0].implementation().target();
     let callables = lir::CanonicalExactCallableAbiExportsV1::try_new(
@@ -53,11 +53,10 @@ pub(super) fn check(
             .filter(|record| record.target() != missing)
             .cloned()
             .collect(),
-        &mut meter(),
     )
     .unwrap();
     assert!(
-        matches!(replay(input, SharedLirDispatchAbiInputsV1 { local_callables: &callables, ..abis }, &mut meter()),
+        matches!(replay(input, SharedLirDispatchAbiInputsV1 { local_callables: &callables, ..abis }),
         Err(Error::MissingCallable(target)) if target == missing)
     );
 
@@ -84,11 +83,10 @@ pub(super) fn check(
             .filter(|record| record.identity().exact() != receiver)
             .cloned()
             .collect(),
-        &mut meter(),
     )
     .unwrap();
     assert!(
-        matches!(replay(input, SharedLirDispatchAbiInputsV1 { local_layouts: &layouts, ..abis }, &mut meter()),
+        matches!(replay(input, SharedLirDispatchAbiInputsV1 { local_layouts: &layouts, ..abis }),
         Err(Error::MissingValueLayout(exact)) if exact == receiver)
     );
 }

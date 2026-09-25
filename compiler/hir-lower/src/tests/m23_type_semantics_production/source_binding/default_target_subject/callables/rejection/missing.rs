@@ -27,13 +27,12 @@ fn default_callable_targets_require_actual_callee_and_accessor_owner_records() {
                 _ => panic!("record table"),
             }
             let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
-            let error = match fixture.source.bind_to_foundation(
-                &artifact,
-                &fixture.identities,
-                &mut meter(),
-            ) {
+            let error = match fixture
+                .source
+                .bind_to_foundation(&artifact, &fixture.identities)
+            {
                 Ok(foundation) => foundation
-                    .default_callable_access_subject(&target, &mut meter())
+                    .default_callable_access_subject(&target)
                     .unwrap_err(),
                 Err(error) => Error::Foundation(error),
             };
@@ -85,7 +84,7 @@ fn local_and_bound_interface_callables_reject_constructor_origins() {
         ));
         for wrong in [wrong, Callable::LocalFunction { declaration }] {
             assert!(
-                matches!(foundation.default_callable_access_subject(&wrong, &mut meter()), Err(Error::CallableOrigin(actual)) if actual == declaration)
+                matches!(foundation.default_callable_access_subject(&wrong), Err(Error::CallableOrigin(actual)) if actual == declaration)
             );
         }
     });

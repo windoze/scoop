@@ -79,24 +79,20 @@ fn nested_container_closes_runtime_property_and_private_setter_signatures() {
     )
     .unwrap();
     let bytes = encode(&record).unwrap();
-    let decoded: DecodedProtectedNestedNominalInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), record);
+    let decoded: DecodedProtectedNestedNominalInterfaceV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), record);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let table = representations(&fixture);
     record
-        .validate_source(&graph, &table, &mut fixture, &mut meter())
+        .validate_source(&graph, &table, &mut fixture)
         .unwrap();
     fixture.property_shapes.get_mut(&property).unwrap().setter =
         Some((set_id, DeclaredVisibilityV1::Internal));
     assert!(matches!(
-        record.validate_source(&graph, &table, &mut fixture, &mut meter()),
+        record.validate_source(&graph, &table, &mut fixture),
         Err(NestedSourceSemanticError::Property(
             NominalSupportPropertySemanticError::Runtime(
                 ProtectedPropertySemanticError::SourceShape

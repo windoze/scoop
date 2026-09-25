@@ -41,41 +41,15 @@ impl DecodedSelectedTypeUseV1 {
     pub fn resolve<R: SelectedTypeUseResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<SelectedTypeUseV1, SelectedTypeUseResolutionError<E>> {
-        self.resolve_at_depth(resolver, meter, path, 1)
+        self.resolve_at_depth(resolver)
     }
     pub(super) fn resolve_at_depth<R: SelectedTypeUseResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-        depth: u64,
     ) -> Result<SelectedTypeUseV1, SelectedTypeUseResolutionError<E>> {
-        use SelectedTypeUseResolutionError::{Reference, Resource};
-        meter.check_semantic_depth(depth, path).map_err(Resource)?;
-        if matches!(
-            self,
-            Self::Construct { .. } | Self::MemberCall { .. } | Self::Inheritance { .. }
-        ) {
-            meter
-                .check_semantic_depth(depth + 1, path)
-                .map_err(Resource)?;
-            meter.charge_nodes(1, path).map_err(Resource)?;
-        }
-        charge(
-            meter,
-            path,
-            match self {
-                Self::Signature { .. }
-                | Self::Representation { .. }
-                | Self::TypeTest { .. }
-                | Self::ShapeSupport { .. } => 1,
-                Self::SlotCall { .. } | Self::SingletonValue { .. } => 2,
-                Self::Construct { .. } | Self::MemberCall { .. } | Self::Inheritance { .. } => 3,
-            },
-        )?;
+        use SelectedTypeUseResolutionError::Reference;
+
         Ok(match self {
             Self::Signature { exact } => SelectedTypeUseV1::Signature {
                 exact: resolver.resolve(exact).map_err(Reference)?,

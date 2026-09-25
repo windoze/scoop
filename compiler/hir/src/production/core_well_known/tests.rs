@@ -3,7 +3,7 @@ use scoop_identity::{
     PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     DecodedRuntimeCoreCapabilityV1, RuntimeCoreCapabilityV1, RuntimeCoreCapabilityValidationError,
@@ -34,10 +34,7 @@ fn string_capability_reader_rejects_unknown_missing_and_extra_sum_fields() {
         vec![0xa0],
         vec![0xa4, 0x00, 0x01, 0x01, 0x40, 0x02, 0x40, 0x03, 0x00],
     ] {
-        assert!(
-            decode_canonical::<DecodedRuntimeCoreCapabilityV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedRuntimeCoreCapabilityV1>(&bytes).is_err());
     }
 }
 
@@ -175,7 +172,7 @@ fn string_role_rejects_value_and_generic_source_shapes() {
 
 fn decode(capability: &RuntimeCoreCapabilityV1) -> DecodedRuntimeCoreCapabilityV1 {
     let bytes = encode(capability).unwrap();
-    decode_canonical(&bytes, DecodeLimits::default()).unwrap()
+    decode_canonical(&bytes).unwrap()
 }
 
 struct Fixture {

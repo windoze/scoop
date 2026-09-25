@@ -7,23 +7,11 @@ fn overlapping_callable_compares_the_real_owner_signature_and_effects() {
     let declaration = fixture.function(owner, "member", false, vec![unit()]);
     let payload = fixture.payload(owner, declaration, vec![unit()], unit());
     let public = empty_public(vec![callable(declaration, &payload)]);
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.graph.records.values(),
-        &fixture.graph,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.graph.records.values(), &fixture.graph)
+            .unwrap();
     let access = fixture.access(owner, DeclaredVisibilityV1::Public);
-    callables::validate::<&str>(
-        declaration,
-        &access,
-        &payload,
-        &public,
-        &graph,
-        &mut meter(),
-        &path(),
-    )
-    .unwrap();
+    callables::validate::<&str>(declaration, &access, &payload, &public, &graph, &path()).unwrap();
     let wrong = fixture.payload(
         owner,
         declaration,
@@ -31,28 +19,12 @@ fn overlapping_callable_compares_the_real_owner_signature_and_effects() {
         unit(),
     );
     assert!(matches!(
-        callables::validate::<&str>(
-            declaration,
-            &access,
-            &wrong,
-            &public,
-            &graph,
-            &mut meter(),
-            &path()
-        ),
+        callables::validate::<&str>(declaration, &access, &wrong, &public, &graph, &path()),
         Err(TypeSectionExportValidationError::PublicOverlap)
     ));
     let protected = fixture.access(owner, DeclaredVisibilityV1::Protected);
     assert!(matches!(
-        callables::validate::<&str>(
-            declaration,
-            &protected,
-            &payload,
-            &public,
-            &graph,
-            &mut meter(),
-            &path()
-        ),
+        callables::validate::<&str>(declaration, &protected, &payload, &public, &graph, &path()),
         Err(TypeSectionExportValidationError::PublicOverlap)
     ));
 }
@@ -74,13 +46,10 @@ fn declared_public_member_does_not_erase_a_restricted_owner() {
     let declaration = fixture.function(owner, "member", false, vec![]);
     let payload = fixture.payload(owner, declaration, vec![], unit());
     let access = fixture.access(owner, DeclaredVisibilityV1::Public);
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.graph.records.values(),
-        &fixture.graph,
-        &mut meter(),
-    )
-    .unwrap();
-    assert!(!effective_public::<&str>(&access, &graph, &mut meter(), &path()).unwrap());
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.graph.records.values(), &fixture.graph)
+            .unwrap();
+    assert!(!effective_public::<&str>(&access, &graph).unwrap());
     assert!(
         callables::validate::<&str>(
             declaration,
@@ -88,7 +57,6 @@ fn declared_public_member_does_not_erase_a_restricted_owner() {
             &payload,
             &empty_public(vec![callable(declaration, &payload)]),
             &graph,
-            &mut meter(),
             &path()
         )
         .is_err()
@@ -99,7 +67,6 @@ fn declared_public_member_does_not_erase_a_restricted_owner() {
         &payload,
         &empty_public(vec![]),
         &graph,
-        &mut meter(),
         &path(),
     )
     .unwrap();

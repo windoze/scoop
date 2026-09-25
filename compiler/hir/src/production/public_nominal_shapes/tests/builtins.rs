@@ -1,5 +1,4 @@
 use super::*;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 #[test]
 fn builtin_shapes_belong_only_to_their_declared_provider_without_source_bindings() {
@@ -26,7 +25,6 @@ fn builtin_shapes_belong_only_to_their_declared_provider_without_source_bindings
             &foundation,
             &nominals,
             &callables,
-            &mut BudgetMeter::new(DecodeLimits::default()),
         )
         .unwrap();
         assert_eq!(projected, decoded);
@@ -83,42 +81,4 @@ fn builtin_shapes_require_the_canonical_foundation_keys() {
             ))
         );
     }
-}
-
-#[test]
-fn builtin_shape_validation_uses_the_callers_cumulative_work_budget() {
-    let direct = CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap();
-    let nominals = crate::CanonicalNominalInterfacesV1::try_new(Vec::new()).unwrap();
-    let callables = crate::CanonicalCallableInterfacesV1::default();
-    let mut foundation = CanonicalHirFoundation::empty();
-    foundation
-        .set_types(
-            LANGUAGE_BUILTINS
-                .map(CoreBuiltinNominal::identity_record)
-                .to_vec(),
-        )
-        .unwrap();
-    let compute = |meter: &mut BudgetMeter| {
-        PublicNominalShapeRequirementsV1::from_shared_surface(
-            ConeIdentity::CORE,
-            &direct,
-            &foundation,
-            &nominals,
-            &callables,
-            meter,
-        )
-    };
-    let mut measured = BudgetMeter::new(DecodeLimits::default());
-    compute(&mut measured).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    compute(&mut shared).unwrap();
-    assert!(matches!(
-        compute(&mut shared),
-        Err(PublicNominalShapeProjectionError::Materialization(
-            NominalMaterializationClosureError::Resource(_)
-        ))
-    ));
 }

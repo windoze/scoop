@@ -3,66 +3,18 @@ use scoop_identity::{
     PersistentGenericTypeId, PersistentTypeId, SignatureTypeKey, SourceContextKey, SourceIdentity,
     SourceSpan,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::cross_cone_interface::default_templates::body::expression_test_support::{
     Fixture, definition_path,
 };
 use crate::{
-    CanonicalBooleanV1, DefaultBinderRefV1, DefaultBoundCallableRefV1,
-    DefaultBoundCallableSourceV1, DefaultCallableBodyTypeArgumentsV1, DefaultCaptureV1,
-    DefaultExpressionKindV1, DefaultExpressionV1, DefaultLambdaV1, DefaultMethodCalleeV1,
-    DefaultStatementKindV1, DefaultStatementV1, OptionalDefaultStatementListV1,
-    PublicNominalShapeV1,
+    DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
+    DefaultCallableBodyTypeArgumentsV1, DefaultCaptureV1, DefaultExpressionKindV1,
+    DefaultExpressionV1, DefaultLambdaV1, DefaultMethodCalleeV1, DefaultStatementKindV1,
+    DefaultStatementV1, PublicNominalShapeV1,
 };
-
-#[test]
-fn validates_nested_body_types_and_origins_with_one_shared_meter() {
-    let fixture = Fixture::new();
-    let origin = fixture.origin();
-    let nested = statement(
-        DefaultStatementKindV1::Expr(Box::new(expression(
-            DefaultExpressionKindV1::UnitLiteral,
-            binder(0, 0),
-            origin.clone(),
-        ))),
-        origin.clone(),
-    );
-    let branch = statement(
-        DefaultStatementKindV1::If {
-            condition: Box::new(expression(
-                DefaultExpressionKindV1::BooleanLiteral(CanonicalBooleanV1::True),
-                binder(0, 0),
-                origin.clone(),
-            )),
-            then_body: vec![nested],
-            else_body: OptionalDefaultStatementListV1::absent(),
-        },
-        origin.clone(),
-    );
-    let body = ExportDefaultBodyV1::try_new(
-        vec![branch],
-        expression(DefaultExpressionKindV1::UnitLiteral, binder(0, 0), origin),
-    )
-    .unwrap();
-    let mut authority = Authority::accepting(ConeIdentity::CORE);
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-
-    assert_eq!(
-        body.validate_provider_envelope_semantics(
-            provider(),
-            &mut authority,
-            &mut meter,
-            &WirePath::root().field(7),
-        ),
-        Ok(())
-    );
-    assert_eq!(authority.origin_validations, 5);
-    assert!(meter.usage().decoded_nodes > 5);
-    assert!(meter.usage().decoded_edges > 5);
-    assert!(meter.usage().validation_work_units > meter.usage().decoded_nodes);
-}
 
 #[test]
 fn rejects_an_out_of_scope_type_inside_a_nested_capture() {
@@ -174,58 +126,11 @@ fn validates_bound_receiver_binders_against_the_provider_scope() {
     );
 }
 
-#[test]
-fn checks_body_depth_before_scheduling_a_child() {
-    let fixture = Fixture::new();
-    let body = ExportDefaultBodyV1::try_new(
-        Vec::new(),
-        expression(
-            DefaultExpressionKindV1::UnitLiteral,
-            binder(0, 0),
-            fixture.origin(),
-        ),
-    )
-    .unwrap();
-    let path = WirePath::root().field(7).index(0).field(5);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    });
-    let error = body
-        .validate_provider_envelope_semantics(
-            provider(),
-            &mut Authority::accepting(ConeIdentity::CORE),
-            &mut meter,
-            &path,
-        )
-        .unwrap_err();
-
-    assert!(matches!(
-        error,
-        DefaultBodyProviderEnvelopeSemanticValidationError::Resource(ref error)
-            if error.kind()
-                == &WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::SemanticRecursion,
-                    limit: 1,
-                    observed: 2,
-                }
-                && error.path() == &path
-    ));
-    assert_eq!(meter.usage().decoded_nodes, 1);
-    assert_eq!(meter.usage().decoded_edges, 0);
-    assert_eq!(meter.usage().validation_work_units, 1);
-}
-
 fn validate(
     body: &ExportDefaultBodyV1,
     authority: &mut Authority,
 ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<AuthorityError>> {
-    body.validate_provider_envelope_semantics(
-        provider(),
-        authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
+    body.validate_provider_envelope_semantics(provider(), authority, &WirePath::root())
 }
 
 fn provider() -> DefaultTemplateProviderShapeV1 {
@@ -321,8 +226,6 @@ impl crate::DefaultLocalFunctionSignatureAuthority<AuthorityError> for Authority
     fn default_local_function_own_binder_arity(
         &mut self,
         _declaration: scoop_identity::CallableTemplateOrigin,
-        _meter: &mut scoop_wire::BudgetMeter,
-        _path: &scoop_wire::WirePath,
     ) -> Result<u32, AuthorityError> {
         Err(AuthorityError::MissingLocalFunction)
     }

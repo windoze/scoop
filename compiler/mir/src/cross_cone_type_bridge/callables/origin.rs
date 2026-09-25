@@ -96,7 +96,7 @@ macro_rules! encode_origin {
 encode_origin!(MirCallableOriginV1);
 encode_origin!(DecodedMirCallableOriginV1);
 impl WireDecode for DecodedMirCallableOriginV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         let kind = decoder.field(0, Decoder::unsigned)?;
         fields(decoder, count, if kind == 4 { 3 } else { 2 })?;

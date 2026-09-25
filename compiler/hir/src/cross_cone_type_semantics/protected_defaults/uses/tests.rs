@@ -1,13 +1,9 @@
-use scoop_wire::{BudgetMeter, DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 
 fn usage(index: u32, receiver: ProtectedDefaultReceiverUseV1) -> ProtectedDefaultExpressionUseV1 {
     ProtectedDefaultExpressionUseV1::new(index, receiver)
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }
 
 #[test]
@@ -32,16 +28,14 @@ fn expression_use_wire_preserves_all_four_receiver_forms_and_u32_indices() {
     for (receiver, expected) in cases {
         assert_eq!(encode(&receiver).unwrap(), expected);
         assert_eq!(
-            decode_canonical::<ProtectedDefaultReceiverUseV1>(&expected, DecodeLimits::default())
-                .unwrap(),
+            decode_canonical::<ProtectedDefaultReceiverUseV1>(&expected).unwrap(),
             receiver
         );
         let value = usage(u32::MAX, receiver);
         let bytes = encode(&value).unwrap();
         assert_eq!(&bytes[..3], &[0xa2, 1, 0x1a]);
         assert_eq!(
-            decode_canonical::<ProtectedDefaultExpressionUseV1>(&bytes, DecodeLimits::default())
-                .unwrap(),
+            decode_canonical::<ProtectedDefaultExpressionUseV1>(&bytes).unwrap(),
             value
         );
         assert_eq!(value.expression_index(), u32::MAX);
@@ -75,9 +69,9 @@ fn canonical_uses_sort_by_expression_then_receiver_tag_and_index() {
     assert_eq!(values.values(), ordered);
     let bytes = encode(&values).unwrap();
     let decoded: DecodedCanonicalProtectedDefaultExpressionUsesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.resolve(&mut meter()).unwrap(), values);
+    assert_eq!(decoded.resolve().unwrap(), values);
 }
 
 #[test]
@@ -99,9 +93,9 @@ fn producer_and_reader_reject_duplicate_uses_and_reader_rejects_reverse_order() 
         ),
     ] {
         let decoded: DecodedCanonicalProtectedDefaultExpressionUsesV1 =
-            decode_canonical(&encode(&RawUses(values)).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&RawUses(values)).unwrap()).unwrap();
         assert_eq!(
-            decoded.resolve(&mut meter()),
+            decoded.resolve(),
             Err(ProtectedDefaultExpressionUsesResolutionError::Build(
                 expected
             ))
@@ -117,43 +111,14 @@ fn receiver_and_use_readers_reject_unknown_tags_wrong_fields_and_wide_indices() 
         vec![0xa2, 0, 1, 1, 0],
         vec![0xa2, 0, 3, 1, 0x1b, 0, 0, 0, 1, 0, 0, 0, 0],
     ] {
-        assert!(
-            decode_canonical::<ProtectedDefaultReceiverUseV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<ProtectedDefaultReceiverUseV1>(&bytes).is_err());
     }
     for bytes in [
         vec![0xa1, 1, 0],
         vec![0xa2, 1, 0x1b, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0xa1, 0, 1],
     ] {
-        assert!(
-            decode_canonical::<ProtectedDefaultExpressionUseV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<ProtectedDefaultExpressionUseV1>(&bytes).is_err());
     }
-}
-
-#[test]
-fn canonical_use_validation_spends_the_shared_meter_and_empty_data_remains_explicit() {
-    let values = CanonicalProtectedDefaultExpressionUsesV1::try_new(vec![usage(
-        2,
-        ProtectedDefaultReceiverUseV1::ImplicitThis,
-    )])
-    .unwrap();
-    let decoded: DecodedCanonicalProtectedDefaultExpressionUsesV1 =
-        decode_canonical(&encode(&values).unwrap(), DecodeLimits::default()).unwrap();
-    assert!(matches!(
-        decoded.resolve(&mut BudgetMeter::new(DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        })),
-        Err(ProtectedDefaultExpressionUsesResolutionError::Resource(_))
-    ));
-    let empty = CanonicalProtectedDefaultExpressionUsesV1::try_new(Vec::new()).unwrap();
-    assert_eq!(encode(&empty).unwrap(), [0x80]);
-    let decoded: DecodedCanonicalProtectedDefaultExpressionUsesV1 =
-        decode_canonical(&[0x80], DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut meter()).unwrap(), empty);
 }
 
 struct RawUses(Vec<ProtectedDefaultExpressionUseV1>);

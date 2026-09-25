@@ -47,25 +47,6 @@ impl ReplayedStrongProductionSectionV2 {
         self.section.registration_production().safepoint_semantics()
     }
 
-    /// Accounts for one copy of each registration plan without exposing an
-    /// encoder or promoting the whole candidate registration production.
-    pub fn charge_registration_plan_copies(
-        &self,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<(), scoop_wire::WireError> {
-        let path = scoop_wire::WirePath::root();
-        let bytes = scoop_wire::cbor::encoded_length(self.section.registration_production())
-            .map_err(|_| {
-                scoop_wire::WireError::new(
-                    scoop_wire::WireErrorKind::IntegerOutOfRange,
-                    path.clone(),
-                    None,
-                )
-            })?;
-        meter.charge_owned_bytes(bytes.saturating_mul(4), &path)?;
-        meter.charge_work(bytes.saturating_mul(4), &path)
-    }
-
     pub fn immortal_registrations(&self) -> &crate::StrongImmortalObjectRegistrationPlanSetV1 {
         self.section.registration_production().immortal_objects()
     }

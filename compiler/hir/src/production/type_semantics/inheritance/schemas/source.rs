@@ -3,7 +3,6 @@ use super::*;
 pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
     nominals: &[ConcreteNominal<'_>],
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalInterfaceSourceDispatchesV1, Error> {
     let mut seen = BTreeSet::new();
     let mut records = Vec::new();
@@ -11,11 +10,9 @@ pub(in crate::production::type_semantics) fn project(
         let mut projection = Projection {
             export,
             owner: nominal.exact,
-            meter,
         };
         for root in projection.roots(nominal.local)? {
             for application in projection.interface_postorder(root)? {
-                projection.search(seen.len())?;
                 if seen.insert(application) {
                     let record = projection.source(application)?;
                     projection.push(&mut records, record)?;
@@ -23,10 +20,10 @@ pub(in crate::production::type_semantics) fn project(
             }
         }
     }
-    CanonicalInterfaceSourceDispatchesV1::try_new(records, meter).map_err(Error::SourceInventory)
+    CanonicalInterfaceSourceDispatchesV1::try_new(records).map_err(Error::SourceInventory)
 }
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     fn roots(&mut self, nominal: NominalLocalId) -> Result<Vec<InterfaceApplicationId>, Error> {
         let mut types = Vec::new();
         let class = match nominal {
@@ -81,17 +78,16 @@ impl Projection<'_, '_> {
             let mut seen = BTreeSet::new();
             for inherited in &self.export.interface_methods[*member].overrides {
                 let inherited = self.export.dispatch_slot_identities[*inherited].id();
-                self.search(seen.len())?;
+
                 if seen.insert(inherited) {
                     self.push(&mut overrides, inherited)?;
                 }
             }
-            self.sort_work(overrides.len())?;
+
             let overrides = CanonicalPersistentIdsV1::try_new(overrides)
                 .map_err(|error| self.invalid(error))?;
             self.push(&mut members, InterfaceSourceMemberV1::new(slot, overrides))?;
         }
-        InterfaceSourceDispatchV1::try_new(owner, parents, members, self.meter)
-            .map_err(Error::SourceInventory)
+        InterfaceSourceDispatchV1::try_new(owner, parents, members).map_err(Error::SourceInventory)
     }
 }

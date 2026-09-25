@@ -151,10 +151,10 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
         let crate::SourceNominalId::Concrete(source) = fixture.outer.unwrap() else {
             unreachable!("these fixtures contain concrete declarations")
         };
-        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+
         assert!(
             world
-                .has_materializable_nominal_source(fixture.identity(), source, &mut meter)
+                .has_materializable_nominal_source(fixture.identity(), source)
                 .unwrap()
         );
         let other = if fixture.identity() == core.identity() {
@@ -164,7 +164,7 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
         };
         for wrong in [current, other] {
             assert!(matches!(
-                world.has_materializable_nominal_source(wrong, source, &mut meter),
+                world.has_materializable_nominal_source(wrong, source),
                 Err(crate::NominalMaterializationClosureError::MissingNominal(actual)) if actual == source
             ));
         }

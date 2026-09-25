@@ -1,5 +1,4 @@
 use scoop_identity::ConeIdentity;
-use scoop_wire::BudgetMeter;
 
 use super::ShapeLinkError;
 use crate::{
@@ -15,7 +14,6 @@ pub trait ShapeLinkSupportLookupV1<'a> {
         &self,
         provider: ConeIdentity,
         subject: ExternalStrongShapeSubjectV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError>;
 }
 
@@ -29,9 +27,7 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for NoShapeLinkSupportV1 {
         &self,
         _: ConeIdentity,
         subject: ExternalStrongShapeSubjectV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
-        meter.charge_work(1, &scoop_wire::WirePath::root())?;
         use ExternalStrongShapeSubjectV1 as Subject;
         match subject {
             Subject::Callable(_)

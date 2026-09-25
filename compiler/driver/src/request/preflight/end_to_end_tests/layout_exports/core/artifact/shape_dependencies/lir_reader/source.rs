@@ -11,7 +11,6 @@ impl lir::LayoutAbiSectionSourceAuthorityV1<&'static str> for GraphFixture<'_> {
     fn validate_local_exports(
         &self,
         exports: &lir::LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         if exports == self.exports {
             Ok(())
@@ -25,7 +24,6 @@ impl lir::LayoutAbiSectionSourceAuthorityV1<&'static str> for GraphFixture<'_> {
     fn validate_physical_imports(
         &self,
         imports: &[lir::ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         if imports.is_empty() {
             Ok(())

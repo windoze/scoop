@@ -9,7 +9,7 @@ pub(super) fn check(
     let records = abis.records();
     let reject = |rows: &[lir::ExactCallableAbiExportV1]| {
         let decoded: lir::DecodedCanonicalExactCallableAbiExportsV1 = decoded(&Rows(rows));
-        assert!(decoded.validate_against(abis, &mut meter()).is_err());
+        assert!(decoded.validate_against(abis).is_err());
     };
     for index in 0..records.len() {
         let mut missing = records.to_vec();
@@ -74,7 +74,7 @@ pub(super) fn check(
             donor,
             component,
         });
-        assert!(decoded.validate_against(value, &mut meter()).is_err());
+        assert!(decoded.validate_against(value).is_err());
     }
     let exact = donor.layout_dependencies().result().identity().exact();
     let layouts = lir::CanonicalExactLayoutExportsV1::try_new(
@@ -87,11 +87,10 @@ pub(super) fn check(
             .filter(|record| record.identity().exact() != exact)
             .cloned()
             .collect(),
-        &mut meter(),
     )
     .unwrap();
     assert!(
-        matches!(replay(input, &layouts, &[], &mut meter()), Err(Error::Callable { source, .. })
+        matches!(replay(input, &layouts, &[]), Err(Error::Callable { source, .. })
         if matches!(*source, lir::ExactCallableAbiError::MissingValueLayout { exact: missing } if missing == exact))
     );
 }

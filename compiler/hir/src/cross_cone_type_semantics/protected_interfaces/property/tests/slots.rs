@@ -22,37 +22,24 @@ fn abstract_property_joins_accessor_modality_and_preserves_slot_relations() {
         .unwrap()
         .representation = PropertyRepresentationV1::AbstractSlot;
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let mut getter_authority = fixture.clone();
     let mut concrete_authority = fixture.clone();
     let checked_abstract = abstract_getter
-        .validate_source(&graph, &mut getter_authority, &mut meter())
+        .validate_source(&graph, &mut getter_authority)
         .unwrap();
     let checked_concrete = getter
-        .validate_source(&graph, &mut concrete_authority, &mut meter())
+        .validate_source(&graph, &mut concrete_authority)
         .unwrap();
-    let checked_property = property
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let checked_property = property.validate_source(&graph, &mut fixture).unwrap();
     checked_property
-        .validate_accessor_contracts(checked_abstract, None, &mut meter())
+        .validate_accessor_contracts(checked_abstract, None)
         .unwrap();
     assert!(matches!(
-        checked_property.validate_accessor_contracts(checked_concrete, None, &mut meter()),
+        checked_property.validate_accessor_contracts(checked_concrete, None),
         Err(ProtectedPropertyAccessorClosureError::Representation)
-    ));
-    let mut budget = BudgetMeter::new(DecodeLimits {
-        decoded_nodes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        checked_property.validate_accessor_contracts(checked_abstract, None, &mut budget),
-        Err(ProtectedPropertyAccessorClosureError::Resource(_))
     ));
 }
 
@@ -69,21 +56,16 @@ fn runtime_property_cannot_omit_its_open_getter_slot() {
         CanonicalProtectedSlotRefsV1::try_new(vec![slot]).unwrap();
     let getter = fixture.record(owner, getter.declaration(), payload);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let mut getter_authority = fixture.clone();
-    let checked_property = property
-        .validate_source(&graph, &mut fixture, &mut meter())
-        .unwrap();
+    let checked_property = property.validate_source(&graph, &mut fixture).unwrap();
     let checked_getter = getter
-        .validate_source(&graph, &mut getter_authority, &mut meter())
+        .validate_source(&graph, &mut getter_authority)
         .unwrap();
     assert!(matches!(
-        checked_property.validate_accessor_contracts(checked_getter, None, &mut meter()),
+        checked_property.validate_accessor_contracts(checked_getter, None),
         Err(ProtectedPropertyAccessorClosureError::Slot)
     ));
 }

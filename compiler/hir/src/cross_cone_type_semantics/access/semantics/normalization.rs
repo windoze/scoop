@@ -1,18 +1,11 @@
-use scoop_wire::{BudgetMeter, WirePath};
-
 use super::{AccessDomainSemanticError, Constraint, PersistentAccessDomainV1};
 use crate::{CheckedNominalInheritanceGraphV1, InheritanceQueryError};
 
 pub(super) fn normalize(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     domain: &PersistentAccessDomainV1,
-    meter: &mut BudgetMeter,
 ) -> Result<PersistentAccessDomainV1, AccessDomainSemanticError> {
-    let path = WirePath::root();
     for constraint in domain.constraints() {
-        meter
-            .charge_work(1, &path)
-            .map_err(AccessDomainSemanticError::Resource)?;
         match constraint {
             Constraint::LexicalOwner(owner) => {
                 graph
@@ -25,17 +18,12 @@ pub(super) fn normalize(
     }
     for (index, left) in domain.constraints().iter().enumerate() {
         for right in &domain.constraints()[index + 1..] {
-            meter
-                .charge_work(1, &path)
-                .map_err(AccessDomainSemanticError::Resource)?;
             if disjoint(graph, left, right)? {
                 return Ok(PersistentAccessDomainV1::empty());
             }
         }
     }
-    meter
-        .charge_collection_slots(domain.constraints().len() as u64, &path)
-        .map_err(AccessDomainSemanticError::Resource)?;
+
     Ok(domain.clone())
 }
 

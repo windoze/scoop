@@ -1,5 +1,5 @@
 use scoop_identity::{CallableTemplateOrigin, PropertyOwner};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     ExternalHirReferenceProductionError, ExternalHirReferenceProductionInput,
@@ -15,7 +15,6 @@ use crate::{
 pub(super) fn collect<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -38,7 +37,6 @@ where
             accumulator.observe_signature(
                 reference.target(),
                 ExternalHirReferenceRoleV1::DefaultDependency,
-                meter,
                 &path.clone().field(3).index(reference_index).field(1),
             )?;
         }

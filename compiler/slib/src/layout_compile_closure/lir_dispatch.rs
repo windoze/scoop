@@ -57,15 +57,15 @@ impl<'input> LirCallableAbisValidatedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
                 let mut layouts = Vec::new();
                 let mut callables = Vec::new();
-                parts.meter.try_reserve_collection_slots(
+                scoop_wire::allocation::try_reserve(
                     &mut layouts,
                     reachable.len(),
                     &WirePath::root(),
                 )?;
-                parts.meter.try_reserve_collection_slots(
+                scoop_wire::allocation::try_reserve(
                     &mut callables,
                     reachable.len(),
                     &WirePath::root(),
@@ -85,12 +85,9 @@ impl<'input> LirCallableAbisValidatedCrossConeLayoutClosure<'input> {
                         dependency_callables: &callables,
                     },
                     parts.lir_foundation,
-                    parts.meter,
                 )?;
-                let layout = layout.validate_dispatch(&expected, parts.meter)?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &WirePath::root())?;
+                let layout = layout.validate_dispatch(&expected)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirDispatchValidatedCrossConeLayoutSections {
                     prepared,
                     mir,

@@ -39,11 +39,9 @@ fn nominal_member_sources_bind_complete_methods_accessors_variants_and_constants
     for input in [SOURCE, CALLABLES, PROPERTIES, PROTECTED, ABSTRACT] {
         with_sources(input, |_, fixture, sources, core| {
             let foundation = fixture.bind().unwrap();
-            let nominals = foundation
-                .bind_nominal_sources(&sources.nominals, &mut meter())
-                .unwrap();
+            let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
             let bound = nominals
-                .bind_member_sources(&sources.properties, &sources.callables, core, &mut meter())
+                .bind_member_sources(&sources.properties, &sources.callables, core)
                 .unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
             assert_eq!(bound.properties(), &sources.properties);
@@ -98,52 +96,4 @@ fn nominal_member_sources_bind_complete_methods_accessors_variants_and_constants
             }
         });
     }
-}
-
-#[test]
-fn nominal_member_binding_respects_shared_resources_before_publishing_any_sources() {
-    with_sources(SOURCE, |_, fixture, sources, core| {
-        let foundation = fixture.bind().unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(
-                nominals
-                    .bind_member_sources(
-                        &sources.properties,
-                        &sources.callables,
-                        core,
-                        &mut BudgetMeter::new(limits)
-                    )
-                    .is_err(),
-                "{limits:?}"
-            );
-        }
-    });
 }

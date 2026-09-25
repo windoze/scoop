@@ -93,11 +93,7 @@ fn project_parsed_dependency(
     )
     .unwrap();
     foundation
-        .complete_cross_cone_interface_source_points(
-            output.output().export.module(),
-            &interface,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-        )
+        .complete_cross_cone_interface_source_points(output.output().export.module(), &interface)
         .unwrap();
     (foundation, interface)
 }
@@ -170,34 +166,22 @@ impl scoop_hir::PublicExportBindingClosureAuthority for ProviderProjectionAuthor
         1
     }
 
-    fn is_direct_dependency(
-        &self,
-        _provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(false)
+    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
+        false
     }
 
     fn binding_key(
         &self,
         _binding: scoop_identity::PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    ) -> Option<&ExportBindingKey> {
+        None
     }
 
     fn public_bindings(
         &self,
         _exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&scoop_hir::CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    ) -> Option<&scoop_hir::CanonicalPublicExportBindingsV1> {
+        None
     }
 }
 

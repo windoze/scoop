@@ -37,35 +37,20 @@ fn source_protocol_indexes_only_complete_matching_default_table_keys() {
     .unwrap();
     let defaults =
         CanonicalProtectedDefaultTemplatesV1::try_new(vec![second.clone(), first.clone()]).unwrap();
-    let bytes = encode(
-        &sources
-            .index_templates(defaults.keys(), &mut meter())
-            .unwrap(),
-    )
-    .unwrap();
+    let bytes = encode(&sources.index_templates(defaults.keys()).unwrap()).unwrap();
     let decoded: DecodedCanonicalProtectedCallableSourceInterfacesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert_eq!(
-        decoded
-            .resolve(&mut f.resolver(), defaults.keys(), &mut meter())
-            .unwrap(),
+        decoded.resolve(&mut f.resolver(), defaults.keys()).unwrap(),
         sources
     );
     let missing = CanonicalProtectedDefaultTemplatesV1::try_new(vec![first]).unwrap();
-    assert!(
-        sources
-            .validate_default_closure(missing.keys(), &mut meter())
-            .is_err()
-    );
+    assert!(sources.validate_default_closure(missing.keys()).is_err());
     let extra = CanonicalProtectedDefaultTemplatesV1::try_new(vec![
         template(&f, 1),
         second,
         template(&f, 3),
     ])
     .unwrap();
-    assert!(
-        sources
-            .validate_default_closure(extra.keys(), &mut meter())
-            .is_err()
-    );
+    assert!(sources.validate_default_closure(extra.keys()).is_err());
 }

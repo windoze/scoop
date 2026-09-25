@@ -30,9 +30,8 @@ impl ParamFreeMirObjectValueV1 {
         unit: PersistentInitializationUnitId,
         ensure: StrongCallableDefinitionOwner,
         read: MirObjectValueReadPlanV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirObjectBridgeError> {
-        let provider = authority.validate_object(value, backing, unit, ensure, read, meter)?;
+        let provider = authority.validate_object(value, backing, unit, ensure, read)?;
         Ok(Self {
             value,
             backing,

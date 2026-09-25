@@ -30,7 +30,7 @@ impl WireEncode for DecodedStrongTypeDescriptorRefV1 {
 }
 
 impl WireDecode for DecodedStrongTypeDescriptorRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(match Descriptor::decode(decoder)? {
             Descriptor::Local(exact) => Self::Local(exact),
             Descriptor::DependencyExternal { provider, exact } => {
@@ -64,7 +64,7 @@ impl WireEncode for DecodedOptionalStrongTypeDescriptorRefV1 {
 }
 
 impl WireDecode for DecodedOptionalStrongTypeDescriptorRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(match Optional::decode(decoder)? {
             Optional::Absent => Self::Absent,
             Optional::Local(exact) => Self::Local(exact),
@@ -99,7 +99,7 @@ impl WireEncode for DecodedStrongTypeDispatchCallableRefV1 {
 }
 
 impl WireDecode for DecodedStrongTypeDispatchCallableRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(match Callable::decode(decoder)? {
             Callable::Local(body) => Self::Local(body),
             Callable::DependencyExternal { provider, body } => {

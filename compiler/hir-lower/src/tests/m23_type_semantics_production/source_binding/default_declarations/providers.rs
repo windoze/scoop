@@ -10,15 +10,11 @@ fn valid_artifact_locations_do_not_replace_nominal_provider_and_parameter_owners
         let public = source_template(output, "declarationSeed", 0);
         let mut origins = std::collections::BTreeSet::new();
         public
-            .visit_definition_sources_metered(
-                &mut |origin: &hir::ExportDefinitionSourceV1,
-                      _,
-                      _: &mut BudgetMeter,
-                      _: &scoop_wire::WirePath| {
+            .visit_definition_sources(
+                &mut |origin: &hir::ExportDefinitionSourceV1, _, _: &scoop_wire::WirePath| {
                     origins.insert(origin.clone());
                     Ok::<_, scoop_wire::WireError>(())
                 },
-                &mut meter(),
                 &scoop_wire::WirePath::root(),
             )
             .unwrap();
@@ -33,23 +29,23 @@ fn valid_artifact_locations_do_not_replace_nominal_provider_and_parameter_owners
         let published = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&published, &fixture.identities, &mut meter())
+            .bind_to_foundation(&published, &fixture.identities)
             .unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
             for (name, nominal) in [("declarationSeed", false), ("ContractBase.number", true)] {
                 let source = source_template(output, name, 0);
                 let forged = Template::try_new(
                     key, source.definition_root(), source.definition_path().clone(),
                     source.locals().clone(), source.body().clone(), source.result().clone(),
                     source.allows_suspend(), source.type_parameters().clone(), source.receiver().clone(),
-                    source.value_parameters().clone(), source.references().clone(), source.definition_origin().clone(), &mut meter(),
+                    source.value_parameters().clone(), source.references().clone(), source.definition_origin().clone(),
                 ).unwrap();
                 let changed = replace(&table, forged);
                 // These are genuine artifact locations in the correct source
                 // contexts. Only the declaration join rejects their claimed use.
-                parameters.bind_default_origins(&changed, &[], &mut meter()).unwrap();
-                let Error::Record { key: actual, error } = parameters.bind_default_declarations(&changed, &[], &mut meter()).unwrap_err() else {
+                parameters.bind_default_origins(&changed, &[]).unwrap();
+                let Error::Record { key: actual, error } = parameters.bind_default_declarations(&changed, &[]).unwrap_err() else {
                     panic!("expected a provider declaration error");
                 };
                 assert_eq!(actual, key);

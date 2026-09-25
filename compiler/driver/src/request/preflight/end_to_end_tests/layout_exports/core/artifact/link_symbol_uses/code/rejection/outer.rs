@@ -6,13 +6,10 @@ pub(super) fn rewrite(bytes: &[u8], selection: lir::ValidatedLirTargetSelection)
     let archive = object::read::archive::ArchiveFile::parse(bytes).unwrap();
     let mut entries = archive.members();
     let original = entries.next().unwrap().unwrap().data(bytes).unwrap();
-    let manifest = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        original,
-        DecodeLimits::default(),
-    )
-    .unwrap()
-    .validate(selection, &mut meter())
-    .unwrap();
+    let manifest = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(original)
+        .unwrap()
+        .validate(selection)
+        .unwrap();
     let members = manifest
         .members()
         .iter()
@@ -37,13 +34,9 @@ pub(super) fn rewrite(bytes: &[u8], selection: lir::ValidatedLirTargetSelection)
     let semantic = wire::field_range(original, 9);
     let code = wire::field_range(&original[semantic.clone()], 4);
     changed[semantic.start + code.end - 1] ^= 1;
-    let decoded = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(
-        &changed,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = scoop_wire::decode_canonical::<slib::DecodedBootstrapManifest>(&changed).unwrap();
     let slib::BootstrapManifestValidationError::ArtifactFingerprintMismatch { expected, .. } =
-        decoded.validate(selection, &mut meter()).unwrap_err()
+        decoded.validate(selection).unwrap_err()
     else {
         panic!("only the enclosing artifact digest is stale")
     };

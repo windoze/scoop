@@ -11,23 +11,11 @@ fn external_target_origin_must_match_its_canonical_key() {
     let record = fixture.signature_reference(fixture.first_alias);
     let mut authority = TargetOriginAuthority::new(ConeIdentity::CORE, fixture.provider);
 
-    assert!(
-        record
-            .validate_semantics(
-                &mut authority,
-                &mut route_meter(),
-                &scoop_wire::WirePath::root()
-            )
-            .is_ok()
-    );
+    assert!(record.validate_semantics(&mut authority).is_ok());
 
     authority.set_target_origin(cone("other"));
     assert_eq!(
-        record.validate_semantics(
-            &mut authority,
-            &mut route_meter(),
-            &scoop_wire::WirePath::root()
-        ),
+        record.validate_semantics(&mut authority),
         Err(
             ExternalHirReferenceSemanticValidationError::OriginMismatch {
                 target: record.target(),
@@ -45,11 +33,7 @@ fn current_cone_target_is_not_an_external_reference() {
     let mut authority = TargetOriginAuthority::new(fixture.provider, fixture.provider);
 
     assert_eq!(
-        record.validate_semantics(
-            &mut authority,
-            &mut route_meter(),
-            &scoop_wire::WirePath::root()
-        ),
+        record.validate_semantics(&mut authority),
         Err(
             ExternalHirReferenceSemanticValidationError::CurrentConeTarget {
                 target: record.target(),
@@ -68,11 +52,7 @@ fn target_origin_authority_failure_is_preserved() {
     authority.fail_on(record.target());
 
     assert_eq!(
-        record.validate_semantics(
-            &mut authority,
-            &mut route_meter(),
-            &scoop_wire::WirePath::root()
-        ),
+        record.validate_semantics(&mut authority),
         Err(ExternalHirReferenceSemanticValidationError::TargetOrigin {
             target: record.target(),
             error: TargetOriginAuthorityError,
@@ -87,11 +67,7 @@ fn witness_root_and_route_failures_keep_their_record_context() {
     let mut authority = TargetOriginAuthority::new(ConeIdentity::CORE, fixture.provider);
 
     assert_eq!(
-        record.validate_semantics(
-            &mut authority,
-            &mut route_meter(),
-            &scoop_wire::WirePath::root()
-        ),
+        record.validate_semantics(&mut authority),
         Err(ExternalHirReferenceSemanticValidationError::BindingRoot {
             target: record.target(),
             error: TargetOriginAuthorityError,
@@ -100,11 +76,7 @@ fn witness_root_and_route_failures_keep_their_record_context() {
 
     authority.set_binding_root(fixture.first_root);
     assert_eq!(
-        record.validate_semantics(
-            &mut authority,
-            &mut route_meter(),
-            &scoop_wire::WirePath::root()
-        ),
+        record.validate_semantics(&mut authority),
         Err(ExternalHirReferenceSemanticValidationError::Witness {
             index: 0,
             error: DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
@@ -119,8 +91,4 @@ fn cone(name: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

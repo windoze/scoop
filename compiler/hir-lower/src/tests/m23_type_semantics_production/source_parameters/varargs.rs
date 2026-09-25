@@ -39,19 +39,15 @@ fn sealed_vararg_sources_preserve_array_values_defaults_and_generic_binders() {
             )
         })
         .collect();
-    let inventory = hir::CanonicalSourceInheritanceInventoriesV1::try_new(
-        vec![
-            hir::SourceInheritanceInventoryV1::try_new(
-                owner,
-                hir::CanonicalPersistentIdsV1::try_new(constructors).unwrap(),
-                hir::CanonicalProtectedDeclarationRefsV1::try_new(members).unwrap(),
-                hir::CanonicalInheritanceSlotSchemasV1::try_new(vec![]).unwrap(),
-                &mut meter(),
-            )
-            .unwrap(),
-        ],
-        &mut meter(),
-    )
+    let inventory = hir::CanonicalSourceInheritanceInventoriesV1::try_new(vec![
+        hir::SourceInheritanceInventoryV1::try_new(
+            owner,
+            hir::CanonicalPersistentIdsV1::try_new(constructors).unwrap(),
+            hir::CanonicalProtectedDeclarationRefsV1::try_new(members).unwrap(),
+            hir::CanonicalInheritanceSlotSchemasV1::try_new(vec![]).unwrap(),
+        )
+        .unwrap(),
+    ])
     .unwrap();
     assert!(
         export.nominal_identities[id]
@@ -60,7 +56,7 @@ fn sealed_vararg_sources_preserve_array_values_defaults_and_generic_binders() {
             .concrete_id()
             .is_some()
     );
-    let table = Table::from_export_hir(&output.export, &inventory, &mut meter()).unwrap();
+    let table = Table::from_export_hir(&output.export, &inventory).unwrap();
     assert_eq!(
         render_and_verify(export, &table),
         include_str!(concat!(
@@ -122,8 +118,7 @@ fn sealed_vararg_sources_preserve_array_values_defaults_and_generic_binders() {
 fn source_parameter_projection_rejects_missing_duplicate_and_mismatched_interfaces() {
     with_source(SOURCE, |output, _| {
         let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
         let expected = table(output);
         let export = &output.output().export;
         let index = export
@@ -162,7 +157,7 @@ fn source_parameter_projection_rejects_missing_duplicate_and_mismatched_interfac
             let forged =
                 hir::ExportHirOutput::try_new(module, export.output_kind().clone()).unwrap();
             assert!(matches!(
-                Table::from_export_hir(&forged, &inventory, &mut meter()),
+                Table::from_export_hir(&forged, &inventory),
                 Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
             ));
         }

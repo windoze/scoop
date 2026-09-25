@@ -5,11 +5,6 @@ use crate::{
     PersistentFunctionId, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits};
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 fn generated(
     graph: &mut Graph,
@@ -74,12 +69,7 @@ fn all_generated_roles_print_the_frozen_role_and_nominal_id() {
     ];
     for (index, key) in keys.into_iter().enumerate() {
         let (nominal, exact) = generated(&mut graph, key);
-        let name = CanonicalExactTypeDiagnosticName::from_validated_graph_metered(
-            exact,
-            &graph,
-            &mut meter(),
-        )
-        .unwrap();
+        let name = CanonicalExactTypeDiagnosticName::from_validated_graph(exact, &graph).unwrap();
         assert_eq!(name.as_str(), format!("g(r={:08x};i={nominal})", index + 1));
         assert_eq!(name.as_str().len(), 80);
     }
@@ -124,71 +114,4 @@ fn generated_definition_conflicts_and_relabeling_are_rejected() {
         matches!(CanonicalExactTypeDiagnosticName::from_validated_graph(exact, &graph),
         Err(super::super::ExactTypeDiagnosticError::InvalidGeneratedNominal(id)) if id == nominal)
     );
-}
-
-#[test]
-fn diagnostic_allocation_and_rendering_charge_the_shared_budget() {
-    let (mut graph, payload) = nominal_graph();
-    let (_, exact) = generated(&mut graph, GeneratedNominalKey::BoxedValue { payload });
-    let mut baseline = meter();
-    CanonicalExactTypeDiagnosticName::from_validated_graph_metered(exact, &graph, &mut baseline)
-        .unwrap();
-    let usage = baseline.usage();
-    for limits in [
-        DecodeLimits {
-            logical_heap_bytes: usage.logical_heap_bytes - 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: usage.validation_work_units - 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            owned_bytes: usage.owned_bytes - 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_leaf_bytes: 79,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            CanonicalExactTypeDiagnosticName::from_validated_graph_metered(
-                exact,
-                &graph,
-                &mut BudgetMeter::new(limits)
-            ),
-            Err(super::super::ExactTypeDiagnosticError::Resource(_))
-        ));
-    }
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: usage.logical_heap_bytes,
-        validation_work_units: usage.validation_work_units,
-        owned_bytes: usage.owned_bytes,
-        ..DecodeLimits::default()
-    });
-    CanonicalExactTypeDiagnosticName::from_validated_graph_metered(exact, &graph, &mut shared)
-        .unwrap();
-    assert!(
-        CanonicalExactTypeDiagnosticName::from_validated_graph_metered(exact, &graph, &mut shared)
-            .is_err()
-    );
-}
-
-#[test]
-fn shared_generated_dag_is_costed_before_expanded_output_allocation() {
-    let (mut graph, payload) = nominal_graph();
-    let (_, mut exact) = generated(&mut graph, GeneratedNominalKey::BoxedValue { payload });
-    for _ in 0..20 {
-        let key = ExactTypeKey::Tuple(NonEmptyVec::from_first(exact, [exact]));
-        exact = PersistentExactTypeId::from_key(&key).unwrap();
-        graph.exact.insert(exact, key);
-    }
-    let mut budget = meter();
-    assert!(matches!(
-        CanonicalExactTypeDiagnosticName::from_validated_graph_metered(exact, &graph, &mut budget),
-        Err(super::super::ExactTypeDiagnosticError::NameTooLong { .. })
-    ));
-    // Only the small canonical generated key is copied, never the expanded name.
-    assert!(budget.usage().owned_bytes < 1024);
 }

@@ -10,7 +10,7 @@ use scoop_identity::{
 use scoop_wire::WirePath;
 pub(super) mod dependencies;
 mod rejection;
-mod resources;
+
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/type-source-domains.scoop"
@@ -56,10 +56,9 @@ fn templates(output: &hir::DependencyHirOutput) -> Templates {
                     output,
                     hir::ExportParameterOwner::Function(id),
                     1,
-                    &mut meter(),
                 )
                 .unwrap()
-                .into_source_template(&mut meter())
+                .into_source_template()
                 .unwrap(),
             )
         })
@@ -81,9 +80,8 @@ fn required(templates: &Templates) -> BTreeSet<Subject> {
         {
             hir::visit_default_source_type_access_demands(
                 ty,
-                &mut meter(),
                 &WirePath::root(),
-                &mut |demand, _, _| -> Result<(), std::convert::Infallible> {
+                &mut |demand, _| -> Result<(), std::convert::Infallible> {
                     match demand {
                         Demand::Nominal(id) if !builtins.contains(&id) => {
                             required.insert(Subject::Type(id));
@@ -115,13 +113,10 @@ fn with_local(
         let mut fixture = Fixture::from_output(output);
         let templates = templates(output);
         let required = required(&templates);
-        let table =
-            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let table = Table::from_export_hir(&output.output().export, &required).unwrap();
         let decoded: hir::DecodedCanonicalDefaultSourceAccessDeclarationsV1 =
-            decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
-        let table = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&encode(&table).unwrap()).unwrap();
+        let table = decoded.resolve(&mut fixture.identities).unwrap();
         run(core, &fixture, &table, &required, &templates);
     });
 }
@@ -149,25 +144,18 @@ fn default_type_source_domains_replay_actual_sealed_type_witnesses() {
     with_local(|core, fixture, table, required, templates| {
         let foundation = fixture.bind().unwrap();
         let declarations = foundation
-            .bind_default_access_declarations(table, required, &mut meter())
+            .bind_default_access_declarations(table, required)
             .unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-        let domains = Domains::new(
-            &declarations,
-            &[],
-            inputs.protocols().fundamental_types(),
-            &mut meter(),
-        )
-        .unwrap();
+        let domains =
+            Domains::new(&declarations, &[], inputs.protocols().fundamental_types()).unwrap();
         let mut outline = String::new();
         let mut compared = 0;
         for (name, template) in templates {
             let scope = scope(name);
             for record in template.references().types() {
                 compared += 1;
-                let actual = domains
-                    .type_source_domain(record.target(), &scope, &mut meter())
-                    .unwrap();
+                let actual = domains.type_source_domain(record.target(), &scope).unwrap();
                 assert_eq!(
                     &actual,
                     record.witness().target_domain(),
@@ -176,7 +164,7 @@ fn default_type_source_domains_replay_actual_sealed_type_witnesses() {
                 );
             }
             let actual = domains
-                .type_source_domain(template.result(), &scope, &mut meter())
+                .type_source_domain(template.result(), &scope)
                 .unwrap();
             outline.push_str(&format!("{name}: {}\n", summary(&actual)));
         }

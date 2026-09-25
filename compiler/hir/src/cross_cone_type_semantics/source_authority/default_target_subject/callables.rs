@@ -20,24 +20,16 @@ impl DefaultTargetIdentityQueriesV1<'_> {
     pub fn default_callable_access_subject<'t>(
         &self,
         target: &'t Callable,
-        meter: &mut BudgetMeter,
     ) -> Result<Access<'t>, Error> {
-        self.default_callable_access_subject_view(target.into(), meter)
+        self.default_callable_access_subject_view(target.into())
     }
 
     pub fn default_callable_access_subject_view<'t>(
         &self,
         target: View<'t>,
-        meter: &mut BudgetMeter,
     ) -> Result<Access<'t>, Error> {
-        let mut query = Query {
-            foundation: self,
-            meter,
-            path: WirePath::root(),
-        };
-        query.meter.check_semantic_depth(1, &query.path)?;
-        query.meter.charge_nodes(1, &query.path)?;
-        query.meter.charge_work(1, &query.path)?;
+        let mut query = Query { foundation: self };
+
         match target {
             View::Callable(callable) => query.callable(callable.declaration()),
             View::FunctionAddress(declaration) => query.callable(declaration),
@@ -67,7 +59,7 @@ impl DefaultTargetIdentityQueriesV1<'_> {
         }
     }
 }
-impl Query<'_, '_, '_> {
+impl Query<'_, '_> {
     fn expected_nested<'t>(
         &mut self,
         declaration: Declaration,

@@ -1,10 +1,7 @@
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::path::DecodedHostPathCarrier;
-use crate::{
-    HostPathCarrier, MAX_INPUT_ARTIFACTS, PROTOCOL_VERSION, ProtocolValidationError,
-    RequestCorrelationId,
-};
+use crate::{HostPathCarrier, PROTOCOL_VERSION, ProtocolValidationError, RequestCorrelationId};
 
 const REQUEST_MAGIC: &[u8; 8] = b"SCOOPREQ";
 
@@ -350,7 +347,7 @@ impl WireEncode for DecodedCurrentConeRequestV1 {
 }
 
 impl WireDecode for DecodedCurrentConeRequestV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -410,7 +407,7 @@ impl WireEncode for DecodedTrustedCoreRequestV1 {
 }
 
 impl WireDecode for DecodedTrustedCoreRequestV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -441,7 +438,7 @@ impl WireEncode for DecodedTargetSelectionRequestV1 {
 }
 
 impl WireDecode for DecodedTargetSelectionRequestV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(1)?;
         decoder.field(1, Decoder::owned_text).map(Self)
     }
@@ -508,7 +505,7 @@ impl WireEncode for DecodedScoopcBuildRequestV1 {
 }
 
 impl WireDecode for DecodedScoopcBuildRequestV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         let current = decoder.field(1, DecodedCurrentConeRequestV1::decode)?;
         let direct_slibs = decoder.field(2, |decoder| {
@@ -570,7 +567,7 @@ impl WireEncode for DecodedStageDumpPolicyV1 {
 }
 
 impl WireDecode for DecodedStageDumpPolicyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -625,7 +622,7 @@ impl WireEncode for DecodedScoopcRequestEnvelopeV1 {
 }
 
 impl WireDecode for DecodedScoopcRequestEnvelopeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         let magic = decoder.field(1, Decoder::owned_bytes)?;
         let version = decoder.field(2, Decoder::u32)?;
@@ -646,18 +643,6 @@ fn validate_build_shape(
     support_slibs: &[HostPathCarrier],
     trusted_core: &TrustedCoreRequestV1,
 ) -> Result<(), ProtocolValidationError> {
-    if direct_slibs.len() > MAX_INPUT_ARTIFACTS {
-        return Err(ProtocolValidationError::TooManyInputs {
-            role: "direct",
-            actual: direct_slibs.len(),
-        });
-    }
-    if support_slibs.len() > MAX_INPUT_ARTIFACTS {
-        return Err(ProtocolValidationError::TooManyInputs {
-            role: "support",
-            actual: support_slibs.len(),
-        });
-    }
     match (current, trusted_core) {
         (CurrentConeRequestV1::ManifestRoot { .. }, _) => Ok(()),
         (CurrentConeRequestV1::SingleFile { .. }, TrustedCoreRequestV1::ArtifactSlot { .. }) => {

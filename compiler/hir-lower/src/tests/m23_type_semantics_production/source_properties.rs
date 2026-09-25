@@ -18,11 +18,8 @@ const DIRECT: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/property-direct.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_dependency_hir(output, &mut meter()).unwrap()
+    Table::from_dependency_hir(output).unwrap()
 }
 
 #[test]
@@ -77,11 +74,9 @@ fn public_property_with_protected_setter_keeps_its_original_visibility() {
             public.capability().setter_access(),
             Some(hir::PropertySetterPublicAccessV1::Restricted)
         );
-        let protected = hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(
-            output,
-            &mut meter(),
-        )
-        .unwrap();
+        let protected =
+            hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(output)
+                .unwrap();
         assert_eq!(protected.records().len(), 1);
         assert_eq!(
             protected.records()[0].declaration(),
@@ -103,16 +98,10 @@ fn property_source_inventory_covers_protected_and_dispatch_accessors_exactly() {
             let table = table(output);
             contracts::verify(output, &table);
             let protected =
-                hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(
-                    output,
-                    &mut meter(),
-                )
-                .unwrap();
-            let dispatched = hir::CanonicalInheritanceSourceCallablesV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+                hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(output)
+                    .unwrap();
+            let dispatched =
+                hir::CanonicalInheritanceSourceCallablesV1::from_dependency_hir(output).unwrap();
             let mut required = protected
                 .records()
                 .iter()
@@ -170,52 +159,14 @@ fn property_source_bytes_are_deterministic_and_replay_without_candidates() {
         let table = table(output);
         let bytes = encode(&table).unwrap();
         let decoded: hir::DecodedCanonicalInheritanceSourcePropertiesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         let mut identities = source_inventory::identity_closure(output);
-        assert_eq!(
-            decoded.resolve(&mut identities, &mut meter()).unwrap(),
-            table
-        );
+        assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
         bytes
     });
     assert_eq!(
         first,
         with_source(SOURCE, |output, _| encode(&table(output)).unwrap())
     );
-}
-
-#[test]
-fn property_source_projection_obeys_shared_resources() {
-    with_source(SOURCE, |output, _| {
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
-                Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
-                    hir::SourceInventoryError::Resource(_)
-                ))
-            ));
-        }
-    });
 }

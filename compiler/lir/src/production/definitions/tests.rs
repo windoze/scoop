@@ -7,7 +7,7 @@ use scoop_identity::{
     SourceDeclarationSite, StrongCallableDefinitionOwner, StrongDefinitionEntity,
     StrongDefinitionRole, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{CanonicalLirFoundation, DecodedLirFoundation, OdrFreeLirFoundation};
@@ -21,20 +21,14 @@ fn definition_plan_surface_has_a_fixed_wire_vector_and_validates() {
     );
 
     let decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 =
-        decode_canonical(&encode(&surface).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&surface).unwrap()).unwrap();
     assert_eq!(decoded.validate(&mut identities, &foundation), Ok(surface));
 }
 
 #[test]
 fn definition_plan_reader_rejects_non_closed_products() {
     for bytes in [vec![0x81, 0xa2], vec![0x81, 0xa4]] {
-        assert!(
-            decode_canonical::<DecodedStrongObjectDefinitionPlanSurfaceV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedStrongObjectDefinitionPlanSurfaceV1>(&bytes,).is_err());
     }
 }
 
@@ -103,8 +97,7 @@ fn producer_rejects_missing_multiple_and_orphan_primary_relations() {
 fn validation_rejects_noncanonical_and_semantically_mismatched_atoms() {
     let (surface, mut identities, foundation) = fixture();
     let bytes = encode(&surface).unwrap();
-    let mut decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let mut decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
     let duplicate = decoded.plans[0].associated_atoms[0];
     decoded.plans[0].associated_atoms.push(duplicate);
     assert!(matches!(
@@ -112,8 +105,7 @@ fn validation_rejects_noncanonical_and_semantically_mismatched_atoms() {
         Err(StrongObjectDefinitionPlanValidationError::DuplicateAssociatedAtom { .. })
     ));
 
-    let mut decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let mut decoded: DecodedStrongObjectDefinitionPlanSurfaceV1 = decode_canonical(&bytes).unwrap();
     let plan = &mut decoded.plans[0];
     std::mem::swap(&mut plan.primary_atom, &mut plan.associated_atoms[0]);
     assert_eq!(
@@ -211,11 +203,11 @@ fn fixture() -> (
         vec![primary_atom(&records), associated_atom(&records)],
     );
     let bytes = encode(&canonical).unwrap();
-    let decoded: DecodedLirFoundation = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedLirFoundation = decode_canonical(&bytes).unwrap();
     let decoded_function: DecodedCborIdentityRecord<
         PersistentFunctionId,
         DecodedSourceDeclarationKey,
-    > = decode_canonical(&encode(&records.function).unwrap(), DecodeLimits::default()).unwrap();
+    > = decode_canonical(&encode(&records.function).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending
@@ -226,11 +218,7 @@ fn fixture() -> (
     decoded.resolve_identities(&mut pending).unwrap();
     let mut identities = pending.finish().unwrap();
     let validated = decoded
-        .validate(
-            ConeIdentity::CORE,
-            &mut identities,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
+        .validate(ConeIdentity::CORE, &mut identities)
         .unwrap();
     let foundation = OdrFreeLirFoundation::from_validated(validated).unwrap();
     let surface =

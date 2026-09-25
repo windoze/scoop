@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use scoop_wire::{BudgetMeter, WireError, WirePath, encoded_length};
+use scoop_wire::{WireError, WirePath};
 
 use super::super::{ProtectedDefaultReferenceKindV1, ProtectedDefaultReferenceV1};
 use super::receiver::ProtectedDefaultReferenceReceiverV1;
@@ -23,14 +23,14 @@ impl<'a, T> Domain<'a, T> {
     pub fn new(
         records: &'a [ProtectedDefaultReferenceV1<T>],
         kind: ProtectedDefaultReferenceKindV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, WireError> {
         let mut seen = Vec::new();
-        meter.try_reserve_collection_slots(&mut seen, records.len(), path)?;
+        scoop_wire::allocation::try_reserve(&mut seen, records.len(), path)?;
         for record in records {
             let mut uses = Vec::new();
-            meter.try_reserve_collection_slots(&mut uses, record.uses().values().len(), path)?;
+            scoop_wire::allocation::try_reserve(&mut uses, record.uses().values().len(), path)?;
             uses.resize(record.uses().values().len(), false);
             seen.push(Seen {
                 referenced: false,
@@ -51,25 +51,19 @@ impl<'a, T> Domain<'a, T> {
         occurrence: DefaultBodyReferenceOccurrenceV1<'_>,
         expected_use: Option<ProtectedDefaultExpressionUseV1>,
         receiver: ProtectedDefaultReferenceReceiverV1<'_>,
-        mut compare: impl FnMut(&T, &mut BudgetMeter, &WirePath) -> Result<Ordering, WireError>,
+        mut compare: impl FnMut(&T, &WirePath) -> Result<Ordering, WireError>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ProtectedDefaultBodyClosureError<E>> {
         use ProtectedDefaultBodyClosureError as Error;
         let mut low = 0;
         let mut high = self.records.len();
         while low < high {
-            meter.charge_work(1, path)?;
             let index = low + (high - low) / 2;
             let record = &self.records[index];
-            let mut ordering = compare(record.target(), meter, path)?;
+            let mut ordering = compare(record.target(), path)?;
             if ordering == Ordering::Equal {
-                let actual =
-                    encoded_length(occurrence.definition_origin).map_err(Error::Encoding)?;
-                let declared =
-                    encoded_length(record.definition_origin()).map_err(Error::Encoding)?;
-                meter.charge_work(actual.saturating_add(declared), path)?;
                 ordering = occurrence.definition_origin.cmp(record.definition_origin());
             }
             match ordering {
@@ -85,7 +79,7 @@ impl<'a, T> Domain<'a, T> {
                     self.seen[index].referenced = true;
                     if let Some(expected) = expected_use {
                         let values = record.uses().values();
-                        meter.charge_work(values.len().max(1).ilog2() as u64 + 1, path)?;
+
                         let found =
                             values
                                 .binary_search(&expected)
@@ -102,7 +96,6 @@ impl<'a, T> Domain<'a, T> {
                             occurrence,
                             record.witness(),
                             receiver,
-                            meter,
                             path,
                         )
                         .map_err(Error::Source)?;
@@ -117,14 +110,9 @@ impl<'a, T> Domain<'a, T> {
         })
     }
 
-    pub fn finish<E>(
-        &self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ProtectedDefaultBodyClosureError<E>> {
+    pub fn finish<E>(&self) -> Result<(), ProtectedDefaultBodyClosureError<E>> {
         use ProtectedDefaultBodyClosureError as Error;
         for (index, seen) in self.seen.iter().enumerate() {
-            meter.charge_work(1, path)?;
             if !seen.referenced {
                 return Err(Error::Extra {
                     kind: self.kind,
@@ -132,7 +120,6 @@ impl<'a, T> Domain<'a, T> {
                 });
             }
             for (use_index, seen) in seen.uses.iter().enumerate() {
-                meter.charge_work(1, path)?;
                 if !seen {
                     return Err(Error::ExtraUse {
                         kind: self.kind,

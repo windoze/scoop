@@ -1,4 +1,4 @@
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     ExternalHirReferenceProductionError, ExternalHirReferenceProductionInput,
@@ -12,21 +12,19 @@ use crate::{
 pub(super) fn collect<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
-    collect_nominals(input, accumulator, meter)?;
-    collect_callables(input, accumulator, meter)?;
-    collect_properties(input, accumulator, meter)?;
-    collect_source_interfaces(input, accumulator, meter)
+    collect_nominals(input, accumulator)?;
+    collect_callables(input, accumulator)?;
+    collect_properties(input, accumulator)?;
+    collect_source_interfaces(input, accumulator)
 }
 
 fn collect_nominals<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -39,14 +37,12 @@ where
         collect_binders(
             record.type_parameters(),
             accumulator,
-            meter,
             &path.clone().field(3),
         )?;
         for (signature_index, signature) in (0_u64..).zip(record.exact_supertypes().values()) {
             observe(
                 accumulator,
                 signature,
-                meter,
                 &path.clone().field(4).index(signature_index),
             )?;
         }
@@ -54,7 +50,6 @@ where
             observe(
                 accumulator,
                 field.value_type(),
-                meter,
                 &path
                     .clone()
                     .field(8)
@@ -70,7 +65,6 @@ where
                         observe(
                             accumulator,
                             field.value_type(),
-                            meter,
                             &path
                                 .clone()
                                 .field(8)
@@ -96,7 +90,6 @@ where
 fn collect_callables<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -108,26 +101,19 @@ where
         collect_binders(
             record.type_parameters(),
             accumulator,
-            meter,
             &path.clone().field(3),
         )?;
         if let Some(receiver) = record.receiver() {
-            observe(
-                accumulator,
-                receiver,
-                meter,
-                &path.clone().field(4).field(1),
-            )?;
+            observe(accumulator, receiver, &path.clone().field(4).field(1))?;
         }
         for (parameter_index, parameter) in (0_u64..).zip(record.parameters().parameters()) {
             observe(
                 accumulator,
                 parameter.value_type(),
-                meter,
                 &path.clone().field(5).index(parameter_index).field(2),
             )?;
         }
-        observe(accumulator, record.result(), meter, &path.clone().field(6))?;
+        observe(accumulator, record.result(), &path.clone().field(6))?;
     }
     Ok(())
 }
@@ -135,7 +121,6 @@ where
 fn collect_properties<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -147,23 +132,12 @@ where
         collect_binders(
             record.type_parameters(),
             accumulator,
-            meter,
             &path.clone().field(3),
         )?;
         if let Some(receiver) = record.receiver() {
-            observe(
-                accumulator,
-                receiver,
-                meter,
-                &path.clone().field(4).field(1),
-            )?;
+            observe(accumulator, receiver, &path.clone().field(4).field(1))?;
         }
-        observe(
-            accumulator,
-            record.value_type(),
-            meter,
-            &path.clone().field(5),
-        )?;
+        observe(accumulator, record.value_type(), &path.clone().field(5))?;
     }
     Ok(())
 }
@@ -171,7 +145,6 @@ where
 fn collect_source_interfaces<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -183,14 +156,12 @@ where
             observe(
                 accumulator,
                 parameter.value_type(),
-                meter,
                 &parameter_path.clone().field(2),
             )?;
             if let Some(element_type) = parameter.calling().element_type() {
                 observe(
                     accumulator,
                     element_type,
-                    meter,
                     &parameter_path.clone().field(3).field(1),
                 )?;
             }
@@ -202,7 +173,7 @@ where
 fn collect_binders<A, E>(
     binders: &CanonicalBinderListV1,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
@@ -214,18 +185,12 @@ where
         };
         let bounds_path = path.clone().index(wire_index).field(2);
         if let Some(class) = bounds.class() {
-            observe(
-                accumulator,
-                class,
-                meter,
-                &bounds_path.clone().field(1).field(1),
-            )?;
+            observe(accumulator, class, &bounds_path.clone().field(1).field(1))?;
         }
         for (interface_index, interface) in (0_u64..).zip(bounds.interfaces().values()) {
             observe(
                 accumulator,
                 interface,
-                meter,
                 &bounds_path.clone().field(2).index(interface_index),
             )?;
         }
@@ -236,7 +201,7 @@ where
 fn observe<A, E>(
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
     signature: &scoop_identity::SignatureTypeKey,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
@@ -245,7 +210,6 @@ where
     accumulator.observe_signature(
         signature,
         ExternalHirReferenceRoleV1::SignatureDependency,
-        meter,
         path,
     )
 }

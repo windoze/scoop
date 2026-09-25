@@ -6,9 +6,6 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use super::{DecodedExactTypeFactsV1, ExactTypeFactsResolutionError, ExactTypeFactsV1};
 use crate::cross_cone_type_semantics::wire;
 
-mod metered;
-pub use metered::*;
-
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalExactTypeFactsV1 {
     records: Vec<ExactTypeFactsV1>,
@@ -60,18 +57,30 @@ impl DecodedCanonicalExactTypeFactsV1 {
         self,
         resolver: &mut R,
     ) -> Result<CanonicalExactTypeFactsV1, ExactTypeFactsTableResolutionError<R::Error>> {
-        let records = self
-            .records
-            .into_iter()
-            .enumerate()
-            .map(|(index, record)| {
-                record
-                    .resolve(resolver)
-                    .map_err(|error| ExactTypeFactsTableResolutionError::Record { index, error })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        CanonicalExactTypeFactsV1::from_ordered(records)
-            .map_err(ExactTypeFactsTableResolutionError::Order)
+        use ExactTypeFactsTableResolutionError as Error;
+        let mut records = Vec::new();
+        scoop_wire::allocation::try_reserve(
+            &mut records,
+            self.records.len(),
+            &scoop_wire::WirePath::root(),
+        )
+        .map_err(Error::Allocation)?;
+        for (index, decoded) in self.records.into_iter().enumerate() {
+            let record = decoded
+                .resolve(resolver)
+                .map_err(|error| Error::Record { index, error })?;
+            if records
+                .last()
+                .is_some_and(|previous: &ExactTypeFactsV1| previous.exact() >= record.exact())
+            {
+                return Err(Error::Order(ExactTypeFactsTableError {
+                    index,
+                    exact: record.exact(),
+                }));
+            }
+            records.push(record);
+        }
+        Ok(CanonicalExactTypeFactsV1 { records })
     }
 }
 
@@ -82,7 +91,7 @@ impl WireEncode for DecodedCanonicalExactTypeFactsV1 {
 }
 
 impl WireDecode for DecodedCanonicalExactTypeFactsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExactTypeFactsV1::decode(decoder))
             .map(|records| Self { records })
@@ -108,6 +117,7 @@ impl std::error::Error for ExactTypeFactsTableError {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExactTypeFactsTableResolutionError<E> {
+    Allocation(WireError),
     Record {
         index: usize,
         error: ExactTypeFactsResolutionError<E>,
@@ -118,6 +128,7 @@ pub enum ExactTypeFactsTableResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for ExactTypeFactsTableResolutionError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Allocation(error) => error.fmt(f),
             Self::Record { index, error } => {
                 write!(f, "invalid exact type facts at index {index}: {error}")
             }

@@ -39,44 +39,33 @@ impl DecodedSourceInheritanceInventoryV1 {
     pub fn resolve<R: SourceInheritanceInventoryResolver<E>, E: fmt::Display>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<SourceInheritanceInventoryV1, SourceInventoryError> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        meter.charge_work(1, &path)?;
-        self.constructors
-            .charge_resolution_at(meter, &path.clone().field(2))?;
-        self.protected_members
-            .charge_resolution_at(meter, &path.clone().field(3))?;
-        self.slot_schemas
-            .charge_resolution_at(meter, &path.clone().field(4))?;
         let owner = resolver.resolve(self.owner).map_err(reference)?;
         let constructors = self.constructors.resolve(resolver).map_err(reference)?;
-        let members =
-            self.protected_members
-                .resolve(resolver, meter)
-                .map_err(|error| match error {
-                    ProtectedDeclarationResolutionError::Resource(error) => {
-                        SourceInventoryError::Resource(error)
-                    }
-                    error => reference(error),
-                })?;
+        let members = self
+            .protected_members
+            .resolve(resolver)
+            .map_err(|error| match error {
+                ProtectedDeclarationResolutionError::Resource(error) => {
+                    SourceInventoryError::Resource(error)
+                }
+                error => reference(error),
+            })?;
         let schemas = self
             .slot_schemas
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(|error| match error {
                 InheritanceSlotSchemaResolutionError::Resource(error) => {
                     SourceInventoryError::Resource(error)
                 }
                 error => reference(error),
             })?;
-        SourceInheritanceInventoryV1::try_new(owner, constructors, members, schemas, meter)
+        SourceInheritanceInventoryV1::try_new(owner, constructors, members, schemas)
     }
 }
 
 impl WireDecode for DecodedSourceInheritanceInventoryV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
@@ -111,18 +100,17 @@ impl DecodedCanonicalSourceInheritanceInventoriesV1 {
     pub fn resolve<R: SourceInheritanceInventoryResolver<E>, E: fmt::Display>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalSourceInheritanceInventoriesV1, SourceInventoryError> {
-        let mut records = reserve(self.records.len(), meter)?;
+        let mut records = reserve(self.records.len())?;
         for record in self.records {
-            records.push(record.resolve(resolver, meter)?);
+            records.push(record.resolve(resolver)?);
         }
-        CanonicalSourceInheritanceInventoriesV1::from_ordered(records, meter)
+        CanonicalSourceInheritanceInventoriesV1::from_ordered(records)
     }
 }
 
 impl WireDecode for DecodedCanonicalSourceInheritanceInventoriesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedSourceInheritanceInventoryV1::decode(decoder))
             .map(|records| Self { records })

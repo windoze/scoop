@@ -9,7 +9,7 @@ use scoop_identity::{
     ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     PersistentCallableBodyId, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{BudgetMeter, HashError};
+use scoop_wire::HashError;
 
 use crate::{
     DefinitionAtomResolutionError, DigestInputRefV1, DigestNodeBuildError, DigestNodeV1,
@@ -66,7 +66,6 @@ pub(crate) fn project_strong_digest_finalization_plan_v2(
     foundation: &OdrFreeLirFoundation,
     entry_source: &EntryProductionSourceV1,
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
     if module.cone != foundation.producer() {
         return Err(StrongDigestProjectionError::ProducerMismatch {
@@ -76,24 +75,13 @@ pub(crate) fn project_strong_digest_finalization_plan_v2(
     }
     let safepoints = StrongSafepointSemanticPlanSetV1::from_module(module)
         .map_err(StrongDigestProjectionError::Safepoints)?;
-    let types = crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module, selected, meter)
+    let types = crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module, selected)
         .map_err(StrongDigestProjectionError::Types)?;
     let immortals = StrongImmortalObjectSemanticPlanSetV1::from_module(module)
         .map_err(StrongDigestProjectionError::ImmortalObjects)?;
     let initialization = StrongInitializationUnitSemanticPlanSetV1::from_module(module)
         .map_err(StrongDigestProjectionError::InitializationUnits)?;
-    replay::charge_projection(
-        foundation,
-        [
-            foundation.callable_bodies().len(),
-            types.descriptors().len(),
-            safepoints.sites().len(),
-            immortals.objects().len(),
-            initialization.static_storages().storages().len(),
-            initialization.units().len(),
-        ],
-        meter,
-    )?;
+
     DigestGraphWriter::new(foundation).project(
         &safepoints,
         &types,

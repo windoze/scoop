@@ -5,7 +5,7 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
     SyntheticLocalRole,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::cross_cone_interface::default_templates::body::expression_test_support::Fixture;
@@ -536,11 +536,7 @@ fn maps_struct_binding_fields_through_authority_and_checks_the_applied_owner() {
     let mut authority = Authority::with_index(fixture.field, 7);
     let path = WirePath::root().field(8).index(0);
     assert_eq!(
-        valid.validate_local_data_flow_semantics(
-            &mut authority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &path,
-        ),
+        valid.validate_local_data_flow_semantics(&mut authority, &path,),
         Ok(())
     );
     assert_eq!(authority.owners, vec![owner]);
@@ -549,11 +545,7 @@ fn maps_struct_binding_fields_through_authority_and_checks_the_applied_owner() {
     let invalid = struct_binding_template(&fixture, wrong_owner.clone());
     let mut authority = Authority::with_index(fixture.field, 7);
     assert_eq!(
-        invalid.validate_local_data_flow_semantics(
-            &mut authority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &path,
-        ),
+        invalid.validate_local_data_flow_semantics(&mut authority, &path,),
         Err(ExportDefaultLocalDataFlowValidationError::BindingShape(
             Box::new(DefaultBindingShapeDataFlowValidationError::MissingAction {
                 kind: DefaultBindingShapeActionKindV1::StructProjection,
@@ -562,40 +554,12 @@ fn maps_struct_binding_fields_through_authority_and_checks_the_applied_owner() {
     );
 }
 
-#[test]
-fn charges_the_callers_budget_and_preserves_the_callers_path() {
-    let fixture = Fixture::new();
-    let template = template(&fixture, Vec::new(), Vec::new(), Vec::new(), unit(&fixture));
-    let path = WirePath::root().field(8).index(3).field(5);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    let error = template
-        .validate_local_data_flow_semantics(&mut Authority::new(fixture.field), &mut meter, &path)
-        .unwrap_err();
-
-    assert!(matches!(
-        error,
-        ExportDefaultLocalDataFlowValidationError::Resource(ref error)
-            if error.kind()
-                == &WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::ValidationWorkUnits,
-                    limit: 0,
-                    observed: 1,
-                }
-                && error.path() == &path
-    ));
-    assert_eq!(meter.usage().validation_work_units, 0);
-}
-
 fn validate(
     template: &ExportDefaultTemplateV1,
     fixture: &Fixture,
 ) -> Result<(), ExportDefaultLocalDataFlowValidationError<FieldIndexError>> {
     template.validate_local_data_flow_semantics(
         &mut Authority::new(fixture.field),
-        &mut BudgetMeter::new(DecodeLimits::default()),
         &WirePath::root().field(8),
     )
 }

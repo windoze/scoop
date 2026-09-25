@@ -8,11 +8,6 @@ use object::read::macho::{Section as _, Segment as _};
 use object::{Endianness, macho};
 use scoop_wire::{Digest256, sha256};
 
-const MAX_LINK_OBJECT_BYTES: u64 = 1_073_741_824;
-const MAX_LOAD_COMMANDS: u32 = 65_536;
-const MAX_OBJECT_TABLE_ENTRIES: u64 = 16_777_216;
-const MAX_OBJECT_STRING_TABLE_BYTES: u64 = 16_777_216;
-
 mod sections;
 pub use sections::*;
 
@@ -175,13 +170,8 @@ fn trimmed_fixed_name(name: &[u8; 16]) -> &[u8] {
 pub fn validate_darwin_arm64_object_envelope_v1(
     bytes: &[u8],
 ) -> Result<ValidatedDarwinArm64ObjectEnvelopeV1, ObjectEnvelopeValidationError> {
-    let byte_length = u64::try_from(bytes.len())
-        .map_err(|_| ObjectEnvelopeValidationError::ObjectTooLarge { actual: u64::MAX })?;
-    if byte_length > MAX_LINK_OBJECT_BYTES {
-        return Err(ObjectEnvelopeValidationError::ObjectTooLarge {
-            actual: byte_length,
-        });
-    }
+    let byte_length =
+        u64::try_from(bytes.len()).map_err(|_| ObjectEnvelopeValidationError::FileRangeOverflow)?;
 
     let header = macho::MachHeader64::<Endianness>::parse(bytes, 0)
         .map_err(|_| ObjectEnvelopeValidationError::MalformedHeader)?;
@@ -214,11 +204,6 @@ pub fn validate_darwin_arm64_object_envelope_v1(
         return Err(ObjectEnvelopeValidationError::UnsupportedHeaderFlags(flags));
     }
     let command_count = header.ncmds(endian);
-    if command_count > MAX_LOAD_COMMANDS {
-        return Err(ObjectEnvelopeValidationError::TooManyLoadCommands {
-            actual: command_count,
-        });
-    }
 
     let mut commands = header
         .load_commands(endian, bytes, 0)
@@ -255,11 +240,6 @@ pub fn validate_darwin_arm64_object_envelope_v1(
                     .map_err(|_| ObjectEnvelopeValidationError::MalformedSegment)?
                     .ok_or(ObjectEnvelopeValidationError::MalformedSegment)?;
                 let section_count = record.nsects.get(endian);
-                if u64::from(section_count) > MAX_OBJECT_TABLE_ENTRIES {
-                    return Err(ObjectEnvelopeValidationError::TooManySections {
-                        actual: section_count,
-                    });
-                }
                 let expected_section_bytes = usize::try_from(section_count)
                     .ok()
                     .and_then(|count| {
@@ -447,11 +427,6 @@ fn validate_symbol_table(
     occupied_ranges: &mut Vec<CheckedFileRange>,
 ) -> Result<(), ObjectEnvelopeValidationError> {
     let symbol_count = record.nsyms.get(endian);
-    if u64::from(symbol_count) > MAX_OBJECT_TABLE_ENTRIES {
-        return Err(ObjectEnvelopeValidationError::TooManySymbols {
-            actual: symbol_count,
-        });
-    }
     let symbol_bytes = u64::from(symbol_count)
         .checked_mul(mem::size_of::<macho::Nlist64<Endianness>>() as u64)
         .ok_or(ObjectEnvelopeValidationError::SymbolTableOutOfBounds)?;
@@ -461,11 +436,6 @@ fn validate_symbol_table(
         return Err(ObjectEnvelopeValidationError::SymbolTableOutOfBounds);
     }
     let string_size = u64::from(record.strsize.get(endian));
-    if string_size > MAX_OBJECT_STRING_TABLE_BYTES {
-        return Err(ObjectEnvelopeValidationError::StringTableTooLarge {
-            actual: string_size,
-        });
-    }
     let string_range = CheckedFileRange::new(u64::from(record.stroff.get(endian)), string_size)
         .map_err(|_| ObjectEnvelopeValidationError::StringTableOutOfBounds)?;
     if string_range.end > byte_length {
@@ -521,12 +491,7 @@ fn validate_section(
     let count = section.nreloc.get(endian);
     *relocation_count = relocation_count
         .checked_add(u64::from(count))
-        .ok_or(ObjectEnvelopeValidationError::TooManyRelocations { actual: u64::MAX })?;
-    if *relocation_count > MAX_OBJECT_TABLE_ENTRIES {
-        return Err(ObjectEnvelopeValidationError::TooManyRelocations {
-            actual: *relocation_count,
-        });
-    }
+        .ok_or(ObjectEnvelopeValidationError::RelocationTableOutOfBounds)?;
     let relocation_bytes = u64::from(count)
         .checked_mul(mem::size_of::<macho::Relocation<Endianness>>() as u64)
         .ok_or(ObjectEnvelopeValidationError::RelocationTableOutOfBounds)?;
@@ -640,7 +605,6 @@ fn validate_disjoint_ranges(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObjectEnvelopeValidationError {
-    ObjectTooLarge { actual: u64 },
     MalformedHeader,
     WrongEncoding,
     WrongCpuType(u32),
@@ -648,11 +612,6 @@ pub enum ObjectEnvelopeValidationError {
     WrongFileType(u32),
     MissingSubsectionsViaSymbols,
     UnsupportedHeaderFlags(u32),
-    TooManyLoadCommands { actual: u32 },
-    TooManySections { actual: u32 },
-    TooManySymbols { actual: u32 },
-    TooManyRelocations { actual: u64 },
-    StringTableTooLarge { actual: u64 },
     MalformedLoadCommands,
     LoadCommandSizeMismatch { expected: u32, actual: u32 },
     DuplicateLoadCommand(u32),

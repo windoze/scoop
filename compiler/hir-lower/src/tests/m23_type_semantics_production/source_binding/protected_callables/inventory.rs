@@ -16,13 +16,10 @@ fn callable_keys_must_be_owned_even_when_the_shared_graph_resolves_them() {
             let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
             let foundation = fixture
                 .source
-                .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+                .bind_to_foundation(&incomplete, &fixture.identities)
                 .unwrap();
             assert!(matches!(
-                (
-                    generic,
-                    sources.bind(&foundation, &mut meter()).unwrap_err()
-                ),
+                (generic, sources.bind(&foundation).unwrap_err()),
                 (
                     true,
                     Error::MissingKey(CallableTemplateOrigin::GenericFunction(_))
@@ -90,11 +87,8 @@ fn protected_callable_inventory_rejects_missing_and_extra_real_declarations() {
             } else {
                 records.pop().unwrap();
             }
-            forged.callables = Table::try_new(records, &mut meter()).unwrap();
-            assert!(matches!(
-                forged.bind(&foundation, &mut meter()),
-                Err(Error::Inventory)
-            ));
+            forged.callables = Table::try_new(records).unwrap();
+            assert!(matches!(forged.bind(&foundation), Err(Error::Inventory)));
         }
     });
 }
@@ -108,7 +102,6 @@ fn replace_members(
         owner.constructors().clone(),
         hir::CanonicalProtectedDeclarationRefsV1::try_new(members).unwrap(),
         owner.slot_schemas().clone(),
-        &mut meter(),
     )
     .unwrap()
 }
@@ -147,13 +140,10 @@ fn protected_methods_cannot_move_or_repeat_between_inventory_owners() {
                 owners[index] = replace_members(&owners[index], members);
             }
             forged.properties.dispatch.inventory =
-                hir::CanonicalSourceInheritanceInventoriesV1::try_new(owners, &mut meter())
-                    .unwrap();
-            assert!(
-                matches!((duplicate, forged.bind(&foundation, &mut meter()).unwrap_err()),
+                hir::CanonicalSourceInheritanceInventoriesV1::try_new(owners).unwrap();
+            assert!(matches!((duplicate, forged.bind(&foundation).unwrap_err()),
                 (false, Error::Owner(actual)) | (true, Error::RepeatedOwner(actual))
-                    if actual == callable.declaration())
-            );
+                    if actual == callable.declaration()));
         }
     });
 }

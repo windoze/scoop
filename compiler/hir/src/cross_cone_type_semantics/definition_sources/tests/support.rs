@@ -49,15 +49,13 @@ impl Fixture {
     pub fn validate(
         &self,
         declared: &CanonicalExportDefinitionSourcesV1,
-        limits: DecodeLimits,
-    ) -> Result<(usize, u64), TypeDefinitionSourceClosureError<&'static str>> {
-        let mut meter = BudgetMeter::new(limits);
+    ) -> Result<usize, TypeDefinitionSourceClosureError<&'static str>> {
         let path = WirePath::root().field(19);
-        let mut authority = authority::Authority::new(&self.expected, &meter, &path);
+        let mut authority = authority::Authority::new(&self.expected, &path);
         self.inputs()
-            .validate_definition_sources(declared, &mut authority, &mut meter, &path)?;
+            .validate_definition_sources(declared, &mut authority, &path)?;
         assert!(authority.seen.iter().all(|seen| *seen));
-        Ok((authority.calls, meter.usage().validation_work_units))
+        Ok(authority.calls)
     }
 }
 pub(super) fn origin(cone: ConeIdentity, start: u64) -> ExportDefinitionSourceV1 {
@@ -120,22 +118,4 @@ pub(super) fn default_path() -> StructuralDefinitionPath {
         StructuralPathSegment::new(StructuralDefinitionSiteRole::DefaultValue, 0),
         [],
     )
-}
-pub(super) fn assert_resource(
-    error: TypeDefinitionSourceClosureError<&'static str>,
-    expected: ResourceKind,
-) {
-    let TypeDefinitionSourceClosureError::Resource(error) = error else {
-        panic!("expected resource failure: {error:?}");
-    };
-    assert!(
-        matches!(error.kind(), WireErrorKind::LimitExceeded { resource, .. } if *resource == expected),
-        "{error:?}"
-    );
-    assert!(
-        error
-            .path()
-            .segments()
-            .starts_with(WirePath::root().field(19).segments())
-    );
 }

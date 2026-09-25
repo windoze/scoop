@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use scoop_identity::{CapabilityId, ConeIdentity};
-use scoop_wire::{ResourceKind, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use crate::{
     ArchiveMemberOrdinal, ArchiveReadError, BootstrapManifestError,
@@ -28,8 +28,8 @@ pub enum SlibErrorCode {
     WireUnknownTag,
     WireInvalidLength,
     WireIntegerOutOfRange,
-    LimitExceeded,
-    LimitAllocation,
+
+    Allocation,
     DirectoryMismatch,
     DirectoryNonCanonicalOrder,
     CapabilityInvalid,
@@ -67,8 +67,8 @@ impl SlibErrorCode {
             Self::WireUnknownTag => "SLIB_WIRE_UNKNOWN_TAG",
             Self::WireInvalidLength => "SLIB_WIRE_INVALID_LENGTH",
             Self::WireIntegerOutOfRange => "SLIB_WIRE_INTEGER_OUT_OF_RANGE",
-            Self::LimitExceeded => "SLIB_LIMIT_EXCEEDED",
-            Self::LimitAllocation => "SLIB_LIMIT_ALLOCATION",
+
+            Self::Allocation => "SLIB_ALLOCATION",
             Self::DirectoryMismatch => "SLIB_DIRECTORY_MISMATCH",
             Self::DirectoryNonCanonicalOrder => "SLIB_DIRECTORY_NON_CANONICAL_ORDER",
             Self::CapabilityInvalid => "SLIB_CAPABILITY_INVALID",
@@ -118,32 +118,6 @@ pub enum SlibPrimaryOrigin {
     },
 }
 
-/// Resource categories that can fail before or inside logical decoding.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum SlibResourceKind {
-    ArchiveBytes,
-    ManifestBytes,
-    ArchiveMembers,
-    ProducerBytes,
-    MetadataPayloadBytes,
-    Decode(ResourceKind),
-}
-
-/// Stable resource failure payload. Logical limit failures always retain the
-/// resource, configured limit, and observed value.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum SlibResourceFailure {
-    Limit {
-        resource: SlibResourceKind,
-        limit: u64,
-        observed: u64,
-    },
-    Allocation {
-        requested_logical_bytes: u64,
-        requested_slots: u64,
-    },
-}
-
 /// Renderer-independent projection of one typed `.slib` failure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SlibDiagnosticRecord {
@@ -151,7 +125,6 @@ pub struct SlibDiagnosticRecord {
     path: WirePath,
     byte_offset: Option<u64>,
     primary_origin: Option<SlibPrimaryOrigin>,
-    resource: Option<SlibResourceFailure>,
 }
 
 impl Ord for SlibDiagnosticRecord {
@@ -161,7 +134,6 @@ impl Ord for SlibDiagnosticRecord {
             .then_with(|| self.path.cmp(&other.path))
             .then_with(|| self.code.cmp(&other.code))
             .then_with(|| self.byte_offset.cmp(&other.byte_offset))
-            .then_with(|| self.resource.cmp(&other.resource))
     }
 }
 
@@ -188,17 +160,12 @@ impl SlibDiagnosticRecord {
         self.primary_origin.as_ref()
     }
 
-    pub const fn resource(&self) -> Option<SlibResourceFailure> {
-        self.resource
-    }
-
     fn new(code: SlibErrorCode, path: WirePath) -> Self {
         Self {
             code,
             path,
             byte_offset: None,
             primary_origin: None,
-            resource: None,
         }
     }
 
@@ -231,48 +198,27 @@ mod tests;
 
 impl SlibDiagnostic for WireError {
     fn diagnostic(&self) -> SlibDiagnosticRecord {
-        let (code, resource) = match self.kind() {
-            WireErrorKind::UnexpectedEnd => (SlibErrorCode::WireUnexpectedEnd, None),
-            WireErrorKind::WrongType { .. } => (SlibErrorCode::WireWrongType, None),
-            WireErrorKind::IndefiniteLength { .. } => (SlibErrorCode::WireIndefiniteLength, None),
-            WireErrorKind::NonCanonicalCbor => (SlibErrorCode::WireNonCanonical, None),
-            WireErrorKind::TrailingData => (SlibErrorCode::WireTrailingData, None),
+        let code = match self.kind() {
+            WireErrorKind::UnexpectedEnd => SlibErrorCode::WireUnexpectedEnd,
+            WireErrorKind::WrongType { .. } => SlibErrorCode::WireWrongType,
+            WireErrorKind::IndefiniteLength { .. } => SlibErrorCode::WireIndefiniteLength,
+            WireErrorKind::NonCanonicalCbor => SlibErrorCode::WireNonCanonical,
+            WireErrorKind::TrailingData => SlibErrorCode::WireTrailingData,
             WireErrorKind::DuplicateField { .. }
             | WireErrorKind::MissingField { .. }
             | WireErrorKind::ExtraField { .. }
-            | WireErrorKind::UnexpectedField { .. } => (SlibErrorCode::WireInvalidField, None),
-            WireErrorKind::UnknownTag { .. } => (SlibErrorCode::WireUnknownTag, None),
-            WireErrorKind::InvalidLength { .. } => (SlibErrorCode::WireInvalidLength, None),
-            WireErrorKind::IntegerOutOfRange => (SlibErrorCode::WireIntegerOutOfRange, None),
-            WireErrorKind::LimitExceeded {
-                resource,
-                limit,
-                observed,
-            } => (
-                SlibErrorCode::LimitExceeded,
-                Some(SlibResourceFailure::Limit {
-                    resource: SlibResourceKind::Decode(*resource),
-                    limit: *limit,
-                    observed: *observed,
-                }),
-            ),
-            WireErrorKind::ResourceAllocation {
-                requested_logical_bytes,
-                requested_slots,
-            } => (
-                SlibErrorCode::LimitAllocation,
-                Some(SlibResourceFailure::Allocation {
-                    requested_logical_bytes: *requested_logical_bytes,
-                    requested_slots: *requested_slots,
-                }),
-            ),
+            | WireErrorKind::UnexpectedField { .. } => SlibErrorCode::WireInvalidField,
+            WireErrorKind::UnknownTag { .. } => SlibErrorCode::WireUnknownTag,
+            WireErrorKind::InvalidLength { .. } => SlibErrorCode::WireInvalidLength,
+            WireErrorKind::IntegerOutOfRange => SlibErrorCode::WireIntegerOutOfRange,
+
+            WireErrorKind::Allocation => SlibErrorCode::Allocation,
         };
         SlibDiagnosticRecord {
             code,
             path: self.path().clone(),
             byte_offset: self.byte_offset(),
             primary_origin: None,
-            resource,
         }
     }
 }
@@ -280,24 +226,6 @@ impl SlibDiagnostic for WireError {
 impl SlibDiagnostic for ArchiveReadError {
     fn diagnostic(&self) -> SlibDiagnosticRecord {
         match self {
-            Self::ArchiveTooLarge { actual } => limit_diagnostic(
-                SlibResourceKind::ArchiveBytes,
-                2_147_483_648,
-                *actual,
-                SlibPrimaryOrigin::Container,
-            ),
-            Self::ManifestTooLarge { actual } => limit_diagnostic(
-                SlibResourceKind::ManifestBytes,
-                67_108_864,
-                *actual,
-                SlibPrimaryOrigin::Manifest,
-            ),
-            Self::TooManyMembers { actual } => limit_diagnostic(
-                SlibResourceKind::ArchiveMembers,
-                65_536,
-                u64::try_from(*actual).unwrap_or(u64::MAX),
-                SlibPrimaryOrigin::Container,
-            ),
             Self::BadMagic => root_diagnostic(
                 SlibErrorCode::ContainerBadMagic,
                 SlibPrimaryOrigin::Container,
@@ -327,7 +255,7 @@ impl SlibDiagnostic for ArchiveReadError {
                 WirePath::root().field(8).key("slib-member", *id.as_array()),
             )
             .with_origin(SlibPrimaryOrigin::Member(*id)),
-            Self::Budget(error) => error.diagnostic().with_origin(SlibPrimaryOrigin::Container),
+            Self::Allocation(error) => error.diagnostic().with_origin(SlibPrimaryOrigin::Container),
         }
     }
 }
@@ -361,13 +289,11 @@ impl SlibDiagnostic for BootstrapManifestValidationError {
                 }),
             )
             .with_origin(manifest),
-            Self::Producer(ProducerRecordError::TooLong { actual }) => limit_diagnostic_at(
-                SlibResourceKind::ProducerBytes,
-                255,
-                u64::try_from(*actual).unwrap_or(u64::MAX),
+            Self::Producer(ProducerRecordError::TooLong { .. }) => SlibDiagnosticRecord::new(
+                SlibErrorCode::WireInvalidLength,
                 WirePath::root().field(4).field(1),
-                manifest,
-            ),
+            )
+            .with_origin(manifest),
             Self::Compatibility(error) => compatibility_diagnostic(error),
             Self::Cone(error) => cone_record_diagnostic(error),
             Self::Dependency { index, error } => dependency_record_diagnostic(*index, error),
@@ -413,7 +339,7 @@ impl SlibDiagnostic for BootstrapManifestValidationError {
                 WirePath::root().field(11),
             )
             .with_origin(manifest),
-            Self::Budget(error) => error.diagnostic().with_origin(manifest),
+            Self::Wire(error) => error.diagnostic().with_origin(manifest),
         }
     }
 }
@@ -421,7 +347,7 @@ impl SlibDiagnostic for BootstrapManifestValidationError {
 impl SlibDiagnostic for MetadataReadError {
     fn diagnostic(&self) -> SlibDiagnosticRecord {
         match self {
-            Self::CanonicalWire(error) | Self::Budget(error) => error.diagnostic(),
+            Self::CanonicalWire(error) => error.diagnostic(),
             Self::BadMagic { expected } => SlibDiagnosticRecord::new(
                 SlibErrorCode::WireNonCanonical,
                 WirePath::root().field(1),
@@ -441,7 +367,7 @@ impl SlibDiagnostic for MetadataReadError {
                     .index(u64::try_from(*second_index).unwrap_or(u64::MAX)),
             ),
             Self::Allocation => {
-                SlibDiagnosticRecord::new(SlibErrorCode::LimitAllocation, WirePath::root().field(3))
+                SlibDiagnosticRecord::new(SlibErrorCode::Allocation, WirePath::root().field(3))
             }
         }
     }
@@ -598,15 +524,7 @@ fn manifest_build_diagnostic(error: &BootstrapManifestError) -> SlibDiagnosticRe
             WirePath::root().field(8).key("slib-member", *id.as_array()),
             Some(SlibPrimaryOrigin::Member(*id)),
         ),
-        BootstrapManifestError::TooManyMembers { actual } => {
-            return limit_diagnostic_at(
-                SlibResourceKind::ArchiveMembers,
-                65_536,
-                u64::try_from(*actual).unwrap_or(u64::MAX),
-                WirePath::root().field(8),
-                SlibPrimaryOrigin::Manifest,
-            );
-        }
+
         BootstrapManifestError::MissingMetadata { .. } => (
             SlibErrorCode::DirectoryMismatch,
             WirePath::root().field(8),
@@ -640,17 +558,6 @@ fn metadata_section_diagnostic(error: &MetadataSectionValidationError) -> SlibDi
             SlibDiagnosticRecord::new(SlibErrorCode::CapabilityInvalid, WirePath::root())
         }
         MetadataSectionValidationError::Section(error) => match error {
-            MetadataSectionError::PayloadTooLarge { actual } => SlibDiagnosticRecord {
-                code: SlibErrorCode::LimitExceeded,
-                path: WirePath::root(),
-                byte_offset: None,
-                primary_origin: None,
-                resource: Some(SlibResourceFailure::Limit {
-                    resource: SlibResourceKind::MetadataPayloadBytes,
-                    limit: 268_435_456,
-                    observed: *actual,
-                }),
-            },
             MetadataSectionError::InvalidPurpose { .. }
             | MetadataSectionError::KnownCapabilityWrongLocation { .. }
             | MetadataSectionError::KnownCapabilityWrongPurpose { .. } => {
@@ -673,35 +580,6 @@ fn metadata_fingerprint_field(location: MetadataLocation) -> u32 {
         MetadataLocation::Hir => 1,
         MetadataLocation::Mir => 2,
         MetadataLocation::Lir => 3,
-    }
-}
-
-fn limit_diagnostic(
-    resource: SlibResourceKind,
-    limit: u64,
-    observed: u64,
-    origin: SlibPrimaryOrigin,
-) -> SlibDiagnosticRecord {
-    limit_diagnostic_at(resource, limit, observed, WirePath::root(), origin)
-}
-
-fn limit_diagnostic_at(
-    resource: SlibResourceKind,
-    limit: u64,
-    observed: u64,
-    path: WirePath,
-    origin: SlibPrimaryOrigin,
-) -> SlibDiagnosticRecord {
-    SlibDiagnosticRecord {
-        code: SlibErrorCode::LimitExceeded,
-        path,
-        byte_offset: None,
-        primary_origin: Some(origin),
-        resource: Some(SlibResourceFailure::Limit {
-            resource,
-            limit,
-            observed,
-        }),
     }
 }
 

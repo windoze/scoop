@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::CallableTemplateOrigin;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::CanonicalExportDefaultTemplatesV1;
 use crate::{
@@ -29,7 +29,7 @@ impl CanonicalExportDefaultTemplatesV1 {
         callables: &CanonicalCallableInterfacesV1,
         sources: &CanonicalCallableSourceInterfacesV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultTemplateSetEnvelopeSemanticValidationError<E>>
     where
@@ -66,7 +66,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                 })?;
             template
                 .body()
-                .validate_provider_envelope_semantics(provider, authority, meter, path)
+                .validate_provider_envelope_semantics(provider, authority, path)
                 .map_err(
                     |error| ExportDefaultTemplateSetEnvelopeSemanticValidationError::Body {
                         index,
@@ -84,7 +84,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                     }
                 })?;
             template
-                .validate_local_data_flow_semantics(authority, meter, path)
+                .validate_local_data_flow_semantics(authority, path)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::LocalDataFlow {
                         index,
@@ -94,7 +94,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                 })?;
             template
                 .body()
-                .validate_operation_typing_semantics(template, authority, meter, path)
+                .validate_operation_typing_semantics(template, authority, path)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::OperationTyping {
                         index,
@@ -104,7 +104,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                 })?;
             template
                 .body()
-                .validate_nested_callable_abi_semantics(template, authority, meter, path)
+                .validate_nested_callable_abi_semantics(template, authority, path)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::NestedCallableAbi {
                         index,
@@ -113,7 +113,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                     }
                 })?;
             template
-                .validate_reference_envelope_semantics(callable, provider, authority, meter, path)
+                .validate_reference_envelope_semantics(callable, provider, authority, path)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::References {
                         index,
@@ -122,7 +122,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                     }
                 })?;
             template
-                .validate_reference_closure_semantics(callable, meter, path)
+                .validate_reference_closure_semantics(callable, path)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::ReferenceClosure {
                         index,

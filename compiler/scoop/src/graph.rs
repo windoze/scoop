@@ -10,8 +10,8 @@ use crate::discovery::{
     GraphNode, compare_coordinates,
 };
 use crate::{
-    ArtifactCacheRoot, ArtifactSearchRoot, BuildLimitsProfileV1, DiagnosticsPolicy,
-    PairedScoopcLocator, TrustedSysrootRoot,
+    ArtifactCacheRoot, ArtifactSearchRoot, DiagnosticsPolicy, PairedScoopcLocator,
+    TrustedSysrootRoot,
 };
 
 mod diagnostic;
@@ -115,10 +115,6 @@ impl ResolvedBuildGraph {
 
     pub const fn diagnostics(&self) -> DiagnosticsPolicy {
         self.context.diagnostics
-    }
-
-    pub const fn limits(&self) -> BuildLimitsProfileV1 {
-        self.context.limits
     }
 
     pub(crate) fn into_parts(self) -> ResolvedGraphParts {

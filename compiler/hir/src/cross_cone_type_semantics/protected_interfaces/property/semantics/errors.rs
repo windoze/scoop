@@ -1,4 +1,4 @@
-use crate::{AccessDomainSemanticError, InheritanceGraphError, MeteredSignatureTypeSemanticError};
+use crate::{AccessDomainSemanticError, InheritanceGraphError, SignatureTypeSemanticError};
 use scoop_wire::WireError;
 use std::fmt;
 
@@ -7,7 +7,7 @@ pub enum ProtectedPropertySemanticError<E> {
     Resource(WireError),
     Encoding(scoop_wire::cbor::EncodeError),
     Foundation(E),
-    Signature(MeteredSignatureTypeSemanticError<E>),
+    Signature(SignatureTypeSemanticError<E>),
     Source(InheritanceGraphError<E>),
     Domain(AccessDomainSemanticError),
     Owner,

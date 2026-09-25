@@ -17,7 +17,7 @@ pub(super) fn with_mir(
         vec![],
         vec![],
     )
-    .load_preflight(DecodeLimits::default())
+    .load_preflight()
     .unwrap();
     let request = loaded.validate().unwrap();
     let parsed = request.parse_current_sources().unwrap();
@@ -40,16 +40,12 @@ pub(super) fn with_mir(
     let callables = closure
         .project_dependency_callables_to_lir(&mir.selected_callables)
         .unwrap();
-    let core = DecodedSlibEnvelope::open(
-        core_bytes,
-        DecodeLimits::default(),
-        target.lir_target_selection(),
-    )
-    .unwrap()
-    .validate_graph()
-    .unwrap()
-    .decode_cross_cone_hir_front_sections()
-    .unwrap();
+    let core = DecodedSlibEnvelope::open(core_bytes, target.lir_target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
     let (identities, _, core_hir) =
         support::identity::identities(&hir.hir, &mir.strong, None, &core);
     let foundation = hir::OdrFreeHirFoundation::try_new(
@@ -71,7 +67,6 @@ pub(super) fn with_mir(
             foundation: &core_hir,
             public: core.production().hir_interface(),
         }],
-        &mut meter(),
     )
     .unwrap();
     inspect(

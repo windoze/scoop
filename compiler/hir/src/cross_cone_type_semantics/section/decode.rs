@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 mod errors;
 pub use errors::*;
@@ -33,52 +33,46 @@ pub struct DecodedCrossConeTypeSemanticsSectionV1 {
     selected: DecodedCanonicalSelectedExternalTypeUsesV1,
 }
 impl DecodedCrossConeTypeSemanticsSectionV1 {
-    /// Restore typed records with one shared budget. This produces transport,
+    /// Resolves typed references in decoded records. The resulting transport
     /// which must pass complete source and committed-use checks before use.
     pub fn resolve<R: TypeSemanticsSectionResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CrossConeTypeSemanticsSectionV1, TypeSemanticsSectionResolutionError<E>> {
         use TypeSemanticsSectionResolutionError as Error;
-        meter
-            .check_semantic_depth(1, path)
-            .map_err(Error::Resource)?;
-        meter.charge_nodes(1, path).map_err(Error::Resource)?;
-        let exact_facts = self
-            .exact_facts
-            .resolve_metered(resolver, meter, &path.clone().field(1))
-            .map_err(Error::Facts)?;
+
+        let exact_facts = self.exact_facts.resolve(resolver).map_err(Error::Facts)?;
         let representation_support = self
             .representation_support
-            .resolve_metered(resolver, meter, &path.clone().field(2))
+            .resolve(resolver)
             .map_err(|e| Error::Representation(Box::new(e)))?;
         let inheritance = self
             .inheritance
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(|e| Error::Inheritance(Box::new(e)))?;
         let protected_declarations = self
             .protected_declarations
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(|e| Error::Declarations(Box::new(e)))?;
         // Field 5 refers forward to the exact key projection of field 6.
         // The source protocol resolver checks both directions of this relation.
         let protected_defaults = self
             .protected_defaults
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(|e| Error::Defaults(Box::new(e)))?;
         let protected_source_interfaces = self
             .protected_source_interfaces
-            .resolve(resolver, protected_defaults.keys(), meter)
+            .resolve(resolver, protected_defaults.keys())
             .map_err(|e| Error::Sources(Box::new(e)))?;
         let definition_sources = self
             .definition_sources
-            .resolve_metered(resolver, meter, &path.clone().field(7))
+            .resolve(resolver)
             .map_err(|e| Error::Origins(Box::new(e)))?;
         let selected = self
             .selected
-            .resolve(resolver, meter, &path.clone().field(8))
+            .resolve(resolver, &path.clone().field(8))
             .map_err(Error::Selected)?;
         Ok(CrossConeTypeSemanticsSectionV1::new(
             exact_facts,
@@ -93,7 +87,7 @@ impl DecodedCrossConeTypeSemanticsSectionV1 {
     }
 }
 impl WireDecode for DecodedCrossConeTypeSemanticsSectionV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(8)?;
         Ok(Self {
             exact_facts: d.field(1, DecodedCanonicalExactTypeFactsV1::decode)?,

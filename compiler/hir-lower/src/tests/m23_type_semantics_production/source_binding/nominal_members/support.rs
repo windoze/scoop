@@ -15,10 +15,8 @@ impl Sources {
             ($source:expr, $decoded:ty) => {{
                 let source = $source;
                 let bytes = encode(&source).unwrap();
-                let decoded: $decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-                let restored = decoded
-                    .resolve(&mut fixture.identities, &mut meter())
-                    .unwrap();
+                let decoded: $decoded = decode_canonical(&bytes).unwrap();
+                let restored = decoded.resolve(&mut fixture.identities).unwrap();
                 assert_eq!(encode(&restored).unwrap(), bytes);
                 restored
             }};
@@ -26,8 +24,7 @@ impl Sources {
         let nominals = restore!(
             hir::CanonicalNominalSourceContractsV1::from_export_hir(
                 &output.output().export,
-                &fixture.source.entries().source_roots,
-                &mut meter()
+                &fixture.source.entries().source_roots
             )
             .unwrap(),
             hir::DecodedCanonicalNominalSourceContractsV1
@@ -58,8 +55,7 @@ impl Sources {
         let properties = restore!(
             Properties::from_export_hir(
                 &output.output().export,
-                &hir::CanonicalPersistentIdsV1::try_new(properties).unwrap(),
-                &mut meter()
+                &hir::CanonicalPersistentIdsV1::try_new(properties).unwrap()
             )
             .unwrap(),
             hir::DecodedCanonicalNominalSourcePropertiesV1
@@ -76,7 +72,7 @@ impl Sources {
             }
         }
         let callables = restore!(
-            Callables::from_export_hir(&output.output().export, &callables, &mut meter()).unwrap(),
+            Callables::from_export_hir(&output.output().export, &callables).unwrap(),
             hir::DecodedCanonicalNominalSourceCallablesV1
         );
         Self {

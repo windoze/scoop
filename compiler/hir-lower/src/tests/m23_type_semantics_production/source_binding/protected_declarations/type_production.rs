@@ -36,21 +36,15 @@ fn complete_type_section_publishes_protected_members_constructors_and_nested_sou
                 produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
-            let bytes = encode(&produced.section().index_for_wire(&mut meter()).unwrap()).unwrap();
+            let bytes = encode(&produced.section().index_for_wire().unwrap()).unwrap();
             let decoded: hir::DecodedCrossConeTypeSemanticsSectionV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             let section = decoded
-                .resolve(&mut fixture.identities, &mut meter(), &WirePath::root())
+                .resolve(&mut fixture.identities, &WirePath::root())
                 .unwrap();
-            assert_eq!(
-                encode(&section.index_for_wire(&mut meter()).unwrap()).unwrap(),
-                bytes
-            );
-            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-                output,
-                &mut meter(),
-            )
-            .unwrap();
+            assert_eq!(encode(&section.index_for_wire().unwrap()).unwrap(), bytes);
+            let inventory =
+                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
             for record in section.inheritance().records() {
                 let source = inventory.get(record.owner()).unwrap();
                 assert_eq!(record.protected_members(), source.protected_members());
@@ -71,19 +65,16 @@ fn complete_type_section_publishes_protected_members_constructors_and_nested_sou
                 core.protocols().fundamental_types(),
                 |members, constructors| {
                     let mut authority = members
-                        .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                        .bind_parameter_protocols(constructors, &sources.protocols)
                         .unwrap();
                     for protocol in section.protected_source_interfaces().records() {
-                        authority
-                            .validate_source_protocol(protocol, &mut meter())
-                            .unwrap();
+                        authority.validate_source_protocol(protocol).unwrap();
                     }
                     authority
                         .validate_protected_declarations(
                             section.protected_declarations(),
                             section.protected_source_interfaces(),
                             section.representation_support(),
-                            &mut meter(),
                         )
                         .unwrap();
                     let incomplete = hir::CanonicalProtectedDeclarationInterfacesV1::try_new(
@@ -94,8 +85,7 @@ fn complete_type_section_publishes_protected_members_constructors_and_nested_sou
                         authority.validate_protected_declarations(
                             &incomplete,
                             section.protected_source_interfaces(),
-                            section.representation_support(),
-                            &mut meter()
+                            section.representation_support()
                         ),
                         Err(hir::ProtectedDeclarationBindingError::Inventory)
                     ));
@@ -113,7 +103,7 @@ fn complete_type_section_publishes_protected_members_constructors_and_nested_sou
             );
             section
                 .representation_support()
-                .validate_source_semantics(produced.foundation(), &mut meter(), &WirePath::root())
+                .validate_source_semantics(produced.foundation(), &WirePath::root())
                 .unwrap();
             section
                 .definition_source_inputs()
@@ -123,7 +113,6 @@ fn complete_type_section_publishes_protected_members_constructors_and_nested_sou
                         foundation: &foundation,
                         parameters: &sources.protocols,
                     },
-                    &mut meter(),
                     &WirePath::root(),
                 )
                 .unwrap();
@@ -140,7 +129,6 @@ fn complete_type_section_publishes_protected_members_constructors_and_nested_sou
                             foundation: &foundation,
                             parameters: &sources.protocols
                         },
-                        &mut meter(),
                         &WirePath::root()
                     ),
                 Err(hir::TypeDefinitionSourceClosureError::Missing { .. })
@@ -164,7 +152,7 @@ fn protected_type_section_is_stable_across_unrelated_arena_allocation() {
         with_hir_sources(files, |output, _| {
             let production =
                 produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
-            encode(&production.section().index_for_wire(&mut meter()).unwrap()).unwrap()
+            encode(&production.section().index_for_wire().unwrap()).unwrap()
         })
     };
     let first = produce(&[("src/main.scoop", NESTED)]);
@@ -213,7 +201,7 @@ impl TypeDefinitionSourceSemanticAuthority<&'static str> for SourceOrigins<'_, '
         &mut self,
         source_use: hir::TypeDefinitionSourceUseV1<'_>,
         source: &hir::ExportDefinitionSourceV1,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<(), &'static str> {
         let present = match source_use {

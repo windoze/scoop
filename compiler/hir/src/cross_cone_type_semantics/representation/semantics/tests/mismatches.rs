@@ -239,7 +239,7 @@ fn independent_public_source_shape_is_required_to_agree_field_by_field() {
 }
 
 #[test]
-fn independent_public_source_policy_must_agree_in_the_metered_reader() {
+fn independent_public_source_policy_must_agree_in_the_reader() {
     let (mut fixture, owner) = fixtures::structure(unit(), 1);
     let table = fixture.table();
     let source = fixture.sources.get_mut(&owner).unwrap();

@@ -19,7 +19,7 @@ pub struct DecodedStrongInitializationUnitSemanticProjectionV1 {
         Vec<DecodedPersistentId<PersistentInitializationUnitId>>,
 }
 impl DecodedStrongInitializationUnitSemanticProjectionV1 {
-    pub(super) fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    pub(super) fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(Self {
             unit: decoder.field(1, DecodedPersistentId::decode)?,
             diagnostic_path: decoder.field(2, Decoder::owned_text)?,
@@ -50,7 +50,7 @@ impl DecodedStrongInitializationUnitSemanticProjectionV1 {
     }
 }
 impl WireDecode for DecodedStrongInitializationUnitSemanticProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Self::decode_fields(decoder)
     }
@@ -68,17 +68,7 @@ impl DecodedStrongInitializationUnitSemanticProjectionV1 {
     pub fn validate_against<D: WireEncode>(
         self,
         expected: &crate::StrongInitializationUnitSemanticPlan<D>,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<(), StrongSemanticProjectionError> {
-        let path = scoop_wire::WirePath::root();
-        meter.charge_nodes(1, &path)?;
-        meter.charge_work(
-            8u64.saturating_add(self.diagnostic_path.len() as u64)
-                .saturating_add(expected.diagnostic_path().len() as u64)
-                .saturating_add(self.dependencies.len() as u64)
-                .saturating_add(expected.dependencies().len() as u64),
-            &path,
-        )?;
-        compare_semantics(&self, &expected.semantic_projection(), meter)
+        compare_semantics(&self, &expected.semantic_projection())
     }
 }

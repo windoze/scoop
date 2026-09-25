@@ -2,7 +2,7 @@
 
 use scoop_hir::{DefaultTemplateRootOriginValidationError, ExportDefaultTemplateKeyV1};
 use scoop_identity::ConeIdentity;
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::CanonicalCrossConeHirSurfaceAuthority;
 
@@ -10,19 +10,13 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
     pub(crate) fn validate_default_root_origins(
         &mut self,
     ) -> Result<(), CrossConeHirDefaultRootOriginError> {
-        let path = WirePath::root().field(7);
         let templates = self.current_interface.default_templates().records();
-        self.meter
-            .check_table_entries(templates.len() as u64, &path)?;
-        self.meter.charge_work(templates.len() as u64, &path)?;
+
         for (index, template) in templates.iter().enumerate() {
-            let path = path.clone().index(index as u64);
             let provider = template.definition_origin().origin().source().cone();
             let (identities, foundation) = if provider == self.current {
                 (self.identities, self.current_foundation)
             } else {
-                self.meter
-                    .charge_work(self.dependencies.len() as u64, &path)?;
                 let dependency = self
                     .dependencies
                     .iter()
@@ -40,8 +34,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     identities,
                     template.definition_root(),
                     template.definition_origin(),
-                    self.meter,
-                    &path,
                 )
                 .map_err(|source| CrossConeHirDefaultRootOriginError::Template {
                     index,

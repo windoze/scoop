@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedGeneratedBridgeAtomKey, DecodedGeneratedBridgeAtomRoleKey,
@@ -123,11 +123,8 @@ fn all_bridge_unit_keys_round_trip_and_resolve_typed_references() {
     ];
 
     for key in keys {
-        let decoded = decode_canonical::<DecodedGeneratedBridgeUnitKey>(
-            &encode(&key).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedGeneratedBridgeUnitKey>(&encode(&key).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
     }
 }
@@ -153,11 +150,8 @@ fn all_bridge_atom_roles_round_trip_and_resolve_typed_references() {
     ];
 
     for role in roles {
-        let decoded = decode_canonical::<DecodedGeneratedBridgeAtomRoleKey>(
-            &encode(&role).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedGeneratedBridgeAtomRoleKey>(&encode(&role).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), role);
     }
 }
@@ -172,7 +166,7 @@ fn bridge_unit_and_atom_records_resolve_before_verifying_identity() {
         CborIdentityRecord::from_key(unit_key).unwrap();
     let decoded_unit = decode_canonical::<
         DecodedCborIdentityRecord<GeneratedBridgeUnitId, DecodedGeneratedBridgeUnitKey>,
-    >(&encode(&unit_record).unwrap(), DecodeLimits::default())
+    >(&encode(&unit_record).unwrap())
     .unwrap();
     let resolved_unit = decoded_unit
         .resolve(|key| key.resolve(&mut Resolver))
@@ -190,7 +184,7 @@ fn bridge_unit_and_atom_records_resolve_before_verifying_identity() {
         CborIdentityRecord::from_key(atom_key).unwrap();
     let decoded_atom = decode_canonical::<
         DecodedCborIdentityRecord<GeneratedBridgeAtomId, DecodedGeneratedBridgeAtomKey>,
-    >(&encode(&atom_record).unwrap(), DecodeLimits::default())
+    >(&encode(&atom_record).unwrap())
     .unwrap();
     let resolved_atom = decoded_atom
         .resolve(|key| key.resolve(&mut Resolver))
@@ -201,11 +195,9 @@ fn bridge_unit_and_atom_records_resolve_before_verifying_identity() {
 #[test]
 fn bridge_semantic_target_round_trips_through_a_typed_unit_reference() {
     let target = GeneratedBridgeSemanticTarget::new(bridge_unit());
-    let decoded = decode_canonical::<DecodedGeneratedBridgeSemanticTarget>(
-        &encode(&target).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedGeneratedBridgeSemanticTarget>(&encode(&target).unwrap())
+            .unwrap();
 
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), target);
 }
@@ -213,11 +205,8 @@ fn bridge_semantic_target_round_trips_through_a_typed_unit_reference() {
 #[test]
 fn bridge_resolution_rejects_a_different_same_width_reference() {
     let key = GeneratedBridgeUnitKey::GlobalRead(NativeExternalContractFingerprint([99; 32]));
-    let decoded = decode_canonical::<DecodedGeneratedBridgeUnitKey>(
-        &encode(&key).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedGeneratedBridgeUnitKey>(&encode(&key).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver),
@@ -234,11 +223,8 @@ fn static_trampoline_rejects_a_non_storage_generated_callable() {
         storage_bridge: PersistentGeneratedCallableId::from_key(&wrong_key).unwrap(),
         signature: signature_fingerprint(),
     };
-    let decoded = decode_canonical::<DecodedGeneratedBridgeUnitKey>(
-        &encode(&key).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedGeneratedBridgeUnitKey>(&encode(&key).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut WrongStaticRoleResolver),
@@ -253,9 +239,7 @@ fn bridge_decoder_rejects_unknown_and_incomplete_sums() {
     assert_unknown::<DecodedGeneratedBridgeUnitKey>(b"\xa1\x00\x07", 7);
     assert_unknown::<DecodedGeneratedBridgeAtomRoleKey>(b"\xa1\x00\x05", 5);
 
-    let error =
-        decode_canonical::<DecodedGeneratedBridgeUnitKey>(b"\xa1\x00\x01", DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedGeneratedBridgeUnitKey>(b"\xa1\x00\x01").unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -266,7 +250,7 @@ fn bridge_decoder_rejects_unknown_and_incomplete_sums() {
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
-    let error = decode_canonical::<T>(bytes, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<T>(bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag });
 }
 

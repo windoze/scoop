@@ -33,11 +33,8 @@ fn constructor_sources_reuse_three_required_contract_fields() {
             let mut incomplete = bytes;
             incomplete[0] = 0xa2;
             assert!(
-                decode_canonical::<hir::DecodedNominalSupportConstructorInterfaceV1>(
-                    &incomplete,
-                    DecodeLimits::default()
-                )
-                .is_err()
+                decode_canonical::<hir::DecodedNominalSupportConstructorInterfaceV1>(&incomplete)
+                    .is_err()
             );
         }
     });
@@ -49,20 +46,16 @@ fn constructor_source_reader_rejects_duplicate_and_reordered_contracts() {
         let table = table(output);
         let duplicate = vec![table.records()[0].clone(), table.records()[0].clone()];
         assert!(matches!(
-            Table::try_new(duplicate.clone(), &mut meter()),
+            Table::try_new(duplicate.clone()),
             Err(hir::SourceInventoryError::NonCanonicalOrder { .. })
         ));
         let mut reversed = table.records().to_vec();
         reversed.reverse();
         for records in [duplicate, reversed] {
-            let decoded: Decoded = decode_canonical(
-                &encode(&Records(&records)).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded: Decoded = decode_canonical(&encode(&Records(&records)).unwrap()).unwrap();
             let mut identities = source_inventory::identity_closure(output);
             assert!(matches!(
-                decoded.resolve(&mut identities, &mut meter()),
+                decoded.resolve(&mut identities),
                 Err(Error::Inventory(
                     hir::SourceInventoryError::NonCanonicalOrder { .. }
                 ))
@@ -72,37 +65,18 @@ fn constructor_source_reader_rejects_duplicate_and_reordered_contracts() {
 }
 
 #[test]
-fn constructor_source_reader_checks_budget_before_unknown_identity_resolution() {
+fn constructor_source_reader_rejects_unknown_identities() {
     with_source(SOURCE, |output, _| {
         let bytes = encode(&table(output)).unwrap();
         let mut empty = scoop_identity::PendingIdentityValidation::new()
             .finish()
             .unwrap();
-        let decode = || decode_canonical::<Decoded>(&bytes, DecodeLimits::default()).unwrap();
+        let decode = || decode_canonical::<Decoded>(&bytes).unwrap();
         assert!(matches!(
-            decode().resolve(&mut empty, &mut meter()),
+            decode().resolve(&mut empty),
             Err(Error::Contract(
                 hir::ProtectedCallableInterfaceResolutionError::Identity(_)
             ))
         ));
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                decode().resolve(&mut empty, &mut BudgetMeter::new(limits)),
-                Err(Error::Inventory(hir::SourceInventoryError::Resource(_)))
-            ));
-        }
     });
 }

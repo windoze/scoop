@@ -49,10 +49,10 @@ fn object_backing_retains_hir_identity_and_can_inherit_a_source_class() {
     .unwrap();
     let expected = CanonicalParamFreeMirTypeExportsV1::try_new(vec![object, backing]).unwrap();
     let decoded: DecodedCanonicalParamFreeMirTypeExportsV1 =
-        decode_canonical(&encode(&expected).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&expected).unwrap()).unwrap();
     assert_eq!(
         decoded
-            .validate(&mut fixture.graph, &fixture.foundation, &mut meter())
+            .validate(&mut fixture.graph, &fixture.foundation)
             .unwrap(),
         expected
     );
@@ -124,10 +124,9 @@ fn execution_helpers_are_rejected_even_with_complete_canonical_identities() {
     bytes.extend(encode(&representation).unwrap());
     bytes.push(5);
     bytes.extend(encode(&no_bases()).unwrap());
-    let decoded: DecodedParamFreeMirTypeExportV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedParamFreeMirTypeExportV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.validate(&mut fixture.graph, &fixture.foundation, &mut meter()),
+        decoded.validate(&mut fixture.graph, &fixture.foundation),
         Err(MirTypeBridgeError::GeneratedExecutionShapeGate { .. })
     ));
 }

@@ -4,7 +4,6 @@ use scoop_hir::{
     ExportConstValueSemanticAuthority, IntrinsicTypeKind,
 };
 use scoop_identity::PendingIdentityValidation;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use crate::cross_cone_hir_authority::{
     CanonicalCrossConeHirSurfaceAuthority, CrossConeHirCallableSourceAuthorityError,
@@ -42,7 +41,7 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
             })
             .collect::<Vec<_>>();
         let identities = pending.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             base.identity(),
             &identities,
@@ -52,7 +51,6 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
                 .iter()
                 .map(|provider| provider.view(base))
                 .collect(),
-            &mut meter,
         );
         for provider in &providers {
             match provider.family {
@@ -111,14 +109,13 @@ fn intrinsic_queries_reject_unreachable_missing_and_non_intrinsic_source_records
         let mut dependency =
             Provider::new(provider_identity(1), IntrinsicTypeKind::Array, &mut pending);
         let identities = pending.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
+
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             base.identity(),
             &identities,
             base.hir_foundation(),
             &local.interface,
             vec![],
-            &mut meter,
         );
         let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
             authority.validate_array_type(generic(dependency.owner))
@@ -135,7 +132,6 @@ fn intrinsic_queries_reject_unreachable_missing_and_non_intrinsic_source_records
             base.hir_foundation(),
             &local.interface,
             vec![dependency.view(base)],
-            &mut meter,
         );
         let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
             authority.validate_array_type(generic(dependency.owner))
@@ -154,7 +150,6 @@ fn intrinsic_queries_reject_unreachable_missing_and_non_intrinsic_source_records
             base.hir_foundation(),
             &local.interface,
             vec![dependency.view(base)],
-            &mut meter,
         );
         let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
             authority.validate_array_type(generic(dependency.owner))
@@ -164,88 +159,5 @@ fn intrinsic_queries_reject_unreachable_missing_and_non_intrinsic_source_records
         assert!(matches!(*error, CrossConeHirIntrinsicTypeError::Nominal(
             CrossConeHirNominalAuthorityError::MissingNominalInterface { declaration, .. })
             if declaration == dependency.owner));
-    });
-}
-
-#[test]
-fn intrinsic_queries_recheck_canonical_source_kind_and_share_the_artifact_budget() {
-    with_base(|base| {
-        let mut pending = PendingIdentityValidation::new();
-        let mut local = Provider::new(base.identity(), IntrinsicTypeKind::String, &mut pending);
-        let array = Provider::new(provider_identity(1), IntrinsicTypeKind::Array, &mut pending);
-        let identities = pending.finish().unwrap();
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            decoded_nodes: 1,
-            ..DecodeLimits::default()
-        });
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            base.identity(),
-            &identities,
-            base.hir_foundation(),
-            &local.interface,
-            vec![array.view(base)],
-            &mut meter,
-        );
-        authority
-            .validate_const_value_type(concrete(local.owner), CanonicalConstValueKindV1::String)
-            .unwrap();
-        let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
-            authority.validate_array_type(generic(array.owner))
-        else {
-            panic!("both queries must consume the same node budget");
-        };
-        assert!(matches!(
-            *error,
-            CrossConeHirIntrinsicTypeError::Resource(_)
-        ));
-
-        local.replace_shape(NominalSourceShapeV1::Intrinsic(
-            scoop_hir::NominalIntrinsicRepresentationV1::new(IntrinsicTypeKind::Boolean),
-        ));
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            base.identity(),
-            &identities,
-            base.hir_foundation(),
-            &local.interface,
-            vec![],
-            &mut meter,
-        );
-        assert!(matches!(
-            authority.validate_const_value_type(
-                concrete(local.owner),
-                CanonicalConstValueKindV1::String
-            ),
-            Err(CrossConeHirConstAuthorityError::ValueType(
-                CrossConeHirIntrinsicTypeError::Nominal(
-                    CrossConeHirNominalAuthorityError::NominalKindMismatch {
-                        expected: PublicNominalKindV1::Class,
-                        actual: PublicNominalKindV1::Struct,
-                        ..
-                    }
-                )
-            ))
-        ));
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        });
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            base.identity(),
-            &identities,
-            base.hir_foundation(),
-            &local.interface,
-            vec![],
-            &mut meter,
-        );
-        assert!(matches!(
-            authority.validate_const_value_type(
-                concrete(local.owner),
-                CanonicalConstValueKindV1::String
-            ),
-            Err(CrossConeHirConstAuthorityError::ValueType(
-                CrossConeHirIntrinsicTypeError::Resource(_)
-            ))
-        ));
     });
 }

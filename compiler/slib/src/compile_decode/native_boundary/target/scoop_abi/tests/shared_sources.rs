@@ -18,44 +18,20 @@ fn ordinary_shared_shapes_supply_abi_without_native_boundary_records() {
         vec![value.exact()],
         value.exact(),
     );
-    let mut budget = meter();
-    let actual = replay(
-        &current,
-        &[reference.borrow(), value.borrow()],
-        &signature,
-        &mut budget,
-    )
-    .unwrap();
+
+    let actual = replay(&current, &[reference.borrow(), value.borrow()], &signature).unwrap();
     assert!(
         matches!(actual.arguments(), [ScoopAbiArgument::Direct(pointer), ScoopAbiArgument::ElidedZst(zst)]
         if pointer.byte_size() == 8 && zst.byte_size() == 0)
     );
     assert!(matches!(actual.result(), ScoopAbiReturn::ElidedZst(zst) if zst.byte_size() == 0));
     assert!(matches!(
-        replay(&current, &[reference.borrow()], &signature, &mut meter()),
+        replay(&current, &[reference.borrow()], &signature),
         Err(NativeBoundaryCompileError::Target(NativeBoundaryTargetError::MissingExactType { exact }))
             if exact == value.exact()
     ));
-    let mut limit = BudgetMeter::new(DecodeLimits {
-        validation_work_units: budget.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay(
-        &current,
-        &[reference.borrow(), value.borrow()],
-        &signature,
-        &mut limit,
-    )
-    .unwrap();
-    assert!(matches!(
-        replay(
-            &current,
-            &[reference.borrow(), value.borrow()],
-            &signature,
-            &mut limit
-        ),
-        Err(NativeBoundaryCompileError::Resource(_))
-    ));
+
+    replay(&current, &[reference.borrow(), value.borrow()], &signature).unwrap();
 }
 
 #[test]
@@ -66,7 +42,7 @@ fn shared_shape_cannot_claim_another_provider_or_replace_a_native_representation
     let mut foreign = value.borrow();
     foreign.identity = ConeIdentity::SINGLE_FILE;
     assert!(matches!(
-        replay(&current, &[foreign], &signature, &mut meter()),
+        replay(&current, &[foreign], &signature),
         Err(NativeBoundaryCompileError::NominalProvider {
             declared: ConeIdentity::CORE,
             ..
@@ -78,7 +54,7 @@ fn shared_shape_cannot_claim_another_provider_or_replace_a_native_representation
         shared_only(Fixture::nominal(ConeIdentity::SINGLE_FILE, false), false).nominals;
     let signature = ExactCallableSignature::new(Effect::Ordinary, None, vec![], changed.exact());
     assert!(matches!(
-        replay(&current, &[changed.borrow()], &signature, &mut meter()),
+        replay(&current, &[changed.borrow()], &signature),
         Err(NativeBoundaryCompileError::ConflictingTypeWitness { .. })
     ));
 }

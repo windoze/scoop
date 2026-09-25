@@ -7,7 +7,7 @@ use scoop_lir::{
     CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1, LirTargetProfile,
     ValidatedLirTargetSelection,
 };
-use scoop_wire::{BudgetMeter, HashError};
+use scoop_wire::HashError;
 
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalKnownLinkExtensionCodeContributionSetV1,
@@ -132,7 +132,6 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     undefined_partitions: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     external_shape: &'a VerifiedExternalShapeRequirementClosureV1<'a>,
-    meter: &mut BudgetMeter,
 ) -> Result<VerifiedCrossConeLayoutCodeFingerprintV1<'a>, LayoutCodeFingerprintError> {
     let builtins = production
         .link_objects()
@@ -154,7 +153,6 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1<'a>(
     let layout_link_closure = CrossConeLayoutLinkClosureSectionV1::from_verified_requirements(
         external_shape,
         production.link_objects(),
-        meter,
     )
     .map_err(LayoutCodeFingerprintError::LayoutLinkClosure)?;
     let link_extension_contributions =

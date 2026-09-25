@@ -4,7 +4,7 @@ use scoop_identity::{
     PersistentTypeId, SourceDeclarationKey, SourceDeclarationKind, SourceDeclarationSite,
     SourceNominalKind, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -35,7 +35,7 @@ fn nominal_kind_reuses_source_kind_tags() {
         assert_eq!(PublicNominalKindV1::try_from(source), Ok(public));
         assert_eq!(encode(&public).unwrap(), [byte]);
         assert_eq!(
-            decode_canonical::<PublicNominalKindV1>(&[byte], DecodeLimits::default()).unwrap(),
+            decode_canonical::<PublicNominalKindV1>(&[byte]).unwrap(),
             public
         );
     }
@@ -122,28 +122,22 @@ fn decoded_declaration_owner_rejects_missing_nominal_authority() {
 
 #[test]
 fn reader_rejects_unknown_tags_and_wrong_sum_lengths() {
-    let unknown =
-        decode_canonical::<PublicNominalKindV1>(&[0x06], DecodeLimits::default()).unwrap_err();
+    let unknown = decode_canonical::<PublicNominalKindV1>(&[0x06]).unwrap_err();
     assert!(matches!(
         unknown.kind(),
         WireErrorKind::UnknownTag { tag: 6 }
     ));
 
-    let unknown = decode_canonical::<DecodedPublicDeclarationOwnerV1>(
-        &[0xa1, 0x00, 0x04],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown =
+        decode_canonical::<DecodedPublicDeclarationOwnerV1>(&[0xa1, 0x00, 0x04]).unwrap_err();
     assert!(matches!(
         unknown.kind(),
         WireErrorKind::UnknownTag { tag: 4 }
     ));
 
-    let wrong_length = decode_canonical::<DecodedPublicDeclarationOwnerV1>(
-        &[0xa2, 0x00, 0x01, 0x01, 0xf6],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let wrong_length =
+        decode_canonical::<DecodedPublicDeclarationOwnerV1>(&[0xa2, 0x00, 0x01, 0x01, 0xf6])
+            .unwrap_err();
     assert!(matches!(
         wrong_length.kind(),
         WireErrorKind::InvalidLength {
@@ -196,5 +190,5 @@ fn authority(fixture: &Fixture) -> ValidatedIdentityGraph {
 }
 
 fn decode_owner(owner: &PublicDeclarationOwnerV1) -> DecodedPublicDeclarationOwnerV1 {
-    decode_canonical(&encode(owner).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(owner).unwrap()).unwrap()
 }

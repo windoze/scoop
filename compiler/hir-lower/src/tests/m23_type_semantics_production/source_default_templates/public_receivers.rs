@@ -12,7 +12,7 @@ fn public_template_bytes_preserve_provider_receivers_and_binder_mappings() {
             hir::CanonicalExportDefaultTemplatesV1::from_dependency_hir(output).unwrap();
         let bytes = encode(&templates.index_locals().unwrap()).unwrap();
         let decoded: hir::DecodedCanonicalExportDefaultTemplatesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         let restored = decoded.resolve(&mut identity_closure(output)).unwrap();
         assert_eq!(templates, restored);

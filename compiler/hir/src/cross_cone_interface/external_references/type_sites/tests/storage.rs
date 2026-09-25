@@ -84,35 +84,23 @@ fn semantic_storage_sites_keep_distinct_tags_and_typed_identity_domains() {
     ] {
         let bytes = encode(&original).unwrap();
         assert_eq!(&bytes[..3], &[0xa3, 0, tag]);
-        let raw: DecodedHirDependencyTypeSiteV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let raw: DecodedHirDependencyTypeSiteV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&raw).unwrap(), bytes);
         if tag == 8 {
-            assert_eq!(
-                raw.resolve(&mut fixture.graph(), &mut meter(), &WirePath::root())
-                    .unwrap(),
-                original
-            );
+            assert_eq!(raw.resolve(&mut fixture.graph()).unwrap(), original);
         } else {
             assert!(matches!(
-                raw.resolve(&mut fixture.graph(), &mut meter(), &WirePath::root()),
+                raw.resolve(&mut fixture.graph()),
                 Err(HirDependencyTypeSiteResolutionError::Identity(_))
             ));
         }
         for length in [2, 4] {
             let mut wrong = bytes.clone();
             wrong[0] = 0xa0 + length;
-            assert!(
-                decode_canonical::<DecodedHirDependencyTypeSiteV1>(&wrong, DecodeLimits::default())
-                    .is_err()
-            );
+            assert!(decode_canonical::<DecodedHirDependencyTypeSiteV1>(&wrong).is_err());
         }
     }
     assert!(
-        decode_canonical::<DecodedHirDependencyTypeSiteV1>(
-            &[0xa3, 0, 10, 1, 0, 2, 0],
-            DecodeLimits::default()
-        )
-        .is_err()
+        decode_canonical::<DecodedHirDependencyTypeSiteV1>(&[0xa3, 0, 10, 1, 0, 2, 0]).is_err()
     );
 }

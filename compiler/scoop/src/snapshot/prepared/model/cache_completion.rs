@@ -23,7 +23,7 @@ impl PreparedBuildGraph {
             .compile_cache_key(identity, completed)
             .map_err(|source| CacheCompletionError::CacheKey(Box::new(source)))?;
         let plan = self.artifact_closure_plan();
-        let limits = self.context.limits.artifact_decode();
+
         let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
         let validated = validate_cache_entry(
             &plan,
@@ -32,7 +32,6 @@ impl PreparedBuildGraph {
             entry,
             completed,
             self.compiler.fingerprint(),
-            limits,
             self.target_selection,
             &c_bridge_profile,
         )?;

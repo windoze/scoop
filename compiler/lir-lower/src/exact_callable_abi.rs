@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 /// The containing layout/ABI section supplies the binding's lowered signature
 /// and closes source roles and selected layout dependencies. This projection
@@ -17,18 +17,11 @@ pub fn lower_exact_callable_abi_export(
     target: StrongCallableDefinitionOwner,
     signature: &mir::MirBridgeCallableSignatureV1,
     layouts: lir::CallableAbiLayoutInputsV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::ExactCallableAbiExportV1, ExactCallableAbiLoweringError> {
-    let path = WirePath::root();
     if input.module().cone != output.foundation().producer() {
         return Err(ExactCallableAbiLoweringError::Provider);
     }
-    meter.charge_work(
-        input.production().strong_callable_bridges().bridges().len() as u64,
-        &path,
-    )?;
-    meter.charge_work(input.materialization().callable_roots().len() as u64, &path)?;
-    meter.charge_work(output.module().functions.len() as u64, &path)?;
+
     let materialized = crate::callable_abi::LocalCallableMaterialization::resolve(
         input,
         &output.module().functions,
@@ -38,16 +31,16 @@ pub fn lower_exact_callable_abi_export(
     .map_err(ExactCallableAbiLoweringError::Materialization)?;
     let function = materialized.mir;
     let physical = materialized.lir;
-    validate_source_signature(input.module(), function, signature.exact(), meter)?;
+    validate_source_signature(input.module(), function, signature.exact())?;
     if function.gc_effect != signature.gc_effect() {
         return Err(ExactCallableAbiLoweringError::GcEffect);
     }
-    validate_physical_types(function, &physical.signature, meter)?;
+    validate_physical_types(function, &physical.signature)?;
     let protocol = match signature.gc_effect() {
         mir::GcEffect::Managed => lir::ExactCallableProtocolV1::OrdinaryManaged,
         mir::GcEffect::NoGc => lir::ExactCallableProtocolV1::OrdinaryNoGc,
     };
-    meter.charge_collection_slots(signature.exact().parameters().len() as u64, &path)?;
+
     let record = lir::ExactCallableAbiExportV1::replay(
         output.module().meta.target_profile,
         target,
@@ -55,7 +48,6 @@ pub fn lower_exact_callable_abi_export(
         protocol,
         layouts,
         output.foundation(),
-        meter,
     )?;
     if record.definition().symbol() != physical.callable_body.symbol_request() {
         return Err(ExactCallableAbiLoweringError::Definition);
@@ -64,7 +56,6 @@ pub fn lower_exact_callable_abi_export(
         &output.module().enums,
         &physical.signature,
         physical.gc_effect,
-        meter,
     )?;
     Ok(record)
 }
@@ -72,19 +63,18 @@ pub fn lower_exact_callable_abi_export(
 fn validate_physical_types(
     function: &mir::Function,
     signature: &lir::ScoopAbiSignature,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExactCallableAbiLoweringError> {
     if function.params.len() != signature.arguments().len() {
         return Err(ExactCallableAbiLoweringError::PhysicalType);
     }
     for (parameter, argument) in function.params.iter().zip(signature.arguments()) {
-        if !physical_type_matches(&parameter.ty, argument.logical_storage_type(), meter, 1)? {
+        if !physical_type_matches(&parameter.ty, argument.logical_storage_type())? {
             return Err(ExactCallableAbiLoweringError::PhysicalType);
         }
     }
     match signature.result().logical_storage_type() {
         None if function.return_ty == mir::Type::Unit => Ok(()),
-        Some(actual) if physical_type_matches(&function.return_ty, actual, meter, 1)? => Ok(()),
+        Some(actual) if physical_type_matches(&function.return_ty, actual)? => Ok(()),
         _ => Err(ExactCallableAbiLoweringError::PhysicalType),
     }
 }
@@ -92,12 +82,7 @@ fn validate_physical_types(
 fn physical_type_matches(
     source: &mir::Type,
     actual: &lir::LirType,
-    meter: &mut BudgetMeter,
-    depth: u64,
 ) -> Result<bool, ExactCallableAbiLoweringError> {
-    let path = WirePath::root();
-    meter.check_semantic_depth(depth, &path)?;
-    meter.charge_work(1, &path)?;
     if let mir::Type::Tuple(fields) = source {
         let lir::LirType::Aggregate(actual) = actual else {
             return Ok(false);
@@ -106,7 +91,7 @@ fn physical_type_matches(
             return Ok(false);
         }
         for (source, actual) in fields.iter().zip(actual) {
-            if !physical_type_matches(source, actual, meter, depth + 1)? {
+            if !physical_type_matches(source, actual)? {
                 return Ok(false);
             }
         }
@@ -120,10 +105,7 @@ fn validate_source_signature(
     module: &mir::Module,
     function: &mir::Function,
     signature: &ExactCallableSignature,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExactCallableAbiLoweringError> {
-    let path = WirePath::root();
-    meter.charge_work(function.params.len() as u64, &path)?;
     let receiver = signature.receiver().into_option();
     if function.params.len()
         != signature
@@ -139,11 +121,11 @@ fn validate_source_signature(
             .into_iter()
             .chain(signature.parameters().iter().copied()),
     ) {
-        if exact_type(module, &parameter.ty, meter)? != exact {
+        if exact_type(module, &parameter.ty)? != exact {
             return Err(ExactCallableAbiLoweringError::MirSignature);
         }
     }
-    if exact_type(module, &function.return_ty, meter)? != signature.result() {
+    if exact_type(module, &function.return_ty)? != signature.result() {
         return Err(ExactCallableAbiLoweringError::MirSignature);
     }
     Ok(())
@@ -152,10 +134,7 @@ fn validate_source_signature(
 fn exact_type(
     module: &mir::Module,
     ty: &mir::Type,
-    meter: &mut BudgetMeter,
 ) -> Result<PersistentExactTypeId, ExactCallableAbiLoweringError> {
-    let path = WirePath::root();
-    meter.charge_work(module.meta.source_exact_types.len() as u64, &path)?;
     if let Some(exact) = module.meta.source_exact_types.get(ty) {
         return Ok(exact.identity_record().id());
     }
@@ -169,7 +148,7 @@ fn exact_type(
         mir::Type::Enum(id, _) => mir::GeneratedExactTypeLocation::Enum(*id),
         _ => return Err(ExactCallableAbiLoweringError::MissingExactType),
     };
-    meter.charge_work(module.meta.generated_exact_types.len() as u64, &path)?;
+
     module
         .meta
         .generated_exact_types

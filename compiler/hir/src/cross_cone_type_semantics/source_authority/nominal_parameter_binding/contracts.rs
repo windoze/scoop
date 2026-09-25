@@ -5,19 +5,16 @@ pub(super) fn validate(
     constructors: &BoundNominalConstructorSourcesV1<'_, '_, '_>,
     protocol: &NominalSourceParameterProtocolV1,
     array: PersistentGenericTypeId,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let owner = protocol.owner();
     let (expected, access) = match owner {
         CallableTemplateOrigin::Constructor(id) => {
-            query(constructors.table().records().len(), meter)?;
             let record = constructors.constructor_source(id)?;
             (record.payload().parameters(), record.declaration_access())
         }
         CallableTemplateOrigin::Function(_)
         | CallableTemplateOrigin::GenericFunction(_)
         | CallableTemplateOrigin::VariantConstructor(_) => {
-            query(members.callables().records().len(), meter)?;
             let record = members.callable_source(owner)?;
             (record.payload().parameters(), record.declaration_access())
         }
@@ -30,7 +27,6 @@ pub(super) fn validate(
         expected,
         access,
         array,
-        meter,
     )?;
     Ok(())
 }

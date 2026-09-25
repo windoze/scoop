@@ -41,12 +41,9 @@ fn constant_overlap_requires_property_owner_representation_and_type_alongside_va
         },
     )
     .unwrap();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.graph.records.values(),
-        &fixture.graph,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.graph.records.values(), &fixture.graph)
+            .unwrap();
     let interface = |owner, value_type, representation| {
         PropertyInterfaceRecordV1::try_new(
             PropertyDeclarationId::Property(property),
@@ -90,7 +87,6 @@ fn constant_overlap_requires_property_owner_representation_and_type_alongside_va
             PropertyRepresentationV1::Const,
         ))),
         &graph,
-        &mut meter(),
         &path(),
     )
     .unwrap();
@@ -112,9 +108,6 @@ fn constant_overlap_requires_property_owner_representation_and_type_alongside_va
             PropertyRepresentationV1::RuntimeAccessor,
         )),
     ] {
-        assert!(
-            properties::validate::<&str>(&source, &section(wrong), &graph, &mut meter(), &path())
-                .is_err()
-        );
+        assert!(properties::validate::<&str>(&source, &section(wrong), &graph, &path()).is_err());
     }
 }

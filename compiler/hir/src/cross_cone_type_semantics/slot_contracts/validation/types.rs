@@ -1,5 +1,5 @@
 use scoop_identity::{ExactTypeKey, PersistentExactTypeId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::InheritanceSlotContractSemanticError as Error;
 use crate::NominalInheritanceSemanticAuthority;
@@ -7,13 +7,9 @@ use crate::NominalInheritanceSemanticAuthority;
 pub(super) fn validate_exact_identity<A: NominalInheritanceSemanticAuthority<E>, E>(
     exact: PersistentExactTypeId,
     authority: &A,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error<E>> {
-    let path = WirePath::root();
-    meter.charge_work(1, &path).map_err(Error::Resource)?;
     let key = authority.exact_type_key(exact).map_err(Error::Foundation)?;
-    let size = scoop_wire::encoded_length(key).map_err(Error::Encoding)?;
-    meter.charge_sha256(size, &path).map_err(Error::Resource)?;
+
     if PersistentExactTypeId::from_key(key).ok() != Some(exact) {
         return Err(Error::Signature);
     }
@@ -24,28 +20,22 @@ pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
     source: &[SignatureTypeKey],
     exact: &[PersistentExactTypeId],
     authority: &A,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error<E>> {
     if source.len() != exact.len() {
         return Err(Error::Signature);
     }
     let path = WirePath::root();
     let mut pending = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut pending, source.len(), &path)
+    scoop_wire::allocation::try_reserve(&mut pending, source.len(), &path)
         .map_err(Error::Resource)?;
     pending.extend(
         source
             .iter()
             .zip(exact)
-            .map(|(source, exact)| (source, *exact, 1)),
+            .map(|(source, exact)| (source, *exact)),
     );
-    while let Some((source, exact, depth)) = pending.pop() {
-        meter
-            .check_semantic_depth(depth, &path)
-            .map_err(Error::Resource)?;
-        meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-        validate_exact_identity(exact, authority, meter)?;
+    while let Some((source, exact)) = pending.pop() {
+        validate_exact_identity(exact, authority)?;
         let key = authority.exact_type_key(exact).map_err(Error::Foundation)?;
         match (source, key) {
             (SignatureTypeKey::Nominal(left), ExactTypeKey::Nominal(right)) if left == right => {}
@@ -59,23 +49,13 @@ pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
                     arguments: exact,
                 },
             ) if left == right => {
-                push(
-                    &mut pending,
-                    source.as_slice(),
-                    exact.as_slice(),
-                    depth + 1,
-                    meter,
-                )?;
+                push(&mut pending, source.as_slice(), exact.as_slice())?;
             }
-            (SignatureTypeKey::Tuple(source), ExactTypeKey::Tuple(exact)) => push(
-                &mut pending,
-                source.as_slice(),
-                exact.as_slice(),
-                depth + 1,
-                meter,
-            )?,
+            (SignatureTypeKey::Tuple(source), ExactTypeKey::Tuple(exact)) => {
+                push(&mut pending, source.as_slice(), exact.as_slice())?
+            }
             (SignatureTypeKey::RawPointer(source), ExactTypeKey::RawPointer(exact)) => {
-                push_one(&mut pending, source, *exact, depth + 1, meter)?
+                push_one(&mut pending, source, *exact)?
             }
             (
                 SignatureTypeKey::Function {
@@ -89,8 +69,8 @@ pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
                     result: exact_result,
                 },
             ) if left == right => {
-                push(&mut pending, source, exact, depth + 1, meter)?;
-                push_one(&mut pending, source_result, *exact_result, depth + 1, meter)?;
+                push(&mut pending, source, exact)?;
+                push_one(&mut pending, source_result, *exact_result)?;
             }
             (
                 SignatureTypeKey::NativeFunctionPointer {
@@ -104,8 +84,8 @@ pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
                     result: exact_result,
                 },
             ) if left == right => {
-                push(&mut pending, source, exact, depth + 1, meter)?;
-                push_one(&mut pending, source_result, *exact_result, depth + 1, meter)?;
+                push(&mut pending, source, exact)?;
+                push_one(&mut pending, source_result, *exact_result)?;
             }
             _ => return Err(Error::Signature),
         }
@@ -123,49 +103,37 @@ impl crate::NominalRepresentationSupportV1 {
         source: &[SignatureTypeKey],
         exact: &[PersistentExactTypeId],
         authority: &A,
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error<E>> {
-        match_parameters(source, exact, authority, meter)
+        match_parameters(source, exact, authority)
     }
 }
 
 fn push<'s, E>(
-    pending: &mut Vec<(&'s SignatureTypeKey, PersistentExactTypeId, u64)>,
+    pending: &mut Vec<(&'s SignatureTypeKey, PersistentExactTypeId)>,
     source: &'s [SignatureTypeKey],
     exact: &[PersistentExactTypeId],
-    depth: u64,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error<E>> {
     if source.len() != exact.len() {
         return Err(Error::Signature);
     }
-    meter
-        .try_reserve_collection_slots(pending, source.len(), &WirePath::root())
+    scoop_wire::allocation::try_reserve(pending, source.len(), &WirePath::root())
         .map_err(Error::Resource)?;
-    meter
-        .charge_edges(source.len() as u64, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     pending.extend(
         source
             .iter()
             .zip(exact)
-            .map(|(source, exact)| (source, *exact, depth)),
+            .map(|(source, exact)| (source, *exact)),
     );
     Ok(())
 }
 fn push_one<'s, E>(
-    pending: &mut Vec<(&'s SignatureTypeKey, PersistentExactTypeId, u64)>,
+    pending: &mut Vec<(&'s SignatureTypeKey, PersistentExactTypeId)>,
     source: &'s SignatureTypeKey,
     exact: PersistentExactTypeId,
-    depth: u64,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error<E>> {
-    meter
-        .try_reserve_collection_slots(pending, 1, &WirePath::root())
-        .map_err(Error::Resource)?;
-    meter
-        .charge_edges(1, &WirePath::root())
-        .map_err(Error::Resource)?;
-    pending.push((source, exact, depth));
+    scoop_wire::allocation::try_reserve(pending, 1, &WirePath::root()).map_err(Error::Resource)?;
+
+    pending.push((source, exact));
     Ok(())
 }

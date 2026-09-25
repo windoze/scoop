@@ -1,5 +1,4 @@
 use super::*;
-use scoop_wire::BudgetMeter;
 
 #[test]
 fn declared_interior_mutability_has_distinct_canonical_bytes_and_survives_resolution() {
@@ -29,15 +28,9 @@ fn declared_interior_mutability_has_distinct_canonical_bytes_and_survives_resolu
                 u8::from(interior_mutable)
             ]
         );
-        let decoded: DecodedNominalSourceShapeV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedNominalSourceShapeV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        let restored = decoded
-            .resolve_metered(
-                &mut authority(&fixture()),
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+        let restored = decoded.resolve(&mut authority(&fixture())).unwrap();
         assert_eq!(restored, shape);
         let NominalSourceShapeV1::Struct(restored) = restored else {
             panic!("decoded a struct");
@@ -49,8 +42,7 @@ fn declared_interior_mutability_has_distinct_canonical_bytes_and_survives_resolu
 #[test]
 fn struct_reader_rejects_missing_policy_and_non_boolean_policy_values() {
     let retired = [0xa3, 0x00, 0x03, 0x01, 0x80, 0x02, 0xa1, 0x00, 0x01];
-    let error = decode_canonical::<DecodedNominalSourceShapeV1>(&retired, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedNominalSourceShapeV1>(&retired).unwrap_err();
     assert!(matches!(
         error.kind(),
         WireErrorKind::InvalidLength {
@@ -62,9 +54,7 @@ fn struct_reader_rejects_missing_policy_and_non_boolean_policy_values() {
         let malformed = [
             0xa4, 0x00, 0x03, 0x01, 0x80, 0x02, 0xa1, 0x00, 0x01, 0x03, value,
         ];
-        let error =
-            decode_canonical::<DecodedNominalSourceShapeV1>(&malformed, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<DecodedNominalSourceShapeV1>(&malformed).unwrap_err();
         assert!(
             matches!(error.kind(), WireErrorKind::UnknownTag { tag } if *tag == u64::from(value))
         );

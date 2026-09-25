@@ -5,7 +5,7 @@ mod receivers;
 mod signatures;
 
 impl Graph<'_> {
-    pub(super) fn calls(&mut self, meter: &mut BudgetMeter) -> Result<(), Error> {
+    pub(super) fn calls(&mut self) -> Result<(), Error> {
         let path = WirePath::root().field(10);
         for (reference_index, reference) in self
             .current
@@ -21,7 +21,7 @@ impl Graph<'_> {
                     .index(reference_index as u64)
                     .field(5)
                     .index(call_index as u64);
-                meter.charge_work(1 + u64::from(self.providers.len().max(1).ilog2()), &path)?;
+
                 let provider = self
                     .providers
                     .get(&reference.origin())
@@ -30,16 +30,16 @@ impl Graph<'_> {
                     crate::HirDependencyCallReasonV1::SourceBinding(_) => {
                         let metadata = provider.metadata;
                         let source = call
-                            .validate_source_signature(reference.target(), metadata, meter, &path)
+                            .validate_source_signature(reference.target(), metadata)
                             .map_err(|source| Error::CallSignature {
                                 position: call.position(),
                                 source: Box::new(source),
                             })?;
-                        self.source_receiver(call.receiver(), meter)?;
-                        self.call_signature(source, meter, &path)?;
-                        self.source_extension(source, metadata, call, meter, &path)?;
-                        self.source_construction(source, meter)?;
-                        self.source_member(source, metadata, call, meter, &path)?;
+                        self.source_receiver(call.receiver())?;
+                        self.call_signature(source)?;
+                        self.source_extension(source, metadata, call, &path)?;
+                        self.source_construction(source)?;
+                        self.source_member(source, metadata, call, &path)?;
                     }
                     crate::HirDependencyCallReasonV1::CastFailure { .. } => {
                         let (constructor, owner) = call
@@ -48,11 +48,10 @@ impl Graph<'_> {
                                 reference.origin(),
                                 provider.metadata.identities,
                                 provider.metadata.public,
-                                meter,
                             )
                             .map_err(|error| Error::RuntimeConstructor(Box::new(error)))?;
-                        self.select(owner, Kind::Construct(constructor), meter)?;
-                        self.select(owner, Kind::Signature, meter)?;
+                        self.select(owner, Kind::Construct(constructor))?;
+                        self.select(owner, Kind::Signature)?;
                     }
                 }
             }

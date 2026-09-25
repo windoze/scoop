@@ -10,14 +10,11 @@ fn source_forms_have_fixed_tags_and_body_requirements() {
         (Form::AbstractSlot, 4, true),
     ] {
         assert_eq!(encode(&form).unwrap(), [tag]);
-        assert_eq!(
-            decode_canonical::<Form>(&[tag], DecodeLimits::default()).unwrap(),
-            form
-        );
+        assert_eq!(decode_canonical::<Form>(&[tag]).unwrap(), form);
         assert_eq!(form.requires_body(), body);
     }
     for tag in [0, 5, 6] {
-        let error = decode_canonical::<Form>(&[tag], DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<Form>(&[tag]).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: tag.into() });
     }
 }
@@ -63,11 +60,7 @@ fn source_accessors_pair_each_identity_with_its_implementation() {
 #[test]
 fn source_accessors_reject_retired_tags_and_incomplete_pairs() {
     for tag in [0, 1, 2, 3, 6] {
-        let error = decode_canonical::<DecodedPropertyAccessorsV1>(
-            &[0xa1, 0, tag],
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error = decode_canonical::<DecodedPropertyAccessorsV1>(&[0xa1, 0, tag]).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: tag.into() });
     }
     let (getter, setter) = accessors();
@@ -75,8 +68,7 @@ fn source_accessors_reject_retired_tags_and_incomplete_pairs() {
     for (index, length, expected) in [(0, 2, 3), (4, 1, 2), (4, 3, 2)] {
         let mut bytes = original.clone();
         bytes[index] = 0xa0 + length;
-        let error = decode_canonical::<DecodedPropertyAccessorsV1>(&bytes, DecodeLimits::default())
-            .unwrap_err();
+        let error = decode_canonical::<DecodedPropertyAccessorsV1>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -87,10 +79,7 @@ fn source_accessors_reject_retired_tags_and_incomplete_pairs() {
     }
     let mut incomplete_setter = original;
     incomplete_setter.pop();
-    assert!(
-        decode_canonical::<DecodedPropertyAccessorsV1>(&incomplete_setter, DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedPropertyAccessorsV1>(&incomplete_setter).is_err());
 }
 
 #[test]
@@ -135,24 +124,8 @@ fn each_source_accessor_must_resolve_through_the_identity_graph() {
     );
 }
 
-#[test]
-fn nested_source_accessors_use_the_shared_decode_budget() {
-    let (getter, setter) = accessors();
-    let bytes = accessor_wire(getter, Form::Storage, Some((setter, Form::Body)));
-    let limits = DecodeLimits {
-        decoded_nodes: 1,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        decode_canonical::<DecodedPropertyAccessorsV1>(&bytes, limits)
-            .unwrap_err()
-            .kind(),
-        WireErrorKind::LimitExceeded { .. }
-    ));
-}
-
 fn decode(bytes: &[u8]) -> DecodedPropertyAccessorsV1 {
-    decode_canonical(bytes, DecodeLimits::default()).unwrap()
+    decode_canonical(bytes).unwrap()
 }
 
 fn accessor_wire(

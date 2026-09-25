@@ -17,9 +17,9 @@ fn restored_slot_sources_replay_methods_accessors_defaults_and_overrides() {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
+            let dispatch = sources.bind(&foundation).unwrap();
 
-            let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
+            let slots = dispatch.bind_slot_sources().unwrap();
             let unit = slots.unit_exact_type().unwrap();
             assert_eq!(
                 foundation.exact_type_key(unit).unwrap(),
@@ -32,9 +32,7 @@ fn restored_slot_sources_replay_methods_accessors_defaults_and_overrides() {
             let mut count = 0;
             for selection in sources.selections.records() {
                 let record = candidate(&slots, *selection);
-                let checked = slots
-                    .validate_contract(selection.owner(), &record, &mut meter())
-                    .unwrap();
+                let checked = slots.validate_contract(selection.owner(), &record).unwrap();
                 assert_eq!(checked.owner(), selection.owner());
                 assert_eq!(checked.record(), &record);
                 count += 1;
@@ -42,57 +40,4 @@ fn restored_slot_sources_replay_methods_accessors_defaults_and_overrides() {
             assert!(count > 0);
         });
     }
-}
-
-#[test]
-fn slot_role_binding_and_replay_share_resource_limits() {
-    with_hir_source(INTERFACES, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let sources = Sources::from_output(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-        let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                dispatch.bind_slot_sources(&mut BudgetMeter::new(limits)),
-                Err(hir::InheritanceSlotSourceBindingError::Resource(_))
-            ));
-        }
-        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
-        let selection = sources.selections.records()[0];
-        let record = candidate(&slots, selection);
-        assert!(
-            slots
-                .validate_contract(
-                    selection.owner(),
-                    &record,
-                    &mut BudgetMeter::new(DecodeLimits {
-                        validation_work_units: 0,
-                        ..DecodeLimits::default()
-                    })
-                )
-                .is_err()
-        );
-    });
 }

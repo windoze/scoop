@@ -1,7 +1,7 @@
 //! Physical binding for v2 references, prior to layout/ABI selection checks.
 
 use scoop_identity::{DecodedPersistentId, PersistentSymbolKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{ExternalStrongShapeSubjectV1, StrongShapeDefinitionRefV1};
@@ -22,10 +22,9 @@ impl StrongTypeReferenceDefinitionsV2 {
     pub fn new(
         consumer: ConeIdentity,
         definitions: &[StrongShapeDefinitionRefV1],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, StrongTypeReferenceResolutionErrorV2> {
         let path = WirePath::root();
-        meter.charge_work((definitions.len() as u64).saturating_mul(64), &path)?;
+
         let mut descriptors = Vec::new();
         let mut callables = Vec::new();
         let descriptor_count = definitions
@@ -37,8 +36,8 @@ impl StrongTypeReferenceDefinitionsV2 {
                 )
             })
             .count();
-        meter.try_reserve_collection_slots(&mut descriptors, descriptor_count, &path)?;
-        meter.try_reserve_collection_slots(
+        scoop_wire::allocation::try_reserve(&mut descriptors, descriptor_count, &path)?;
+        scoop_wire::allocation::try_reserve(
             &mut callables,
             definitions.len() - descriptor_count,
             &path,

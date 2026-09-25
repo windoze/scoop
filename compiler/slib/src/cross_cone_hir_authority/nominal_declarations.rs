@@ -1,7 +1,6 @@
 use super::*;
 use scoop_hir::{DeclaredVisibilityV1, NestedSourceMemberRefV1, NominalInterfaceRecordV1};
 use scoop_identity::DefinitionOriginSubject;
-use scoop_wire::WirePath;
 
 type Error = CrossConeHirNominalAuthorityError;
 
@@ -32,18 +31,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 "definition source differs from its typed declaration",
             ));
         }
-        let path = WirePath::root();
-        self.meter
-            .check_semantic_depth(key.owners().owners().len() as u64 + 1, &path)
-            .map_err(Error::Resource)?;
-        self.charge_declaration_work(
-            key.owners().owners().len()
-                + details.constructors().values().len()
-                + details.members().values().len()
-                + details.children().values().len()
-                + record.members().members().len()
-                + record.nested_bindings().values().len(),
-        )?;
+
         let public = self
             .current_interface
             .nominal_interfaces()
@@ -173,25 +161,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             }
         }
         Ok(())
-    }
-
-    fn charge_declaration_work(&mut self, count: usize) -> Result<(), Error> {
-        let path = WirePath::root();
-        self.meter
-            .check_table_entries(count as u64, &path)
-            .map_err(Error::Resource)?;
-        let size = self
-            .current_interface
-            .nominal_interfaces()
-            .declaration_count() as u64;
-        self.meter
-            .charge_work(
-                (count as u64 + 1)
-                    .saturating_mul(64)
-                    .saturating_mul(u64::from(size.max(1).ilog2()) + 1),
-                &path,
-            )
-            .map_err(Error::Resource)
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::{
     DeclarationAccessSourceResolutionError, ExportConstValueResolutionError,
-    MeteredInterfaceResolutionError, ProtectedPropertyResolutionError,
+    ProtectedPropertyResolutionError,
 };
 use std::fmt;
 
@@ -29,7 +29,7 @@ pub enum NominalSupportPropertyResolutionError<E> {
     Identity(E),
     Source(DeclarationAccessSourceResolutionError<E>),
     Runtime(ProtectedPropertyResolutionError<E>),
-    Const(MeteredInterfaceResolutionError<ExportConstValueResolutionError<E>>),
+    Const(ExportConstValueResolutionError<E>),
     Property(NominalSupportPropertyBuildError),
 }
 impl<E: fmt::Display> fmt::Display for NominalSupportPropertyResolutionError<E> {

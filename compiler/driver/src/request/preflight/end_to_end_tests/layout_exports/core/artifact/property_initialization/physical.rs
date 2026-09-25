@@ -78,7 +78,6 @@ pub(super) fn select<'a>(
                 output.module().cone,
                 &definitions,
                 &support,
-                &mut meter(),
             )
             .unwrap()
         })
@@ -89,7 +88,6 @@ pub(super) fn select<'a>(
         &[layout],
         imports,
         &source,
-        &mut meter(),
     )
     .unwrap();
     let definitions = production
@@ -104,13 +102,9 @@ pub(super) fn select<'a>(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    let projected = scoop_lir_lower::project_external_initialization_uses_v2(
-        mir,
-        &definitions,
-        &selected,
-        &mut meter(),
-    )
-    .unwrap();
+    let projected =
+        scoop_lir_lower::project_external_initialization_uses_v2(mir, &definitions, &selected)
+            .unwrap();
     assert_eq!(projected.len(), uses.len());
     (selected, projected)
 }
@@ -125,17 +119,13 @@ impl<'a> lir::ShapeLinkSupportLookupV1<'a> for InitializationSupport<'a, '_> {
         &self,
         provider: ConeIdentity,
         subject: lir::ExternalStrongShapeSubjectV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<lir::ShapeLinkSupportSourceV1<'a>>, lir::ShapeLinkError> {
         let id = match subject {
             lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(id) => id,
             lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_) => return Ok(None),
             _ => return Err(lir::ShapeLinkError::SupportRelation(subject)),
         };
-        meter.charge_work(
-            (self.uses.len() + self.units.len()) as u64,
-            &scoop_wire::WirePath::root(),
-        )?;
+
         if !self
             .uses
             .iter()

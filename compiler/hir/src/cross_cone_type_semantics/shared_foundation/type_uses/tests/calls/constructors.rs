@@ -1,7 +1,7 @@
 use super::*;
 
 mod negative;
-mod resources;
+
 mod roles;
 
 fn construction(
@@ -63,9 +63,7 @@ fn shared_source_construction_joins_class_struct_and_variant_calls_for_every_pro
             let mut expected = signature_uses(provider.provider(), &[owner]);
             expected.push(construction(provider.provider(), owner, target));
             assert_eq!(actual, selected(expected));
-            consumer
-                .validate(&actual, &dependencies, &mut meter())
-                .unwrap();
+            consumer.validate(&actual, &dependencies).unwrap();
             let references = consumer
                 .metadata()
                 .public
@@ -80,24 +78,18 @@ fn shared_source_construction_joins_class_struct_and_variant_calls_for_every_pro
                     );
                     assert_eq!(call.result(), exact(owner));
                 }
-                let decoded: DecodedExternalHirReferenceV1 = scoop_wire::decode_canonical(
-                    &scoop_wire::encode(reference).unwrap(),
-                    DecodeLimits::default(),
-                )
-                .unwrap();
+                let decoded: DecodedExternalHirReferenceV1 =
+                    scoop_wire::decode_canonical(&scoop_wire::encode(reference).unwrap()).unwrap();
                 assert_eq!(
                     decoded.resolve(&mut consumer.identities).unwrap(),
                     *reference
                 );
             }
-            let decoded: DecodedCanonicalSelectedExternalTypeUsesV1 = scoop_wire::decode_canonical(
-                &scoop_wire::encode(&actual).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded: DecodedCanonicalSelectedExternalTypeUsesV1 =
+                scoop_wire::decode_canonical(&scoop_wire::encode(&actual).unwrap()).unwrap();
             assert_eq!(
                 decoded
-                    .resolve(&mut consumer.identities, &mut meter(), &WirePath::root())
+                    .resolve(&mut consumer.identities, &WirePath::root())
                     .unwrap(),
                 actual
             );
@@ -163,8 +155,6 @@ fn shared_source_construction_combines_zero_argument_variants_members_and_foreig
         member_call(provider.provider(), owner, setter),
     ]);
     assert_eq!(actual, selected(expected));
-    consumer
-        .validate(&actual, &dependencies, &mut meter())
-        .unwrap();
+    consumer.validate(&actual, &dependencies).unwrap();
     snapshot("source-construction-combined", &actual);
 }

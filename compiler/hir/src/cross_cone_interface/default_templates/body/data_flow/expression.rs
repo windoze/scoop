@@ -15,15 +15,12 @@ where
         expression: &DefaultExpressionV1,
         available: &[bool],
         reachable: bool,
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.enter_edge(depth)?;
-        pending.push(LocalWork::Expression { expression, depth });
+
+        pending.push(LocalWork::Expression { expression });
         self.run_local_work(&mut pending, available, reachable)
     }
 
@@ -32,10 +29,9 @@ where
         captures: &[DefaultCaptureV1],
         available: &[bool],
         reachable: bool,
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         let mut pending = Vec::new();
-        self.push_captures(&mut pending, captures, parent_depth)?;
+        self.push_captures(&mut pending, captures)?;
         self.run_local_work(&mut pending, available, reachable)
     }
 
@@ -47,16 +43,10 @@ where
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         while let Some(work) = pending.pop() {
             match work {
-                LocalWork::Expression { expression, depth } => {
-                    self.enter_node(depth)?;
-                    self.process_expression(expression, depth, pending, available, reachable)?;
+                LocalWork::Expression { expression } => {
+                    self.process_expression(expression, pending, available, reachable)?;
                 }
-                LocalWork::Capture {
-                    capture,
-                    index,
-                    depth,
-                } => {
-                    self.enter_node(depth)?;
+                LocalWork::Capture { capture, index } => {
                     let local_index = self.use_local(
                         capture.source(),
                         Some(capture.value_type()),
@@ -79,7 +69,6 @@ where
     fn process_expression<'body>(
         &mut self,
         expression: &'body DefaultExpressionV1,
-        depth: u64,
         pending: &mut Vec<LocalWork<'body>>,
         available: &[bool],
         reachable: bool,
@@ -108,16 +97,16 @@ where
             }
             DefaultExpressionKindV1::TupleLiteral(elements)
             | DefaultExpressionKindV1::ArrayLiteral(elements) => {
-                self.push_expressions(pending, elements, depth)
+                self.push_expressions(pending, elements)
             }
             DefaultExpressionKindV1::StructInit { arguments, .. }
             | DefaultExpressionKindV1::ClassInit { arguments, .. }
             | DefaultExpressionKindV1::VariantConstruct { arguments, .. }
             | DefaultExpressionKindV1::Call { arguments, .. } => {
-                self.push_expressions(pending, arguments, depth)
+                self.push_expressions(pending, arguments)
             }
             DefaultExpressionKindV1::StructConstruct { fields, .. } => {
-                self.push_expressions(pending, fields, depth)
+                self.push_expressions(pending, fields)
             }
             DefaultExpressionKindV1::VariantTest { operand, .. }
             | DefaultExpressionKindV1::VariantPayloadProject { operand, .. }
@@ -148,24 +137,24 @@ where
             | DefaultExpressionKindV1::SomeWrap(operand)
             | DefaultExpressionKindV1::IsSome(operand)
             | DefaultExpressionKindV1::Unwrap { operand, .. } => {
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             DefaultExpressionKindV1::PtrLoad { pointer, offset } => {
                 if let Some(offset) = offset.as_ref() {
-                    self.push_expression(pending, offset, depth)?;
+                    self.push_expression(pending, offset)?;
                 }
-                self.push_expression(pending, pointer, depth)
+                self.push_expression(pending, pointer)
             }
             DefaultExpressionKindV1::PtrStore {
                 pointer,
                 offset,
                 value,
             } => {
-                self.push_expression(pending, value, depth)?;
+                self.push_expression(pending, value)?;
                 if let Some(offset) = offset.as_ref() {
-                    self.push_expression(pending, offset, depth)?;
+                    self.push_expression(pending, offset)?;
                 }
-                self.push_expression(pending, pointer, depth)
+                self.push_expression(pending, pointer)
             }
             DefaultExpressionKindV1::PtrOffset {
                 pointer, offset, ..
@@ -185,8 +174,8 @@ where
                 rhs: offset,
                 ..
             } => {
-                self.push_expression(pending, offset, depth)?;
-                self.push_expression(pending, pointer, depth)
+                self.push_expression(pending, offset)?;
+                self.push_expression(pending, pointer)
             }
             DefaultExpressionKindV1::AddressOf(place) => {
                 if let DefaultPlaceV1::Local { local } = place {
@@ -210,21 +199,21 @@ where
                 arguments,
                 ..
             } => {
-                self.push_expressions(pending, arguments, depth)?;
-                self.push_expression(pending, receiver, depth)
+                self.push_expressions(pending, arguments)?;
+                self.push_expression(pending, receiver)
             }
             DefaultExpressionKindV1::Lambda(lambda) => {
-                self.push_captures(pending, lambda.captures(), depth)
+                self.push_captures(pending, lambda.captures())
             }
             DefaultExpressionKindV1::AnonymousFunction(function) => {
-                self.push_captures(pending, function.captures(), depth)
+                self.push_captures(pending, function.captures())
             }
             DefaultExpressionKindV1::CallableReference(reference) => {
-                self.push_captures(pending, reference.captures(), depth)?;
+                self.push_captures(pending, reference.captures())?;
                 match reference.target() {
                     DefaultCallableReferenceTargetV1::BoundMember { receiver, .. }
                     | DefaultCallableReferenceTargetV1::BoundExtension { receiver, .. } => {
-                        self.push_expression(pending, receiver, depth)
+                        self.push_expression(pending, receiver)
                     }
                     DefaultCallableReferenceTargetV1::Named(_)
                     | DefaultCallableReferenceTargetV1::Local { .. } => Ok(()),
@@ -235,7 +224,7 @@ where
                     match part {
                         DefaultArrayAssemblyPartV1::Element(value)
                         | DefaultArrayAssemblyPartV1::CopyArray(value) => {
-                            self.push_expression(pending, value, depth)?;
+                            self.push_expression(pending, value)?;
                         }
                     }
                 }
@@ -247,31 +236,29 @@ where
                 value,
                 ..
             } => {
-                self.push_expression(pending, value, depth)?;
-                self.push_expression(pending, index, depth)?;
-                self.push_expression(pending, receiver, depth)
+                self.push_expression(pending, value)?;
+                self.push_expression(pending, index)?;
+                self.push_expression(pending, receiver)
             }
             DefaultExpressionKindV1::LocalFunctionCall {
                 captures,
                 arguments,
                 ..
             } => {
-                self.push_expressions(pending, arguments, depth)?;
-                self.push_expressions(pending, captures, depth)
+                self.push_expressions(pending, arguments)?;
+                self.push_expressions(pending, captures)
             }
             DefaultExpressionKindV1::CallableCall {
                 callee, arguments, ..
             } => {
-                self.push_expressions(pending, arguments, depth)?;
-                self.push_expression(pending, callee, depth)
+                self.push_expressions(pending, arguments)?;
+                self.push_expression(pending, callee)
             }
             DefaultExpressionKindV1::IntegerOperation { arguments, .. } => match arguments {
-                DefaultIntegerArgumentsV1::Unary(operand) => {
-                    self.push_expression(pending, operand, depth)
-                }
+                DefaultIntegerArgumentsV1::Unary(operand) => self.push_expression(pending, operand),
                 DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
-                    self.push_expression(pending, rhs, depth)?;
-                    self.push_expression(pending, lhs, depth)
+                    self.push_expression(pending, rhs)?;
+                    self.push_expression(pending, lhs)
                 }
             },
         }
@@ -281,14 +268,11 @@ where
         &mut self,
         pending: &mut Vec<LocalWork<'body>>,
         expression: &'body DefaultExpressionV1,
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
-        self.meter
-            .try_reserve_collection_slots(pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(pending, 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-        self.enter_edge(depth)?;
-        pending.push(LocalWork::Expression { expression, depth });
+
+        pending.push(LocalWork::Expression { expression });
         Ok(())
     }
 
@@ -296,10 +280,9 @@ where
         &mut self,
         pending: &mut Vec<LocalWork<'body>>,
         expressions: &'body [DefaultExpressionV1],
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         for expression in expressions.iter().rev() {
-            self.push_expression(pending, expression, parent_depth)?;
+            self.push_expression(pending, expression)?;
         }
         Ok(())
     }
@@ -308,19 +291,12 @@ where
         &mut self,
         pending: &mut Vec<LocalWork<'body>>,
         captures: &'body [DefaultCaptureV1],
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
         for (index, capture) in captures.iter().enumerate().rev() {
-            self.meter
-                .try_reserve_collection_slots(pending, 1, self.path)
+            scoop_wire::allocation::try_reserve(pending, 1, self.path)
                 .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
-            self.enter_edge(depth)?;
-            pending.push(LocalWork::Capture {
-                capture,
-                index,
-                depth,
-            });
+
+            pending.push(LocalWork::Capture { capture, index });
         }
         Ok(())
     }
@@ -329,11 +305,9 @@ where
 enum LocalWork<'a> {
     Expression {
         expression: &'a DefaultExpressionV1,
-        depth: u64,
     },
     Capture {
         capture: &'a DefaultCaptureV1,
         index: usize,
-        depth: u64,
     },
 }

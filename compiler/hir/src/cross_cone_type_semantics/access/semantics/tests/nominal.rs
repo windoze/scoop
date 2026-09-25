@@ -15,15 +15,9 @@ fn nominal_regions_replay_modality_and_never_acquire_a_callable_slot() {
     let interface = fixture.add("Interface", SourceNominalKind::Interface, &[]);
     let value = fixture.add("Value", SourceNominalKind::Struct, &[]);
     let object = fixture.add("Object", SourceNominalKind::Object, &[]);
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        fixture.records.values(),
-        &fixture,
-        &mut meter(),
-    )
-    .unwrap();
-    let domains = graph
-        .replay_nominal_domains(open.exact, &mut meter())
-        .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(fixture.records.values(), &fixture).unwrap();
+    let domains = graph.replay_nominal_domains(open.exact).unwrap();
     assert_eq!(
         domains.lookup().domain(),
         &domain(vec![Constraint::Cone(ConeIdentity::CORE)])
@@ -37,7 +31,7 @@ fn nominal_regions_replay_modality_and_never_acquire_a_callable_slot() {
     );
     assert!(domains.to_record().slot().domain().is_empty());
     graph
-        .validate_nominal_domains(open.exact, &domains.to_record(), &mut meter())
+        .validate_nominal_domains(open.exact, &domains.to_record())
         .unwrap();
     let tampered = NominalAccessDomainsV1::new(
         PersistentLookupDomainV1::new(domains.lookup().domain().clone()),
@@ -45,13 +39,13 @@ fn nominal_regions_replay_modality_and_never_acquire_a_callable_slot() {
         PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal()),
     );
     assert!(matches!(
-        graph.validate_nominal_domains(open.exact, &tampered, &mut meter()),
+        graph.validate_nominal_domains(open.exact, &tampered),
         Err(AccessDomainSemanticError::NominalDomains)
     ));
     for node in [final_class, value, object] {
         assert!(
             graph
-                .replay_nominal_domains(node.exact, &mut meter())
+                .replay_nominal_domains(node.exact)
                 .unwrap()
                 .inheritance()
                 .domain()
@@ -60,7 +54,7 @@ fn nominal_regions_replay_modality_and_never_acquire_a_callable_slot() {
     }
     assert!(
         graph
-            .replay_nominal_domains(interface.exact, &mut meter())
+            .replay_nominal_domains(interface.exact)
             .unwrap()
             .inheritance()
             .domain()

@@ -71,14 +71,7 @@ impl Preparer {
         for (identity, node) in self.parts.nodes {
             let prepared = match node {
                 GraphNode::ManifestSource(manifest) => {
-                    let snapshot = capture_manifest_source(
-                        *manifest,
-                        self.parts
-                            .context
-                            .limits
-                            .artifact_decode()
-                            .semantic_leaf_bytes,
-                    )?;
+                    let snapshot = capture_manifest_source(*manifest)?;
                     let input_root =
                         materialize_manifest_snapshot(&self.staging, identity, &snapshot)?;
                     let output_path = self
@@ -151,12 +144,9 @@ impl Preparer {
 
 fn capture_manifest_source(
     manifest: LoadedConeManifest,
-
-    manifest_byte_limit: u64,
 ) -> Result<ManifestSourceSnapshot, PrepareBuildGraphError> {
-    let manifest_input =
-        ImmutableInputSnapshot::capture(manifest.manifest_path(), manifest_byte_limit)
-            .map_err(PrepareBuildGraphError::ManifestSnapshot)?;
+    let manifest_input = ImmutableInputSnapshot::capture(manifest.manifest_path())
+        .map_err(PrepareBuildGraphError::ManifestSnapshot)?;
     if manifest_input.as_bytes() != manifest.source_bytes() {
         return Err(PrepareBuildGraphError::ManifestChanged(
             manifest.manifest_path().to_path_buf(),
@@ -253,21 +243,16 @@ fn prepare_artifact_candidate(
     staging: &PreparedStaging,
 ) -> Result<PreparedArtifactCandidate, PrepareBuildGraphError> {
     let (source_locator, expected_summary) = candidate.into_parts();
-    let input = ImmutableInputSnapshot::capture(
-        &source_locator,
-        context.limits.artifact_decode().owned_bytes,
-    )
-    .map_err(|source| PrepareBuildGraphError::ArtifactSnapshot {
-        path: source_locator.clone(),
-        source,
+    let input = ImmutableInputSnapshot::capture(&source_locator).map_err(|source| {
+        PrepareBuildGraphError::ArtifactSnapshot {
+            path: source_locator.clone(),
+            source,
+        }
     })?;
 
     let snapshot = Arc::new(ArtifactSnapshot::from_shared(input.shared_bytes()));
     let summary = snapshot
-        .probe_prebuilt_summary(
-            context.limits.artifact_decode(),
-            context.target.lir_target_selection(),
-        )
+        .probe_prebuilt_summary(context.target.lir_target_selection())
         .map_err(|source| PrepareBuildGraphError::ArtifactSummary {
             path: source_locator.clone(),
             source,

@@ -1,5 +1,5 @@
 use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::super::{ProtectedDefaultReferenceKindV1 as Kind, ProtectedDefaultReferenceSetV1};
 use super::{
@@ -24,16 +24,16 @@ pub(super) struct Domains<'a> {
 impl<'a> Domains<'a> {
     pub fn new(
         references: &'a ProtectedDefaultReferenceSetV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, WireError> {
         Ok(Self {
-            callables: Domain::new(references.callables(), Kind::Callable, meter, path)?,
-            constructors: Domain::new(references.constructors(), Kind::Constructor, meter, path)?,
-            types: Domain::new(references.types(), Kind::Type, meter, path)?,
-            globals: Domain::new(references.globals(), Kind::Global, meter, path)?,
-            singletons: Domain::new(references.singleton_values(), Kind::Singleton, meter, path)?,
-            fields: Domain::new(references.fields(), Kind::Field, meter, path)?,
+            callables: Domain::new(references.callables(), Kind::Callable, path)?,
+            constructors: Domain::new(references.constructors(), Kind::Constructor, path)?,
+            types: Domain::new(references.types(), Kind::Type, path)?,
+            globals: Domain::new(references.globals(), Kind::Global, path)?,
+            singletons: Domain::new(references.singleton_values(), Kind::Singleton, path)?,
+            fields: Domain::new(references.fields(), Kind::Field, path)?,
         })
     }
     #[allow(clippy::too_many_arguments)]
@@ -44,7 +44,7 @@ impl<'a> Domains<'a> {
         template_receiver: &OptionalTemplateReceiverV1,
         collected: &Collected<'_>,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ProtectedDefaultBodyClosureError<E>> {
         if matches!(
@@ -57,8 +57,6 @@ impl<'a> Domains<'a> {
             occurrence,
             template_receiver,
             &collected.expressions,
-            meter,
-            path,
         )
         .map_err(|error| match error {
             receiver::DefaultReferenceReceiverError::Resource(error) => {
@@ -79,41 +77,35 @@ impl<'a> Domains<'a> {
                     receiver,
                     $compare,
                     authority,
-                    meter,
                     path,
                 )
             };
         }
         match occurrence.target {
-            Target::Callable(target) => observe!(callables, |record, meter, path| target
-                .compare_to(record, meter, path)),
-            Target::Constructor(target) => observe!(constructors, |record, meter, path| target
-                .compare_to(record, meter, path)),
-            Target::Field(target) => observe!(fields, |record, meter, path| target
-                .compare_to(record, meter, path)),
-            Target::Type(target) => observe!(types, |record, meter, path| {
-                compare_default_signature_reference_targets(target, record, meter, path)
+            Target::Callable(target) => {
+                observe!(callables, |record, path| target.compare_to(record, path))
+            }
+            Target::Constructor(target) => {
+                observe!(constructors, |record, path| target.compare_to(record, path))
+            }
+            Target::Field(target) => {
+                observe!(fields, |record, path| target.compare_to(record, path))
+            }
+            Target::Type(target) => observe!(types, |record, path| {
+                compare_default_signature_reference_targets(target, record, path)
             }),
-            Target::Global(target) => observe!(globals, |record, meter, path| {
-                meter.charge_work(1, path)?;
-                Ok(target.cmp(record))
-            }),
-            Target::Singleton(target) => observe!(singletons, |record, meter, path| {
-                meter.charge_work(1, path)?;
-                Ok(target.cmp(record))
-            }),
+            Target::Global(target) => observe!(globals, |record, _path| Ok(target.cmp(record))),
+            Target::Singleton(target) => {
+                observe!(singletons, |record, _path| Ok(target.cmp(record)))
+            }
         }
     }
-    pub fn finish<E>(
-        &self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ProtectedDefaultBodyClosureError<E>> {
-        self.callables.finish(meter, path)?;
-        self.constructors.finish(meter, path)?;
-        self.types.finish(meter, path)?;
-        self.globals.finish(meter, path)?;
-        self.singletons.finish(meter, path)?;
-        self.fields.finish(meter, path)
+    pub fn finish<E>(&self) -> Result<(), ProtectedDefaultBodyClosureError<E>> {
+        self.callables.finish()?;
+        self.constructors.finish()?;
+        self.types.finish()?;
+        self.globals.finish()?;
+        self.singletons.finish()?;
+        self.fields.finish()
     }
 }

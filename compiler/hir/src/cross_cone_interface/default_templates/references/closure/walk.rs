@@ -15,13 +15,10 @@ mod statement;
 impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
     pub(super) fn walk_body(&mut self, body: &'body ExportDefaultBodyV1) -> Result<(), V::Error> {
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
-            .map_err(V::Error::from)?;
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path).map_err(V::Error::from)?;
         pending.push(ScheduledWork {
             work: WorkItem::Body {
                 node: BodyNode::Body(body),
-                depth: 1,
             },
             attachment: self.current,
         });
@@ -29,17 +26,15 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         while let Some(ScheduledWork { work, attachment }) = pending.pop() {
             self.current = attachment;
             match work {
-                WorkItem::Body { node, depth } => {
-                    self.enter_node(depth)?;
+                WorkItem::Body { node } => {
                     self.attach_node(node)?;
-                    self.process_node(node, depth, &mut pending)?;
+                    self.process_node(node, &mut pending)?;
                 }
                 WorkItem::Type {
                     target,
                     origin,
                     site,
                 } => {
-                    self.enter_node(1)?;
                     self.observe(Target::Type(target), origin, site)?;
                 }
                 WorkItem::Callable {
@@ -47,7 +42,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     site,
                 } => {
-                    self.enter_node(1)?;
                     self.observe(Target::Callable(target), origin, site)?;
                 }
                 WorkItem::Constructor {
@@ -55,7 +49,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     site,
                 } => {
-                    self.enter_node(1)?;
                     self.observe(Target::Constructor(target), origin, site)?;
                 }
                 WorkItem::Global {
@@ -63,7 +56,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     site,
                 } => {
-                    self.enter_node(1)?;
                     self.observe(Target::Global(target), origin, site)?;
                 }
                 WorkItem::Singleton {
@@ -71,7 +63,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     site,
                 } => {
-                    self.enter_node(1)?;
                     self.observe(Target::Singleton(target), origin, site)?;
                 }
                 WorkItem::Field {
@@ -79,7 +70,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     site,
                 } => {
-                    self.enter_node(1)?;
                     self.observe(Target::Field(target), origin, site)?;
                 }
             }
@@ -90,37 +80,34 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn process_node(
         &mut self,
         node: BodyNode<'body>,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match node {
-            BodyNode::Body(body) => self.process_body(body, depth, pending),
-            BodyNode::Statement(statement) => self.process_statement(statement, depth, pending),
-            BodyNode::Expression(expression) => self.process_expression(expression, depth, pending),
-            BodyNode::Pattern { pattern, origin } => {
-                self.process_pattern(pattern, origin, depth, pending)
-            }
+            BodyNode::Body(body) => self.process_body(body, pending),
+            BodyNode::Statement(statement) => self.process_statement(statement, pending),
+            BodyNode::Expression(expression) => self.process_expression(expression, pending),
+            BodyNode::Pattern { pattern, origin } => self.process_pattern(pattern, origin, pending),
             BodyNode::AssignTarget { target, origin } => {
-                self.process_assign_target(target, origin, depth, pending)
+                self.process_assign_target(target, origin, pending)
             }
-            BodyNode::When { value, origin } => self.process_when(value, origin, depth, pending),
-            BodyNode::WhenArm(arm) => self.process_when_arm(arm, depth, pending),
-            BodyNode::WhenGuard(guard) => self.process_when_guard(guard, depth, pending),
+            BodyNode::When { value, origin } => self.process_when(value, origin, pending),
+            BodyNode::WhenArm(arm) => self.process_when_arm(arm, pending),
+            BodyNode::WhenGuard(guard) => self.process_when_guard(guard, pending),
             BodyNode::WhenFallback { fallback, origin } => {
-                self.process_when_fallback(fallback, origin, depth, pending)
+                self.process_when_fallback(fallback, origin, pending)
             }
-            BodyNode::Try(value) => self.process_try(value, depth, pending),
-            BodyNode::Catch(catch) => self.process_catch(catch, depth, pending),
-            BodyNode::For { plan, origin } => self.process_for(plan, origin, depth, pending),
+            BodyNode::Try(value) => self.process_try(value, pending),
+            BodyNode::Catch(catch) => self.process_catch(catch, pending),
+            BodyNode::For { plan, origin } => self.process_for(plan, origin, pending),
             BodyNode::BindingPlan { plan, origin } => {
-                self.process_binding_plan(plan, origin, depth, pending)
+                self.process_binding_plan(plan, origin, pending)
             }
-            BodyNode::BindingAction(action) => self.process_binding_action(action, depth, pending),
+            BodyNode::BindingAction(action) => self.process_binding_action(action, pending),
             BodyNode::BindingShape { shape, origin } => {
-                self.process_binding_shape(shape, origin, depth, pending)
+                self.process_binding_shape(shape, origin, pending)
             }
             BodyNode::BindingProjection { projection, origin } => {
-                self.process_binding_projection(projection, origin, depth, pending)
+                self.process_binding_projection(projection, origin, pending)
             }
             BodyNode::BindingTemporary { value_type, origin } => self.push_type(
                 pending,
@@ -135,42 +122,40 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 crate::DefaultBodyProviderTypeSiteV1::BindingLeafValue,
             ),
             BodyNode::IteratorConformance(conformance) => {
-                self.process_iterator_conformance(conformance, depth, pending)
+                self.process_iterator_conformance(conformance, pending)
             }
-            BodyNode::IteratorNext(next) => self.process_iterator_next(next, depth, pending),
+            BodyNode::IteratorNext(next) => self.process_iterator_next(next, pending),
             BodyNode::AppliedOption { option, origin } => {
-                self.process_applied_option(option, origin, depth, pending)
+                self.process_applied_option(option, origin, pending)
             }
             BodyNode::LocalFunction { function, origin } => {
-                self.process_local_function(function, origin, depth, pending)
+                self.process_local_function(function, origin, pending)
             }
-            BodyNode::Lambda { lambda, origin } => {
-                self.process_lambda(lambda, origin, depth, pending)
-            }
+            BodyNode::Lambda { lambda, origin } => self.process_lambda(lambda, origin, pending),
             BodyNode::Anonymous { function, origin } => {
-                self.process_anonymous(function, origin, depth, pending)
+                self.process_anonymous(function, origin, pending)
             }
             BodyNode::CallableReference { reference, origin } => {
-                self.process_callable_reference(reference, origin, depth, pending)
+                self.process_callable_reference(reference, origin, pending)
             }
             BodyNode::Capture(capture) => self.process_capture(capture, pending),
             BodyNode::CallableUse { callable, origin } => {
-                self.process_callable_use(callable, origin, depth, pending)
+                self.process_callable_use(callable, origin, pending)
             }
             BodyNode::CallableShape { callable, origin } => {
                 self.process_callable_shape(callable, origin, pending)
             }
             BodyNode::BoundCallableUse { callable, origin } => {
-                self.process_bound_callable_use(callable, origin, depth, pending)
+                self.process_bound_callable_use(callable, origin, pending)
             }
             BodyNode::BoundCallableShape { callable, origin } => {
-                self.process_bound_callable_shape(callable, origin, depth, pending)
+                self.process_bound_callable_shape(callable, origin, pending)
             }
             BodyNode::MethodCallee { callee, origin } => {
-                self.process_method_callee(callee, origin, depth, pending)
+                self.process_method_callee(callee, origin, pending)
             }
             BodyNode::MethodCalleeShape { callee, origin } => {
-                self.process_method_callee_shape(callee, origin, depth, pending)
+                self.process_method_callee_shape(callee, origin, pending)
             }
             BodyNode::ConstructorUse {
                 target,
@@ -188,13 +173,13 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 site,
             } => self.process_field_use(target, origin, site, pending),
             BodyNode::LiteralEquality { equality, origin } => {
-                self.process_literal_equality(equality, origin, depth, pending)
+                self.process_literal_equality(equality, origin, pending)
             }
             BodyNode::ArrayAssembly { assembly, origin } => {
-                self.process_array_assembly(assembly, origin, depth, pending)
+                self.process_array_assembly(assembly, origin, pending)
             }
             BodyNode::IntegerArguments(arguments) => {
-                self.process_integer_arguments(arguments, depth, pending)
+                self.process_integer_arguments(arguments, pending)
             }
         }
     }
@@ -202,10 +187,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn process_body(
         &mut self,
         body: &'body ExportDefaultBodyV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        self.push_child(pending, depth, BodyNode::Expression(body.value()))?;
-        self.push_statements(pending, depth, body.statements())
+        self.push_child(pending, BodyNode::Expression(body.value()))?;
+        self.push_statements(pending, body.statements())
     }
 }

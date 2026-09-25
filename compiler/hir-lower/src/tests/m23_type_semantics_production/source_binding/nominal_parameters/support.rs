@@ -22,15 +22,12 @@ impl Sources {
         let constructors = hir::CanonicalNominalSourceConstructorsV1::from_export_hir(
             &output.output().export,
             &required,
-            &mut meter(),
         )
         .unwrap();
         let bytes = encode(&constructors).unwrap();
         let decoded: hir::DecodedCanonicalNominalSourceConstructorsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let constructors = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&bytes).unwrap();
+        let constructors = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(encode(&constructors).unwrap(), bytes);
         let required = constructors
             .records()
@@ -45,14 +42,11 @@ impl Sources {
                     .filter(|o| !matches!(o, CallableTemplateOrigin::Accessor(_))),
             )
             .collect();
-        let protocols =
-            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let protocols = Table::from_export_hir(&output.output().export, &required).unwrap();
         let bytes = encode(&protocols).unwrap();
         let decoded: hir::DecodedCanonicalNominalSourceParameterProtocolsV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let protocols = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&bytes).unwrap();
+        let protocols = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(encode(&protocols).unwrap(), bytes);
         Self {
             members,
@@ -70,18 +64,13 @@ impl Sources {
         ) -> R,
     ) -> R {
         let nominals = foundation
-            .bind_nominal_sources(&self.members.nominals, &mut meter())
+            .bind_nominal_sources(&self.members.nominals)
             .unwrap();
         let members = nominals
-            .bind_member_sources(
-                &self.members.properties,
-                &self.members.callables,
-                core,
-                &mut meter(),
-            )
+            .bind_member_sources(&self.members.properties, &self.members.callables, core)
             .unwrap();
         let constructors = nominals
-            .bind_constructor_sources(&self.constructors, &mut meter())
+            .bind_constructor_sources(&self.constructors)
             .unwrap();
         run(&members, &constructors)
     }
@@ -101,7 +90,6 @@ impl Sources {
                     }
                 })
                 .collect(),
-            &mut meter(),
         )
         .unwrap()
     }

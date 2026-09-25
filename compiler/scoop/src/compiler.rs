@@ -11,10 +11,6 @@ use scoop_wire::{Digest256, Encoder, HashError, WireEncode};
 
 use crate::{ImmutableInputSnapshot, PairedScoopcLocator, SnapshotFileError};
 
-const MAX_PAIRED_COMPILER_BYTES: u64 = 1_073_741_824;
-const MAX_CAPABILITY_STDOUT_BYTES: u64 = 4_096;
-const MAX_CAPABILITY_STDERR_BYTES: u64 = 65_536;
-
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct PairedCompilerFingerprintV1 {
     executable_sha256: Digest256,
@@ -69,12 +65,11 @@ pub struct ResolvedPairedScoopc {
 
 impl ResolvedPairedScoopc {
     pub fn resolve(locator: &PairedScoopcLocator) -> Result<Self, PairedCompilerError> {
-        let executable =
-            ImmutableInputSnapshot::capture(locator.as_path(), MAX_PAIRED_COMPILER_BYTES)
-                .map_err(PairedCompilerError::Snapshot)?;
+        let executable = ImmutableInputSnapshot::capture(locator.as_path())
+            .map_err(PairedCompilerError::Snapshot)?;
         ensure_executable(executable.resolved_path())?;
         let output = invoke_capability(executable.resolved_path())?;
-        let after = ImmutableInputSnapshot::capture(locator.as_path(), MAX_PAIRED_COMPILER_BYTES)
+        let after = ImmutableInputSnapshot::capture(locator.as_path())
             .map_err(PairedCompilerError::Snapshot)?;
         if executable.resolved_path() != after.resolved_path()
             || executable.digest() != after.digest()
@@ -132,11 +127,8 @@ impl ResolvedPairedScoopc {
     }
 
     pub(crate) fn revalidate_executable(&self) -> Result<(), PairedCompilerError> {
-        let after = ImmutableInputSnapshot::capture(
-            self.executable.source_locator(),
-            MAX_PAIRED_COMPILER_BYTES,
-        )
-        .map_err(PairedCompilerError::Snapshot)?;
+        let after = ImmutableInputSnapshot::capture(self.executable.source_locator())
+            .map_err(PairedCompilerError::Snapshot)?;
         if self.executable.resolved_path() != after.resolved_path()
             || self.executable.digest() != after.digest()
         {
@@ -194,12 +186,8 @@ fn invoke_capability(executable: &Path) -> Result<CapabilityOutput, PairedCompil
         .stderr
         .take()
         .ok_or(PairedCompilerError::MissingPipe("stderr"))?;
-    let stdout_thread = std::thread::spawn(move || {
-        read_bounded_stream(stdout, "stdout", MAX_CAPABILITY_STDOUT_BYTES)
-    });
-    let stderr_thread = std::thread::spawn(move || {
-        read_bounded_stream(stderr, "stderr", MAX_CAPABILITY_STDERR_BYTES)
-    });
+    let stdout_thread = std::thread::spawn(move || read_stream(stdout, "stdout"));
+    let stderr_thread = std::thread::spawn(move || read_stream(stderr, "stderr"));
     let status = child.wait().map_err(PairedCompilerError::Wait)?;
     let stdout = stdout_thread
         .join()
@@ -214,28 +202,11 @@ fn invoke_capability(executable: &Path) -> Result<CapabilityOutput, PairedCompil
     })
 }
 
-fn read_bounded_stream(
-    stream: impl Read,
-    name: &'static str,
-    limit: u64,
-) -> Result<Vec<u8>, PairedCompilerError> {
-    let read_limit = limit
-        .checked_add(1)
-        .ok_or(PairedCompilerError::StreamLengthOverflow(name))?;
+fn read_stream(mut stream: impl Read, name: &'static str) -> Result<Vec<u8>, PairedCompilerError> {
     let mut bytes = Vec::new();
     stream
-        .take(read_limit)
         .read_to_end(&mut bytes)
         .map_err(|source| PairedCompilerError::ReadStream { name, source })?;
-    let observed =
-        u64::try_from(bytes.len()).map_err(|_| PairedCompilerError::StreamLengthOverflow(name))?;
-    if observed > limit {
-        return Err(PairedCompilerError::StreamTooLarge {
-            name,
-            limit,
-            observed,
-        });
-    }
     Ok(bytes)
 }
 
@@ -257,12 +228,6 @@ pub enum PairedCompilerError {
     ReadStream {
         name: &'static str,
         source: std::io::Error,
-    },
-    StreamLengthOverflow(&'static str),
-    StreamTooLarge {
-        name: &'static str,
-        limit: u64,
-        observed: u64,
     },
     ReaderPanicked(&'static str),
     Changed {
@@ -323,17 +288,6 @@ impl fmt::Display for PairedCompilerError {
             Self::ReadStream { name, source } => {
                 write!(formatter, "cannot read paired compiler {name}: {source}")
             }
-            Self::StreamLengthOverflow(name) => {
-                write!(formatter, "paired compiler {name} length overflowed")
-            }
-            Self::StreamTooLarge {
-                name,
-                limit,
-                observed,
-            } => write!(
-                formatter,
-                "paired compiler {name} exceeds byte limit {limit}: observed {observed}"
-            ),
             Self::ReaderPanicked(name) => {
                 write!(formatter, "paired compiler {name} reader panicked")
             }

@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentFunctionId, PersistentGenericFunctionId, PersistentTypeId, SignatureTypeKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{
@@ -218,11 +218,8 @@ fn producer_rejects_invalid_dispatch_and_extern_contracts() {
 fn reader_replays_effect_and_record_invariants() {
     let fixture = Fixture::new();
     let record = fixture.record();
-    let decoded: DecodedCallableInterfaceRecordV1 = decode_canonical(
-        &encode(&InvalidEffectsRecord(&record)).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedCallableInterfaceRecordV1 =
+        decode_canonical(&encode(&InvalidEffectsRecord(&record)).unwrap()).unwrap();
     let mut authority = fixture.authority();
     assert!(matches!(
         decoded.resolve(&mut authority),
@@ -240,8 +237,7 @@ fn reader_replays_effect_and_record_invariants() {
             .as_slice(),
     ]
     .concat();
-    let decoded: DecodedCallableInterfaceRecordV1 =
-        decode_canonical(&invalid_access, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCallableInterfaceRecordV1 = decode_canonical(&invalid_access).unwrap();
     let mut authority = fixture.authority();
     assert!(matches!(
         decoded.resolve(&mut authority),
@@ -268,9 +264,7 @@ fn reader_reports_missing_typed_declaration_authority() {
 
 #[test]
 fn reader_requires_the_exact_record_map_shape() {
-    let error =
-        decode_canonical::<DecodedCallableInterfaceRecordV1>(&[0xa0], DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedCallableInterfaceRecordV1>(&[0xa0]).unwrap_err();
 
     assert!(matches!(
         error.kind(),
@@ -377,7 +371,7 @@ fn build_record(
 }
 
 fn decode_record(value: &CallableInterfaceRecordV1) -> DecodedCallableInterfaceRecordV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn one_binder() -> CanonicalBinderListV1 {

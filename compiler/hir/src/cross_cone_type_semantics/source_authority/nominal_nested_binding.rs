@@ -1,7 +1,7 @@
 //! Complete recursive source support joined to one artifact's bound declarations.
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity};
-use scoop_wire::{BudgetMeter, WireEncode, WireError, WirePath};
+use scoop_wire::{WireEncode, WireError};
 use std::collections::BTreeMap;
 
 mod contracts;
@@ -56,7 +56,6 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         candidate: &'c NominalSupportNestedInterfaceV1,
         protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
         representations: &'c CanonicalNominalRepresentationSupportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNestedNominalSourceV1<'c, 'p, 's, 'a, 'f>, Error> {
         let foundation = self.members().nominals.foundation;
         let entries = foundation.source().entries();
@@ -64,7 +63,6 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
             entries.local_inheritance_edges.records().iter(),
             entries.source_roots.values().iter().copied(),
             foundation,
-            meter,
         )
         .map_err(Error::from_graph)?;
         let mut checked = BoundNestedNominalSourceV1 {
@@ -75,7 +73,7 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
             representations,
             protocols: BTreeMap::new(),
         };
-        replay::validate(self, candidate, protocols, &graph, &mut checked, meter, 1)?;
+        replay::validate(self, candidate, protocols, &graph, &mut checked)?;
         Ok(checked)
     }
 }
@@ -84,20 +82,9 @@ pub(super) fn compare<T: WireEncode + PartialEq>(
     expected: &T,
     declaration: NestedSupportDeclarationV1,
     field: &'static str,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    let path = WirePath::root();
-    let bytes = scoop_wire::encoded_length(actual)
-        .map_err(Error::Encoding)?
-        .saturating_add(scoop_wire::encoded_length(expected).map_err(Error::Encoding)?);
-    meter.charge_nodes(1, &path)?;
-    meter.charge_work(bytes, &path)?;
     if actual != expected {
         return Err(Error::Contract { declaration, field });
     }
-    Ok(())
-}
-pub(super) fn query(length: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    meter.charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())?;
     Ok(())
 }

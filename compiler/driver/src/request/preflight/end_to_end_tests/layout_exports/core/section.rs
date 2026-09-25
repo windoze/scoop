@@ -14,7 +14,6 @@ pub(super) fn check<'a>(
             callables: &[],
             dispatch: &[],
         },
-        &mut meter(),
     )
     .unwrap();
     let incomplete = mir::MirTypeBridgeExportConstituentsV1::new(
@@ -26,12 +25,7 @@ pub(super) fn check<'a>(
         exports.initialization_uses().clone(),
     );
     assert!(matches!(
-        incomplete.validate_sources(
-            input.mir.module().cone,
-            input.identities,
-            &source,
-            &mut meter()
-        ),
+        incomplete.validate_sources(input.mir.module().cone, input.identities, &source),
         Err(mir::MirTypeBridgeSourceJoinError::Inventory(
             mir::MirTypeBridgeSourceInventoryV1::Types
         ))
@@ -46,7 +40,6 @@ pub(super) fn check<'a>(
         &[],
         &source,
         input.identities,
-        &mut meter(),
     )
     .unwrap_or_else(|error| panic!("{name} complete MIR section: {error}"));
     let bytes = encode(&section).unwrap();
@@ -64,7 +57,6 @@ pub(super) fn check<'a>(
             &[],
             &source,
             &mut graph,
-            &mut meter(),
         )
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);

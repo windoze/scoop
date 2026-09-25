@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn decode(decoder: &mut Decoder<'_, '_>) -> Result<DecodedRefScanV1, WireError> {
+pub(super) fn decode(decoder: &mut Decoder<'_>) -> Result<DecodedRefScanV1, WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     let raw = match tag {
@@ -50,18 +50,12 @@ pub(super) fn decode(decoder: &mut Decoder<'_, '_>) -> Result<DecodedRefScanV1, 
     Ok(DecodedRefScanV1(raw))
 }
 
-fn reserve<T>(decoder: &Decoder<'_, '_>, count: u64) -> Result<Vec<T>, WireError> {
+fn reserve<T>(decoder: &Decoder<'_>, count: u64) -> Result<Vec<T>, WireError> {
     let capacity = usize::try_from(count)
         .map_err(|_| wire_error(decoder, WireErrorKind::IntegerOutOfRange))?;
     let mut values = Vec::new();
-    values.try_reserve_exact(capacity).map_err(|_| {
-        wire_error(
-            decoder,
-            WireErrorKind::ResourceAllocation {
-                requested_logical_bytes: count.saturating_mul(std::mem::size_of::<T>() as u64),
-                requested_slots: count,
-            },
-        )
-    })?;
+    values
+        .try_reserve_exact(capacity)
+        .map_err(|_| wire_error(decoder, WireErrorKind::Allocation))?;
     Ok(values)
 }

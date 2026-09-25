@@ -23,27 +23,23 @@ impl<'b, 'd, 'p, 's, 'a, 'f> BoundNominalDefaultTargetDomainsV1<'b, 'd, 'p, 's, 
     pub fn bind_source_profiles(
         self,
         profiles: &'b CanonicalDefaultSourceProfilesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNominalDefaultSourceProfilesV1<'b, 'd, 'p, 's, 'a, 'f>, BindingError> {
         profiles
-            .validate_template_coverage(self.declarations().origins().templates(), meter)
+            .validate_template_coverage(self.declarations().origins().templates())
             .map_err(BindingError::coverage)?;
-        let path = WirePath::root();
+
         for (declaration, record) in self
             .declarations()
             .declarations()
             .iter()
             .zip(profiles.records())
         {
-            meter.charge_nodes(1, &path)?;
-            meter.charge_work(2, &path)?;
             let mut generic = declaration.owner_binders().nominal_owner_binder_arity() != 0
                 || !declaration
                     .publishing_call_domain()
                     .generic_subclasses()
                     .is_empty();
             for occurrence in declaration.references().occurrences() {
-                meter.charge_work(3, &path)?;
                 let witness = occurrence.source().witness();
                 generic |= !witness.direct_call_domain().generic_subclasses().is_empty()
                     || !witness.target_domain().generic_subclasses().is_empty()
@@ -74,13 +70,7 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<BindingError>
     fn default_access_profile(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Profile, BindingError> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        let steps = self.profiles.records().len().max(1).ilog2() as u64 + 1;
-        meter.charge_work(steps.saturating_mul(65), &path)?;
         self.profiles
             .get(key)
             .map(DefaultSourceProfileV1::profile)

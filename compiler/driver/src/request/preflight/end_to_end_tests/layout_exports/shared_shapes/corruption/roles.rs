@@ -12,10 +12,7 @@ pub(super) fn check(records: &[lir::ParamFreeShapeSupportExportV1]) {
     for role in 1..=8 {
         let wire: lir::DecodedParamFreeShapeSupportExportV1 =
             decoded(&Modified { value, donor, role });
-        assert!(
-            wire.validate_against(value, &mut meter()).is_err(),
-            "shape role {role}"
-        );
+        assert!(wire.validate_against(value).is_err(), "shape role {role}");
     }
 }
 

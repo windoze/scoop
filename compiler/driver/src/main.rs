@@ -118,7 +118,7 @@ fn build(
             return ExitCode::FAILURE;
         }
     };
-    match request.build_and_publish(scoop_wire::DecodeLimits::default()) {
+    match request.build_and_publish() {
         Ok(success) => {
             if !success.warnings().is_empty() {
                 eprintln!("{}", success.warnings().render_human());

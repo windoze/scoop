@@ -1,7 +1,7 @@
 //! Actual dispatch choices owned by the shared source nominal declaration.
 
 use scoop_identity::PersistentDispatchSlotId;
-use scoop_wire::{BudgetMeter, Encoder, WireEncode, WirePath};
+use scoop_wire::{Encoder, WireEncode};
 
 use crate::InheritanceSourceSlotSelectionV1;
 
@@ -71,15 +71,7 @@ impl CanonicalNominalDispatchSelectionsV1 {
 
     pub fn try_new(
         mut records: Vec<NominalDispatchSelectionV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, NominalDispatchSelectionError> {
-        let count = records.len() as u64;
-        let path = WirePath::root();
-        meter.check_table_entries(count, &path)?;
-        meter.charge_work(
-            count.saturating_mul(1 + u64::from(count.max(1).ilog2())),
-            &path,
-        )?;
         records.sort_unstable_by_key(NominalDispatchSelectionV1::slot);
         Self::from_ordered(records)
     }

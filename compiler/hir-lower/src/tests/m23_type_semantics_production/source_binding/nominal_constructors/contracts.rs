@@ -6,9 +6,7 @@ fn complete_constructor_origin_must_match_its_exact_foundation_subject() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
+        let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
         let record = sources.named(&fixture, "Box", &["value"]);
         let access = record.declaration_access();
         let other = sources
@@ -31,7 +29,7 @@ fn complete_constructor_origin_must_match_its_exact_foundation_subject() {
             .unwrap(),
         );
         assert!(
-            matches!(nominals.bind_constructor_sources(&forged.constructors, &mut meter()), Err(Error::Origin(id)) if id == record.declaration())
+            matches!(nominals.bind_constructor_sources(&forged.constructors), Err(Error::Origin(id)) if id == record.declaration())
         );
     });
 }
@@ -42,9 +40,7 @@ fn complete_constructor_signatures_reject_changed_parameter_order_self_type_and_
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
+        let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
         for owner in ["Box", "Static"] {
             let parameter_names: &[&str] = if owner == "Box" {
                 &["stored", "count"]
@@ -98,7 +94,7 @@ fn complete_constructor_signatures_reject_changed_parameter_order_self_type_and_
                 forged.replace(record);
                 assert!(
                     matches!(
-                        nominals.bind_constructor_sources(&forged.constructors, &mut meter()),
+                        nominals.bind_constructor_sources(&forged.constructors),
                         Err(Error::Contract { .. })
                     ),
                     "{owner}"
@@ -114,9 +110,7 @@ fn complete_constructor_binding_rejects_non_constructor_effect_contracts() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let nominals = foundation
-            .bind_nominal_sources(&sources.nominals, &mut meter())
-            .unwrap();
+        let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
         for owner in ["Envelope", "Empty"] {
             let params: &[&str] = if owner == "Envelope" {
                 &["text"]
@@ -171,7 +165,7 @@ fn complete_constructor_binding_rejects_non_constructor_effect_contracts() {
                     effects,
                 ));
                 assert!(matches!(
-                    nominals.bind_constructor_sources(&forged.constructors, &mut meter()),
+                    nominals.bind_constructor_sources(&forged.constructors),
                     Err(Error::Contract { .. })
                 ));
             }
@@ -196,7 +190,7 @@ fn complete_constructor_binding_rejects_non_constructor_effect_contracts() {
             effects,
         ));
         assert!(matches!(
-            nominals.bind_constructor_sources(&forged.constructors, &mut meter()),
+            nominals.bind_constructor_sources(&forged.constructors),
             Err(Error::Contract { .. })
         ));
     });

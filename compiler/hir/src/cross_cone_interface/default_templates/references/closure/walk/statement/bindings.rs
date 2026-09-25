@@ -15,51 +15,42 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         plan: &'body DefaultForIterationPlanV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
-        self.push_statements(pending, depth, plan.body())?;
+        self.push_statements(pending, plan.body())?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingPlan {
                 plan: plan.binding(),
                 origin,
             },
         )?;
-        self.push_child(pending, depth, BodyNode::IteratorNext(plan.next()))?;
+        self.push_child(pending, BodyNode::IteratorNext(plan.next()))?;
+        self.push_child(pending, BodyNode::IteratorConformance(plan.conformance()))?;
+        self.push_child(pending, BodyNode::Expression(plan.iterator_call()))?;
+        self.push_statements(pending, plan.iterator_setup())?;
+        self.push_child(pending, BodyNode::Expression(plan.source_init()))?;
         self.push_child(
             pending,
-            depth,
-            BodyNode::IteratorConformance(plan.conformance()),
-        )?;
-        self.push_child(pending, depth, BodyNode::Expression(plan.iterator_call()))?;
-        self.push_statements(pending, depth, plan.iterator_setup())?;
-        self.push_child(pending, depth, BodyNode::Expression(plan.source_init()))?;
-        self.push_child(
-            pending,
-            depth,
             BodyNode::BindingTemporary {
                 value_type: plan.source().value_type(),
                 origin,
             },
         )?;
-        self.push_statements(pending, depth, plan.source_setup())
+        self.push_statements(pending, plan.source_setup())
     }
 
     pub(in super::super) fn process_binding_plan(
         &mut self,
         plan: &'body DefaultBindingPlanV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         for action in plan.actions().iter().rev() {
-            self.push_child(pending, depth, BodyNode::BindingAction(action))?;
+            self.push_child(pending, BodyNode::BindingAction(action))?;
         }
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingShape {
                 shape: plan.shape(),
                 origin,
@@ -67,7 +58,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 value_type: plan.subject().value_type(),
                 origin,
@@ -78,7 +68,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(in super::super) fn process_binding_action(
         &mut self,
         action: &'body DefaultBindingActionV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match action.view() {
@@ -90,7 +79,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingProjection {
                         projection,
                         origin: definition_origin,
@@ -98,7 +86,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         value_type: result.value_type(),
                         origin: definition_origin,
@@ -106,7 +93,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         value_type: source.value_type(),
                         origin: definition_origin,
@@ -121,11 +107,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 definition_origin,
                 ..
             } => {
-                self.push_child(pending, depth, BodyNode::Expression(call))?;
-                self.push_statements(pending, depth, setup)?;
+                self.push_child(pending, BodyNode::Expression(call))?;
+                self.push_statements(pending, setup)?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         value_type: result.value_type(),
                         origin: definition_origin,
@@ -133,7 +118,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         value_type: source.value_type(),
                         origin: definition_origin,
@@ -147,7 +131,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingLeaf {
                         value_type: target.value_type(),
                         origin: definition_origin,
@@ -155,7 +138,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::BindingTemporary {
                         value_type: source.value_type(),
                         origin: definition_origin,
@@ -169,13 +151,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         shape: &'body DefaultBindingShapeV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match shape.view() {
             DefaultBindingShapeViewV1::Binding(leaf) => self.push_child(
                 pending,
-                depth,
                 BodyNode::BindingLeaf {
                     value_type: leaf.value_type(),
                     origin,
@@ -183,13 +163,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             ),
             DefaultBindingShapeViewV1::Wildcard => Ok(()),
             DefaultBindingShapeViewV1::Tuple(elements) => {
-                self.push_binding_shapes(pending, depth, elements, origin)
+                self.push_binding_shapes(pending, elements, origin)
             }
             DefaultBindingShapeViewV1::Struct { owner_type, fields } => {
                 for field in fields.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::BindingShape {
                             shape: field.shape(),
                             origin,
@@ -210,7 +189,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 for component in components.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::BindingShape {
                             shape: component.shape(),
                             origin,
@@ -230,12 +208,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     fn push_binding_shapes(
         &mut self,
         pending: &mut Vec<ScheduledWork<'body>>,
-        depth: u64,
         shapes: &'body [DefaultBindingShapeV1],
         origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), V::Error> {
         for shape in shapes.iter().rev() {
-            self.push_child(pending, depth, BodyNode::BindingShape { shape, origin })?;
+            self.push_child(pending, BodyNode::BindingShape { shape, origin })?;
         }
         Ok(())
     }
@@ -244,7 +221,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         projection: &'body DefaultBindingProjectionV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match projection.view() {
@@ -254,7 +230,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 owner_type,
             } => self.push_child(
                 pending,
-                depth,
                 BodyNode::FieldUse {
                     target: FieldTargetView::Struct {
                         declaration,
@@ -270,7 +245,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(in super::super) fn process_iterator_conformance(
         &mut self,
         conformance: &'body DefaultIteratorConformanceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         let origin = conformance.definition_origin();
@@ -282,7 +256,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 value_type: conformance.iterator().value_type(),
                 origin,
@@ -290,7 +263,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 value_type: conformance.source().value_type(),
                 origin,
@@ -301,13 +273,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     pub(in super::super) fn process_iterator_next(
         &mut self,
         next: &'body DefaultIteratorNextV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         let origin = next.definition_origin();
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 value_type: next.element().value_type(),
                 origin,
@@ -315,7 +285,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::AppliedOption {
                 option: next.option(),
                 origin,
@@ -323,7 +292,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::BindingTemporary {
                 value_type: next.result().value_type(),
                 origin,
@@ -331,7 +299,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::CallableUse {
                 callable: next.callable(),
                 origin,
@@ -343,12 +310,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         &mut self,
         option: &'body DefaultAppliedOptionV1,
         origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         self.push_child(
             pending,
-            depth,
             BodyNode::ConstructorUse {
                 target: ConstructorTargetView::Variant(option.none()),
                 origin,
@@ -357,7 +322,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         )?;
         self.push_child(
             pending,
-            depth,
             BodyNode::VariantFieldShape {
                 field: option.some_payload(),
                 origin,

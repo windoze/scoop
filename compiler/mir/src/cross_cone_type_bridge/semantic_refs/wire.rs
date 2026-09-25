@@ -24,7 +24,7 @@ encode_target!(MirTypeBridgeTargetV1);
 encode_target!(DecodedMirTypeBridgeTargetV1);
 
 impl WireDecode for DecodedMirTypeBridgeTargetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         fields(decoder, count, 2)?;
         Ok(match decoder.field(0, Decoder::unsigned)? {

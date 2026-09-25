@@ -29,7 +29,7 @@ impl crate::DefaultExpressionV1 {
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut scoop_wire::BudgetMeter,
+
         path: &scoop_wire::WirePath,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>>
     where
@@ -42,11 +42,11 @@ impl crate::DefaultExpressionV1 {
         Validator {
             template: DefaultBodyValidationInputV1::from(template),
             authority: &mut adapter,
-            meter,
+
             path,
             error: std::marker::PhantomData,
         }
-        .run_expression_at(self, 1)
+        .run_expression_at(self)
     }
 }
 
@@ -57,16 +57,13 @@ where
     pub(super) fn run_expression_at(
         &mut self,
         expression: &crate::DefaultExpressionV1,
-        depth: u64,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path)
             .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        pending.push(ExpressionWork { expression, depth });
+        pending.push(expression);
         while let Some(work) = pending.pop() {
-            self.enter_node(work.depth)?;
-            self.process_expression(work.expression, work.depth, &mut pending)?;
+            self.process_expression(work, &mut pending)?;
         }
         Ok(())
     }
@@ -74,8 +71,7 @@ where
     fn process_expression<'body>(
         &mut self,
         expression: &'body crate::DefaultExpressionV1,
-        depth: u64,
-        pending: &mut Vec<ExpressionWork<'body>>,
+        pending: &mut Vec<&'body crate::DefaultExpressionV1>,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         let operation = expression_operation(expression.kind());
         match expression.kind() {
@@ -137,7 +133,7 @@ where
                         Self::site(operation, DefaultOperationValueRoleV1::Field { index }),
                     )?;
                 }
-                self.push_expressions(pending, elements, depth)
+                self.push_expressions(pending, elements)
             }
             crate::DefaultExpressionKindV1::StructInit {
                 constructor,
@@ -151,7 +147,7 @@ where
                 )?;
                 self.expect_arguments(operation, arguments, &parameters)?;
                 self.expect_result(expression, operation, &owner, true)?;
-                self.push_expressions(pending, arguments, depth)
+                self.push_expressions(pending, arguments)
             }
             crate::DefaultExpressionKindV1::ClassInit {
                 constructor,
@@ -165,7 +161,7 @@ where
                 )?;
                 self.expect_arguments(operation, arguments, &parameters)?;
                 self.expect_result(expression, operation, &owner, true)?;
-                self.push_expressions(pending, arguments, depth)
+                self.push_expressions(pending, arguments)
             }
             crate::DefaultExpressionKindV1::StructConstruct { owner_type, fields } => {
                 let shape = self.aggregate_shape(
@@ -182,7 +178,7 @@ where
                     DefaultOperationValueRoleV1::Field { index }
                 })?;
                 self.expect_result(expression, operation, owner_type, true)?;
-                self.push_expressions(pending, fields, depth)
+                self.push_expressions(pending, fields)
             }
             crate::DefaultExpressionKindV1::VariantConstruct { variant, arguments } => {
                 let shape = self.aggregate_shape(
@@ -197,7 +193,7 @@ where
                 )?;
                 self.expect_arguments(operation, arguments, shape.fields())?;
                 self.expect_result(expression, operation, variant.owner_type(), true)?;
-                self.push_expressions(pending, arguments, depth)
+                self.push_expressions(pending, arguments)
             }
             crate::DefaultExpressionKindV1::VariantTest { operand, variant } => {
                 let shape = self.aggregate_shape(
@@ -220,7 +216,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
                 self.expect_result(expression, operation, &boolean, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::VariantPayloadProject { operand, field } => {
                 let shape = self.variant_field_shape(field, operation)?;
@@ -235,10 +231,9 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
                 )?;
                 self.expect_result(expression, operation, shape.value_type(), true)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::Local(local) => {
-                self.charge_work()?;
                 let principal = self
                     .template
                     .locals()
@@ -341,7 +336,7 @@ where
                             false,
                             reference.function_type(),
                         )?;
-                        self.push_expression(pending, receiver, depth)?;
+                        self.push_expression(pending, receiver)?;
                     }
                     DefaultCallableReferenceTargetV1::BoundExtension { receiver, callee } => {
                         let shape = self.callable_shape(
@@ -367,7 +362,7 @@ where
                             false,
                             reference.function_type(),
                         )?;
-                        self.push_expression(pending, receiver, depth)?;
+                        self.push_expression(pending, receiver)?;
                     }
                 }
                 self.expect_result(expression, operation, reference.function_type(), true)
@@ -397,7 +392,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Target),
                 )?;
                 self.expect_result(expression, operation, target_function_type, false)?;
-                self.push_expression(pending, source, depth)
+                self.push_expression(pending, source)
             }
             crate::DefaultExpressionKindV1::PtrFromNonZeroULong(operand) => {
                 let ulong = self.integer_type(
@@ -414,7 +409,7 @@ where
                     expression.result_type(),
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::PtrToULong(operand) => {
                 self.expect_raw_pointer(
@@ -427,7 +422,7 @@ where
                     DefaultOperationValueRoleV1::Result,
                 )?;
                 self.expect_result(expression, operation, &ulong, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::PtrCast(operand) => {
                 self.expect_raw_pointer(
@@ -438,7 +433,7 @@ where
                     expression.result_type(),
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::PtrLoad { pointer, offset } => {
                 let pointee = self
@@ -450,9 +445,9 @@ where
                 self.validate_optional_offset(operation, offset.as_ref())?;
                 self.expect_result(expression, operation, &pointee, false)?;
                 if let Some(offset) = offset.as_ref() {
-                    self.push_expression(pending, offset, depth)?;
+                    self.push_expression(pending, offset)?;
                 }
-                self.push_expression(pending, pointer, depth)
+                self.push_expression(pending, pointer)
             }
             crate::DefaultExpressionKindV1::PtrStore {
                 pointer,
@@ -476,11 +471,11 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
                 self.expect_result(expression, operation, &unit, false)?;
-                self.push_expression(pending, value, depth)?;
+                self.push_expression(pending, value)?;
                 if let Some(offset) = offset.as_ref() {
-                    self.push_expression(pending, offset, depth)?;
+                    self.push_expression(pending, offset)?;
                 }
-                self.push_expression(pending, pointer, depth)
+                self.push_expression(pending, pointer)
             }
             crate::DefaultExpressionKindV1::PtrOffset {
                 pointer, offset, ..
@@ -500,8 +495,8 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Offset),
                 )?;
                 self.expect_result(expression, operation, pointer.result_type(), false)?;
-                self.push_expression(pending, offset, depth)?;
-                self.push_expression(pending, pointer, depth)
+                self.push_expression(pending, offset)?;
+                self.push_expression(pending, pointer)
             }
             crate::DefaultExpressionKindV1::AddressOf(place) => {
                 let value_type = self.place_type(place, operation)?;
@@ -566,7 +561,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
                 )?;
                 self.expect_result(expression, operation, shape.callback_type(), false)?;
-                self.push_expression(pending, closure, depth)
+                self.push_expression(pending, closure)
             }
             crate::DefaultExpressionKindV1::ForeignCallbackOperation {
                 operation: callback_operation,
@@ -616,13 +611,13 @@ where
                         )?;
                     }
                 }
-                self.push_expression(pending, callback, depth)
+                self.push_expression(pending, callback)
             }
             crate::DefaultExpressionKindV1::FieldAccess { receiver, field } => {
                 let principal =
                     self.validate_field_receiver(operation, receiver.result_type(), field)?;
                 self.expect_result(expression, operation, &principal, true)?;
-                self.push_expression(pending, receiver, depth)
+                self.push_expression(pending, receiver)
             }
             crate::DefaultExpressionKindV1::MethodCall {
                 receiver,
@@ -667,8 +662,8 @@ where
                     )?;
                 }
                 self.expect_result(expression, operation, shape.result(), true)?;
-                self.push_expressions(pending, arguments, depth)?;
-                self.push_expression(pending, receiver, depth)
+                self.push_expressions(pending, arguments)?;
+                self.push_expression(pending, receiver)
             }
             crate::DefaultExpressionKindV1::Box(operand) => {
                 self.expect_relation(
@@ -677,7 +672,7 @@ where
                     expression.result_type(),
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::Unbox(operand) => {
                 self.expect_relation(
@@ -686,7 +681,7 @@ where
                     expression.result_type(),
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::IsInstance {
                 operand,
@@ -703,7 +698,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
                 self.expect_result(expression, operation, &boolean, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::Cast {
                 operand,
@@ -732,7 +727,7 @@ where
                     checked_type,
                     Self::site(operation, DefaultOperationValueRoleV1::Target),
                 )?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::ArrayLiteral(elements) => {
                 let application = self.array_application(
@@ -741,7 +736,7 @@ where
                     DefaultOperationValueRoleV1::Result,
                 )?;
                 self.expect_uniform_elements(operation, elements, application.element())?;
-                self.push_expressions(pending, elements, depth)
+                self.push_expressions(pending, elements)
             }
             crate::DefaultExpressionKindV1::ArrayAssembly(assembly) => {
                 let application = self.core_application(
@@ -780,7 +775,7 @@ where
                     match part {
                         DefaultArrayAssemblyPartV1::Element(value)
                         | DefaultArrayAssemblyPartV1::CopyArray(value) => {
-                            self.push_expression(pending, value, depth)?;
+                            self.push_expression(pending, value)?;
                         }
                     }
                 }
@@ -795,8 +790,8 @@ where
                     self.array_access_element(*access, receiver.result_type(), false, operation)?;
                 self.validate_array_index(operation, index)?;
                 self.expect_result(expression, operation, &element, false)?;
-                self.push_expression(pending, index, depth)?;
-                self.push_expression(pending, receiver, depth)
+                self.push_expression(pending, index)?;
+                self.push_expression(pending, receiver)
             }
             crate::DefaultExpressionKindV1::ArraySet {
                 access,
@@ -817,9 +812,9 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
                 self.expect_result(expression, operation, &unit, false)?;
-                self.push_expression(pending, value, depth)?;
-                self.push_expression(pending, index, depth)?;
-                self.push_expression(pending, receiver, depth)
+                self.push_expression(pending, value)?;
+                self.push_expression(pending, index)?;
+                self.push_expression(pending, receiver)
             }
             crate::DefaultExpressionKindV1::ArrayLen(operand) => {
                 self.array_application(
@@ -833,7 +828,7 @@ where
                     DefaultOperationValueRoleV1::Result,
                 )?;
                 self.expect_result(expression, operation, &long, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::ArrayClone(operand) => {
                 let source = self.array_application(
@@ -861,7 +856,7 @@ where
                         DefaultCoreApplicationV1::Array { .. }
                     )
                 ) {
-                    self.push_expression(pending, operand, depth)
+                    self.push_expression(pending, operand)
                 } else {
                     self.problem(
                         operation,
@@ -888,7 +883,7 @@ where
                 self.expect_source_receiver(operation, receiver, &shape)?;
                 self.expect_direct_call_arguments(operation, arguments, &shape)?;
                 self.expect_result(expression, operation, shape.result(), true)?;
-                self.push_expressions(pending, arguments, depth)
+                self.push_expressions(pending, arguments)
             }
             crate::DefaultExpressionKindV1::LocalFunctionCall {
                 declaration,
@@ -918,8 +913,8 @@ where
                 })?;
                 self.expect_arguments(operation, arguments, shape.parameters())?;
                 self.expect_result(expression, operation, shape.result(), true)?;
-                self.push_expressions(pending, arguments, depth)?;
-                self.push_expressions(pending, captures, depth)
+                self.push_expressions(pending, arguments)?;
+                self.push_expressions(pending, captures)
             }
             crate::DefaultExpressionKindV1::CallableCall {
                 callee,
@@ -948,8 +943,8 @@ where
                     );
                 }
                 self.expect_result(expression, operation, &result, true)?;
-                self.push_expressions(pending, arguments, depth)?;
-                self.push_expression(pending, callee, depth)
+                self.push_expressions(pending, arguments)?;
+                self.push_expression(pending, callee)
             }
             crate::DefaultExpressionKindV1::PrimitiveBinary { kind, lhs, rhs } => {
                 let string = self.core_type(
@@ -981,8 +976,8 @@ where
                     )?,
                 };
                 self.expect_result(expression, operation, &principal, false)?;
-                self.push_expression(pending, rhs, depth)?;
-                self.push_expression(pending, lhs, depth)
+                self.push_expression(pending, rhs)?;
+                self.push_expression(pending, lhs)
             }
             crate::DefaultExpressionKindV1::PrimitiveUnary { kind, operand } => {
                 let boolean = match kind {
@@ -997,14 +992,14 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
                 )?;
                 self.expect_result(expression, operation, &boolean, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::IntegerOperation {
                 operation: integer_operation,
                 arguments,
             } => {
                 self.validate_integer_operation(expression, integer_operation, arguments)?;
-                self.push_integer_arguments(pending, arguments, depth)
+                self.push_integer_arguments(pending, arguments)
             }
             crate::DefaultExpressionKindV1::IntegerConversion {
                 source_kind,
@@ -1027,7 +1022,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
                 )?;
                 self.expect_result(expression, operation, &target_type, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::Binary { operator, lhs, rhs } => {
                 let boolean = self.core_type(
@@ -1059,8 +1054,8 @@ where
                     }
                 }
                 self.expect_result(expression, operation, &boolean, false)?;
-                self.push_expression(pending, rhs, depth)?;
-                self.push_expression(pending, lhs, depth)
+                self.push_expression(pending, rhs)?;
+                self.push_expression(pending, lhs)
             }
             crate::DefaultExpressionKindV1::Unary { operator, operand } => {
                 let boolean = match operator {
@@ -1075,7 +1070,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
                 )?;
                 self.expect_result(expression, operation, &boolean, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::SomeWrap(operand) => {
                 let option = self.core_application(
@@ -1088,7 +1083,7 @@ where
                     option.element(),
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
                 )?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::NoneLiteral => {
                 self.core_application(
@@ -1109,7 +1104,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Result),
                 )?;
                 self.expect_result(expression, operation, &boolean, false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
             crate::DefaultExpressionKindV1::Unwrap { operand, .. } => {
                 let option = self.core_application(
@@ -1118,7 +1113,7 @@ where
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
                 )?;
                 self.expect_result(expression, operation, option.element(), false)?;
-                self.push_expression(pending, operand, depth)
+                self.push_expression(pending, operand)
             }
         }
     }
@@ -1317,17 +1312,15 @@ where
         operation: DefaultExpressionOperationV1,
     ) -> Result<SignatureTypeKey, ExportDefaultOperationTypingValidationError<E>> {
         match place {
-            DefaultPlaceV1::Local { local } => {
-                self.charge_work()?;
-                self.template
-                    .locals()
-                    .get(local)
-                    .map(|record| record.value_type().clone())
-                    .ok_or_else(|| ExportDefaultOperationTypingValidationError::Problem {
-                        site: Self::site(operation, DefaultOperationValueRoleV1::Place),
-                        problem: DefaultOperationTypingProblemV1::MissingLocal,
-                    })
-            }
+            DefaultPlaceV1::Local { local } => self
+                .template
+                .locals()
+                .get(local)
+                .map(|record| record.value_type().clone())
+                .ok_or_else(|| ExportDefaultOperationTypingValidationError::Problem {
+                    site: Self::site(operation, DefaultOperationValueRoleV1::Place),
+                    problem: DefaultOperationTypingProblemV1::MissingLocal,
+                }),
             DefaultPlaceV1::Global { property } => self
                 .value_shape(
                     DefaultOperationEntityV1::Global(*property),
@@ -1345,7 +1338,6 @@ where
         field: &crate::DefaultFieldRefV1,
     ) -> Result<SignatureTypeKey, ExportDefaultOperationTypingValidationError<E>> {
         if let crate::DefaultFieldRefV1::Tuple { declaration_index } = field {
-            self.charge_work()?;
             let SignatureTypeKey::Tuple(elements) = receiver else {
                 return Err(ExportDefaultOperationTypingValidationError::TypeShape {
                     site: Self::site(operation, DefaultOperationValueRoleV1::Receiver),
@@ -1416,10 +1408,10 @@ where
         role: DefaultOperationValueRoleV1,
     ) -> Result<DefaultCoreApplicationV1, ExportDefaultOperationTypingValidationError<E>> {
         let site = Self::site(operation, role);
-        self.charge_work()?;
+
         let actual = self
             .authority
-            .classify_default_core_application(value, self.meter, self.path)
+            .classify_default_core_application(value, self.path)
             .map_err(
                 |error| ExportDefaultOperationTypingValidationError::Authority { site, error },
             )?;
@@ -1544,7 +1536,6 @@ where
         operation: DefaultExpressionOperationV1,
         shape: &DefaultCallableOperationShapeV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         if shape.captures().is_empty() {
             Ok(())
         } else {
@@ -1562,7 +1553,6 @@ where
         declaration: CallableTemplateOrigin,
         callee: DefaultCallableDeclarationV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.charge_work()?;
         let matches = match (declaration, callee) {
             (
                 CallableTemplateOrigin::Function(expected),
@@ -1598,13 +1588,12 @@ where
         )?;
         let receiver_count = usize::from(include_receiver && shape.receiver().is_some());
         let mut parameters = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(
-                &mut parameters,
-                receiver_count + shape.parameters().len(),
-                self.path,
-            )
-            .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
+        scoop_wire::allocation::try_reserve(
+            &mut parameters,
+            receiver_count + shape.parameters().len(),
+            self.path,
+        )
+        .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
         if include_receiver && let Some(receiver) = shape.receiver() {
             parameters.push(receiver.clone());
         }
@@ -1615,7 +1604,7 @@ where
             result: Box::new(shape.result().clone()),
         };
         if &source == target {
-            self.charge_work()
+            Ok(())
         } else {
             self.expect_relation(
                 DefaultOperationTypeRelationV1::FunctionCoercion,
@@ -1768,43 +1757,36 @@ where
 
     fn push_integer_arguments<'body>(
         &mut self,
-        pending: &mut Vec<ExpressionWork<'body>>,
+        pending: &mut Vec<&'body crate::DefaultExpressionV1>,
         arguments: &'body DefaultIntegerArgumentsV1,
-        depth: u64,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         match arguments {
-            DefaultIntegerArgumentsV1::Unary(operand) => {
-                self.push_expression(pending, operand, depth)
-            }
+            DefaultIntegerArgumentsV1::Unary(operand) => self.push_expression(pending, operand),
             DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
-                self.push_expression(pending, rhs, depth)?;
-                self.push_expression(pending, lhs, depth)
+                self.push_expression(pending, rhs)?;
+                self.push_expression(pending, lhs)
             }
         }
     }
 
     fn push_expression<'body>(
         &mut self,
-        pending: &mut Vec<ExpressionWork<'body>>,
+        pending: &mut Vec<&'body crate::DefaultExpressionV1>,
         expression: &'body crate::DefaultExpressionV1,
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
-        self.meter
-            .try_reserve_collection_slots(pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(pending, 1, self.path)
             .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        pending.push(ExpressionWork { expression, depth });
+        pending.push(expression);
         Ok(())
     }
 
     fn push_expressions<'body>(
         &mut self,
-        pending: &mut Vec<ExpressionWork<'body>>,
+        pending: &mut Vec<&'body crate::DefaultExpressionV1>,
         expressions: &'body [crate::DefaultExpressionV1],
-        parent_depth: u64,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         for expression in expressions.iter().rev() {
-            self.push_expression(pending, expression, parent_depth)?;
+            self.push_expression(pending, expression)?;
         }
         Ok(())
     }
@@ -1820,9 +1802,4 @@ where
             problem,
         })
     }
-}
-
-struct ExpressionWork<'a> {
-    expression: &'a crate::DefaultExpressionV1,
-    depth: u64,
 }

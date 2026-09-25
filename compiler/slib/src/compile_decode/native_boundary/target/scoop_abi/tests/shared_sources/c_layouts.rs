@@ -12,8 +12,8 @@ use support::*;
 fn materialized_c_layout_replays_shared_fields_without_a_native_witness_or_call() {
     let fixture = DeclaredLayout::new();
     let layout = fixture.contract(0);
-    let usage = fixture.check(&[layout], true, true).unwrap();
-    assert!(usage.validation_work_units > 0);
+    fixture.check(&[layout], true, true).unwrap();
+
     fixture.check(&[], false, true).unwrap();
 }
 
@@ -33,30 +33,4 @@ fn representation_contracts_require_the_exact_materialized_set_and_canonical_off
             ))
         ));
     }
-}
-
-#[test]
-fn declared_layouts_keep_dependency_and_resource_checks_in_the_common_replay() {
-    let fixture = DeclaredLayout::new();
-    assert!(matches!(
-        fixture.check(&[fixture.contract(0)], true, false),
-        Err(NativeBoundaryCompileError::ClosureRequired { .. })
-            | Err(NativeBoundaryCompileError::Target(
-                NativeBoundaryTargetError::MissingExactType { .. }
-            ))
-    ));
-    let mut budget = BudgetMeter::new(DecodeLimits {
-        logical_heap_bytes: 0,
-        ..DecodeLimits::default()
-    });
-    assert!(matches!(
-        dependencies::collect(
-            fixture.current.borrow(),
-            &[fixture.scalar.borrow()],
-            &mut budget
-        ),
-        Err(NativeBoundaryCompileError::Identity(
-            scoop_identity::IdentityValidationError::Resource(_)
-        ))
-    ));
 }

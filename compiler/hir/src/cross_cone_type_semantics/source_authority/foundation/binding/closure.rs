@@ -28,9 +28,8 @@ impl<'a> TypeFoundationSourceClosureV1<'a> {
     pub fn try_new(
         root: TypeFoundationSourceProviderV1<'a>,
         dependencies: &[TypeFoundationSourceProviderV1<'a>],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, TypeFoundationReplayError> {
-        index::compose(root, dependencies, meter)
+        index::compose(root, dependencies)
     }
 
     fn nominal(

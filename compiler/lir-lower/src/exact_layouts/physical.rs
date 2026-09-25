@@ -3,7 +3,7 @@ use super::*;
 mod enumeration;
 mod scan;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn validate_physical(
         &mut self,
         record: &lir::ExactLayoutExportV1,
@@ -11,10 +11,7 @@ impl Projection<'_, '_> {
         ty: &mir::Type,
     ) -> Result<()> {
         let id = record.identity().layout();
-        self.meter.charge_work(
-            self.output.module().meta.layouts.len() as u64,
-            &WirePath::root(),
-        )?;
+
         let layouts = &self.output.module().meta.layouts;
         let mut matching = layouts
             .iter()
@@ -38,10 +35,7 @@ impl Projection<'_, '_> {
                 if let Some(actual) = actual {
                     self.validate_instance_layout(instance, actual)?;
                 }
-                self.meter.charge_work(
-                    self.output.module().meta.type_descriptors.len() as u64,
-                    &WirePath::root(),
-                )?;
+
                 let mut descriptors =
                     self.output
                         .module()
@@ -57,11 +51,7 @@ impl Projection<'_, '_> {
                 if descriptors.next().is_some()
                     || descriptor.identity.exact_type() != source.exact()
                     || descriptor.instance_layout.scan_record().id() != record.scan()
-                    || !scan::shape_matches(
-                        instance.shape(),
-                        &descriptor.instance_shape,
-                        self.meter,
-                    )?
+                    || !scan::shape_matches(instance.shape(), &descriptor.instance_shape)?
                 {
                     return Err(ExactLayoutLoweringError::PhysicalDescriptor(source.exact()));
                 }
@@ -211,8 +201,7 @@ impl Projection<'_, '_> {
         if fields.len() != actual.len() {
             return Err(ExactLayoutLoweringError::PhysicalLayout(layout));
         }
-        self.meter
-            .charge_work(fields.len() as u64, &WirePath::root())?;
+
         if fields.iter().zip(actual).any(|(field, actual)| {
             field.storage().offset().get() != actual.offset
                 || field.access_alignment().get() != actual.access_align
@@ -233,7 +222,7 @@ impl Projection<'_, '_> {
             lir::LayoutKind::Intrinsic(_) => &lir::RefScan::None,
         };
         if actual.identity.layout_record().key() != identity.layout_key()
-            || !scan::matches(expected, actual_scan, self.meter, 1)?
+            || !scan::matches(expected, actual_scan)?
         {
             return Err(ExactLayoutLoweringError::PhysicalLayout(identity.layout()));
         }

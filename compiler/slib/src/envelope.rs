@@ -2,9 +2,7 @@ use std::fmt;
 
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::cbor::EncodeError;
-use scoop_wire::{
-    BudgetMeter, DecodeLimits, DecodeUsage, WireError, decode_canonical_with_meter, encode,
-};
+use scoop_wire::{WireError, decode_canonical, encode};
 
 use crate::{
     ArchiveReadError, ArchiveWriteError, BootstrapManifest, BootstrapManifestValidationError,
@@ -87,36 +85,28 @@ pub struct DecodedSlibEnvelope<'input> {
     archive: DecodedArchive<'input>,
     manifest: BootstrapManifest,
     target_selection: ValidatedLirTargetSelection,
-    meter: BudgetMeter,
 }
 
 impl<'input> DecodedSlibEnvelope<'input> {
     pub fn open(
         input: &'input [u8],
-        limits: DecodeLimits,
+
         selection: ValidatedLirTargetSelection,
     ) -> Result<Self, SlibReadError> {
-        let mut meter = BudgetMeter::new(limits);
-        let archive = ManifestArchive::open(input, &mut meter).map_err(SlibReadError::Container)?;
-        let decoded =
-            decode_canonical_with_meter::<DecodedBootstrapManifest>(archive.manifest(), &mut meter)
-                .map_err(SlibReadError::CanonicalWire)?;
+        let archive = ManifestArchive::open(input).map_err(SlibReadError::Container)?;
+        let decoded = decode_canonical::<DecodedBootstrapManifest>(archive.manifest())
+            .map_err(SlibReadError::CanonicalWire)?;
         let manifest = decoded
-            .validate(selection, &mut meter)
+            .validate(selection)
             .map_err(|error| SlibReadError::Manifest(Box::new(error)))?;
         let archive = archive
-            .validate_directory(manifest.members(), &mut meter)
+            .validate_directory(manifest.members())
             .map_err(SlibReadError::Directory)?;
         Ok(Self {
             archive,
             manifest,
             target_selection: selection,
-            meter,
         })
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.meter.usage()
     }
 
     pub(crate) fn manifest_length(&self) -> usize {
@@ -137,14 +127,6 @@ impl<'input> DecodedSlibEnvelope<'input> {
 
     pub(crate) fn member(&self, id: SlibMemberId) -> Option<&'input [u8]> {
         self.archive.member(id)
-    }
-
-    pub(crate) fn meter_mut(&mut self) -> &mut BudgetMeter {
-        &mut self.meter
-    }
-
-    pub(crate) fn manifest_and_meter(&mut self) -> (&BootstrapManifest, &mut BudgetMeter) {
-        (&self.manifest, &mut self.meter)
     }
 }
 

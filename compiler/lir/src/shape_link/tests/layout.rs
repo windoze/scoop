@@ -15,10 +15,9 @@ fn shape_link_layout_and_scan_contracts_round_trip_without_post_definition() {
     ] {
         let bytes = encode(&contract).unwrap();
         assert_eq!(bytes[0], if contract.tag() == 2 { 0xa2 } else { 0xa4 });
-        let raw: DecodedShapeLinkContractV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let raw: DecodedShapeLinkContractV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&raw).unwrap(), bytes);
-        raw.validate_against(&contract, &mut meter()).unwrap();
+        raw.validate_against(&contract).unwrap();
         let definition = record.identity().physical_definition().definition();
         assert!(!bytes.windows(32).any(|part| part == definition.as_array()));
     }
@@ -34,7 +33,6 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
             bound.identity.clone(),
             ScalarRepresentationKindV1::Integer(kind),
             &bound.foundation,
-            &mut meter(),
         )
         .unwrap()
         .into()
@@ -43,34 +41,14 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
     let second: ExactLayoutExportV1 = scalar(IntegerKind::SIGNED_32);
     assert_eq!(first.identity().layout(), second.identity().layout());
     let target = LirTargetProfile::DARWIN_AARCH64;
-    let layouts = CanonicalExactLayoutExportsV1::try_new(
-        target,
-        &bound.foundation,
-        vec![second],
-        &mut meter(),
-    )
-    .unwrap();
-    let callables = CanonicalExactCallableAbiExportsV1::try_new(
-        target,
-        &bound.foundation,
-        Vec::new(),
-        &mut meter(),
-    )
-    .unwrap();
-    let descriptors = CanonicalExactDescriptorExportsV1::try_new(
-        target,
-        &bound.foundation,
-        Vec::new(),
-        &mut meter(),
-    )
-    .unwrap();
-    let dispatch = CanonicalExactDispatchExportsV1::try_new(
-        target,
-        &bound.foundation,
-        Vec::new(),
-        &mut meter(),
-    )
-    .unwrap();
+    let layouts =
+        CanonicalExactLayoutExportsV1::try_new(target, &bound.foundation, vec![second]).unwrap();
+    let callables =
+        CanonicalExactCallableAbiExportsV1::try_new(target, &bound.foundation, Vec::new()).unwrap();
+    let descriptors =
+        CanonicalExactDescriptorExportsV1::try_new(target, &bound.foundation, Vec::new()).unwrap();
+    let dispatch =
+        CanonicalExactDispatchExportsV1::try_new(target, &bound.foundation, Vec::new()).unwrap();
     let physical = first.identity().physical_definition();
     let mut import = ExternalShapeLinkImportV1 {
         provider: physical.provider(),
@@ -80,13 +58,7 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
         contract: ShapeLinkContractV1::Layout { record: &first },
     };
     assert!(matches!(
-        import.validate_semantic_against(
-            &layouts,
-            &callables,
-            &descriptors,
-            &dispatch,
-            &mut meter()
-        ),
+        import.validate_semantic_against(&layouts, &callables, &descriptors, &dispatch),
         Err(ShapeLinkError::Contract)
     ));
     let invalid_scan = RefScan::References(vec![0]);
@@ -97,24 +69,18 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
         canonical_scan: &invalid_scan,
     };
     assert!(matches!(
-        import.validate_semantic_against(
-            &layouts,
-            &callables,
-            &descriptors,
-            &dispatch,
-            &mut meter()
-        ),
+        import.validate_semantic_against(&layouts, &callables, &descriptors, &dispatch),
         Err(ShapeLinkError::Contract)
     ));
     let raw: DecodedShapeLinkContractV1 =
-        decode_canonical(&encode(import.contract()).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(import.contract()).unwrap()).unwrap();
     let expected = ShapeLinkContractV1::Scan {
         layout: first.identity().layout(),
         role: ScanRole::InlineValue,
         canonical_scan: &RefScan::None,
     };
     assert!(matches!(
-        raw.validate_against(&expected, &mut meter()),
+        raw.validate_against(&expected),
         Err(ShapeLinkError::Contract)
     ));
 }

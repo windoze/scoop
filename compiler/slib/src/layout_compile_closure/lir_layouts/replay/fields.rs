@@ -8,16 +8,9 @@ pub(super) struct Fields {
 }
 
 impl Fields {
-    pub(super) fn inputs(
-        &self,
-        meter: &mut BudgetMeter,
-    ) -> Result<Vec<lir::NominalLayoutFieldInputV1<'_>>> {
+    pub(super) fn inputs(&self) -> Result<Vec<lir::NominalLayoutFieldInputV1<'_>>> {
         let mut inputs = Vec::new();
-        meter.try_reserve_collection_slots(
-            &mut inputs,
-            self.identities.len(),
-            &WirePath::root(),
-        )?;
+        scoop_wire::allocation::try_reserve(&mut inputs, self.identities.len(), &WirePath::root())?;
         inputs.extend(
             self.identities
                 .iter()
@@ -28,18 +21,13 @@ impl Fields {
     }
 }
 
-impl Replay<'_, '_> {
-    pub(super) fn fields(
-        &mut self,
-        fields: &[mir::MirRepresentationFieldV1],
-        depth: u64,
-    ) -> Result<Fields> {
+impl Replay<'_> {
+    pub(super) fn fields(&mut self, fields: &[mir::MirRepresentationFieldV1]) -> Result<Fields> {
         let mut identities = self.reserve(fields.len())?;
         let mut values = self.reserve(fields.len())?;
         for field in fields {
-            self.meter.charge_work(1, &WirePath::root())?;
             identities.push(self.identities.canonical_record(field.field)?);
-            values.push(self.value_dependency(field.value, depth)?);
+            values.push(self.value_dependency(field.value)?);
         }
         Ok(Fields { identities, values })
     }

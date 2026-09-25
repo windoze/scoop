@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedDefinitionOriginRecord, DecodedDefinitionOriginSubject, DecodedExpressionOrigin,
@@ -138,7 +138,7 @@ fn all_source_context_records_round_trip_and_resolve() {
         let record = CborIdentityRecord::<PersistentSourceContextId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentSourceContextId, DecodedSourceContextKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap(),
@@ -156,8 +156,7 @@ fn source_context_resolution_rejects_an_unknown_owner_reference() {
     let mut bytes = encode(&key).unwrap();
     assert_eq!(*bytes.last().unwrap(), 7);
     *bytes.last_mut().unwrap() = 8;
-    let decoded =
-        decode_canonical::<DecodedSourceContextKey>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedSourceContextKey>(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(SourceContextResolutionError::Reference(ResolutionError))
@@ -168,14 +167,14 @@ fn source_context_resolution_rejects_an_unknown_owner_reference() {
 fn source_context_decoder_rejects_unknown_and_incomplete_variants() {
     let unknown = decode_canonical::<DecodedSourceContextKey>(
         b"\xa2\x00\x06\x01\xa2\x01\x58\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x61x",
-        DecodeLimits::default(),
+
     )
     .unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 6 });
 
     let incomplete = decode_canonical::<DecodedSourceContextKey>(
         b"\xa2\x00\x02\x01\xa2\x01\x58\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x61x",
-        DecodeLimits::default(),
+
     )
     .unwrap_err();
     assert_eq!(
@@ -209,20 +208,15 @@ fn expression_origins_round_trip_and_resolve_context_keys() {
     ];
 
     for origin in origins {
-        let decoded = decode_canonical::<DecodedExpressionOrigin>(
-            &encode(&origin).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedExpressionOrigin>(&encode(&origin).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), origin);
     }
 }
 
 #[test]
 fn source_origin_resolution_rejects_invalid_spans_and_context_source_mismatches() {
-    let span =
-        decode_canonical::<DecodedSourceSpan>(b"\xa2\x01\x05\x02\x04", DecodeLimits::default())
-            .unwrap();
+    let span = decode_canonical::<DecodedSourceSpan>(b"\xa2\x01\x05\x02\x04").unwrap();
     assert_eq!(span.validate(), Err(SourceSpanError));
 
     let definition_context = context_keys().remove(0);
@@ -237,9 +231,7 @@ fn source_origin_resolution_rejects_invalid_spans_and_context_source_mismatches(
     let wrong_context = PersistentSourceContextId::from_key(&definition_context).unwrap();
     let context_start = bytes.len() - wrong_context.as_array().len();
     bytes[context_start..].copy_from_slice(wrong_context.as_array());
-    let decoded =
-        decode_canonical::<super::DecodedEvaluationOrigin>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<super::DecodedEvaluationOrigin>(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(SourceOriginResolutionError::Origin(
@@ -250,11 +242,7 @@ fn source_origin_resolution_rejects_invalid_spans_and_context_source_mismatches(
 
 #[test]
 fn expression_origin_decoder_rejects_unknown_variants() {
-    let error = decode_canonical::<DecodedExpressionOrigin>(
-        b"\xa2\x00\x03\x01\x80",
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedExpressionOrigin>(b"\xa2\x00\x03\x01\x80").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 
@@ -270,11 +258,8 @@ fn every_definition_origin_subject_round_trips_and_resolves() {
 
     for subject in definition_subjects() {
         let record = DefinitionOriginRecord::new(subject, origin.clone());
-        let decoded = decode_canonical::<DecodedDefinitionOriginRecord>(
-            &encode(&record).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedDefinitionOriginRecord>(&encode(&record).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), record);
     }
 }
@@ -283,8 +268,7 @@ fn every_definition_origin_subject_round_trips_and_resolves() {
 fn definition_origin_subject_decoder_rejects_unknown_variants() {
     let mut bytes = vec![0xa2, 0x00, 0x13, 0x01, 0x58, 0x20];
     bytes.extend_from_slice(&[7; 32]);
-    let error = decode_canonical::<DecodedDefinitionOriginSubject>(&bytes, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedDefinitionOriginSubject>(&bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 19 });
 }
 

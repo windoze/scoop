@@ -10,7 +10,6 @@ pub(super) fn project(
     identities: &ValidatedIdentityGraph,
     identity: &mir::SourceExactTypeIdentity,
     nominal: PersistentTypeId,
-    meter: &mut BudgetMeter,
 ) -> Result<Option<mir::ParamFreeMirTypeExportV1>, SourceMirTypeProductionError> {
     let (builtin, representation) = match identity.ty() {
         mir::Type::Unit => (
@@ -26,7 +25,7 @@ pub(super) fn project(
         ),
         _ => return Ok(None),
     };
-    work(1, meter)?;
+
     let provider = builtin.declaration_key().origin();
     if nominal != builtin.identity_record().id()
         || identity.owner() != mir::SourceExactTypeOwner::Cone(provider)
@@ -40,10 +39,7 @@ pub(super) fn project(
     }
     let exact = identity.identity_record().id();
     let source = hir.section().exact_facts();
-    work(
-        source.records().len().checked_ilog2().unwrap_or(0) as usize + 1,
-        meter,
-    )?;
+
     let source = source
         .get(exact)
         .ok_or(SourceMirTypeProductionError::MissingFacts(exact))?;

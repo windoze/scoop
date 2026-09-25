@@ -24,7 +24,6 @@ fn shared_type_sites_preserve_type_test_operands_without_unexpanded_defaults() {
             .complete_cross_cone_interface_source_points(
                 output.output().export.module(),
                 &interface,
-                &mut BudgetMeter::new(DecodeLimits::default()),
             )
             .unwrap();
         let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
@@ -38,20 +37,13 @@ fn shared_type_sites_preserve_type_test_operands_without_unexpanded_defaults() {
             {
                 assert_eq!(reference.origin(), ConeIdentity::CORE);
                 foundation
-                    .validate_definition_origin_location(
-                        local.cone,
-                        site.origin().definition(),
-                        &mut BudgetMeter::new(DecodeLimits::default()),
-                        &WirePath::root(),
-                    )
+                    .validate_definition_origin_location(local.cone, site.origin().definition())
                     .unwrap();
                 foundation
                     .validate_executable_evaluation_origin(
                         local.cone,
                         site.position().root,
                         site.origin().evaluation(),
-                        &mut BudgetMeter::new(DecodeLimits::default()),
-                        &WirePath::root(),
                     )
                     .unwrap();
                 uses.push((site.role(), site.exact()));
@@ -73,47 +65,6 @@ fn shared_type_sites_preserve_type_test_operands_without_unexpanded_defaults() {
 }
 
 #[test]
-fn shared_interface_source_completion_uses_a_cumulative_budget() {
-    with_hir_source(&fixture(), |output, _| {
-        let interface = public_interface(output);
-        let original = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
-        let complete = |foundation: &mut hir::CanonicalHirFoundation, meter: &mut BudgetMeter| {
-            foundation.complete_cross_cone_interface_source_points(
-                output.output().export.module(),
-                &interface,
-                meter,
-            )
-        };
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                complete(&mut original.clone(), &mut BudgetMeter::new(limits)),
-                Err(hir::HirFoundationBuildError::SourcePointResource(_))
-            ));
-        }
-        let mut measured = BudgetMeter::new(DecodeLimits::default());
-        complete(&mut original.clone(), &mut measured).unwrap();
-        let mut bounded = BudgetMeter::new(DecodeLimits {
-            validation_work_units: measured.usage().validation_work_units,
-            ..DecodeLimits::default()
-        });
-        complete(&mut original.clone(), &mut bounded).unwrap();
-        assert!(matches!(
-            complete(&mut original.clone(), &mut bounded),
-            Err(hir::HirFoundationBuildError::SourcePointResource(_))
-        ));
-    });
-}
-
-#[test]
 fn shared_constructor_type_sites_keep_their_actual_source_context() {
     let source = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -127,7 +78,6 @@ fn shared_constructor_type_sites_keep_their_actual_source_context() {
             .complete_cross_cone_interface_source_points(
                 output.output().export.module(),
                 &interface,
-                &mut BudgetMeter::new(DecodeLimits::default()),
             )
             .unwrap();
         let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
@@ -144,8 +94,6 @@ fn shared_constructor_type_sites_keep_their_actual_source_context() {
                     output.output().export.cone,
                     site.position().root,
                     site.origin().evaluation(),
-                    &mut BudgetMeter::new(DecodeLimits::default()),
-                    &WirePath::root(),
                 )
                 .unwrap_or_else(|error| {
                     panic!(
@@ -170,8 +118,6 @@ fn shared_constructor_type_sites_keep_their_actual_source_context() {
                 output.output().export.cone,
                 first.position().root,
                 other.origin().evaluation(),
-                &mut BudgetMeter::new(DecodeLimits::default()),
-                &WirePath::root(),
             ),
             Err(hir::ExecutableEvaluationValidationError::Context { .. })
         ));

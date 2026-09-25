@@ -26,9 +26,7 @@ impl DecodedLayoutAbiSemanticTargetV1 {
     pub fn resolve(
         self,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<LayoutAbiSemanticTargetV1, LayoutAbiDependencyError> {
-        meter.charge_work(1, &WirePath::root())?;
         Ok(match self {
             Self::Layout(layout) => LayoutAbiSemanticTargetV1::Layout(identities.resolve(layout)?),
             Self::Descriptor(exact) => {

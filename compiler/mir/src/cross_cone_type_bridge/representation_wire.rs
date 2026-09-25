@@ -41,7 +41,6 @@ impl DecodedMirTypeRepresentationV1 {
     pub(super) fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<MirTypeRepresentationV1, MirTypeBridgeError> {
         Ok(match self {
             Self::Intrinsic(value) => MirTypeRepresentationV1::Intrinsic(value),
@@ -50,32 +49,32 @@ impl DecodedMirTypeRepresentationV1 {
                 c_layout,
                 interior_mutable,
             } => MirTypeRepresentationV1::Struct {
-                fields: resolve_fields(fields, graph, meter)?,
+                fields: resolve_fields(fields, graph)?,
                 c_layout,
                 interior_mutable,
             },
             Self::Enum { variants } => MirTypeRepresentationV1::Enum {
-                variants: resolve_variants(variants, graph, meter)?,
+                variants: resolve_variants(variants, graph)?,
             },
             Self::Class {
                 kind,
                 declared_fields,
             } => MirTypeRepresentationV1::Class {
                 kind,
-                declared_fields: resolve_fields(declared_fields, graph, meter)?,
+                declared_fields: resolve_fields(declared_fields, graph)?,
             },
             Self::Interface => MirTypeRepresentationV1::Interface,
             Self::ObjectBacking { declared_fields } => MirTypeRepresentationV1::ObjectBacking {
-                declared_fields: resolve_fields(declared_fields, graph, meter)?,
+                declared_fields: resolve_fields(declared_fields, graph)?,
             },
             Self::BoxedValue { payload } => MirTypeRepresentationV1::BoxedValue {
                 payload: payload.resolve(graph)?,
             },
             Self::CoroutineStep { variants } => MirTypeRepresentationV1::CoroutineStep {
-                variants: resolve_variants(variants, graph, meter)?,
+                variants: resolve_variants(variants, graph)?,
             },
             Self::CoroutineSlot { variants } => MirTypeRepresentationV1::CoroutineSlot {
-                variants: resolve_variants(variants, graph, meter)?,
+                variants: resolve_variants(variants, graph)?,
             },
             Self::Object { backing } => MirTypeRepresentationV1::Object {
                 backing: graph.resolve(backing)?,
@@ -86,18 +85,14 @@ impl DecodedMirTypeRepresentationV1 {
 fn resolve_fields(
     fields: Vec<DecodedMirRepresentationFieldV1>,
     graph: &mut ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<MirRepresentationFieldV1>, MirTypeBridgeError> {
-    wire::resolve_sequence(fields, graph, meter, |field, graph, _| field.resolve(graph))
+    wire::resolve_sequence(fields, graph, |field, graph| field.resolve(graph))
 }
 fn resolve_variants(
     variants: Vec<DecodedMirRepresentationVariantV1>,
     graph: &mut ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<MirRepresentationVariantV1>, MirTypeBridgeError> {
-    wire::resolve_sequence(variants, graph, meter, |variant, graph, meter| {
-        variant.resolve(graph, meter)
-    })
+    wire::resolve_sequence(variants, graph, |variant, graph| variant.resolve(graph))
 }
 
 // Both trust levels serialize the same representation sum. Sharing this
@@ -175,7 +170,7 @@ encode_representation!(MirTypeRepresentationV1);
 encode_representation!(DecodedMirTypeRepresentationV1);
 
 impl WireDecode for DecodedMirTypeRepresentationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         let kind = decoder.field(0, Decoder::unsigned)?;
         fields(
@@ -225,17 +220,17 @@ impl WireDecode for DecodedMirTypeRepresentationV1 {
     }
 }
 fn decode_fields(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedMirRepresentationFieldV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedMirRepresentationFieldV1::decode(decoder))
 }
 fn decode_variants(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedMirRepresentationVariantV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedMirRepresentationVariantV1::decode(decoder))
 }
 
-fn decode_boolean(decoder: &mut Decoder<'_, '_>) -> Result<bool, WireError> {
+fn decode_boolean(decoder: &mut Decoder<'_>) -> Result<bool, WireError> {
     match decoder.unsigned()? {
         0 => Ok(false),
         1 => Ok(true),

@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentGenericFunctionId, PersistentGenericTypeId, SignatureTypeKey, SourceContextKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
@@ -46,8 +46,7 @@ fn protocol_callable_roundtrips_and_replays_the_source_signature() {
             .unwrap();
 
         let bytes = encode(&callable).unwrap();
-        let decoded: DecodedCoreProtocolCallableV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedCoreProtocolCallableV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.validate_against(&foundation), Ok(callable));
     }
 }
@@ -59,10 +58,7 @@ fn protocol_callable_reader_rejects_unknown_open_and_wrong_signature_values() {
         crate::core_protocol_test_support::ordinary_origin(),
     ] {
         for bytes in [vec![0xa1], vec![0xa3], vec![0xa2, 0x03, 0x00, 0x02, 0x00]] {
-            assert!(
-                decode_canonical::<DecodedCoreProtocolCallableV1>(&bytes, DecodeLimits::default())
-                    .is_err()
-            );
+            assert!(decode_canonical::<DecodedCoreProtocolCallableV1>(&bytes).is_err());
         }
 
         let plain: CborIdentityRecord<PersistentFunctionId, _> =
@@ -110,7 +106,7 @@ fn protocol_callable_reader_rejects_unknown_open_and_wrong_signature_values() {
         ] {
             let bytes = encode(&definition).unwrap();
             let decoded: DecodedCoreProtocolCallableDefinitionV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             assert_eq!(encode(&decoded).unwrap(), bytes);
         }
 
@@ -143,7 +139,7 @@ fn protocol_callable_reader_rejects_unknown_open_and_wrong_signature_values() {
             )])
             .unwrap();
         let decoded: DecodedCoreProtocolCallableV1 =
-            decode_canonical(&encode(&wrong).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&wrong).unwrap()).unwrap();
         assert_eq!(
             decoded.validate_against(&foundation),
             Err(
@@ -213,7 +209,7 @@ fn protocol_callable_reader_replays_owner_and_callable_binder_groups() {
             .unwrap();
 
         let decoded: DecodedCoreProtocolCallableV1 =
-            decode_canonical(&encode(&callable).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&callable).unwrap()).unwrap();
         assert_eq!(decoded.validate_against(&foundation), Ok(callable));
     }
 }

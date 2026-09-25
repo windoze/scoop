@@ -9,7 +9,6 @@ pub(super) fn project(
     export: &ExportHir,
     projector: &HirInterfaceSignatureProjector<'_>,
     property_id: PropertyId,
-    meter: &mut BudgetMeter,
 ) -> Result<PropertyDeclarationRecordV1, PropertyInterfaceBuildError> {
     use PropertyInterfaceBuildError as Error;
     let property = arena_get(&export.properties, property_id)
@@ -21,7 +20,7 @@ pub(super) fn project(
     let declaration = persistent_property_owner(identity);
     signature::validate_declaration_identity(export, declaration, identity)?;
     let signature =
-        signature::project_property_signature(export, projector, property_id, property, meter)?;
+        signature::project_property_signature(export, projector, property_id, property)?;
     let accessors =
         accessors::project_accessors(export, property_id, declaration, property.capability)?;
     if accessors.getter.access.declared != property.access.declared {

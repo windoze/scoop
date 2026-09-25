@@ -6,7 +6,7 @@ use crate::{
 use scoop_identity::{
     CallableTemplateOrigin, DecodedOptionalSignatureType, DecodedSignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedNominalSourceCallablePayloadV1 {
     owner: DecodedSourceNominalId,
@@ -24,12 +24,9 @@ impl DecodedNominalSourceCallablePayloadV1 {
         self,
         declaration: CallableTemplateOrigin,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSourceCallablePayloadV1, ProtectedCallableInterfaceResolutionError<E>> {
         use ProtectedCallableInterfaceResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         if self.receiver != DecodedOptionalSignatureType::Absent {
             return Err(Error::Interface(
                 ProtectedCallableInterfaceBuildError::Receiver,
@@ -50,18 +47,16 @@ impl DecodedNominalSourceCallablePayloadV1 {
         let owner = self.owner.resolve(resolver).map_err(Error::Identity)?;
         let type_parameters = self
             .type_parameters
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Binders)?;
         let parameters = self
             .parameters
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(Error::Parameters)?;
-        self.result
-            .charge_resolution(meter)
-            .map_err(Error::Resource)?;
+
         let result = self.result.resolve(resolver).map_err(Error::Identity)?;
         let effects = self.effects.validate().map_err(Error::Effects)?;
-        let slots = self.slot_relations.resolve(resolver, meter)?;
+        let slots = self.slot_relations.resolve(resolver)?;
         NominalSourceCallablePayloadV1::try_new(
             declaration,
             owner,
@@ -99,7 +94,7 @@ impl WireEncode for DecodedNominalSourceCallablePayloadV1 {
     }
 }
 impl WireDecode for DecodedNominalSourceCallablePayloadV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(9)?;
         Ok(Self {
             owner: decoder.field(1, DecodedSourceNominalId::decode)?,

@@ -4,7 +4,7 @@ use scoop_identity::{
     SourceContextKey, SourceIdentity, SourceSpan, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::cross_cone_interface::default_templates::body::expression_test_support::{
@@ -107,11 +107,8 @@ fn accepts_the_exact_deduplicated_six_domain_closure() {
         references,
         origin,
     );
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
 
-    assert_eq!(validate(&template, &fixture, &mut meter), Ok(()));
-    assert!(meter.usage().decoded_nodes > 12);
-    assert!(meter.usage().decoded_edges > 12);
+    assert_eq!(validate(&template, &fixture), Ok(()));
 }
 
 #[test]
@@ -143,8 +140,7 @@ fn rejects_missing_wrong_origin_and_extra_records() {
     assert!(matches!(
         validate(
             &template_with_wrong_origin,
-            &fixture,
-            &mut BudgetMeter::new(DecodeLimits::default())
+            &fixture
         ),
         Err(ExportDefaultReferenceClosureValidationError::Missing {
             kind: ExportDefaultReferenceKindV1::Global,
@@ -176,11 +172,7 @@ fn rejects_missing_wrong_origin_and_extra_records() {
     );
 
     assert_eq!(
-        validate(
-            &template_with_extra,
-            &fixture,
-            &mut BudgetMeter::new(DecodeLimits::default())
-        ),
+        validate(&template_with_extra, &fixture),
         Err(ExportDefaultReferenceClosureValidationError::Extra {
             kind: ExportDefaultReferenceKindV1::Global,
             index: 0,
@@ -226,14 +218,7 @@ fn local_types_use_their_source_origin_and_binder_roots_are_not_references() {
         template_origin,
     );
 
-    assert_eq!(
-        validate(
-            &template,
-            &fixture,
-            &mut BudgetMeter::new(DecodeLimits::default())
-        ),
-        Ok(())
-    );
+    assert_eq!(validate(&template, &fixture), Ok(()));
 }
 
 #[test]
@@ -282,76 +267,15 @@ fn callable_reference_wrapper_does_not_leak_its_underlying_callable() {
         origin,
     );
 
-    assert_eq!(
-        validate(
-            &template,
-            &fixture,
-            &mut BudgetMeter::new(DecodeLimits::default())
-        ),
-        Ok(())
-    );
-}
-
-#[test]
-fn rejects_a_mismatched_owner_and_preserves_resource_failure() {
-    let fixture = Fixture::new();
-    let origin = fixture.origin();
-    let template = template(
-        &fixture,
-        CanonicalTemplateLocalTableV1::try_new(Vec::new()).unwrap(),
-        body(
-            DefaultExpressionKindV1::UnitLiteral,
-            binder(),
-            origin.clone(),
-        ),
-        ExportDefaultReferenceSetV1::default(),
-        origin,
-    );
-    let other = owner_interface(
-        CallableTemplateOrigin::Constructor(fixture.constructor),
-        &fixture,
-    );
-    assert_eq!(
-        template.validate_reference_closure_semantics(
-            &other,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        ),
-        Err(
-            ExportDefaultReferenceClosureValidationError::OwnerInterface {
-                expected: CallableTemplateOrigin::Function(fixture.function),
-                actual: CallableTemplateOrigin::Constructor(fixture.constructor),
-            }
-        )
-    );
-
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 1,
-        ..DecodeLimits::default()
-    });
-    let error = validate(&template, &fixture, &mut meter).unwrap_err();
-    assert!(matches!(
-        error,
-        ExportDefaultReferenceClosureValidationError::Resource(resource)
-            if matches!(
-                resource.kind(),
-                WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::ValidationWorkUnits,
-                    ..
-                }
-            )
-    ));
-    assert_eq!(meter.usage().validation_work_units, 1);
+    assert_eq!(validate(&template, &fixture), Ok(()));
 }
 
 fn validate(
     template: &ExportDefaultTemplateV1,
     fixture: &Fixture,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
     template.validate_reference_closure_semantics(
         &owner_interface(CallableTemplateOrigin::Function(fixture.function), fixture),
-        meter,
         &WirePath::root(),
     )
 }

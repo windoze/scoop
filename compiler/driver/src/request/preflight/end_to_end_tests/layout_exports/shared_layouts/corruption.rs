@@ -9,7 +9,7 @@ pub(super) fn check(
     let records = layouts.records();
     let reject = |rows: Vec<lir::ExactLayoutExportV1>| {
         let wire: lir::DecodedCanonicalExactLayoutExportsV1 = decoded(&Rows(&rows));
-        assert!(wire.validate_against(layouts, &mut meter()).is_err());
+        assert!(wire.validate_against(layouts).is_err());
     };
     for index in 0..records.len() {
         let mut missing = records.to_vec();
@@ -50,7 +50,7 @@ pub(super) fn check(
         .find_exact_role(source.exact(), RepresentationRole::ManagedValue)
         .unwrap();
     assert!(matches!(
-        replay(input, &types, &[], &mut meter()),
+        replay(input, &types, &[]),
         Err(Error::Cycle(id)) if id == layout.identity().layout()
     ));
 
@@ -78,7 +78,7 @@ pub(super) fn check(
         },
     );
     assert!(matches!(
-        replay(input, &types, &[], &mut meter()),
+        replay(input, &types, &[]),
         Err(Error::SourceFacts(exact)) if exact == source.exact()
     ));
 
@@ -107,7 +107,7 @@ pub(super) fn check(
             },
         );
         assert!(matches!(
-            replay(input, &types, &[], &mut meter()),
+            replay(input, &types, &[]),
             Err(Error::CLayout(exact)) if exact == source.exact()
         ));
     }

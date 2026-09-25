@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
     SourceNominalKind,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, encode};
+use scoop_wire::encode;
 
 use super::{
     StrongLirBoxedValueMaterialization, StrongLirShapeSupportError, StrongLirShapeSupportPlan,
@@ -199,7 +199,6 @@ fn v2_writer_preserves_legacy_relation_bytes_for_a_final_lir_module() {
             crate::EntryProductionSourceV1::Library,
             &selected,
             &[],
-            &mut meter(),
         )
         .unwrap();
 
@@ -256,7 +255,7 @@ fn v2_writer_rejects_an_external_descriptor_without_selected_terminal_authority(
             crate::EntryProductionSourceV1::Library,
             &selected,
             &[],
-            &mut meter(),
+
         ),
         Err(crate::StrongProductionWriterError::Digests(
             crate::StrongDigestProjectionError::Types(
@@ -274,16 +273,8 @@ fn v2_writer_rejects_an_external_descriptor_without_selected_terminal_authority(
 fn empty_production_selection(
     consumer: ConeIdentity,
 ) -> crate::StrongProductionDependencySelectionV2<'static> {
-    crate::StrongProductionDependencySelectionV2::empty(
-        consumer,
-        LirTargetProfile::DARWIN_AARCH64,
-        &mut meter(),
-    )
-    .unwrap()
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
+    crate::StrongProductionDependencySelectionV2::empty(consumer, LirTargetProfile::DARWIN_AARCH64)
+        .unwrap()
 }
 
 fn fixture_module(producer: ConeIdentity) -> Module {

@@ -4,9 +4,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
     pub fn of_callable(
         record: &ParamFreeMirCallableBindingV1,
         graph: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
-        let mut collector = Collector::new(graph, meter);
+        let mut collector = Collector::new(graph);
         collector.signature(record.semantic_signature())?;
         collector.signature(record.lowered_signature())?;
         match *record.lowering_role() {

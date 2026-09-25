@@ -44,7 +44,7 @@ pub struct DecodedTypeDeclarationSourceAuthorityV1 {
     dispatch_callables: DecodedCanonicalInheritanceSourceCallablesV1,
 }
 impl WireDecode for DecodedTypeDeclarationSourceAuthorityV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(9)?;
         Ok(Self {
             required_protected: d.field(1, DecodedCanonicalProtectedDeclarationRefsV1::decode)?,

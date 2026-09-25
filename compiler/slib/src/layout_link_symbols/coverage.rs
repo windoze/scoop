@@ -7,7 +7,6 @@ pub(super) fn replay(
     ordinary: &VerifiedCrossConeStrongRequirementClosureV1,
     shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
     input: &ReplayInputs<'_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<
     (
         VerifiedCodeLinkObjectMemberSetV2,
@@ -15,25 +14,23 @@ pub(super) fn replay(
     ),
     LayoutLinkSymbolUseError,
 > {
-    resources::final_directory(input.manifest.members(), meter)?;
     let finalized = verify_code_link_object_members_v2(finalized, input.manifest.members())?;
     input
         .link
         .link_identity_closure_wire()
-        .replay_final_object_projections(&finalized, meter)?;
-    resources::ordinary_coverage(ordinary, finalized.projection(), meter)?;
+        .replay_final_object_projections(&finalized)?;
+
     let ordinary = CrossConeLinkClosureSectionV1::from_verified_requirements(ordinary, &finalized)?;
     input
         .link
         .cross_cone_link_closure_wire()
-        .replay_object_coverage_against(ordinary.object_coverage(), meter)?;
-    let shape =
-        CrossConeLayoutLinkClosureSectionV1::from_verified_requirements(shape, &finalized, meter)?;
+        .replay_object_coverage_against(ordinary.object_coverage())?;
+    let shape = CrossConeLayoutLinkClosureSectionV1::from_verified_requirements(shape, &finalized)?;
     input
         .link
         .layout_link_closure_wire()
-        .replay_object_coverage_against(shape.object_coverage(), meter)?;
-    resources::code_contributions(ordinary.semantic_imports(), shape.semantic_imports(), meter)?;
+        .replay_object_coverage_against(shape.object_coverage())?;
+
     let contributions =
         CanonicalKnownLinkExtensionCodeContributionSetV1::from_cross_cone_layout_semantic_imports(
             ordinary.semantic_imports(),

@@ -56,9 +56,8 @@ impl CrossConeTypeSemanticsProductionV1 {
         output: &DependencyHirOutput,
         metadata: crate::SharedTypeMetadataV1<'_>,
         dependencies: &[crate::SharedTypeMetadataV1<'_>],
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CrossConeTypeSemanticsProductionError> {
-        nominals::produce(output, metadata, dependencies, meter)
+        nominals::produce(output, metadata, dependencies)
     }
 
     pub const fn section(&self) -> &CrossConeTypeSemanticsSectionV1 {

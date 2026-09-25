@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentInitializationUnitId, StrongCallableDefinitionOwner, ValidatedIdentityGraph,
 };
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 mod callables;
 mod error;
@@ -22,15 +22,13 @@ pub use source::{MirTypeBridgeSourceProjectionError, MirTypeBridgeSourceProjecti
 pub fn lower_type_bridge_exports(
     input: MirTypeBridgeExportInputV1<'_>,
     dependencies: MirTypeBridgeDependencyTablesV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::MirTypeBridgeExportConstituentsV1, Error> {
-    input.validate(meter)?;
-    let initialization_uses = initialization::project(input, meter)?;
-    let types = crate::lower_type_exports(input.source, input.mir, input.identities, meter)
+    input.validate()?;
+    let initialization_uses = initialization::project(input)?;
+    let types = crate::lower_type_exports(input.source, input.mir, input.identities)
         .map_err(Error::Types)?;
-    let tables = with_local(&types, dependencies.types, meter)?;
-    let type_index =
-        mir::MirTypeBridgeTypeIndexV1::try_new(&tables, meter).map_err(Error::Lookup)?;
+    let tables = with_local(&types, dependencies.types)?;
+    let type_index = mir::MirTypeBridgeTypeIndexV1::try_new(&tables).map_err(Error::Lookup)?;
     let source_callables = crate::lower_source_callable_bindings(
         input.hir,
         input.public,
@@ -38,7 +36,6 @@ pub fn lower_type_bridge_exports(
         input.mir,
         input.identities,
         &type_index,
-        meter,
     )
     .map_err(Error::SourceCallables)?;
     let constructors = crate::lower_constructor_bindings(
@@ -47,7 +44,6 @@ pub fn lower_type_bridge_exports(
         input.mir,
         input.identities,
         &type_index,
-        meter,
     )
     .map_err(Error::Constructors)?;
     let (object_callables, objects) = mir::MirObjectValueProductionV1::from_strong_input(
@@ -55,20 +51,18 @@ pub fn lower_type_bridge_exports(
         &types,
         input.identities,
         &type_index,
-        meter,
     )
     .map_err(Error::Objects)?
     .into_parts();
-    let source_tables = with_local(&source_callables, dependencies.callables, meter)?;
+    let source_tables = with_local(&source_callables, dependencies.callables)?;
     let source_index =
-        mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables, meter).map_err(Error::Lookup)?;
+        mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables).map_err(Error::Lookup)?;
     let boxing = mir::CanonicalMirCallableBindingsV1::from_boxing_adjusts(
         input.mir,
         &types,
         input.identities,
         &type_index,
         &source_index,
-        meter,
     )
     .map_err(Error::Boxing)?;
     let equality = crate::lower_derived_equality_bindings(
@@ -77,7 +71,6 @@ pub fn lower_type_bridge_exports(
         &types,
         input.identities,
         &type_index,
-        meter,
     )
     .map_err(Error::Equality)?;
     let callables = callables::combine(
@@ -89,11 +82,10 @@ pub fn lower_type_bridge_exports(
             equality,
         ],
         input.ordinary,
-        meter,
     )?;
-    let callable_tables = with_local(&callables, dependencies.callables, meter)?;
-    let callable_index = mir::MirTypeBridgeCallableIndexV1::try_new(&callable_tables, meter)
-        .map_err(Error::Lookup)?;
+    let callable_tables = with_local(&callables, dependencies.callables)?;
+    let callable_index =
+        mir::MirTypeBridgeCallableIndexV1::try_new(&callable_tables).map_err(Error::Lookup)?;
     let dispatch = crate::lower_dispatch_schemas(
         input.source,
         input.mir,
@@ -104,16 +96,11 @@ pub fn lower_type_bridge_exports(
             callables: &callable_index,
         },
         dependencies.dispatch,
-        meter,
     )
     .map_err(Error::Dispatch)?;
-    let shapes = mir::CanonicalMirShapeSupportsV1::from_strong_input(
-        input.mir,
-        input.identities,
-        &types,
-        meter,
-    )
-    .map_err(Error::Shapes)?;
+    let shapes =
+        mir::CanonicalMirShapeSupportsV1::from_strong_input(input.mir, input.identities, &types)
+            .map_err(Error::Shapes)?;
     Ok(mir::MirTypeBridgeExportConstituentsV1::new(
         types,
         callables,
@@ -124,29 +111,21 @@ pub fn lower_type_bridge_exports(
     ))
 }
 
-fn with_local<'a, T>(
-    local: &'a T,
-    dependencies: &[&'a T],
-    meter: &mut BudgetMeter,
-) -> Result<Vec<&'a T>, Error> {
+fn with_local<'a, T>(local: &'a T, dependencies: &[&'a T]) -> Result<Vec<&'a T>, Error> {
     let count = dependencies
         .len()
         .checked_add(1)
         .ok_or(Error::CountOverflow)?;
-    let mut tables = reserve(count, meter)?;
+    let mut tables = reserve(count)?;
     tables.push(local);
     tables.extend_from_slice(dependencies);
     Ok(tables)
 }
 
-fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, Error> {
+fn reserve<T>(count: usize) -> Result<Vec<T>, Error> {
     let path = WirePath::root();
-    meter.check_table_entries(count as u64, &path)?;
-    meter.charge_owned_bytes(
-        (count as u64).saturating_mul(std::mem::size_of::<T>() as u64),
-        &path,
-    )?;
+
     let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, &path)?;
+    scoop_wire::allocation::try_reserve(&mut values, count, &path)?;
     Ok(values)
 }

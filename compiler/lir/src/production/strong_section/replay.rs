@@ -1,9 +1,8 @@
 //! Ten-field V2 replay keeps publication gated by source and selected joins.
 
 use super::*;
-use scoop_wire::{BudgetMeter, WirePath, encode_canonical_temporary_with_meter};
+use scoop_wire::{WirePath, encode_canonical_temporary};
 
-mod budget;
 mod layout_join;
 mod view;
 pub use layout_join::{
@@ -33,24 +32,16 @@ impl<I: WireEncode>
         expected_initialization_abi: Option<Box<CallableAbiRecordV1>>,
         type_definitions: &crate::StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &crate::StrongInitializationDefinitionCatalogV2,
-        meter: &mut BudgetMeter,
     ) -> Result<ReplayedStrongProductionSectionV2, StrongProductionSectionValidationError> {
         let path = WirePath::root();
-        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
+        let actual = encode_canonical_temporary(&self, &path)?;
         let digests = self
             .digest_finalization_plan
-            .resolve_foundation(foundation, meter)
+            .resolve_foundation(foundation)
             .map_err(|source| {
                 StrongProductionSectionValidationError::DigestReplay(Box::new(source))
             })?;
-        budget::charge_replay(
-            foundation,
-            direct_dependencies,
-            &digests,
-            shape_sources,
-            expected_initialization_abi.as_deref(),
-            meter,
-        )?;
+
         let registrations = self
             .registration_production
             .replay(
@@ -60,21 +51,19 @@ impl<I: WireEncode>
                 &expected_external_bridges,
                 type_definitions,
                 initialization_definitions,
-                meter,
             )
             .map_err(StrongProductionSectionValidationError::Registrations)?;
         let expected_digests = crate::replay_strong_digest_finalization_plan_v2(
             foundation,
             &registrations.surface,
             &entry_source,
-            meter,
         )
         .map_err(|source| {
             StrongProductionSectionValidationError::DigestProjection(Box::new(source))
         })?;
-        let original = encode_canonical_temporary_with_meter(&digests, meter, &path)?;
-        let canonical = encode_canonical_temporary_with_meter(&expected_digests, meter, &path)?;
-        meter.charge_work(original.len().min(canonical.len()) as u64, &path)?;
+        let original = encode_canonical_temporary(&digests, &path)?;
+        let canonical = encode_canonical_temporary(&expected_digests, &path)?;
+
         if original != canonical {
             return Err(StrongProductionSectionValidationError::DigestMismatch);
         }
@@ -90,8 +79,8 @@ impl<I: WireEncode>
             expected_initialization_abi,
         )
         .map_err(StrongProductionSectionValidationError::Expected)?;
-        let canonical = encode_canonical_temporary_with_meter(&section, meter, &path)?;
-        meter.charge_work(actual.len().min(canonical.len()) as u64, &path)?;
+        let canonical = encode_canonical_temporary(&section, &path)?;
+
         if actual != canonical {
             return Err(StrongProductionSectionValidationError::SectionMismatch);
         }

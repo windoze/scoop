@@ -1,4 +1,4 @@
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
     ExternalHirReferenceProductionError, ExternalHirReferenceProductionInput,
@@ -12,23 +12,17 @@ use crate::{
 pub(super) fn collect_reexports<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
     for (binding_index, binding) in input.public_bindings.records().iter().enumerate() {
-        let path = WirePath::root().field(9).index(binding_index as u64);
-        meter
-            .charge_work(1, &path)
-            .map_err(ExternalHirReferenceProductionError::Resource)?;
         let ExportBindingSourceV1::Reexport { routes } = binding.source() else {
             continue;
         };
         let target = accumulator
             .authority()
-            .binding_key(binding.binding(), meter, &path)
-            .map_err(ExternalHirReferenceProductionError::Resource)?
+            .binding_key(binding.binding())
             .map(|key| ExternalHirTargetV1::from(key.target()))
             .ok_or(ExternalHirReferenceProductionError::MissingBindingKey {
                 binding_index,
@@ -51,7 +45,6 @@ where
 pub(super) fn collect_aliases<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -72,7 +65,6 @@ where
             TypeAliasTargetV1::Signature(signature) => accumulator.observe_signature(
                 signature,
                 ExternalHirReferenceRoleV1::AliasTarget,
-                meter,
                 &path,
             )?,
         }
@@ -83,7 +75,6 @@ where
 pub(super) fn collect_constants<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
@@ -92,7 +83,6 @@ where
         accumulator.observe_signature(
             constant.value_type(),
             ExternalHirReferenceRoleV1::ConstType,
-            meter,
             &WirePath::root().field(8).index(wire_index).field(2),
         )?;
     }

@@ -75,7 +75,7 @@ impl<T> DecodedExportDefaultReferenceV1<T> {
     pub(crate) fn resolve_with<R, E, U>(
         self,
         resolver: &mut R,
-        meter: &mut scoop_wire::BudgetMeter,
+
         path: &scoop_wire::WirePath,
         resolve_target: impl FnOnce(
             T,
@@ -94,7 +94,7 @@ impl<T> DecodedExportDefaultReferenceV1<T> {
             .map_err(ExportDefaultReferenceResolutionError::DefinitionOrigin)?;
         let witness = self
             .witness
-            .resolve(resolver, meter, &path.clone().field(3))
+            .resolve(resolver, &path.clone().field(3))
             .map_err(ExportDefaultReferenceResolutionError::Witness)?;
         Ok(ExportDefaultReferenceV1::new(
             target,
@@ -117,7 +117,7 @@ impl<T: WireEncode> WireEncode for DecodedExportDefaultReferenceV1<T> {
 }
 
 impl<T: WireDecode> WireDecode for DecodedExportDefaultReferenceV1<T> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             target: decoder.field(1, T::decode)?,

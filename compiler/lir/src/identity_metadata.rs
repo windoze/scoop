@@ -15,9 +15,7 @@ use scoop_identity::{
     PersistentCallbackApplicationId, PersistentExactTypeId, PersistentIdResolver,
     PersistentSafepointSiteId, RuntimeTypeId, SafepointId as PersistentSafepointId,
 };
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 /// Canonical target-specific C storage signatures and layouts required by
 /// this LIR module. Repeated boundary uses share one record; a digest collision
@@ -323,8 +321,6 @@ impl DecodedRuntimeTypeMappingRecord {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<RuntimeTypeMappingRecord, RuntimeTypeMappingResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentExactTypeId, Error = E>,
@@ -332,11 +328,7 @@ impl DecodedRuntimeTypeMappingRecord {
         let exact_type = resolver
             .resolve(self.exact_type)
             .map_err(RuntimeTypeMappingResolutionError::Reference)?;
-        let hash_length = RuntimeTypeId::hash_stream_length()
-            .map_err(RuntimeTypeMappingResolutionError::Derivation)?;
-        meter
-            .charge_sha256(hash_length, path)
-            .map_err(RuntimeTypeMappingResolutionError::Resource)?;
+
         let record = RuntimeTypeMappingRecord::new(exact_type)
             .map_err(RuntimeTypeMappingResolutionError::Derivation)?;
         if record.runtime_type().get() != self.runtime_type.get() {
@@ -360,7 +352,7 @@ impl WireEncode for DecodedRuntimeTypeMappingRecord {
 }
 
 impl WireDecode for DecodedRuntimeTypeMappingRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,
@@ -383,8 +375,6 @@ impl DecodedSafepointMappingRecord {
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<SafepointMappingRecord, SafepointMappingResolutionError<E>>
     where
         R: PersistentIdResolver<PersistentSafepointSiteId, Error = E>,
@@ -392,11 +382,7 @@ impl DecodedSafepointMappingRecord {
         let site = resolver
             .resolve(self.site)
             .map_err(SafepointMappingResolutionError::Reference)?;
-        let hash_length = PersistentSafepointId::hash_stream_length()
-            .map_err(SafepointMappingResolutionError::Derivation)?;
-        meter
-            .charge_sha256(hash_length, path)
-            .map_err(SafepointMappingResolutionError::Resource)?;
+
         let record = SafepointMappingRecord::new(site)
             .map_err(SafepointMappingResolutionError::Derivation)?;
         if record.safepoint().get() != self.safepoint.get() {
@@ -420,7 +406,7 @@ impl WireEncode for DecodedSafepointMappingRecord {
 }
 
 impl WireDecode for DecodedSafepointMappingRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             site: decoder.field(1, DecodedPersistentId::decode)?,
@@ -490,7 +476,7 @@ impl WireEncode for DecodedCallbackBridgeRecord {
 }
 
 impl WireDecode for DecodedCallbackBridgeRecord {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             application: decoder.field(1, DecodedPersistentId::decode)?,
@@ -567,7 +553,7 @@ impl<E: fmt::Display> fmt::Display for CallbackBridgeResolutionError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for CallbackBridgeResolutionError<E> {}
 
-fn decode_non_zero_u64(decoder: &mut Decoder<'_, '_>) -> Result<NonZeroU64, WireError> {
+fn decode_non_zero_u64(decoder: &mut Decoder<'_>) -> Result<NonZeroU64, WireError> {
     NonZeroU64::new(decoder.unsigned()?).ok_or_else(|| {
         WireError::new(
             WireErrorKind::IntegerOutOfRange,

@@ -1,6 +1,6 @@
 use super::*;
 
-impl<'a> Traversal<'a, '_> {
+impl<'a> Traversal<'a> {
     pub(super) fn expression(&mut self, expression: &'a Expr) -> Result<(), StructureError> {
         match &expression.kind {
             ExprKind::TupleLiteral(values)

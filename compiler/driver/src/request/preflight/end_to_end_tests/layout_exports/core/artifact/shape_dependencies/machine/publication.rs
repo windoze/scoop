@@ -22,7 +22,6 @@ pub(super) fn check<'a, 'p>(
             lir::EntryProductionSourceV1::Library,
             selected,
             &[],
-            &mut meter(),
         )
         .unwrap();
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {
@@ -37,13 +36,11 @@ pub(super) fn check<'a, 'p>(
         layouts: &[provider.layout.layouts()],
         callables: &[provider.layout.callables()],
     };
-    let exports =
-        scoop_lir_lower::lower_layout_abi_exports(input, dependencies, &mut meter()).unwrap();
+    let exports = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
     let projection = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
         input,
         dependencies,
         source.source,
-        &mut meter(),
     )
     .unwrap();
     let roots = projection.committed_semantic_roots().unwrap();
@@ -57,16 +54,12 @@ pub(super) fn check<'a, 'p>(
     let expected_shapes = source_input
         .public
         .external_references()
-        .materialized_shape_dependencies(
-            source_input.mir.module().cone,
-            source_input.identities,
-            &mut meter(),
-        )
+        .materialized_shape_dependencies(source_input.mir.module().cone, source_input.identities)
         .unwrap();
     assert_eq!(actual_shapes, expected_shapes);
     assert!(!actual_shapes.is_empty());
     assert!(matches!(
-        projection.validate_physical_imports(&[], &mut meter()),
+        projection.validate_physical_imports(&[]),
         Err(scoop_lir_lower::LayoutAbiSourceProjectionError::PhysicalInventory)
     ));
     let imports = selected
@@ -83,7 +76,6 @@ pub(super) fn check<'a, 'p>(
         &[provider.layout],
         imports,
         &projection,
-        &mut meter(),
     )
     .unwrap();
     let relations = section.selected().semantic_relations().collect::<Vec<_>>();
@@ -106,12 +98,9 @@ pub(super) fn check<'a, 'p>(
         },
         &decoded,
         &[provider.layout.exports()],
-        &mut meter(),
     )
     .unwrap();
-    let production = registration
-        .validate_layout_abi(&section, &mut meter())
-        .unwrap();
+    let production = registration.validate_layout_abi(&section).unwrap();
     assert!(production.type_registrations().registrations().is_empty());
     assert_eq!(
         production.callable_registrations().registrations().len(),

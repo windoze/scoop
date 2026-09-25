@@ -1,7 +1,6 @@
 use super::*;
 use scoop_hir::DeclaredVisibilityV1;
 use scoop_identity::{DefinitionOriginSubject, SourceDeclarationKind};
-use scoop_wire::WirePath;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
     pub(crate) fn validate_declaration_origin(
@@ -18,15 +17,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             .definition_origin(subject)
             .ok_or(Error::MissingDefinitionOrigin { subject })?;
         let source = origin.origin().source();
-        let path = WirePath::root();
-        self.meter
-            .charge_work(
-                key.owners().owners().len() as u64
-                    + source.logical_path().as_str().len() as u64
-                    + 1,
-                &path,
-            )
-            .map_err(Error::Resource)?;
+
         if key.origin() != self.current
             || source.cone() != self.current
             || key.scope().source().is_some_and(|actual| actual != source)
@@ -57,9 +48,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 }
             };
             let owner_key = self.source_nominal_key(nominal)?;
-            self.meter
-                .charge_work((index + 1) as u64, &path)
-                .map_err(Error::Resource)?;
+
             if owner_key.origin() != key.origin()
                 || owner_key.package() != key.package()
                 || owner_key.owners().owners() != &owners[..index]

@@ -15,9 +15,8 @@ pub use diagnostic::{
     StructuredDiagnosticV1,
 };
 pub use framing::{
-    PROTOCOL_MAX_FRAME_BYTES, ProtocolFrameError, ProtocolReadError, ProtocolWriteError,
-    decode_request_frame, decode_request_frame_with_usage, decode_response_frame,
-    decode_response_frame_with_usage, encode_request_frame, encode_response_frame,
+    ProtocolFrameError, ProtocolReadError, ProtocolWriteError, decode_request_frame,
+    decode_response_frame, encode_request_frame, encode_response_frame,
 };
 pub use path::{HostPathCarrier, HostPathEncoding, HostPathError};
 pub use request::{
@@ -34,10 +33,7 @@ pub use response::{
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
 pub const PROTOCOL_VERSION: u32 = 1;
-pub(crate) const MAX_INPUT_ARTIFACTS: usize = 4_096;
-pub(crate) const MAX_DIAGNOSTICS: usize = 4_096;
-pub(crate) const MAX_DIAGNOSTIC_NOTES: usize = 64;
-pub(crate) const MAX_DIAGNOSTIC_TEXT_BYTES: usize = 1_048_576;
+
 pub(crate) const MAX_EMITTED_DUMPS: usize = 1;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,11 +46,11 @@ pub enum ProtocolValidationError {
     UnknownEnumTag { kind: &'static str, tag: u64 },
     InvalidDigestLength { field: &'static str, actual: usize },
     HostPath(HostPathError),
-    TooManyInputs { role: &'static str, actual: usize },
+
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
     InvalidTargetTriple,
-    TooManyDiagnostics(usize),
+
     TooManyEmittedDumps(usize),
     FailureRequiresDiagnostic,
     FailureRequiresErrorDiagnostic,
@@ -63,7 +59,7 @@ pub enum ProtocolValidationError {
     InvalidDiagnosticMessage,
     InvalidDiagnosticSpan,
     InvalidSemanticSourcePath,
-    TooManyDiagnosticNotes(usize),
+
     InvalidArtifactSemanticPath,
 }
 
@@ -89,12 +85,7 @@ impl std::fmt::Display for ProtocolValidationError {
                 write!(formatter, "{field} must contain 32 bytes, found {actual}")
             }
             Self::HostPath(error) => error.fmt(formatter),
-            Self::TooManyInputs { role, actual } => {
-                write!(
-                    formatter,
-                    "too many {role} inputs: limit 4096, found {actual}"
-                )
-            }
+
             Self::InvalidCurrentCoreCombination => formatter
                 .write_str("current Cone input and trusted core request are not a permitted pair"),
             Self::SingleFileHasDependencies => {
@@ -103,10 +94,7 @@ impl std::fmt::Display for ProtocolValidationError {
             Self::InvalidTargetTriple => formatter.write_str(
                 "target triple must be 1..255 printable ASCII bytes without path separators",
             ),
-            Self::TooManyDiagnostics(actual) => write!(
-                formatter,
-                "too many structured diagnostics: limit 4096, found {actual}"
-            ),
+
             Self::TooManyEmittedDumps(actual) => write!(
                 formatter,
                 "too many emitted dump descriptors: limit 1, found {actual}"
@@ -132,10 +120,7 @@ impl std::fmt::Display for ProtocolValidationError {
             Self::InvalidSemanticSourcePath => {
                 formatter.write_str("diagnostic semantic source path is not canonical")
             }
-            Self::TooManyDiagnosticNotes(actual) => write!(
-                formatter,
-                "too many diagnostic notes: limit 64, found {actual}"
-            ),
+
             Self::InvalidArtifactSemanticPath => {
                 formatter.write_str("artifact diagnostic path must contain 1..1048576 UTF-8 bytes")
             }

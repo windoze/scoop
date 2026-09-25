@@ -10,10 +10,10 @@ pub enum DefaultOperationProtocolTypeError {
     Copy(DefaultTemplateTypeSubstitutionError),
 }
 impl DefaultOperationProtocolTypeError {
-    pub(super) fn copy(error: MeteredDefaultTemplateTypeSubstitutionError) -> Self {
+    pub(super) fn copy(error: DefaultTemplateTypeSubstitutionError) -> Self {
         match error {
-            MeteredDefaultTemplateTypeSubstitutionError::Resource(error) => Self::Resource(error),
-            MeteredDefaultTemplateTypeSubstitutionError::Substitution(error) => Self::Copy(error),
+            DefaultTemplateTypeSubstitutionError::Wire(error) => Self::Resource(error),
+            error => Self::Copy(error),
         }
     }
 }

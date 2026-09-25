@@ -1,7 +1,4 @@
-use scoop_wire::{
-    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use super::{
     CanonicalCAbiFunctionSignature, CanonicalCStorageType, CanonicalScoopAbiFunctionSignature,
@@ -220,16 +217,6 @@ impl NativeExternalContractFingerprint {
         )
         .map(|digest| Self(*digest.as_array()))
     }
-
-    pub fn hash_stream_length(contract: &NativeExternalContract) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(
-            NATIVE_EXTERNAL_CONTRACT_HASH_DOMAIN,
-            &NativeExternalContractFingerprintRef {
-                symbol_id: PersistentNativeExternalSymbolId([0; 32]),
-                contract,
-            },
-        )
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -277,16 +264,6 @@ impl NativeExternalContractRecord {
 
     pub fn contract(&self) -> &NativeExternalContract {
         &self.contract
-    }
-
-    pub fn hash_stream_lengths(
-        symbol_key: &NativeExternalSymbolKey,
-        contract: &NativeExternalContract,
-    ) -> Result<[u64; 2], HashError> {
-        Ok([
-            PersistentNativeExternalSymbolId::hash_stream_length(symbol_key)?,
-            NativeExternalContractFingerprint::hash_stream_length(contract)?,
-        ])
     }
 
     pub(crate) const fn from_verified(
@@ -405,15 +382,6 @@ mod tests {
             NativeExternalContractFingerprint::from_input(&input).unwrap(),
             NativeExternalContractFingerprint::from_symbol_and_contract(symbol_id, &contract)
                 .unwrap()
-        );
-        assert_eq!(
-            NativeExternalContractRecord::hash_stream_lengths(&symbol_key, &contract).unwrap(),
-            [
-                8 + "scoop-native-link-symbol-v1".len() as u64
-                    + encode(&symbol_key).unwrap().len() as u64,
-                8 + "scoop-native-external-contract-v1".len() as u64
-                    + encode(&input).unwrap().len() as u64,
-            ]
         );
 
         let record = NativeExternalContractRecord::new(

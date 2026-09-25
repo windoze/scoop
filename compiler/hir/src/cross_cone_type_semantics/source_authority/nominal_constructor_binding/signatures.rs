@@ -25,12 +25,11 @@ pub(super) fn validate(
     scope: &SignatureBinderScopeV1,
     signature: &SignatureTypeKey,
     shapes: &mut Shapes<'_, '_, '_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     scope
-        .validate_signature_semantics_metered(signature, shapes, meter, &WirePath::root())
+        .validate_signature_semantics(signature, shapes)
         .map_err(|error| match error {
-            MeteredSignatureTypeSemanticError::Resource(error) => Error::Resource(error),
-            MeteredSignatureTypeSemanticError::Semantic(error) => invalid(declaration, error),
+            SignatureTypeSemanticError::Allocation(error) => Error::Resource(error),
+            error => invalid(declaration, error),
         })
 }

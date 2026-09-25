@@ -80,12 +80,7 @@ impl Loaded {
             {
                 arguments.push(exact(owner));
             } else if let Some(receiver) = declaration.receiver() {
-                arguments.push(
-                    provider
-                        .metadata()
-                        .signature_exact_type(receiver, &mut meter())
-                        .unwrap(),
-                );
+                arguments.push(provider.metadata().signature_exact_type(receiver).unwrap());
             }
             let receiver = match arguments.first() {
                 Some(static_type) => crate::SourceCallReceiver::Receiver {
@@ -97,13 +92,13 @@ impl Loaded {
                 arguments.push(
                     provider
                         .metadata()
-                        .signature_exact_type(parameter.value_type(), &mut meter())
+                        .signature_exact_type(parameter.value_type())
                         .unwrap(),
                 );
             }
             let result = provider
                 .metadata()
-                .signature_exact_type(declaration.result(), &mut meter())
+                .signature_exact_type(declaration.result())
                 .unwrap();
             let position = crate::concrete::ExecutableExpressionPosition {
                 root,
@@ -130,11 +125,9 @@ impl Loaded {
                     HirExpressionTypeRoleV1::Value,
                     result,
                 )));
-            for owner in collect_type_site_nominals(
-                result,
-                |exact| provider.identities.canonical_key::<_, ExactTypeKey>(exact),
-                &mut meter(),
-            )
+            for owner in collect_type_site_nominals(result, |exact| {
+                provider.identities.canonical_key::<_, ExactTypeKey>(exact)
+            })
             .unwrap()
             {
                 let key = match owner {
@@ -206,7 +199,7 @@ impl Loaded {
                     .unwrap(),
                     CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
                     Default::default(),
-                    CanonicalHirDependencyTypeSitesV1::try_new(type_sites, &mut meter()).unwrap(),
+                    CanonicalHirDependencyTypeSitesV1::try_new(type_sites).unwrap(),
                 )
                 .unwrap(),
             );

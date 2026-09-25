@@ -19,7 +19,7 @@ macro_rules! field_wire {
             }
         }
         impl WireDecode for $decoded {
-            fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+            fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
                 decoder.expect_map(2)?;
                 Ok(Self {
                     field: decoder.field(1, DecodedPersistentId::decode)?,
@@ -68,11 +68,10 @@ impl DecodedMirRepresentationVariantV1 {
     pub(super) fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<MirRepresentationVariantV1, MirTypeBridgeError> {
         Ok(MirRepresentationVariantV1 {
             variant: graph.resolve(self.variant)?,
-            fields: wire::resolve_sequence(self.fields, graph, meter, |field, graph, _| {
+            fields: wire::resolve_sequence(self.fields, graph, |field, graph| {
                 field.resolve(graph)
             })?,
             gc: self.gc,
@@ -80,7 +79,7 @@ impl DecodedMirRepresentationVariantV1 {
     }
 }
 impl WireDecode for DecodedMirRepresentationVariantV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             variant: decoder.field(1, DecodedPersistentId::decode)?,

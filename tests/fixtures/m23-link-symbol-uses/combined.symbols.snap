@@ -11,7 +11,5 @@ reject OrdinaryIndex
 reject UnknownRuntime
 reject WrongNativeSymbol
 reject DependencyDefinedMember
-reject WorkBudget
-reject OwnedBudget
 reject CompileView
 reject MixedView

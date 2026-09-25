@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use scoop_identity::{ArtifactCapabilityProfileId, SemanticIdentitySession};
 use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
-use scoop_wire::{DecodeLimits, Digest256, sha256};
+use scoop_wire::{Digest256, sha256};
 
 use crate::{
     ArtifactFingerprint, CanonicalDefinedLinkSymbolOwnerSetV1, CompileViewSummaryV1,
@@ -55,10 +55,10 @@ impl ArtifactSnapshot {
 
     pub fn probe_prebuilt_summary(
         &self,
-        limits: DecodeLimits,
+
         target: ValidatedLirTargetSelection,
     ) -> Result<crate::PrebuiltManifestSummaryV1, PrebuiltManifestSummaryError> {
-        probe_prebuilt_manifest_summary(self.as_bytes(), limits, target)
+        probe_prebuilt_manifest_summary(self.as_bytes(), target)
     }
 
     pub fn write_to(&self, writer: &mut impl Write) -> io::Result<()> {
@@ -138,7 +138,7 @@ pub struct DualValidatedArtifactHandle {
     publication: PublishableSingleConeArtifact,
     compile_certificate: CompileViewCertificateV1,
     link_certificate: LinkViewCertificateV1,
-    limits: DecodeLimits,
+
     dependency_owners: Vec<CanonicalDefinedLinkSymbolOwnerSetV1>,
     c_bridge_profile: CBridgeToolchainProfileV1,
 }
@@ -146,17 +146,16 @@ pub struct DualValidatedArtifactHandle {
 impl DualValidatedArtifactHandle {
     pub fn validate(
         snapshot: Arc<ArtifactSnapshot>,
-        limits: DecodeLimits,
+
         target: ValidatedLirTargetSelection,
         dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
         c_bridge_profile: &CBridgeToolchainProfileV1,
     ) -> Result<Self, DualValidatedArtifactError> {
-        let summary = probe_prebuilt_manifest_summary(snapshot.bytes(), limits, target)
+        let summary = probe_prebuilt_manifest_summary(snapshot.bytes(), target)
             .map_err(DualValidatedArtifactError::Summary)?;
 
         let (compile, link) = validate_self_describing_single_cone_strong_views(
             snapshot.bytes(),
-            limits,
             target,
             dependency_owners,
             c_bridge_profile,
@@ -189,7 +188,7 @@ impl DualValidatedArtifactHandle {
             publication,
             compile_certificate,
             link_certificate,
-            limits,
+
             dependency_owners: dependency_owners.to_vec(),
             c_bridge_profile: c_bridge_profile.clone(),
         })
@@ -215,14 +214,11 @@ impl DualValidatedArtifactHandle {
         &self,
         use_view: impl for<'view> FnOnce(&ValidatedCompileArtifact<'view, SingleConeStrongProfile>) -> R,
     ) -> Result<R, DualValidatedArtifactReopenError> {
-        let graph = DecodedSlibEnvelope::open(
-            self.snapshot.bytes(),
-            self.limits,
-            self.compile_certificate.target,
-        )
-        .map_err(DualValidatedArtifactReopenError::CompileEnvelope)?
-        .validate_graph()
-        .map_err(DualValidatedArtifactReopenError::CompileGraph)?;
+        let graph =
+            DecodedSlibEnvelope::open(self.snapshot.bytes(), self.compile_certificate.target)
+                .map_err(DualValidatedArtifactReopenError::CompileEnvelope)?
+                .validate_graph()
+                .map_err(DualValidatedArtifactReopenError::CompileGraph)?;
         let mut session = SemanticIdentitySession::new();
         let view =
             validate_self_describing_single_cone_strong_compile_artifact(graph, &mut session)
@@ -235,14 +231,10 @@ impl DualValidatedArtifactHandle {
         &self,
         use_view: impl for<'view> FnOnce(&ValidatedSingleConeStrongLinkArtifact<'view>) -> R,
     ) -> Result<R, DualValidatedArtifactReopenError> {
-        let graph = DecodedSlibEnvelope::open(
-            self.snapshot.bytes(),
-            self.limits,
-            self.link_certificate.target,
-        )
-        .map_err(DualValidatedArtifactReopenError::LinkEnvelope)?
-        .validate_graph()
-        .map_err(DualValidatedArtifactReopenError::LinkGraph)?;
+        let graph = DecodedSlibEnvelope::open(self.snapshot.bytes(), self.link_certificate.target)
+            .map_err(DualValidatedArtifactReopenError::LinkEnvelope)?
+            .validate_graph()
+            .map_err(DualValidatedArtifactReopenError::LinkGraph)?;
         let view = validate_self_describing_single_cone_strong_link_artifact(
             graph,
             &self.dependency_owners,
@@ -262,7 +254,7 @@ impl DualValidatedArtifactHandle {
             snapshot: self.snapshot.digest(),
             target: view.target_selection(),
             profile: view.compatibility().artifact_profile().clone(),
-            summary: CompileViewSummaryV1::new(view.semantic_fingerprints(), view.decode_usage()),
+            summary: CompileViewSummaryV1::new(view.semantic_fingerprints()),
         };
         if candidate != self.compile_certificate
             || !common_view_matches(
@@ -291,7 +283,6 @@ impl DualValidatedArtifactHandle {
             || self.snapshot.digest() != self.link_certificate.snapshot
             || view.compatibility().artifact_profile() != self.link_certificate.profile()
             || view.semantic_fingerprints() != self.link_certificate.summary.semantic_fingerprints()
-            || view.decode_usage() != self.link_certificate.summary.decode_usage()
             || !common_view_matches(
                 &self.publication,
                 view.coordinate(),
@@ -416,10 +407,7 @@ mod tests {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
         let snapshot = ArtifactSnapshot::from_bytes(bytes.clone());
         let summary = snapshot
-            .probe_prebuilt_summary(
-                DecodeLimits::default(),
-                ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            )
+            .probe_prebuilt_summary(ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
         let mut materialized = Vec::new();
         snapshot.write_to(&mut materialized).unwrap();
@@ -435,7 +423,6 @@ mod tests {
 
         let handle = DualValidatedArtifactHandle::validate(
             Arc::clone(&snapshot),
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &Vec::new(),
             &crate::link_decode::c_bridge_profile_for_test(),
@@ -464,7 +451,6 @@ mod tests {
 
         let error = DualValidatedArtifactHandle::validate(
             snapshot,
-            DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &Vec::new(),
             &crate::link_decode::c_bridge_profile_for_test(),

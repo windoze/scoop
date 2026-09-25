@@ -83,7 +83,7 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                 let (previous, current_and_later) = artifacts.split_at_mut(position);
                 let current = &mut current_and_later[0];
                 let identity = current.identity();
-                let (input, meter) = current.hir_reference_validation_parts();
+                let input = current.hir_reference_validation_parts();
                 let identities = input.identities;
                 let interface = input.interface;
                 let path = WirePath::root();
@@ -92,14 +92,12 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                 let reachable = crate::dependency_reachability::transitive_positions(
                     position,
                     dependency_positions,
-                    meter,
                 )
                 .map_err(resource)?;
                 let route_inputs = RouteAuthorityInputs::try_new(
                     previous,
                     &dependency_positions[position],
                     &reachable,
-                    meter,
                     &path,
                 )
                 .map_err(resource)?;
@@ -109,39 +107,39 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                     interface,
                     route_inputs.direct(),
                     route_inputs.providers(),
-                    meter,
                     &path,
                 )
                 .map_err(resource)?;
                 interface
-                    .validate_external_reference_closure(&mut authority, meter, &WirePath::root())
+                    .validate_external_reference_closure(&mut authority, &WirePath::root())
                     .map_err(|source| CrossConeClosureExternalReferenceError::Artifact {
                         identity,
                         source: Box::new(source),
                     })?;
                 let mut providers = Vec::new();
-                meter
-                    .try_reserve_collection_slots(
-                        &mut providers,
-                        reachable.len(),
-                        &WirePath::root(),
-                    )
-                    .map_err(|source| CrossConeClosureExternalReferenceError::CallSites {
+                scoop_wire::allocation::try_reserve(
+                    &mut providers,
+                    reachable.len(),
+                    &WirePath::root(),
+                )
+                .map_err(|source| {
+                    CrossConeClosureExternalReferenceError::CallSites {
                         identity,
                         source: Box::new(CrossConeHirCallSiteOriginError::Resource(source)),
-                    })?;
+                    }
+                })?;
                 providers.extend(
                     reachable
                         .iter()
                         .map(|&index| previous[index].nominal_provider_view()),
                 );
-                input.call_sites(&providers, meter).map_err(|source| {
+                input.call_sites(&providers).map_err(|source| {
                     CrossConeClosureExternalReferenceError::CallSites {
                         identity,
                         source: Box::new(source),
                     }
                 })?;
-                input.type_sites(&providers, meter).map_err(|source| {
+                input.type_sites(&providers).map_err(|source| {
                     CrossConeClosureExternalReferenceError::TypeSites {
                         identity,
                         source: Box::new(source),

@@ -4,7 +4,7 @@ use scoop_hir::{
     DependencyBindingWitnessV1, ExternalHirReferenceRoleV1, ExternalHirReferenceV1,
     PublicExportBindingClosureAuthority,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 fn witness_interface(fixture: &RouteFixture) -> CrossConeHirInterfaceSectionV1 {
     let ExportBindingSourceV1::Reexport { routes } =
@@ -51,14 +51,13 @@ fn witness_interface(fixture: &RouteFixture) -> CrossConeHirInterfaceSectionV1 {
 fn binding_index_collects_external_witness_hops_before_role_closure_validation() {
     let fixture = route_fixture();
     let interface = witness_interface(&fixture);
-    let mut meter = route_meter();
+
     let authority = CanonicalCrossConeRouteAuthority::try_new(
         fixture.current,
         &fixture.identities,
         &interface,
         &[],
         &[],
-        &mut meter,
         &WirePath::root(),
     )
     .unwrap();
@@ -69,49 +68,6 @@ fn binding_index_collects_external_witness_hops_before_role_closure_validation()
         .route()
         .hops()
     {
-        assert!(
-            authority
-                .binding_key(hop.binding(), &mut meter, &WirePath::root())
-                .unwrap()
-                .is_some()
-        );
+        assert!(authority.binding_key(hop.binding()).is_some());
     }
-}
-
-#[test]
-fn witness_index_depth_error_identifies_field_ten() {
-    let fixture = route_fixture();
-    let interface = witness_interface(&fixture);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    });
-    let error = CanonicalCrossConeRouteAuthority::try_new(
-        fixture.current,
-        &fixture.identities,
-        &interface,
-        &[],
-        &[],
-        &mut meter,
-        &WirePath::root(),
-    )
-    .err()
-    .unwrap();
-    assert!(matches!(
-        error.kind(),
-        WireErrorKind::LimitExceeded {
-            resource: ResourceKind::SemanticRecursion,
-            ..
-        }
-    ));
-    assert_eq!(
-        error.path(),
-        &WirePath::root()
-            .field(10)
-            .index(0)
-            .field(4)
-            .index(0)
-            .field(2)
-    );
-    assert_eq!(meter.usage().owned_bytes, 0);
 }

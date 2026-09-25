@@ -1,6 +1,6 @@
 use super::super::source_dispatch::with_hir_source;
 use super::*;
-use hir::{DefaultSourceTypeAccessDemandV1 as Demand, DefaultSourceTypeAccessVisitError as Error};
+use hir::DefaultSourceTypeAccessDemandV1 as Demand;
 use scoop_identity::{
     CoreBuiltinNominal, DeclarationName, SignatureTypeKey as Type, SourceDeclarationKey,
 };
@@ -48,10 +48,9 @@ fn with_types(
                     output,
                     hir::ExportParameterOwner::Function(function),
                     *position,
-                    &mut meter(),
                 )
                 .unwrap()
-                .into_source_template(&mut meter())
+                .into_source_template()
                 .unwrap();
                 (*name, template)
             })
@@ -97,9 +96,8 @@ fn outline(
         output.push_str(&format!("{name}\n"));
         hir::visit_default_source_type_access_demands(
             template.result(),
-            &mut meter(),
             &WirePath::root(),
-            &mut |demand, _, path| -> Result<(), std::convert::Infallible> {
+            &mut |demand, path| -> Result<(), std::convert::Infallible> {
                 let label = match demand {
                     Demand::Nominal(_) => format!("Nominal {}", nominal_name(identities, demand)),
                     Demand::NominalApplication { arguments, .. } => format!(

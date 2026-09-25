@@ -14,9 +14,7 @@ fn unknown_use_construction_member_and_edge_tags_are_rejected() {
     ] {
         let mut bytes = record_wire(f.provider, &f.cases()[case].1);
         bytes[offset] = tag;
-        let error =
-            decode_canonical::<DecodedSelectedExternalTypeUseV1>(&bytes, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<DecodedSelectedExternalTypeUseV1>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::UnknownTag {
@@ -50,24 +48,17 @@ fn malformed_products_fields_and_id_lengths_are_rejected() {
         let mut bytes = valid.clone();
         bytes[offset] = replacement;
         assert!(
-            decode_canonical::<DecodedSelectedExternalTypeUseV1>(&bytes, DecodeLimits::default())
-                .is_err(),
+            decode_canonical::<DecodedSelectedExternalTypeUseV1>(&bytes).is_err(),
             "offset {offset}"
         );
     }
     for length in [0, 1, USE, valid.len() - 1] {
-        assert!(
-            decode_canonical::<DecodedSelectedExternalTypeUseV1>(
-                &valid[..length],
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedSelectedExternalTypeUseV1>(&valid[..length]).is_err());
     }
     let mut trailing = valid.clone();
     trailing.push(0);
     assert!(matches!(
-        decode_canonical::<DecodedSelectedExternalTypeUseV1>(&trailing, DecodeLimits::default())
+        decode_canonical::<DecodedSelectedExternalTypeUseV1>(&trailing)
             .unwrap_err()
             .kind(),
         WireErrorKind::TrailingData
@@ -75,7 +66,7 @@ fn malformed_products_fields_and_id_lengths_are_rejected() {
     let mut nonminimal = valid;
     nonminimal.splice(USE + 2..USE + 3, [0x18, 3]);
     assert!(matches!(
-        decode_canonical::<DecodedSelectedExternalTypeUseV1>(&nonminimal, DecodeLimits::default())
+        decode_canonical::<DecodedSelectedExternalTypeUseV1>(&nonminimal)
             .unwrap_err()
             .kind(),
         WireErrorKind::NonCanonicalCbor
@@ -100,11 +91,10 @@ fn wire_ids_must_resolve_in_the_correct_persistent_family() {
     ] {
         let mut bytes = record_wire(f.provider, &f.cases()[case].1);
         bytes[start..start + 32].copy_from_slice(wrong);
-        let decoded: DecodedSelectedExternalTypeUseV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedSelectedExternalTypeUseV1 = decode_canonical(&bytes).unwrap();
         let mut resolver = f.resolver();
         assert!(
-            matches!(decoded.resolve(&mut resolver, &mut meter(), &path()), Err(SelectedTypeUseResolutionError::Reference(actual)) if actual == family)
+            matches!(decoded.resolve(&mut resolver), Err(SelectedTypeUseResolutionError::Reference(actual)) if actual == family)
         );
         assert_eq!(resolver.calls.last(), Some(&family));
     }

@@ -30,7 +30,6 @@ pub(super) fn check(
                 extra_unit,
                 first.dependency(),
                 selected,
-                &mut meter(),
             )
             .unwrap(),
         );
@@ -45,7 +44,6 @@ pub(super) fn check(
                 lir::EntryProductionSourceV1::Library,
                 selected,
                 &candidate,
-                &mut meter(),
             )
             .unwrap();
         let error = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
@@ -55,7 +53,6 @@ pub(super) fn check(
             },
             dependencies,
             source,
-            &mut meter(),
         )
         .err()
         .unwrap();
@@ -69,7 +66,6 @@ pub(super) fn check(
             registration
                 .registration_production()
                 .initialization_units(),
-            &mut meter(),
         )
         .unwrap_err();
         assert!(matches!(
@@ -78,19 +74,4 @@ pub(super) fn check(
                 if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
         ));
     }
-    let replay = |meter: &mut BudgetMeter| {
-        scoop_slib::replay_shared_lir_initialization_dependencies(
-            input.bridge.initialization_uses(),
-            registrations,
-            meter,
-        )
-    };
-    let mut measured = meter();
-    replay(&mut measured).unwrap();
-    let mut exact = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay(&mut exact).unwrap();
-    assert!(replay(&mut exact).is_err());
 }

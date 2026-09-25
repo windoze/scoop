@@ -43,7 +43,6 @@ pub(super) fn check(
 ) {
     let mut cases = BTreeMap::new();
     let mut bridge_providers = Vec::new();
-    let mut current_usage = None;
     let mut dump = String::new();
     reader::read_link(core, artifact).with_replayed_link_object_contents(profile, |closure| {
         assert_eq!(closure.dependency_first().len(), 2);
@@ -53,9 +52,6 @@ pub(super) fn check(
             let source = if proof.provider() == closure.physical_imports().current() { artifact } else { core };
             assert_eq!(closure.artifact(proof.provider()).unwrap().0.identity(), proof.provider());
             check_objects(source, proof);
-            if proof.provider() == closure.physical_imports().current() {
-                current_usage = Some(physical.decode_usage());
-            }
             if !proof.generated_objects().is_empty() { bridge_providers.push(proof.provider()); }
             let strong = physical.lir_strong_production();
             assert_eq!(proof.callables().plan(), strong.callable_registrations());
@@ -105,9 +101,7 @@ pub(super) fn check(
         dump.push_str(&format!("reject {failure:?}\n"));
     }
     rejection::views_and_profile(core, artifact, profile, bridge_providers[0]);
-    rejection::budget::check(core, artifact, profile, current_usage.unwrap());
     dump.push_str("reject CompileView\nreject MixedView\nreject CBridgeProfile\n");
-    dump.push_str("reject WorkBudget\nreject OwnedBudget\n");
     let path = crate::workspace_root()
         .join("tests/fixtures/m23-link-object-contents")
         .join(format!("{name}.snap"));

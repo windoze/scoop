@@ -242,7 +242,6 @@ BuildGraphRequest {
     target: TargetSelectionRequest,
     compiler: PairedScoopcLocator,
     diagnostics: DiagnosticsPolicy,
-    limits: BuildLimitsProfileV1,
 }
 
 BuildRootInput = ManifestCone(ManifestRootLocator)
@@ -256,7 +255,6 @@ BuildRootInput = ManifestCone(ManifestRootLocator)
 - `cache_root`、`sysroot`与`compiler`都是typed locator，不从cwd、`PATH`或环境变量在阶段中补默认；未来CLI可以在构造request前解析配置；
 - `diagnostics`只决定装饰和输出；M23-4的所有child request固定`emit = None`。stage dump仍可由低层直接`scoopc`取得，正式orchestration dump/fixture策略留给M23-11，不让本阶段cache hit暗中重跑compiler；
 - request中的host path允许非UTF-8，只作定位和诊断，绝不进入semantic hash；
-- limits profile在开始任何I/O前完成验证，不能由untrusted manifest降低或放大。
 
 M23-4没有output binary path或native library search root。library/executable root的成功产物都仍是root `.slib` handle；M23-11再增加用户materialization，M23-9/10再增加link输入。
 
@@ -277,7 +275,7 @@ BuildGraphRequest
 - `LoadedBuildRoot`只证明root operand和trusted sysroot/toolchain locator shape；
 - `DiscoveredBuildGraph`可以含尚未全局核对的summary/claim，不能启动child；
 - `ResolvedBuildGraph`已通过coordinate/content唯一、kind、version、cycle与canonical order验证，但source/prebuilt bytes尚未全部形成execution snapshot；
-- `PreparedBuildGraph`已完成全图source/artifact snapshot、summary复核、core计划、closure budget reservation与cache namespace解析；这是启动第一个compiler child的唯一authority。prebuilt完整双视图和stale-edge验证仍在其全部dependency completed后执行；
+- `PreparedBuildGraph`已完成全图source/artifact snapshot、summary复核、core默认依赖计划与cache namespace解析；这些实际构建输入用于启动compiler child。prebuilt完整双视图和stale-edge验证仍在其全部dependency completed后执行；
 - `ExecutedBuildGraph`中的每个节点都是completed dual-view artifact，且root closure已构造；
 - `BuildGraphOutcome`只暴露root artifact、Compile closure、Link closure、warnings和本次cache/child观测摘要，不暴露可变scheduler state。
 
@@ -596,7 +594,7 @@ closure投影在图验证后计算，不从命令行argument反推；其结果�
 
 任一失败都不启动child、不写cache entry、不修改trusted core slot，也不产生`PreparedBuildGraph`。preflight可以并行做只读检查，但error集合必须在commit前按第12章排序；本文首版实现可以串行。
 
-“全图错误在第一个child前失败”至少覆盖locator、manifest、summary、claim、reserved identity、kind、multiversion、cycle、source discovery、summary级不兼容、search ambiguity、toolchain/protocol不匹配和resource budget。完整prebuilt payload/view错误、依赖上游source实际输出后才能判断的stale expectation、动态cache candidate损坏和child自身编译错误属于execution error，不能伪称已经在graph phase可知；但它们都必须早于任何dependent child。
+“全图错误在第一个child前失败”至少覆盖locator、manifest、summary、claim、reserved identity、kind、multiversion、cycle、source discovery、summary级不兼容、search ambiguity、toolchain/protocol不匹配及实际读取或分配失败。完整prebuilt payload/view错误、依赖上游source实际输出后才能判断的stale expectation、动态cache candidate损坏和child自身编译错误属于execution error，不能伪称已经在graph phase可知；但它们都必须早于任何dependent child。
 
 ### 6.2 source snapshot
 
@@ -685,6 +683,12 @@ prebuilt artifact是不可重建node。其任一dependency expectation与最终s
 ### 6.6 输入边界与失败原子性
 
 旧版 build-wide meter、累计资源配额、费用公式、limits profile、usage/certificate 字段及专用测试全部退役。依赖发现、source snapshot、cache、child request 和产物读取不再累计逻辑 CPU、内存、节点、边、复制字节或 work units，也不为计费重新编解码请求和响应。
+
+机器协议保留 u64 frame 长度、实际输入范围、单 frame/尾随数据和字段格式检查，不施加额外 frame 字节、dependency input、诊断数量、note 数量或诊断文本配额。stdout/stderr 持续读取到进程关闭管道，不因字节配额中途停止读管道；错误信息的展示可截断，但不能因此改变编译结果。stage dump 的数量由实际请求的单一 dump 选择决定。
+
+缓存保存的 warning 使用与协议相同的完整诊断格式，仅检查字段、排序与重复记录；不另设 warning 数量或累计编码字节配额。
+
+编译器 capability frame 使用同一 frame 规则，配对编译器的 stdout/stderr 读取到关闭；HostPathCarrier 保留原始宿主编码、非空及 NUL/UTF-16 完整性检查，不以编译器自定字节配额替代操作系统路径规则。
 
 source 和 artifact 按真实文件长度读取；保留文件类型、稳定快照、长度转换/溢出、分配失败和 I/O 错误检查。图使用 typed Cone identity 建边，保留引用存在性、依赖环、版本冲突、kind 和可达性检查。共享 DAG 复用已经访问的节点，不重复发现相同依赖；合法图的大小不受任意成本模型决定。
 
@@ -1117,7 +1121,7 @@ runner必须：
 - 使用显式argv/env/cwd，不继承会改变compiler/toolchain选择的未建模环境；允许继承的locale/color等也不能改变structured bytes；
 - 写完request后关闭child stdin；
 - 并行drain bounded stdout/stderr，避免pipe deadlock；
-- 拒绝oversized/truncated/multiple response frame；
+- 拒绝长度不符、truncated/multiple response frame；
 - wait取得真实exit status；
 - response request id必须匹配；
 - Success要求exit 0，Failure要求约定的compiler-failure status；signal、其他status或response/status矛盾均为transport error；
@@ -1129,7 +1133,7 @@ runner必须：
 
 有合法Failure response时，parent只增加graph Cone context并稳定排序typed diagnostics，不解析或改写message来判断错误种类。是否为M23-4预期能力门按diagnostic code typed比较。
 
-没有合法response时，`ChildTransportError`至少区分spawn、stdin write、stdout frame、protocol decode、request-id mismatch、exit mismatch、signal和output I/O。bounded stderr作为escaped note，不能当作source diagnostic或执行建议。transport error不查找另一个`scoopc`重试。
+没有合法response时，`ChildTransportError`至少区分spawn、stdin write、stdout frame、protocol decode、request-id mismatch、exit mismatch、signal和output I/O。stderr 作为 escaped note 展示，展示时可截断，不能当作source diagnostic或执行建议。transport error不查找另一个`scoopc`重试。
 
 ### 10.5 request构造
 
@@ -1146,7 +1150,7 @@ runner必须：
 | `diagnostics` | 固定Structured |
 | `emit` | M23-4全部固定None |
 
-parent不从child stderr、artifact symbol、package name或path补任何字段。request在spawn前做一次canonical encode/decode round-trip测试并计入protocol budget。
+parent不从child stderr、artifact symbol、package name或path补任何字段。request在spawn前按共有codec编码；child在接收边界解码与检查格式，正常spawn不额外执行一次自我round-trip。
 
 ## 11. child output验证与cache commit
 
@@ -1353,7 +1357,7 @@ M23-4没有自由`semantic option`字段，因此不构造一个虚假的option 
 ### 13.7 child protocol
 
 - request/response canonical frame fixed vector；
-- truncated/oversized/multiple frame、trailing bytes、wrong request id；
+- truncated/长度不符/multiple frame、trailing bytes、wrong request id；
 - success+nonzero、failure+zero、signal/no response；
 - stdout被human text污染；
 - bounded stderr capture；
@@ -1436,7 +1440,7 @@ M23-4只有同时满足以下条件才完成：
 - child失败不启动dependent，成功response不替代parent artifact验证，partial output永不进入cache/completed set；
 - M23-4真实成功子集只包括core bootstrap/core-only manifest/single-file；普通dependency仍由M23-3能力门结束，没有名称语义偷跑；
 - core-only library、core-only executable和single-file经手工`scoopc`与orchestrator产生逐byte相同artifact；第二次build可由验证后的cache零child复用；
-- chain/diamond/cycle/multiversion/ambiguous/stale/cache invalidation/child failure/TOCTOU/resource limit/确定性矩阵完整；
+- chain/diamond/cycle/multiversion/ambiguous/stale/cache invalidation/child failure/TOCTOU/实际范围错误/确定性矩阵完整；
 - `cargo fmt --all`、`cargo clippy --workspace`和完整`cargo test`通过。
 
 到达该完成门后，M23-5只需要在`scoopc`中把已经验证的direct/support Compile closure接入`SemanticWorld`并删除非core能力拒绝；它不需要修改locator、DAG、cache、child transport、snapshot或双视图完成条件。M23-9以后也可以直接消费保留的Link closure，而不重新读取source manifest或cache receipt。

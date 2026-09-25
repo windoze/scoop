@@ -26,7 +26,6 @@ use scoop_mir::{
     EntryMirBridgeBranchV1, ImportedMirFoundation, MirFoundationValidationError,
     MirProductionValidationError, OdrFreeMirFoundation, OdrFreeMirFoundationError,
 };
-use scoop_wire::DecodeUsage;
 
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, CompileSectionDecodeError, ConeKind,
@@ -244,42 +243,18 @@ impl<'input> ValidatedGraphArtifact<'input> {
         let mir_production_capability = mir_core_bootstrap_bridge_capability();
         let lir_foundation_capability = lir_identity_foundation_capability();
         let lir_production_capability = lir_strong_production_capability();
-        let hir_foundation = decode_compile_section(
-            &mut self,
-            &metadata,
-            MetadataLocation::Hir,
-            hir_foundation_capability,
-        )?;
-        let hir_production = decode_compile_section(
-            &mut self,
-            &metadata,
-            MetadataLocation::Hir,
-            hir_production_capability,
-        )?;
-        let mir_foundation = decode_compile_section(
-            &mut self,
-            &metadata,
-            MetadataLocation::Mir,
-            mir_foundation_capability,
-        )?;
-        let mir_production = decode_compile_section(
-            &mut self,
-            &metadata,
-            MetadataLocation::Mir,
-            mir_production_capability,
-        )?;
-        let lir_foundation = decode_compile_section(
-            &mut self,
-            &metadata,
-            MetadataLocation::Lir,
-            lir_foundation_capability,
-        )?;
-        let lir_production = decode_compile_section(
-            &mut self,
-            &metadata,
-            MetadataLocation::Lir,
-            lir_production_capability,
-        )?;
+        let hir_foundation =
+            decode_compile_section(&metadata, MetadataLocation::Hir, hir_foundation_capability)?;
+        let hir_production =
+            decode_compile_section(&metadata, MetadataLocation::Hir, hir_production_capability)?;
+        let mir_foundation =
+            decode_compile_section(&metadata, MetadataLocation::Mir, mir_foundation_capability)?;
+        let mir_production =
+            decode_compile_section(&metadata, MetadataLocation::Mir, mir_production_capability)?;
+        let lir_foundation =
+            decode_compile_section(&metadata, MetadataLocation::Lir, lir_foundation_capability)?;
+        let lir_production =
+            decode_compile_section(&metadata, MetadataLocation::Lir, lir_production_capability)?;
 
         metadata.validate_semantic_fingerprints(&mut self)?;
 
@@ -306,10 +281,6 @@ impl<'input> DecodedSingleConeCompileSections<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {
@@ -381,10 +352,6 @@ impl<'input> IdentityCheckedSingleConeCompileSections<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {
@@ -466,10 +433,6 @@ impl<'input> OdrCheckedSingleConeCompileFoundations<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {
@@ -555,10 +518,6 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
         self.graph.artifact_fingerprint()
     }
 
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
-    }
-
     pub fn identity_count(&self) -> usize {
         self.identities.identity_count()
     }
@@ -612,10 +571,6 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.local.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.local.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {
@@ -712,10 +667,6 @@ impl<'input> StructurallyValidatedSingleConeCompileProduction<'input> {
         self.graph.artifact_fingerprint()
     }
 
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
-    }
-
     pub fn identity_count(&self) -> usize {
         self.identities.identity_count()
     }
@@ -771,10 +722,6 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.structural.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.structural.decode_usage()
     }
 
     pub const fn structural(&self) -> &StructurallyValidatedSingleConeCompileProduction<'_> {

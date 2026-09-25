@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{DecodedCDataPointee, DecodedCPointerStorage, DecodedCanonicalCStorageType};
 use crate::{
@@ -42,11 +42,7 @@ fn c_pointer_components_round_trip_and_resolve() {
         CDataPointee::ExactObject(exact_type()),
     ];
     for pointee in pointees {
-        let decoded = decode_canonical::<DecodedCDataPointee>(
-            &encode(&pointee).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded = decode_canonical::<DecodedCDataPointee>(&encode(&pointee).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), pointee);
     }
 
@@ -55,11 +51,8 @@ fn c_pointer_components_round_trip_and_resolve() {
         CPointerStorage::NullableWrapper(exact_type()),
     ];
     for storage in pointer_storage {
-        let decoded = decode_canonical::<DecodedCPointerStorage>(
-            &encode(&storage).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedCPointerStorage>(&encode(&storage).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), storage);
     }
 }
@@ -91,11 +84,8 @@ fn all_c_storage_shapes_round_trip_and_resolve_typed_references() {
     ];
 
     for value in values {
-        let decoded = decode_canonical::<DecodedCanonicalCStorageType>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedCanonicalCStorageType>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), value);
     }
 }
@@ -105,11 +95,8 @@ fn c_storage_resolution_rejects_a_different_same_width_type() {
     let value = CanonicalCStorageType::Boolean {
         exact_type: PersistentExactTypeId([99; 32]),
     };
-    let decoded = decode_canonical::<DecodedCanonicalCStorageType>(
-        &encode(&value).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalCStorageType>(&encode(&value).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver), Err(ResolutionError));
 }
 
@@ -123,7 +110,7 @@ fn c_storage_decoder_rejects_unknown_tags_and_numeric_kinds() {
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
-    let error = decode_canonical::<T>(bytes, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<T>(bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag });
 }
 

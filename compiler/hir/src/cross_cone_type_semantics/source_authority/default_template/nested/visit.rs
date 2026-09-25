@@ -7,16 +7,13 @@ impl<'a, K> DefaultSourceNestedCallablesV1<'a, K> {
         &mut self,
         descriptor: Descriptor<'a>,
         definition_origin: &'a ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), WireError> {
         let ordinal = u64::try_from(self.occurrences.len())
             .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
-        meter.check_table_entries(ordinal.saturating_add(1), path)?;
-        meter.charge_work(1, path)?;
-        let slot_bytes = std::mem::size_of::<DefaultSourceNestedCallableOccurrenceV1<'_>>() as u64;
-        meter.charge_owned_bytes(slot_bytes, path)?;
-        meter.try_reserve_exact(&mut self.occurrences, 1, slot_bytes, path)?;
+
+        scoop_wire::allocation::try_reserve_count(&mut self.occurrences, 1, path)?;
         self.occurrences
             .push(DefaultSourceNestedCallableOccurrenceV1 {
                 site: DefaultNestedCallableSiteV1::Body { ordinal },
@@ -33,7 +30,7 @@ impl<'a, K> DefaultBodyReferenceVisitorV1<'a> for DefaultSourceNestedCallablesV1
         &mut self,
         _: u32,
         expression: &'a DefaultExpressionV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), WireError> {
         let descriptor = match expression.kind() {
@@ -43,12 +40,12 @@ impl<'a, K> DefaultBodyReferenceVisitorV1<'a> for DefaultSourceNestedCallablesV1
             // Ordinary expressions contain no descriptor of their own.
             _ => return Ok(()),
         };
-        self.push(descriptor, expression.definition_origin(), meter, path)
+        self.push(descriptor, expression.definition_origin(), path)
     }
     fn reference(
         &mut self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'a>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), WireError> {
         // A local-call use is an expression; only declaration metadata owns a descriptor.
@@ -64,7 +61,6 @@ impl<'a, K> DefaultBodyReferenceVisitorV1<'a> for DefaultSourceNestedCallablesV1
             self.push(
                 Descriptor::LocalFunction(function),
                 occurrence.definition_origin,
-                meter,
                 path,
             )?;
         }

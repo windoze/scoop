@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId, SignatureTypeKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -20,8 +20,7 @@ fn class_constructor_id_variants_have_fixed_tags_and_resolve() {
     for (expected_tag, expected) in [1, 2].into_iter().zip(cases) {
         let bytes = encode(&expected).unwrap();
         assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultClassConstructorIdV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultClassConstructorIdV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(expected));
     }
 }
@@ -51,8 +50,7 @@ fn constructor_reference_variants_round_trip_with_complete_owner_types() {
     for (expected_tag, expected) in [1, 2, 2, 3].into_iter().zip(cases) {
         let bytes = encode(&expected).unwrap();
         assert_eq!(bytes[2], expected_tag);
-        let decoded: DecodedDefaultConstructorRefV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDefaultConstructorRefV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(expected));
     }
 }
@@ -79,7 +77,7 @@ fn constructor_resolution_reports_owner_type_failure() {
         owner_type: SignatureTypeKey::Nominal(fixture.missing_type),
     };
     let decoded: DecodedDefaultConstructorRefV1 =
-        decode_canonical(&encode(&reference).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&reference).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver()),
@@ -93,16 +91,11 @@ fn constructor_resolution_reports_owner_type_failure() {
 fn constructor_decoders_reject_unknown_tags_and_non_exact_maps() {
     let mut unknown = vec![0xa2, 0x00, 0x03, 0x01, 0x58, 0x20];
     unknown.extend([0; 32]);
-    let error =
-        decode_canonical::<DecodedDefaultClassConstructorIdV1>(&unknown, DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultClassConstructorIdV1>(&unknown).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error = decode_canonical::<DecodedDefaultConstructorRefV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultConstructorRefV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

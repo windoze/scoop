@@ -5,31 +5,22 @@ pub(super) fn validate<E>(
     provider: ConeIdentity,
     identities: &ValidatedIdentityGraph,
     sources: &[PersistentTypeId],
-    meter: &mut BudgetMeter,
 ) -> Result<(), MirTypeBridgeSourceJoinError<E>> {
     use MirTypeBridgeSourceJoinError as Error;
-    meter
-        .check_table_entries(sources.len() as u64, &WirePath::root())
-        .map_err(Error::Resource)?;
-    meter
-        .charge_work(sources.len() as u64, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     if sources.windows(2).any(|pair| pair[0] >= pair[1]) {
         return Err(Error::NonCanonicalInventory(
             MirTypeBridgeSourceInventoryV1::SourceRoots,
         ));
     }
     for source in sources {
-        meter
-            .charge_work(2, &WirePath::root())
-            .map_err(Error::Resource)?;
         let key = identities
             .canonical_key::<_, SourceDeclarationKey>(*source)
             .map_err(Error::Reference)?;
         if key.origin() != provider {
             return Err(Error::SourceRootProvider { source: *source });
         }
-        let exact = exact(*source, meter)?;
+        let exact = exact(*source)?;
         if !exports
             .types
             .get(exact)
@@ -40,27 +31,23 @@ pub(super) fn validate<E>(
     }
     exports
         .shapes
-        .validate_required_sources(sources, meter)
+        .validate_required_sources(sources)
         .map_err(Error::Shape)?;
     let authority = MirShapeSupportAuthority {
         identities,
         types: &exports.types,
     };
     for record in exports.shapes.records() {
-        authority.validate(record, meter).map_err(Error::Shape)?;
+        authority.validate(record).map_err(Error::Shape)?;
     }
     Ok(())
 }
 
 fn exact<E>(
     nominal: PersistentTypeId,
-    meter: &mut BudgetMeter,
 ) -> Result<PersistentExactTypeId, MirTypeBridgeSourceJoinError<E>> {
     use MirTypeBridgeSourceJoinError as Error;
     let key = ExactTypeKey::Nominal(nominal);
-    let work = scoop_wire::encoded_length(&key).map_err(Error::Encoding)?;
-    meter
-        .charge_work(work, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     PersistentExactTypeId::from_key(&key).map_err(Error::ExactIdentity)
 }

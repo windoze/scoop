@@ -8,14 +8,13 @@ fn source_reference_wire_requires_all_six_sequences_and_three_record_fields() {
         bytes,
         [0xa6, 1, 0x80, 2, 0x80, 3, 0x80, 4, 0x80, 5, 0x80, 6, 0x80]
     );
-    let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: Decoded = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded
             .resolve(
                 &mut scoop_identity::PendingIdentityValidation::new()
                     .finish()
-                    .unwrap(),
-                &mut meter()
+                    .unwrap()
             )
             .unwrap(),
         empty
@@ -23,14 +22,13 @@ fn source_reference_wire_requires_all_six_sequences_and_three_record_fields() {
     for count in [0xa5, 0xa7] {
         let mut bad = bytes.clone();
         bad[0] = count;
-        assert!(decode_canonical::<Decoded>(&bad, DecodeLimits::default()).is_err());
+        assert!(decode_canonical::<Decoded>(&bad).is_err());
     }
     with_hir_source(SOURCE, |output, _| {
         let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "callable"),
             0,
-            &mut meter(),
         )
         .unwrap();
         let record = encode(&body.references().callables()[0]).unwrap();
@@ -40,7 +38,7 @@ fn source_reference_wire_requires_all_six_sequences_and_three_record_fields() {
             assert!(
                 decode_canonical::<
                     hir::DecodedDefaultSourceReferenceV1<hir::DecodedExportDefaultCallableTargetV1>,
-                >(&bad, DecodeLimits::default())
+                >(&bad)
                 .is_err()
             );
         }
@@ -54,7 +52,6 @@ fn source_reference_reader_retains_even_identical_occurrences_in_encoded_order()
             output,
             function(output.output().export.module(), "combined"),
             0,
-            &mut meter(),
         )
         .unwrap();
         let refs = body.references();
@@ -66,10 +63,8 @@ fn source_reference_reader_retains_even_identical_occurrences_in_encoded_order()
         let reordered =
             References::try_new(callables, vec![], vec![], vec![], vec![], vec![]).unwrap();
         let bytes = encode(&reordered).unwrap();
-        let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let restored = decoded
-            .resolve(&mut identity_closure(output), &mut meter())
-            .unwrap();
+        let decoded: Decoded = decode_canonical(&bytes).unwrap();
+        let restored = decoded.resolve(&mut identity_closure(output)).unwrap();
         assert_eq!(restored, reordered);
         assert_eq!(restored.callables()[1], restored.callables()[2]);
         assert_ne!(restored.callables()[0], restored.callables()[1]);
@@ -83,15 +78,13 @@ fn source_reference_reader_rejects_unknown_target_identity() {
             output,
             function(output.output().export.module(), "callable"),
             0,
-            &mut meter(),
         )
         .unwrap();
-        let decoded: Decoded =
-            decode_canonical(&encode(body.references()).unwrap(), DecodeLimits::default()).unwrap();
+        let decoded: Decoded = decode_canonical(&encode(body.references()).unwrap()).unwrap();
         let mut empty = scoop_identity::PendingIdentityValidation::new()
             .finish()
             .unwrap();
-        let error = decoded.resolve(&mut empty, &mut meter()).unwrap_err();
+        let error = decoded.resolve(&mut empty).unwrap_err();
         assert!(
             matches!(
                 error,
@@ -113,7 +106,6 @@ fn source_reference_constructor_cannot_masquerade_as_a_local_function() {
             output,
             function(output.output().export.module(), "constructor"),
             0,
-            &mut meter(),
         )
         .unwrap();
         let reference = &body.references().constructors()[0];
@@ -137,10 +129,8 @@ fn source_reference_constructor_cannot_masquerade_as_a_local_function() {
             vec![2, 0x80, 3, 0x80, 4, 0x80, 5, 0x80, 6, 0x80],
         ]
         .concat();
-        let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let error = decoded
-            .resolve(&mut identity_closure(output), &mut meter())
-            .unwrap_err();
+        let decoded: Decoded = decode_canonical(&bytes).unwrap();
+        let error = decoded.resolve(&mut identity_closure(output)).unwrap_err();
         assert!(
             matches!(
                 error,

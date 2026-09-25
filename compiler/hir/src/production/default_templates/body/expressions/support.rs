@@ -7,7 +7,7 @@ use crate::{
 
 use super::super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_> {
+impl BodyProjection<'_, '_> {
     pub(super) fn optional_expression(
         &mut self,
         expression: Option<&crate::Expr>,
@@ -63,9 +63,6 @@ impl BodyProjection<'_, '_, '_> {
         &mut self,
         assembly: &crate::ArrayAssembly,
     ) -> Result<DefaultArrayAssemblyV1, super::super::super::DefaultBodyProjectionError> {
-        self.entities
-            .resources
-            .collection::<DefaultArrayAssemblyPartV1>(assembly.parts.len())?;
         let mut parts = Vec::with_capacity(assembly.parts.len());
         for part in &assembly.parts {
             parts.push(match part {

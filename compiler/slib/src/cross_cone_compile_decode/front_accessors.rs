@@ -14,7 +14,6 @@ use scoop_mir::{
     DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, DecodedMirFoundation,
     OdrFreeMirFoundation,
 };
-use scoop_wire::DecodeUsage;
 
 use crate::{
     ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord, SemanticFingerprintRecord,
@@ -52,10 +51,6 @@ impl DecodedCrossConeHirFrontSections<'_> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {

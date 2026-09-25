@@ -1,15 +1,12 @@
 //! Field replay owns the ABI while leaving all other Strong checks pending.
 
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, WireEncode};
+use scoop_wire::WireEncode;
 
 use super::*;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn decode<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 pub(super) fn check(section: &StrongProductionSectionV2) {
@@ -20,21 +17,19 @@ pub(super) fn check(section: &StrongProductionSectionV2) {
             .as_ref()
             .map(|value| Box::new(decode(value.as_ref())));
         let original = encode(&raw).unwrap();
-        let validated = raw
-            .validate_initialization_abi(expected.clone(), &mut meter())
-            .unwrap();
+        let validated = raw.validate_initialization_abi(expected.clone()).unwrap();
         assert_eq!(validated.initialization_cycle_abi(), expected.as_deref());
         assert_eq!(encode(&validated).unwrap(), original);
     }
     let mut extra: DecodedStrongProductionSectionV2 = decode(section);
     extra.initialization_cycle_abi = Some(Box::new(decode(&abi)));
     assert!(matches!(
-        extra.validate_initialization_abi(None, &mut meter()),
+        extra.validate_initialization_abi(None),
         Err(StrongInitializationAbiValidationError::Mismatch)
     ));
     let missing: DecodedStrongProductionSectionV2 = decode(section);
     assert!(matches!(
-        missing.validate_initialization_abi(Some(Box::new(abi.clone())), &mut meter()),
+        missing.validate_initialization_abi(Some(Box::new(abi.clone()))),
         Err(StrongInitializationAbiValidationError::Mismatch)
     ));
     let other = donor(&abi);
@@ -62,7 +57,7 @@ pub(super) fn check(section: &StrongProductionSectionV2) {
     let mut raw: DecodedStrongProductionSectionV2 = decode(section);
     raw.initialization_cycle_abi = Some(Box::new(decode(&narrowed)));
     assert!(matches!(
-        raw.validate_initialization_abi(Some(Box::new(abi.clone())), &mut meter()),
+        raw.validate_initialization_abi(Some(Box::new(abi.clone()))),
         Err(StrongInitializationAbiValidationError::Mismatch)
     ));
     for field in [1, 2, 3, 5, 6] {
@@ -74,7 +69,7 @@ pub(super) fn check(section: &StrongProductionSectionV2) {
         })));
         assert!(
             matches!(
-                raw.validate_initialization_abi(Some(Box::new(abi.clone())), &mut meter()),
+                raw.validate_initialization_abi(Some(Box::new(abi.clone()))),
                 Err(StrongInitializationAbiValidationError::Mismatch)
             ),
             "field {field}"
@@ -87,27 +82,10 @@ pub(super) fn check(section: &StrongProductionSectionV2) {
                 other: &other,
                 field: 4
             })
-            .unwrap(),
-            DecodeLimits::default()
+            .unwrap()
         )
         .is_err()
     );
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let raw: DecodedStrongProductionSectionV2 = decode(section);
-        assert!(matches!(
-            raw.validate_initialization_abi(None, &mut BudgetMeter::new(limits)),
-            Err(StrongInitializationAbiValidationError::Resource(_))
-        ));
-    }
 }
 
 fn donor(abi: &CallableAbiRecordV1) -> CallableAbiRecordV1 {

@@ -1,13 +1,9 @@
 use scoop_identity::{ConeIdentity, PersistentDispatchSlotId};
-use scoop_wire::{BudgetMeter, DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::Fixture;
 use crate::{PersistentAccessConstraintV1, PersistentAccessDomainV1};
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 fn fixture() -> (Fixture, Vec<ProtectedDefaultSlotCallDomainV1>) {
     let mut fixture = Fixture::default();
@@ -48,20 +44,16 @@ fn slot_domain_wire_round_trips_complete_typed_access_regions() {
     for record in table.records() {
         let bytes = encode(record).unwrap();
         assert_eq!(&bytes[..2], &[0xa2, 1]);
-        let decoded: DecodedProtectedDefaultSlotCallDomainV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedProtectedDefaultSlotCallDomainV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert_eq!(
-            decoded.resolve(&mut fixture, &mut meter()).unwrap(),
-            *record
-        );
+        assert_eq!(decoded.resolve(&mut fixture).unwrap(), *record);
         assert_eq!(table.get(record.slot()), Some(record));
     }
     let bytes = encode(&table).unwrap();
     let decoded: DecodedCanonicalProtectedDefaultSlotCallDomainsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), table);
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), table);
 }
 
 #[test]
@@ -76,13 +68,10 @@ fn duplicate_slot_is_rejected_even_when_domains_match_or_differ() {
             CanonicalProtectedDefaultSlotCallDomainsV1::try_new(records.clone()),
             Err(ProtectedDefaultSlotCallDomainsBuildError::Duplicate { index: 1, .. })
         ));
-        let decoded: DecodedCanonicalProtectedDefaultSlotCallDomainsV1 = decode_canonical(
-            &encode(&RawTable(records)).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded: DecodedCanonicalProtectedDefaultSlotCallDomainsV1 =
+            decode_canonical(&encode(&RawTable(records)).unwrap()).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut fixture, &mut meter()),
+            decoded.resolve(&mut fixture),
             Err(ProtectedDefaultSlotCallDomainResolutionError::Build(
                 ProtectedDefaultSlotCallDomainsBuildError::Duplicate { index: 1, .. }
             ))
@@ -94,22 +83,19 @@ fn duplicate_slot_is_rejected_even_when_domains_match_or_differ() {
 fn slot_domain_reader_rejects_noncanonical_order_and_unknown_typed_identity() {
     let (mut fixture, mut ordered) = fixture();
     ordered.reverse();
-    let decoded: DecodedCanonicalProtectedDefaultSlotCallDomainsV1 = decode_canonical(
-        &encode(&RawTable(ordered.clone())).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedCanonicalProtectedDefaultSlotCallDomainsV1 =
+        decode_canonical(&encode(&RawTable(ordered.clone())).unwrap()).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(ProtectedDefaultSlotCallDomainResolutionError::Build(
             ProtectedDefaultSlotCallDomainsBuildError::NonCanonicalOrder { index: 1 }
         ))
     ));
     let decoded: DecodedProtectedDefaultSlotCallDomainV1 =
-        decode_canonical(&encode(&ordered[0]).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&ordered[0]).unwrap()).unwrap();
     fixture.slots.clear();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(ProtectedDefaultSlotCallDomainResolutionError::Identity(
             "unknown slot"
         ))
@@ -121,55 +107,9 @@ fn slot_domain_reader_requires_exact_product_shape_and_domain_encoding() {
     let (_, records) = fixture();
     let mut wrong_fields = encode(&records[0]).unwrap();
     wrong_fields[0] = 0xa1;
-    assert!(
-        decode_canonical::<DecodedProtectedDefaultSlotCallDomainV1>(
-            &wrong_fields,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedProtectedDefaultSlotCallDomainV1>(&wrong_fields).is_err());
     let bytes = encode(&BadDomain(records[0].slot())).unwrap();
-    assert!(
-        decode_canonical::<DecodedProtectedDefaultSlotCallDomainV1>(
-            &bytes,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
-}
-
-#[test]
-fn slot_domain_resolution_charges_shared_node_work_and_collection_budgets() {
-    let (mut fixture, records) = fixture();
-    let table = CanonicalProtectedDefaultSlotCallDomainsV1::try_new(records).unwrap();
-    let decoded: DecodedCanonicalProtectedDefaultSlotCallDomainsV1 =
-        decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
-    for limits in [
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            decoded
-                .clone()
-                .resolve(&mut fixture, &mut BudgetMeter::new(limits)),
-            Err(ProtectedDefaultSlotCallDomainResolutionError::Resource(_))
-        ));
-    }
-    let empty = CanonicalProtectedDefaultSlotCallDomainsV1::try_new(Vec::new()).unwrap();
-    assert_eq!(encode(&empty).unwrap(), [0x80]);
-    let decoded: DecodedCanonicalProtectedDefaultSlotCallDomainsV1 =
-        decode_canonical(&[0x80], DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), empty);
+    assert!(decode_canonical::<DecodedProtectedDefaultSlotCallDomainV1>(&bytes).is_err());
 }
 
 struct RawTable(Vec<ProtectedDefaultSlotCallDomainV1>);

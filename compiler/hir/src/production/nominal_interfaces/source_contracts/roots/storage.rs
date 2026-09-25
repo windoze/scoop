@@ -35,36 +35,19 @@ pub(super) fn visit_fields(
     Ok(())
 }
 
-impl Roots<'_> {
+impl Roots {
     pub(super) fn require_field_type(
         &mut self,
         export: &ExportHir,
         index: &Index,
         ty: TypeId,
-        depth: u64,
     ) -> Result<(), Error> {
-        let path = WirePath::root();
-        self.meter
-            .check_semantic_depth(depth, &path)
-            .map_err(resource)?;
-        work(self.meter, self.field_types.len())?;
         if self.field_types.contains(&ty) {
             return Ok(());
         }
-        self.meter
-            .check_table_entries(self.field_types.len() as u64 + 1, &path)
-            .map_err(resource)?;
-        self.meter
-            .charge_collection_slots(1, &path)
-            .map_err(resource)?;
-        self.meter.charge_nodes(1, &path).map_err(resource)?;
+
         self.field_types.insert(ty);
-        work(self.meter, index.nodes.len())?;
-        if matches!(export.types[ty], Type::Class(_)) {
-            self.meter
-                .charge_work(export.objects.len() as u64, &path)
-                .map_err(resource)?;
-        }
+
         match owner_resolution::from_type(export, ty) {
             Some(owner) => {
                 if index.nodes.contains_key(&owner) {
@@ -85,11 +68,11 @@ impl Roots<'_> {
             Type::Tuple(elements) => elements.as_slice(),
             Type::Function(id) | Type::FunPtr(id) => {
                 let signature = &export.function_types[*id];
-                self.require_field_type(export, index, signature.return_type, depth + 1)?;
+                self.require_field_type(export, index, signature.return_type)?;
                 signature.parameter_types.as_slice()
             }
             Type::Ptr(pointee) => {
-                return self.require_field_type(export, index, *pointee, depth + 1);
+                return self.require_field_type(export, index, *pointee);
             }
             Type::Unit
             | Type::Integer(_)
@@ -99,7 +82,7 @@ impl Roots<'_> {
             | Type::Param(_) => &[],
         };
         for child in children {
-            self.require_field_type(export, index, *child, depth + 1)?;
+            self.require_field_type(export, index, *child)?;
         }
         Ok(())
     }

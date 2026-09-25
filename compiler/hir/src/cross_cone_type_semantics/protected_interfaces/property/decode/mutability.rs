@@ -12,7 +12,6 @@ impl DecodedProtectedPropertyMutabilityV1 {
     pub fn resolve<R: ProtectedPropertyInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedPropertyMutabilityV1, ProtectedPropertyResolutionError<E>> {
         use ProtectedPropertyResolutionError as Error;
         Ok(match self {
@@ -22,9 +21,7 @@ impl DecodedProtectedPropertyMutabilityV1 {
                 setter_access,
             } => ProtectedPropertyMutabilityV1::ReadWrite {
                 setter: resolver.resolve(setter).map_err(Error::Identity)?,
-                setter_access: setter_access
-                    .resolve_metered(resolver, meter)
-                    .map_err(Error::Access)?,
+                setter_access: setter_access.resolve(resolver).map_err(Error::Access)?,
             },
         })
     }
@@ -47,7 +44,7 @@ impl WireEncode for DecodedProtectedPropertyMutabilityV1 {
     }
 }
 impl WireDecode for DecodedProtectedPropertyMutabilityV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         match decoder.field(0, |d| d.unsigned())? {
             1 => {

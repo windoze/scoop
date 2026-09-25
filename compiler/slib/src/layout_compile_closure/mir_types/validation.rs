@@ -3,7 +3,7 @@ use scoop_identity::{
     CoreBuiltinNominal, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
 };
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{Error, SharedMirTypeComponent as Component};
 
@@ -15,13 +15,12 @@ pub fn validate_shared_mir_type_exports(
     core: &hir::CoreBootstrapInterfaceSectionV1,
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
     shapes: &mir::CanonicalMirShapeSupportsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let mut comparison = Comparison {
         source,
         inheritance,
         types,
-        meter,
+
         expected: Vec::new(),
     };
     for representation in source.representations().table().records() {
@@ -51,31 +50,19 @@ pub(super) fn validate(
     inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     core: &hir::CoreBootstrapInterfaceSectionV1,
     mir: &mir::TypeResolvedCrossConeMirTypeBridgeSectionV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    validate_shared_mir_type_exports(
-        source,
-        inheritance,
-        core,
-        mir.types(),
-        mir.shape_support(),
-        meter,
-    )
+    validate_shared_mir_type_exports(source, inheritance, core, mir.types(), mir.shape_support())
 }
 
-pub(super) struct Comparison<'s, 'g, 'm> {
+pub(super) struct Comparison<'s, 'g> {
     pub(super) source: hir::CheckedSharedTypeFoundationV1<'s>,
     pub(super) inheritance: &'g hir::CheckedNominalInheritanceGraphV1<'g>,
     pub(super) types: &'s mir::CanonicalParamFreeMirTypeExportsV1,
-    pub(super) meter: &'m mut BudgetMeter,
+
     expected: Vec<PersistentExactTypeId>,
 }
 
-impl<'s> Comparison<'s, '_, '_> {
-    pub(super) fn work(&mut self, count: usize) -> Result<(), Error> {
-        Ok(self.meter.charge_work(count as u64, &WirePath::root())?)
-    }
-
+impl<'s> Comparison<'s, '_> {
     pub(super) fn exact(
         &mut self,
         owner: PersistentTypeId,
@@ -83,17 +70,15 @@ impl<'s> Comparison<'s, '_, '_> {
         Ok(self
             .source
             .metadata()
-            .signature_exact_type(&SignatureTypeKey::Nominal(owner), self.meter)?)
+            .signature_exact_type(&SignatureTypeKey::Nominal(owner))?)
     }
 
     pub(super) fn require_type(
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<&'s mir::ParamFreeMirTypeExportV1, Error> {
-        self.work(self.types.records().len().checked_ilog2().unwrap_or(0) as usize + 1)?;
         let record = self.types.get(exact).ok_or(Error::MissingType(exact))?;
-        self.meter
-            .try_reserve_collection_slots(&mut self.expected, 1, &WirePath::root())?;
+        scoop_wire::allocation::try_reserve(&mut self.expected, 1, &WirePath::root())?;
         self.expected.push(exact);
         Ok(record)
     }
@@ -103,15 +88,6 @@ impl<'s> Comparison<'s, '_, '_> {
         source: PersistentExactTypeId,
         record: &mir::ParamFreeMirTypeExportV1,
     ) -> Result<(), Error> {
-        self.work(
-            self.source
-                .facts()
-                .records()
-                .len()
-                .checked_ilog2()
-                .unwrap_or(0) as usize
-                + 1,
-        )?;
         let facts = self
             .source
             .facts()
@@ -139,7 +115,6 @@ impl<'s> Comparison<'s, '_, '_> {
         source: PersistentExactTypeId,
         record: &mir::ParamFreeMirTypeExportV1,
     ) -> Result<(), Error> {
-        self.work(self.inheritance.node_count().checked_ilog2().unwrap_or(0) as usize + 1)?;
         let node = self
             .inheritance
             .get(source)
@@ -154,7 +129,7 @@ impl<'s> Comparison<'s, '_, '_> {
             Component::Base,
             record.base_and_interfaces().base == base,
         )?;
-        self.work(expected.direct_interfaces().len())?;
+
         Error::require(
             record.exact(),
             Component::Interfaces,
@@ -200,14 +175,9 @@ impl<'s> Comparison<'s, '_, '_> {
     }
 
     fn finish(mut self) -> Result<(), Error> {
-        self.work(
-            self.expected
-                .len()
-                .saturating_mul(self.expected.len().checked_ilog2().unwrap_or(0) as usize + 1),
-        )?;
         self.expected.sort_unstable();
         self.expected.dedup();
-        self.work(self.types.records().len())?;
+
         let mut expected = self.expected.into_iter();
         for record in self.types.records() {
             if expected.next() != Some(record.exact()) {

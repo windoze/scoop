@@ -76,18 +76,12 @@ impl<'input> MirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 replay_shared_lir_initialization_dependencies(
                     mir.exports().initialization_uses(),
                     strong.initialization_registrations(),
-                    parts.meter,
                 )?;
-                let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
-                let layout =
-                    layout.resolve_dependencies::<Infallible>(parts.identities, parts.meter)?;
+                let reachable = transitive_positions(position, &dependency_positions)?;
+                let layout = layout.resolve_dependencies::<Infallible>(parts.identities)?;
                 let path = WirePath::root();
                 let mut dependencies = Vec::new();
-                parts.meter.try_reserve_collection_slots(
-                    &mut dependencies,
-                    reachable.len(),
-                    &path,
-                )?;
+                scoop_wire::allocation::try_reserve(&mut dependencies, reachable.len(), &path)?;
                 dependencies.extend(
                     reachable
                         .iter()
@@ -102,11 +96,8 @@ impl<'input> MirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     },
                     &layout,
                     &dependencies,
-                    parts.meter,
                 )?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &path)?;
+                scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
                 Ok(LirDependencyGraphReplayedCrossConeLayoutSections {
                     prepared,
                     mir,

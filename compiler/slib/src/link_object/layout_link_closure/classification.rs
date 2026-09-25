@@ -2,7 +2,7 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::{
     CanonicalExternalShapeLinkImportsV1, LirTargetProfile, SelectedDependencyLayoutAbiSetV1,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{ExternalShapeUndefinedUseV1, LayoutLinkClosureError};
 use crate::link_object::{
@@ -47,14 +47,8 @@ impl<'a> VerifiedExternalShapeRequirementClosureV1<'a> {
 pub fn verify_external_shape_requirements_v1<'a>(
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
     selected: &'a SelectedDependencyLayoutAbiSetV1<'a>,
-    meter: &mut BudgetMeter,
 ) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
-    verify_import_requirements(
-        legacy,
-        selected.consumer(),
-        selected.physical_imports(),
-        meter,
-    )
+    verify_import_requirements(legacy, selected.consumer(), selected.physical_imports())
 }
 
 /// Reuses the same partition rules after the owned reader has independently
@@ -62,13 +56,11 @@ pub fn verify_external_shape_requirements_v1<'a>(
 pub fn verify_replayed_external_shape_requirements_v1<'a>(
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
     layout: &'a scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1<'a>,
-    meter: &mut BudgetMeter,
 ) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
     verify_import_requirements(
         legacy,
         layout.exports().provider(),
         layout.physical_imports(),
-        meter,
     )
 }
 
@@ -76,7 +68,6 @@ fn verify_import_requirements<'a>(
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
     consumer: ConeIdentity,
     imports: &'a CanonicalExternalShapeLinkImportsV1<'a>,
-    meter: &mut BudgetMeter,
 ) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
     if legacy.producer() != consumer {
         return Err(LayoutLinkClosureError::ConsumerMismatch {
@@ -84,9 +75,9 @@ fn verify_import_requirements<'a>(
             selection: consumer,
         });
     }
-    let symbols = ImportSymbolIndex::new(imports, legacy.target(), meter)?;
-    symbols.reject_old_partitions(legacy, meter)?;
-    let classified = classify(legacy.remaining_external_candidates(), &symbols, meter)?;
+    let symbols = ImportSymbolIndex::new(imports, legacy.target())?;
+    symbols.reject_old_partitions(legacy)?;
+    let classified = classify(legacy.remaining_external_candidates(), &symbols)?;
     for (index, import) in imports.records().iter().enumerate() {
         // Initialization edges retain canonical unit ids in metadata. Their
         // complete descriptor support is checked by the source/registration
@@ -120,22 +111,15 @@ struct Classification<'a> {
 fn classify<'a>(
     candidates: &'a [StrongRelocationBindingV1],
     symbols: &ImportSymbolIndex,
-    meter: &mut BudgetMeter,
 ) -> Result<Classification<'a>, LayoutLinkClosureError> {
     let path = WirePath::root();
-    let count = candidates.len() as u64;
-    meter.check_table_entries(count, &path)?;
-    meter.charge_nodes(count, &path)?;
-    meter.charge_work(
-        count.saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-        &path,
-    )?;
+
     let mut requirements = Vec::new();
     let mut remaining = Vec::new();
     let mut used = Vec::new();
-    meter.try_reserve_collection_slots(&mut requirements, candidates.len(), &path)?;
-    meter.try_reserve_collection_slots(&mut remaining, candidates.len(), &path)?;
-    meter.try_reserve_collection_slots(&mut used, symbols.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut requirements, candidates.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut remaining, candidates.len(), &path)?;
+    scoop_wire::allocation::try_reserve(&mut used, symbols.len(), &path)?;
     used.resize(symbols.len(), false);
     for binding in candidates {
         if !matches!(
@@ -147,9 +131,7 @@ fn classify<'a>(
                 atom: binding.containing_atom(),
             });
         }
-        if let Some(index) = symbols.find(binding.symbol(), meter)? {
-            meter.charge_owned_bytes(binding.symbol().len() as u64, &path)?;
-            meter.charge_heap(binding.symbol().len() as u64, &path)?;
+        if let Some(index) = symbols.find(binding.symbol())? {
             used[index as usize] = true;
             requirements.push(ExternalShapeUndefinedUseV1 {
                 use_site: CanonicalUndefinedRelocationUseV1::from(binding),

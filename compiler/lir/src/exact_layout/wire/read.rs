@@ -5,7 +5,7 @@ use scoop_identity::{
     DecodedCapabilityId, DecodedPersistentId, PersistentExactTypeId, PersistentLayoutId,
     PersistentScanId, RepresentationRole,
 };
-use scoop_wire::{BudgetMeter, Decoder, WireDecode, WireError, WireErrorKind, WirePath};
+use scoop_wire::{Decoder, WireDecode, WireError, WireErrorKind};
 
 use super::*;
 use crate::{DecodedTypeInstanceShapeV1, DecodedValueStorageLayoutV1};
@@ -51,7 +51,7 @@ enum RawBody {
 }
 
 impl WireDecode for DecodedExactLayoutExportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(7)?;
         Ok(Self {
             semantic: DecodedExactLayoutSemanticProjectionV1::decode_fields(decoder)?,
@@ -70,7 +70,7 @@ impl WireEncode for DecodedExactLayoutExportV1 {
 }
 
 impl WireDecode for RawBody {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => Ok(Self::Value {
@@ -109,7 +109,7 @@ impl WireEncode for RawBody {
     }
 }
 
-fn unknown(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),
@@ -117,7 +117,7 @@ fn unknown(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
     )
 }
 
-fn length(decoder: &Decoder<'_, '_>, actual: u64, expected: u64) -> Result<(), WireError> {
+fn length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -129,7 +129,7 @@ fn length(decoder: &Decoder<'_, '_>, actual: u64, expected: u64) -> Result<(), W
     }
 }
 
-fn bool_value(decoder: &mut Decoder<'_, '_>) -> Result<bool, WireError> {
+fn bool_value(decoder: &mut Decoder<'_>) -> Result<bool, WireError> {
     match decoder.unsigned()? {
         0 => Ok(false),
         1 => Ok(true),
@@ -137,7 +137,7 @@ fn bool_value(decoder: &mut Decoder<'_, '_>) -> Result<bool, WireError> {
     }
 }
 
-fn pointer_kind(decoder: &mut Decoder<'_, '_>) -> Result<crate::NichePointerKind, WireError> {
+fn pointer_kind(decoder: &mut Decoder<'_>) -> Result<crate::NichePointerKind, WireError> {
     decoder.expect_map(1)?;
     match decoder.field(0, Decoder::unsigned)? {
         1 => Ok(crate::NichePointerKind::Managed),
@@ -147,14 +147,14 @@ fn pointer_kind(decoder: &mut Decoder<'_, '_>) -> Result<crate::NichePointerKind
     }
 }
 
-fn table<T: WireDecode>(decoder: &mut Decoder<'_, '_>, index: u32) -> Result<Vec<T>, WireError> {
+fn table<T: WireDecode>(decoder: &mut Decoder<'_>, index: u32) -> Result<Vec<T>, WireError> {
     decoder.field(index, |decoder| {
         decoder.decode_array(|decoder, _| T::decode(decoder))
     })
 }
 
 impl DecodedExactLayoutSemanticProjectionV1 {
-    fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(Self {
             layout: decoder.field(1, DecodedPersistentId::decode)?,
             exact: decoder.field(2, DecodedPersistentId::decode)?,
@@ -175,7 +175,7 @@ impl DecodedExactLayoutSemanticProjectionV1 {
     }
 }
 impl WireDecode for DecodedExactLayoutSemanticProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Self::decode_fields(decoder)
     }

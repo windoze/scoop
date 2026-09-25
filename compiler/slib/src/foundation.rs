@@ -464,7 +464,7 @@ mod tests {
     use scoop_identity::{CapabilityId, ConeCoordinate};
     use scoop_lir::DecodedLirFoundation;
     use scoop_mir::DecodedMirFoundation;
-    use scoop_wire::{DecodeLimits, decode_canonical};
+    use scoop_wire::decode_canonical;
 
     use super::*;
     use crate::{
@@ -572,11 +572,10 @@ mod tests {
         let forward = write(vec![diagnostic.clone(), extension.clone()]);
         let reverse = write(vec![extension, diagnostic]);
         assert_eq!(forward, reverse);
-        let graph =
-            DecodedSlibEnvelope::open(forward.as_bytes(), DecodeLimits::default(), selection)
-                .unwrap()
-                .validate_graph()
-                .unwrap();
+        let graph = DecodedSlibEnvelope::open(forward.as_bytes(), selection)
+            .unwrap()
+            .validate_graph()
+            .unwrap();
         assert_eq!(graph.identity(), cone.identity());
         assert_eq!(graph.artifact_fingerprint(), forward.artifact_fingerprint());
     }
@@ -656,14 +655,13 @@ mod tests {
         expected_section: &MetadataSection,
         location: MetadataLocation,
     ) {
-        let decoded =
-            DecodedMetadataEnvelope::decode(envelope, location, DecodeLimits::default()).unwrap();
+        let decoded = DecodedMetadataEnvelope::decode(envelope, location).unwrap();
         let [section] = decoded.sections() else {
             panic!("foundation envelope must contain exactly one section")
         };
         assert_eq!(section.capability(), expected_section.capability());
         assert_eq!(section.required_for(), MemberPurposeSet::COMPILE);
         assert_eq!(section.payload(), expected_section.payload());
-        decode_canonical::<T>(section.payload(), DecodeLimits::default()).unwrap();
+        decode_canonical::<T>(section.payload()).unwrap();
     }
 }

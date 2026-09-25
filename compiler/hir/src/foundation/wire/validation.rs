@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentIdResolver, SourceContextKey, SourceNativeExternalResolutionError,
     ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode_canonical_temporary_with_meter};
+use scoop_wire::{WireEncode, WirePath, encode_canonical_temporary};
 
 use super::*;
 use crate::{
@@ -77,13 +77,11 @@ impl DecodedHirFoundation {
         self,
         coordinate: &ConeCoordinate,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
         validate_foundation(
             self,
             coordinate,
             identities,
-            meter,
             SourceIdentityAuthority::CurrentArtifact,
         )
     }
@@ -95,13 +93,11 @@ impl DecodedHirFoundation {
         self,
         coordinate: &ConeCoordinate,
         identities: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
         validate_foundation(
             self,
             coordinate,
             identities,
-            meter,
             SourceIdentityAuthority::DependencyClosure,
         )
     }
@@ -117,10 +113,10 @@ fn validate_foundation(
     foundation: DecodedHirFoundation,
     coordinate: &ConeCoordinate,
     identities: &mut ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
+
     source_authority: SourceIdentityAuthority,
 ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
-    let original = encode_canonical_temporary_with_meter(&foundation, meter, &WirePath::root())
+    let original = encode_canonical_temporary(&foundation, &WirePath::root())
         .map_err(HirFoundationValidationError::Resource)?;
     let artifact = coordinate
         .identity()
@@ -161,13 +157,12 @@ fn validate_foundation(
     } = foundation.decoded;
 
     let mut validated_sources = Vec::new();
-    meter
-        .try_reserve_collection_slots(
-            &mut validated_sources,
-            sources.len(),
-            &WirePath::root().field(1),
-        )
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve(
+        &mut validated_sources,
+        sources.len(),
+        &WirePath::root().field(1),
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     for (index, source) in sources.into_iter().enumerate() {
         let source = match source_authority {
             SourceIdentityAuthority::CurrentArtifact => source
@@ -185,7 +180,7 @@ fn validate_foundation(
     macro_rules! records {
         ($field:literal, $id:ty, $key:ty) => {
             identities
-                .records::<$id, $key>(IdentityLayer::Hir, meter, &WirePath::root().field($field))
+                .records::<$id, $key>(IdentityLayer::Hir, &WirePath::root().field($field))
                 .map_err(HirFoundationValidationError::Identity)?
         };
     }
@@ -267,7 +262,7 @@ fn validate_foundation(
         &object_values,
         &type_aliases,
     )?;
-    validate_source_contexts(&source_contexts, &validated_sources, meter)?;
+    validate_source_contexts(&source_contexts, &validated_sources)?;
     validate_external_types(
         &types,
         &generic_types,
@@ -278,13 +273,12 @@ fn validate_foundation(
     )?;
 
     let mut contracts = Vec::new();
-    meter
-        .try_reserve_collection_slots(
-            &mut contracts,
-            source_native_contracts.len(),
-            &WirePath::root().field(26),
-        )
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve(
+        &mut contracts,
+        source_native_contracts.len(),
+        &WirePath::root().field(26),
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     for (index, contract) in source_native_contracts.into_iter().enumerate() {
         contracts.push(contract.resolve(identities).map_err(|error| {
             HirFoundationValidationError::SourceNativeContract { index, error }
@@ -292,13 +286,12 @@ fn validate_foundation(
     }
 
     let mut origins = Vec::new();
-    meter
-        .try_reserve_collection_slots(
-            &mut origins,
-            definition_origins.len(),
-            &WirePath::root().field(29),
-        )
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve(
+        &mut origins,
+        definition_origins.len(),
+        &WirePath::root().field(29),
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     for (index, origin) in definition_origins.into_iter().enumerate() {
         origins.push(
             origin
@@ -328,17 +321,15 @@ fn validate_foundation(
         &callback_registrations,
         &contracts,
         &origins,
-        meter,
     )?;
 
     let mut boundary_types = Vec::new();
-    meter
-        .try_reserve_collection_slots(
-            &mut boundary_types,
-            native_boundary_types.len(),
-            &WirePath::root().field(34),
-        )
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve(
+        &mut boundary_types,
+        native_boundary_types.len(),
+        &WirePath::root().field(34),
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     for (index, boundary) in native_boundary_types.into_iter().enumerate() {
         boundary_types.push(
             boundary.resolve(identities).map_err(|error| {
@@ -346,7 +337,7 @@ fn validate_foundation(
             })?,
         );
     }
-    native_boundary::validate_graph_shape_coverage(identities, &boundary_types, meter)?;
+    native_boundary::validate_graph_shape_coverage(identities, &boundary_types)?;
 
     let mut canonical = CanonicalHirFoundation::empty();
     macro_rules! set {
@@ -389,7 +380,7 @@ fn validate_foundation(
     set!(set_external_source_types, external_source_types);
     set!(set_external_generic_types, external_generic_types);
 
-    let rebuilt = encode_canonical_temporary_with_meter(&canonical, meter, &WirePath::root())
+    let rebuilt = encode_canonical_temporary(&canonical, &WirePath::root())
         .map_err(HirFoundationValidationError::Resource)?;
     if rebuilt != original {
         return Err(HirFoundationValidationError::NonCanonicalFoundation);
@@ -478,28 +469,16 @@ fn foreign_declaration<I: PersistentId>(
 fn validate_source_contexts(
     contexts: &[SourceContextRecord],
     sources: &[SourceRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<(), HirFoundationValidationError> {
     let path = WirePath::root().field(22);
     let mut known = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut known, sources.len(), &path)
+    scoop_wire::allocation::try_reserve_set(&mut known, sources.len(), &path)
         .map_err(HirFoundationValidationError::Resource)?;
     known.extend(sources.iter().map(SourceRecord::identity));
     for context in contexts {
         if !known.contains(context.key().source()) {
             let source = context.key().source();
-            let owned_bytes =
-                u64::try_from(source.logical_path().as_str().len()).map_err(|_| {
-                    HirFoundationValidationError::Resource(scoop_wire::WireError::new(
-                        scoop_wire::WireErrorKind::IntegerOutOfRange,
-                        path.clone(),
-                        None,
-                    ))
-                })?;
-            meter
-                .charge_owned_bytes(owned_bytes, &path)
-                .map_err(HirFoundationValidationError::Resource)?;
+
             return Err(HirFoundationValidationError::UnknownContextSource {
                 context: *context.id().as_array(),
                 source: source.clone(),

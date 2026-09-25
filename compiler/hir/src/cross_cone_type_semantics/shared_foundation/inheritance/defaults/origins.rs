@@ -15,24 +15,18 @@ impl TypeDefinitionSourceSemanticAuthority<Error> for Replay<'_, '_> {
         &mut self,
         source_use: TypeDefinitionSourceUseV1<'_>,
         source: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
+
+        _path: &WirePath,
     ) -> Result<(), Error> {
         let provider = metadata(
             self.metadata,
             self.dependencies,
             source.origin().source().cone(),
-            meter,
         )?;
         provider
             .foundation
-            .validate_definition_source_location(provider.provider, source, meter, path)
-            .map_err(|error| match error {
-                crate::DefinitionSourceLocationValidationError::Resource(error) => {
-                    Error::Resource(error)
-                }
-                error => Error::DefinitionSourceLocation(error),
-            })?;
+            .validate_definition_source_location(provider.provider, source)
+            .map_err(Error::DefinitionSourceLocation)?;
         // The other source-bearing fields have just been joined to complete
         // shared declarations or the identical shared default body.
         let declaration = match source_use {
@@ -52,9 +46,9 @@ impl TypeDefinitionSourceSemanticAuthority<Error> for Replay<'_, '_> {
                     CallableTemplateOrigin::Accessor(id)
                 }
             };
-            let record = contracts::callable(provider, declaration, meter)?;
-            let access = contracts::callable_access(provider, record, meter)?;
-            contracts::charge_compare(source, access.definition_origin(), meter)?;
+            let record = contracts::callable(provider, declaration)?;
+            let access = contracts::callable_access(provider, record)?;
+
             if source != access.definition_origin() {
                 return Err(Error::CallableContract(declaration));
             }

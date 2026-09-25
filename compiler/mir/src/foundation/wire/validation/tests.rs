@@ -9,14 +9,10 @@ use scoop_identity::{
     SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::ForeignCallbackStorageAbi;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 type DecodedRegistrationRecord =
     DecodedCborIdentityRecord<PersistentCallbackRegistrationId, DecodedCallbackRegistrationKey>;
@@ -66,11 +62,7 @@ fn callback_fixture(include_record: bool, mode: CallbackMode) -> CallbackFixture
         PersistentCallbackRegistrationId,
         CallbackRegistrationKey,
     > = CborIdentityRecord::from_key(registration_key.clone()).unwrap();
-    let registration = decode_canonical(
-        &encode(&registration_record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let registration = decode_canonical(&encode(&registration_record).unwrap()).unwrap();
     let application_key = CallbackApplicationKey::new(
         &registration_key,
         CallableMaterializationContext::NoSubstitution,
@@ -123,7 +115,7 @@ fn callback_fixture(include_record: bool, mode: CallbackMode) -> CallbackFixture
 }
 
 fn decode(canonical: &CanonicalMirFoundation) -> DecodedMirFoundation {
-    decode_canonical(&encode(canonical).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(canonical).unwrap()).unwrap()
 }
 
 fn validate_identities(
@@ -149,45 +141,11 @@ fn validates_callback_identity_record_and_signature_as_one_relation() {
     let decoded = decode(&fixture.canonical);
     let mut identities = validate_identities(&decoded, &fixture);
 
-    let validated = decoded.validate(&mut identities, &mut meter()).unwrap();
+    let validated = decoded.validate(&mut identities).unwrap();
 
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(validated.counts().callback_applications, 1);
     assert_eq!(validated.counts().callback_application_records, 1);
-}
-
-#[test]
-fn callback_validation_heap_cost_has_inclusive_boundaries() {
-    let fixture = callback_fixture(true, CallbackMode::Reusable);
-    let encoded_length = u64::try_from(encode(&fixture.canonical).unwrap().len()).unwrap();
-    let required = encoded_length * 2 + 12 * scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
-
-    for (limit, accepted) in [
-        (required - 1, false),
-        (required, true),
-        (required + 1, true),
-    ] {
-        let decoded = decode(&fixture.canonical);
-        let mut identities = validate_identities(&decoded, &fixture);
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            logical_heap_bytes: limit,
-            ..DecodeLimits::default()
-        });
-
-        let result = decoded.validate(&mut identities, &mut meter);
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result.unwrap_err(),
-                MirFoundationValidationError::Resource(ref error)
-                    if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                        resource: scoop_wire::ResourceKind::LogicalHeapBytes,
-                        limit,
-                        observed: required,
-                    }
-            ));
-        }
-    }
 }
 
 #[test]
@@ -197,7 +155,7 @@ fn rejects_a_callback_identity_without_its_semantic_record() {
     let mut identities = validate_identities(&decoded, &fixture);
 
     assert!(matches!(
-        decoded.validate(&mut identities, &mut meter()),
+        decoded.validate(&mut identities),
         Err(MirFoundationValidationError::CallbackRelation(
             CallbackApplicationRelationError::MissingRecord { application }
         )) if application == fixture.application
@@ -211,7 +169,7 @@ fn rejects_a_callback_record_that_changes_the_registration_mode() {
     let mut identities = validate_identities(&decoded, &fixture);
 
     assert!(matches!(
-        decoded.validate(&mut identities, &mut meter()),
+        decoded.validate(&mut identities),
         Err(MirFoundationValidationError::CallbackRelation(
             CallbackApplicationRelationError::ModeMismatch { application }
         )) if application == fixture.application
@@ -239,7 +197,7 @@ fn rejects_semantically_noncanonical_identity_order() {
     let mut identities = pending.finish().unwrap();
 
     assert!(matches!(
-        decoded.validate(&mut identities, &mut meter()),
+        decoded.validate(&mut identities),
         Err(MirFoundationValidationError::NonCanonicalFoundation)
     ));
 }

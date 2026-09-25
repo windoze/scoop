@@ -34,47 +34,6 @@ fn recursive_semantic_edges_are_exact_and_every_incoming_edge_replays() {
 }
 
 #[test]
-fn recursive_selection_depth_is_metered_after_cycle_deduplication() {
-    let mut provider = Fixture::new(ConeIdentity::CORE);
-    let nodes: Vec<_> = (0..20)
-        .map(|i| provider.add(&format!("Depth{i}"), true))
-        .collect();
-    let requests: Vec<_> = nodes.into_iter().map(request).collect();
-    let provider_wire = provider.section(vec![]);
-    let public = public();
-    let terminal = check(&provider, &provider_wire, &public, &[], &Uses::default()).unwrap();
-    let mut consumer = Fixture::new(ConeIdentity::SINGLE_FILE);
-    consumer.import(&provider);
-    let wire = consumer.section(requests.clone());
-    let mut uses = Uses::new(&requests[..1]);
-    uses.edges = requests
-        .windows(2)
-        .map(|pair| (pair[0], Uses::new(&pair[1..]).roots))
-        .collect();
-    let mut budget = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 14,
-        ..DecodeLimits::default()
-    });
-    let error = wire
-        .validate_semantics(
-            public_proof(&public, consumer.provider),
-            &[&terminal],
-            &consumer,
-            &mut consumer.source.clone(),
-            &mut DefaultAuthority::new(&consumer),
-            &uses,
-            &mut budget,
-            &path(),
-        )
-        .unwrap_err();
-    assert!(
-        matches!(error, TypeSectionSemanticValidationError::Selected(error)
-        if matches!(*error, TypeSelectionValidationError::Resource(ref error)
-            if matches!(error.kind(), scoop_wire::WireErrorKind::LimitExceeded { resource: scoop_wire::ResourceKind::SemanticRecursion, .. })))
-    );
-}
-
-#[test]
 fn local_uses_do_not_become_persistent_external_records_and_provenance_is_checked() {
     let mut fixture = Fixture::new(ConeIdentity::CORE);
     let root = fixture.add("Local", true);

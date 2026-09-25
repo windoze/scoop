@@ -15,7 +15,7 @@ fn with_binding(
     with_hir_source(SOURCE, |output, core| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
-        let produced = Production::from_export_hir(&output.output().export, &mut meter()).unwrap();
+        let produced = Production::from_export_hir(&output.output().export).unwrap();
         let (declarations, protocols) = restore(&mut fixture, &produced);
         let foundation = fixture.bind().unwrap();
         let core = core.foundation.import_core_inputs(&core.interface).unwrap();
@@ -24,7 +24,7 @@ fn with_binding(
             core.protocols().fundamental_types(),
             |members, constructors| {
                 let mut authority = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
                 run(&mut authority, &fixture, &declarations, &protocols);
             },
@@ -56,53 +56,11 @@ fn protected_binding_requires_every_independently_selected_declaration() {
                 authority.validate_protected_declarations(
                     &incomplete,
                     protocols,
-                    &fixture.source.entries().representations,
-                    &mut meter()
+                    &fixture.source.entries().representations
                 ),
                 Err(Error::Inventory)
             ));
         }
         assert!(counts.into_iter().all(|count| count > 0));
-    });
-}
-
-#[test]
-fn protected_binding_enforces_shared_resource_limits() {
-    with_binding(|authority, fixture, table, protocols| {
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(
-                matches!(
-                    authority.validate_protected_declarations(
-                        table,
-                        protocols,
-                        &fixture.source.entries().representations,
-                        &mut BudgetMeter::new(limits)
-                    ),
-                    Err(Error::Resource(_))
-                ),
-                "{limits:?}"
-            );
-        }
     });
 }

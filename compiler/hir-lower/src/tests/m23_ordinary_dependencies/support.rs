@@ -4,7 +4,7 @@ use scoop_identity::{
     PackagePath, PersistentExportBindingId, PersistentFunctionId, SemanticOriginFingerprint,
     SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::super::{ident, sp};
 
@@ -158,11 +158,7 @@ pub(crate) fn alias_expansions(
     aliases: &scoop_hir::CanonicalTypeAliasInterfacesV1,
 ) -> scoop_hir::CanonicalTypeAliasExpansionsV1 {
     aliases
-        .expand_alias_closure(
-            &EmptyAliasAuthority,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
+        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
         .unwrap()
 }
 

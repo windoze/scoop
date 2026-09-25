@@ -9,7 +9,7 @@ pub(super) fn collect<E>(
 ) -> Result<(), Error<E>> {
     let module = output.module;
     for ty in local
-        .materialized_type_closure(output.meter)
+        .materialized_type_closure()
         .map_err(Error::MaterializedTypes)?
     {
         match &module.types[ty].kind {
@@ -39,10 +39,6 @@ pub(super) fn collect<E>(
             }
             TypeKind::Enum(id) => {
                 for variant in &module.enums[*id].variants {
-                    output
-                        .meter
-                        .charge_work(1, &WirePath::root())
-                        .map_err(Error::Resource)?;
                     for field in &variant.fields {
                         output.add(field.ty, |exact| Site::EnumVariantFieldStorage {
                             field: field.identity,

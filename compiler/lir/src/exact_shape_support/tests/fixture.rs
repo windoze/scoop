@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use super::super::*;
 use crate::*;
@@ -46,26 +45,16 @@ impl Fixture {
         );
         let built = layouts::build(&source, wrong_step_payload);
         let foundation = foundation(provider, &built);
-        let layouts = CanonicalExactLayoutExportsV1::try_new(
-            TARGET,
-            &foundation,
-            built.records,
-            &mut meter(),
-        )
-        .unwrap();
+        let layouts =
+            CanonicalExactLayoutExportsV1::try_new(TARGET, &foundation, built.records).unwrap();
         let graph = Graph::new(source.clone(), &built.shapes, coordinate);
         let descriptors = built
             .shapes
             .iter()
             .map(|shape| descriptor(shape, &foundation, &graph))
             .collect();
-        let descriptors = CanonicalExactDescriptorExportsV1::try_new(
-            TARGET,
-            &foundation,
-            descriptors,
-            &mut meter(),
-        )
-        .unwrap();
+        let descriptors =
+            CanonicalExactDescriptorExportsV1::try_new(TARGET, &foundation, descriptors).unwrap();
         Self {
             source,
             foundation,
@@ -82,7 +71,6 @@ impl Fixture {
             &self.layouts,
             &self.descriptors,
             &self.foundation,
-            &mut meter(),
         )
     }
 
@@ -105,10 +93,6 @@ impl Fixture {
     pub(super) const fn descriptors(&self) -> &CanonicalExactDescriptorExportsV1 {
         &self.descriptors
     }
-
-    pub(super) fn meter(&self) -> BudgetMeter {
-        meter()
-    }
 }
 
 fn descriptor(
@@ -120,13 +104,11 @@ fn descriptor(
     let physical = StrongShapeDefinitionRefV1::from_foundation(
         ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
         foundation,
-        &mut meter(),
     )
     .unwrap();
     let registration = StrongShapeDefinitionRefV1::from_foundation(
         ExternalStrongShapeSubjectV1::TypeRegistration(exact),
         foundation,
-        &mut meter(),
     )
     .unwrap();
     let registration = StrongShapeRegistrationV1::from_artifact(
@@ -287,8 +269,4 @@ impl ExactTypeDiagnosticGraph for Graph {
     fn cone_coordinate(&self, id: ConeIdentity) -> Option<&ConeCoordinate> {
         (id == self.source.origin()).then_some(&self.coordinate)
     }
-}
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

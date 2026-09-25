@@ -33,7 +33,7 @@ impl<C: WireEncode> WireEncode for DecodedStrongTypeVtableSemanticPlan<C> {
 }
 
 impl<C: WireDecode> WireDecode for DecodedStrongTypeVtableSemanticPlan<C> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             table: decoder.field(1, DecodedPersistentId::decode)?,
@@ -60,7 +60,7 @@ impl<D: WireEncode, C: WireEncode> WireEncode for DecodedStrongTypeItableSemanti
 }
 
 impl<D: WireDecode, C: WireDecode> WireDecode for DecodedStrongTypeItableSemanticPlan<D, C> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             table: decoder.field(1, DecodedPersistentId::decode)?,
@@ -148,7 +148,7 @@ impl<P: WireEncode, D: WireEncode, C: WireEncode> WireEncode
 impl<P: WireDecode, D: WireDecode, C: WireDecode> WireDecode
     for DecodedStrongTypeRegistrationPlan<P, D, C>
 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(28)?;
         Ok(Self {
             exact_type: decoder.field(1, DecodedPersistentId::decode)?,

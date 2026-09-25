@@ -41,7 +41,7 @@ impl PreparedBuildGraph {
                 .acquire_shared(key)
                 .map_err(OrdinarySourceExecutionError::CacheStore)?;
             if let CompileCacheLookupV1::Hit(entry) = store
-                .lookup(&lock, self.context.limits.artifact_decode())
+                .lookup(&lock)
                 .map_err(OrdinarySourceExecutionError::CacheStore)?
             {
                 return self
@@ -54,7 +54,7 @@ impl PreparedBuildGraph {
             .acquire_exclusive(key)
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
         if let CompileCacheLookupV1::Hit(entry) = store
-            .lookup(&lock, self.context.limits.artifact_decode())
+            .lookup(&lock)
             .map_err(OrdinarySourceExecutionError::CacheStore)?
         {
             return self
@@ -82,11 +82,8 @@ impl PreparedBuildGraph {
         self.staging
             .validate_completed_output(invocation.output_path())
             .map_err(OrdinarySourceExecutionError::OutputLayout)?;
-        let output = ImmutableInputSnapshot::capture_no_follow(
-            invocation.output_path(),
-            self.context.limits.artifact_decode().owned_bytes,
-        )
-        .map_err(OrdinarySourceExecutionError::OutputSnapshot)?;
+        let output = ImmutableInputSnapshot::capture_no_follow(invocation.output_path())
+            .map_err(OrdinarySourceExecutionError::OutputSnapshot)?;
         let snapshot = Arc::new(ArtifactSnapshot::from_shared(output.shared_bytes()));
         let plan = self.artifact_closure_plan();
         let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
@@ -97,7 +94,6 @@ impl PreparedBuildGraph {
             invocation.output_path().to_path_buf(),
             completed,
             success.warnings().to_vec(),
-            self.context.limits.artifact_decode(),
             &c_bridge_profile,
         )
         .map_err(OrdinarySourceExecutionError::Completion)?;
@@ -127,12 +123,7 @@ impl PreparedBuildGraph {
         .map_err(OrdinarySourceExecutionError::ReceiptHash)?;
         completed_node.replace_warnings(receipt.body().structured_warnings().to_vec());
         store
-            .publish(
-                &lock,
-                &output,
-                &receipt,
-                self.context.limits.artifact_decode(),
-            )
+            .publish(&lock, &output, &receipt)
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
 
         Ok(completed_node)

@@ -49,21 +49,6 @@ pub struct DecodedCanonicalPersistentIdsV1<I: PersistentId> {
 }
 
 impl<I: PersistentId> DecodedCanonicalPersistentIdsV1<I> {
-    /// Charges output storage and the complete order scan before any resolver
-    /// lookup. Used by source-authority products with a shared read budget.
-    pub fn charge_resolution_at(
-        &self,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<(), WireError> {
-        let count = self.values.len() as u64;
-        meter.check_semantic_depth(1, path)?;
-        meter.check_table_entries(count, path)?;
-        meter.charge_nodes(count, path)?;
-        meter.charge_collection_slots(count, path)?;
-        meter.charge_work(count, path)
-    }
-
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -109,7 +94,7 @@ impl<I: PersistentId> WireEncode for DecodedCanonicalPersistentIdsV1<I> {
 }
 
 impl<I: PersistentId> WireDecode for DecodedCanonicalPersistentIdsV1<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
             .map(|values| Self { values })

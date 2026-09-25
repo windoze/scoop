@@ -6,9 +6,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         &mut self,
         narrow: &scoop_hir::SourceAccessDomainV1,
         wide: &scoop_hir::SourceAccessDomainV1,
-        path: &WirePath,
     ) -> Result<bool, Error> {
-        self.meter.charge_work(1, path).map_err(Error::Resource)?;
         if narrow.is_empty() || wide.is_universal() {
             return Ok(true);
         }
@@ -18,18 +16,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         for required in wide.constraints() {
             let mut covered = false;
             for provided in narrow.constraints() {
-                let cost = [&required, &provided]
-                    .into_iter()
-                    .map(|constraint| match constraint {
-                        Constraint::File(source) => {
-                            source.logical_path().as_str().len() as u64 + 65
-                        }
-                        _ => 65,
-                    })
-                    .sum();
-                self.meter
-                    .charge_work(cost, path)
-                    .map_err(Error::Resource)?;
                 if self.visibility_implies(provided, required)? {
                     covered = true;
                     break;
@@ -62,7 +48,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             (Constraint::LexicalOwner(inner), Constraint::LexicalOwner(outer)) => {
                 let (_, key) = self.visibility_nominal(*inner)?;
                 for atom in key.owners().owners() {
-                    self.visibility_work(1)?;
                     if nominal_owner(atom)? == *outer {
                         return Ok(true);
                     }
@@ -78,7 +63,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     return Ok(true);
                 }
                 for atom in key.owners().owners() {
-                    self.visibility_work(1)?;
                     if self.visibility_scope_class(nominal_owner(atom)?, *base)? {
                         return Ok(true);
                     }
@@ -113,15 +97,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let mut visited = BTreeSet::new();
         let mut contains = false;
         loop {
-            let path = WirePath::root();
-            self.meter
-                .check_semantic_depth(visited.len() as u64 + 1, &path)
-                .map_err(Error::Resource)?;
-            self.meter
-                .charge_collection_slots(1, &path)
-                .map_err(Error::Resource)?;
-            self.meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-            self.visibility_work((u64::from(visited.len().max(1).ilog2()) + 1) * 65)?;
             if !visited.insert(derived) {
                 return Err(Error::NominalDeclaration {
                     declaration: derived,
@@ -132,7 +107,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             let (record, _) = self.visibility_nominal(derived)?;
             let mut parent = None;
             for signature in record.exact_supertypes().values() {
-                self.meter.charge_edges(1, &path).map_err(Error::Resource)?;
                 let owner = match signature {
                     SignatureTypeKey::Nominal(id) => SourceNominalId::Concrete(*id),
                     SignatureTypeKey::NominalApplication { origin, .. } => {

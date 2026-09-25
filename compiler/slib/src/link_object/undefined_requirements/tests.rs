@@ -8,7 +8,7 @@ use scoop_lir::{
     ExternalTypeDescriptor, GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
     StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1, ValidatedLirTargetSelection,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::super::c_bridge_production::tests::profile;
 use super::super::c_bridge_target_requirements::{
@@ -67,17 +67,13 @@ fn dependency_requirement_retires_the_core_tag_and_preserves_the_provider() {
     let requirement = FinalUndefinedSymbolRequirementV1::DependencyStrong { provider, owner };
     let mut bytes = encode(&requirement).unwrap();
     assert_eq!(&bytes[..4], &[0xa3, 0, 8, 1]);
-    let decoded = decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     bytes[2] = 2;
     assert!(matches!(
         decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(
             &bytes,
-            DecodeLimits::default(),
+
         ),
         Err(error) if matches!(error.kind(), scoop_wire::WireErrorKind::UnknownTag { tag: 2 })
     ));
@@ -296,7 +292,6 @@ fn decoded_requirement_projection_rejects_another_verified_object_projection() {
     let eh = final_from_external(classify(b"__Unwind_Resume"));
     let decoded = decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(
         &encode(&runtime).unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap();
 
@@ -313,23 +308,14 @@ fn decoded_requirement_sum_rejects_unknown_and_incomplete_variants() {
         vec![0xa1, 0x00, 0x01],
         vec![0xa2, 0x00, 0x05, 0x01, 0x58, 0x1f],
     ] {
-        assert!(
-            decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&bytes).is_err());
     }
 }
 
 fn assert_projection_round_trip(expected: &CanonicalUndefinedSymbolRequirementSetV1) {
     let bytes = encode(expected).unwrap();
-    let decoded = decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(
-        &bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(&bytes).unwrap();
     let actual = decoded.validate_against(expected).unwrap();
     assert_eq!(actual, *expected);
 }

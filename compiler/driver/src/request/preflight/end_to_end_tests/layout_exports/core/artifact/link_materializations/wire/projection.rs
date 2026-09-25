@@ -1,8 +1,7 @@
 use super::*;
 
 pub(super) fn mutate(payload: &[u8], failure: Failure) -> Vec<u8> {
-    let mut budget = meter();
-    let mut decoder = scoop_wire::Decoder::new(payload, &mut budget).unwrap();
+    let mut decoder = scoop_wire::Decoder::new(payload).unwrap();
     decoder.expect_map(8).unwrap();
     let (head, content, end, count, records) = decoder
         .field(1, |decoder| {

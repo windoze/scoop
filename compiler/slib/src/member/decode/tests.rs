@@ -1,5 +1,5 @@
 use scoop_identity::{CapabilityId, ConeIdentity, ObjectFormatId, TargetProfileWireId};
-use scoop_wire::{BudgetMeter, DecodeLimits, WireErrorKind, WirePath, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -14,11 +14,7 @@ fn logical_key(bytes: &[u8]) -> LogicalMemberKey {
 fn validate_member(
     decoded: DecodedSlibMemberRecord,
 ) -> Result<SlibMemberRecord, SlibMemberRecordValidationError> {
-    decoded.validate(
-        ConeIdentity::CORE,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
+    decoded.validate(ConeIdentity::CORE)
 }
 
 #[test]
@@ -38,11 +34,7 @@ fn member_record_round_trips_through_untrusted_validation() {
         b"object",
     )
     .unwrap();
-    let decoded = decode_canonical::<DecodedSlibMemberRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedSlibMemberRecord>(&encode(&record).unwrap()).unwrap();
 
     assert_eq!(validate_member(decoded), Ok(record));
 }
@@ -56,11 +48,8 @@ fn decoded_record_recomputes_member_id() {
         b"hir",
     )
     .unwrap();
-    let mut decoded = decode_canonical::<DecodedSlibMemberRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let mut decoded =
+        decode_canonical::<DecodedSlibMemberRecord>(&encode(&record).unwrap()).unwrap();
     decoded.id.0[0] ^= 1;
 
     assert!(matches!(
@@ -71,9 +60,7 @@ fn decoded_record_recomputes_member_id() {
 
 #[test]
 fn decoded_metadata_role_requires_initial_wire_schema() {
-    let role =
-        decode_canonical::<DecodedSlibMemberRole>(b"\xa2\x00\x01\x01\x02", DecodeLimits::default())
-            .unwrap();
+    let role = decode_canonical::<DecodedSlibMemberRole>(b"\xa2\x00\x01\x01\x02").unwrap();
     assert_eq!(
         role.validate(),
         Err(SlibMemberRoleValidationError::UnsupportedWireSchema { actual: 2 })
@@ -90,7 +77,7 @@ fn decoded_extension_role_rejects_other_purpose_bits() {
         b"\x02\x02".as_slice(),
     ]
     .concat();
-    let role = decode_canonical::<DecodedSlibMemberRole>(&bytes, DecodeLimits::default()).unwrap();
+    let role = decode_canonical::<DecodedSlibMemberRole>(&bytes).unwrap();
 
     assert_eq!(
         role.validate(),
@@ -100,16 +87,11 @@ fn decoded_extension_role_rejects_other_purpose_bits() {
 
 #[test]
 fn closed_member_sums_reject_unknown_tags_and_shapes() {
-    let unknown =
-        decode_canonical::<DecodedMemberStableKey>(b"\xa1\x00\x07", DecodeLimits::default())
-            .unwrap_err();
+    let unknown = decode_canonical::<DecodedMemberStableKey>(b"\xa1\x00\x07").unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 7 });
 
-    let extra_field = decode_canonical::<DecodedMemberStableKey>(
-        b"\xa2\x00\x01\x01\x00",
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let extra_field =
+        decode_canonical::<DecodedMemberStableKey>(b"\xa2\x00\x01\x01\x00").unwrap_err();
     assert_eq!(
         extra_field.kind(),
         &WireErrorKind::InvalidLength {

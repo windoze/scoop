@@ -6,7 +6,7 @@ use scoop_identity::{
     PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
     StrongCallableDefinitionOwner, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::{
     CrossConeMirBridgeBuildError, CrossConeMirBridgeRelationError, CrossConeMirBridgeSectionV1,
@@ -18,8 +18,6 @@ use crate::{
     CallableSignatureRecord, CallableSignatureSubject, CanonicalMirFoundation,
     DecodedMirFoundation, OdrFreeMirFoundation,
 };
-
-mod budget;
 
 #[test]
 fn empty_bridge_has_the_fixed_wire_shape() {
@@ -43,8 +41,7 @@ fn bridge_round_trips_typed_exports_and_selected_uses() {
     let fixture = fixture();
     let section = fixture.section();
     let bytes = encode(&section).unwrap();
-    let decoded: DecodedCrossConeMirBridgeSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeMirBridgeSectionV1 = decode_canonical(&bytes).unwrap();
     let (mut identities, foundation) = fixture.validated_foundation();
 
     assert_eq!(
@@ -220,13 +217,7 @@ fn reader_rejects_unknown_or_open_section_shapes() {
         vec![0xa3, 0x01, 0x80, 0x02, 0x80, 0x03, 0x80],
         vec![0xa2, 0x01, 0x80, 0x02, 0x81, 0xa4, 0x01],
     ] {
-        assert!(
-            decode_canonical::<DecodedCrossConeMirBridgeSectionV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCrossConeMirBridgeSectionV1>(&bytes,).is_err());
     }
 }
 
@@ -275,7 +266,7 @@ fn producer_side_selection_is_canonical_and_closed() {
 }
 
 fn decode(section: &CrossConeMirBridgeSectionV1) -> DecodedCrossConeMirBridgeSectionV1 {
-    decode_canonical(&encode(section).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(section).unwrap()).unwrap()
 }
 
 struct Fixture {
@@ -327,10 +318,8 @@ impl Fixture {
         &self,
         extra_provider: ConeIdentity,
     ) -> (ValidatedIdentityGraph, OdrFreeMirFoundation) {
-        let hir: DecodedHirFoundation =
-            decode_canonical(&encode(&self.hir).unwrap(), DecodeLimits::default()).unwrap();
-        let mir: DecodedMirFoundation =
-            decode_canonical(&encode(&self.mir).unwrap(), DecodeLimits::default()).unwrap();
+        let hir: DecodedHirFoundation = decode_canonical(&encode(&self.hir).unwrap()).unwrap();
+        let mir: DecodedMirFoundation = decode_canonical(&encode(&self.mir).unwrap()).unwrap();
         let mut pending = PendingIdentityValidation::new();
         for authority in [ConeIdentity::CORE, self.artifact, self.provider] {
             pending.register_authority(authority).unwrap();
@@ -343,12 +332,7 @@ impl Fixture {
         hir.resolve_identities(&mut pending).unwrap();
         mir.resolve_identities(&mut pending).unwrap();
         let mut identities = pending.finish().unwrap();
-        let foundation = mir
-            .validate(
-                &mut identities,
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+        let foundation = mir.validate(&mut identities).unwrap();
         (
             identities,
             OdrFreeMirFoundation::from_validated(foundation).unwrap(),

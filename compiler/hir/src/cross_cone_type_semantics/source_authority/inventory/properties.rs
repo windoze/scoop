@@ -15,24 +15,20 @@ pub struct CanonicalInheritanceSourcePropertiesV1 {
 impl CanonicalInheritanceSourcePropertiesV1 {
     pub fn try_new(
         mut records: Vec<NominalSupportPropertyInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(NominalSupportPropertyInterfaceV1::declaration);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
 
     fn from_ordered(
         records: Vec<NominalSupportPropertyInterfaceV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, SourceInventoryError> {
         validate_order(
             &records,
             NominalSupportPropertyInterfaceV1::declaration,
             "inheritance source properties",
-            meter,
         )?;
-        meter.charge_work(records.len() as u64, &scoop_wire::WirePath::root())?;
+
         for record in &records {
             if !matches!(
                 record.payload(),

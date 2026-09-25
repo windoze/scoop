@@ -52,10 +52,9 @@ fn mixed_external_callables_project_only_the_explicit_initialization_protocol() 
         Err(StrongTypeDescriptorSemanticPlanBuildError::DependencyCallableInV1 { index, .. })
             if index == ordinary_id.into_raw().into_u32())
     );
-    let empty =
-        StrongProductionDependencySelectionV2::empty(module.cone, TARGET, &mut meter()).unwrap();
+    let empty = StrongProductionDependencySelectionV2::empty(module.cone, TARGET).unwrap();
     assert!(
-        matches!(StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty, &mut meter()),
+        matches!(StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty),
         Err(StrongTypeDescriptorSemanticPlanBuildError::ExternalMaterialization(
             LayoutExternalMaterializationError::MissingCallable { provider, target }
         )) if provider == ConeIdentity::CORE && target == ordinary.target())

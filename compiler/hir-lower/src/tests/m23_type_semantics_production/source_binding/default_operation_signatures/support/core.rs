@@ -13,7 +13,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding::default_oper
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let protocols = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             run(output, &protocols, core);
         });
@@ -40,14 +40,13 @@ pub(in crate::tests::m23_type_semantics_production::source_binding::default_oper
         vec![],
     )
     .unwrap();
-    let source =
-        hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(&output, &mut meter())
-            .unwrap()
-            .source_transcript(&mut meter())
-            .unwrap();
+    let source = hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(&output)
+        .unwrap()
+        .source_transcript()
+        .unwrap();
     let foundation = hir::CanonicalHirFoundation::from_type_semantics_output(&output).unwrap();
     let decoded: hir::DecodedHirFoundation =
-        decode_canonical(&encode(&foundation).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&foundation).unwrap()).unwrap();
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     decoded.register_identities(&mut pending).unwrap();
@@ -55,11 +54,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding::default_oper
     let mut identities = pending.finish().unwrap();
     let foundation = hir::OdrFreeHirFoundation::from_validated(
         decoded
-            .validate(
-                &ConeCoordinate::reserved_core(),
-                &mut identities,
-                &mut meter(),
-            )
+            .validate(&ConeCoordinate::reserved_core(), &mut identities)
             .unwrap(),
     )
     .unwrap_or_else(|error| {
@@ -84,8 +79,8 @@ pub(in crate::tests::m23_type_semantics_production::source_binding::default_oper
         panic!("fixture must not materialize ODR definitions: {error:?}");
     });
     let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 =
-        decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
-    let source = decoded.resolve(&mut identities, &mut meter()).unwrap();
+        decode_canonical(&encode(&source).unwrap()).unwrap();
+    let source = decoded.resolve(&mut identities).unwrap();
     let mut fixture = Fixture {
         source,
         foundation,

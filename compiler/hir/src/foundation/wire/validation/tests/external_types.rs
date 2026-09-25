@@ -14,9 +14,7 @@ fn external_nominal_references_round_trip_for_core_and_ordinary_consumers() {
             &decoded,
             [ConeIdentity::CORE, coordinate.identity().unwrap(), provider],
         );
-        let validated = decoded
-            .validate(&coordinate, &mut identities, &mut meter())
-            .unwrap();
+        let validated = decoded.validate(&coordinate, &mut identities).unwrap();
         assert_eq!(encode(&validated).unwrap(), encode(&canonical).unwrap());
         assert_eq!(validated.counts().types, 2);
         assert_eq!(validated.counts().generic_types, 0);
@@ -53,7 +51,7 @@ fn every_consumer_rejects_unused_external_nominal_references() {
                 [ConeIdentity::CORE, coordinate.identity().unwrap(), provider],
             );
             let error = decoded
-                .validate(&coordinate, &mut identities, &mut meter())
+                .validate(&coordinate, &mut identities)
                 .err()
                 .expect("unused external references must fail shared validation");
             match error {

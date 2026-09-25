@@ -3,7 +3,7 @@ use std::sync::Arc;
 use scoop_identity::{
     CallableBodyKey, ConeIdentity, PersistentCallableBodyId, StrongCallableDefinitionOwner,
 };
-use scoop_wire::{BudgetMeter, HashError, WireError, WirePath};
+use scoop_wire::{HashError, WireError};
 
 use super::*;
 
@@ -22,16 +22,7 @@ impl CanonicalExactCallableAbiExportsV1 {
         target: LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         mut records: Vec<ExactCallableAbiExportV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactCallableAbiTableError> {
-        let path = WirePath::root();
-        let count = records.len() as u64;
-        meter.check_table_entries(count, &path)?;
-        meter.charge_collection_slots(count, &path)?;
-        let comparisons = count
-            .checked_mul(u64::from(count.max(1).ilog2()) + 1)
-            .ok_or(ExactCallableAbiTableError::CountOverflow)?;
-        meter.charge_work(comparisons, &path)?;
         records.sort_unstable_by_key(ExactCallableAbiExportV1::target);
         for (index, record) in records.iter().enumerate() {
             let callable = record.target();
@@ -45,14 +36,13 @@ impl CanonicalExactCallableAbiExportsV1 {
                 return Err(ExactCallableAbiTableError::Provider(callable));
             }
             let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(callable))?;
-            meter.charge_work(foundation.callable_bodies().len() as u64, &path)?;
+
             if !foundation.contains_callable_body(body) {
                 return Err(ExactCallableAbiTableError::Body(callable));
             }
             let expected = StrongShapeDefinitionRefV1::from_foundation(
                 crate::ExternalStrongShapeSubjectV1::Callable(callable),
                 foundation,
-                meter,
             )?;
             if expected != record.physical_definition() || record.definition().semantic_id() != body
             {

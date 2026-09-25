@@ -34,7 +34,7 @@ pub struct DecodedExactEnumVariantFactsV1 {
 }
 
 impl WireDecode for DecodedExactTypeFactShapeV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = d.map()?;
         let tag = d.field(0, Decoder::unsigned)?;
         Ok(match tag {
@@ -88,7 +88,7 @@ impl WireEncode for DecodedExactTypeFactShapeV1 {
 }
 
 impl WireDecode for DecodedExactEnumVariantFactsV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(3)?;
         Ok(Self {
             variant: d.field(1, DecodedPersistentId::decode)?,
@@ -117,7 +117,7 @@ pub struct DecodedExactTypeFactShapeRecordV1 {
 }
 
 impl WireDecode for DecodedExactTypeFactShapeRecordV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(2)?;
         Ok(Self {
             exact: d.field(1, DecodedPersistentId::decode)?,
@@ -142,7 +142,7 @@ pub struct DecodedCanonicalExactTypeFactShapesV1 {
 }
 
 impl WireDecode for DecodedCanonicalExactTypeFactShapesV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.decode_array(|d, _| DecodedExactTypeFactShapeRecordV1::decode(d))
             .map(|records| Self { records })
     }

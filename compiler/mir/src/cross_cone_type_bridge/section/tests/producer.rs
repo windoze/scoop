@@ -20,13 +20,12 @@ fn producer_unit_contract_retains_the_actual_sealed_body_roots() {
         input: &input,
         ordinary: &ordinary,
     };
-    authority.validate::<&'static str>(&mut meter()).unwrap();
+    authority.validate::<&'static str>().unwrap();
     let units = super::super::units::build(
         authority,
         &fixture.source,
         &graph,
         core.source.expected.types(),
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(units.len(), 1);
@@ -42,8 +41,7 @@ fn producer_unit_contract_retains_the_actual_sealed_body_roots() {
             authority,
             &fixture.source,
             &graph,
-            core.source.expected.types(),
-            &mut meter()
+            core.source.expected.types()
         ),
         Err(MirTypeBridgeSectionError::ProviderContext)
     ));
@@ -59,7 +57,7 @@ fn producer_authority_cannot_relabel_another_cones_sealed_module() {
         ordinary: &fixture.ordinary,
     };
     assert!(matches!(
-        authority.validate::<&'static str>(&mut meter()),
+        authority.validate::<&'static str>(),
         Err(MirTypeBridgeSectionError::ProviderContext)
     ));
 }

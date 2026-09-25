@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentSourceContextId, PersistentTypeId, SignatureTypeKey, SourceContextKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -18,8 +18,7 @@ fn capture_uses_canonical_local_index_and_round_trips() {
     let bytes = encode(&capture.index_local(&mut locals).unwrap()).unwrap();
 
     assert_eq!(&bytes[..3], &[0xa3, 0x01, 0x01]);
-    let decoded: DecodedDefaultCaptureV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver::without_nominal(), &mut locals),
         Ok(capture)
@@ -38,8 +37,7 @@ fn capture_reports_local_index_and_type_resolution_failures() {
     let nominal = nominal("Missing");
     let capture = DefaultCaptureV1::new(parameter(0), SignatureTypeKey::Nominal(nominal), origin());
     let bytes = encode(&capture.index_local(&mut locals).unwrap()).unwrap();
-    let decoded: DecodedDefaultCaptureV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultCaptureV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver::without_nominal(), &mut locals),
         Err(DefaultCaptureResolutionError::ValueType(ResolutionError))
@@ -61,7 +59,7 @@ fn callable_body_type_argument_modes_have_fixed_wire_and_round_trip() {
 
     for expected in [lexical, explicit] {
         let decoded: DecodedDefaultCallableBodyTypeArgumentsV1 =
-            decode_canonical(&encode(&expected).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&expected).unwrap()).unwrap();
         assert_eq!(
             decoded.resolve(&mut Resolver::without_nominal()),
             Ok(expected)
@@ -79,7 +77,7 @@ fn explicit_type_arguments_report_the_failing_position() {
     ])
     .unwrap();
     let decoded: DecodedDefaultCallableBodyTypeArgumentsV1 =
-        decode_canonical(&encode(&arguments).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&arguments).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver::new(allowed)),
@@ -92,17 +90,13 @@ fn explicit_type_arguments_report_the_failing_position() {
 
 #[test]
 fn type_argument_decoder_rejects_unknown_tags_and_non_exact_maps() {
-    let error = decode_canonical::<DecodedDefaultCallableBodyTypeArgumentsV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultCallableBodyTypeArgumentsV1>(&[0xa1, 0x00, 0x03])
+        .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error = decode_canonical::<DecodedDefaultCallableBodyTypeArgumentsV1>(
-        &[0xa2, 0x00, 0x01, 0x01, 0x80],
-        DecodeLimits::default(),
-    )
+    let error = decode_canonical::<DecodedDefaultCallableBodyTypeArgumentsV1>(&[
+        0xa2, 0x00, 0x01, 0x01, 0x80,
+    ])
     .unwrap_err();
     assert_eq!(
         error.kind(),

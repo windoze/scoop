@@ -29,7 +29,6 @@ fn published_shared_structs_preserve_interior_mutability_in_both_artifact_views(
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )

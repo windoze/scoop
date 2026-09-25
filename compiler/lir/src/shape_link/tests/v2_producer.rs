@@ -1,7 +1,6 @@
 use scoop_identity::ConeCoordinate;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
-use super::meter;
 use crate::*;
 
 mod callables;
@@ -41,7 +40,6 @@ fn exercise_dependency_production(provider: Provider) {
         consumer.cone,
         &consumer_definitions,
         &NoShapeLinkSupportV1,
-        &mut meter(),
     )
     .unwrap();
     let callable_import = ExternalShapeLinkImportV1::replay(
@@ -50,7 +48,6 @@ fn exercise_dependency_production(provider: Provider) {
         consumer.cone,
         &consumer_definitions,
         &NoShapeLinkSupportV1,
-        &mut meter(),
     )
     .unwrap();
     let initialization_import = ExternalShapeLinkImportV1::replay(
@@ -59,7 +56,6 @@ fn exercise_dependency_production(provider: Provider) {
         consumer.cone,
         &consumer_definitions,
         &provider.initialization_support(),
-        &mut meter(),
     )
     .unwrap();
     let terminal = provider.layout_section();
@@ -98,12 +94,11 @@ fn exercise_dependency_production(provider: Provider) {
         &dependencies,
         vec![descriptor_import, callable_import, initialization_import],
         &source,
-        &mut meter(),
     )
     .unwrap();
 
     let descriptor = selected
-        .materialize_type_descriptor(provider.identity, provider.exact, &mut meter())
+        .materialize_type_descriptor(provider.identity, provider.exact)
         .unwrap();
     let callable = selected
         .materialize_dispatch_callable(
@@ -111,7 +106,6 @@ fn exercise_dependency_production(provider: Provider) {
             provider.callable,
             pointer_result_signature(),
             &consumer.enums,
-            &mut meter(),
         )
         .unwrap();
     let descriptor_id = consumer.meta.external_type_descriptors.alloc(descriptor);
@@ -130,7 +124,6 @@ fn exercise_dependency_production(provider: Provider) {
         consumer_unit,
         initialization_definition,
         &selected,
-        &mut meter(),
     )
     .unwrap();
 
@@ -142,7 +135,6 @@ fn exercise_dependency_production(provider: Provider) {
             EntryProductionSourceV1::Library,
             &selected,
             &[initialization_use],
-            &mut meter(),
         )
         .unwrap();
     let complete = consumer_layout_section(
@@ -153,9 +145,7 @@ fn exercise_dependency_production(provider: Provider) {
         &dependencies,
         selected.physical_imports().records().to_vec(),
     );
-    let produced = pending
-        .validate_layout_abi(&complete, &mut meter())
-        .unwrap();
+    let produced = pending.validate_layout_abi(&complete).unwrap();
     let semantic = produced.type_registrations().registrations()[0].semantic();
 
     assert!(matches!(
@@ -188,19 +178,16 @@ fn exercise_dependency_production(provider: Provider) {
     ));
     let section = produced.into_section();
     let bytes = encode(&section).unwrap();
-    let decoded: DecodedStrongProductionSectionV2 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongProductionSectionV2 = decode_canonical(&bytes).unwrap();
     let definitions = [
         StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::TypeDescriptor(provider.exact),
             provider.output.foundation(),
-            &mut meter(),
         )
         .unwrap(),
         StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::Callable(provider.callable),
             provider.output.foundation(),
-            &mut meter(),
         )
         .unwrap(),
     ];
@@ -214,25 +201,17 @@ fn exercise_dependency_production(provider: Provider) {
             EntryProductionSourceV1::Library,
             &[],
             None,
-            &StrongTypeReferenceDefinitionsV2::new(
-                output.foundation().producer(),
-                &definitions,
-                &mut meter(),
-            )
-            .unwrap(),
+            &StrongTypeReferenceDefinitionsV2::new(output.foundation().producer(), &definitions)
+                .unwrap(),
             &StrongInitializationDefinitionCatalogV2::new(
                 output.foundation().producer(),
                 &[initialization_definition],
-                &mut meter(),
             )
             .unwrap(),
-            &mut meter(),
         )
         .unwrap();
     physical_replay::check_join(&provider, &replayed, &complete);
-    let validated = replayed
-        .validate_layout_abi(&complete, &mut meter())
-        .unwrap();
+    let validated = replayed.validate_layout_abi(&complete).unwrap();
     assert_eq!(
         validated.type_registrations(),
         section.registration_production().types()
@@ -257,7 +236,6 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
         consumer.cone,
         &consumer_definitions,
         &NoShapeLinkSupportV1,
-        &mut meter(),
     )
     .unwrap();
     let terminal = provider.layout_section();
@@ -278,7 +256,6 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
         &dependencies,
         vec![descriptor_import],
         &source,
-        &mut meter(),
     )
     .unwrap();
 
@@ -288,7 +265,7 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
             provider.callable,
             pointer_result_signature(),
             &consumer.enums,
-            &mut meter(),
+
         ),
         Err(LayoutExternalMaterializationError::MissingCallable {
             provider: found,
@@ -314,11 +291,7 @@ impl ProductionSelectionSource {
 }
 
 impl LayoutAbiSectionSourceAuthorityV1<()> for ProductionSelectionSource {
-    fn validate_local_exports(
-        &self,
-        _: &LayoutAbiExportConstituentsV1,
-        _: &mut scoop_wire::BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         Ok(())
     }
 
@@ -329,7 +302,6 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for ProductionSelectionSource {
     fn validate_physical_imports(
         &self,
         imports: &[ExternalShapeLinkImportV1<'_>],
-        _: &mut scoop_wire::BudgetMeter,
     ) -> Result<(), ()> {
         let actual = imports
             .iter()

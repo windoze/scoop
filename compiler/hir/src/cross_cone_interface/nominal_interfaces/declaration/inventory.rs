@@ -1,7 +1,7 @@
 use super::*;
 use crate::CanonicalHirFoundation;
 use scoop_identity::{DefinitionOwnerAtom, SourceDeclarationKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 impl CanonicalNominalInterfacesV1 {
     /// Every source key owned by an included nominal must appear in its
@@ -9,7 +9,6 @@ impl CanonicalNominalInterfacesV1 {
     pub fn validate_declared_relation_inventory(
         &self,
         foundation: &CanonicalHirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<(), NominalDeclarationInventoryError> {
         use Relation::*;
         let relations = foundation
@@ -66,19 +65,14 @@ impl CanonicalNominalInterfacesV1 {
                         )
                     }),
             );
-        let path = WirePath::root().field(2);
+
         for (key, relation) in relations {
-            meter.charge_work(self.declaration_count().max(1).ilog2() as u64 + 1, &path)?;
             let Some(owner) = parent(key) else { continue };
             let Some(record) = self.declaration(owner) else {
                 continue;
             };
             let details = record.declaration_details();
-            let count = details.constructors().values().len()
-                + details.members().values().len()
-                + details.children().values().len();
-            meter.check_table_entries(count as u64, &path)?;
-            meter.charge_work(count as u64 + 1, &path)?;
+
             let error = match relation {
                 // Object initialization has a constructor identity but is not a
                 // callable source constructor declaration (including privately).

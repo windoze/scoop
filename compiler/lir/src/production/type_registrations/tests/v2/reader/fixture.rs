@@ -38,12 +38,7 @@ pub(super) fn catalog(
         .into_iter()
         .map(physical_definition)
         .collect::<Vec<_>>();
-    crate::StrongTypeReferenceDefinitionsV2::new(
-        ConeIdentity::SINGLE_FILE,
-        &definitions,
-        &mut meter(),
-    )
-    .unwrap()
+    crate::StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &definitions).unwrap()
 }
 
 fn physical_definition(subject: Subject) -> StrongShapeDefinitionRefV1 {
@@ -65,7 +60,7 @@ fn physical_definition(subject: Subject) -> StrongShapeDefinitionRefV1 {
         .unwrap(),
     );
     let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
-    StrongShapeDefinitionRefV1::from_foundation(subject, &foundation, &mut meter()).unwrap()
+    StrongShapeDefinitionRefV1::from_foundation(subject, &foundation).unwrap()
 }
 
 pub(super) fn decoded(
@@ -74,7 +69,7 @@ pub(super) fn decoded(
     plans
         .registrations()
         .iter()
-        .map(|plan| decode_canonical(&encode(plan).unwrap(), DecodeLimits::default()).unwrap())
+        .map(|plan| decode_canonical(&encode(plan).unwrap()).unwrap())
         .collect()
 }
 
@@ -82,7 +77,6 @@ pub(super) fn validate(
     fixture: &Fixture,
     records: Vec<DecodedStrongTypeRegistrationPlanV2>,
     definitions: &crate::StrongTypeReferenceDefinitionsV2,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongTypeDescriptorSemanticPlanSetV2, crate::StrongRegistrationProductionValidationError>
 {
     crate::validate_type_registration_constituents_v2(
@@ -93,10 +87,5 @@ pub(super) fn validate(
         &StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
         definitions,
         &fixture.digests,
-        meter,
     )
-}
-
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

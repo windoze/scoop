@@ -18,18 +18,18 @@ fn source_template_reader_rejects_result_local_and_provider_corruption() {
             .unwrap(),
         );
         assert!(matches!(
-            input.resolve(&mut identity_closure(output), &mut meter()),
+            input.resolve(&mut identity_closure(output)),
             Err(Resolve::Record(Build::ResultType))
         ));
         let input = wire::replaced(&value, 4, vec![0x80]);
         assert!(matches!(
-            input.resolve(&mut identity_closure(output), &mut meter()),
+            input.resolve(&mut identity_closure(output)),
             Err(Resolve::Body(_))
         ));
         let other = template(output, "literal", 0);
         let input = wire::replaced(&value, 2, encode(&other.definition_root()).unwrap());
         assert!(matches!(
-            input.resolve(&mut identity_closure(output), &mut meter()),
+            input.resolve(&mut identity_closure(output)),
             Err(Resolve::Record(Build::ReferenceProvider { .. }))
         ));
     });
@@ -62,7 +62,6 @@ fn source_template_builder_rejects_an_unmapped_stable_local_selector() {
             t.value_parameters().clone(),
             t.references().clone(),
             t.definition_origin().clone(),
-            &mut meter(),
         )
         .unwrap_err();
         assert!(

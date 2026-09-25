@@ -129,12 +129,12 @@ fn default_source_nested_identities_require_actual_generated_roles_and_paths() {
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for (original, changed, expected) in changed {
                 let changed = replace(&table, changed);
                 let Error::Record { key: actual, error } = parameters
-                    .bind_default_declarations(&changed, &[], &mut meter())
+                    .bind_default_declarations(&changed, &[])
                     .unwrap_err()
                 else {
                     panic!("expected nested identity error");
@@ -221,8 +221,8 @@ fn default_source_local_function_cannot_claim_an_enclosing_method_identity() {
         let changed = replace(&table, changed);
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
-            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
-            let Error::Record { error, .. } = parameters.bind_default_declarations(&changed, &[], &mut meter()).unwrap_err() else { panic!("expected local identity error"); };
+            let parameters = members.bind_parameter_protocols(constructors, &sources.protocols).unwrap();
+            let Error::Record { error, .. } = parameters.bind_default_declarations(&changed, &[]).unwrap_err() else { panic!("expected local identity error"); };
             assert!(matches!(*error, Error::NestedIdentity { identity: hir::DefaultNestedCallableIdentityV1::LocalFunction(actual), reason: Failure::Kind } if actual == original.key().owner()), "{error:?}");
         });
     });

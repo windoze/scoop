@@ -17,7 +17,7 @@ impl WireEncode for InheritanceSourceParameterProtocolV1 {
     }
 }
 impl WireDecode for DecodedParameter {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             shape: decoder.field(1, DecodedSourceParameterShapeV1::decode)?,
@@ -38,7 +38,7 @@ impl WireEncode for DecodedParameter {
     }
 }
 impl WireDecode for DecodedProtocol {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             owner: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,

@@ -24,10 +24,8 @@ impl Publication {
         local: ExportParameterOwner,
         source: &DefaultSourceTemplateV1,
         roots: &SlotMap,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let profile =
-            super::super::source_defaults::profile::from_source(export, local, source, meter)?;
+        let profile = super::super::source_defaults::profile::from_source(export, local, source)?;
         let owner = source.key().owner();
         if profile == ProtectedDefaultWitnessSourceProfileV1::GenericSourceMetadata {
             return Ok(Self::Generic { owner });
@@ -44,25 +42,22 @@ impl Publication {
                 &export.enums[id.enumeration()].access.lookup
             }
         };
-        resources::canonical(lookup.0.constraints().len(), meter)?;
-        let domain = DefaultSourceAccessDomainV1::from_export_hir(export, &lookup.0, meter)
-            .map_err(invalid)?;
+
+        let domain =
+            DefaultSourceAccessDomainV1::from_export_hir(export, &lookup.0).map_err(invalid)?;
         if !domain.generic_subclasses().is_empty() {
             return Err(invalid(
                 "concrete default owner retains a generic access constraint",
             ));
         }
-        let direct = PersistentLookupDomainV1::new(copied(domain.persistent(), meter)?);
-        work(meter, roots.len())?;
+        let direct = PersistentLookupDomainV1::new(domain.persistent().clone());
+
         let mut slots = Vec::new();
         if let Some(roots) = roots.get(&owner) {
-            resources::canonical(roots.len(), meter)?;
             for (slot, domain) in roots {
-                resources::canonical(domain.domain().constraints().len(), meter)?;
                 resources::push(
                     &mut slots,
-                    ProtectedDefaultSlotCallDomainV1::new(*slot, copied(domain, meter)?),
-                    meter,
+                    ProtectedDefaultSlotCallDomainV1::new(*slot, domain.clone()),
                 )?;
             }
         }
@@ -77,7 +72,6 @@ impl Publication {
     pub(super) fn reference(
         &self,
         source: &DefaultSourceAccessWitnessV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedDefaultAccessWitnessV1, Error> {
         match self {
             Self::Generic { owner } => {
@@ -94,17 +88,12 @@ impl Publication {
                         "concrete default reference retains a generic access constraint",
                     ));
                 }
-                resources::canonical(direct.domain().constraints().len(), meter)?;
-                resources::canonical(target.persistent().constraints().len(), meter)?;
-                resources::canonical(slots.records().len(), meter)?;
-                for slot in slots.records() {
-                    resources::canonical(slot.domain().domain().constraints().len(), meter)?;
-                }
+
                 ProtectedDefaultAccessWitnessV1::param_free(
                     *owner,
-                    copied(direct, meter)?,
-                    copied(slots, meter)?,
-                    PersistentLookupDomainV1::new(copied(target.persistent(), meter)?),
+                    direct.clone(),
+                    slots.clone(),
+                    PersistentLookupDomainV1::new(target.persistent().clone()),
                 )
                 .map_err(invalid)
             }
@@ -114,7 +103,6 @@ impl Publication {
 
 pub(super) fn root_slots(
     inheritance: &CanonicalNominalInheritanceInterfacesV1,
-    meter: &mut BudgetMeter,
 ) -> Result<SlotMap, Error> {
     let mut roots = SlotMap::new();
     for nominal in inheritance.records() {
@@ -128,16 +116,12 @@ pub(super) fn root_slots(
                 let InheritanceCallableDeclarationV1::Function(id) = declaration else {
                     continue;
                 };
-                work(meter, roots.len())?;
-                meter
-                    .charge_collection_slots(2, &WirePath::root())
-                    .map_err(resource)?;
+
                 let slots = roots
                     .entry(CallableTemplateOrigin::Function(id))
                     .or_default();
-                work(meter, slots.len())?;
-                resources::canonical(slot.domain().domain().constraints().len(), meter)?;
-                if let Some(previous) = slots.insert(slot.slot(), copied(slot.domain(), meter)?)
+
+                if let Some(previous) = slots.insert(slot.slot(), slot.domain().clone())
                     && previous != *slot.domain()
                 {
                     return Err(invalid("shared default root slot has conflicting domains"));
@@ -146,19 +130,4 @@ pub(super) fn root_slots(
         }
     }
     Ok(roots)
-}
-
-fn copied<T: Clone + scoop_wire::WireEncode>(
-    value: &T,
-    meter: &mut BudgetMeter,
-) -> Result<T, Error> {
-    // Structural slots are charged by the caller; encoded length also accounts
-    // for variable-sized source paths in file visibility constraints.
-    let length = scoop_wire::encoded_length(value).map_err(invalid)?;
-    let path = WirePath::root();
-    meter.charge_owned_bytes(length, &path).map_err(resource)?;
-    meter
-        .charge_work(length.saturating_mul(2), &path)
-        .map_err(resource)?;
-    Ok(value.clone())
 }

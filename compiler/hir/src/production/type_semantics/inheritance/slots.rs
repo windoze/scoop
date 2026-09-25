@@ -4,9 +4,8 @@ use scoop_identity::{
     DispatchDeclarationOwner, DispatchRole, ExactTypeKey, PersistentDispatchSlotId,
     PersistentTypeId,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
-use super::source_resources::{invalid, resource, work};
+use super::source_errors::invalid;
 use super::*;
 
 type Declaration = InheritanceCallableDeclarationV1;
@@ -26,20 +25,17 @@ impl<'a> SlotContracts<'a> {
         export: &'a ExportHir,
         sources: &'a CanonicalInheritanceSourceCallablesV1,
         selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let mut functions = BTreeMap::new();
         for (id, _) in export.functions.iter() {
-            work(meter, sources.records().len())?;
             if let Some(declaration) = source_callables::identity(export, id)
                 && sources.get(declaration).is_some()
             {
-                insert(&mut functions, declaration, id, meter)?;
+                insert(&mut functions, declaration, id)?;
             }
         }
         let mut roots = BTreeMap::new();
         for record in export.dispatch_slot_identities.records() {
-            work(meter, sources.records().len())?;
             let declaration = match (record.key().owner(), record.key().role()) {
                 (
                     DispatchDeclarationOwner::Function(id),
@@ -58,7 +54,7 @@ impl<'a> SlotContracts<'a> {
                 }
             };
             if sources.get(declaration).is_some() {
-                insert(&mut roots, record.id(), declaration, meter)?;
+                insert(&mut roots, record.id(), declaration)?;
             }
         }
         Ok(Self {
@@ -74,22 +70,20 @@ impl<'a> SlotContracts<'a> {
         &self,
         owner: PersistentExactTypeId,
         schemas: &CanonicalInheritanceSlotSchemasV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalInheritanceSlotContractsV1, Error> {
         let mut contracts = BTreeMap::new();
         for schema in schemas.records() {
             for slot in schema.slots() {
-                work(meter, contracts.len())?;
                 if contracts.contains_key(slot) {
                     continue;
                 }
-                work(meter, self.roots.len())?;
+
                 let declaration = *self
                     .roots
                     .get(slot)
                     .ok_or_else(|| invalid("dispatch slot has no source root declaration"))?;
-                let (source, function, declaration_owner) = self.source(declaration, meter)?;
-                work(meter, self.selections.records().len())?;
+                let (source, function, declaration_owner) = self.source(declaration)?;
+
                 let selection = self.selections.get(owner, *slot).ok_or_else(|| {
                     invalid("dispatch slot has no resolved implementation selection")
                 })?;
@@ -98,12 +92,10 @@ impl<'a> SlotContracts<'a> {
                         InheritanceSlotImplementationV1::Abstract
                     }
                     InheritanceSourceSlotSelectionV1::Concrete(target) => {
-                        InheritanceSlotImplementationV1::Concrete(self.target(target, meter)?)
+                        InheritanceSlotImplementationV1::Concrete(self.target(target)?)
                     }
                     InheritanceSourceSlotSelectionV1::InterfaceDefault(target) => {
-                        InheritanceSlotImplementationV1::InterfaceDefault(
-                            self.target(target, meter)?,
-                        )
+                        InheritanceSlotImplementationV1::InterfaceDefault(self.target(target)?)
                     }
                 };
                 let contract = InheritanceSlotContractV1::try_new(
@@ -119,12 +111,10 @@ impl<'a> SlotContracts<'a> {
                     source.declaration_access().clone(),
                 )
                 .map_err(invalid)?;
-                insert(&mut contracts, *slot, contract, meter)?;
+                insert(&mut contracts, *slot, contract)?;
             }
         }
-        meter
-            .charge_collection_slots(contracts.len() as u64, &WirePath::root())
-            .map_err(resource)?;
+
         CanonicalInheritanceSlotContractsV1::try_new(contracts.into_values().collect())
             .map_err(invalid)
     }
@@ -132,14 +122,12 @@ impl<'a> SlotContracts<'a> {
     fn source(
         &self,
         declaration: Declaration,
-        meter: &mut BudgetMeter,
     ) -> Result<(&InheritanceSourceCallableV1, &Function, PersistentTypeId), Error> {
-        work(meter, self.sources.records().len())?;
         let source = self
             .sources
             .get(declaration)
             .ok_or_else(|| invalid("dispatch declaration has no source callable contract"))?;
-        work(meter, self.functions.len())?;
+
         let function = &self.export.functions[*self
             .functions
             .get(&declaration)
@@ -156,12 +144,8 @@ impl<'a> SlotContracts<'a> {
         Ok((source, function, *owner))
     }
 
-    fn target(
-        &self,
-        declaration: Declaration,
-        meter: &mut BudgetMeter,
-    ) -> Result<InheritanceSlotTargetV1, Error> {
-        let (source, _, owner) = self.source(declaration, meter)?;
+    fn target(&self, declaration: Declaration) -> Result<InheritanceSlotTargetV1, Error> {
+        let (source, _, owner) = self.source(declaration)?;
         InheritanceSlotTargetV1::try_new(
             declaration,
             owner,
@@ -173,19 +157,7 @@ impl<'a> SlotContracts<'a> {
     }
 }
 
-fn insert<K: Ord, V>(
-    map: &mut BTreeMap<K, V>,
-    key: K,
-    value: V,
-    meter: &mut BudgetMeter,
-) -> Result<(), Error> {
-    work(meter, map.len())?;
-    meter
-        .check_table_entries(map.len() as u64 + 1, &WirePath::root())
-        .map_err(resource)?;
-    meter
-        .charge_collection_slots(1, &WirePath::root())
-        .map_err(resource)?;
+fn insert<K: Ord, V>(map: &mut BTreeMap<K, V>, key: K, value: V) -> Result<(), Error> {
     if map.insert(key, value).is_some() {
         return Err(invalid("duplicate dispatch projection identity"));
     }

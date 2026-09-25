@@ -9,7 +9,7 @@ pub(super) fn with_source(
         |output, fixture, sources, _| {
             let foundation = fixture.bind().unwrap();
             let nominals = foundation
-                .bind_nominal_sources(&sources.members.nominals, &mut meter())
+                .bind_nominal_sources(&sources.members.nominals)
                 .unwrap();
             run(output, &nominals);
         },
@@ -27,7 +27,6 @@ pub(super) fn value_type(output: &hir::DependencyHirOutput, name: &str, position
         output,
         hir::ExportParameterOwner::Function(id),
         position,
-        &mut meter(),
     )
     .unwrap()
     .result()
@@ -51,7 +50,7 @@ pub(super) fn query(
     target: Target<'_>,
 ) -> Shape {
     nominals
-        .default_nominal_operation_shape(target, &mut meter(), &WirePath::root())
+        .default_nominal_operation_shape(target, &WirePath::root())
         .unwrap()
 }
 pub(super) fn shape_type(

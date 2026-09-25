@@ -4,7 +4,7 @@ use scoop_identity::{
     CallableTemplateOrigin, OptionalSignatureType, PersistentFieldId,
     PersistentGeneratedCallableId, SignatureTypeKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use crate::{
     DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1, DefaultCallableDeclarationV1,
@@ -45,7 +45,7 @@ impl CallableTargetView<'_> {
 pub(super) fn callable_target(
     declared: &ExportDefaultCallableTargetV1,
     actual: CallableTargetView<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     let declared_tag = match declared {
@@ -64,15 +64,15 @@ pub(super) fn callable_target(
     }
     match (declared, actual) {
         (ExportDefaultCallableTargetV1::Callable(left), CallableTargetView::Callable(right)) => {
-            callable_ref(left, right, meter, path)
+            callable_ref(left, right, path)
         }
         (ExportDefaultCallableTargetV1::Bound(left), CallableTargetView::Bound(right)) => {
-            bound_callable_ref(left, right, meter, path)
+            bound_callable_ref(left, right, path)
         }
         (
             ExportDefaultCallableTargetV1::DerivedEquality { owner_type: left },
             CallableTargetView::DerivedEquality(right),
-        ) => signature_type(left, right, meter, path),
+        ) => signature_type(left, right, path),
         (
             ExportDefaultCallableTargetV1::LocalFunction { declaration: left },
             CallableTargetView::LocalFunction(right),
@@ -106,13 +106,11 @@ pub enum ConstructorTargetView<'a> {
 pub(super) fn constructor_target(
     declared: &DefaultConstructorRefV1,
     actual: ConstructorTargetView<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     match actual {
-        ConstructorTargetView::Constructor(actual) => {
-            constructor_ref(declared, actual, meter, path)
-        }
+        ConstructorTargetView::Constructor(actual) => constructor_ref(declared, actual, path),
         ConstructorTargetView::Variant(actual) => {
             let declared_tag = constructor_tag(declared);
             let ordering = declared_tag.cmp(&3);
@@ -130,7 +128,7 @@ pub(super) fn constructor_target(
             if ordering != Ordering::Equal {
                 return Ok(ordering);
             }
-            signature_type(owner_type, actual.owner_type(), meter, path)
+            signature_type(owner_type, actual.owner_type(), path)
         }
     }
 }
@@ -147,11 +145,11 @@ pub enum FieldTargetView<'a> {
 pub(super) fn field_target(
     declared: &DefaultFieldRefV1,
     actual: FieldTargetView<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     match actual {
-        FieldTargetView::Field(actual) => field_ref(declared, actual, meter, path),
+        FieldTargetView::Field(actual) => field_ref(declared, actual, path),
         FieldTargetView::Struct {
             declaration: actual_declaration,
             owner_type: actual_owner,
@@ -171,7 +169,7 @@ pub(super) fn field_target(
             if ordering != Ordering::Equal {
                 return Ok(ordering);
             }
-            signature_type(owner_type, actual_owner, meter, path)
+            signature_type(owner_type, actual_owner, path)
         }
     }
 }
@@ -179,34 +177,32 @@ pub(super) fn field_target(
 pub(super) fn signature_type(
     left: &SignatureTypeKey,
     right: &SignatureTypeKey,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
-    compare_type_tasks(TypeComparison::Type(left, right, 1), meter, path)
+    compare_type_tasks(TypeComparison::Type(left, right), path)
 }
 
 fn signature_types(
     left: &[SignatureTypeKey],
     right: &[SignatureTypeKey],
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
-    compare_type_tasks(TypeComparison::Sequence(left, right, 1), meter, path)
+    compare_type_tasks(TypeComparison::Sequence(left, right), path)
 }
 
 fn compare_type_tasks<'a>(
     initial: TypeComparison<'a>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     let mut pending = Vec::new();
-    meter.try_reserve_collection_slots(&mut pending, 1, path)?;
+    scoop_wire::allocation::try_reserve(&mut pending, 1, path)?;
     pending.push(initial);
     while let Some(task) = pending.pop() {
-        meter.charge_work(1, path)?;
         match task {
-            TypeComparison::Type(left, right, depth) => {
-                meter.check_semantic_depth(depth, path)?;
+            TypeComparison::Type(left, right) => {
                 let ordering = signature_tag(left).cmp(&signature_tag(right));
                 if ordering != Ordering::Equal {
                     return Ok(ordering);
@@ -237,21 +233,14 @@ fn compare_type_tasks<'a>(
                             TypeComparison::Sequence(
                                 left_arguments.as_slice(),
                                 right_arguments.as_slice(),
-                                child_depth(depth, path)?,
                             ),
-                            meter,
                             path,
                         )?;
                     }
                     (SignatureTypeKey::Tuple(left), SignatureTypeKey::Tuple(right)) => {
                         push_task(
                             &mut pending,
-                            TypeComparison::Sequence(
-                                left.as_slice(),
-                                right.as_slice(),
-                                child_depth(depth, path)?,
-                            ),
-                            meter,
+                            TypeComparison::Sequence(left.as_slice(), right.as_slice()),
                             path,
                         )?;
                     }
@@ -273,32 +262,17 @@ fn compare_type_tasks<'a>(
                         }
                         push_task(
                             &mut pending,
-                            TypeComparison::Type(
-                                left_result,
-                                right_result,
-                                child_depth(depth, path)?,
-                            ),
-                            meter,
+                            TypeComparison::Type(left_result, right_result),
                             path,
                         )?;
                         push_task(
                             &mut pending,
-                            TypeComparison::Sequence(
-                                left_parameters,
-                                right_parameters,
-                                child_depth(depth, path)?,
-                            ),
-                            meter,
+                            TypeComparison::Sequence(left_parameters, right_parameters),
                             path,
                         )?;
                     }
                     (SignatureTypeKey::RawPointer(left), SignatureTypeKey::RawPointer(right)) => {
-                        push_task(
-                            &mut pending,
-                            TypeComparison::Type(left, right, child_depth(depth, path)?),
-                            meter,
-                            path,
-                        )?;
+                        push_task(&mut pending, TypeComparison::Type(left, right), path)?;
                     }
                     (
                         SignatureTypeKey::NativeFunctionPointer {
@@ -318,22 +292,12 @@ fn compare_type_tasks<'a>(
                         }
                         push_task(
                             &mut pending,
-                            TypeComparison::Type(
-                                left_result,
-                                right_result,
-                                child_depth(depth, path)?,
-                            ),
-                            meter,
+                            TypeComparison::Type(left_result, right_result),
                             path,
                         )?;
                         push_task(
                             &mut pending,
-                            TypeComparison::Sequence(
-                                left_parameters,
-                                right_parameters,
-                                child_depth(depth, path)?,
-                            ),
-                            meter,
+                            TypeComparison::Sequence(left_parameters, right_parameters),
                             path,
                         )?;
                     }
@@ -357,21 +321,16 @@ fn compare_type_tasks<'a>(
                     _ => return Ok(Ordering::Equal),
                 }
             }
-            TypeComparison::Sequence(left, right, child_depth) => {
+            TypeComparison::Sequence(left, right) => {
                 push_task(
                     &mut pending,
                     TypeComparison::Length(left.len(), right.len()),
-                    meter,
                     path,
                 )?;
                 let common = left.len().min(right.len());
-                meter.try_reserve_collection_slots(&mut pending, common, path)?;
+                scoop_wire::allocation::try_reserve(&mut pending, common, path)?;
                 for index in (0..common).rev() {
-                    pending.push(TypeComparison::Type(
-                        &left[index],
-                        &right[index],
-                        child_depth,
-                    ));
+                    pending.push(TypeComparison::Type(&left[index], &right[index]));
                 }
             }
             TypeComparison::Length(left, right) => {
@@ -388,48 +347,42 @@ fn compare_type_tasks<'a>(
 fn push_task<'a>(
     pending: &mut Vec<TypeComparison<'a>>,
     task: TypeComparison<'a>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), WireError> {
-    meter.try_reserve_collection_slots(pending, 1, path)?;
+    scoop_wire::allocation::try_reserve(pending, 1, path)?;
     pending.push(task);
     Ok(())
 }
 
 #[derive(Clone, Copy)]
 enum TypeComparison<'a> {
-    Type(&'a SignatureTypeKey, &'a SignatureTypeKey, u64),
-    Sequence(&'a [SignatureTypeKey], &'a [SignatureTypeKey], u64),
+    Type(&'a SignatureTypeKey, &'a SignatureTypeKey),
+    Sequence(&'a [SignatureTypeKey], &'a [SignatureTypeKey]),
     Length(usize, usize),
-}
-
-fn child_depth(depth: u64, path: &WirePath) -> Result<u64, WireError> {
-    depth
-        .checked_add(1)
-        .ok_or_else(|| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))
 }
 
 fn callable_ref(
     left: &DefaultCallableRefV1,
     right: &DefaultCallableRefV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     let ordering = left.declaration().cmp(&right.declaration());
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }
-    let ordering = optional_type(left.owner(), right.owner(), meter, path)?;
+    let ordering = optional_type(left.owner(), right.owner(), path)?;
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }
-    signature_types(left.type_arguments(), right.type_arguments(), meter, path)
+    signature_types(left.type_arguments(), right.type_arguments(), path)
 }
 
 fn optional_type(
     left: &OptionalSignatureType,
     right: &OptionalSignatureType,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     match (left, right) {
@@ -437,7 +390,7 @@ fn optional_type(
         (OptionalSignatureType::Absent, OptionalSignatureType::Present(_)) => Ok(Ordering::Less),
         (OptionalSignatureType::Present(_), OptionalSignatureType::Absent) => Ok(Ordering::Greater),
         (OptionalSignatureType::Present(left), OptionalSignatureType::Present(right)) => {
-            signature_type(left, right, meter, path)
+            signature_type(left, right, path)
         }
     }
 }
@@ -445,7 +398,7 @@ fn optional_type(
 fn bound_callable_ref(
     left: &DefaultBoundCallableRefV1,
     right: &DefaultBoundCallableRefV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     let ordering = left
@@ -460,14 +413,13 @@ fn bound_callable_ref(
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }
-    let ordering = bound_source(left.source(), right.source(), meter, path)?;
+    let ordering = bound_source(left.source(), right.source(), path)?;
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }
     signature_type(
         left.instantiated_signature(),
         right.instantiated_signature(),
-        meter,
         path,
     )
 }
@@ -475,7 +427,7 @@ fn bound_callable_ref(
 fn bound_source(
     left: &DefaultBoundCallableSourceV1,
     right: &DefaultBoundCallableSourceV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     let left_tag = match left {
@@ -501,11 +453,11 @@ fn bound_source(
                 callable: right_callable,
             },
         ) => {
-            let ordering = signature_type(left_bound, right_bound, meter, path)?;
+            let ordering = signature_type(left_bound, right_bound, path)?;
             if ordering != Ordering::Equal {
                 return Ok(ordering);
             }
-            callable_ref(left_callable, right_callable, meter, path)
+            callable_ref(left_callable, right_callable, path)
         }
         (
             DefaultBoundCallableSourceV1::Interface {
@@ -517,7 +469,7 @@ fn bound_source(
                 member: right_member,
             },
         ) => {
-            let ordering = signature_type(left_bound, right_bound, meter, path)?;
+            let ordering = signature_type(left_bound, right_bound, path)?;
             if ordering != Ordering::Equal {
                 return Ok(ordering);
             }
@@ -530,7 +482,7 @@ fn bound_source(
 fn constructor_ref(
     left: &DefaultConstructorRefV1,
     right: &DefaultConstructorRefV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     let ordering = constructor_tag(left).cmp(&constructor_tag(right));
@@ -567,7 +519,7 @@ fn constructor_ref(
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }
-    signature_type(left.owner_type(), right.owner_type(), meter, path)
+    signature_type(left.owner_type(), right.owner_type(), path)
 }
 
 const fn constructor_tag(value: &DefaultConstructorRefV1) -> u8 {
@@ -581,7 +533,7 @@ const fn constructor_tag(value: &DefaultConstructorRefV1) -> u8 {
 fn field_ref(
     left: &DefaultFieldRefV1,
     right: &DefaultFieldRefV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<Ordering, WireError> {
     let ordering = field_tag(left).cmp(&field_tag(right));
@@ -613,7 +565,7 @@ fn field_ref(
             if ordering != Ordering::Equal {
                 return Ok(ordering);
             }
-            signature_type(left_owner, right_owner, meter, path)
+            signature_type(left_owner, right_owner, path)
         }
         (
             DefaultFieldRefV1::Tuple {
@@ -650,13 +602,12 @@ const fn signature_tag(value: &SignatureTypeKey) -> u8 {
 #[cfg(test)]
 mod tests {
     use scoop_identity::{CallingConvention, Effect, NonEmptyVec};
-    use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
 
     use super::*;
     use crate::cross_cone_interface::default_templates::body::expression_test_support::Fixture;
 
     #[test]
-    fn metered_signature_order_matches_the_canonical_derived_order() {
+    fn signature_order_matches_the_canonical_derived_order() {
         let fixture = Fixture::new();
         let nominal = SignatureTypeKey::Nominal(fixture.type_id);
         let samples = vec![
@@ -680,37 +631,11 @@ mod tests {
         for left in &samples {
             for right in &samples {
                 assert_eq!(
-                    signature_type(
-                        left,
-                        right,
-                        &mut BudgetMeter::new(DecodeLimits::default()),
-                        &WirePath::root(),
-                    ),
+                    signature_type(left, right, &WirePath::root(),),
                     Ok(left.cmp(right))
                 );
             }
         }
-    }
-
-    #[test]
-    fn metered_signature_order_enforces_semantic_depth() {
-        let nested = SignatureTypeKey::RawPointer(Box::new(SignatureTypeKey::RawPointer(
-            Box::new(binder(0)),
-        )));
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            semantic_recursion: 2,
-            ..DecodeLimits::default()
-        });
-        let error = signature_type(&nested, &nested, &mut meter, &WirePath::root()).unwrap_err();
-
-        assert_eq!(
-            error.kind(),
-            &WireErrorKind::LimitExceeded {
-                resource: ResourceKind::SemanticRecursion,
-                limit: 2,
-                observed: 3,
-            }
-        );
     }
 
     const fn binder(index: u32) -> SignatureTypeKey {

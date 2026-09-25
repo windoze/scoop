@@ -6,16 +6,9 @@ impl DefaultTargetIdentityQueriesV1<'_> {
     pub fn default_global_access_subject(
         &self,
         id: PersistentPropertyId,
-        meter: &mut BudgetMeter,
     ) -> Result<Subject, Error> {
-        let mut query = Query {
-            foundation: self,
-            meter,
-            path: WirePath::root(),
-        };
-        query.meter.check_semantic_depth(1, &query.path)?;
-        query.meter.charge_nodes(1, &query.path)?;
-        query.meter.charge_edges(1, &query.path)?;
+        let mut query = Query { foundation: self };
+
         let subject = Subject::Property(id);
         let key = query.declaration(subject)?;
         if !key.owners().owners().is_empty()

@@ -27,7 +27,6 @@ pub(super) fn verify(output: &hir::DependencyHirOutput, source: &Table) -> Strin
     let protocols = hir::CanonicalNominalSourceParameterProtocolsV1::from_export_hir(
         &output.output().export,
         &ids,
-        &mut meter(),
     )
     .unwrap();
     let mut origins = BTreeMap::new();

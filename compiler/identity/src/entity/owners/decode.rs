@@ -41,7 +41,7 @@ impl WireEncode for DecodedPropertyOwner {
 }
 
 impl WireDecode for DecodedPropertyOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let tag = decode_sum_tag(decoder)?;
         match tag {
             1 => decoder
@@ -86,7 +86,7 @@ impl WireEncode for DecodedNominalDeclarationOwner {
 }
 
 impl WireDecode for DecodedNominalDeclarationOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let tag = decode_sum_tag(decoder)?;
         match tag {
             1 => decoder
@@ -130,7 +130,7 @@ impl WireEncode for DecodedNominalOwner {
 }
 
 impl WireDecode for DecodedNominalOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let tag = decode_sum_tag(decoder)?;
         match tag {
             1 => decoder
@@ -189,7 +189,7 @@ impl WireEncode for DecodedCallableOwner {
 }
 
 impl WireDecode for DecodedCallableOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let tag = decode_sum_tag(decoder)?;
         match tag {
             1 => decoder
@@ -244,7 +244,7 @@ impl WireEncode for DecodedDispatchDeclarationOwner {
 }
 
 impl WireDecode for DecodedDispatchDeclarationOwner {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let tag = decode_sum_tag(decoder)?;
         match tag {
             1 => decoder
@@ -258,7 +258,7 @@ impl WireDecode for DecodedDispatchDeclarationOwner {
     }
 }
 
-fn decode_sum_tag(decoder: &mut Decoder<'_, '_>) -> Result<u64, WireError> {
+fn decode_sum_tag(decoder: &mut Decoder<'_>) -> Result<u64, WireError> {
     decoder.expect_map(2)?;
     decoder.field(0, Decoder::unsigned)
 }
@@ -275,7 +275,7 @@ fn encode_id_sum(
     id.encode(encoder)
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),
@@ -285,7 +285,7 @@ fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::{
         DecodedCallableOwner, DecodedDispatchDeclarationOwner, DecodedNominalDeclarationOwner,
@@ -349,11 +349,8 @@ mod tests {
             PropertyOwner::Property(PersistentPropertyId::expected()),
             PropertyOwner::ExtensionProperty(PersistentExtensionPropertyId::expected()),
         ] {
-            let decoded = decode_canonical::<DecodedPropertyOwner>(
-                &encode(&owner).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                decode_canonical::<DecodedPropertyOwner>(&encode(&owner).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), owner);
         }
 
@@ -361,11 +358,9 @@ mod tests {
             NominalDeclarationOwner::Concrete(PersistentTypeId::expected()),
             NominalDeclarationOwner::GenericTemplate(PersistentGenericTypeId::expected()),
         ] {
-            let decoded = decode_canonical::<DecodedNominalDeclarationOwner>(
-                &encode(&owner).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                decode_canonical::<DecodedNominalDeclarationOwner>(&encode(&owner).unwrap())
+                    .unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), owner);
         }
 
@@ -375,11 +370,8 @@ mod tests {
             )),
             NominalOwner::ExactApplication(PersistentExactTypeId::expected()),
         ] {
-            let decoded = decode_canonical::<DecodedNominalOwner>(
-                &encode(&owner).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                decode_canonical::<DecodedNominalOwner>(&encode(&owner).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), owner);
         }
 
@@ -391,11 +383,8 @@ mod tests {
             CallableOwner::Accessor(PersistentPropertyAccessorId::expected()),
             CallableOwner::Generated(PersistentGeneratedCallableId::expected()),
         ] {
-            let decoded = decode_canonical::<DecodedCallableOwner>(
-                &encode(&owner).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                decode_canonical::<DecodedCallableOwner>(&encode(&owner).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), owner);
         }
 
@@ -403,11 +392,9 @@ mod tests {
             DispatchDeclarationOwner::Function(PersistentFunctionId::expected()),
             DispatchDeclarationOwner::Accessor(PersistentPropertyAccessorId::expected()),
         ] {
-            let decoded = decode_canonical::<DecodedDispatchDeclarationOwner>(
-                &encode(&owner).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded =
+                decode_canonical::<DecodedDispatchDeclarationOwner>(&encode(&owner).unwrap())
+                    .unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), owner);
         }
     }
@@ -416,8 +403,7 @@ mod tests {
     fn owner_decoders_reject_unknown_tags_without_kind_fallback() {
         let mut bytes = vec![0xa2, 0x00, 0x03, 0x01, 0x58, 0x20];
         bytes.extend_from_slice(&[0; 32]);
-        let error =
-            decode_canonical::<DecodedPropertyOwner>(&bytes, DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedPropertyOwner>(&bytes).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
     }
 }

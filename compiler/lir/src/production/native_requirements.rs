@@ -12,8 +12,6 @@ use scoop_identity::{
 
 use crate::{LirTargetProfile, OdrFreeLirFoundation};
 
-mod resources;
-
 pub type CanonicalNativeLibraryRequirementV1 =
     CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>;
 
@@ -84,18 +82,6 @@ pub struct CanonicalNativeExternalRequirementSurfaceV1 {
 }
 
 impl CanonicalNativeExternalRequirementSurfaceV1 {
-    /// Replays native requirements using the caller's cumulative artifact
-    /// budget, without exposing the foundation's private library records.
-    pub fn from_foundation_with_meter(
-        target: LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
-        meter: &mut scoop_wire::BudgetMeter,
-    ) -> Result<Self, CanonicalNativeExternalRequirementBuildError> {
-        resources::charge_foundation(foundation, meter)
-            .map_err(CanonicalNativeExternalRequirementBuildError::Resource)?;
-        Self::from_foundation(target, foundation)
-    }
-
     pub fn from_foundation(
         target: LirTargetProfile,
         foundation: &OdrFreeLirFoundation,

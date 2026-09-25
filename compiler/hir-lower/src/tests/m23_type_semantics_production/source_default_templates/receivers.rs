@@ -40,17 +40,11 @@ fn source_bytes_keep_the_original_provider_receiver_through_inherited_substituti
             let expected = parent.receiver().receiver().unwrap().value_type();
             child
                 .receiver()
-                .validate_provider_semantics_metered(
-                    Some(expected),
-                    child.locals(),
-                    &mut meter(),
-                    &scoop_wire::WirePath::root(),
-                )
+                .validate_provider_semantics(Some(expected), child.locals())
                 .unwrap();
             let declarations = hir::CanonicalNominalSourceCallablesV1::from_export_hir(
                 &output.output().export,
                 &std::collections::BTreeSet::from([child.key().owner()]),
-                &mut meter(),
             )
             .unwrap();
             let publishing = match declarations
@@ -72,13 +66,10 @@ fn source_bytes_keep_the_original_provider_receiver_through_inherited_substituti
             };
             assert_ne!(expected, &publishing);
             assert!(matches!(
-                child.receiver().validate_provider_semantics_metered(
-                    Some(&publishing),
-                    child.locals(),
-                    &mut meter(),
-                    &scoop_wire::WirePath::root()
-                ),
-                Err(hir::MeteredTemplateReceiverSemanticValidationError::CallableType)
+                child
+                    .receiver()
+                    .validate_provider_semantics(Some(&publishing), child.locals()),
+                Err(hir::TemplateReceiverSemanticValidationError::CallableType { .. })
             ));
             if generic {
                 assert!(

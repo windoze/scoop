@@ -1,6 +1,6 @@
-//! Move Link inputs into shared replay without reopening bytes or resetting budgets.
+//! Share decoded Link inputs with semantic validation without reopening bytes.
 
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::*;
 use crate::DecodedCrossConeLayoutCompileSections;
@@ -37,7 +37,7 @@ impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
         self,
     ) -> Result<DecodedCrossConeLayoutCompileSections<'input>, WireError> {
         let Self {
-            mut graph,
+            graph,
             production_manifest,
             hir_foundation,
             hir_core_production,
@@ -55,10 +55,7 @@ impl<'input> DecodedCrossConeLayoutLinkSections<'input> {
             cross_cone_link_closure,
             layout_link_closure,
         } = self;
-        graph.envelope.meter_mut().charge_owned_bytes(
-            std::mem::size_of::<DecodedCrossConeLayoutLinkOnlySections>() as u64,
-            &WirePath::root(),
-        )?;
+
         let view = DecodedLayoutView::Link(Box::new(DecodedCrossConeLayoutLinkOnlySections {
             production_manifest,
             link_identity_closure,

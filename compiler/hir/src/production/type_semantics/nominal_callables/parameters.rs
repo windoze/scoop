@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::SignatureTypeKey;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn parameters(
         &mut self,
         owner: ExportParameterOwner,
@@ -14,7 +14,6 @@ impl Projection<'_, '_> {
             owner,
             binders,
             expected,
-            self.meter,
         )
     }
 }

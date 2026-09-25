@@ -28,7 +28,7 @@ impl WireEncode for DecodedCodeLinkObjectMemberSetV1 {
 }
 
 impl WireDecode for DecodedCodeLinkObjectMemberSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedFixedBytesV1::decode(decoder))
             .map(|members| Self { members })
@@ -58,7 +58,7 @@ impl WireEncode for DecodedNativeExternalContractCodeRecordV1 {
 }
 
 impl WireDecode for DecodedNativeExternalContractCodeRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             symbol_id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -107,7 +107,7 @@ impl WireEncode for DecodedCanonicalNativeExternalContractCodeSetV1 {
 }
 
 impl WireDecode for DecodedCanonicalNativeExternalContractCodeSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedNativeExternalContractCodeRecordV1::decode(decoder))
             .map(|contracts| Self { contracts })

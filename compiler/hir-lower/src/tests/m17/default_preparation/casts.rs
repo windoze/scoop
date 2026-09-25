@@ -1,6 +1,5 @@
 use super::*;
 use hir::concrete::ExprKind;
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 #[test]
 fn optional_and_instantiated_default_casts_keep_the_explicit_checked_type() {
@@ -12,23 +11,20 @@ fn optional_and_instantiated_default_casts_keep_the_explicit_checked_type() {
     let module = output.local.module();
     let mut kinds = Vec::new();
     module
-        .visit_executable_expressions(
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            |occurrence, _| {
-                if let ExprKind::Cast {
-                    check_ty, optional, ..
-                } = occurrence.expression.kind
-                {
-                    assert_eq!(
-                        module.types[check_ty].kind,
-                        hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
-                    );
-                    assert_eq!(check_ty == occurrence.expression.ty, !optional);
-                    kinds.push(optional);
-                }
-                Ok::<_, std::convert::Infallible>(())
-            },
-        )
+        .visit_executable_expressions(|occurrence| {
+            if let ExprKind::Cast {
+                check_ty, optional, ..
+            } = occurrence.expression.kind
+            {
+                assert_eq!(
+                    module.types[check_ty].kind,
+                    hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
+                );
+                assert_eq!(check_ty == occurrence.expression.ty, !optional);
+                kinds.push(optional);
+            }
+            Ok::<_, std::convert::Infallible>(())
+        })
         .unwrap();
     kinds.sort_unstable();
     assert_eq!(kinds, [false, true, true]);

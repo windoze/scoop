@@ -3,7 +3,6 @@ use scoop_identity::{
     PersistentFunctionId, PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId,
     PropertyOwner, SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
     Declaration, InheritanceSlotContractSemanticAuthority,
@@ -22,11 +21,7 @@ pub(super) fn validate<'s, 'g, 'a, A: InheritanceSlotContractSemanticAuthority<E
     signature: &InheritanceCallableSignatureV1,
     access: &DeclarationAccessSourceV1,
     authority: &'s A,
-    meter: &mut BudgetMeter,
 ) -> Result<(Declaration<'s>, ReplayedDeclarationAccessDomainsV1<'g, 'a>), Error<E>> {
-    meter
-        .charge_work(1, &WirePath::root())
-        .map_err(Error::Resource)?;
     let key = match declaration {
         Decl::Function(id) => {
             let key = authority.function_key(id).map_err(Error::Foundation)?;
@@ -87,7 +82,6 @@ pub(super) fn validate<'s, 'g, 'a, A: InheritanceSlotContractSemanticAuthority<E
                 parameters,
                 signature.exact_signature().parameters(),
                 authority,
-                meter,
             )?;
         }
         (Decl::Getter(_), DuplicateSignatureKey::Property { .. })
@@ -104,16 +98,16 @@ pub(super) fn validate<'s, 'g, 'a, A: InheritanceSlotContractSemanticAuthority<E
         .iter()
         .chain(std::iter::once(&signature.exact_signature().result()))
     {
-        types::validate_exact_identity(*exact, authority, meter)?;
+        types::validate_exact_identity(*exact, authority)?;
     }
     if access.declared_visibility() == DeclaredVisibilityV1::Private {
         return Err(Error::PrivateDeclaration);
     }
     let checked = graph
-        .check_declaration_source(access, key, authority, meter)
+        .check_declaration_source(access, key, authority)
         .map_err(Error::Source)?;
     let domains = graph
-        .replay_declaration_access(checked, meter)
+        .replay_declaration_access(checked)
         .map_err(Error::Access)?;
     Ok((Declaration { key, exact_owner }, domains))
 }

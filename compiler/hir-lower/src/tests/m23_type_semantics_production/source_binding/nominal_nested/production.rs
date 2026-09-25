@@ -23,7 +23,7 @@ fn nested_production_rejects_top_level_and_absent_roots() {
         let export = &output.output().export;
         let root = class(export, "Envelope");
         assert!(matches!(
-            Production::from_export_hir(export, root, &mut meter()),
+            Production::from_export_hir(export, root),
             Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
         ));
         with_hir_source(
@@ -31,7 +31,7 @@ fn nested_production_rejects_top_level_and_absent_roots() {
             |other, _| {
                 let absent = class(&other.output().export, "Holder");
                 assert!(matches!(
-                    Production::from_export_hir(export, absent, &mut meter()),
+                    Production::from_export_hir(export, absent),
                     Err(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(_))
                 ));
             },
@@ -79,7 +79,7 @@ fn nested_production_rejects_missing_or_inconsistent_independent_sources() {
             }
             let forged =
                 hir::ExportHirOutput::try_new(module, export.output_kind().clone()).unwrap();
-            let error = Production::from_export_hir(&forged, root, &mut meter()).unwrap_err();
+            let error = Production::from_export_hir(&forged, root).unwrap_err();
             assert!(
                 matches!(
                     error,
@@ -87,45 +87,6 @@ fn nested_production_rejects_missing_or_inconsistent_independent_sources() {
                         | hir::CrossConeTypeSemanticsProductionError::MissingDefinitionOrigin(_)
                 ),
                 "{corruption}: {error:?}"
-            );
-        }
-    });
-}
-
-#[test]
-fn nested_production_enforces_all_shared_resource_limits() {
-    with_hir_source(SOURCE, |output, _| {
-        let export = &output.output().export;
-        let root = class(export, "Holder");
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(
-                Production::from_export_hir(export, root, &mut BudgetMeter::new(limits)).is_err(),
-                "{limits:?}"
             );
         }
     });

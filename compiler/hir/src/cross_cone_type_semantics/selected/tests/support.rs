@@ -1,13 +1,10 @@
 use super::*;
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 pub(super) fn path() -> WirePath {
     WirePath::root().field(8)
 }
 pub(super) fn parsed<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 pub(super) struct Sequence<'a>(pub &'a [SelectedExternalTypeUseV1]);
 impl WireEncode for Sequence<'_> {
@@ -44,19 +41,4 @@ pub(super) fn record_wire(provider: ConeIdentity, usage: &[u8]) -> Vec<u8> {
     bytes.push(2);
     bytes.extend(usage);
     bytes
-}
-pub(super) fn resource(
-    error: SelectedTypeUseResolutionError<Family>,
-    expected: ResourceKind,
-    at: &WirePath,
-) {
-    let SelectedTypeUseResolutionError::Resource(error) = error else {
-        panic!("{error:?}");
-    };
-    assert!(
-        matches!(error.kind(), WireErrorKind::LimitExceeded { resource, .. } if *resource == expected),
-        "{error:?}"
-    );
-    assert_eq!(error.path(), at);
-    assert_eq!(error.byte_offset(), None);
 }

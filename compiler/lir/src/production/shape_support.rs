@@ -28,7 +28,7 @@ impl WireEncode for ClosedShapeSupportReasonV1 {
 }
 
 impl WireDecode for ClosedShapeSupportReasonV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::ReferenceNominalRequiresNoBox),
             tag => Err(unknown_tag(decoder, tag)),
@@ -423,7 +423,7 @@ impl<I: PersistentId> WireEncode for DecodedStrongShapeDefinitionV1<I> {
 }
 
 impl<I: PersistentId> WireDecode for DecodedStrongShapeDefinitionV1<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -456,7 +456,7 @@ impl<I: PersistentId> WireEncode for DecodedStrongShapeRegistrationV1<I> {
 }
 
 impl<I: PersistentId> WireDecode for DecodedStrongShapeRegistrationV1<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -496,7 +496,7 @@ impl WireEncode for DecodedStrongExactShapeSupportV1 {
 }
 
 impl WireDecode for DecodedStrongExactShapeSupportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             nominal: decoder.field(1, DecodedPersistentId::decode)?,
@@ -525,7 +525,7 @@ impl<T: WireEncode> WireEncode for DecodedShapeSupportAvailabilityV1<T> {
 }
 
 impl<T: WireDecode> WireDecode for DecodedShapeSupportAvailabilityV1<T> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         decoder.field(1, |decoder| match tag {
@@ -587,7 +587,7 @@ impl WireEncode for DecodedParamFreeShapeSupportRolesV1 {
 }
 
 impl WireDecode for DecodedParamFreeShapeSupportRolesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Ok(Self {
             source_nominal: decoder.field(1, DecodedShapeSupportAvailabilityV1::decode)?,
@@ -622,7 +622,7 @@ impl WireEncode for DecodedParamFreeShapeSupportClosureV1 {
 }
 
 impl WireDecode for DecodedParamFreeShapeSupportClosureV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
@@ -676,7 +676,7 @@ impl WireEncode for DecodedParamFreeShapeSupportPlanSetV1 {
 }
 
 impl WireDecode for DecodedParamFreeShapeSupportPlanSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedParamFreeShapeSupportClosureV1::decode(decoder))
             .map(|closures| Self { closures })
@@ -706,7 +706,7 @@ fn encode_value_sum(
     value.encode(encoder)
 }
 
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
+fn unknown_tag(decoder: &Decoder<'_>, tag: u64) -> WireError {
     WireError::new(
         WireErrorKind::UnknownTag { tag },
         decoder.path().clone(),

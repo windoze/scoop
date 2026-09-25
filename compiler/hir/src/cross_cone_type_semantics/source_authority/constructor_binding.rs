@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use scoop_identity::{
     ConeIdentity, PersistentConstructorId, PersistentExactTypeId, SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::binding_keys;
 use crate::*;
@@ -30,31 +30,24 @@ impl<'f> BoundTypeFoundationSourcesV1<'f> {
         &'a self,
         inventory: &'a CanonicalSourceInheritanceInventoriesV1,
         constructors: &'a CanonicalInheritanceSourceConstructorsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<BoundInheritanceConstructorSourcesV1<'a, 'f>, InheritanceConstructorBindingError>
     {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        let owners = inventory::required(self, inventory, constructors, meter)?;
+        let owners = inventory::required(self, inventory, constructors)?;
         let available = binding_keys::index(
             self.foundation
                 .as_canonical()
                 .type_source_constructor_records(),
-            meter,
-            &path,
         )?;
         let mut keys = BTreeMap::new();
-        binding_keys::charge_map(constructors.records().len(), meter, &path)?;
+
         for record in constructors.records() {
-            charge_queries(1, available.len(), meter)?;
             let declaration = record.declaration();
             let key = available
                 .get(&declaration)
                 .copied()
                 .ok_or(InheritanceConstructorBindingError::MissingKey(declaration))?;
-            binding_keys::verify(declaration, key, self.identities, meter, &path)?;
-            contracts::validate(self, owners[&declaration], key, record, meter)?;
+            binding_keys::verify(declaration, key, self.identities)?;
+            contracts::validate(self, owners[&declaration], key, record)?;
             keys.insert(declaration, key);
         }
         Ok(BoundInheritanceConstructorSourcesV1 {
@@ -108,16 +101,4 @@ impl<'a, 'f> BoundInheritanceConstructorSourcesV1<'a, 'f> {
                 declaration,
             ))
     }
-}
-
-fn charge_queries(
-    count: usize,
-    length: usize,
-    meter: &mut BudgetMeter,
-) -> Result<(), InheritanceConstructorBindingError> {
-    meter.charge_work(
-        (count as u64).saturating_mul(u64::from(length.max(1).ilog2()) + 1),
-        &WirePath::root(),
-    )?;
-    Ok(())
 }

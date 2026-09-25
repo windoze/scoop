@@ -15,17 +15,17 @@ pub(in super::super::super) fn resolve(
         .unwrap();
     let mut identities = pending.finish().unwrap();
     let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&Selection { layout, semantic });
-    wire.validate_layouts(layout.layouts(), &mut meter())
+    wire.validate_layouts(layout.layouts())
         .unwrap()
-        .validate_callables(layout.callables(), &mut meter())
+        .validate_callables(layout.callables())
         .unwrap()
-        .validate_dispatch(layout.dispatch(), &mut meter())
+        .validate_dispatch(layout.dispatch())
         .unwrap()
-        .validate_descriptors(layout.descriptors(), &mut meter())
+        .validate_descriptors(layout.descriptors())
         .unwrap()
-        .validate_shape_support::<Infallible>(layout.shape_support(), &mut meter())
+        .validate_shape_support::<Infallible>(layout.shape_support())
         .unwrap()
-        .resolve_dependencies(&mut identities, &mut meter())
+        .resolve_dependencies(&mut identities)
 }
 
 pub(in super::super::super) fn empty_exports(
@@ -34,27 +34,21 @@ pub(in super::super::super) fn empty_exports(
 ) -> lir::LayoutAbiExportConstituentsV1 {
     let foundation =
         lir::OdrFreeLirFoundation::try_new(provider, lir::CanonicalLirFoundation::empty()).unwrap();
-    let layouts =
-        lir::CanonicalExactLayoutExportsV1::try_new(target, &foundation, vec![], &mut meter())
-            .unwrap();
+    let layouts = lir::CanonicalExactLayoutExportsV1::try_new(target, &foundation, vec![]).unwrap();
     let descriptors =
-        lir::CanonicalExactDescriptorExportsV1::try_new(target, &foundation, vec![], &mut meter())
-            .unwrap();
+        lir::CanonicalExactDescriptorExportsV1::try_new(target, &foundation, vec![]).unwrap();
     let shapes = lir::CanonicalParamFreeShapeSupportExportsV1::from_sources(
         &[],
         &layouts,
         &descriptors,
         &foundation,
-        &mut meter(),
     )
     .unwrap();
     lir::LayoutAbiExportConstituentsV1::try_new(
         layouts,
         descriptors,
-        lir::CanonicalExactDispatchExportsV1::try_new(target, &foundation, vec![], &mut meter())
-            .unwrap(),
-        lir::CanonicalExactCallableAbiExportsV1::try_new(target, &foundation, vec![], &mut meter())
-            .unwrap(),
+        lir::CanonicalExactDispatchExportsV1::try_new(target, &foundation, vec![]).unwrap(),
+        lir::CanonicalExactCallableAbiExportsV1::try_new(target, &foundation, vec![]).unwrap(),
         shapes,
     )
     .unwrap()

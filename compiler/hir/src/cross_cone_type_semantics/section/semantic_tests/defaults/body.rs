@@ -5,7 +5,7 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for DefaultA
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _role: DefaultOperationCoreTypeV1,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<SignatureTypeKey, &'static str> {
         Err("fixture has no default template")
@@ -14,7 +14,7 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for DefaultA
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _value: &SignatureTypeKey,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<Option<DefaultCoreApplicationV1>, &'static str> {
         Err("fixture has no default template")
@@ -23,7 +23,7 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for DefaultA
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _entity: DefaultOperationEntityV1<'_>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<DefaultOperationEntityShapeV1, &'static str> {
         Err("fixture has no default template")
@@ -34,7 +34,7 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for DefaultA
         _relation: DefaultOperationTypeRelationV1,
         _source: &SignatureTypeKey,
         _target: &SignatureTypeKey,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<bool, &'static str> {
         Err("fixture has no default template")
@@ -43,7 +43,7 @@ impl ProtectedDefaultOperationTypingSemanticAuthority<&'static str> for DefaultA
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _intrinsic: DefaultOperationIntrinsicV1<'_>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<(), &'static str> {
         Err("fixture has no default template")
@@ -56,8 +56,6 @@ impl ProtectedDefaultLocalDataFlowSemanticAuthority<&'static str> for DefaultAut
         _template: &ProtectedDefaultTemplateV1,
         _declaration: PersistentFieldId,
         _owner_type: &SignatureTypeKey,
-        _meter: &mut BudgetMeter,
-        _path: &WirePath,
     ) -> Result<u32, &'static str> {
         Err("fixture has no default template")
     }
@@ -69,7 +67,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for DefaultAu
         _template: &ProtectedDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
         _site: crate::DefaultNestedCallableSiteV1,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, &'static str> {
         Err("fixture has no default template")
@@ -80,7 +78,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for DefaultAu
         _identity: DefaultNestedCallableIdentityV1,
         _site: crate::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
-        _meter: &mut BudgetMeter,
+
         _path: &WirePath,
     ) -> Result<DefaultNestedCallableAbiShapeV1, &'static str> {
         Err("fixture has no default template")
@@ -91,8 +89,6 @@ impl crate::DefaultLocalFunctionSignatureAuthority<&'static str> for DefaultAuth
     fn default_local_function_own_binder_arity(
         &mut self,
         _declaration: scoop_identity::CallableTemplateOrigin,
-        _meter: &mut scoop_wire::BudgetMeter,
-        _path: &scoop_wire::WirePath,
     ) -> Result<u32, &'static str> {
         Err("fixture has no local function")
     }

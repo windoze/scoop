@@ -38,10 +38,7 @@ impl<'a> MirShapeSupportAuthority<'a> {
     pub(in crate::cross_cone_type_bridge) fn validate(
         self,
         record: &ParamFreeMirShapeSupportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), MirShapeSupportError> {
-        let lookup_work = usize::BITS - self.types.record_count().leading_zeros();
-        meter.charge_work(8 * u64::from(lookup_work + 1), &WirePath::root())?;
         let source = self.get(record.exact)?;
         if source.origin() != &MirTypeOriginV1::SourceNominal(record.source) {
             return Err(MirShapeSupportError::InvalidSource {

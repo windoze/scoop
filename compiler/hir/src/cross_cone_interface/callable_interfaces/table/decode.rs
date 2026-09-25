@@ -91,7 +91,7 @@ impl WireEncode for DecodedCanonicalCallableInterfacesV1 {
     }
 }
 impl WireDecode for DecodedCanonicalCallableInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let value = Self {
             records: decoder.field(1, |d| {
@@ -101,12 +101,7 @@ impl WireDecode for DecodedCanonicalCallableInterfacesV1 {
                 d.decode_array(|d, _| DecodedCallableDeclarationRecordV1::decode(d))
             })?,
         };
-        let count = (value.records.len() + value.support.len()) as u64;
-        let path = decoder.path().clone();
-        decoder.meter().charge_collection_slots(count, &path)?;
-        decoder
-            .meter()
-            .charge_work(count.saturating_mul(128), &path)?;
+
         Ok(value)
     }
 }

@@ -57,7 +57,6 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     previous,
                     physical.iter().map(|artifact| &artifact.layout),
                     reachable,
-                    parts.meter,
                 )?;
                 project(artifact, &symbols)?;
                 Ok(symbols)

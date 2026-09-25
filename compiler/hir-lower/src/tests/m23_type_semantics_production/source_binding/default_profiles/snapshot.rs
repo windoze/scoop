@@ -6,12 +6,12 @@ fn bound_default_profile_dump_preserves_each_parameter_and_inherited_source_doma
     with_inputs(DOMAINS, |inputs| {
         inputs.with_bound(|domains, parameters, _| {
             let declarations = parameters
-                .bind_default_declarations(inputs.production.templates(), &[], &mut meter())
+                .bind_default_declarations(inputs.production.templates(), &[])
                 .unwrap();
             let profiles = domains
-                .bind_nominal_default_target_domains(&declarations, &mut meter())
+                .bind_nominal_default_target_domains(&declarations)
                 .unwrap()
-                .bind_source_profiles(inputs.production.profiles(), &mut meter())
+                .bind_source_profiles(inputs.production.profiles())
                 .unwrap();
             let export = inputs.output.output().export.module();
             let labels = export
@@ -27,9 +27,7 @@ fn bound_default_profile_dump_preserves_each_parameter_and_inherited_source_doma
                         "{}[{}]: {:?} inherited={} publishing={}",
                         labels[&d.key().owner()],
                         d.key().parameter_position(),
-                        profiles
-                            .default_access_profile(d.key(), &mut meter())
-                            .unwrap(),
+                        profiles.default_access_profile(d.key()).unwrap(),
                         d.key().owner() != d.definition_root().declaration(),
                         if d.publishing_call_domain() == d.direct_call_domain() {
                             "provider"

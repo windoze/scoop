@@ -19,8 +19,8 @@ fn shared_object_units_retain_source_only_keys_without_materializing_them() {
             foundation: &foundation,
             public: &public,
         };
-        let mut meter = BudgetMeter::new(DecodeLimits::default());
-        let units = metadata.object_initialization_units(&mut meter).unwrap();
+
+        let units = metadata.object_initialization_units().unwrap();
         assert_eq!(units.len(), 2);
         let mut source_only = 0;
         for owner in units.keys() {
@@ -38,16 +38,8 @@ fn shared_object_units_retain_source_only_keys_without_materializing_them() {
                 provider: ConeIdentity::CORE,
                 ..metadata
             }
-            .object_initialization_units(&mut meter),
+            .object_initialization_units(),
             Err(hir::SharedTypeMetadataError::ObjectInitializationOwner(_))
-        ));
-        let mut limited = BudgetMeter::new(DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        });
-        assert!(matches!(
-            metadata.object_initialization_units(&mut limited),
-            Err(hir::SharedTypeMetadataError::Resource(_))
         ));
     });
 }
@@ -106,7 +98,7 @@ fn shared_object_units_reject_conflicting_roles_and_non_object_owners() {
                 foundation: &foundation,
                 public: &public,
             }
-            .object_initialization_units(&mut BudgetMeter::new(DecodeLimits::default()));
+            .object_initialization_units();
             if duplicate {
                 assert!(
                     matches!(result, Err(hir::SharedTypeMetadataError::DuplicateObjectInitialization(owner)) if owner == object)

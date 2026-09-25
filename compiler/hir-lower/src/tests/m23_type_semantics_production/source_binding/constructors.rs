@@ -25,12 +25,10 @@ impl Sources {
     fn from_output(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Self {
         macro_rules! restore {
             ($canonical:ty, $decoded:ty) => {{
-                let source = <$canonical>::from_dependency_hir(output, &mut meter()).unwrap();
+                let source = <$canonical>::from_dependency_hir(output).unwrap();
                 let bytes = encode(&source).unwrap();
-                let decoded: $decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-                let restored = decoded
-                    .resolve(&mut fixture.identities, &mut meter())
-                    .unwrap();
+                let decoded: $decoded = decode_canonical(&bytes).unwrap();
+                let restored = decoded.resolve(&mut fixture.identities).unwrap();
                 assert_eq!(encode(&restored).unwrap(), bytes);
                 restored
             }};
@@ -50,9 +48,8 @@ impl Sources {
     fn bind<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
-        meter: &mut BudgetMeter,
     ) -> Result<hir::BoundInheritanceConstructorSourcesV1<'a, 'f>, Error> {
-        foundation.bind_inheritance_constructor_sources(&self.inventory, &self.constructors, meter)
+        foundation.bind_inheritance_constructor_sources(&self.inventory, &self.constructors)
     }
 
     fn replace(&mut self, record: hir::NominalSupportConstructorInterfaceV1) {
@@ -63,7 +60,7 @@ impl Sources {
             .find(|value| value.declaration() == declaration)
             .unwrap() = record;
         self.constructors =
-            hir::CanonicalInheritanceSourceConstructorsV1::try_new(records, &mut meter()).unwrap();
+            hir::CanonicalInheritanceSourceConstructorsV1::try_new(records).unwrap();
     }
 }
 
@@ -74,7 +71,7 @@ fn byte_restored_constructor_sources_bind_to_their_owned_foundation() {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let bound = sources.bind(&foundation, &mut meter()).unwrap();
+            let bound = sources.bind(&foundation).unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
             assert_eq!(bound.table(), &sources.constructors);
             for owner in sources.inventory.records() {
@@ -110,47 +107,11 @@ fn constructor_keys_must_be_owned_even_when_the_identity_graph_contains_them() {
         let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+            .bind_to_foundation(&incomplete, &fixture.identities)
             .unwrap();
         assert!(matches!(
-            sources.bind(&foundation, &mut meter()),
+            sources.bind(&foundation),
             Err(Error::MissingKey(_))
         ));
-    });
-}
-
-#[test]
-fn constructor_binding_checks_shared_budgets_before_publishing_sources() {
-    with_source(SOURCE, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let sources = Sources::from_output(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                sources.bind(&foundation, &mut BudgetMeter::new(limits)),
-                Err(Error::Resource(_))
-            ));
-        }
     });
 }

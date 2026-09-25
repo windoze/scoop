@@ -38,7 +38,6 @@ pub(super) fn check(
         .complete_cross_cone_interface_source_points(
             input.hir.output().export.module(),
             input.public,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
         )
         .unwrap();
     let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
@@ -82,7 +81,7 @@ pub(super) fn check(
         mir_section,
         layout,
     )
-    .assemble(objects, &generated, &[], &mut meter())
+    .assemble(objects, &generated, &[])
     .unwrap_or_else(|error| panic!("{name} layout artifact assembly: {error:?}"));
     bytes::check(
         name,

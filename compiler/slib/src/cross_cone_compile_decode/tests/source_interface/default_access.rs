@@ -4,34 +4,6 @@ use scoop_hir::{
     ExportDefaultReferenceSetV1, ExportDefaultReferenceV1, ExportDefaultTemplateV1,
     PublicDefaultWitnessError, SourceAccessConstraintV1, SourceAccessDomainV1,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
-
-#[test]
-fn ordinary_reader_keeps_the_artifact_budget_when_resolving_source_domains() {
-    let fixture = default_fixture::fixture(default_fixture::Case::Defined);
-    let bytes = fixture.artifact();
-    let mut decoded = open_graph(&bytes)
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
-    let identities = decoded
-        .validate_foundation_identities(std::iter::empty())
-        .unwrap();
-    let mut front = decoded.validate_foundation_structure(identities).unwrap();
-    let meter = front.graph.envelope.meter_mut();
-    let remaining = meter.limits().validation_work_units - meter.usage().validation_work_units;
-    meter.charge_work(remaining, &WirePath::root()).unwrap();
-    let Err(error) = front.resolve_hir_interface() else {
-        panic!("source-domain resolution must retain the exhausted budget")
-    };
-    assert!(matches!(
-        error,
-        scoop_hir::CrossConeHirInterfaceResolutionError::DefaultTemplates(_)
-    ));
-    assert!(
-        format!("{error:?}").contains("ValidationWorkUnits"),
-        "{error:?}"
-    );
-}
 
 #[test]
 fn ordinary_reader_rejects_restricted_snapshots_on_public_defaults() {
@@ -40,12 +12,11 @@ fn ordinary_reader_rejects_restricted_snapshots_on_public_defaults() {
         let interface = &fixture.interface;
         let original = &interface.default_templates().records()[0];
         let reference = &original.references().types()[0];
-        let restricted = SourceAccessDomainV1::from_constraints(
-            vec![SourceAccessConstraintV1::Cone(fixture.cone.identity())],
-            &mut BudgetMeter::new(DecodeLimits::default()),
-            &WirePath::root(),
-        )
-        .unwrap();
+        let restricted =
+            SourceAccessDomainV1::from_constraints(vec![SourceAccessConstraintV1::Cone(
+                fixture.cone.identity(),
+            )])
+            .unwrap();
         let universal = SourceAccessDomainV1::universal();
         let (direct, slot, target) = match case {
             0 => (restricted, None, universal),

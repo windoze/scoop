@@ -88,7 +88,6 @@ pub(super) fn check_support(
                 ..input
             },
             dependencies,
-            &mut meter(),
         ),
         Err(scoop_lir_lower::LayoutAbiExportLoweringError::Layout(
             scoop_lir_lower::ExactLayoutLoweringError::MissingDependency(_)

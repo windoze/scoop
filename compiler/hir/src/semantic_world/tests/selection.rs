@@ -250,11 +250,8 @@ fn import_callable_foundation(
     fixture: &CallableProviderFixture,
     fingerprint: u8,
 ) -> crate::ImportedHirFoundation {
-    let decoded: crate::DecodedHirFoundation = scoop_wire::decode_canonical(
-        &scoop_wire::encode(&fixture.foundation).unwrap(),
-        scoop_wire::DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: crate::DecodedHirFoundation =
+        scoop_wire::decode_canonical(&scoop_wire::encode(&fixture.foundation).unwrap()).unwrap();
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending.register_authority(fixture.identity()).unwrap();
     decoded.register_identities(&mut pending).unwrap();

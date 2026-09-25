@@ -8,14 +8,13 @@ fn complete_protocol_authority_replays_methods_variants_and_rejects_candidate_sw
     with_sources(SOURCE, |_, fixture, sources, core| {
         let foundation = fixture.bind().unwrap();
         let nominals = foundation
-            .bind_nominal_sources(&sources.members.nominals, &mut meter())
+            .bind_nominal_sources(&sources.members.nominals)
             .unwrap();
         let mut candidate_members = nominals
             .bind_member_sources(
                 &sources.members.properties,
                 &sources.members.callables,
                 core,
-                &mut meter(),
             )
             .unwrap();
         let entries = foundation.source().entries();
@@ -23,12 +22,11 @@ fn complete_protocol_authority_replays_methods_variants_and_rejects_candidate_sw
             entries.local_inheritance_edges.records().iter(),
             entries.source_roots.values().iter().copied(),
             &foundation,
-            &mut meter(),
         )
         .unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let mut authority = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             let mut checked_count = 0;
             for record in sources.protocols.records().iter().filter(|r| {
@@ -36,12 +34,12 @@ fn complete_protocol_authority_replays_methods_variants_and_rejects_candidate_sw
             }) {
                 let callable = sources.members.callables.get(record.owner()).unwrap();
                 let checked = callable
-                    .validate_source(&graph, &mut candidate_members, &mut meter())
+                    .validate_source(&graph, &mut candidate_members)
                     .unwrap();
                 let original = candidate(record.owner(), record.parameters());
                 assert_eq!(
                     original
-                        .validate_nominal_support(checked, &mut authority, &mut meter())
+                        .validate_nominal_support(checked, &mut authority)
                         .unwrap()
                         .record(),
                     &original
@@ -89,7 +87,7 @@ fn complete_protocol_authority_replays_methods_variants_and_rejects_candidate_sw
                         )
                         .unwrap();
                         let error = forged
-                            .validate_nominal_support(checked, &mut authority, &mut meter())
+                            .validate_nominal_support(checked, &mut authority)
                             .unwrap_err();
                         match (change_origin, error) {
                             (

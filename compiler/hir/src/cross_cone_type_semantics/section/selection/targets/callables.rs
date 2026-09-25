@@ -6,25 +6,21 @@ pub(super) fn member<F: TypeSectionFoundationSemanticAuthority<E>, E>(
     provider: &Exports<'_>,
     declaration: InheritanceCallableDeclarationV1,
     foundation: &F,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<PersistentExactTypeId, Error<E>> {
     let declaration = match declaration {
         InheritanceCallableDeclarationV1::Function(id) => CallableTemplateOrigin::Function(id),
         InheritanceCallableDeclarationV1::Getter(id) => {
-            accessor_role(id, AccessorRole::Getter, foundation, meter, path)?;
+            accessor_role(id, AccessorRole::Getter, foundation)?;
             CallableTemplateOrigin::Accessor(id)
         }
         InheritanceCallableDeclarationV1::Setter(id) => {
-            accessor_role(id, AccessorRole::Setter, foundation, meter, path)?;
+            accessor_role(id, AccessorRole::Setter, foundation)?;
             CallableTemplateOrigin::Accessor(id)
         }
     };
-    exact(
-        source_owner(provider, declaration, meter, path)?,
-        meter,
-        path,
-    )
+    exact(source_owner(provider, declaration, path)?)
 }
 
 pub(super) fn construction<F: TypeSectionFoundationSemanticAuthority<E>, E>(
@@ -32,7 +28,7 @@ pub(super) fn construction<F: TypeSectionFoundationSemanticAuthority<E>, E>(
     owner: PersistentExactTypeId,
     declaration: SelectedTypeConstructionV1,
     foundation: &F,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), Error<E>> {
     let (declaration, variant) = match declaration {
@@ -43,12 +39,7 @@ pub(super) fn construction<F: TypeSectionFoundationSemanticAuthority<E>, E>(
             (CallableTemplateOrigin::VariantConstructor(id), Some(id))
         }
     };
-    if exact(
-        source_owner(provider, declaration, meter, path)?,
-        meter,
-        path,
-    )? != owner
-    {
+    if exact(source_owner(provider, declaration, path)?)? != owner {
         return Err(Error::DeclarationOwner);
     }
     let key = foundation.exact_type_key(owner).map_err(Error::Source)?;
@@ -62,8 +53,6 @@ pub(super) fn construction<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         .shape();
     match (variant, shape) {
         (Some(id), NominalRepresentationShapeV1::Enum { variants }) => {
-            meter.check_table_entries(variants.len() as u64, path)?;
-            meter.charge_work(variants.len() as u64, path)?;
             if variants.iter().any(|variant| variant.variant() == id) {
                 Ok(())
             } else {
@@ -83,16 +72,11 @@ pub(super) fn construction<F: TypeSectionFoundationSemanticAuthority<E>, E>(
 fn source_owner<E>(
     provider: &Exports<'_>,
     declaration: CallableTemplateOrigin,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<SourceNominalId, Error<E>> {
     let public = provider.public.section().callable_interfaces();
-    meter.charge_work(
-        (public.records().len() as u64 + provider.sources.entries().len() as u64 + 2).ilog2()
-            as u64
-            + 2,
-        path,
-    )?;
+
     let old = public.get(declaration);
     let new = provider.sources.get(declaration);
     let old_owner = if let Some(record) = old {
@@ -111,7 +95,7 @@ fn source_owner<E>(
     let source = if let Some(record) = new {
         Some((record.payload(), record.declaration_access()))
     } else if let CallableTemplateOrigin::Accessor(id) = declaration {
-        accessors::find(provider, id, meter, path)?
+        accessors::find(provider, id, path)?
     } else {
         None
     };
@@ -139,15 +123,12 @@ fn accessor_role<F: TypeSectionFoundationSemanticAuthority<E>, E>(
     id: PersistentPropertyAccessorId,
     role: AccessorRole,
     foundation: &F,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), Error<E>> {
     let key = foundation
         .selected_accessor_key(id)
         .map_err(Error::Source)?;
     // This key has only a typed property ID and a finite role tag.
-    let bytes = scoop_wire::encoded_length(key).map_err(Error::Encoding)?;
-    meter.charge_sha256(bytes.saturating_add(64), path)?;
+
     if key.role() != role || PersistentPropertyAccessorId::from_key(key).ok() != Some(id) {
         return Err(Error::DeclarationRole);
     }

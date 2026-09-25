@@ -6,7 +6,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         &mut self,
         current_protocols: &CoreBootstrapInterfaceSectionV1,
         function: bool,
-        path: &WirePath,
     ) -> Result<SourceNominalId, TypeError> {
         let mut selected = None;
         let providers = std::iter::once((self.current, current_protocols)).chain(
@@ -15,7 +14,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 .map(|provider| (provider.identity, provider.core)),
         );
         for (provider, section) in providers {
-            self.meter.charge_work(1, path)?;
             let Some(definitions) = section.compiler_protocol_definitions() else {
                 continue;
             };

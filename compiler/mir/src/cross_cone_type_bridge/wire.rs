@@ -46,32 +46,17 @@ impl DecodedParamFreeMirTypeExportV1 {
         self,
         identities: &mut ValidatedIdentityGraph,
         foundation: &crate::OdrFreeMirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirTypeExportV1, MirTypeBridgeError> {
-        let path = WirePath::root();
-        meter
-            .charge_work(8, &path)
-            .map_err(MirTypeBridgeError::Resource)?;
         let exact = identities.resolve(self.exact)?;
         let origin = self.origin.resolve(identities)?;
         let facts = self.facts.validate()?;
-        let representation = self.representation.resolve(identities, meter)?;
-        let base_and_interfaces = self.base_and_interfaces.resolve(identities, meter)?;
+        let representation = self.representation.resolve(identities)?;
+        let base_and_interfaces = self.base_and_interfaces.resolve(identities)?;
         let authority = MirTypeBridgeAuthority {
             identities,
             foundation,
         };
-        let work = 8
-            * (representation.fields().len()
-                + base_and_interfaces.interfaces.len()
-                + representation
-                    .variants()
-                    .iter()
-                    .map(|variant| 1 + variant.fields.len())
-                    .sum::<usize>());
-        meter
-            .charge_work(work as u64, &path)
-            .map_err(MirTypeBridgeError::Resource)?;
+
         ParamFreeMirTypeExportV1::try_new(
             authority,
             exact,
@@ -83,7 +68,7 @@ impl DecodedParamFreeMirTypeExportV1 {
     }
 }
 impl WireDecode for DecodedParamFreeMirTypeExportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             exact: decoder.field(1, DecodedPersistentId::decode)?,
@@ -124,20 +109,18 @@ impl DecodedBaseAndInterfaces {
     fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<MirBaseAndInterfacesV1, MirTypeBridgeError> {
         let base = match self.base {
             DecodedBase::None => MirBaseClassV1::None,
             DecodedBase::Base(base) => MirBaseClassV1::Base(graph.resolve(base)?),
         };
-        let interfaces = resolve_sequence(self.interfaces, graph, meter, |id, graph, _| {
-            Ok(graph.resolve(id)?)
-        })?;
+        let interfaces =
+            resolve_sequence(self.interfaces, graph, |id, graph| Ok(graph.resolve(id)?))?;
         Ok(MirBaseAndInterfacesV1 { base, interfaces })
     }
 }
 impl WireDecode for DecodedBaseAndInterfaces {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             base: decoder.field(1, |decoder| {
@@ -182,27 +165,15 @@ impl WireEncode for DecodedBaseAndInterfaces {
 pub(super) fn resolve_sequence<D, T>(
     input: Vec<D>,
     graph: &mut ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
-    mut resolve: impl FnMut(
-        D,
-        &mut ValidatedIdentityGraph,
-        &mut BudgetMeter,
-    ) -> Result<T, MirTypeBridgeError>,
+
+    mut resolve: impl FnMut(D, &mut ValidatedIdentityGraph) -> Result<T, MirTypeBridgeError>,
 ) -> Result<Vec<T>, MirTypeBridgeError> {
     let mut result = Vec::new();
     let path = WirePath::root();
-    meter
-        .try_reserve_collection_slots(&mut result, input.len(), &path)
+    scoop_wire::allocation::try_reserve(&mut result, input.len(), &path)
         .map_err(MirTypeBridgeError::Resource)?;
-    for (index, input) in input.into_iter().enumerate() {
-        let path = path.clone().index(index as u64);
-        meter
-            .charge_nodes(1, &path)
-            .map_err(MirTypeBridgeError::Resource)?;
-        meter
-            .charge_work(2, &path)
-            .map_err(MirTypeBridgeError::Resource)?;
-        result.push(resolve(input, graph, meter)?);
+    for input in input.into_iter() {
+        result.push(resolve(input, graph)?);
     }
     Ok(result)
 }

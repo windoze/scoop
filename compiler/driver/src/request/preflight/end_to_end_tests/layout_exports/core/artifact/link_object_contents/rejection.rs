@@ -1,8 +1,6 @@
 use super::super::link_archive::{self, Rewrite};
 use super::*;
 
-pub(super) mod budget;
-
 pub(super) fn mutation(
     core: &slib::AssembledCrossConeLayoutStrongArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
@@ -36,15 +34,14 @@ pub(super) fn mutation(
         }
         _ => Rewrite::Keep,
     });
-    let changed =
-        DecodedSlibEnvelope::open(&bytes, DecodeLimits::default(), source.target_selection())
-            .unwrap()
-            .validate_graph()
-            .unwrap()
-            .decode_cross_cone_layout_link_sections()
-            .unwrap()
-            .into_shared_sections()
-            .unwrap();
+    let changed = DecodedSlibEnvelope::open(&bytes, source.target_selection())
+        .unwrap()
+        .validate_graph()
+        .unwrap()
+        .decode_cross_cone_layout_link_sections()
+        .unwrap()
+        .into_shared_sections()
+        .unwrap();
     let shared = if provider == core_id {
         reader::read_sections(
             changed,
@@ -67,8 +64,15 @@ pub(super) fn mutation(
     assert!(
         matches!(
             (failure, source.as_ref()),
-            (Failure::Envelope, Error::ObjectEnvelope { .. })
-                | (Failure::CBridgeEnvelope, Error::CBridgeEnvelopes(_))
+            (
+                Failure::Envelope,
+                Error::Objects(slib::BuiltinObjectSetValidationError::ScoopEnvelope {
+                    source: slib::ScoopLirObjectEnvelopeValidationError::Envelope(
+                        slib::ObjectEnvelopeValidationError::MalformedHeader
+                    ),
+                    ..
+                })
+            ) | (Failure::CBridgeEnvelope, Error::CBridgeEnvelopes(_))
                 | (Failure::Symbols | Failure::Relocations, Error::Objects(_))
                 | (Failure::Stackmaps, Error::Stackmaps(_))
                 | (Failure::Safepoints, Error::Safepoints(_))

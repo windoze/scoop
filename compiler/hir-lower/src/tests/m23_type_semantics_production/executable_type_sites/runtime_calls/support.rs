@@ -40,11 +40,7 @@ pub(super) fn identities(
     core: &TrustedCoreFixture,
 ) -> ValidatedIdentityGraph {
     let decode = |foundation: &hir::CanonicalHirFoundation| {
-        decode_canonical::<hir::DecodedHirFoundation>(
-            &encode(foundation).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap()
+        decode_canonical::<hir::DecodedHirFoundation>(&encode(foundation).unwrap()).unwrap()
     };
     let dependency = decode(core.source_foundation.as_canonical());
     let mut pending = PendingIdentityValidation::new();
@@ -110,8 +106,4 @@ pub(super) fn calls(
                         .then_some((reference, site))
                 })
         })
-}
-
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

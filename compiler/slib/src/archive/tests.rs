@@ -17,16 +17,14 @@ fn diagnostic_member(key: &[u8], payload: &[u8]) -> Result<SlibMember, SlibMembe
 }
 
 fn open_archive(input: &[u8]) -> Result<ManifestArchive<'_>, ArchiveReadError> {
-    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
-    ManifestArchive::open(input, &mut meter)
+    ManifestArchive::open(input)
 }
 
 fn validate_archive<'input>(
     input: &'input [u8],
     records: &[SlibMemberRecord],
 ) -> Result<DecodedArchive<'input>, ArchiveReadError> {
-    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
-    ManifestArchive::open(input, &mut meter)?.validate_directory(records, &mut meter)
+    ManifestArchive::open(input)?.validate_directory(records)
 }
 
 #[test]
@@ -98,7 +96,9 @@ fn physical_member_names_cover_the_complete_directory_range() {
     assert_eq!(member_name(9), Some(*b"m00000009"));
     assert_eq!(member_name(10), Some(*b"m00000010"));
     assert_eq!(member_name(65_535), Some(*b"m00065535"));
-    assert_eq!(member_name(65_536), None);
+    assert_eq!(member_name(65_536), Some(*b"m00065536"));
+    assert_eq!(member_name(99_999_999), Some(*b"m99999999"));
+    assert_eq!(member_name(100_000_000), None);
 }
 
 #[test]
@@ -111,10 +111,9 @@ fn reader_validates_manifest_directory_and_member_ranges() {
         CanonicalSlibArchive::write(b"canonical manifest", vec![second.clone(), first.clone()])
             .unwrap();
 
-    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
-    let manifest = ManifestArchive::open(archive.as_bytes(), &mut meter).unwrap();
+    let manifest = ManifestArchive::open(archive.as_bytes()).unwrap();
     assert_eq!(manifest.manifest(), b"canonical manifest");
-    let decoded = manifest.validate_directory(&records, &mut meter).unwrap();
+    let decoded = manifest.validate_directory(&records).unwrap();
     assert_eq!(decoded.manifest(), b"canonical manifest");
     assert_eq!(
         decoded.member_ids().collect::<Vec<_>>(),
@@ -205,82 +204,4 @@ fn reader_rejects_directory_order_name_digest_and_total_length_corruption() {
             actual: archive.as_bytes().len() as u64 + 1,
         })
     );
-}
-
-#[test]
-fn archive_work_budget_has_inclusive_boundaries() {
-    let first = diagnostic_member(b"first", b"one").unwrap();
-    let second = diagnostic_member(b"second", b"two").unwrap();
-    let mut records = vec![first.record().clone(), second.record().clone()];
-    records.sort_unstable_by_key(SlibMemberRecord::id);
-    let archive = CanonicalSlibArchive::write(b"manifest", vec![first, second]).unwrap();
-
-    for limit in [7, 8] {
-        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
-            validation_work_units: limit,
-            ..scoop_wire::DecodeLimits::default()
-        });
-        ManifestArchive::open(archive.as_bytes(), &mut meter)
-            .unwrap()
-            .validate_directory(&records, &mut meter)
-            .unwrap();
-        assert_eq!(meter.usage().validation_work_units, 7);
-    }
-
-    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
-        validation_work_units: 6,
-        ..scoop_wire::DecodeLimits::default()
-    });
-    let error = ManifestArchive::open(archive.as_bytes(), &mut meter)
-        .unwrap()
-        .validate_directory(&records, &mut meter)
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        ArchiveReadError::Budget(error)
-            if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                resource: scoop_wire::ResourceKind::ValidationWorkUnits,
-                limit: 6,
-                observed: 7,
-            }
-    ));
-}
-
-#[test]
-fn archive_range_table_uses_the_shared_logical_heap_budget() {
-    let first = diagnostic_member(b"first", b"one").unwrap();
-    let second = diagnostic_member(b"second", b"two").unwrap();
-    let mut records = vec![first.record().clone(), second.record().clone()];
-    records.sort_unstable_by_key(SlibMemberRecord::id);
-    let archive = CanonicalSlibArchive::write(b"manifest", vec![first, second]).unwrap();
-
-    for limit in [64, 65] {
-        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
-            logical_heap_bytes: limit,
-            ..scoop_wire::DecodeLimits::default()
-        });
-        ManifestArchive::open(archive.as_bytes(), &mut meter)
-            .unwrap()
-            .validate_directory(&records, &mut meter)
-            .unwrap();
-        assert_eq!(meter.usage().logical_heap_bytes, 64);
-    }
-
-    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
-        logical_heap_bytes: 63,
-        ..scoop_wire::DecodeLimits::default()
-    });
-    let error = ManifestArchive::open(archive.as_bytes(), &mut meter)
-        .unwrap()
-        .validate_directory(&records, &mut meter)
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        ArchiveReadError::Budget(error)
-            if error.kind() == &scoop_wire::WireErrorKind::LimitExceeded {
-                resource: scoop_wire::ResourceKind::LogicalHeapBytes,
-                limit: 63,
-                observed: 64,
-            }
-    ));
 }

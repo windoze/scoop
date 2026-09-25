@@ -3,7 +3,7 @@ use super::*;
 use crate::cross_cone_type_semantics::inheritance::tests::support::Node;
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::Fixture as SourceFixture;
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 use std::collections::BTreeMap;
 
 mod builtins;
@@ -21,9 +21,6 @@ use defaults::DefaultAuthority;
 use fixture::*;
 use uses::*;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn path() -> WirePath {
     WirePath::root()
 }
@@ -51,7 +48,6 @@ fn public_proof(
         provider,
         &CanonicalDirectPublicSurfaceV1::try_new(vec![]).unwrap(),
         &mut crate::cross_cone_interface::EmptyPublicSemanticAuthority(provider),
-        &mut meter(),
         &path(),
     )
     .unwrap()
@@ -73,7 +69,6 @@ fn check<'a>(
         &mut fixture.source.clone(),
         &mut DefaultAuthority::new(fixture),
         uses,
-        &mut meter(),
         &path(),
     )
 }

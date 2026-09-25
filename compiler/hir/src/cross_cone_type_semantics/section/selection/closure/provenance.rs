@@ -4,11 +4,9 @@ pub(super) fn validate<E>(
     local: &Exports<'_>,
     dependencies: &[&CheckedCrossConeTypeSemanticsSectionV1<'_>],
     origin: TypeSectionCommittedRootOriginV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), TypeSelectionValidationError<E>> {
     use TypeSelectionValidationError as Error;
-    meter.charge_work(1, path)?;
+
     match origin {
         TypeSectionCommittedRootOriginV1::Source => Ok(()),
         TypeSectionCommittedRootOriginV1::LocalSemanticSupport { parent } => {
@@ -22,7 +20,7 @@ pub(super) fn validate<E>(
             let section = if provider == local.provider {
                 local
             } else {
-                &terminal(dependencies, provider, meter, path)?.exports
+                &terminal(dependencies, provider)?.exports
             };
             match section.defaults.get(key) {
                 Some(CheckedProtectedDefaultTemplateV1::ParamFree(_)) => Ok(()),
@@ -36,7 +34,7 @@ pub(super) fn validate<E>(
             let section = if provider == local.provider {
                 local
             } else {
-                &terminal(dependencies, provider, meter, path)?.exports
+                &terminal(dependencies, provider)?.exports
             };
             let template = section
                 .public

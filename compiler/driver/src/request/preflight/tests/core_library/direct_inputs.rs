@@ -40,7 +40,7 @@ fn request(
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(root),
         },
-        ExplicitDependencyInputs::new(locators(direct), locators(support)).unwrap(),
+        ExplicitDependencyInputs::new(locators(direct), locators(support)),
         TrustedCoreInput::DependenciesOrDefault {
             sysroot: sysroot.to_owned(),
         },
@@ -62,7 +62,7 @@ pub(super) fn check(
     write_cone(&root, "standalone");
     let explicit = workspace.join("direct-explicit.slib");
     request(target, &root, &explicit, &absent, &[core], &[])
-        .build_and_publish(DecodeLimits::default())
+        .build_and_publish()
         .unwrap();
     assert!(!absent.exists());
 
@@ -73,7 +73,7 @@ pub(super) fn check(
     std::fs::copy(core, slot.artifact()).unwrap();
     let implicit = workspace.join("direct-implicit.slib");
     request(target, &root, &implicit, &sysroot, &[], &[])
-        .build_and_publish(DecodeLimits::default())
+        .build_and_publish()
         .unwrap();
     assert_eq!(
         std::fs::read(&explicit).unwrap(),

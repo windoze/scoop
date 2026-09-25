@@ -18,7 +18,7 @@ mod objects;
 mod shape_support;
 
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 fn with_production<R>(
@@ -81,13 +81,8 @@ fn with_production<R>(
         local_hir.resolve_identities(&mut pending).unwrap();
         mir.resolve_identities(&mut pending).unwrap();
         let mut graph = pending.finish().unwrap();
-        let table = scoop_mir_lower::lower_source_type_exports(
-            &hir_types,
-            &strong,
-            &graph,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-        .unwrap();
+        let table =
+            scoop_mir_lower::lower_source_type_exports(&hir_types, &strong, &graph).unwrap();
         run(output, &strong, &hir_types, &mut graph, &table)
     })
 }
@@ -100,35 +95,19 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let (bytes, dump) = with_production(&source, |output, strong, hir_types, graph, table| {
             identities::source_members(output, table);
-            let finite = CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-                strong,
-                table,
-                graph,
-                &mut BudgetMeter::new(DecodeLimits::default()),
-            )
-            .unwrap();
+            let finite =
+                CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(strong, table, graph)
+                    .unwrap();
             let mut records = table.clone().into_records();
             records.extend(finite.into_records());
             let combined = CanonicalParamFreeMirTypeExportsV1::try_new(records).unwrap();
             assert_eq!(
-                scoop_mir_lower::lower_type_exports(
-                    hir_types,
-                    strong,
-                    graph,
-                    &mut BudgetMeter::new(DecodeLimits::default())
-                )
-                .unwrap(),
+                scoop_mir_lower::lower_type_exports(hir_types, strong, graph).unwrap(),
                 combined
             );
             let restored: scoop_mir::DecodedCanonicalParamFreeMirTypeExportsV1 = decoded(&combined);
             assert_eq!(
-                restored
-                    .validate(
-                        graph,
-                        strong.foundation(),
-                        &mut BudgetMeter::new(DecodeLimits::default())
-                    )
-                    .unwrap(),
+                restored.validate(graph, strong.foundation()).unwrap(),
                 combined
             );
             assert!(combined.records().len() > table.records().len());
@@ -166,12 +145,7 @@ fn source_mir_types_enforce_resources_and_complete_source_membership() {
                 let other =
                     produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
                 assert!(matches!(
-                    scoop_mir_lower::lower_source_type_exports(
-                        &other,
-                        strong,
-                        graph,
-                        &mut BudgetMeter::new(DecodeLimits::default())
-                    ),
+                    scoop_mir_lower::lower_source_type_exports(&other, strong, graph),
                     Err(
                         scoop_mir_lower::SourceMirTypeProductionError::IncompleteSurface {
                             expected: 1,

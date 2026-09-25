@@ -5,7 +5,6 @@ pub enum ExecutableExpressionStructureError {
     Resource(WireError),
     DuplicateRoot(CallableMaterialization),
     ExpressionIndexOverflow(CallableMaterialization),
-    DepthOverflow,
     MissingLambda(LambdaId),
     MissingAnonymousFunction(AnonymousFunctionId),
     MissingCallableReference(CallableReferenceId),

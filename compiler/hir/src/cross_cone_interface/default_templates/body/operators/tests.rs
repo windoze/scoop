@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -40,7 +40,7 @@ fn integer_kind_tags_are_fixed_and_map_to_hir() {
         let tag = u8::try_from(index + 1).unwrap();
         assert_eq!(encode(&wire).unwrap(), vec![tag]);
         assert_eq!(
-            decode_canonical::<DefaultIntegerKindV1>(&[tag], DecodeLimits::default()).unwrap(),
+            decode_canonical::<DefaultIntegerKindV1>(&[tag]).unwrap(),
             wire
         );
         assert_eq!(DefaultIntegerKindV1::from(hir), wire);
@@ -231,12 +231,10 @@ fn operation_kinds_map_bidirectionally_to_hir() {
 
 #[test]
 fn leaf_decoders_reject_unknown_tags() {
-    let error = decode_canonical::<DefaultNoGcIntegerOperationV1>(&[17], DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DefaultNoGcIntegerOperationV1>(&[17]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 17 });
 
-    let error =
-        decode_canonical::<DefaultUnaryOperatorV1>(&[2], DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<DefaultUnaryOperatorV1>(&[2]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 2 });
 }
 
@@ -247,10 +245,7 @@ where
     for (index, value) in values.iter().copied().enumerate() {
         let tag = u8::try_from(index + 1).unwrap();
         assert_eq!(encode(&value).unwrap(), vec![tag]);
-        assert_eq!(
-            decode_canonical::<T>(&[tag], DecodeLimits::default()).unwrap(),
-            value
-        );
+        assert_eq!(decode_canonical::<T>(&[tag]).unwrap(), value);
     }
 }
 

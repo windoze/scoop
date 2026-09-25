@@ -62,16 +62,10 @@ fn section_entry_rejects_complete_payload_tampering_after_identity_checks_pass()
             )
             .unwrap();
             forged
-                .validate_sources(graph, representations, authority, &mut meter())
+                .validate_sources(graph, representations, authority)
                 .unwrap();
             let error = authority
-                .validate_protected_sources(
-                    &forged,
-                    protocols,
-                    representations,
-                    graph,
-                    &mut meter(),
-                )
+                .validate_protected_sources(&forged, protocols, representations, graph)
                 .unwrap_err();
             assert!(matches!(
                 error,
@@ -98,13 +92,7 @@ fn section_entry_requires_every_protected_root_and_zero_parameter_protocol() {
                 .unwrap();
                 assert!(
                     authority
-                        .validate_protected_sources(
-                            &forged,
-                            protocols,
-                            representations,
-                            graph,
-                            &mut meter()
-                        )
+                        .validate_protected_sources(&forged, protocols, representations, graph)
                         .is_err()
                 );
             }
@@ -122,50 +110,11 @@ fn section_entry_requires_every_protected_root_and_zero_parameter_protocol() {
                 .unwrap();
                 assert!(
                     authority
-                        .validate_protected_sources(
-                            table,
-                            &forged,
-                            representations,
-                            graph,
-                            &mut meter()
-                        )
+                        .validate_protected_sources(table, &forged, representations, graph)
                         .is_err()
                 );
             }
             assert!(zero);
-        },
-    );
-}
-
-#[test]
-fn section_entry_preserves_resource_errors_without_publishing_a_partial_proof() {
-    with_entry(
-        ENTRY,
-        |authority, table, protocols, representations, graph| {
-            for limits in [
-                DecodeLimits {
-                    decoded_nodes: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                let error = authority
-                    .validate_protected_sources(
-                        table,
-                        protocols,
-                        representations,
-                        graph,
-                        &mut BudgetMeter::new(limits),
-                    )
-                    .unwrap_err();
-                assert!(matches!(
-                    error,
-                    hir::ProtectedDeclarationSemanticError::Resource(_)
-                ));
-            }
         },
     );
 }

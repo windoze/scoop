@@ -15,9 +15,7 @@ fn shape_queries_borrow_the_artifact_keys_for_all_four_identity_roles() {
         let mut fixture = Fixture::from_output(output);
         let table = sources(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let mut bound = foundation
-            .bind_nominal_sources(&table, &mut meter())
-            .unwrap();
+        let mut bound = foundation.bind_nominal_sources(&table).unwrap();
         let mut roles = [0; 4];
         for source in table.records() {
             match source.source_shape() {

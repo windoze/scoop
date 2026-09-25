@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -21,11 +21,9 @@ fn roles_have_frozen_unsigned_tags() {
     }
 
     for tag in [0_u64, 10] {
-        let error = decode_canonical::<ExternalHirReferenceRoleV1>(
-            &encode(&Unsigned(tag)).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error =
+            decode_canonical::<ExternalHirReferenceRoleV1>(&encode(&Unsigned(tag)).unwrap())
+                .unwrap_err();
         assert!(
             matches!(error.kind(), WireErrorKind::UnknownTag { tag: actual } if *actual == tag)
         );
@@ -125,5 +123,5 @@ impl WireEncode for RoleSequence {
 }
 
 fn decode_roles(value: &impl WireEncode) -> DecodedCanonicalExternalHirReferenceRolesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

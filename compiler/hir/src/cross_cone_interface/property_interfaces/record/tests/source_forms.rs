@@ -78,7 +78,7 @@ fn each_property_representation_requires_its_actual_accessor_forms() {
         if valid {
             let record = actual.unwrap();
             let decoded: DecodedPropertyDeclarationRecordV1 =
-                decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(&record).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut fixture.authority()).unwrap(), record);
         } else {
             assert_eq!(
@@ -97,8 +97,7 @@ fn reader_rejects_a_changed_representation_after_decoding_source_forms() {
     let mut property = fixture.nominal_record().declaration_data().clone();
     property.representation = PropertyRepresentationV1::RuntimeAccessor;
     let bytes = encode(&property).unwrap();
-    let decoded: DecodedPropertyDeclarationRecordV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedPropertyDeclarationRecordV1 = decode_canonical(&bytes).unwrap();
     assert!(
         matches!(decoded.resolve(&mut fixture.authority()), Err(PropertyInterfaceRecordResolutionError::Record(PropertyInterfaceRecordBuildError::AccessorImplementations(id))) if id == fixture.ordinary_declaration())
     );

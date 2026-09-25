@@ -1,7 +1,7 @@
 use super::*;
 
 impl WireDecode for DecodedContract {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Ok(Self {
             owner: decoder.field(1, DecodedSourceNominalId::decode)?,

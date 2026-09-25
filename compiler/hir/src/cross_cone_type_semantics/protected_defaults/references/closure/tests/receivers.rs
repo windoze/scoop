@@ -108,7 +108,7 @@ fn members_use_actual_receiver_and_preserve_direct_super_context() {
         for implicit in [false, true] {
             let input = member_input(kind, implicit);
             let mut authority = Authority::default();
-            input.validate(&mut authority, &mut meter()).unwrap();
+            input.validate(&mut authority).unwrap();
             assert_eq!(authority.members, vec![(implicit, kind == 2)]);
         }
     }
@@ -131,7 +131,7 @@ fn receiver_use_cannot_claim_another_expression_or_fake_implicit_this() {
         let target = input.refs.fields[0].target().clone();
         input.refs.fields[0] = reference(&input.f, target, vec![use_at(0, receiver)]);
         assert!(matches!(
-            input.validate(&mut Authority::default(), &mut meter()),
+            input.validate(&mut Authority::default()),
             Err(ProtectedDefaultBodyClosureError::MissingUse { .. })
         ));
     }
@@ -180,16 +180,13 @@ fn field_assignment_metadata_keeps_its_actual_receiver_and_empty_uses() {
         refs,
     };
     let mut authority = Authority::default();
-    input.validate(&mut authority, &mut meter()).unwrap();
+    input.validate(&mut authority).unwrap();
     assert_eq!(authority.assignments, 2); // Field and its owner-type metadata.
     assert!(matches!(
-        input.validate(
-            &mut Authority {
-                reject_metadata: true,
-                ..Authority::default()
-            },
-            &mut meter()
-        ),
+        input.validate(&mut Authority {
+            reject_metadata: true,
+            ..Authority::default()
+        }),
         Err(ProtectedDefaultBodyClosureError::Source(_))
     ));
 }

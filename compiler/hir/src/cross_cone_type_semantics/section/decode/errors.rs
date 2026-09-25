@@ -4,13 +4,13 @@ use std::fmt;
 #[derive(Debug)]
 pub enum TypeSemanticsSectionResolutionError<E> {
     Resource(WireError),
-    Facts(MeteredExactTypeFactsResolutionError<E>),
+    Facts(ExactTypeFactsTableResolutionError<E>),
     Representation(Box<NominalRepresentationTableResolutionError<E>>),
     Inheritance(Box<InheritanceInterfaceResolutionError<E>>),
     Declarations(Box<ProtectedDeclarationResolutionError<E>>),
     Sources(Box<ProtectedSourceResolutionError<E>>),
     Defaults(Box<ProtectedDefaultTemplateTableResolutionError<E>>),
-    Origins(Box<MeteredDefinitionSourcesResolutionError<E>>),
+    Origins(Box<ExportDefinitionSourceSetValidationError<E>>),
     Selected(SelectedTypeUseResolutionError<E>),
 }
 impl<E: fmt::Display> fmt::Display for TypeSemanticsSectionResolutionError<E> {

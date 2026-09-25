@@ -2,7 +2,7 @@ use super::*;
 use crate::cross_cone_type_semantics::wire as transport;
 use crate::{
     DecodedExportDefinitionSourceV1, DecodedSourceParameterShapeV1,
-    MeteredInterfaceResolutionError, ProtectedCallableInterfaceResolver,
+    ProtectedCallableInterfaceResolver,
 };
 use scoop_identity::DecodedCallableTemplateOrigin;
 use scoop_wire::{Decoder, WireDecode, WireErrorKind};
@@ -17,7 +17,7 @@ fn tag(kind: ProtectedParameterCallingKindV1) -> u8 {
         ProtectedParameterCallingKindV1::VarargDefault => 4,
     }
 }
-fn calling(decoder: &mut Decoder<'_, '_>) -> Result<ProtectedParameterCallingKindV1, WireError> {
+fn calling(decoder: &mut Decoder<'_>) -> Result<ProtectedParameterCallingKindV1, WireError> {
     Ok(match decoder.unsigned()? {
         1 => ProtectedParameterCallingKindV1::Required,
         2 => ProtectedParameterCallingKindV1::Default,
@@ -49,19 +49,18 @@ impl DecodedCanonicalInheritanceSourceParameterProtocolsV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E: fmt::Display>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalInheritanceSourceParameterProtocolsV1, SourceInventoryError> {
-        let mut records = reserve(self.records.len(), meter)?;
+        let mut records = reserve(self.records.len())?;
         for record in self.records {
             records.push(InheritanceSourceParameterProtocolV1::try_from(
-                record.resolve(resolver, meter)?,
+                record.resolve(resolver)?,
             )?);
         }
-        CanonicalInheritanceSourceParameterProtocolsV1::from_ordered(records, meter)
+        CanonicalInheritanceSourceParameterProtocolsV1::from_ordered(records)
     }
 }
 impl WireDecode for DecodedCanonicalInheritanceSourceParameterProtocolsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedProtocol::decode(d))
             .map(|records| Self { records })
@@ -77,23 +76,12 @@ impl DecodedProtocol {
     pub(in super::super) fn resolve<R: ProtectedCallableInterfaceResolver<E>, E: fmt::Display>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<NominalSourceParameterProtocolV1, SourceInventoryError> {
-        let path = WirePath::root();
-        meter.charge_work(64, &path)?;
         let owner = self.owner.resolve(resolver).map_err(reference)?;
-        let mut parameters = reserve(self.parameters.len(), meter)?;
+        let mut parameters = reserve(self.parameters.len())?;
         for parameter in self.parameters {
-            let shape = parameter
-                .shape
-                .resolve_metered(resolver, meter)
-                .map_err(|error| match error {
-                    MeteredInterfaceResolutionError::Resource(e) => {
-                        SourceInventoryError::Resource(e)
-                    }
-                    MeteredInterfaceResolutionError::Value(e) => reference(e),
-                })?;
-            parameter.origin.charge_resolution_at(meter, &path, 3)?;
+            let shape = parameter.shape.resolve(resolver).map_err(reference)?;
+
             let origin = parameter.origin.resolve(resolver).map_err(reference)?;
             parameters.push(InheritanceSourceParameterV1::new(
                 shape,
@@ -101,6 +89,6 @@ impl DecodedProtocol {
                 origin,
             ));
         }
-        NominalSourceParameterProtocolV1::try_new(owner, parameters, meter)
+        NominalSourceParameterProtocolV1::try_new(owner, parameters)
     }
 }

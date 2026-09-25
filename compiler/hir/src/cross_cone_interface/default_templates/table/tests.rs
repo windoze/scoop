@@ -2,7 +2,7 @@ use scoop_identity::{
     CallableTemplateOrigin, StructuralDefinitionPath, StructuralDefinitionSiteRole,
     StructuralPathSegment,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::super::body::expression_test_support::{Fixture, ResolutionError, Resolver};
 use super::*;
@@ -67,8 +67,7 @@ fn indexed_table_has_canonical_wire_and_round_trips() {
         .concat()
     );
 
-    let decoded: DecodedCanonicalExportDefaultTemplatesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalExportDefaultTemplatesV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert_eq!(decoded.resolve(&mut fixture.resolver()).unwrap(), table);
 }
@@ -114,8 +113,7 @@ fn empty_table_uses_the_canonical_empty_array() {
     let table = CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap();
     assert_eq!(encode(&table.index_locals().unwrap()).unwrap(), vec![0x80]);
 
-    let decoded: DecodedCanonicalExportDefaultTemplatesV1 =
-        decode_canonical(&[0x80], DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalExportDefaultTemplatesV1 = decode_canonical(&[0x80]).unwrap();
     assert_eq!(
         decoded.resolve(&mut Fixture::new().resolver()).unwrap(),
         table
@@ -170,5 +168,5 @@ impl WireEncode for TemplateSequence {
 }
 
 fn decode_table(value: &impl WireEncode) -> DecodedCanonicalExportDefaultTemplatesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

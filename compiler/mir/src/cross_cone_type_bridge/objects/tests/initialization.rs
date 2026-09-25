@@ -27,11 +27,9 @@ fn explicit_external_initialization_uses_keep_all_typed_causes() {
             MirExternalInitializationCauseV1::InitializationSupport(fixture.units[1].id()),
         )
         .unwrap();
-    let table = CanonicalMirExternalInitializationUsesV1::try_new(
-        vec![object, property, member, support],
-        &mut meter(),
-    )
-    .unwrap();
+    let table =
+        CanonicalMirExternalInitializationUsesV1::try_new(vec![object, property, member, support])
+            .unwrap();
     assert_eq!(table.records().len(), 4);
     for record in table.records() {
         assert_eq!(record.local_unit(), fixture.units[0].id());
@@ -78,8 +76,7 @@ fn initialization_provider_is_derived_and_local_unit_belongs_to_consumer() {
             fixture.units[1].id(),
             ConeIdentity::CORE,
             fixture.units[1].id(),
-            cause,
-            &mut meter()
+            cause
         ),
         Err(MirObjectBridgeError::LocalUnitOwner { .. })
     ));
@@ -90,8 +87,7 @@ fn initialization_provider_is_derived_and_local_unit_belongs_to_consumer() {
             fixture.units[0].id(),
             ConeIdentity::SINGLE_FILE,
             fixture.units[1].id(),
-            cause,
-            &mut meter()
+            cause
         ),
         Err(MirObjectBridgeError::DependencyProvider { .. })
     ));
@@ -104,7 +100,7 @@ fn initialization_provider_is_derived_and_local_unit_belongs_to_consumer() {
     ));
     let record = fixture.use_for(1, cause).unwrap();
     assert!(matches!(
-        CanonicalMirExternalInitializationUsesV1::try_new(vec![record, record], &mut meter()),
+        CanonicalMirExternalInitializationUsesV1::try_new(vec![record, record]),
         Err(MirObjectBridgeError::DuplicateInitializationUse)
     ));
 }

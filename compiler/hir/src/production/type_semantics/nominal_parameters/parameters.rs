@@ -8,7 +8,6 @@ pub(super) fn project(
     expected: &[SignatureTypeKey],
     interface: &ExportParameterInterface,
     binders: &[HirSignatureBinder],
-    meter: &mut BudgetMeter,
 ) -> Result<NominalSourceParameterProtocolV1, Error> {
     if interface.parameters.len() != expected.len() {
         return Err(invalid(
@@ -16,17 +15,13 @@ pub(super) fn project(
         ));
     }
     let path = WirePath::root();
-    meter
-        .check_table_entries(expected.len() as u64, &path)
-        .map_err(resource)?;
+
     let mut parameters = Vec::new();
-    meter
-        .try_reserve_collection_slots(&mut parameters, expected.len(), &path)
+    scoop_wire::allocation::try_reserve(&mut parameters, expected.len(), &path)
         .map_err(resource)?;
     for (parameter, expected) in interface.parameters.iter().zip(expected) {
-        resources::name(&parameter.name, meter)?;
         let (ty, kind) = calling(export, parameter.calling)?;
-        resources::ty(export, ty, binders.len(), 3, meter)?;
+
         let value = signatures.map_type(ty, binders).map_err(invalid)?;
         if &value != expected {
             return Err(invalid(
@@ -34,23 +29,16 @@ pub(super) fn project(
             ));
         }
         let name = CanonicalIdentifier::new(&parameter.name).map_err(invalid)?;
-        let file = export
+        export
             .source_files
             .get(parameter.origin.file as usize)
             .ok_or_else(|| invalid("nominal parameter has no source file"))?;
-        resources::name(file.identity.logical_path().as_str(), meter)?;
-        meter.check_semantic_depth(5, &path).map_err(resource)?;
-        meter.charge_nodes(3, &path).map_err(resource)?;
-        let context = export
+
+        export
             .source_context_identities
             .get(parameter.origin.context)
             .ok_or_else(|| invalid("nominal parameter has no persistent source context"))?;
-        meter
-            .charge_sha256(
-                scoop_wire::encoded_length(context.key()).map_err(invalid)?,
-                &path,
-            )
-            .map_err(resource)?;
+
         let origin = crate::production::definition_sources::project_definition_source(
             export,
             parameter.origin,
@@ -62,7 +50,7 @@ pub(super) fn project(
             origin,
         ));
     }
-    NominalSourceParameterProtocolV1::try_new(declaration, parameters, meter)
+    NominalSourceParameterProtocolV1::try_new(declaration, parameters)
         .map_err(Error::SourceInventory)
 }
 

@@ -11,7 +11,6 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
     pub(in crate::production::external_references) fn add_runtime_call_sites<E>(
         &mut self,
         output: &crate::DependencyHirOutput,
-        meter: &mut BudgetMeter,
     ) -> Result<(), ExternalHirReferenceProductionError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
@@ -36,7 +35,7 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
         let path = WirePath::root();
         let role = ExternalHirReferenceRoleV1::RuntimeOperationDependency;
         module
-            .visit_executable_expressions(meter, |occurrence, meter| {
+            .visit_executable_expressions(|occurrence| {
                 let ExprKind::Cast {
                     check_ty,
                     optional: false,
@@ -53,15 +52,10 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
                         ty: *check_ty,
                     })?
                     .id();
-                let hash_size = PersistentExactTypeId::hash_stream_length(&result_key)
-                    .map_err(|error| Error::RuntimeExact(error.to_string()))?;
-                meter
-                    .charge_sha256(hash_size, &path)
-                    .map_err(Error::Resource)?;
+
                 let result = PersistentExactTypeId::from_key(&result_key)
                     .map_err(|error| Error::RuntimeExact(error.to_string()))?;
-                let origin =
-                    super::super::origins::project(output, occurrence.expression.origin, meter)?;
+                let origin = super::super::origins::project(output, occurrence.expression.origin)?;
                 let site = HirDependencyCallSiteV1::try_new_with_reason(
                     occurrence.position,
                     origin,
@@ -74,14 +68,8 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
                 let Some(pending) = self.observe_pending(target, role)? else {
                     return Ok(());
                 };
-                meter
-                    .charge_owned_bytes(
-                        std::mem::size_of::<super::super::calls::PendingCallSite<'_>>() as u64,
-                        &path,
-                    )
-                    .map_err(Error::Resource)?;
-                meter
-                    .try_reserve_collection_slots(&mut pending.call_sites, 1, &path)
+
+                scoop_wire::allocation::try_reserve(&mut pending.call_sites, 1, &path)
                     .map_err(Error::Resource)?;
                 pending
                     .call_sites

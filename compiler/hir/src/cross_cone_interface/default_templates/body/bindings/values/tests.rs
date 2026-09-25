@@ -1,5 +1,5 @@
 use scoop_identity::LocalValueSelector;
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::CanonicalBooleanV1;
@@ -13,8 +13,7 @@ fn temporary_uses_canonical_local_index_and_round_trips() {
     let bytes = encode(&expected.index_local(&mut locals).unwrap()).unwrap();
 
     assert_eq!(hex(&bytes), "a2010102a3000701000200");
-    let decoded: DecodedDefaultBindingTemporaryV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultBindingTemporaryV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver, &mut locals), Ok(expected));
 }
 
@@ -25,8 +24,7 @@ fn leaf_preserves_mutability_and_round_trips() {
     let bytes = encode(&expected.index_local(&mut locals).unwrap()).unwrap();
 
     assert_eq!(hex(&bytes), "a3010202a30007010002020302");
-    let decoded: DecodedDefaultBindingLeafV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultBindingLeafV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver, &mut locals), Ok(expected));
 }
 
@@ -48,12 +46,9 @@ fn typed_binding_values_report_local_index_failures() {
 
 #[test]
 fn leaf_decoder_rejects_noncanonical_boolean_tags() {
-    let error = decode_canonical::<DecodedDefaultBindingLeafV1>(
-        &[
-            0xa3, 0x01, 0x00, 0x02, 0xa3, 0x00, 0x07, 0x01, 0x00, 0x02, 0x00, 0x03, 0x03,
-        ],
-        DecodeLimits::default(),
-    )
+    let error = decode_canonical::<DecodedDefaultBindingLeafV1>(&[
+        0xa3, 0x01, 0x00, 0x02, 0xa3, 0x00, 0x07, 0x01, 0x00, 0x02, 0x00, 0x03, 0x03,
+    ])
     .unwrap_err();
 
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });

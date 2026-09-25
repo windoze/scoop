@@ -9,14 +9,12 @@ impl HirInterfaceValidationInput<'_> {
         reference: &ExternalHirReferenceV1,
         site: &HirDependencyCallSiteV1,
         dependencies: &[ValidatedNominalProviderView<'_>],
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), CrossConeHirRuntimeCallError> {
         use CrossConeHirRuntimeCallError as Error;
         let HirDependencyCallReasonV1::CastFailure { .. } = site.reason() else {
             return Ok(());
         };
-        meter.charge_work(dependencies.len() as u64 + 1, path)?;
+
         let provider = dependencies
             .iter()
             .find(|provider| provider.identity == reference.origin())
@@ -32,10 +30,9 @@ impl HirInterfaceValidationInput<'_> {
                 provider.identity,
                 provider.identities,
                 provider.interface,
-                meter,
             )
             .map_err(|source| Error::Constructor(Box::new(source)))?;
-        site.validate_runtime_constructor_role(reference.target(), owner, roles, meter)
+        site.validate_runtime_constructor_role(reference.target(), owner, roles)
             .map_err(|source| Error::Constructor(Box::new(source)))
     }
 }

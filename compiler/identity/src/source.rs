@@ -47,7 +47,7 @@ impl WireEncode for DecodedSourceContentDigest {
 }
 
 impl WireDecode for DecodedSourceContentDigest {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.owned_bytes().map(Self)
     }
 }
@@ -160,7 +160,7 @@ impl WireEncode for DecodedNormalizedSourcePath {
 }
 
 impl WireDecode for DecodedNormalizedSourcePath {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.owned_text().map(Self)
     }
 }
@@ -353,7 +353,7 @@ impl WireEncode for DecodedSourceIdentity {
 }
 
 impl WireDecode for DecodedSourceIdentity {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         let cone = decoder.field(1, DecodedPersistentId::decode)?;
         let logical_path = decoder.field(2, DecodedNormalizedSourcePath::decode)?;
@@ -439,7 +439,7 @@ impl<E: std::error::Error + 'static> std::error::Error for SourceIdentityResolut
 mod tests {
     use std::path::Path;
 
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::{
         DecodedSourceContentDigest, NormalizedSourcePath, NormalizedSourcePathError,
@@ -541,17 +541,14 @@ mod tests {
             [vec![0x58, 0x20], digest.as_array().to_vec(),].concat()
         );
         assert_eq!(
-            decode_canonical::<DecodedSourceContentDigest>(
-                &encode(&digest).unwrap(),
-                DecodeLimits::default()
-            )
-            .unwrap()
-            .validate()
-            .unwrap(),
+            decode_canonical::<DecodedSourceContentDigest>(&encode(&digest).unwrap())
+                .unwrap()
+                .validate()
+                .unwrap(),
             digest
         );
         assert_eq!(
-            decode_canonical::<DecodedSourceContentDigest>(b"\x43bad", DecodeLimits::default())
+            decode_canonical::<DecodedSourceContentDigest>(b"\x43bad")
                 .unwrap()
                 .validate(),
             Err(SourceContentDigestError::InvalidLength { actual: 3 })
@@ -561,11 +558,7 @@ mod tests {
     #[test]
     fn source_decode_verifies_the_coordinate_and_path() {
         let source = SourceIdentity::single_file();
-        let decoded = decode_canonical::<DecodedSourceIdentity>(
-            &encode(&source).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded = decode_canonical::<DecodedSourceIdentity>(&encode(&source).unwrap()).unwrap();
         assert_eq!(
             decoded
                 .validate(&ConeCoordinate::reserved_single_file())
@@ -603,8 +596,7 @@ mod tests {
 
         let source = SourceIdentity::single_file();
         let bytes = encode(&source).unwrap();
-        let decoded =
-            decode_canonical::<DecodedSourceIdentity>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedSourceIdentity>(&bytes).unwrap();
         assert_eq!(
             decoded
                 .resolve(&mut Resolver(ConeIdentity::SINGLE_FILE))
@@ -612,8 +604,7 @@ mod tests {
             source
         );
 
-        let decoded =
-            decode_canonical::<DecodedSourceIdentity>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedSourceIdentity>(&bytes).unwrap();
         assert!(matches!(
             decoded.resolve(&mut Resolver(ConeIdentity::CORE)),
             Err(SourceIdentityResolutionError::Cone(ConeResolutionError))

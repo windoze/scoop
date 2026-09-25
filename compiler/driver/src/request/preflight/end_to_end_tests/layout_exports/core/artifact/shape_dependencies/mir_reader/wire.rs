@@ -20,7 +20,6 @@ pub(super) fn resolve(
             authority.foundation(),
             dependencies.iter().map(|section| section.types()),
             &mut identities,
-            &mut meter(),
         )
         .unwrap()
         .resolve_callables::<Infallible>(
@@ -29,10 +28,9 @@ pub(super) fn resolve(
                 .iter()
                 .map(|section| (section.types(), section.callables(), section.dispatch())),
             &mut identities,
-            &mut meter(),
         )
         .unwrap()
-        .resolve_dependencies::<Infallible>(authority, &mut identities, &mut meter())
+        .resolve_dependencies::<Infallible>(authority, &mut identities)
         .unwrap()
 }
 

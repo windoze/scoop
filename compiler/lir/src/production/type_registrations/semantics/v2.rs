@@ -3,7 +3,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::PersistentExactTypeId;
-use scoop_wire::BudgetMeter;
 
 use super::*;
 use crate::{StrongTypeDescriptorRefV2, StrongTypeDispatchCallableRefV2};
@@ -16,7 +15,6 @@ impl StrongTypeDescriptorSemanticPlanSetV2 {
     pub fn from_module(
         module: &Module,
         selected: &crate::StrongProductionDependencySelectionV2<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, StrongTypeDescriptorSemanticPlanBuildError> {
         if selected.consumer() != module.cone {
             return Err(
@@ -38,7 +36,7 @@ impl StrongTypeDescriptorSemanticPlanSetV2 {
             .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
         let mut canonical = BTreeMap::new();
         for (_, descriptor) in module.meta.type_descriptors.iter() {
-            let plan = build_descriptor_v2(module, descriptor, selected, meter)?;
+            let plan = build_descriptor_v2(module, descriptor, selected)?;
             if canonical.insert(plan.exact_type, plan).is_some() {
                 return Err(
                     StrongTypeDescriptorSemanticPlanBuildError::DuplicateExactType(
@@ -59,7 +57,6 @@ fn build_descriptor_v2(
     module: &Module,
     descriptor: &TypeDescriptor,
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongTypeDescriptorSemanticPlanV2, StrongTypeDescriptorSemanticPlanBuildError> {
     let exact_type = descriptor.identity.exact_type();
     if descriptor.diagnostic_name.is_empty() {
@@ -78,17 +75,11 @@ fn build_descriptor_v2(
 
     let parent = descriptor
         .parent
-        .map(|reference| descriptor_ref(module, reference, selected, meter))
+        .map(|reference| descriptor_ref(module, reference, selected))
         .transpose()?;
     let vtable = StrongTypeVtableSemanticPlanV2::from_artifact(
         descriptor.vtable.identity_record().id(),
-        slots(
-            module,
-            exact_type,
-            descriptor.vtable.slots(),
-            selected,
-            meter,
-        )?,
+        slots(module, exact_type, descriptor.vtable.slots(), selected)?,
     );
     let mut tables = BTreeSet::from([vtable.table()]);
     let mut interfaces = BTreeSet::new();
@@ -99,7 +90,7 @@ fn build_descriptor_v2(
                 StrongTypeDescriptorSemanticPlanBuildError::ItableOwnerMismatch(exact_type),
             );
         }
-        let interface = descriptor_ref(module, itable.interface(), selected, meter)?;
+        let interface = descriptor_ref(module, itable.interface(), selected)?;
         if !itable.belongs_to_interface_exact_type(interface.exact_type()) {
             return Err(
                 StrongTypeDescriptorSemanticPlanBuildError::ItableInterfaceMismatch {
@@ -128,7 +119,7 @@ fn build_descriptor_v2(
         itables.push(StrongTypeItableSemanticPlanV2::from_artifact(
             table,
             interface,
-            slots(module, exact_type, itable.slots(), selected, meter)?,
+            slots(module, exact_type, itable.slots(), selected)?,
         ));
     }
 
@@ -149,7 +140,6 @@ fn descriptor_ref(
     module: &Module,
     reference: TypeDescriptorRef,
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<StrongTypeDescriptorRefV2, StrongTypeDescriptorSemanticPlanBuildError> {
     Ok(match reference {
         TypeDescriptorRef::Local(id) => {
@@ -178,7 +168,7 @@ fn descriptor_ref(
                     exact: descriptor.target(),
                 }
             } else {
-                validate_descriptor_selection(selected, descriptor, meter)?;
+                validate_descriptor_selection(selected, descriptor)?;
                 StrongTypeDescriptorRefV2::DependencyExternal {
                     provider: descriptor.provider(),
                     exact: descriptor.target(),
@@ -193,7 +183,6 @@ fn slots(
     exact_type: PersistentExactTypeId,
     entries: &[DispatchEntry],
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<Vec<StrongTypeDispatchCallableRefV2>, StrongTypeDescriptorSemanticPlanBuildError> {
     entries
         .iter()
@@ -231,7 +220,7 @@ fn slots(
                         }
                         crate::ExternalCallableOrigin::Legacy(_)
                         | crate::ExternalCallableOrigin::LayoutV1 => {
-                            validate_callable_selection(selected, callable, module, meter)?;
+                            validate_callable_selection(selected, callable, module)?;
                             StrongTypeDispatchCallableRefV2::DependencyExternal {
                                 provider: callable.provider(),
                                 body: callable.body(),
@@ -247,10 +236,9 @@ fn slots(
 fn validate_descriptor_selection(
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
     descriptor: crate::ExternalTypeDescriptor,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongTypeDescriptorSemanticPlanBuildError> {
     let replayed = selected
-        .materialize_type_descriptor(descriptor.provider(), descriptor.target(), meter)
+        .materialize_type_descriptor(descriptor.provider(), descriptor.target())
         .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalMaterialization)?;
     if replayed != descriptor {
         return Err(
@@ -267,7 +255,6 @@ fn validate_callable_selection(
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
     callable: &crate::ExternalCallable,
     module: &Module,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongTypeDescriptorSemanticPlanBuildError> {
     let replayed = selected
         .materialize_dispatch_callable(
@@ -275,7 +262,6 @@ fn validate_callable_selection(
             callable.target(),
             callable.signature().clone(),
             &module.enums,
-            meter,
         )
         .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalMaterialization)?;
     if replayed != *callable {

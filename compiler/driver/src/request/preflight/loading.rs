@@ -3,7 +3,6 @@ use super::*;
 impl SingleConeBuildRequest {
     pub(super) fn load_preflight_inner(
         self,
-        limits: DecodeLimits,
     ) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
         let Self {
             current,
@@ -18,12 +17,11 @@ impl SingleConeBuildRequest {
         if let TrustedCoreInput::Artifact(input) = &trusted_core {
             dependencies.direct.push(input.clone());
         }
-        let mut loaded = LoadedExplicitDependencyInputs::load(
-            dependencies.direct(),
-            dependencies.support(),
-            limits,
-        )
-        .map_err(|source| SingleConePreflightError::ExplicitDependencyLoad(Box::new(source)))?;
+        let mut loaded =
+            LoadedExplicitDependencyInputs::load(dependencies.direct(), dependencies.support())
+                .map_err(|source| {
+                    SingleConePreflightError::ExplicitDependencyLoad(Box::new(source))
+                })?;
         if let TrustedCoreInput::DependenciesOrDefault { sysroot } = trusted_core
             && !loaded
                 .contains_explicit_core(target.lir_target_selection())

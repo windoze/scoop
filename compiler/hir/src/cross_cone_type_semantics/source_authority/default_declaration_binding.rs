@@ -1,7 +1,7 @@
 //! Default declaration contracts from artifact-bound complete nominal sources.
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 mod contracts;
 mod data_flow;
@@ -49,51 +49,36 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         &'d self,
         templates: &'d CanonicalDefaultSourceTemplatesV1,
         dependencies: &[&'d BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>],
-        meter: &mut BudgetMeter,
     ) -> Result<BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f>, Error> {
         let path = WirePath::root();
         let mut foundations = Vec::new();
-        meter.try_reserve_collection_slots(&mut foundations, dependencies.len(), &path)?;
-        meter.charge_work(dependencies.len() as u64, &path)?;
+        scoop_wire::allocation::try_reserve(&mut foundations, dependencies.len(), &path)?;
+
         foundations.extend(dependencies.iter().map(|p| p.members().nominals.foundation));
         // Reuse the complete location transaction with exactly these artifacts.
         // It also enforces dependency order and one shared identity graph.
-        let origins = self.bind_default_origins(templates, &foundations, meter)?;
+        let origins = self.bind_default_origins(templates, &foundations)?;
         let mut declarations = Vec::new();
-        meter.try_reserve_collection_slots(&mut declarations, templates.records().len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut declarations, templates.records().len(), &path)?;
         for (index, template) in templates.records().iter().enumerate() {
             let path = path.clone().index(index as u64);
-            meter.charge_nodes(1, &path)?;
+
             let provider = sources::provider(
                 self,
                 dependencies,
                 template.definition_origin().origin().source().cone(),
-                meter,
-                &path,
             )?;
             let contract = (|| {
-                let contract = contracts::validate(self, provider, template, meter, &path)?;
-                nested_identities::validate(
-                    self,
-                    dependencies,
-                    &contract.nested_callables,
-                    meter,
-                    &path,
-                )?;
-                data_flow::validate(self, dependencies, template, meter, &path)?;
-                let references = template.bind_reference_occurrences(meter, &path)?;
+                let contract = contracts::validate(self, provider, template, &path)?;
+                nested_identities::validate(self, dependencies, &contract.nested_callables, &path)?;
+                data_flow::validate(self, dependencies, template, &path)?;
+                let references = template.bind_reference_occurrences(&path)?;
                 let publishing_call_domain =
-                    direct_domain::source_domain(self, template.key().owner(), meter, &path)?;
+                    direct_domain::source_domain(self, template.key().owner(), &path)?;
                 let direct_call_domain =
-                    direct_domain::validate(provider, template, &references, meter, &path)?;
-                let provider_dispatch = provider_slot::validate(
-                    provider,
-                    &contract,
-                    &direct_call_domain,
-                    &references,
-                    meter,
-                    &path,
-                )?;
+                    direct_domain::validate(provider, template, &references, &path)?;
+                let provider_dispatch =
+                    provider_slot::validate(provider, &contract, &direct_call_domain, &references)?;
                 Ok(DefaultSourceDeclaredContractV1 {
                     facts: contract,
                     references,
@@ -127,9 +112,7 @@ impl<'d, 'p, 's, 'a, 'f> BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
     pub fn declaration(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
-        meter: &mut BudgetMeter,
     ) -> Result<&DefaultSourceDeclaredContractV1<'d>, Error> {
-        sources::query(self.declarations.len(), meter, &WirePath::root())?;
         self.declarations
             .binary_search_by_key(&key, |record| record.key())
             .map(|index| &self.declarations[index])

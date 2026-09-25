@@ -5,7 +5,7 @@ use scoop_identity::{
 };
 use scoop_lir::{DecodedLirFoundation, ValidatedLirFoundation};
 use scoop_mir::{DecodedMirFoundation, ValidatedMirFoundation};
-use scoop_wire::{DecodeUsage, WirePath, decode_canonical_with_meter};
+use scoop_wire::decode_canonical;
 
 use crate::{
     ArtifactFingerprint, DecodedMetadataEnvelope, DependencyRecord, MemberPurposeSet,
@@ -14,8 +14,6 @@ use crate::{
     mir_identity_foundation_capability,
 };
 
-const IDENTITY_FOUNDATION_HANDLER_BASE_WORK: u64 = 64;
-
 mod error;
 pub use error::{FoundationStructureValidationError, IdentityFoundationDecodeError};
 mod commit;
@@ -23,7 +21,7 @@ pub use commit::{
     CompileCapabilityProfile, CompileCommitError, CrossConeSemanticsStrongProfile,
     IdentityFoundationProfile, SingleConeStrongProfile, ValidatedCompileArtifact,
 };
-pub(crate) use commit::{charge_identity_import, commit_identity_graph, semantic_identity_import};
+pub(crate) use commit::{commit_identity_graph, semantic_identity_import};
 mod native_boundary;
 pub(crate) use native_boundary::{
     AbiReplayDependency, NativeBoundaryFoundationView, collect_abi_types,
@@ -76,7 +74,7 @@ pub struct StructurallyValidatedFoundations<'input> {
 
 impl<'input> ValidatedGraphArtifact<'input> {
     pub fn decode_identity_foundations(
-        mut self,
+        self,
     ) -> Result<DecodedIdentityFoundations<'input>, IdentityFoundationDecodeError> {
         reject_compile_required_manifest_sections(&self)?;
 
@@ -102,33 +100,21 @@ impl<'input> ValidatedGraphArtifact<'input> {
             },
         )?;
 
-        let hir_envelope = DecodedMetadataEnvelope::decode_with_meter(
-            hir_payload,
-            MetadataLocation::Hir,
-            self.envelope.meter_mut(),
-        )
-        .map_err(|source| IdentityFoundationDecodeError::OuterEnvelope {
-            location: MetadataLocation::Hir,
-            source,
-        })?;
-        let mir_envelope = DecodedMetadataEnvelope::decode_with_meter(
-            mir_payload,
-            MetadataLocation::Mir,
-            self.envelope.meter_mut(),
-        )
-        .map_err(|source| IdentityFoundationDecodeError::OuterEnvelope {
-            location: MetadataLocation::Mir,
-            source,
-        })?;
-        let lir_envelope = DecodedMetadataEnvelope::decode_with_meter(
-            lir_payload,
-            MetadataLocation::Lir,
-            self.envelope.meter_mut(),
-        )
-        .map_err(|source| IdentityFoundationDecodeError::OuterEnvelope {
-            location: MetadataLocation::Lir,
-            source,
-        })?;
+        let hir_envelope = DecodedMetadataEnvelope::decode(hir_payload, MetadataLocation::Hir)
+            .map_err(|source| IdentityFoundationDecodeError::OuterEnvelope {
+                location: MetadataLocation::Hir,
+                source,
+            })?;
+        let mir_envelope = DecodedMetadataEnvelope::decode(mir_payload, MetadataLocation::Mir)
+            .map_err(|source| IdentityFoundationDecodeError::OuterEnvelope {
+                location: MetadataLocation::Mir,
+                source,
+            })?;
+        let lir_envelope = DecodedMetadataEnvelope::decode(lir_payload, MetadataLocation::Lir)
+            .map_err(|source| IdentityFoundationDecodeError::OuterEnvelope {
+                location: MetadataLocation::Lir,
+                source,
+            })?;
 
         let hir_section =
             required_foundation_section(&hir_envelope, hir_identity_foundation_capability())?;
@@ -137,40 +123,36 @@ impl<'input> ValidatedGraphArtifact<'input> {
         let lir_section =
             required_foundation_section(&lir_envelope, lir_identity_foundation_capability())?;
 
-        let hir = decode_canonical_with_meter::<DecodedHirFoundation>(
-            hir_section.payload(),
-            foundation_handler_meter(&mut self.envelope, MetadataLocation::Hir)?,
-        )
-        .map_err(|source| IdentityFoundationDecodeError::InnerFoundation {
-            location: MetadataLocation::Hir,
-            source,
-        })?;
-        let mir = decode_canonical_with_meter::<DecodedMirFoundation>(
-            mir_section.payload(),
-            foundation_handler_meter(&mut self.envelope, MetadataLocation::Mir)?,
-        )
-        .map_err(|source| IdentityFoundationDecodeError::InnerFoundation {
-            location: MetadataLocation::Mir,
-            source,
-        })?;
-        let lir = decode_canonical_with_meter::<DecodedLirFoundation>(
-            lir_section.payload(),
-            foundation_handler_meter(&mut self.envelope, MetadataLocation::Lir)?,
-        )
-        .map_err(|source| IdentityFoundationDecodeError::InnerFoundation {
-            location: MetadataLocation::Lir,
-            source,
-        })?;
+        let hir =
+            decode_canonical::<DecodedHirFoundation>(hir_section.payload()).map_err(|source| {
+                IdentityFoundationDecodeError::InnerFoundation {
+                    location: MetadataLocation::Hir,
+                    source,
+                }
+            })?;
+        let mir =
+            decode_canonical::<DecodedMirFoundation>(mir_section.payload()).map_err(|source| {
+                IdentityFoundationDecodeError::InnerFoundation {
+                    location: MetadataLocation::Mir,
+                    source,
+                }
+            })?;
+        let lir =
+            decode_canonical::<DecodedLirFoundation>(lir_section.payload()).map_err(|source| {
+                IdentityFoundationDecodeError::InnerFoundation {
+                    location: MetadataLocation::Lir,
+                    source,
+                }
+            })?;
 
         let actual = {
-            let (manifest, meter) = self.envelope.manifest_and_meter();
+            let manifest = self.envelope.manifest();
             SemanticFingerprintRecord::from_decoded_compile_metadata_sections(
                 manifest.compatibility(),
                 manifest.direct_dependencies(),
                 hir_envelope.sections(),
                 mir_envelope.sections(),
                 lir_envelope.sections(),
-                meter,
             )
         }
         .map_err(IdentityFoundationDecodeError::SemanticFingerprints)?;
@@ -198,17 +180,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
             lir,
         })
     }
-}
-
-fn foundation_handler_meter<'envelope, 'input>(
-    envelope: &'envelope mut crate::DecodedSlibEnvelope<'input>,
-    location: MetadataLocation,
-) -> Result<&'envelope mut scoop_wire::BudgetMeter, IdentityFoundationDecodeError> {
-    let meter = envelope.meter_mut();
-    meter
-        .charge_work(IDENTITY_FOUNDATION_HANDLER_BASE_WORK, &WirePath::root())
-        .map_err(|source| IdentityFoundationDecodeError::InnerFoundation { location, source })?;
-    Ok(meter)
 }
 
 fn require_semantic_fingerprint(
@@ -242,10 +213,6 @@ impl<'input> DecodedIdentityFoundations<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub const fn hir_wire(&self) -> &DecodedHirFoundation {
@@ -305,8 +272,8 @@ pub(crate) fn validate_foundation_identity_graph_with_authorities<'authority>(
     external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
 ) -> Result<ValidatedIdentityGraph, IdentityValidationError> {
     let producer = graph.identity();
-    let (manifest, meter) = graph.envelope.manifest_and_meter();
-    let mut validation = PendingIdentityValidation::with_meter(meter);
+    let manifest = graph.envelope.manifest();
+    let mut validation = PendingIdentityValidation::new();
     validation.register_authority(ConeIdentity::CORE)?;
     if producer != ConeIdentity::CORE {
         validation.register_authority(producer)?;
@@ -349,10 +316,6 @@ impl<'input> IdentityCheckedFoundations<'input> {
         self.graph.artifact_fingerprint()
     }
 
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
-    }
-
     pub fn identity_count(&self) -> usize {
         self.identities.identity_count()
     }
@@ -379,23 +342,23 @@ impl<'input> IdentityCheckedFoundations<'input> {
         self,
     ) -> Result<StructurallyValidatedFoundations<'input>, FoundationStructureValidationError> {
         let Self {
-            mut graph,
+            graph,
             mut identities,
             hir,
             mir,
             lir,
         } = self;
         let producer = graph.identity();
-        let (manifest, meter) = graph.envelope.manifest_and_meter();
+        let manifest = graph.envelope.manifest();
         let coordinate = manifest.cone().coordinate();
         let hir = hir
-            .validate(coordinate, &mut identities, meter)
+            .validate(coordinate, &mut identities)
             .map_err(FoundationStructureValidationError::Hir)?;
         let mir = mir
-            .validate(&mut identities, meter)
+            .validate(&mut identities)
             .map_err(FoundationStructureValidationError::Mir)?;
         let lir = lir
-            .validate(producer, &mut identities, meter)
+            .validate(producer, &mut identities)
             .map_err(FoundationStructureValidationError::Lir)?;
         Ok(StructurallyValidatedFoundations {
             graph,
@@ -422,10 +385,6 @@ impl StructurallyValidatedFoundations<'_> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {

@@ -8,32 +8,24 @@ impl Graph<'_> {
         &self,
         source: PersistentExactTypeId,
         target: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<bool, Error> {
         // Reuse shared subqueries within one occurrence, never across calls.
-        self.receiver_relation(source, target, 1, &mut Relations::new(), meter, path)
+        self.receiver_relation(source, target, &mut Relations::new(), path)
     }
 
     fn receiver_relation(
         &self,
         source: PersistentExactTypeId,
         target: PersistentExactTypeId,
-        depth: u64,
         known: &mut Relations,
-        meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<bool, Error> {
-        meter.check_semantic_depth(depth, path)?;
-        meter.charge_work(1 + u64::from(known.len().max(1).ilog2()), path)?;
         if let Some(result) = known.get(&(source, target)) {
             return Ok(*result);
         }
-        meter.charge_nodes(1, path)?;
-        meter.charge_work(
-            2 * (1 + u64::from(self.current.identities.identity_count().max(1).ilog2())),
-            path,
-        )?;
+
         let source_key = self
             .current
             .identities
@@ -52,8 +44,8 @@ impl Graph<'_> {
                     true
                 }
                 (ExactTypeKey::Nominal(_), ExactTypeKey::Nominal(_)) => {
-                    is_nominal_ancestor(source, target, meter, path, |current, meter| {
-                        self.source_receiver_parents(current, meter, path)
+                    is_nominal_ancestor(source, target, path, |current| {
+                        self.source_receiver_parents(current, path)
                     })?
                 }
                 (
@@ -72,29 +64,13 @@ impl Graph<'_> {
                 {
                     let mut compatible = true;
                     for (target, source) in target_parameters.iter().zip(source_parameters) {
-                        meter.charge_edges(1, path)?;
-                        if !self.receiver_relation(
-                            *target,
-                            *source,
-                            depth + 1,
-                            known,
-                            meter,
-                            path,
-                        )? {
+                        if !self.receiver_relation(*target, *source, known, path)? {
                             compatible = false;
                             break;
                         }
                     }
                     if compatible {
-                        meter.charge_edges(1, path)?;
-                        self.receiver_relation(
-                            *source_result,
-                            *target_result,
-                            depth + 1,
-                            known,
-                            meter,
-                            path,
-                        )?
+                        self.receiver_relation(*source_result, *target_result, known, path)?
                     } else {
                         false
                     }
@@ -104,9 +80,7 @@ impl Graph<'_> {
                 _ => false,
             }
         };
-        meter.charge_work(1 + u64::from(known.len().max(1).ilog2()), path)?;
-        meter.check_table_entries(known.len() as u64 + 1, path)?;
-        meter.charge_collection_slots(1, path)?;
+
         known.insert((source, target), result);
         Ok(result)
     }

@@ -7,7 +7,7 @@ use scoop_identity::{
     RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite,
     StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::CanonicalLirFoundation;
@@ -55,8 +55,7 @@ fn wire_reader_only_returns_the_independently_rebuilt_surface() {
     let surface =
         StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
     let encoded = encode(&surface).unwrap();
-    let decoded: DecodedStrongObjectSymbolSurfaceV1 =
-        decode_canonical(&encoded, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongObjectSymbolSurfaceV1 = decode_canonical(&encoded).unwrap();
 
     assert_eq!(decoded.validate(&fixture.foundation), Ok(surface));
 }
@@ -73,11 +72,7 @@ fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
     let mut missing_definition_field = encoded.clone();
     missing_definition_field[1] = 0xa5;
     assert!(
-        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(
-            &missing_definition_field,
-            DecodeLimits::default(),
-        )
-        .is_err()
+        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(&missing_definition_field,).is_err()
     );
 
     let boundary_map = encoded
@@ -89,11 +84,7 @@ fn wire_reader_rejects_non_closed_definition_and_boundary_records() {
     let mut extra_boundary_field = encoded;
     extra_boundary_field[boundary_map] = 0xa5;
     assert!(
-        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(
-            &extra_boundary_field,
-            DecodeLimits::default(),
-        )
-        .is_err()
+        decode_canonical::<DecodedStrongObjectSymbolSurfaceV1>(&extra_boundary_field,).is_err()
     );
 }
 

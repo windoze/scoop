@@ -5,7 +5,7 @@ use scoop_identity::{
     DeclarationScope, DefinitionOwnerChain, ExportBindingKey, PackagePath,
     PersistentExportBindingId, PersistentTypeAliasId, SourceDeclarationKey, SourceDeclarationSite,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -204,11 +204,7 @@ fn validate(
     section: &CrossConeHirInterfaceSectionV1,
     authority: &mut Authority,
 ) -> Result<(), CrossConeHirExternalReferenceValidationError<AuthorityError>> {
-    section.validate_external_reference_closure(
-        authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
+    section.validate_external_reference_closure(authority, &WirePath::root())
 }
 
 fn empty_section(references: CanonicalExternalHirReferencesV1) -> CrossConeHirInterfaceSectionV1 {
@@ -276,34 +272,16 @@ impl PublicExportBindingClosureAuthority for Authority {
         self.surfaces.len()
     }
 
-    fn is_direct_dependency(
-        &self,
-        provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(provider == self.provider)
+    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
+        provider == self.provider
     }
 
-    fn binding_key(
-        &self,
-        binding: PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(self.keys.get(&binding))
+    fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        self.keys.get(&binding)
     }
 
-    fn public_bindings(
-        &self,
-        exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(self.surfaces.get(&exporter))
+    fn public_bindings(&self, exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
+        self.surfaces.get(&exporter)
     }
 }
 

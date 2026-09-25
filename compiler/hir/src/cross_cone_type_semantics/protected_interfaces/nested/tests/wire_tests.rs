@@ -35,7 +35,7 @@ impl WireEncode for ReversedMembers<'_> {
     }
 }
 #[test]
-fn nested_reader_rejects_noncanonical_member_order_unknown_tag_and_exhausted_budget() {
+fn nested_reader_rejects_noncanonical_member_order_and_unknown_tag() {
     let mut fixture = Fixture::default();
     let outer = fixture.class("Outer");
     let owner = nested_class(&mut fixture, outer, "Nested");
@@ -51,27 +51,13 @@ fn nested_reader_rejects_noncanonical_member_order_unknown_tag_and_exhausted_bud
         vec![first_record, second_record],
     );
     let bytes = encode(&ReversedMembers(&source)).unwrap();
-    let decoded: DecodedProtectedNestedSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedProtectedNestedSourceInterfaceV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
-        decoded.resolve(&mut fixture, &mut meter()),
+        decoded.resolve(&mut fixture),
         Err(NestedSourceResolutionError::Build(
             NestedSourceBuildError::NonCanonicalOrder
         ))
     ));
-    let bytes = encode(&source).unwrap();
-    let decoded: DecodedProtectedNestedSourceInterfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let limits = DecodeLimits {
-        decoded_nodes: 0,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        decoded.resolve(&mut fixture, &mut BudgetMeter::new(limits)),
-        Err(NestedSourceResolutionError::Resource(_))
-    ));
-    assert!(
-        decode_canonical::<DecodedNestedNominalSupportV1>(&[0xa1, 0, 3], DecodeLimits::default())
-            .is_err()
-    );
+
+    assert!(decode_canonical::<DecodedNestedNominalSupportV1>(&[0xa1, 0, 3]).is_err());
 }

@@ -39,7 +39,7 @@ impl WireEncode for DecodedStrongSafepointRegistrationPlanV1 {
 }
 
 impl WireDecode for DecodedStrongSafepointRegistrationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(12)?;
         Ok(Self {
             site: decoder.field(1, DecodedPersistentId::decode)?,
@@ -93,7 +93,7 @@ impl WireEncode for DecodedStrongCallableRegistrationPlanV1 {
 }
 
 impl WireDecode for DecodedStrongCallableRegistrationPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(12)?;
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,
@@ -128,7 +128,7 @@ impl WireEncode for DecodedStrongCallableRuntimeScanAtomV1 {
 }
 
 impl WireDecode for DecodedStrongCallableRuntimeScanAtomV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             atom: decoder.field(1, DecodedPersistentId::decode)?,
@@ -154,7 +154,7 @@ impl WireEncode for DecodedStrongCallableRuntimeScanPlanV1 {
 }
 
 impl WireDecode for DecodedStrongCallableRuntimeScanPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,

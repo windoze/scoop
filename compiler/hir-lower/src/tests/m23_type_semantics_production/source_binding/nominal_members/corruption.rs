@@ -10,11 +10,9 @@ fn check(
     core: &hir::ImportedCoreFundamentalTypeProtocol,
 ) -> Result<(), Error> {
     let foundation = fixture.bind().unwrap();
-    let nominals = foundation
-        .bind_nominal_sources(&sources.nominals, &mut meter())
-        .unwrap();
+    let nominals = foundation.bind_nominal_sources(&sources.nominals).unwrap();
     nominals
-        .bind_member_sources(&sources.properties, &sources.callables, core, &mut meter())
+        .bind_member_sources(&sources.properties, &sources.callables, core)
         .map(|_| ())
 }
 fn replace_callable(sources: &mut Sources, record: hir::NominalSupportCallableInterfaceV1) {
@@ -31,7 +29,6 @@ fn replace_callable(sources: &mut Sources, record: hir::NominalSupportCallableIn
                 }
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap();
 }
@@ -49,7 +46,6 @@ fn replace_property(sources: &mut Sources, record: hir::NominalSupportPropertyIn
                 }
             })
             .collect(),
-        &mut meter(),
     )
     .unwrap();
 }

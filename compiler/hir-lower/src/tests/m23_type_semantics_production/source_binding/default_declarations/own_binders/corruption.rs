@@ -10,7 +10,7 @@ fn source_local_binders_reject_signature_and_capture_corruption_using_canonical_
         let table = templates(output);
         let original = table.get(key(output, "LocalGenericHost.pick", 1)).unwrap();
         let index = original
-            .index_nested_callables(&mut meter(), &scoop_wire::WirePath::root())
+            .index_nested_callables(&scoop_wire::WirePath::root())
             .unwrap();
         let occurrence = &index.occurrences()[0];
         let Descriptor::LocalFunction(local) = occurrence.descriptor() else {
@@ -19,7 +19,7 @@ fn source_local_binders_reject_signature_and_capture_corruption_using_canonical_
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
             for case in 0..3 {
                 let (changed_local, site, expected) = corrupt(local, case);
@@ -40,7 +40,7 @@ fn source_local_binders_reject_signature_and_capture_corruption_using_canonical_
                     envelope::rebuild(original, original.locals().records().to_vec(), body),
                 );
                 let error = parameters
-                    .bind_default_declarations(&changed, &[], &mut meter())
+                    .bind_default_declarations(&changed, &[])
                     .unwrap_err();
                 assert_scope_error(error, original.key(), site, expected);
             }

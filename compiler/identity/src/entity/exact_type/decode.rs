@@ -135,7 +135,7 @@ impl WireEncode for DecodedExactTypeKey {
 }
 
 impl WireDecode for DecodedExactTypeKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -240,13 +240,13 @@ where
 }
 
 fn decode_exact_ids(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedPersistentId<PersistentExactTypeId>>, WireError> {
     decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
 }
 
 fn decode_non_empty_exact_ids(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<NonEmptyVec<DecodedPersistentId<PersistentExactTypeId>>, WireError> {
     NonEmptyVec::new(decode_exact_ids(decoder)?).map_err(|_| {
         wire_error(
@@ -259,7 +259,7 @@ fn decode_non_empty_exact_ids(
     })
 }
 
-fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
+fn decode_effect(decoder: &mut Decoder<'_>) -> Result<Effect, WireError> {
     match decoder.unsigned()? {
         1 => Ok(Effect::Ordinary),
         2 => Ok(Effect::Suspend),
@@ -267,20 +267,14 @@ fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
     }
 }
 
-fn decode_calling_convention(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<CallingConvention, WireError> {
+fn decode_calling_convention(decoder: &mut Decoder<'_>) -> Result<CallingConvention, WireError> {
     match decoder.unsigned()? {
         1 => Ok(CallingConvention::C),
         tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
     }
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -291,7 +285,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
@@ -324,7 +318,7 @@ fn encode_sequence<T: WireEncode>(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::{DecodedExactTypeKey, ExactTypeResolutionError};
     use crate::{
@@ -402,11 +396,7 @@ mod tests {
         ];
 
         for key in keys {
-            let decoded = decode_canonical::<DecodedExactTypeKey>(
-                &encode(&key).unwrap(),
-                DecodeLimits::default(),
-            )
-            .unwrap();
+            let decoded = decode_canonical::<DecodedExactTypeKey>(&encode(&key).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
         }
     }
@@ -420,7 +410,7 @@ mod tests {
         let record = CborIdentityRecord::<PersistentExactTypeId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentExactTypeId, DecodedExactTypeKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
 
         assert_eq!(
@@ -431,11 +421,8 @@ mod tests {
 
     #[test]
     fn exact_type_decoder_rejects_empty_and_unknown_shapes() {
-        let empty_tuple = decode_canonical::<DecodedExactTypeKey>(
-            b"\xa2\x00\x03\x01\x80",
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let empty_tuple =
+            decode_canonical::<DecodedExactTypeKey>(b"\xa2\x00\x03\x01\x80").unwrap_err();
         assert_eq!(
             empty_tuple.kind(),
             &WireErrorKind::InvalidLength {
@@ -444,9 +431,7 @@ mod tests {
             }
         );
 
-        let unknown =
-            decode_canonical::<DecodedExactTypeKey>(b"\xa1\x00\x07", DecodeLimits::default())
-                .unwrap_err();
+        let unknown = decode_canonical::<DecodedExactTypeKey>(b"\xa1\x00\x07").unwrap_err();
         assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 7 });
     }
 
@@ -455,8 +440,7 @@ mod tests {
         let key = ExactTypeKey::Nominal(PersistentTypeId::expected());
         let mut bytes = encode(&key).unwrap();
         *bytes.last_mut().unwrap() = 8;
-        let decoded =
-            decode_canonical::<DecodedExactTypeKey>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedExactTypeKey>(&bytes).unwrap();
         assert_eq!(
             decoded.resolve(&mut Resolver),
             Err(ExactTypeResolutionError::Reference(ResolutionError))

@@ -63,11 +63,10 @@ impl<'a, T> Domain<'a, T> {
     pub fn observe(
         &mut self,
         occurrence: DefaultBodyReferenceOccurrenceV1<'_>,
-        compare: impl FnOnce(&T, &mut BudgetMeter, &WirePath) -> Result<Ordering, WireError>,
-        meter: &mut BudgetMeter,
+        compare: impl FnOnce(&T, &WirePath) -> Result<Ordering, WireError>,
+
         path: &WirePath,
     ) -> Result<(u32, &'a DefaultSourceReferenceV1<T>), Error> {
-        meter.charge_work(1, path)?;
         let kind = self.kind;
         let index = self.next as u32;
         let site = occurrence.site;
@@ -75,22 +74,17 @@ impl<'a, T> Domain<'a, T> {
             .records
             .get(self.next)
             .ok_or(Error::Missing { kind, index, site })?;
-        if !compare(record.target(), meter, path)?.is_eq() {
+        if !compare(record.target(), path)?.is_eq() {
             return Err(Error::Target { kind, index, site });
         }
-        let actual =
-            scoop_wire::encoded_length(occurrence.definition_origin).map_err(Error::Encoding)?;
-        let expected =
-            scoop_wire::encoded_length(record.definition_origin()).map_err(Error::Encoding)?;
-        meter.charge_work(actual.saturating_add(expected), path)?;
+
         if occurrence.definition_origin != record.definition_origin() {
             return Err(Error::Origin { kind, index, site });
         }
         self.next += 1;
         Ok((index, record))
     }
-    pub fn finish(&self, meter: &mut BudgetMeter, path: &WirePath) -> Result<(), Error> {
-        meter.charge_work(1, path)?;
+    pub fn finish(&self) -> Result<(), Error> {
         if self.next != self.records.len() {
             return Err(Error::Extra {
                 kind: self.kind,

@@ -7,16 +7,13 @@ impl LirBridgeValidatedCrossConeHirFrontSections<'_> {
         previous: &[LirBridgeValidatedCrossConeHirFrontSections<'_>],
         dependency_positions: &[Vec<usize>],
     ) -> Result<(), NativeBoundaryCompileError> {
-        let meter = self.graph.envelope.meter_mut();
         let reachable = crate::dependency_reachability::transitive_positions(
             previous.len(),
             dependency_positions,
-            meter,
         )
         .map_err(NativeBoundaryCompileError::Resource)?;
         let mut dependencies = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut dependencies, reachable.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut dependencies, reachable.len(), &WirePath::root())
             .map_err(NativeBoundaryCompileError::Resource)?;
         dependencies.extend(
             reachable

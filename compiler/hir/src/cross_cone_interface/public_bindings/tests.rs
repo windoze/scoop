@@ -4,7 +4,7 @@ use scoop_identity::{
     PendingIdentityValidation, PersistentExportBindingId, PersistentFunctionId,
     SourceDeclarationKey, SourceDeclarationSite, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::{CanonicalDirectPublicSurfaceV1, ReexportRouteHopV1, ReexportRouteV1};
@@ -345,7 +345,7 @@ fn authority(
 }
 
 fn decode_bindings<T: WireEncode>(value: &T) -> DecodedCanonicalPublicExportBindingsV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 struct RecordSequence(Vec<PublicExportBindingRecordV1>);

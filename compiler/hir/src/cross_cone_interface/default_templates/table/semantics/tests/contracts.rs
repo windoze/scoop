@@ -7,7 +7,7 @@ use scoop_identity::{
     SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -535,62 +535,13 @@ fn routes_body_provider_type_failures_with_table_identity() {
     );
 }
 
-#[test]
-fn body_validation_uses_the_caller_meter_and_path() {
-    let fixture = Fixture::new();
-    let templates = fixture.templates(CanonicalBooleanV1::False);
-    let path = WirePath::root().field(11).index(3).field(5);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    });
-    let error = templates
-        .validate_envelope_semantics(
-            &fixture.callables(Effect::Ordinary),
-            &fixture.sources(true),
-            &mut fixture.authority(),
-            &mut meter,
-            &path,
-        )
-        .unwrap_err();
-
-    assert!(matches!(
-        error,
-        ExportDefaultTemplateSetEnvelopeSemanticValidationError::Body {
-            index: 0,
-            key,
-            error,
-        } if key == fixture.key
-            && matches!(
-                error.as_ref(),
-                DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error)
-                    if error.kind()
-                        == &WireErrorKind::LimitExceeded {
-                            resource: ResourceKind::SemanticRecursion,
-                            limit: 1,
-                            observed: 2,
-                        }
-                        && error.path() == &path
-            )
-    ));
-    assert_eq!(meter.usage().decoded_nodes, 1);
-    assert_eq!(meter.usage().decoded_edges, 0);
-    assert_eq!(meter.usage().validation_work_units, 1);
-}
-
 fn validate_envelopes(
     templates: &CanonicalExportDefaultTemplatesV1,
     callables: &CanonicalCallableInterfacesV1,
     sources: &CanonicalCallableSourceInterfacesV1,
     authority: &mut Authority,
 ) -> Result<(), ExportDefaultTemplateSetEnvelopeSemanticValidationError<AuthorityError>> {
-    templates.validate_envelope_semantics(
-        callables,
-        sources,
-        authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
+    templates.validate_envelope_semantics(callables, sources, authority, &WirePath::root())
 }
 
 fn reference_set(
@@ -1169,8 +1120,6 @@ impl crate::DefaultLocalFunctionSignatureAuthority<AuthorityError> for Authority
     fn default_local_function_own_binder_arity(
         &mut self,
         _declaration: scoop_identity::CallableTemplateOrigin,
-        _meter: &mut scoop_wire::BudgetMeter,
-        _path: &scoop_wire::WirePath,
     ) -> Result<u32, AuthorityError> {
         Err(AuthorityError::NestedCallable)
     }

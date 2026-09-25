@@ -4,14 +4,14 @@ use super::{
 };
 use crate::{
     CheckedDeclarationAccessSourceV1, CheckedNominalInheritanceGraphV1, InheritanceGraphError,
-    MeteredSignatureTypeSemanticError, NominalInheritanceSemanticAuthority,
-    NominalInterfaceShapeAuthority, TypeParameterBinderSemanticValidationError,
+    NominalInheritanceSemanticAuthority, NominalInterfaceShapeAuthority,
+    SignatureTypeSemanticError, TypeParameterBinderSemanticValidationError,
 };
 use scoop_identity::{
     CallableTemplateOrigin, PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId,
     PropertyAccessorKey, SourceDeclarationKey,
 };
-use scoop_wire::{BudgetMeter, WireError};
+use scoop_wire::WireError;
 use std::fmt;
 
 mod identity;
@@ -63,7 +63,6 @@ impl ProtectedCallableInterfaceV1 {
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'a mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedCallableSourceV1<'a>, ProtectedCallableSemanticError<E>> {
         validate(
             self.declaration(),
@@ -71,7 +70,6 @@ impl ProtectedCallableInterfaceV1 {
             self.declaration_access(),
             graph,
             authority,
-            meter,
         )
     }
 }
@@ -80,7 +78,6 @@ impl ProtectedConstructorInterfaceV1 {
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         authority: &'a mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedCallableSourceV1<'a>, ProtectedCallableSemanticError<E>> {
         validate(
             CallableTemplateOrigin::Constructor(self.declaration()),
@@ -88,7 +85,6 @@ impl ProtectedConstructorInterfaceV1 {
             self.declaration_access(),
             graph,
             authority,
-            meter,
         )
     }
 }
@@ -98,7 +94,6 @@ fn validate<'a, A: ProtectedCallableSemanticAuthority<E>, E>(
     source: &'a crate::DeclarationAccessSourceV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     authority: &'a mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedProtectedCallableSourceV1<'a>, ProtectedCallableSemanticError<E>> {
     let owner = graph
         .source(payload.owner())
@@ -106,15 +101,8 @@ fn validate<'a, A: ProtectedCallableSemanticAuthority<E>, E>(
     if owner.key.declaration_kind() != scoop_identity::SourceDeclarationKind::Class {
         return Err(ProtectedCallableSemanticError::Owner);
     }
-    let access = validate_source_contract(
-        declaration,
-        payload,
-        owner.key,
-        source,
-        graph,
-        authority,
-        meter,
-    )?;
+    let access =
+        validate_source_contract(declaration, payload, owner.key, source, graph, authority)?;
     Ok(CheckedProtectedCallableSourceV1 {
         declaration,
         payload,
@@ -129,17 +117,15 @@ pub(super) fn validate_source_contract<'a, A: ProtectedCallableSemanticAuthority
     source: &'a crate::DeclarationAccessSourceV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     authority: &'a mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedCallableSemanticError<E>> {
     signature::validate_types(
         payload,
         owner.duplicate_signature().type_parameter_count(),
         authority,
-        meter,
     )?;
-    let key = identity::validate(declaration, payload, owner, authority, meter)?;
+    let key = identity::validate(declaration, payload, owner, authority)?;
     graph
-        .check_declaration_source(source, key, authority, meter)
+        .check_declaration_source(source, key, authority)
         .map_err(ProtectedCallableSemanticError::Source)
 }
 
@@ -149,7 +135,7 @@ pub enum ProtectedCallableSemanticError<E> {
     Foundation(E),
     Encoding(scoop_wire::cbor::EncodeError),
     Source(InheritanceGraphError<E>),
-    Signature(MeteredSignatureTypeSemanticError<E>),
+    Signature(SignatureTypeSemanticError<E>),
     Binders(TypeParameterBinderSemanticValidationError<E>),
     Owner,
     Identity,

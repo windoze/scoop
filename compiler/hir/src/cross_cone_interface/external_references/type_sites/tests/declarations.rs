@@ -18,26 +18,16 @@ fn callable_signature_positions_roundtrip_and_reject_ambiguous_wire_shapes() {
         };
         let bytes = encode(&original).unwrap();
         assert_eq!(&bytes[..3], &[0xa4, 0, 2]);
-        let raw: DecodedHirDependencyTypeSiteV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        assert_eq!(
-            raw.resolve(&mut fixture.graph(), &mut meter(), &WirePath::root())
-                .unwrap(),
-            original
-        );
+        let raw: DecodedHirDependencyTypeSiteV1 = decode_canonical(&bytes).unwrap();
+        assert_eq!(raw.resolve(&mut fixture.graph()).unwrap(), original);
         for length in [3, 5] {
             let mut wrong = bytes.clone();
             wrong[0] = 0xa0 + length;
-            assert!(
-                decode_canonical::<DecodedHirDependencyTypeSiteV1>(&wrong, DecodeLimits::default())
-                    .is_err()
-            );
+            assert!(decode_canonical::<DecodedHirDependencyTypeSiteV1>(&wrong).is_err());
         }
     }
     for bytes in [vec![0xa1, 0, 4], vec![0xa2, 0, 1, 1, 0], vec![0xa1, 0, 2]] {
-        assert!(
-            decode_canonical::<HirCallableTypePositionV1>(&bytes, DecodeLimits::default()).is_err()
-        );
+        assert!(decode_canonical::<HirCallableTypePositionV1>(&bytes).is_err());
     }
 }
 
@@ -58,17 +48,13 @@ fn local_declaration_wire_keeps_its_distinct_identity_and_rejects_unknown_values
     };
     let bytes = encode(&original).unwrap();
     assert_eq!(&bytes[..3], &[0xa3, 0, 3]);
-    let raw: DecodedHirDependencyTypeSiteV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let raw: DecodedHirDependencyTypeSiteV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&raw).unwrap(), bytes);
     assert!(matches!(
-        raw.resolve(&mut fixture.graph(), &mut meter(), &WirePath::root()),
+        raw.resolve(&mut fixture.graph()),
         Err(HirDependencyTypeSiteResolutionError::Identity(_))
     ));
-    assert!(
-        decode_canonical::<DecodedHirDependencyTypeSiteV1>(&[0xa1, 0, 6], DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedHirDependencyTypeSiteV1>(&[0xa1, 0, 6]).is_err());
 }
 
 #[test]
@@ -108,20 +94,16 @@ fn storage_sites_preserve_backing_and_delegate_roles_and_require_typed_property_
     ] {
         let bytes = encode(&original).unwrap();
         assert_eq!(&bytes[..3], &[0xa3, 0, tag]);
-        let raw: DecodedHirDependencyTypeSiteV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let raw: DecodedHirDependencyTypeSiteV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&raw).unwrap(), bytes);
         assert!(matches!(
-            raw.resolve(&mut fixture.graph(), &mut meter(), &WirePath::root()),
+            raw.resolve(&mut fixture.graph()),
             Err(HirDependencyTypeSiteResolutionError::Identity(_))
         ));
         for length in [2, 4] {
             let mut wrong = bytes.clone();
             wrong[0] = 0xa0 + length;
-            assert!(
-                decode_canonical::<DecodedHirDependencyTypeSiteV1>(&wrong, DecodeLimits::default())
-                    .is_err()
-            );
+            assert!(decode_canonical::<DecodedHirDependencyTypeSiteV1>(&wrong).is_err());
         }
     }
 }

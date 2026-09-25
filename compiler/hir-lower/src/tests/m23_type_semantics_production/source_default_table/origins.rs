@@ -32,12 +32,11 @@ fn occurrences(
 )> {
     let mut result = Vec::new();
     table
-        .visit_definition_sources_metered(
-            &mut |template, origin, site, _, path| {
+        .visit_definition_sources(
+            &mut |template, origin, site, path| {
                 result.push((template.key(), label(site), origin.clone(), path.clone()));
                 Ok::<_, WireError>(())
             },
-            &mut meter(),
             &WirePath::root(),
         )
         .unwrap();
@@ -47,7 +46,7 @@ fn occurrences(
 #[test]
 fn default_source_origins_preserve_typed_sites_paths_and_repeated_occurrences() {
     with_hir_source(ORIGINS, |output, _| {
-        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output).unwrap();
         let table = production.templates();
         let actual = occurrences(table);
         assert_eq!(actual, occurrences(&restored(output, table)));

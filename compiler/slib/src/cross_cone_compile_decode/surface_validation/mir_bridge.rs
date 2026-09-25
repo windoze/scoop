@@ -88,13 +88,11 @@ impl MirBridgeValidatedCrossConeHirFrontSections<'_> {
         &CrossConeHirInterfaceSectionV1,
         &scoop_mir::StrongCallableBridgeSurfaceV1,
         &CrossConeMirBridgeSectionV1,
-        &mut scoop_wire::BudgetMeter,
     ) {
         (
             &self.hir_interface,
             self.mir_core_production.strong_callable_bridges(),
             &self.mir_cross_cone_bridge,
-            self.graph.envelope.meter_mut(),
         )
     }
 }
@@ -105,7 +103,7 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<MirBridgeValidatedCrossConeHirFrontSections<'input>, CrossConeMirFrontValidationError>
     {
         let ValidatedSurfaceFront {
-            mut graph,
+            graph,
             mut identities,
             foundations,
             hir_core_production,
@@ -133,7 +131,6 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
             &hir_interface,
             mir_core_production.strong_callable_bridges(),
             &mir_cross_cone_bridge,
-            graph.envelope.meter_mut(),
         )
         .map_err(|source| CrossConeMirFrontValidationError::CallSites(Box::new(source)))?;
 

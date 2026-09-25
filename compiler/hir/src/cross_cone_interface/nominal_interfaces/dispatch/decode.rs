@@ -52,8 +52,7 @@ impl DecodedNominalDispatchOrderV1 {
 }
 
 impl WireDecode for DecodedNominalDispatchOrderV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        let start = decoder.position();
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let expected = match tag {
@@ -93,30 +92,7 @@ impl WireDecode for DecodedNominalDispatchOrderV1 {
                 })?,
             },
         };
-        let count = match &value {
-            Self::NonVirtual => 0,
-            Self::Class { slots } => slots.len(),
-            Self::Interface { parents, members } => {
-                let path = decoder.path().clone().field(2);
-                for (index, member) in members.iter().enumerate() {
-                    member.charge_member_resolution(
-                        decoder.meter(),
-                        &path.clone().index(index as u64),
-                    )?;
-                }
-                parents.len() + members.len()
-            }
-        } as u64;
-        let path = decoder.path().clone();
-        let bytes = decoder.position().saturating_sub(start);
-        decoder
-            .meter()
-            .charge_collection_slots(count.saturating_mul(3), &path)?;
-        decoder.meter().charge_owned_bytes(bytes, &path)?;
-        decoder.meter().charge_work(
-            bytes.saturating_mul(1 + u64::from(count.max(1).ilog2())),
-            &path,
-        )?;
+
         Ok(value)
     }
 }

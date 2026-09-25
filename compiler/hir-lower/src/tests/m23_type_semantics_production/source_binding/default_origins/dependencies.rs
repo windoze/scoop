@@ -2,25 +2,21 @@ use super::*;
 use scoop_identity::ConeIdentity;
 
 fn empty_source(provider: ConeIdentity) -> hir::TypeFoundationSourceAuthorityV1 {
-    hir::TypeFoundationSourceAuthorityV1::try_new(
-        hir::TypeFoundationSourceEntriesV1 {
-            provider,
-            exact_keys: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
-            sources: Default::default(),
-            representations: Default::default(),
-            generated_nominals: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
-            accessor_keys: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
-            definition_sources: Default::default(),
-            source_roots: Default::default(),
-            local_exact_facts: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
-            dependency_facts: Default::default(),
-            local_inheritance_edges: Default::default(),
-            fact_shapes: hir::CanonicalExactTypeFactShapesV1::try_new(vec![], &mut meter())
-                .unwrap(),
-            representation_owners: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
-        },
-        &mut meter(),
-    )
+    hir::TypeFoundationSourceAuthorityV1::try_new(hir::TypeFoundationSourceEntriesV1 {
+        provider,
+        exact_keys: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
+        sources: Default::default(),
+        representations: Default::default(),
+        generated_nominals: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
+        accessor_keys: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
+        definition_sources: Default::default(),
+        source_roots: Default::default(),
+        local_exact_facts: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
+        dependency_facts: Default::default(),
+        local_inheritance_edges: Default::default(),
+        fact_shapes: hir::CanonicalExactTypeFactShapesV1::try_new(vec![]).unwrap(),
+        representation_owners: hir::CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
+    })
     .unwrap()
 }
 
@@ -63,7 +59,7 @@ fn foreign_body_locations_route_to_their_explicit_artifact_provider() {
         );
         let source = empty_source(ConeIdentity::CORE);
         let dependency = source
-            .bind_to_foundation(&core.source_foundation, &fixture.identities, &mut meter())
+            .bind_to_foundation(&core.source_foundation, &fixture.identities)
             .unwrap();
         let foundation = fixture.bind().unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
@@ -72,33 +68,29 @@ fn foreign_body_locations_route_to_their_explicit_artifact_provider() {
             inputs.protocols().fundamental_types(),
             |members, constructors| {
                 let parameters = members
-                    .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                    .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
                 assert!(matches!(
-                    parameters.bind_default_origins(&routed, &[], &mut meter()),
+                    parameters.bind_default_origins(&routed, &[]),
                     Err(Error::MissingProvider(ConeIdentity::CORE))
                 ));
                 parameters
-                    .bind_default_origins(&routed, &[&dependency], &mut meter())
+                    .bind_default_origins(&routed, &[&dependency])
                     .unwrap();
                 assert!(matches!(
-                    parameters.bind_default_origins(
-                        &routed,
-                        &[&dependency, &dependency],
-                        &mut meter()
-                    ),
+                    parameters.bind_default_origins(&routed, &[&dependency, &dependency]),
                     Err(Error::DependencyOrder(ConeIdentity::CORE))
                 ));
                 assert!(matches!(
-                    parameters.bind_default_origins(&routed, &[&foundation], &mut meter()),
+                    parameters.bind_default_origins(&routed, &[&foundation]),
                     Err(Error::DependencyOrder(_))
                 ));
                 let other_graph = identity_closure(output);
                 let wrong_graph = source
-                    .bind_to_foundation(&core.source_foundation, &other_graph, &mut meter())
+                    .bind_to_foundation(&core.source_foundation, &other_graph)
                     .unwrap();
                 assert!(matches!(
-                    parameters.bind_default_origins(&routed, &[&wrong_graph], &mut meter()),
+                    parameters.bind_default_origins(&routed, &[&wrong_graph]),
                     Err(Error::IdentityGraph(ConeIdentity::CORE))
                 ));
             },

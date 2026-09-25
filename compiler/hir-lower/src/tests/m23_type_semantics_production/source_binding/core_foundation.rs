@@ -49,20 +49,19 @@ fn core_source_foundation_replays_full_sysroot_artifact() {
 }
 
 fn replay(output: &hir::Output) {
-    let source = Production::from_hir(output, &mut meter()).unwrap();
-    let transcript = source.source_transcript(&mut meter()).unwrap();
+    let source = Production::from_hir(output).unwrap();
+    let transcript = source.source_transcript().unwrap();
     assert!(!transcript.entries().source_roots.values().is_empty());
     assert!(!transcript.entries().representations.records().is_empty());
     assert!(!transcript.entries().definition_sources.sources().is_empty());
     assert!(transcript.entries().dependency_facts.records().is_empty());
     let (foundation, mut identities) = artifact(output);
     let bytes = encode(&transcript).unwrap();
-    let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let restored = decoded.resolve(&mut identities, &mut meter()).unwrap();
+    let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 = decode_canonical(&bytes).unwrap();
+    let restored = decoded.resolve(&mut identities).unwrap();
     assert_eq!(encode(&restored).unwrap(), bytes);
     let bound = restored
-        .bind_to_foundation(&foundation, &identities, &mut meter())
+        .bind_to_foundation(&foundation, &identities)
         .unwrap();
     for owner in source.source_roots() {
         assert_eq!(
@@ -90,9 +89,9 @@ fn replay(output: &hir::Output) {
 #[test]
 fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
     let output = lower_minimal();
-    let source = Production::from_hir(&output, &mut meter())
+    let source = Production::from_hir(&output)
         .unwrap()
-        .source_transcript(&mut meter())
+        .source_transcript()
         .unwrap();
     let (foundation, identities) = artifact(&output);
     let required = source
@@ -105,23 +104,18 @@ fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
             hir::SourceNominalId::GenericTemplate(id) => Subject::GenericType(id),
         })
         .collect();
-    let access = hir::CanonicalDefaultSourceAccessDeclarationsV1::from_export_hir(
-        &output.export,
-        &required,
-        &mut meter(),
-    )
-    .unwrap();
-    let bound = source
-        .bind_to_foundation(&foundation, &identities, &mut meter())
-        .unwrap();
+    let access =
+        hir::CanonicalDefaultSourceAccessDeclarationsV1::from_export_hir(&output.export, &required)
+            .unwrap();
+    let bound = source.bind_to_foundation(&foundation, &identities).unwrap();
     let access = bound
-        .bind_default_access_declarations(&access, &required, &mut meter())
+        .bind_default_access_declarations(&access, &required)
         .unwrap();
     let imported = support::import(&foundation, &identities);
     let interface = hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
     let inputs = imported.import_core_inputs(&interface).unwrap();
     let core = inputs.protocols().fundamental_types();
-    let domains = hir::DefaultSourceDomainsV1::new(&access, &[], core, &mut meter()).unwrap();
+    let domains = hir::DefaultSourceDomainsV1::new(&access, &[], core).unwrap();
     let scope = hir::SignatureBinderScopeV1::for_declaration(0, None);
     let unit = Type::Nominal(core.unit().persistent());
     for ty in [
@@ -134,9 +128,7 @@ fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
         },
     ] {
         assert_eq!(
-            domains
-                .type_source_domain(&ty, &scope, &mut meter())
-                .unwrap(),
+            domains.type_source_domain(&ty, &scope).unwrap(),
             hir::DefaultSourceAccessDomainV1::universal()
         );
     }
@@ -145,11 +137,11 @@ fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
 #[test]
 fn ordinary_and_core_sources_share_the_same_foundation_projection() {
     super::super::source_dispatch::with_hir_source("public struct Value()", |output, _| {
-        let common = Production::from_hir(output.output(), &mut meter()).unwrap();
-        let ordinary = Production::from_dependency_hir(output, &mut meter()).unwrap();
+        let common = Production::from_hir(output.output()).unwrap();
+        let ordinary = Production::from_dependency_hir(output).unwrap();
         assert_eq!(
-            encode(&common.source_transcript(&mut meter()).unwrap()).unwrap(),
-            encode(&ordinary.source_transcript(&mut meter()).unwrap()).unwrap()
+            encode(&common.source_transcript().unwrap()).unwrap(),
+            encode(&ordinary.source_transcript().unwrap()).unwrap()
         );
     });
 }

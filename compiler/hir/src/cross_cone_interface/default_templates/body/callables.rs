@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::{
@@ -96,7 +94,7 @@ impl WireEncode for DecodedDefaultCallableDeclarationV1 {
 }
 
 impl WireDecode for DecodedDefaultCallableDeclarationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 2)?;
@@ -218,7 +216,7 @@ impl WireEncode for DecodedDefaultCallableRefV1 {
 }
 
 impl WireDecode for DecodedDefaultCallableRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedDefaultCallableDeclarationV1::decode)?,
@@ -261,7 +259,7 @@ impl WireEncode for DefaultBinderRefV1 {
 }
 
 impl WireDecode for DefaultBinderRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             depth: decoder.field(1, Decoder::u32)?,
@@ -374,7 +372,7 @@ impl WireEncode for DecodedDefaultBoundCallableSourceV1 {
 }
 
 impl WireDecode for DecodedDefaultBoundCallableSourceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 3)?;
@@ -479,7 +477,7 @@ impl WireEncode for DecodedDefaultBoundCallableRefV1 {
 }
 
 impl WireDecode for DecodedDefaultBoundCallableRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             receiver_parameter: decoder.field(1, DefaultBinderRefV1::decode)?,
@@ -565,7 +563,7 @@ impl WireEncode for DecodedDefaultMethodCalleeV1 {
 }
 
 impl WireDecode for DecodedDefaultMethodCalleeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         expect_sum_length(decoder, fields, 2)?;
@@ -721,11 +719,7 @@ fn encode_sequence(
     Ok(())
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -736,7 +730,7 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

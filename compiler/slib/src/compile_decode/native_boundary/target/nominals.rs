@@ -45,23 +45,12 @@ impl<'a> AbiNominalDefinition<'a> {
 
 pub(super) fn native_definitions<'a>(
     records: &'a [NativeBoundaryTypeDefinitionRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<HashMap<NativeBoundaryNominalOwner, AbiNominalDefinition<'a>>, NativeBoundaryCompileError>
 {
     let mut definitions = HashMap::new();
     let path = WirePath::root().field(34);
-    meter
-        .charge_work(records.len() as u64, &path)
-        .map_err(NativeBoundaryCompileError::Resource)?;
-    meter
-        .charge_owned_bytes(
-            (records.len() as u64)
-                .saturating_mul(std::mem::size_of::<AbiNominalDefinition<'_>>() as u64),
-            &path,
-        )
-        .map_err(NativeBoundaryCompileError::Resource)?;
-    meter
-        .try_reserve_map_slots(&mut definitions, records.len(), &path)
+
+    scoop_wire::allocation::try_reserve_map(&mut definitions, records.len(), &path)
         .map_err(NativeBoundaryCompileError::Resource)?;
     for record in records {
         if definitions

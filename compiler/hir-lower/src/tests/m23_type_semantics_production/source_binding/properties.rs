@@ -35,14 +35,11 @@ impl Sources {
     pub(super) fn from_output(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Self {
         let dispatch = super::dispatch_binding::Sources::from_output(output, fixture);
         let source =
-            hir::CanonicalInheritanceSourcePropertiesV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+            hir::CanonicalInheritanceSourcePropertiesV1::from_dependency_hir(output).unwrap();
         let bytes = encode(&source).unwrap();
         let decoded: hir::DecodedCanonicalInheritanceSourcePropertiesV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let properties = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+            decode_canonical(&bytes).unwrap();
+        let properties = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(encode(&properties).unwrap(), bytes);
         Self {
             dispatch,
@@ -52,12 +49,11 @@ impl Sources {
     pub(super) fn bind<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
-        meter: &mut BudgetMeter,
     ) -> Result<hir::BoundInheritancePropertySourcesV1<'a, 'f>, Error> {
         self.dispatch
-            .bind(foundation, &mut super::meter())
+            .bind(foundation)
             .unwrap()
-            .bind_property_sources(&self.properties, meter)
+            .bind_property_sources(&self.properties)
     }
     fn replace(&mut self, record: Record) {
         let declaration = record.declaration();
@@ -66,8 +62,7 @@ impl Sources {
             .iter_mut()
             .find(|r| r.declaration() == declaration)
             .unwrap() = record;
-        self.properties =
-            hir::CanonicalInheritanceSourcePropertiesV1::try_new(records, &mut meter()).unwrap();
+        self.properties = hir::CanonicalInheritanceSourcePropertiesV1::try_new(records).unwrap();
     }
 }
 
@@ -100,7 +95,7 @@ fn byte_restored_property_sources_bind_to_owned_identity_and_accessor_roles() {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let bound = sources.bind(&foundation, &mut meter()).unwrap();
+            let bound = sources.bind(&foundation).unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
             assert_eq!(bound.table(), &sources.properties);
             for record in sources.properties.records() {
@@ -129,47 +124,11 @@ fn property_keys_must_be_owned_even_when_the_shared_graph_resolves_them() {
         let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
         let foundation = fixture
             .source
-            .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+            .bind_to_foundation(&incomplete, &fixture.identities)
             .unwrap();
         assert!(matches!(
-            sources.bind(&foundation, &mut meter()),
+            sources.bind(&foundation),
             Err(Error::MissingKey(_))
         ));
-    });
-}
-
-#[test]
-fn property_binding_rejects_resource_exhaustion_before_publishing_sources() {
-    with_source(SOURCE, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let sources = Sources::from_output(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-        for limits in [
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                sources.bind(&foundation, &mut BudgetMeter::new(limits)),
-                Err(Error::Resource(_))
-            ));
-        }
     });
 }

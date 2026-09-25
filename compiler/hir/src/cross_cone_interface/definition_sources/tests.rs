@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentIdMismatch, PersistentIdResolver, PersistentKeyResolver, PersistentSourceContextId,
     SourceContextKey, SourceIdentity, SourceSpan,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 
@@ -15,7 +15,7 @@ fn source_reuses_definition_origin_wire_and_resolves_typed_context() {
     assert_eq!(encode(&source).unwrap(), encode(source.origin()).unwrap());
 
     let decoded: DecodedExportDefinitionSourceV1 =
-        decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&source).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), source);
 }
 
@@ -77,11 +77,8 @@ fn reader_reports_unresolved_source_identity() {
         source: foreign.clone(),
     };
     let origin = DefinitionOrigin::new(foreign, SourceSpan::new(0, 1).unwrap(), &context).unwrap();
-    let decoded: DecodedExportDefinitionSourceV1 = decode_canonical(
-        &encode(&ExportDefinitionSourceV1::new(origin)).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedExportDefinitionSourceV1 =
+        decode_canonical(&encode(&ExportDefinitionSourceV1::new(origin)).unwrap()).unwrap();
 
     assert!(decoded.resolve(&mut Resolver).is_err());
 }
@@ -163,5 +160,5 @@ impl WireEncode for SourceSequence {
 }
 
 fn decode_sources(value: &impl WireEncode) -> DecodedCanonicalExportDefinitionSourcesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

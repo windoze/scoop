@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentPropertyAccessorId, PersistentTypeId, SignatureTypeKey, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{DecodedDefaultLiteralEqualityV1, DefaultCallableRefV1, TemplateLocalSelectorResolver};
@@ -46,8 +46,7 @@ fn nested_pattern_canonicalizes_fields_and_round_trips_local_indices() {
     let mut locals = LocalResolver::new(vec![parameter(0)]);
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
     assert_eq!(bytes[2], 6);
-    let decoded: DecodedDefaultPatternV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultPatternV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut locals),
         Ok(expected)
@@ -64,8 +63,7 @@ fn variant_pattern_preserves_canonical_field_mapping() {
     .unwrap();
     let mut locals = LocalResolver::new(Vec::new());
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
-    let decoded: DecodedDefaultPatternV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultPatternV1 = decode_canonical(&bytes).unwrap();
 
     assert_eq!(bytes[2], 4);
     assert_eq!(
@@ -89,8 +87,7 @@ fn ordinary_literal_equality_round_trips() {
     );
     let mut locals = LocalResolver::new(Vec::new());
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
-    let decoded: DecodedDefaultPatternV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultPatternV1 = decode_canonical(&bytes).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut locals),
@@ -127,11 +124,8 @@ fn producer_rejects_duplicate_pattern_fields() {
 
 #[test]
 fn reader_rejects_noncanonical_pattern_field_order() {
-    let decoded: DecodedDefaultPatternV1 = decode_canonical(
-        &encode(&RawStructPattern { fields: [2, 1] }).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultPatternV1 =
+        decode_canonical(&encode(&RawStructPattern { fields: [2, 1] }).unwrap()).unwrap();
     let mut locals = LocalResolver::new(Vec::new());
 
     assert_eq!(
@@ -148,11 +142,8 @@ fn reader_rejects_noncanonical_pattern_field_order() {
 
 #[test]
 fn reader_rejects_duplicate_pattern_fields() {
-    let decoded: DecodedDefaultPatternV1 = decode_canonical(
-        &encode(&RawStructPattern { fields: [1, 1] }).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded: DecodedDefaultPatternV1 =
+        decode_canonical(&encode(&RawStructPattern { fields: [1, 1] }).unwrap()).unwrap();
     let mut locals = LocalResolver::new(Vec::new());
 
     assert_eq!(
@@ -187,16 +178,11 @@ fn indexing_error_preserves_nested_element_location() {
 
 #[test]
 fn pattern_decoder_rejects_unknown_tags_and_variant_shapes() {
-    let error =
-        decode_canonical::<DecodedDefaultPatternV1>(&[0xa1, 0x00, 0x07], DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultPatternV1>(&[0xa1, 0x00, 0x07]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 7 });
 
-    let error = decode_canonical::<DecodedDefaultPatternV1>(
-        &[0xa2, 0x00, 0x02, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultPatternV1>(&[0xa2, 0x00, 0x02, 0x01, 0x00]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -205,11 +191,8 @@ fn pattern_decoder_rejects_unknown_tags_and_variant_shapes() {
         }
     );
 
-    let error = decode_canonical::<DecodedDefaultLiteralEqualityV1>(
-        &[0xa1, 0x00, 0x03],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<DecodedDefaultLiteralEqualityV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
 

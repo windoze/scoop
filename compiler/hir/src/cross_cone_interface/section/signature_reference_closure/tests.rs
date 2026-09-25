@@ -16,7 +16,7 @@ use scoop_identity::{
     PropertyOwner, SignatureTypeKey, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
     SourceIdentity, SourceNominalKind, SourceSpan,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -146,7 +146,7 @@ fn rejects_unobserved_signature_roles_and_origin_authority_failures() {
     let mut authority = fixture.authority.clone();
     authority.origins.remove(&first.target);
     assert_eq!(
-        fixture.validate_with(&fixture.section, &mut authority, DecodeLimits::default()),
+        fixture.validate_with(&fixture.section, &mut authority),
         Err(ExternalHirSignatureClosureValidationError::TargetOrigin {
             site: first.site,
             target: first.target,
@@ -171,31 +171,6 @@ fn ignores_current_cone_nominals_nested_inside_a_foreign_application() {
     );
     assert_eq!(fixture.authority.origins[&local_target], fixture.current);
     assert_eq!(fixture.validate(&fixture.section), Ok(()));
-}
-
-#[test]
-fn nested_signature_depth_uses_the_shared_resource_meter() {
-    let fixture = Fixture::new();
-    let limits = DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    };
-
-    let error = fixture
-        .validate_with(&fixture.section, &mut fixture.authority.clone(), limits)
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        ExternalHirSignatureClosureValidationError::Resource(error)
-            if matches!(
-                error.kind(),
-                WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::SemanticRecursion,
-                    limit: 1,
-                    observed: 2,
-                }
-            )
-    ));
 }
 
 #[derive(Clone, Copy)]
@@ -444,24 +419,15 @@ impl Fixture {
         &self,
         section: &CrossConeHirInterfaceSectionV1,
     ) -> Result<(), ExternalHirSignatureClosureValidationError<AuthorityError>> {
-        self.validate_with(
-            section,
-            &mut self.authority.clone(),
-            DecodeLimits::default(),
-        )
+        self.validate_with(section, &mut self.authority.clone())
     }
 
     fn validate_with(
         &self,
         section: &CrossConeHirInterfaceSectionV1,
         authority: &mut Authority,
-        limits: DecodeLimits,
     ) -> Result<(), ExternalHirSignatureClosureValidationError<AuthorityError>> {
-        section.validate_signature_reference_closure(
-            authority,
-            &mut BudgetMeter::new(limits),
-            &WirePath::root(),
-        )
+        section.validate_signature_reference_closure(authority, &WirePath::root())
     }
 }
 
@@ -885,33 +851,18 @@ impl PublicExportBindingClosureAuthority for Authority {
         0
     }
 
-    fn is_direct_dependency(
-        &self,
-        _provider: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<bool, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(false)
+    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
+        false
     }
 
     fn binding_key(
         &self,
         _binding: PersistentExportBindingId,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&scoop_identity::ExportBindingKey>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    ) -> Option<&scoop_identity::ExportBindingKey> {
+        None
     }
 
-    fn public_bindings(
-        &self,
-        _exporter: ConeIdentity,
-        meter: &mut scoop_wire::BudgetMeter,
-        path: &scoop_wire::WirePath,
-    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
-        meter.charge_work(1, path)?;
-        Ok(None)
+    fn public_bindings(&self, _exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
+        None
     }
 }

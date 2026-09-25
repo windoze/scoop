@@ -1,6 +1,6 @@
 //! Keep the independently replayed initialization ABI in the Strong reader state.
 
-use scoop_wire::{BudgetMeter, WirePath, encode_canonical_temporary_with_meter};
+use scoop_wire::{WirePath, encode_canonical_temporary};
 
 use super::*;
 
@@ -8,23 +8,17 @@ impl DecodedStrongProductionSectionV2 {
     pub fn validate_initialization_abi(
         self,
         expected: Option<Box<CallableAbiRecordV1>>,
-        meter: &mut BudgetMeter,
     ) -> Result<
         InitializationAbiResolvedStrongProductionSectionV2,
         StrongInitializationAbiValidationError,
     > {
         let path = WirePath::root().field(11);
-        let actual = encode_canonical_temporary_with_meter(
+        let actual = encode_canonical_temporary(
             &InitializationAbi(self.initialization_cycle_abi.as_deref()),
-            meter,
             &path,
         )?;
-        let canonical = encode_canonical_temporary_with_meter(
-            &InitializationAbi(expected.as_deref()),
-            meter,
-            &path,
-        )?;
-        meter.charge_work(actual.len().min(canonical.len()) as u64, &path)?;
+        let canonical = encode_canonical_temporary(&InitializationAbi(expected.as_deref()), &path)?;
+
         if actual != canonical {
             return Err(StrongInitializationAbiValidationError::Mismatch);
         }

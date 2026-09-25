@@ -76,7 +76,7 @@ fn complete_six_domain_body_matches_exact_receiver_and_occurrence_sets() {
         receiver: OptionalTemplateReceiverV1::Absent,
     };
     let mut authority = Authority::default();
-    input.validate(&mut authority, &mut meter()).unwrap();
+    input.validate(&mut authority).unwrap();
     assert_eq!(authority.members, vec![(false, false)]);
 }
 
@@ -136,7 +136,5 @@ fn repeated_target_at_different_origins_keeps_separate_records_and_uses() {
         locals: empty_locals(),
         receiver: OptionalTemplateReceiverV1::Absent,
     };
-    input
-        .validate(&mut Authority::default(), &mut meter())
-        .unwrap();
+    input.validate(&mut Authority::default()).unwrap();
 }

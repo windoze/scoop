@@ -13,16 +13,16 @@ use scoop_identity::{
 #[test]
 fn member_dependencies_are_disjoint_from_top_level_and_extension_callables() {
     let dispatch = DispatchFixture::new();
-    let mut work = meter();
-    let mut collector = Collector::new(&dispatch.graph, &mut work);
+
+    let mut collector = Collector::new(&dispatch.graph);
     collector
         .member_target(StrongCallableDefinitionOwner::Function(
             dispatch.methods[0].id(),
         ))
         .unwrap();
     let objects = ObjectFixture::new();
-    let mut work = meter();
-    let mut collector = Collector::new(&objects.graph, &mut work);
+
+    let mut collector = Collector::new(&objects.graph);
     collector
         .member_target(StrongCallableDefinitionOwner::PropertyAccessor(
             objects.accessors[1].id(),
@@ -42,7 +42,7 @@ fn member_dependencies_are_disjoint_from_top_level_and_extension_callables() {
         panic!()
     };
     assert!(matches!(
-        Collector::new(&fixture.graph, &mut meter())
+        Collector::new(&fixture.graph)
             .member_target(StrongCallableDefinitionOwner::Function(function)),
         Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(_))
     ));
@@ -70,8 +70,7 @@ fn extension_receiver_is_rejected_even_with_a_nominal_lexical_owner() {
         .unwrap();
     let mut hir = scoop_hir::CanonicalHirFoundation::empty();
     hir.set_functions(vec![method.clone()]).unwrap();
-    let hir: scoop_hir::DecodedHirFoundation =
-        decode_canonical(&encode(&hir).unwrap(), DecodeLimits::default()).unwrap();
+    let hir: scoop_hir::DecodedHirFoundation = decode_canonical(&encode(&hir).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending
         .register_external_graph_authorities(&fixture.graph)
@@ -80,8 +79,7 @@ fn extension_receiver_is_rejected_even_with_a_nominal_lexical_owner() {
     hir.resolve_identities(&mut pending).unwrap();
     let graph = pending.finish().unwrap();
     assert!(matches!(
-        Collector::new(&graph, &mut meter())
-            .member_target(StrongCallableDefinitionOwner::Function(method.id())),
+        Collector::new(&graph).member_target(StrongCallableDefinitionOwner::Function(method.id())),
         Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(_))
     ));
 }
@@ -90,7 +88,7 @@ fn extension_receiver_is_rejected_even_with_a_nominal_lexical_owner() {
 fn initialization_generated_role_cannot_be_a_dispatch_target() {
     let fixture = ObjectFixture::new();
     assert!(matches!(
-        Collector::new(&fixture.graph, &mut meter()).dispatch_target(
+        Collector::new(&fixture.graph).dispatch_target(
             StrongCallableDefinitionOwner::GeneratedCallable(fixture.ensures[0].id())
         ),
         Err(MirTypeBridgeReferenceError::GeneratedExecutionGate)

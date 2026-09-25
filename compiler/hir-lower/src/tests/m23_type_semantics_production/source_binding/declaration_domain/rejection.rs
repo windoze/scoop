@@ -15,8 +15,7 @@ fn declaration_domain_binds_every_required_table_before_entering_the_callback() 
                 5 => e.callables = Default::default(),
                 6 => {
                     e.inheritance =
-                        hir::CanonicalSourceInheritanceInventoriesV1::try_new(vec![], &mut meter())
-                            .unwrap()
+                        hir::CanonicalSourceInheritanceInventoriesV1::try_new(vec![]).unwrap()
                 }
                 7 => e.interfaces = Default::default(),
                 8 => e.selections = Default::default(),
@@ -26,13 +25,9 @@ fn declaration_domain_binds_every_required_table_before_entering_the_callback() 
             let source = Domain::new(e);
             let entered = Cell::new(false);
             let error = source
-                .with_bound_sources(
-                    &foundation,
-                    &independent.protocols,
-                    core,
-                    &mut meter(),
-                    |_, _| entered.set(true),
-                )
+                .with_bound_sources(&foundation, &independent.protocols, core, |_| {
+                    entered.set(true)
+                })
                 .unwrap_err();
             assert!(!entered.get(), "field {field}: {error}");
             if field == 1 {
@@ -46,55 +41,11 @@ fn declaration_domain_binds_every_required_table_before_entering_the_callback() 
                     &foundation,
                     &hir::CanonicalNominalSourceParameterProtocolsV1::default(),
                     core,
-                    &mut meter(),
-                    |_, _| entered.set(true)
+                    |_| entered.set(true)
                 )
                 .is_err()
         );
         assert!(!entered.get());
-    });
-}
-
-#[test]
-fn declaration_domain_rejects_shared_budget_exhaustion_before_callback_publication() {
-    with_domain(SOURCE, |output, fixture, independent, source, core| {
-        let foundation = fixture.bind().unwrap();
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            let entered = Cell::new(false);
-            let error = source
-                .with_bound_sources(
-                    &foundation,
-                    &independent.protocols,
-                    core,
-                    &mut BudgetMeter::new(limits),
-                    |_, _| entered.set(true),
-                )
-                .unwrap_err();
-            assert!(matches!(error, Error::Resource(_)), "{limits:?}: {error}");
-            assert!(!entered.get());
-            assert!(Domain::from_dependency_hir(output, &mut BudgetMeter::new(limits)).is_err());
-        }
     });
 }
 
@@ -125,13 +76,9 @@ fn declaration_domain_cannot_promote_a_public_source_to_a_protected_root() {
         let entered = Cell::new(false);
         let foundation = fixture.bind().unwrap();
         let error = Domain::new(entries)
-            .with_bound_sources(
-                &foundation,
-                &independent.protocols,
-                core,
-                &mut meter(),
-                |_, _| entered.set(true),
-            )
+            .with_bound_sources(&foundation, &independent.protocols, core, |_| {
+                entered.set(true)
+            })
             .unwrap_err();
         assert!(matches!(error, Error::ProtectedInventory));
         assert!(!entered.get());

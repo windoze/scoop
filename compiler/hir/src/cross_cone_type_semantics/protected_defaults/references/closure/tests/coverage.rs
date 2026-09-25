@@ -4,16 +4,13 @@ use super::*;
 fn metadata_only_records_require_full_source_replay_and_no_synthetic_use() {
     let mut input = metadata_input();
     let mut authority = Authority::default();
-    input.validate(&mut authority, &mut meter()).unwrap();
+    input.validate(&mut authority).unwrap();
     assert_eq!(authority.metadata, 1);
     assert!(matches!(
-        input.validate(
-            &mut Authority {
-                reject_metadata: true,
-                ..Authority::default()
-            },
-            &mut meter()
-        ),
+        input.validate(&mut Authority {
+            reject_metadata: true,
+            ..Authority::default()
+        }),
         Err(ProtectedDefaultBodyClosureError::Source(
             "definition-side metadata access rejected"
         ))
@@ -24,7 +21,7 @@ fn metadata_only_records_require_full_source_replay_and_no_synthetic_use() {
         vec![use_at(0, ProtectedDefaultReceiverUseV1::None)],
     );
     assert!(matches!(
-        input.validate(&mut Authority::default(), &mut meter()),
+        input.validate(&mut Authority::default()),
         Err(ProtectedDefaultBodyClosureError::ExtraUse {
             kind: ProtectedDefaultReferenceKindV1::Type,
             ..
@@ -52,7 +49,7 @@ fn same_record_collects_metadata_and_expression_uses_without_skipping_either() {
         vec![use_at(0, ProtectedDefaultReceiverUseV1::None)],
     );
     let mut authority = Authority::default();
-    input.validate(&mut authority, &mut meter()).unwrap();
+    input.validate(&mut authority).unwrap();
     assert_eq!(authority.metadata, 1);
 }
 
@@ -62,7 +59,7 @@ fn exact_reference_closure_rejects_missing_extra_wrong_origin_and_owner() {
     let original = input.refs.clone();
     input.refs = empty_set();
     assert!(matches!(
-        input.validate(&mut Authority::default(), &mut meter()),
+        input.validate(&mut Authority::default()),
         Err(ProtectedDefaultBodyClosureError::Missing { .. })
     ));
     input.refs = original.clone();
@@ -71,7 +68,7 @@ fn exact_reference_closure_rejects_missing_extra_wrong_origin_and_owner() {
         .globals
         .push(reference(&input.f, input.f.property, vec![]));
     assert!(matches!(
-        input.validate(&mut Authority::default(), &mut meter()),
+        input.validate(&mut Authority::default()),
         Err(ProtectedDefaultBodyClosureError::Extra { .. })
     ));
     input.refs = original.clone();
@@ -95,7 +92,7 @@ fn exact_reference_closure_rejects_missing_extra_wrong_origin_and_owner() {
         record.uses().clone(),
     );
     assert!(matches!(
-        input.validate(&mut Authority::default(), &mut meter()),
+        input.validate(&mut Authority::default()),
         Err(ProtectedDefaultBodyClosureError::Missing { .. })
     ));
     input.refs = original;
@@ -110,7 +107,7 @@ fn exact_reference_closure_rejects_missing_extra_wrong_origin_and_owner() {
         record.uses().clone(),
     );
     assert!(matches!(
-        input.validate(&mut Authority::default(), &mut meter()),
+        input.validate(&mut Authority::default()),
         Err(ProtectedDefaultBodyClosureError::WitnessOwner { .. })
     ));
 }
@@ -140,39 +137,13 @@ fn repeated_body_target_requires_each_distinct_expression_index() {
         receiver: OptionalTemplateReceiverV1::Absent,
         refs,
     };
-    input
-        .validate(&mut Authority::default(), &mut meter())
-        .unwrap();
+    input.validate(&mut Authority::default()).unwrap();
     input.refs.globals[0] = reference(
         &input.f,
         input.f.property,
         vec![use_at(1, ProtectedDefaultReceiverUseV1::None)],
     );
     assert!(
-        matches!(input.validate(&mut Authority::default(), &mut meter()), Err(ProtectedDefaultBodyClosureError::MissingUse { expected, .. }) if expected.expression_index() == 2)
+        matches!(input.validate(&mut Authority::default()), Err(ProtectedDefaultBodyClosureError::MissingUse { expected, .. }) if expected.expression_index() == 2)
     );
-}
-
-#[test]
-fn body_collection_and_matching_share_resource_limits() {
-    let input = metadata_input();
-    for limits in [
-        DecodeLimits {
-            decoded_nodes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            input.validate(&mut Authority::default(), &mut BudgetMeter::new(limits)),
-            Err(ProtectedDefaultBodyClosureError::Resource(_))
-        ));
-    }
 }

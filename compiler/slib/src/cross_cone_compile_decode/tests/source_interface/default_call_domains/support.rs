@@ -7,7 +7,6 @@ use scoop_identity::{
     CallableOwner, CoreBuiltinNominal, DefinitionOrigin, DefinitionOwnerAtom, DispatchSlotKey,
     PersistentDispatchSlotId, PersistentGenericTypeId,
 };
-use scoop_wire::{BudgetMeter, WirePath};
 use std::collections::BTreeMap;
 
 mod artifact;
@@ -122,10 +121,5 @@ fn owner_atom(id: SourceNominalId) -> DefinitionOwnerAtom {
     }
 }
 pub(super) fn region(constraints: Vec<Constraint>) -> Domain {
-    Domain::from_constraints(
-        constraints,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root(),
-    )
-    .unwrap()
+    Domain::from_constraints(constraints).unwrap()
 }

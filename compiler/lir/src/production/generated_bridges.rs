@@ -105,7 +105,7 @@ impl WireEncode for DecodedGeneratedBridgeUnitPlanV1 {
 }
 
 impl WireDecode for DecodedGeneratedBridgeUnitPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             unit: decoder.field(1, DecodedPersistentId::decode)?,
@@ -327,7 +327,7 @@ impl WireEncode for DecodedGeneratedBridgePlanSetV1 {
 }
 
 impl WireDecode for DecodedGeneratedBridgePlanSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedGeneratedBridgeUnitPlanV1::decode(decoder))
             .map(|units| Self { units })
@@ -427,7 +427,7 @@ impl fmt::Display for GeneratedBridgePlanValidationError {
 impl std::error::Error for GeneratedBridgePlanValidationError {}
 
 fn decode_id_array<I: PersistentId>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedPersistentId<I>>, WireError> {
     decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
 }

@@ -3,7 +3,7 @@ use std::num::NonZeroU64;
 
 use scoop_wire::{
     Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireEncode,
-    domain_separated_hash_stream_length, domain_separated_raw_hash,
+    domain_separated_raw_hash,
 };
 
 use crate::ids::derive_persistent_id;
@@ -107,10 +107,6 @@ impl RuntimeTypeId {
         derive_nonzero_u64(Self::HASH_DOMAIN, exact_type.as_array()).map(Self)
     }
 
-    pub fn hash_stream_length() -> Result<u64, DerivedIdError> {
-        domain_separated_hash_stream_length(Self::HASH_DOMAIN, 32).map_err(DerivedIdError::Hash)
-    }
-
     pub const fn get(self) -> u64 {
         self.0.get()
     }
@@ -124,10 +120,6 @@ impl SafepointId {
 
     pub fn derive(site: PersistentSafepointSiteId) -> Result<Self, DerivedIdError> {
         derive_nonzero_u64(Self::HASH_DOMAIN, site.as_array()).map(Self)
-    }
-
-    pub fn hash_stream_length() -> Result<u64, DerivedIdError> {
-        domain_separated_hash_stream_length(Self::HASH_DOMAIN, 32).map_err(DerivedIdError::Hash)
     }
 
     pub const fn get(self) -> u64 {

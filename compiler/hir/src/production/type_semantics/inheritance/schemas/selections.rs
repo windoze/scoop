@@ -3,7 +3,6 @@ use super::*;
 pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
     nominals: &[ConcreteNominal<'_>],
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalInheritanceSourceSlotSelectionsV1, Error> {
     let mut records = Vec::new();
     for nominal in nominals {
@@ -14,10 +13,9 @@ pub(in crate::production::type_semantics) fn project(
             NominalLocalId::Enum(id) => NominalOwner::Enum(id),
             NominalLocalId::Object(id) => NominalOwner::Object(id),
         };
-        let selections = crate::production::nominal_dispatch::project(export, owner, meter)?;
+        let selections = crate::production::nominal_dispatch::project(export, owner)?;
         for selection in selections.records() {
-            meter
-                .try_reserve_collection_slots(&mut records, 1, &WirePath::root())
+            scoop_wire::allocation::try_reserve(&mut records, 1, &WirePath::root())
                 .map_err(resource)?;
             records.push(InheritanceSourceSlotSelectionRecordV1::new(
                 nominal.exact,
@@ -26,6 +24,5 @@ pub(in crate::production::type_semantics) fn project(
             ));
         }
     }
-    CanonicalInheritanceSourceSlotSelectionsV1::try_new(records, meter)
-        .map_err(Error::SourceInventory)
+    CanonicalInheritanceSourceSlotSelectionsV1::try_new(records).map_err(Error::SourceInventory)
 }

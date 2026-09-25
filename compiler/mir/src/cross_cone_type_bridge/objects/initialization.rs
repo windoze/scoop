@@ -27,10 +27,7 @@ impl SelectedExternalInitializationUseV1 {
         provider: ConeIdentity,
         dependency_unit: PersistentInitializationUnitId,
         cause: MirExternalInitializationCauseV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirObjectBridgeError> {
-        meter.charge_nodes(1, &WirePath::root())?;
-        meter.charge_work(12, &WirePath::root())?;
         if unit_provider(identities, local_unit)? != consumer {
             return Err(MirObjectBridgeError::LocalUnitOwner { unit: local_unit });
         }
@@ -54,8 +51,7 @@ impl SelectedExternalInitializationUseV1 {
                                 .canonical_key::<_, SourceDeclarationKey>(*nominal)?
                                 .as_ref(),
                             &object,
-                            meter,
-                        )?
+                        )
                     }
                     _ => false,
                 }

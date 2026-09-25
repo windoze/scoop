@@ -9,16 +9,14 @@ fn callable_domains_keep_each_substituted_occurrence_of_the_same_nested_identity
     with_inputs(source, |inputs| {
         inputs.with_bound(|domains, parameters, _| {
             let declarations = parameters
-                .bind_default_declarations(&inputs.templates, &[], &mut meter())
+                .bind_default_declarations(&inputs.templates, &[])
                 .unwrap();
             domains
-                .bind_nominal_default_callable_domains(&declarations, &mut meter())
+                .bind_nominal_default_callable_domains(&declarations)
                 .unwrap();
             for position in [2, 3] {
                 let template = support::named(inputs, "Repeated.pair", position);
-                let declaration = declarations
-                    .declaration(template.key(), &mut meter())
-                    .unwrap();
+                let declaration = declarations.declaration(template.key()).unwrap();
                 let nested = declaration.nested_callables().occurrences();
                 let [first, second] = nested else {
                     panic!("two source expansions: {nested:?}")

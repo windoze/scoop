@@ -34,16 +34,9 @@ fn reader_unit_replays_roles_and_unit_type_without_claiming_an_emitted_body() {
         matches!(section.selected().resolve(reference), Some(MirTypeBridgeSemanticRecordV1::InitializationUnit(record)) if record.unit() == unit)
     );
     let bytes = encode(&terminal).unwrap();
-    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
     let replayed = decoded
-        .validate(
-            provider.authority(),
-            &[&core],
-            &provider.source,
-            &mut graph,
-            &mut meter(),
-        )
+        .validate(provider.authority(), &[&core], &provider.source, &mut graph)
         .unwrap();
     assert_eq!(
         replayed.initialization_units()[0].proof_kind(),
@@ -73,7 +66,6 @@ fn selected_unit_follows_its_committed_ensure_edges_but_not_other_units_edges() 
                 leaf.source.provider,
                 *dependency,
                 MirExternalInitializationCauseV1::InitializationSupport(*dependency),
-                &mut meter(),
             )
             .unwrap()
         })
@@ -168,7 +160,6 @@ fn initialization_use_cannot_supply_a_missing_local_unit_inventory() {
         provider.source.provider,
         provider.source.units[0],
         MirExternalInitializationCauseV1::InitializationSupport(provider.source.units[0]),
-        &mut meter(),
     )
     .unwrap();
     set_uses(&mut consumer, vec![use_record]);

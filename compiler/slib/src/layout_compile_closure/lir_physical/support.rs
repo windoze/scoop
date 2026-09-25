@@ -21,7 +21,6 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
         &self,
         provider: ConeIdentity,
         subject: Subject,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<Source<'a>>, Error> {
         use Subject::*;
         if matches!(
@@ -33,10 +32,9 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
                 | DispatchTable(_)
                 | TypeRegistration(_)
         ) {
-            meter.charge_work(1, &WirePath::root())?;
             return Ok(None);
         }
-        meter.charge_work(self.dependencies.len() as u64, &WirePath::root())?;
+
         let terminal = self
             .dependencies
             .iter()
@@ -47,7 +45,7 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
             .strong
             .initialization_registrations()
             .registrations();
-        meter.charge_work(units.len() as u64, &WirePath::root())?;
+
         let unit = units
             .iter()
             .map(|record| record.semantic())
@@ -59,17 +57,17 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
                 _ => false,
             })
             .ok_or(Error::SupportRelation(subject))?;
-        if !self.selected(provider, Target::InitializationUnit(unit.unit()), meter)? {
+        if !self.selected(provider, Target::InitializationUnit(unit.unit()))? {
             return Err(Error::SupportRelation(subject));
         }
-        meter.charge_work(terminal.units.len() as u64, &WirePath::root())?;
+
         let proof = terminal
             .units
             .iter()
             .find(|proof| proof.unit() == unit.unit())
             .ok_or(Error::SupportRelation(subject))?;
-        if body(proof.initializer(), meter)? != unit.initializer()
-            || body(proof.ensure(), meter)? != unit.ensure()
+        if body(proof.initializer())? != unit.initializer()
+            || body(proof.ensure())? != unit.ensure()
         {
             return Err(Error::SupportRelation(subject));
         }
@@ -78,8 +76,8 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
                 Ok(Some(Source::Initialization { unit }))
             }
             StaticStorage(id) | StaticStorageRegistration(id) => {
-                let explicit = self.initialization_support(provider, unit.unit(), meter)?;
-                let singleton = id == unit.storage() && self.singleton(terminal, proof, meter)?;
+                let explicit = self.initialization_support(provider, unit.unit())?;
+                let singleton = id == unit.storage() && self.singleton(terminal, proof)?;
                 if !explicit && !singleton {
                     return Err(Error::SupportRelation(subject));
                 }
@@ -87,7 +85,7 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
                     .strong
                     .static_storage_registrations()
                     .registrations();
-                meter.charge_work(storages.len() as u64, &WirePath::root())?;
+
                 let storage = storages
                     .iter()
                     .find(|record| record.semantic().storage() == id)
@@ -101,17 +99,9 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
 }
 
 impl SharedSupport<'_, '_, '_> {
-    fn selected(
-        &self,
-        provider: ConeIdentity,
-        target: Target,
-        meter: &mut BudgetMeter,
-    ) -> Result<bool, Error> {
+    fn selected(&self, provider: ConeIdentity, target: Target) -> Result<bool, Error> {
         let selected = self.consumer.selected_relations();
-        meter.charge_work(
-            u64::from(selected.len().max(1).ilog2()) + 1,
-            &WirePath::root(),
-        )?;
+
         Ok(selected
             .binary_search(&mir::MirTypeBridgeDependencyV1::new(provider, target))
             .is_ok())
@@ -121,10 +111,9 @@ impl SharedSupport<'_, '_, '_> {
         &self,
         provider: ConeIdentity,
         unit: PersistentInitializationUnitId,
-        meter: &mut BudgetMeter,
     ) -> Result<bool, Error> {
         let uses = self.consumer.exports().initialization_uses().records();
-        meter.charge_work(uses.len() as u64, &WirePath::root())?;
+
         Ok(uses.iter().any(|edge| {
             edge.provider() == provider
                 && edge.dependency_unit() == unit
@@ -137,14 +126,13 @@ impl SharedSupport<'_, '_, '_> {
         &self,
         terminal: &PhysicalImportsReplayedCrossConeLayoutSections<'_, '_>,
         proof: &mir::MirTypeBridgeInitializationUnitV1,
-        meter: &mut BudgetMeter,
     ) -> Result<bool, Error> {
         let objects = terminal.mir.exports().objects().records();
-        meter.charge_work(objects.len() as u64, &WirePath::root())?;
+
         for object in objects {
             if object.unit() == proof.unit()
                 && object.ensure() == proof.ensure()
-                && self.selected(terminal.identity(), Target::Object(object.value()), meter)?
+                && self.selected(terminal.identity(), Target::Object(object.value()))?
             {
                 return Ok(true);
             }
@@ -153,14 +141,8 @@ impl SharedSupport<'_, '_, '_> {
     }
 }
 
-fn body(
-    owner: StrongCallableDefinitionOwner,
-    meter: &mut BudgetMeter,
-) -> Result<PersistentCallableBodyId, Error> {
+fn body(owner: StrongCallableDefinitionOwner) -> Result<PersistentCallableBodyId, Error> {
     let key = CallableBodyKey::strong(owner);
-    meter.charge_sha256(
-        PersistentCallableBodyId::hash_stream_length(&key).map_err(|_| Error::Contract)?,
-        &WirePath::root(),
-    )?;
+
     PersistentCallableBodyId::from_key(&key).map_err(|_| Error::Contract)
 }

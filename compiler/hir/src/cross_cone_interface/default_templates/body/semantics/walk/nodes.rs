@@ -4,7 +4,6 @@ use super::*;
 pub(in super::super) enum WorkItem<'a> {
     Body {
         node: BodyNode<'a>,
-        depth: u64,
     },
     Type {
         signature: &'a SignatureTypeKey,

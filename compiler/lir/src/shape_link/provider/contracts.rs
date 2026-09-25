@@ -7,22 +7,17 @@ impl<'a> ShapeLinkProviderV1<'a> {
         subject: ExternalStrongShapeSubjectV1,
         physical: StrongShapeDefinitionRefV1,
         support: &dyn ShapeLinkSupportLookupV1<'a>,
-        meter: &mut BudgetMeter,
     ) -> Result<ShapeLinkContractV1<'a>, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;
-        let path = WirePath::root();
+
         Ok(match subject {
             Subject::Callable(target) => {
-                meter.charge_work(self.parts.callables.records().len() as u64, &path)?;
                 let record = self
                     .parts
                     .callables
                     .get(target)
                     .ok_or(ShapeLinkError::MissingSubject(subject))?;
-                meter.charge_work(
-                    self.parts.production.callables().registrations().len() as u64,
-                    &path,
-                )?;
+
                 let registration = self
                     .parts
                     .production
@@ -45,7 +40,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
                 }
             }
             Subject::Layout(layout) => {
-                meter.charge_work(self.parts.layouts.records().len() as u64, &path)?;
                 let record = self
                     .parts
                     .layouts
@@ -57,7 +51,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
                 ShapeLinkContractV1::Layout { record }
             }
             Subject::Scan(scan) => {
-                meter.charge_work(self.parts.foundation.scans().len() as u64, &path)?;
                 let binding = self
                     .parts
                     .foundation
@@ -65,7 +58,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                     .iter()
                     .find(|record| record.id() == scan)
                     .ok_or(ShapeLinkError::MissingSubject(subject))?;
-                meter.charge_work(self.parts.layouts.records().len() as u64, &path)?;
+
                 let record = self
                     .parts
                     .layouts
@@ -99,17 +92,17 @@ impl<'a> ShapeLinkProviderV1<'a> {
             }
             Subject::TypeDescriptor(exact) | Subject::TypeRegistration(exact) => {
                 ShapeLinkContractV1::Type {
-                    descriptor_projection: self.descriptor(exact, subject, physical, meter)?,
+                    descriptor_projection: self.descriptor(exact, subject, physical)?,
                 }
             }
             Subject::DispatchTable(table) => ShapeLinkContractV1::Dispatch {
-                table_projection: self.dispatch(table, physical, meter)?,
+                table_projection: self.dispatch(table, physical)?,
             },
             Subject::StaticStorage(_)
             | Subject::StaticStorageRegistration(_)
             | Subject::InitializationCell(_)
             | Subject::InitializationDescriptor(_) => {
-                self.support_contract(subject, physical, support, meter)?
+                self.support_contract(subject, physical, support)?
             }
         })
     }

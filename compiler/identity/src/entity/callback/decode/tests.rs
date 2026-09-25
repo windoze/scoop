@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     CallbackIdentityResolutionError, DecodedCallbackApplicationKey, DecodedCallbackRegistrationKey,
@@ -82,11 +82,8 @@ fn managed_signature_shape_round_trips_and_resolves() {
         vec![binder(), nominal()],
         nominal(),
     );
-    let decoded = decode_canonical::<DecodedSignatureCallableShape>(
-        &encode(&shape).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedSignatureCallableShape>(&encode(&shape).unwrap()).unwrap();
 
     assert_eq!(
         decoded
@@ -103,7 +100,7 @@ fn callback_registration_record_resolves_before_verifying_identity() {
         CborIdentityRecord::from_key(registration.clone()).unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<PersistentCallbackRegistrationId, DecodedCallbackRegistrationKey>,
-    >(&encode(&record).unwrap(), DecodeLimits::default())
+    >(&encode(&record).unwrap())
     .unwrap();
     let mut resolver = resolver(registration.clone());
     let resolved = decoded.resolve(|key| key.resolve(&mut resolver)).unwrap();
@@ -140,7 +137,7 @@ fn callback_application_records_resolve_registration_and_context() {
                 PersistentCallbackApplicationId,
                 DecodedCallbackApplicationKey,
             >,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         let mut resolver = resolver(registration.clone());
         let resolved = decoded.resolve(|key| key.resolve(&mut resolver)).unwrap();
@@ -157,11 +154,8 @@ fn callback_application_rechecks_binder_substitution_rule() {
         registration: registration_id,
         context: CallableMaterializationContext::NoSubstitution,
     };
-    let decoded = decode_canonical::<DecodedCallbackApplicationKey>(
-        &encode(&raw).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCallbackApplicationKey>(&encode(&raw).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut resolver(registration)),
@@ -179,11 +173,8 @@ fn callback_application_rejects_a_registration_key_for_another_id() {
         registration: PersistentCallbackRegistrationId::from_key(&other).unwrap(),
         context: CallableMaterializationContext::NoSubstitution,
     };
-    let decoded = decode_canonical::<DecodedCallbackApplicationKey>(
-        &encode(&raw).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedCallbackApplicationKey>(&encode(&raw).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut resolver(expected_registration)),
@@ -197,15 +188,11 @@ fn callback_decoder_rejects_unknown_effect_and_large_index() {
     let mut bytes = encode(&shape).unwrap();
     assert_eq!(&bytes[..3], &[0xa4, 0x01, 0x01]);
     bytes[2] = 3;
-    let error = decode_canonical::<DecodedSignatureCallableShape>(&bytes, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedSignatureCallableShape>(&bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error = decode_canonical::<CallbackParameterIndex>(
-        b"\x1b\x00\x00\x00\x01\x00\x00\x00\x00",
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<CallbackParameterIndex>(b"\x1b\x00\x00\x00\x01\x00\x00\x00\x00")
+        .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::IntegerOutOfRange);
 }
 

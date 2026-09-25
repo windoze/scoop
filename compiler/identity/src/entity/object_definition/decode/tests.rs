@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedDefinitionAtomSubkey, DecodedObjectDefinitionAtomKey, DecodedObjectDefinitionPlanKey,
@@ -86,7 +86,7 @@ fn every_strong_plan_shape_round_trips_and_validates_its_record() {
         let record = CborIdentityRecord::<ObjectDefinitionPlanId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<ObjectDefinitionPlanId, DecodedObjectDefinitionPlanKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         let resolved = decoded
             .resolve(|key| key.resolve(&mut resolver(bridge)))
@@ -102,7 +102,7 @@ fn odr_plan_round_trips_without_becoming_a_strong_plan() {
     let record = CborIdentityRecord::<ObjectDefinitionPlanId, _>::from_key(key).unwrap();
     let decoded = decode_canonical::<
         DecodedCborIdentityRecord<ObjectDefinitionPlanId, DecodedObjectDefinitionPlanKey>,
-    >(&encode(&record).unwrap(), DecodeLimits::default())
+    >(&encode(&record).unwrap())
     .unwrap();
 
     assert_eq!(
@@ -120,7 +120,7 @@ fn every_atom_role_and_subkey_round_trips_and_validates_its_record() {
         let record = CborIdentityRecord::<ObjectDefinitionAtomId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<ObjectDefinitionAtomId, DecodedObjectDefinitionAtomKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         let resolved = decoded
             .resolve(|key| key.resolve(&mut resolver(materialized_bridge())))
@@ -140,11 +140,9 @@ fn plan_resolution_rechecks_owner_role_and_entity_role_matrices() {
         owner: RawPlanOwner::Trusted(strong_owner),
         role: ObjectDefinitionPlanRole::Strong(StrongDefinitionRole::ScanProgram),
     };
-    let decoded = decode_canonical::<DecodedObjectDefinitionPlanKey>(
-        &encode(&wrong_entity_role).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedObjectDefinitionPlanKey>(&encode(&wrong_entity_role).unwrap())
+            .unwrap();
     assert_eq!(
         decoded.resolve(&mut resolver(materialized_bridge())),
         Err(ObjectDefinitionResolutionError::Definition(
@@ -156,11 +154,9 @@ fn plan_resolution_rechecks_owner_role_and_entity_role_matrices() {
         owner: RawPlanOwner::Trusted(strong_owner),
         role: ObjectDefinitionPlanRole::OdrMemberPrimary,
     };
-    let decoded = decode_canonical::<DecodedObjectDefinitionPlanKey>(
-        &encode(&wrong_owner_role).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedObjectDefinitionPlanKey>(&encode(&wrong_owner_role).unwrap())
+            .unwrap();
     assert_eq!(
         decoded.resolve(&mut resolver(materialized_bridge())),
         Err(ObjectDefinitionResolutionError::Definition(
@@ -179,11 +175,8 @@ fn plan_resolution_rejects_nonmaterializable_bridge_support() {
         },
         role: ObjectDefinitionPlanRole::Strong(StrongDefinitionRole::GeneratedBridge),
     };
-    let decoded = decode_canonical::<DecodedObjectDefinitionPlanKey>(
-        &encode(&raw).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedObjectDefinitionPlanKey>(&encode(&raw).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut resolver(bridge)),
@@ -200,11 +193,8 @@ fn atom_resolution_rejects_an_unknown_plan_reference() {
         DefinitionAtomRole::Primary,
         DefinitionAtomSubkey::Singleton,
     );
-    let decoded = decode_canonical::<DecodedObjectDefinitionAtomKey>(
-        &encode(&key).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedObjectDefinitionAtomKey>(&encode(&key).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut resolver(materialized_bridge())),
@@ -224,7 +214,7 @@ fn object_definition_decoders_reject_unknown_tags() {
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
-    let error = decode_canonical::<T>(bytes, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<T>(bytes).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag });
 }
 

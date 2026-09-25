@@ -52,7 +52,7 @@ impl WireEncode for DecodedStrongExternalLirBridgeV1 {
 }
 
 impl WireDecode for DecodedStrongExternalLirBridgeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(WireError::new(
@@ -157,7 +157,7 @@ impl WireEncode for DecodedStrongExternalLirBridgeSurfaceV1 {
 }
 
 impl WireDecode for DecodedStrongExternalLirBridgeSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedStrongExternalLirBridgeV1::decode(decoder))
             .map(|bridges| Self { bridges })

@@ -1,23 +1,18 @@
 //! Canonical diagnostic bytes derived from persistent exact-type identities.
 
-use scoop_wire::{BudgetMeter, DecodeLimits, HashError, WireError, WirePath};
-use std::collections::{BTreeMap, BTreeSet};
+use scoop_wire::HashError;
+use std::collections::BTreeSet;
 use std::fmt;
 
 use super::*;
 use crate::{DeclarationName, DefinitionOwnerAtom, SourceDeclarationKey, SourceDeclarationKind};
 
-const MAX_DIAGNOSTIC_NAME_BYTES: usize = 16 * 1024 * 1024;
-const MAX_DIAGNOSTIC_RECURSION: usize = 1_024;
-
 mod atoms;
 use atoms::*;
-mod cost;
-use cost::exact_type_cost;
 mod render;
 use render::write_exact_type;
 mod generated;
-use generated::{nominal_cost, write_nominal};
+use generated::write_nominal;
 
 /// Read-only access to an already validated exact-type identity graph.
 pub trait ExactTypeDiagnosticGraph {
@@ -46,17 +41,11 @@ impl<'a> ExactTypeDiagnosticCatalog<'a> {
     pub fn try_new(
         identities: &'a crate::ValidatedIdentityGraph,
         coordinates: &'a [ConeCoordinate],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactTypeDiagnosticCatalogError> {
-        let path = WirePath::root();
-        let count = coordinates.len() as u64;
-        meter.check_table_entries(count, &path)?;
-        let comparisons = count
-            .checked_mul(u64::from(count.max(1).ilog2()) + 1)
-            .ok_or(ExactTypeDiagnosticCatalogError::CountOverflow)?;
-        meter.charge_work(comparisons, &path)?;
         let mut indexed = Vec::new();
-        meter.try_reserve_collection_slots(&mut indexed, coordinates.len(), &path)?;
+        indexed
+            .try_reserve_exact(coordinates.len())
+            .map_err(|_| ExactTypeDiagnosticCatalogError::Allocation)?;
         for coordinate in coordinates {
             let id = coordinate
                 .identity()
@@ -107,17 +96,10 @@ impl ExactTypeDiagnosticGraph for ExactTypeDiagnosticCatalog<'_> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExactTypeDiagnosticCatalogError {
-    CountOverflow,
+    Allocation,
     UnknownCone(ConeIdentity),
     DuplicateCone(ConeIdentity),
     Hash(HashError),
-    Resource(WireError),
-}
-
-impl From<WireError> for ExactTypeDiagnosticCatalogError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
-    }
 }
 
 impl fmt::Display for ExactTypeDiagnosticCatalogError {
@@ -136,42 +118,9 @@ impl CanonicalExactTypeDiagnosticName {
         root: PersistentExactTypeId,
         graph: &impl ExactTypeDiagnosticGraph,
     ) -> Result<Self, ExactTypeDiagnosticError> {
-        Self::from_validated_graph_metered(
-            root,
-            graph,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-    }
-
-    pub fn from_validated_graph_metered(
-        root: PersistentExactTypeId,
-        graph: &impl ExactTypeDiagnosticGraph,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, ExactTypeDiagnosticError> {
-        let mut costs = BTreeMap::new();
-        let mut active = BTreeSet::new();
-        let cost = exact_type_cost(root, graph, &mut costs, &mut active, 1, meter)?;
-        if cost > MAX_DIAGNOSTIC_NAME_BYTES {
-            return Err(ExactTypeDiagnosticError::NameTooLong {
-                limit: MAX_DIAGNOSTIC_NAME_BYTES,
-                observed: cost,
-            });
-        }
-        let path = WirePath::root();
-        meter.check_semantic_leaf(cost as u64, &path)?;
-        meter.charge_owned_bytes(cost as u64, &path)?;
-        // The render pass expands the DAG. Its work is bounded by the checked
-        // output cost, rather than only by the number of unique type nodes.
-        meter.charge_work((cost as u64).saturating_mul(4), &path)?;
-        let mut output = String::new();
-        output
-            .try_reserve_exact(cost)
-            .map_err(|_| ExactTypeDiagnosticError::Allocation)?;
-        write_exact_type(root, graph, &mut output, 1)?;
-        if output.len() != cost {
-            return Err(ExactTypeDiagnosticError::GraphChangedDuringPrint);
-        }
-        Ok(Self(output))
+        let mut output = NameOutput(String::new());
+        write_exact_type(root, graph, &mut output)?;
+        Ok(Self(output.0))
     }
 
     pub fn as_str(&self) -> &str {
@@ -191,7 +140,6 @@ impl fmt::Display for CanonicalExactTypeDiagnosticName {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExactTypeDiagnosticError {
-    Resource(WireError),
     ConflictingNominalDefinitions(PersistentTypeId),
     InvalidGeneratedNominal(PersistentTypeId),
     MissingExactType(PersistentExactTypeId),
@@ -202,17 +150,13 @@ pub enum ExactTypeDiagnosticError {
     ConstructorUsedAsNominalName,
     NonNominalOwner,
     Cycle(PersistentExactTypeId),
-    RecursionLimit,
     LengthOverflow,
-    NameTooLong { limit: usize, observed: usize },
     Allocation,
-    GraphChangedDuringPrint,
 }
 
 impl fmt::Display for ExactTypeDiagnosticError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resource(error) => error.fmt(formatter),
             Self::ConflictingNominalDefinitions(id) => write!(
                 formatter,
                 "both source and generated nominal definitions for {id}"
@@ -236,21 +180,9 @@ impl fmt::Display for ExactTypeDiagnosticError {
                 formatter.write_str("nominal declaration has a non-nominal owner")
             }
             Self::Cycle(id) => write!(formatter, "cycle in exact type graph at {id}"),
-            Self::RecursionLimit => {
-                formatter.write_str("exact type diagnostic recursion limit exceeded")
-            }
             Self::LengthOverflow => formatter.write_str("exact type diagnostic length overflow"),
-            Self::NameTooLong { limit, observed } => {
-                write!(
-                    formatter,
-                    "exact type diagnostic name has {observed} bytes, limit is {limit}"
-                )
-            }
             Self::Allocation => {
                 formatter.write_str("failed to allocate exact type diagnostic name")
-            }
-            Self::GraphChangedDuringPrint => {
-                formatter.write_str("validated exact type graph changed while printing")
             }
         }
     }
@@ -258,8 +190,22 @@ impl fmt::Display for ExactTypeDiagnosticError {
 
 impl std::error::Error for ExactTypeDiagnosticError {}
 
-impl From<WireError> for ExactTypeDiagnosticError {
-    fn from(error: WireError) -> Self {
-        Self::Resource(error)
+struct NameOutput(String);
+
+impl NameOutput {
+    fn push_str(&mut self, value: &str) -> Result<(), ExactTypeDiagnosticError> {
+        self.0
+            .len()
+            .checked_add(value.len())
+            .ok_or(ExactTypeDiagnosticError::LengthOverflow)?;
+        self.0
+            .try_reserve(value.len())
+            .map_err(|_| ExactTypeDiagnosticError::Allocation)?;
+        self.0.push_str(value);
+        Ok(())
+    }
+
+    fn push(&mut self, value: char) -> Result<(), ExactTypeDiagnosticError> {
+        self.push_str(value.encode_utf8(&mut [0; 4]))
     }
 }

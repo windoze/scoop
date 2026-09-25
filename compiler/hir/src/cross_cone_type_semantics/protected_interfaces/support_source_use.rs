@@ -91,7 +91,7 @@ impl WireEncode for DecodedNominalSupportSourceInterfaceUseV1 {
     }
 }
 impl WireDecode for DecodedNominalSupportSourceInterfaceUseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {

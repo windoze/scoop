@@ -62,7 +62,7 @@ struct DecodedSelectedDependencyLayoutAbiSetV1 {
 }
 
 impl WireDecode for DecodedCrossConeLayoutAbiSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             layouts: decoder.field(1, crate::DecodedCanonicalExactLayoutExportsV1::decode)?,
@@ -107,7 +107,7 @@ impl WireEncode for CrossConeLayoutAbiSectionV1<'_> {
 }
 
 impl WireDecode for DecodedSelectedDependencyLayoutAbiSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             semantic: decoder.field(1, |decoder| {

@@ -3,30 +3,18 @@
 use super::*;
 
 impl SourceAccessDomainV1 {
-    pub fn from_export_hir(
-        export: &ExportHir,
-        source: &AccessDomain,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
+    pub fn from_export_hir(export: &ExportHir, source: &AccessDomain) -> Result<Self, Error> {
         let path = WirePath::root();
-        meter.check_semantic_depth(2, &path)?;
-        meter.charge_work(1, &path)?;
+
         if source.is_empty() {
             return Ok(Self::empty());
         }
         let mut constraints = Vec::new();
-        meter.try_reserve_collection_slots(&mut constraints, source.constraints().len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut constraints, source.constraints().len(), &path)?;
         for constraint in source.constraints() {
-            meter.charge_work(1, &path)?;
             constraints.push(match constraint {
                 AccessConstraint::Cone(id) => SourceAccessConstraintV1::Cone(*id),
-                AccessConstraint::File(source) => {
-                    let bytes = source.logical_path().as_str().len() as u64;
-                    meter.check_semantic_leaf(bytes, &path)?;
-                    meter.charge_owned_bytes(bytes, &path)?;
-                    meter.charge_work(bytes, &path)?;
-                    SourceAccessConstraintV1::File(source.clone())
-                }
+                AccessConstraint::File(source) => SourceAccessConstraintV1::File(source.clone()),
                 AccessConstraint::LexicalOwner(owner) => {
                     SourceAccessConstraintV1::LexicalOwner(domains::nominal(export, *owner)?)
                 }
@@ -35,7 +23,7 @@ impl SourceAccessDomainV1 {
                 ),
             });
         }
-        Self::from_constraints(constraints, meter, &path).map_err(Error::Resource)
+        Self::from_constraints(constraints).map_err(Error::Resource)
     }
 }
 
@@ -45,20 +33,18 @@ impl ExportDefaultAccessWitnessV1 {
     pub fn from_export_hir(
         export: &ExportHir,
         witness: &ExportDefaultAccessWitness,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let owner = super::super::entities::DefaultEntityProjector::new(export, None, meter)
+        let owner = super::super::entities::DefaultEntityProjector::new(export, None)
             .parameter_owner(witness.owner)
             .map_err(Error::Owner)?;
-        let direct =
-            SourceAccessDomainV1::from_export_hir(export, &witness.call_domain.direct.0, meter)?;
+        let direct = SourceAccessDomainV1::from_export_hir(export, &witness.call_domain.direct.0)?;
         let slot = witness
             .call_domain
             .slot
             .as_ref()
-            .map(|slot| SourceAccessDomainV1::from_export_hir(export, &slot.0, meter))
+            .map(|slot| SourceAccessDomainV1::from_export_hir(export, &slot.0))
             .transpose()?;
-        let target = SourceAccessDomainV1::from_export_hir(export, &witness.target_domain, meter)?;
+        let target = SourceAccessDomainV1::from_export_hir(export, &witness.target_domain)?;
         Self::try_new(owner, direct, slot, target).map_err(Error::SharedBuild)
     }
 }

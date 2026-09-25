@@ -1,17 +1,9 @@
 use super::*;
-use scoop_wire::WirePath;
 
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    meter.charge_work(
-        (section.layouts().records().len() as u64)
-            .saturating_mul(production.canonical_definitions().plans().len().max(1) as u64)
-            .saturating_mul(2),
-        &WirePath::root(),
-    )?;
     for record in section.layouts().records() {
         if !matches_definition(
             production.canonical_definitions(),

@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{DecodedInitializationUnitKey, DecodedLocalValueKey};
 use crate::{
@@ -83,7 +83,7 @@ fn all_initialization_unit_records_round_trip_and_resolve() {
             CborIdentityRecord::<PersistentInitializationUnitId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentInitializationUnitId, DecodedInitializationUnitKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap(),
@@ -133,7 +133,7 @@ fn all_local_value_selectors_round_trip_and_resolve() {
         .unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentLocalValueId, DecodedLocalValueKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap(),
@@ -147,8 +147,7 @@ fn materialization_decoder_rejects_empty_arguments_and_unknown_tags() {
     let mut empty = vec![0xa3, 0x00, 0x05, 0x01, 0x58, 0x20];
     empty.extend_from_slice(PersistentExtensionPropertyId::expected().as_array());
     empty.extend_from_slice(&[0x02, 0x80]);
-    let error = decode_canonical::<DecodedInitializationUnitKey>(&empty, DecodeLimits::default())
-        .unwrap_err();
+    let error = decode_canonical::<DecodedInitializationUnitKey>(&empty).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -157,22 +156,16 @@ fn materialization_decoder_rejects_empty_arguments_and_unknown_tags() {
         }
     );
 
-    let unknown =
-        decode_canonical::<DecodedInitializationUnitKey>(b"\xa1\x00\x06", DecodeLimits::default())
-            .unwrap_err();
+    let unknown = decode_canonical::<DecodedInitializationUnitKey>(b"\xa1\x00\x06").unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 6 });
 
     let selector = decode_error_kind::<LocalValueSelector>(b"\xa1\x00\x07");
     assert_eq!(selector, WireErrorKind::UnknownTag { tag: 7 });
 
-    let role =
-        decode_canonical::<SyntheticLocalRole>(b"\x06", DecodeLimits::default()).unwrap_err();
+    let role = decode_canonical::<SyntheticLocalRole>(b"\x06").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 6 });
 }
 
 fn decode_error_kind<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8]) -> WireErrorKind {
-    decode_canonical::<T>(bytes, DecodeLimits::default())
-        .unwrap_err()
-        .kind()
-        .clone()
+    decode_canonical::<T>(bytes).unwrap_err().kind().clone()
 }

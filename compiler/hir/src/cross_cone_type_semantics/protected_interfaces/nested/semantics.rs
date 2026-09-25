@@ -3,7 +3,7 @@ use crate::{
     CanonicalNominalRepresentationSupportV1, CheckedNominalInheritanceGraphV1,
     NominalSourceShapeSemanticAuthority, NominalSupportPropertySemanticAuthority, SourceNominalId,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod concrete;
 mod errors;
@@ -55,7 +55,6 @@ impl ProtectedNestedNominalInterfaceV1 {
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         representations: &CanonicalNominalRepresentationSupportV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedNestedNominalSourceV1<'a>, NestedSourceSemanticError<E>> {
         let owner = self
             .declaration_access()
@@ -69,7 +68,7 @@ impl ProtectedNestedNominalInterfaceV1 {
             return Err(NestedSourceSemanticError::Owner);
         }
         self.source
-            .validate_source(graph, representations, authority, meter)
+            .validate_source(graph, representations, authority)
     }
 }
 impl NominalSupportNestedInterfaceV1 {
@@ -77,18 +76,16 @@ impl NominalSupportNestedInterfaceV1 {
         &self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         representations: &CanonicalNominalRepresentationSupportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), NestedSourceSemanticError<E>> {
-        concrete::validate(self, graph, representations, meter)
+        concrete::validate(self, graph, representations)
     }
     pub fn validate_source<'a, A: NestedNominalSemanticAuthority<E>, E>(
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
         representations: &CanonicalNominalRepresentationSupportV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
     ) -> Result<CheckedNestedNominalSourceV1<'a>, NestedSourceSemanticError<E>> {
-        validate(self, graph, representations, authority, meter, 1)?;
+        validate(self, graph, representations, authority)?;
         Ok(CheckedNestedNominalSourceV1 { record: self })
     }
 }
@@ -97,16 +94,9 @@ fn validate<A: NestedNominalSemanticAuthority<E>, E>(
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     representations: &CanonicalNominalRepresentationSupportV1,
     authority: &mut A,
-    meter: &mut BudgetMeter,
-    depth: u64,
 ) -> Result<(), NestedSourceSemanticError<E>> {
     use NestedSourceSemanticError as Error;
-    meter
-        .check_semantic_depth(depth, &WirePath::root())
-        .map_err(Error::Resource)?;
-    meter
-        .charge_nodes(1, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     let source = graph.source(record.declaration()).ok_or(Error::Owner)?;
     let interface = record.payload().source_interface();
     if source.access != record.declaration_access()
@@ -123,24 +113,18 @@ fn validate<A: NestedNominalSemanticAuthority<E>, E>(
     {
         return Err(Error::Modality);
     }
-    metadata::validate(record.declaration(), interface, authority, meter)?;
-    concrete::validate(record, graph, representations, meter)?;
-    records::validate(record, graph, representations, authority, meter, depth)?;
+    metadata::validate(record.declaration(), interface, authority)?;
+    concrete::validate(record, graph, representations)?;
+    records::validate(record, graph, representations, authority)?;
     Ok(())
 }
 
 fn compare<T: WireEncode + PartialEq, E>(
     actual: &T,
     expected: &T,
-    meter: &mut BudgetMeter,
 ) -> Result<(), NestedSourceSemanticError<E>> {
     use NestedSourceSemanticError as Error;
-    let count = scoop_wire::encoded_length(actual)
-        .map_err(Error::Encoding)?
-        .saturating_add(scoop_wire::encoded_length(expected).map_err(Error::Encoding)?);
-    meter
-        .charge_work(count, &WirePath::root())
-        .map_err(Error::Resource)?;
+
     if actual != expected {
         return Err(Error::Inventory);
     }

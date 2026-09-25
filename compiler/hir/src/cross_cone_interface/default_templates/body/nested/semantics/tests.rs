@@ -3,7 +3,7 @@ use scoop_identity::{
     LexicalCallableRole, OptionalSignatureType, PersistentGeneratedCallableId, SignatureTypeKey,
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use scoop_wire::WirePath;
 use std::fmt;
 
 use super::*;
@@ -385,38 +385,6 @@ fn rejects_missing_and_duplicate_local_function_descriptors() {
 }
 
 #[test]
-fn body_walk_uses_the_callers_semantic_depth_budget() {
-    let fixture = Fixture::new();
-    let template = template(&fixture);
-    let path = WirePath::root().field(9);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 1,
-        ..DecodeLimits::default()
-    });
-    let error = template
-        .body()
-        .validate_nested_callable_abi_semantics(
-            &template,
-            &mut AuthoritySet::new(Vec::new()),
-            &mut meter,
-            &path,
-        )
-        .unwrap_err();
-
-    assert!(matches!(
-        error,
-        DefaultNestedCallableAbiValidationError::Resource(ref error)
-            if error.kind()
-                == &WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::SemanticRecursion,
-                    limit: 1,
-                    observed: 2,
-                }
-                && error.path() == &path
-    ));
-}
-
-#[test]
 fn validates_all_four_nested_callable_descriptor_kinds() {
     let fixture = Fixture::new();
     let template = template(&fixture);
@@ -780,83 +748,12 @@ fn rejects_body_argument_owner_signature_and_capture_mismatches() {
     ));
 }
 
-#[test]
-fn preserves_authority_query_and_resource_failures() {
-    let fixture = Fixture::new();
-    let template = template(&fixture);
-    let descriptor_path = child_path(
-        template.definition_path(),
-        StructuralDefinitionSiteRole::LocalDeclaration,
-        0,
-    );
-    let local = DefaultLocalFunctionV1::try_new(
-        CallableTemplateOrigin::Function(fixture.function),
-        descriptor_path.clone(),
-        function(binder(0)),
-        Vec::new(),
-        0,
-    )
-    .unwrap();
-    let identity = DefaultNestedCallableIdentityV1::LocalFunction(
-        CallableTemplateOrigin::Function(fixture.function),
-    );
-    let mut authority = Authority::new(
-        identity,
-        identity_shape(
-            DefaultNestedCallableProvenanceV1::TemplateLexical,
-            descriptor_path,
-            0,
-            DefaultNestedCallableBodyShapeV1::Absent,
-        ),
-        abi_shape(function(binder(0)), Vec::new()),
-    );
-    authority.failure = Some(DefaultNestedCallableAuthorityQueryV1::Abi);
-    assert_eq!(
-        validate(&local, &template, authority).unwrap_err(),
-        DefaultNestedCallableAbiValidationError::Authority {
-            kind: DefaultNestedCallableKindV1::LocalFunction,
-            query: DefaultNestedCallableAuthorityQueryV1::Abi,
-            error: AuthorityError,
-        }
-    );
-
-    let path = WirePath::root().field(4);
-    let mut meter = BudgetMeter::new(DecodeLimits {
-        semantic_recursion: 0,
-        ..DecodeLimits::default()
-    });
-    let mut authority = Authority::new(
-        identity,
-        identity_shape(
-            DefaultNestedCallableProvenanceV1::TemplateLexical,
-            local.definition_path().clone(),
-            0,
-            DefaultNestedCallableBodyShapeV1::Absent,
-        ),
-        abi_shape(function(binder(0)), Vec::new()),
-    );
-    let error = local
-        .validate_nested_callable_abi_semantics(&template, &mut authority, &mut meter, &path)
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        DefaultNestedCallableAbiValidationError::Resource(ref error)
-            if error.kind()
-                == &WireErrorKind::LimitExceeded {
-                    resource: ResourceKind::SemanticRecursion,
-                    limit: 0,
-                    observed: 1,
-                }
-                && error.path() == &path
-    ));
-}
-
 trait ValidateDescriptor {
     fn validate<A, E>(
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>>
     where
@@ -868,13 +765,13 @@ impl ValidateDescriptor for DefaultLocalFunctionV1 {
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>>
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        self.validate_nested_callable_abi_semantics(template, authority, meter, path)
+        self.validate_nested_callable_abi_semantics(template, authority, path)
     }
 }
 
@@ -883,13 +780,13 @@ impl ValidateDescriptor for DefaultLambdaV1 {
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>>
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        self.validate_nested_callable_abi_semantics(template, authority, meter, path)
+        self.validate_nested_callable_abi_semantics(template, authority, path)
     }
 }
 
@@ -898,13 +795,13 @@ impl ValidateDescriptor for DefaultAnonymousFunctionV1 {
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>>
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        self.validate_nested_callable_abi_semantics(template, authority, meter, path)
+        self.validate_nested_callable_abi_semantics(template, authority, path)
     }
 }
 
@@ -913,13 +810,13 @@ impl ValidateDescriptor for DefaultCallableReferenceV1 {
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>>
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        self.validate_nested_callable_abi_semantics(template, authority, meter, path)
+        self.validate_nested_callable_abi_semantics(template, authority, path)
     }
 }
 
@@ -928,12 +825,7 @@ fn validate<T: ValidateDescriptor>(
     template: &ExportDefaultTemplateV1,
     mut authority: Authority,
 ) -> Result<(), DefaultNestedCallableAbiValidationError<AuthorityError>> {
-    descriptor.validate(
-        template,
-        &mut authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        &WirePath::root().field(5),
-    )
+    descriptor.validate(template, &mut authority, &WirePath::root().field(5))
 }
 
 fn template(fixture: &Fixture) -> ExportDefaultTemplateV1 {
@@ -1034,7 +926,6 @@ fn validate_body(
     template.body().validate_nested_callable_abi_semantics(
         template,
         authority,
-        &mut BudgetMeter::new(DecodeLimits::default()),
         &WirePath::root().field(8),
     )
 }

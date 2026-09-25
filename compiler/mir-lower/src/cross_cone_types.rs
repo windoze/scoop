@@ -5,29 +5,27 @@ use scoop_identity::{
     ExactTypeKey, PersistentExactTypeId, PersistentTypeId, ValidatedIdentityGraph,
 };
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod builtins;
 mod representation;
 mod resources;
-use resources::{reserve, work};
+use resources::reserve;
 
 /// Combines actual source representations and the sealed finite shape plan.
-/// Both projections and their final canonicalization share the caller's budget.
 pub fn lower_type_exports(
     hir: &hir::CrossConeTypeSemanticsProductionV1,
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
-    let source = lower_source_type_exports(hir, input, identities, meter)?;
+    let source = lower_source_type_exports(hir, input, identities)?;
     let finite = mir::CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-        input, &source, identities, meter,
+        input, &source, identities,
     )?;
     let mut records = source.into_records();
-    reserve(&mut records, finite.records().len(), meter)?;
+    reserve(&mut records, finite.records().len())?;
     records.extend(finite.into_records());
-    resources::sort(records.len(), meter)?;
+
     Ok(mir::CanonicalParamFreeMirTypeExportsV1::try_new(records)?)
 }
 
@@ -37,37 +35,23 @@ pub fn lower_source_type_exports(
     hir: &hir::CrossConeTypeSemanticsProductionV1,
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
     let module = input.module();
     let source = hir.section().representation_support();
     let mut records = Vec::new();
-    reserve(
-        &mut records,
-        source.records().len().saturating_mul(2),
-        meter,
-    )?;
+    reserve(&mut records, source.records().len().saturating_mul(2))?;
     let mut produced = 0;
     let authority = mir::MirTypeBridgeAuthority {
         identities,
         foundation: input.foundation(),
     };
     for identity in module.meta.source_exact_types.iter() {
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(SourceMirTypeProductionError::Resource)?;
-        work(
-            source.records().len().checked_ilog2().unwrap_or(0) as usize + 2,
-            meter,
-        )?;
         let ExactTypeKey::Nominal(owner) = identity.identity_record().key() else {
             continue;
         };
         let Some(representation) = source.get(*owner) else {
-            if let Some(record) =
-                builtins::project(hir, input, identities, identity, *owner, meter)?
-            {
-                reserve(&mut records, 1, meter)?;
+            if let Some(record) = builtins::project(hir, input, identities, identity, *owner)? {
+                reserve(&mut records, 1)?;
                 records.push(record);
             }
             continue;
@@ -79,9 +63,8 @@ pub fn lower_source_type_exports(
             .get(exact)
             .ok_or(SourceMirTypeProductionError::MissingFacts(exact))?;
         let facts = facts(fact)?;
-        let inheritance = bases(hir, exact, meter)?;
-        let (shape, backing) =
-            representation::project(module, identity.ty(), representation, meter)?;
+        let inheritance = bases(hir, exact)?;
+        let (shape, backing) = representation::project(module, identity.ty(), representation)?;
         records.push(mir::ParamFreeMirTypeExportV1::try_new(
             authority,
             exact,
@@ -102,7 +85,7 @@ pub fn lower_source_type_exports(
                 },
                 facts,
                 shape,
-                bases(hir, exact, meter)?,
+                bases(hir, exact)?,
             )?);
         }
         produced += 1;
@@ -113,7 +96,7 @@ pub fn lower_source_type_exports(
             actual: produced,
         });
     }
-    resources::sort(records.len(), meter)?;
+
     Ok(mir::CanonicalParamFreeMirTypeExportsV1::try_new(records)?)
 }
 
@@ -143,16 +126,15 @@ fn facts(
 fn bases(
     hir: &hir::CrossConeTypeSemanticsProductionV1,
     exact: PersistentExactTypeId,
-    meter: &mut BudgetMeter,
 ) -> Result<mir::MirBaseAndInterfacesV1, SourceMirTypeProductionError> {
     let edges = hir.local_inheritance_edges();
-    work(edges.len().checked_ilog2().unwrap_or(0) as usize + 1, meter)?;
+
     let index = edges
         .binary_search_by_key(&exact, hir::NominalInheritanceEdgesV1::owner)
         .map_err(|_| SourceMirTypeProductionError::MissingInheritance(exact))?;
     let source = &edges[index];
     let mut interfaces = Vec::new();
-    reserve(&mut interfaces, source.direct_interfaces().len(), meter)?;
+    reserve(&mut interfaces, source.direct_interfaces().len())?;
     interfaces.extend_from_slice(source.direct_interfaces());
     Ok(mir::MirBaseAndInterfacesV1 {
         base: match source.direct_base() {

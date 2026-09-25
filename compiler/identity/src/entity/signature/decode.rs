@@ -6,8 +6,6 @@ use super::{
 };
 use crate::{DecodedPersistentId, PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId};
 
-mod resources;
-
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DecodedSignatureTypeKey {
     Nominal(DecodedPersistentId<PersistentTypeId>),
@@ -135,7 +133,7 @@ impl WireEncode for DecodedSignatureTypeKey {
 }
 
 impl WireDecode for DecodedSignatureTypeKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -232,7 +230,7 @@ impl WireEncode for DecodedOptionalSignatureType {
 }
 
 impl WireDecode for DecodedOptionalSignatureType {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -359,7 +357,7 @@ impl WireEncode for DecodedDuplicateSignatureKey {
 }
 
 impl WireDecode for DecodedDuplicateSignatureKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
@@ -425,14 +423,12 @@ where
         .collect()
 }
 
-fn decode_signatures(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<Vec<DecodedSignatureTypeKey>, WireError> {
+fn decode_signatures(decoder: &mut Decoder<'_>) -> Result<Vec<DecodedSignatureTypeKey>, WireError> {
     decoder.decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
 }
 
 fn decode_non_empty_signatures(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
 ) -> Result<NonEmptyVec<DecodedSignatureTypeKey>, WireError> {
     let values = decode_signatures(decoder)?;
     NonEmptyVec::new(values).map_err(|_| {
@@ -446,7 +442,7 @@ fn decode_non_empty_signatures(
     })
 }
 
-fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
+fn decode_effect(decoder: &mut Decoder<'_>) -> Result<Effect, WireError> {
     match decoder.unsigned()? {
         1 => Ok(Effect::Ordinary),
         2 => Ok(Effect::Suspend),
@@ -454,20 +450,14 @@ fn decode_effect(decoder: &mut Decoder<'_, '_>) -> Result<Effect, WireError> {
     }
 }
 
-fn decode_calling_convention(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<CallingConvention, WireError> {
+fn decode_calling_convention(decoder: &mut Decoder<'_>) -> Result<CallingConvention, WireError> {
     match decoder.unsigned()? {
         1 => Ok(CallingConvention::C),
         tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
     }
 }
 
-fn expect_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -478,13 +468,13 @@ fn expect_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::{DecodedDuplicateSignatureKey, DecodedSignatureTypeKey};
     use crate::{
@@ -555,9 +545,7 @@ mod tests {
             ],
         };
         let bytes = encode(&key).unwrap();
-        let decoded =
-            decode_canonical::<DecodedDuplicateSignatureKey>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedDuplicateSignatureKey>(&bytes).unwrap();
 
         assert_eq!(
             decoded
@@ -569,20 +557,14 @@ mod tests {
 
     #[test]
     fn signature_decoder_rejects_unknown_tags_and_empty_required_sequences() {
-        let unknown =
-            decode_canonical::<DecodedSignatureTypeKey>(b"\xa1\x00\x08", DecodeLimits::default())
-                .unwrap_err();
+        let unknown = decode_canonical::<DecodedSignatureTypeKey>(b"\xa1\x00\x08").unwrap_err();
         assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 8 });
 
         let nominal = PersistentGenericTypeId(ConeIdentity::CORE.0);
         let mut empty_application = vec![0xa3, 0x00, 0x02, 0x01, 0x58, 0x20];
         empty_application.extend_from_slice(nominal.as_array());
         empty_application.extend_from_slice(&[0x02, 0x80]);
-        let error = decode_canonical::<DecodedSignatureTypeKey>(
-            &empty_application,
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error = decode_canonical::<DecodedSignatureTypeKey>(&empty_application).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -596,8 +578,7 @@ mod tests {
     fn signature_resolution_does_not_accept_a_same_width_wrong_identity() {
         let key = SignatureTypeKey::Nominal(PersistentTypeId(ConeIdentity::CORE.0));
         let bytes = encode(&key).unwrap();
-        let decoded =
-            decode_canonical::<DecodedSignatureTypeKey>(&bytes, DecodeLimits::default()).unwrap();
+        let decoded = decode_canonical::<DecodedSignatureTypeKey>(&bytes).unwrap();
         let error = decoded
             .resolve(&mut TestResolver {
                 nominal: PersistentTypeId(ConeIdentity::SINGLE_FILE.0),

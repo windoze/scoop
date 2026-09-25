@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use scoop_wire::WirePath;
 
 fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::NichePointerKind> {
     let option = module.option_core(id)?;
@@ -33,9 +33,9 @@ pub(crate) fn lower_enums(
     let mut reprs: Vec<Option<lir::EnumRepr>> = Vec::new();
     reprs.resize_with(module.enums.len(), || None);
     let mut visiting = std::collections::HashSet::new();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
     for (id, _) in module.enums.iter() {
-        compute_repr(context, module, &mut reprs, &mut visiting, id, &mut meter)?;
+        compute_repr(context, module, &mut reprs, &mut visiting, id)?;
     }
     let mut enums = lir::EnumDefs::default();
     for ((mir_id, def), repr) in module.enums.iter().zip(reprs) {
@@ -143,7 +143,6 @@ pub(crate) fn compute_repr(
     reprs: &mut Vec<Option<lir::EnumRepr>>,
     visiting: &mut std::collections::HashSet<mir::EnumId>,
     id: mir::EnumId,
-    meter: &mut BudgetMeter,
 ) -> StorageResult<()> {
     let index = id.into_raw().into_u32() as usize;
     if reprs[index].is_some() {
@@ -164,7 +163,7 @@ pub(crate) fn compute_repr(
     for nested_id in nested {
         // A by-value recursive enum is infinitely sized; hir-lower
         // rejects it before this stage.
-        compute_repr(context, module, reprs, visiting, nested_id, meter)?;
+        compute_repr(context, module, reprs, visiting, nested_id)?;
     }
 
     // This is a semantic whitelist, not merely an LLVM pointer-shape
@@ -197,7 +196,7 @@ pub(crate) fn compute_repr(
         )?;
         Ok(repr_shape(context, repr))
     };
-    reprs[index] = Some(tagged_repr(context, module, &enum_shape, def, meter)?);
+    reprs[index] = Some(tagged_repr(context, module, &enum_shape, def)?);
     visiting.remove(&id);
     Ok(())
 }
@@ -207,11 +206,10 @@ fn tagged_repr(
     module: &mir::Module,
     enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
     definition: &mir::EnumDef,
-    meter: &mut BudgetMeter,
 ) -> StorageResult<lir::EnumRepr> {
-    let mut field_geometries = reserve(definition.variants.len(), meter)?;
+    let mut field_geometries = reserve(definition.variants.len())?;
     for variant in &definition.variants {
-        let mut fields = reserve(variant.fields.len(), meter)?;
+        let mut fields = reserve(variant.fields.len())?;
         for field in &variant.fields {
             let (size, alignment) = size_align(context, module, enum_shape, &field.ty)?;
             fields.push(lir::StorageGeometryV1::new(
@@ -222,17 +220,17 @@ fn tagged_repr(
         }
         field_geometries.push(fields);
     }
-    let mut inputs = reserve(definition.variants.len(), meter)?;
+    let mut inputs = reserve(definition.variants.len())?;
     for (variant, fields) in definition.variants.iter().zip(&field_geometries) {
         inputs.push(lir::EnumVariantGeometryInputV1 {
             fields,
             gc_free: variant.gc_free,
         });
     }
-    let geometry = lir::EnumStorageGeometryV1::tagged(context.target_profile(), &inputs, meter)?;
-    let mut variants = reserve(definition.variants.len(), meter)?;
+    let geometry = lir::EnumStorageGeometryV1::tagged(context.target_profile(), &inputs)?;
+    let mut variants = reserve(definition.variants.len())?;
     for (source, variant) in definition.variants.iter().zip(geometry.variants()) {
-        let mut fields = reserve(source.fields.len(), meter)?;
+        let mut fields = reserve(source.fields.len())?;
         for (source, field) in source.fields.iter().zip(variant.fields()) {
             fields.push(lir::EnumFieldRepr {
                 ty: lir_type(&source.ty),
@@ -254,14 +252,11 @@ fn tagged_repr(
     })
 }
 
-fn reserve<T>(length: usize, meter: &mut BudgetMeter) -> StorageResult<Vec<T>> {
+fn reserve<T>(length: usize) -> StorageResult<Vec<T>> {
     let mut values = Vec::new();
     let path = WirePath::root();
-    meter
-        .check_table_entries(length as u64, &path)
-        .map_err(lir::EnumStorageGeometryErrorV1::Resource)?;
-    meter
-        .try_reserve_collection_slots(&mut values, length, &path)
+
+    scoop_wire::allocation::try_reserve(&mut values, length, &path)
         .map_err(lir::EnumStorageGeometryErrorV1::Resource)?;
     Ok(values)
 }

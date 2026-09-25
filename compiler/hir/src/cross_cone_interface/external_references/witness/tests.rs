@@ -3,7 +3,7 @@ use scoop_identity::{
     DefinitionOwnerChain, ExportBindingKey, PackagePath, PendingIdentityValidation,
     PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
 use crate::ReexportRouteHopV1;
@@ -17,7 +17,7 @@ fn witness_is_wire_identical_to_its_route_and_resolves_typed_ids() {
     assert_eq!(encode(&witness).unwrap(), encode(&route).unwrap());
 
     let decoded: DecodedDependencyBindingWitnessV1 =
-        decode_canonical(&encode(&witness).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&witness).unwrap()).unwrap();
     let mut authority = authority(std::slice::from_ref(&route));
     assert_eq!(decoded.resolve(&mut authority).unwrap(), witness);
 }
@@ -126,5 +126,5 @@ impl WireEncode for WitnessSequence {
 }
 
 fn decode_witnesses(value: &impl WireEncode) -> DecodedCanonicalDependencyBindingWitnessesV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }

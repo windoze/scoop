@@ -10,7 +10,7 @@ pub struct DecodedCanonicalNominalSourcePropertiesV1 {
     records: Vec<DecodedNominalSupportPropertyInterfaceV1>,
 }
 impl WireDecode for DecodedCanonicalNominalSourcePropertiesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedNominalSupportPropertyInterfaceV1::decode(d))
             .map(|records| Self { records })
@@ -25,14 +25,13 @@ impl DecodedCanonicalNominalSourcePropertiesV1 {
     pub fn resolve<R: ProtectedPropertyInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalNominalSourcePropertiesV1, NominalSourcePropertyResolutionError<E>> {
         use NominalSourcePropertyResolutionError as Error;
-        let mut records = reserve(self.records.len(), meter).map_err(Error::Inventory)?;
+        let mut records = reserve(self.records.len()).map_err(Error::Inventory)?;
         for record in self.records {
-            records.push(record.resolve(resolver, meter).map_err(Error::Contract)?);
+            records.push(record.resolve(resolver).map_err(Error::Contract)?);
         }
-        CanonicalNominalSourcePropertiesV1::from_ordered(records, meter).map_err(Error::Inventory)
+        CanonicalNominalSourcePropertiesV1::from_ordered(records).map_err(Error::Inventory)
     }
 }
 #[derive(Debug)]

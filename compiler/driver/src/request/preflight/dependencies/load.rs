@@ -1,8 +1,6 @@
 use std::fs::File;
 use std::io::Read;
 
-use scoop_wire::DecodeLimits;
-
 use super::{
     ExplicitDependencyArtifactInput, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,
     ExplicitDependencyRole, LoadedExplicitDependencyArtifact, LoadedExplicitDependencyInputs,
@@ -13,7 +11,6 @@ impl LoadedExplicitDependencyInputs {
     pub(crate) fn load(
         direct: &[HostArtifactLocator],
         support: &[HostArtifactLocator],
-        limits: DecodeLimits,
     ) -> Result<Self, ExplicitDependencyLoadError> {
         let mut artifacts = Vec::with_capacity(direct.len() + support.len());
         for (role, locators) in [
@@ -26,10 +23,10 @@ impl LoadedExplicitDependencyInputs {
                     index,
                     path: locator.as_path().to_path_buf(),
                 };
-                artifacts.push(LoadedExplicitDependencyArtifact::load(input, limits)?);
+                artifacts.push(LoadedExplicitDependencyArtifact::load(input)?);
             }
         }
-        Ok(Self { artifacts, limits })
+        Ok(Self { artifacts })
     }
 
     pub(in crate::request::preflight) fn append_direct(
@@ -46,18 +43,15 @@ impl LoadedExplicitDependencyInputs {
             index,
             path: locator.as_path().to_path_buf(),
         };
-        let artifact = LoadedExplicitDependencyArtifact::load(input, self.limits)?;
+        let artifact = LoadedExplicitDependencyArtifact::load(input)?;
         self.artifacts.insert(index, artifact);
         Ok(())
     }
 }
 
 impl LoadedExplicitDependencyArtifact {
-    fn load(
-        input: ExplicitDependencyArtifactInput,
-        limits: DecodeLimits,
-    ) -> Result<Self, ExplicitDependencyLoadError> {
-        let bytes = load_artifact_bytes(&input, limits)?;
+    fn load(input: ExplicitDependencyArtifactInput) -> Result<Self, ExplicitDependencyLoadError> {
+        let bytes = load_artifact_bytes(&input)?;
 
         Ok(Self {
             input,
@@ -69,9 +63,8 @@ impl LoadedExplicitDependencyArtifact {
 
 fn load_artifact_bytes(
     input: &ExplicitDependencyArtifactInput,
-    limits: DecodeLimits,
 ) -> Result<Vec<u8>, ExplicitDependencyLoadError> {
-    let file = File::open(input.path()).map_err(|source| ExplicitDependencyLoadError::Io {
+    let mut file = File::open(input.path()).map_err(|source| ExplicitDependencyLoadError::Io {
         input: input.clone(),
         operation: ExplicitDependencyLoadOperation::Open,
         source,
@@ -86,38 +79,40 @@ fn load_artifact_bytes(
     if !metadata.is_file() {
         return Err(ExplicitDependencyLoadError::NotRegularFile(input.clone()));
     }
-    require_size(input, metadata.len(), limits.owned_bytes)?;
-
+    let length = metadata.len();
+    let capacity = usize::try_from(length)
+        .map_err(|_| ExplicitDependencyLoadError::LengthOverflow(input.clone()))?;
+    let read_bound = length
+        .checked_add(1)
+        .ok_or_else(|| ExplicitDependencyLoadError::LengthOverflow(input.clone()))?;
     let mut bytes = Vec::new();
-    file.take(limits.owned_bytes.saturating_add(1))
+    bytes
+        .try_reserve_exact(capacity)
+        .map_err(|_| ExplicitDependencyLoadError::Allocation(input.clone()))?;
+    file.by_ref()
+        .take(read_bound)
         .read_to_end(&mut bytes)
         .map_err(|source| ExplicitDependencyLoadError::Io {
             input: input.clone(),
             operation: ExplicitDependencyLoadOperation::Read,
             source,
         })?;
-    require_size(
-        input,
-        u64::try_from(bytes.len()).unwrap_or(u64::MAX),
-        limits.owned_bytes,
-    )?;
-    Ok(bytes)
-}
-
-fn require_size(
-    input: &ExplicitDependencyArtifactInput,
-    actual: u64,
-    limit: u64,
-) -> Result<(), ExplicitDependencyLoadError> {
-    if actual > limit {
-        Err(ExplicitDependencyLoadError::ArtifactTooLarge {
+    let after = file
+        .metadata()
+        .map_err(|source| ExplicitDependencyLoadError::Io {
             input: input.clone(),
-            actual,
-            limit,
-        })
-    } else {
-        Ok(())
+            operation: ExplicitDependencyLoadOperation::Inspect,
+            source,
+        })?;
+    if bytes.len() != capacity
+        || after.len() != length
+        || after.modified().ok() != metadata.modified().ok()
+    {
+        return Err(ExplicitDependencyLoadError::ChangedDuringRead(
+            input.clone(),
+        ));
     }
+    Ok(bytes)
 }
 
 #[cfg(test)]

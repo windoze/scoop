@@ -1,16 +1,12 @@
 use std::fmt;
 use std::ops::Range;
 
-use scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
-use scoop_wire::{BudgetMeter, WireError, WirePath, sha256};
+use scoop_wire::{WireError, WirePath, sha256};
 
 use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
 
 const GLOBAL_MAGIC: &[u8; 8] = b"!<arch>\n";
 const HEADER_LENGTH: u64 = 60;
-const MAX_ARCHIVE_BYTES: u64 = 2_147_483_648;
-const MAX_MANIFEST_BYTES: u64 = 67_108_864;
-const MAX_MEMBERS: usize = 65_536;
 
 /// The unique normal SysV/GNU archive byte stream admitted by the `.slib`
 /// container schema. Semantic validity of `manifest.cbor` is established by
@@ -22,16 +18,6 @@ impl CanonicalSlibArchive {
     pub fn write(manifest: &[u8], mut members: Vec<SlibMember>) -> Result<Self, ArchiveWriteError> {
         let manifest_length =
             u64::try_from(manifest.len()).map_err(|_| ArchiveWriteError::LengthOverflow)?;
-        if manifest_length > MAX_MANIFEST_BYTES {
-            return Err(ArchiveWriteError::ManifestTooLarge {
-                actual: manifest_length,
-            });
-        }
-        if members.len() > MAX_MEMBERS {
-            return Err(ArchiveWriteError::TooManyMembers {
-                actual: members.len(),
-            });
-        }
 
         members.sort_unstable_by_key(|member| member.record().id());
         for pair in members.windows(2) {
@@ -59,11 +45,6 @@ impl CanonicalSlibArchive {
                 )
                 .ok_or(ArchiveWriteError::LengthOverflow)?;
         }
-        if archive_length > MAX_ARCHIVE_BYTES {
-            return Err(ArchiveWriteError::ArchiveTooLarge {
-                actual: archive_length,
-            });
-        }
 
         let capacity =
             usize::try_from(archive_length).map_err(|_| ArchiveWriteError::LengthOverflow)?;
@@ -74,11 +55,7 @@ impl CanonicalSlibArchive {
         output.extend_from_slice(GLOBAL_MAGIC);
         write_member(&mut output, b"manifest.cbor", manifest)?;
         for (ordinal, member) in members.into_iter().enumerate() {
-            let name = member_name(ordinal).ok_or(ArchiveWriteError::TooManyMembers {
-                actual: ordinal
-                    .checked_add(1)
-                    .ok_or(ArchiveWriteError::LengthOverflow)?,
-            })?;
+            let name = member_name(ordinal).ok_or(ArchiveWriteError::HeaderFieldOverflow)?;
             write_member(&mut output, &name, member.payload())?;
         }
         debug_assert_eq!(output.len(), capacity);
@@ -97,10 +74,9 @@ impl CanonicalSlibArchive {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ArchiveWriteError {
     LengthOverflow,
-    ManifestTooLarge { actual: u64 },
-    TooManyMembers { actual: usize },
+
     DuplicateMemberId { id: SlibMemberId },
-    ArchiveTooLarge { actual: u64 },
+
     HeaderFieldOverflow,
     Allocation,
 }
@@ -109,21 +85,9 @@ impl fmt::Display for ArchiveWriteError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::LengthOverflow => formatter.write_str("archive length arithmetic overflowed"),
-            Self::ManifestTooLarge { actual } => write!(
-                formatter,
-                "manifest payload exceeds 67108864 bytes: found {actual}"
-            ),
-            Self::TooManyMembers { actual } => {
-                write!(
-                    formatter,
-                    "archive exceeds 65536 non-manifest members: found {actual}"
-                )
-            }
+
             Self::DuplicateMemberId { id } => write!(formatter, "duplicate archive member id {id}"),
-            Self::ArchiveTooLarge { actual } => write!(
-                formatter,
-                "archive exceeds 2147483648 bytes: found {actual}"
-            ),
+
             Self::HeaderFieldOverflow => {
                 formatter.write_str("archive header field exceeds its fixed width")
             }
@@ -151,9 +115,6 @@ impl fmt::Display for ArchiveMemberOrdinal {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArchiveReadError {
-    ArchiveTooLarge {
-        actual: u64,
-    },
     BadMagic,
     TruncatedHeader {
         member: ArchiveMemberOrdinal,
@@ -164,18 +125,14 @@ pub enum ArchiveReadError {
     InvalidSize {
         member: ArchiveMemberOrdinal,
     },
-    ManifestTooLarge {
-        actual: u64,
-    },
+
     TruncatedPayload {
         member: ArchiveMemberOrdinal,
     },
     InvalidPadding {
         member: ArchiveMemberOrdinal,
     },
-    TooManyMembers {
-        actual: usize,
-    },
+
     NonIncreasingDirectory {
         first_index: usize,
         second_index: usize,
@@ -193,16 +150,12 @@ pub enum ArchiveReadError {
         id: SlibMemberId,
     },
     LengthOverflow,
-    Budget(WireError),
+    Allocation(WireError),
 }
 
 impl fmt::Display for ArchiveReadError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ArchiveTooLarge { actual } => write!(
-                formatter,
-                "archive exceeds 2147483648 bytes: found {actual}"
-            ),
             Self::BadMagic => formatter.write_str("archive global magic is not canonical"),
             Self::TruncatedHeader { member } => {
                 write!(formatter, "{member} has a truncated archive header")
@@ -213,22 +166,14 @@ impl fmt::Display for ArchiveReadError {
             Self::InvalidSize { member } => {
                 write!(formatter, "{member} archive size field is invalid")
             }
-            Self::ManifestTooLarge { actual } => write!(
-                formatter,
-                "manifest payload exceeds 67108864 bytes: found {actual}"
-            ),
+
             Self::TruncatedPayload { member } => {
                 write!(formatter, "{member} payload is truncated")
             }
             Self::InvalidPadding { member } => {
                 write!(formatter, "{member} archive padding is not canonical")
             }
-            Self::TooManyMembers { actual } => {
-                write!(
-                    formatter,
-                    "archive exceeds 65536 non-manifest members: found {actual}"
-                )
-            }
+
             Self::NonIncreasingDirectory {
                 first_index,
                 second_index,
@@ -255,7 +200,7 @@ impl fmt::Display for ArchiveReadError {
                 )
             }
             Self::LengthOverflow => formatter.write_str("archive length arithmetic overflowed"),
-            Self::Budget(error) => error.fmt(formatter),
+            Self::Allocation(error) => error.fmt(formatter),
         }
     }
 }
@@ -272,34 +217,15 @@ pub struct ManifestArchive<'input> {
 }
 
 impl<'input> ManifestArchive<'input> {
-    pub fn open(input: &'input [u8], meter: &mut BudgetMeter) -> Result<Self, ArchiveReadError> {
-        let input_length =
-            u64::try_from(input.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
-        if input_length > MAX_ARCHIVE_BYTES {
-            return Err(ArchiveReadError::ArchiveTooLarge {
-                actual: input_length,
-            });
-        }
-        let path = WirePath::default();
-        meter
-            .charge_work(1, &path)
-            .map_err(ArchiveReadError::Budget)?;
+    pub fn open(input: &'input [u8]) -> Result<Self, ArchiveReadError> {
         if input.get(..GLOBAL_MAGIC.len()) != Some(GLOBAL_MAGIC) {
             return Err(ArchiveReadError::BadMagic);
         }
-        meter
-            .charge_work(1, &path)
-            .map_err(ArchiveReadError::Budget)?;
+
         let ordinal = ArchiveMemberOrdinal::Manifest;
         let (manifest, next_header) =
             read_member(input, GLOBAL_MAGIC.len(), b"manifest.cbor", ordinal)?;
-        let manifest_length =
-            u64::try_from(manifest.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
-        if manifest_length > MAX_MANIFEST_BYTES {
-            return Err(ArchiveReadError::ManifestTooLarge {
-                actual: manifest_length,
-            });
-        }
+
         Ok(Self {
             input,
             manifest,
@@ -314,19 +240,11 @@ impl<'input> ManifestArchive<'input> {
     pub fn validate_directory(
         self,
         records: &[SlibMemberRecord],
-        meter: &mut BudgetMeter,
     ) -> Result<DecodedArchive<'input>, ArchiveReadError> {
-        if records.len() > MAX_MEMBERS {
-            return Err(ArchiveReadError::TooManyMembers {
-                actual: records.len(),
-            });
-        }
         let path = WirePath::default();
         let record_count =
             u64::try_from(records.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
-        meter
-            .charge_canonical_sequence(record_count, &path)
-            .map_err(ArchiveReadError::Budget)?;
+
         for (index, pair) in records.windows(2).enumerate() {
             if pair[0].id() >= pair[1].id() {
                 return Err(ArchiveReadError::NonIncreasingDirectory {
@@ -356,24 +274,14 @@ impl<'input> ManifestArchive<'input> {
         }
 
         let mut ranges = Vec::new();
-        meter
-            .check_table_entries(record_count, &path)
-            .map_err(ArchiveReadError::Budget)?;
-        meter
-            .try_reserve_exact(&mut ranges, record_count, COLLECTION_ELEMENT_BYTES, &path)
-            .map_err(ArchiveReadError::Budget)?;
+
+        scoop_wire::allocation::try_reserve_count(&mut ranges, record_count, &path)
+            .map_err(ArchiveReadError::Allocation)?;
         let mut cursor = self.next_header;
         for (index, record) in records.iter().enumerate() {
-            meter
-                .charge_work(1, &path)
-                .map_err(ArchiveReadError::Budget)?;
             let ordinal = u32::try_from(index).map_err(|_| ArchiveReadError::LengthOverflow)?;
             let member = ArchiveMemberOrdinal::Directory(ordinal);
-            let name = member_name(index).ok_or(ArchiveReadError::TooManyMembers {
-                actual: index
-                    .checked_add(1)
-                    .ok_or(ArchiveReadError::LengthOverflow)?,
-            })?;
+            let name = member_name(index).ok_or(ArchiveReadError::LengthOverflow)?;
             let (range, next_header) = read_member(self.input, cursor, &name, member)?;
             let actual =
                 u64::try_from(range.len()).map_err(|_| ArchiveReadError::LengthOverflow)?;
@@ -384,9 +292,7 @@ impl<'input> ManifestArchive<'input> {
                     actual,
                 });
             }
-            meter
-                .charge_sha256(actual, &path)
-                .map_err(ArchiveReadError::Budget)?;
+
             if sha256(&self.input[range.clone()]) != record.sha256() {
                 return Err(ArchiveReadError::MemberDigestMismatch { id: record.id() });
             }
@@ -530,16 +436,13 @@ fn encoded_member_length(payload_length: u64) -> Option<u64> {
 }
 
 fn member_name(ordinal: usize) -> Option<[u8; 9]> {
-    if ordinal >= MAX_MEMBERS {
-        return None;
-    }
     let mut name = *b"m00000000";
     let mut value = ordinal;
     for digit in name[1..].iter_mut().rev() {
         *digit = b'0' + (value % 10) as u8;
         value /= 10;
     }
-    Some(name)
+    (value == 0).then_some(name)
 }
 
 fn write_member(

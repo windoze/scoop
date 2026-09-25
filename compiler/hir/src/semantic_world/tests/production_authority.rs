@@ -77,33 +77,9 @@ fn production_authority_resolves_current_and_imported_targets_by_typed_identity(
         );
     }
 
-    assert!(
-        authority
-            .is_direct_dependency(
-                ConeIdentity::CORE,
-                &mut route_meter(),
-                &scoop_wire::WirePath::root()
-            )
-            .unwrap()
-    );
-    assert!(
-        authority
-            .is_direct_dependency(
-                direct.identity(),
-                &mut route_meter(),
-                &scoop_wire::WirePath::root()
-            )
-            .unwrap()
-    );
-    assert!(
-        !authority
-            .is_direct_dependency(
-                support.identity(),
-                &mut route_meter(),
-                &scoop_wire::WirePath::root()
-            )
-            .unwrap()
-    );
+    assert!(authority.is_direct_dependency(ConeIdentity::CORE));
+    assert!(authority.is_direct_dependency(direct.identity()));
+    assert!(!authority.is_direct_dependency(support.identity()));
     assert_eq!(authority.closure_node_count(), 4);
 }
 
@@ -147,32 +123,18 @@ fn production_authority_exposes_exact_binding_surfaces_without_support_enumerati
     let binding = direct.outer_binding.unwrap();
 
     assert_eq!(
-        authority
-            .binding_key(binding, &mut route_meter(), &scoop_wire::WirePath::root())
-            .unwrap()
-            .unwrap()
-            .exporter(),
+        authority.binding_key(binding).unwrap().exporter(),
         direct.identity()
     );
     assert_eq!(
         authority
-            .public_bindings(
-                direct.identity(),
-                &mut route_meter(),
-                &scoop_wire::WirePath::root()
-            )
-            .unwrap()
+            .public_bindings(direct.identity())
             .unwrap()
             .records()
             .len(),
         1
     );
-    assert!(
-        authority
-            .public_bindings(current, &mut route_meter(), &scoop_wire::WirePath::root())
-            .unwrap()
-            .is_some()
-    );
+    assert!(authority.public_bindings(current).is_some());
     let missing_fixture = ProviderFixture::with_nominals(
         coordinate("absent"),
         package(&["absent"]),
@@ -186,8 +148,4 @@ fn production_authority_exposes_exact_binding_surfaces_without_support_enumerati
         Err(CrossConeHirProductionAuthorityError::MissingCanonicalKey { target })
             if target == missing
     ));
-}
-
-fn route_meter() -> scoop_wire::BudgetMeter {
-    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

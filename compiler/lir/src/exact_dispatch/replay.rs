@@ -2,7 +2,7 @@ use scoop_identity::{
     CborIdentityRecord, DispatchTableKey, DispatchTableRole, OptionalExactInterface,
     PersistentDispatchTableId,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -20,16 +20,9 @@ impl ExactDispatchExportV1 {
         identity: &CborIdentityRecord<PersistentDispatchTableId, DispatchTableKey>,
         inputs: &[ExactDispatchEntryInputV1<'_>],
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactDispatchError> {
         let path = WirePath::root();
-        let count = inputs.len() as u64;
-        meter.check_table_entries(count, &path)?;
-        let retained_slots = count
-            .checked_mul(2)
-            .ok_or(ExactDispatchError::CountOverflow)?;
-        meter.charge_collection_slots(retained_slots, &path)?;
-        meter.charge_work(foundation.dispatch_tables().len() as u64, &path)?;
+
         let Some(canonical) = foundation
             .dispatch_tables()
             .iter()
@@ -42,12 +35,8 @@ impl ExactDispatchExportV1 {
         }
         let (owner_exact, role) = checked_role(identity.key(), identity.id())?;
 
-        let comparison_work = count
-            .checked_mul(u64::from(count.max(1).ilog2()) + 1)
-            .ok_or(ExactDispatchError::CountOverflow)?;
-        meter.charge_work(comparison_work, &path)?;
         let mut seen_slots = Vec::new();
-        meter.try_reserve_collection_slots(&mut seen_slots, inputs.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut seen_slots, inputs.len(), &path)?;
         for (index, input) in inputs.iter().enumerate() {
             let expected_position =
                 u32::try_from(index).map_err(|_| ExactDispatchError::CountOverflow)?;
@@ -64,15 +53,14 @@ impl ExactDispatchExportV1 {
             return Err(ExactDispatchError::DuplicateSlot(pair[0]));
         }
         let mut entries = Vec::new();
-        meter.try_reserve_collection_slots(&mut entries, inputs.len(), &path)?;
+        scoop_wire::allocation::try_reserve(&mut entries, inputs.len(), &path)?;
         for input in inputs {
-            entries.push(entry::replay(target, input, foundation, meter)?);
+            entries.push(entry::replay(target, input, foundation)?);
         }
 
         let physical_definition = StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::DispatchTable(identity.id()),
             foundation,
-            meter,
         )?;
         let definition = StrongShapeDefinitionV1::from_artifact(
             identity.id(),

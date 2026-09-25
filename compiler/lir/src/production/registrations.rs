@@ -64,7 +64,7 @@ impl<I: PersistentId> WireEncode for DecodedStrongRegistrationIdentityV1<I> {
 }
 
 impl<I: PersistentId> WireDecode for DecodedStrongRegistrationIdentityV1<I> {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
@@ -304,7 +304,7 @@ impl WireEncode for DecodedStrongRegistrationIdentitySurfaceV1 {
 }
 
 impl WireDecode for DecodedStrongRegistrationIdentitySurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(6)?;
         Ok(Self {
             static_storages: decode_table(decoder, 1)?,
@@ -461,7 +461,7 @@ fn encode_array<T: WireEncode>(
 }
 
 fn decode_table<I: PersistentId>(
-    decoder: &mut Decoder<'_, '_>,
+    decoder: &mut Decoder<'_>,
     field: u32,
 ) -> Result<Vec<DecodedStrongRegistrationIdentityV1<I>>, WireError> {
     decoder.field(field, |decoder| {

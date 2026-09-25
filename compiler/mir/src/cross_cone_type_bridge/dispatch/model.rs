@@ -126,14 +126,13 @@ impl ParamFreeMirDispatchSchemaV1 {
         owner: PersistentExactTypeId,
         vtable: MirClassVtableSchemaV1,
         itables: Vec<MirInterfaceDispatchTableV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirDispatchSchemaError> {
         let record = Self {
             owner,
             vtable,
             itables,
         };
-        authority.validate_record(&record, meter)?;
+        authority.validate_record(&record)?;
         Ok(record)
     }
     pub const fn owner(&self) -> PersistentExactTypeId {
@@ -171,19 +170,15 @@ impl CanonicalMirDispatchSchemasV1 {
     pub fn try_new(
         authority: MirDispatchSchemaAuthority<'_>,
         records: Vec<ParamFreeMirDispatchSchemaV1>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirDispatchSchemaError> {
-        Self::try_new_with_dependencies(authority, records, &[], meter)
+        Self::try_new_with_dependencies(authority, records, &[])
     }
     /// Dependency schemas remain owned by their defining tables.
     pub fn try_new_with_dependencies(
         authority: MirDispatchSchemaAuthority<'_>,
         mut records: Vec<ParamFreeMirDispatchSchemaV1>,
         dependencies: &[&CanonicalMirDispatchSchemasV1],
-        meter: &mut BudgetMeter,
     ) -> Result<Self, MirDispatchSchemaError> {
-        meter.check_table_entries(records.len() as u64, &WirePath::root())?;
-        charge_sort(records.len(), meter)?;
         records.sort_unstable_by_key(ParamFreeMirDispatchSchemaV1::owner);
         if let Some(pair) = records
             .windows(2)
@@ -194,7 +189,7 @@ impl CanonicalMirDispatchSchemasV1 {
             });
         }
         let table = Self { records };
-        authority.validate_with_dependencies(&table, dependencies, meter)?;
+        authority.validate_with_dependencies(&table, dependencies)?;
         Ok(table)
     }
     pub fn records(&self) -> &[ParamFreeMirDispatchSchemaV1] {

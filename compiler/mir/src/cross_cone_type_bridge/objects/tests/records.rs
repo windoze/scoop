@@ -47,7 +47,6 @@ fn mismatched_object_backing_unit_ensure_and_read_are_rejected() {
             } else {
                 source.read()
             },
-            &mut meter(),
         );
         assert!(matches!(
             (axis, result),
@@ -61,18 +60,12 @@ fn mismatched_object_backing_unit_ensure_and_read_are_rejected() {
 #[test]
 fn object_table_retains_canonical_value_keys_and_rejects_duplicates() {
     let fixture = Fixture::new();
-    let table = CanonicalMirObjectValuesV1::try_new(
-        vec![fixture.object(1), fixture.object(0)],
-        &mut meter(),
-    )
-    .unwrap();
+    let table =
+        CanonicalMirObjectValuesV1::try_new(vec![fixture.object(1), fixture.object(0)]).unwrap();
     assert!(table.records()[0].value() < table.records()[1].value());
     assert_eq!(table.get(fixture.values[0].id()), Some(&fixture.object(0)));
     assert!(matches!(
-        CanonicalMirObjectValuesV1::try_new(
-            vec![fixture.object(0), fixture.object(0)],
-            &mut meter()
-        ),
+        CanonicalMirObjectValuesV1::try_new(vec![fixture.object(0), fixture.object(0)]),
         Err(MirObjectBridgeError::DuplicateObject { .. })
     ));
 }

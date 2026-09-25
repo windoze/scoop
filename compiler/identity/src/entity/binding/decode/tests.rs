@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     BindingIdentityResolutionError, DecodedBindableEntity, DecodedExportBindingKey,
@@ -112,7 +112,7 @@ fn every_binding_target_shape_round_trips_and_resolves() {
         let record = CborIdentityRecord::<PersistentExportBindingId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentExportBindingId, DecodedExportBindingKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap(),
@@ -139,7 +139,7 @@ fn every_local_binding_source_role_round_trips_and_resolves() {
         let record = CborIdentityRecord::<PersistentLocalBindingId, _>::from_key(key).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentLocalBindingId, DecodedLocalBindingKey>,
-        >(&encode(&record).unwrap(), DecodeLimits::default())
+        >(&encode(&record).unwrap())
         .unwrap();
         assert_eq!(
             decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap(),
@@ -160,8 +160,7 @@ fn binding_resolution_rejects_namespace_role_target_mismatches() {
     let mut bytes = encode(&key).unwrap();
     assert_eq!(*bytes.last().unwrap(), 1);
     *bytes.last_mut().unwrap() = 5;
-    let decoded =
-        decode_canonical::<DecodedExportBindingKey>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedExportBindingKey>(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(BindingIdentityResolutionError::InvalidTarget {
@@ -183,8 +182,7 @@ fn function_binding_resolution_rechecks_receiver_presence() {
     let mut bytes = encode(&key).unwrap();
     assert_eq!(*bytes.last().unwrap(), 4);
     *bytes.last_mut().unwrap() = 3;
-    let decoded =
-        decode_canonical::<DecodedExportBindingKey>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedExportBindingKey>(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(BindingIdentityResolutionError::Target(
@@ -205,8 +203,7 @@ fn local_binding_resolution_rejects_origin_source_mismatch() {
     let mut bytes = encode(&key).unwrap();
     assert_eq!(&bytes[..4], b"\xa8\x01\x58\x20");
     bytes[4..36].copy_from_slice(ConeIdentity::CORE.as_array());
-    let decoded =
-        decode_canonical::<DecodedLocalBindingKey>(&bytes, DecodeLimits::default()).unwrap();
+    let decoded = decode_canonical::<DecodedLocalBindingKey>(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut Resolver),
         Err(BindingIdentityResolutionError::OriginMismatch)
@@ -215,27 +212,23 @@ fn local_binding_resolution_rejects_origin_source_mismatch() {
 
 #[test]
 fn binding_decoder_rejects_unknown_tags_and_incomplete_sums() {
-    let namespace =
-        decode_canonical::<BindingNamespace>(b"\x03", DecodeLimits::default()).unwrap_err();
+    let namespace = decode_canonical::<BindingNamespace>(b"\x03").unwrap_err();
     assert_eq!(namespace.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let role = decode_canonical::<BindingRole>(b"\x09", DecodeLimits::default()).unwrap_err();
+    let role = decode_canonical::<BindingRole>(b"\x09").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 
-    let source_role =
-        decode_canonical::<LocalBindingRole>(b"\x05", DecodeLimits::default()).unwrap_err();
+    let source_role = decode_canonical::<LocalBindingRole>(b"\x05").unwrap_err();
     assert_eq!(source_role.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
     let target = decode_canonical::<DecodedBindableEntity>(
         b"\xa2\x00\x0a\x01\x58\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-        DecodeLimits::default(),
+
     )
     .unwrap_err();
     assert_eq!(target.kind(), &WireErrorKind::UnknownTag { tag: 10 });
 
-    let incomplete =
-        decode_canonical::<DecodedBindableEntity>(b"\xa1\x00\x01", DecodeLimits::default())
-            .unwrap_err();
+    let incomplete = decode_canonical::<DecodedBindableEntity>(b"\xa1\x00\x01").unwrap_err();
     assert_eq!(
         incomplete.kind(),
         &WireErrorKind::InvalidLength {

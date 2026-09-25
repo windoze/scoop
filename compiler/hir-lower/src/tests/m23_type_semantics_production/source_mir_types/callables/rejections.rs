@@ -34,7 +34,7 @@ pub(super) fn traps(
     };
     let inherited = find("Again");
     let unrelated = find("Abstract");
-    let index = MirTypeBridgeTypeIndexV1::try_new(&[types, unit], &mut meter()).unwrap();
+    let index = MirTypeBridgeTypeIndexV1::try_new(&[types, unit]).unwrap();
     assert!(matches!(
         ParamFreeMirCallableBindingV1::try_new(
             MirCallableBridgeAuthority {
@@ -59,7 +59,7 @@ pub(super) fn traps(
             .collect(),
     )
     .unwrap();
-    let index = MirTypeBridgeTypeIndexV1::try_new(&[&partial, unit], &mut meter()).unwrap();
+    let index = MirTypeBridgeTypeIndexV1::try_new(&[&partial, unit]).unwrap();
     assert!(matches!(ParamFreeMirCallableBindingV1::try_new(
         MirCallableBridgeAuthority { identities: graph, foundation: input.foundation(), types: &index },
         inherited.origin().clone(), inherited.implementation(), inherited.semantic_signature().clone(),
@@ -82,8 +82,7 @@ pub(super) fn check(
             source,
             input,
             graph,
-            &CanonicalParamFreeMirTypeExportsV1::default(),
-            &mut meter()
+            &CanonicalParamFreeMirTypeExportsV1::default()
         ),
         Err(Error::Bridge(
             scoop_mir::MirCallableBridgeError::MissingType { .. }
@@ -91,58 +90,14 @@ pub(super) fn check(
     ));
     with_production("public struct Token() {}", |other, other_input, _, _, _| {
         assert!(matches!(
-            lower_source_callable_bindings(
-                other,
-                &public,
-                source,
-                input,
-                graph,
-                types,
-                &mut meter()
-            ),
+            lower_source_callable_bindings(other, &public, source, input, graph, types),
             Err(Error::MissingSourceMaterialization(_))
         ));
         assert!(matches!(
-            lower_source_callable_bindings(
-                output,
-                &public,
-                source,
-                other_input,
-                graph,
-                types,
-                &mut meter()
-            ),
+            lower_source_callable_bindings(output, &public, source, other_input, graph, types),
             Err(Error::MissingMirMaterialization(_))
         ));
     });
-    let mut measured = meter();
-    lower_source_callable_bindings(output, &public, source, input, graph, types, &mut measured)
-        .unwrap();
-    let usage = measured.usage();
-    assert!(usage.owned_bytes > 0 && usage.validation_work_units > 0);
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: usage.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    lower_source_callable_bindings(output, &public, source, input, graph, types, &mut shared)
-        .unwrap();
-    assert!(matches!(
-        lower_source_callable_bindings(output, &public, source, input, graph, types, &mut shared),
-        Err(Error::Resource(_))
-    ));
-    assert!(matches!(
-        lower_source_callable_bindings(
-            output,
-            &public,
-            source,
-            input,
-            graph,
-            types,
-            &mut BudgetMeter::new(DecodeLimits {
-                owned_bytes: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(Error::Resource(_))
-    ));
+
+    lower_source_callable_bindings(output, &public, source, input, graph, types).unwrap();
 }

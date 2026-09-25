@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_identity::{DecodedSignatureTypeKey, LocalValueSelector, SignatureTypeKey};
@@ -82,7 +80,7 @@ impl WireEncode for DecodedDefaultBindingTemporaryV1 {
 }
 
 impl WireDecode for DecodedDefaultBindingTemporaryV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             local_index: decoder.field(1, Decoder::u32)?,
@@ -190,7 +188,7 @@ impl WireEncode for DecodedDefaultBindingLeafV1 {
 }
 
 impl WireDecode for DecodedDefaultBindingLeafV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             local_index: decoder.field(1, Decoder::u32)?,

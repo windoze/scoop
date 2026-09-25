@@ -52,15 +52,13 @@ pub(super) fn check(
         foundation: &provider_foundation,
         public: provider.public,
     }];
-    metadata
-        .materialized_type_uses(&dependencies, &mut meter())
-        .unwrap();
+    metadata.materialized_type_uses(&dependencies).unwrap();
     for candidate in candidates::mutations(input.public) {
         let error = hir::SharedTypeMetadataV1 {
             public: &candidate.public,
             ..metadata
         }
-        .materialized_type_uses(&dependencies, &mut meter())
+        .materialized_type_uses(&dependencies)
         .unwrap_err();
         let hir::SharedTypeMetadataError::CallSignature { position, source } = error else {
             panic!("expected actual source signature rejection, got {error:?}");

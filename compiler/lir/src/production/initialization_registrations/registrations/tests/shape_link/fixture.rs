@@ -66,27 +66,14 @@ impl ProviderFixture {
             None,
         )
         .unwrap();
-        let layouts = CanonicalExactLayoutExportsV1::try_new(
-            TARGET,
-            &source.foundation,
-            Vec::new(),
-            &mut meter(),
-        )
-        .unwrap();
-        let descriptors = CanonicalExactDescriptorExportsV1::try_new(
-            TARGET,
-            &source.foundation,
-            Vec::new(),
-            &mut meter(),
-        )
-        .unwrap();
-        let dispatch = CanonicalExactDispatchExportsV1::try_new(
-            TARGET,
-            &source.foundation,
-            Vec::new(),
-            &mut meter(),
-        )
-        .unwrap();
+        let layouts =
+            CanonicalExactLayoutExportsV1::try_new(TARGET, &source.foundation, Vec::new()).unwrap();
+        let descriptors =
+            CanonicalExactDescriptorExportsV1::try_new(TARGET, &source.foundation, Vec::new())
+                .unwrap();
+        let dispatch =
+            CanonicalExactDispatchExportsV1::try_new(TARGET, &source.foundation, Vec::new())
+                .unwrap();
         let ordinary =
             CrossConeLirBridgeSectionV1::try_new(&source.foundation, Vec::new(), Vec::new())
                 .unwrap();
@@ -120,18 +107,13 @@ impl ProviderFixture {
                     result: &unit_layout,
                 },
                 &source.foundation,
-                &mut meter(),
             )
             .unwrap()
         })
         .collect();
-        let callables = CanonicalExactCallableAbiExportsV1::try_new(
-            TARGET,
-            &source.foundation,
-            records,
-            &mut meter(),
-        )
-        .unwrap();
+        let callables =
+            CanonicalExactCallableAbiExportsV1::try_new(TARGET, &source.foundation, records)
+                .unwrap();
         Self {
             source,
             section,
@@ -144,18 +126,15 @@ impl ProviderFixture {
     }
 
     pub fn provider(&self) -> ShapeLinkProviderV1<'_> {
-        ShapeLinkProviderV1::try_new(
-            ShapeLinkProviderPartsV1 {
-                foundation: &self.source.foundation,
-                production: ShapeLinkProductionV1::Producer(&self.section),
-                ordinary: &self.ordinary,
-                layouts: &self.layouts,
-                callables: &self.callables,
-                descriptors: &self.descriptors,
-                dispatch: &self.dispatch,
-            },
-            &mut meter(),
-        )
+        ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
+            foundation: &self.source.foundation,
+            production: ShapeLinkProductionV1::Producer(&self.section),
+            ordinary: &self.ordinary,
+            layouts: &self.layouts,
+            callables: &self.callables,
+            descriptors: &self.descriptors,
+            dispatch: &self.dispatch,
+        })
         .unwrap()
     }
 
@@ -184,7 +163,6 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for Support<'a> {
         &self,
         provider: ConeIdentity,
         subject: Subject,
-        _: &mut BudgetMeter,
     ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
         if !self.allowed || provider != self.fixture.source.foundation.producer() {
             return Ok(None);

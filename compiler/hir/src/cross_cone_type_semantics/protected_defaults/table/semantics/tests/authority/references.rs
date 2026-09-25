@@ -4,10 +4,10 @@ impl Authority<'_> {
     fn reference(
         &mut self,
         source: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<bool, &'static str> {
-        self.check(source.template, meter, path)?;
+        self.check(source.template, path)?;
         if source.owner.key() != self.fixture.key
             || source.occurrence.definition_origin != &self.fixture.origin
         {
@@ -56,14 +56,14 @@ impl ProtectedDefaultReferenceAccessSemanticAuthority<&'static str> for Authorit
         &mut self,
         source: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
         graph: &'g CheckedNominalInheritanceGraphV1<'a>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CheckedPersistentAccessDomainV1<'g, 'a>, &'static str> {
-        let callable = self.reference(source, meter, path)?;
+        let callable = self.reference(source, path)?;
         self.concrete_calls += 1;
         if callable {
             graph
-                .validate_access_domain(self.fixture.direct.as_ref().unwrap(), meter)
+                .validate_access_domain(self.fixture.direct.as_ref().unwrap())
                 .map_err(|_| "generated body source access")
         } else {
             let owner = match source.occurrence.target {
@@ -76,20 +76,20 @@ impl ProtectedDefaultReferenceAccessSemanticAuthority<&'static str> for Authorit
                 _ => return Err("nonconcrete type in param-free replay"),
             };
             let access = graph
-                .replay_nominal_access(owner, meter)
+                .replay_nominal_access(owner)
                 .map_err(|_| "unknown actual nominal source")?;
             graph
-                .validate_access_domain(access.lookup().domain(), meter)
+                .validate_access_domain(access.lookup().domain())
                 .map_err(|_| "wrong source graph domain")
         }
     }
     fn validate_generic_default_reference(
         &mut self,
         source: ProtectedDefaultReferenceSourceUseV1<'_, '_, '_>,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), &'static str> {
         assert!(self.case.generic());
-        self.reference(source, meter, path).map(|_| ())
+        self.reference(source, path).map(|_| ())
     }
 }

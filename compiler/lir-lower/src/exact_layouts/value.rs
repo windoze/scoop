@@ -2,30 +2,27 @@ use super::*;
 
 mod enumeration;
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     pub(super) fn value(
         &mut self,
         identity: lir::ExactLayoutIdentityV1,
         source: &mir::ParamFreeMirTypeExportV1,
-        depth: u64,
     ) -> Result<lir::ExactValueLayoutV1> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let foundation = self.output.foundation();
         Ok(match source.representation() {
             Kind::Intrinsic(Intrinsic::Unit) => {
-                lir::ExactValueLayoutV1::unit(identity, foundation, self.meter)?
+                lir::ExactValueLayoutV1::unit(identity, foundation)?
             }
             Kind::Intrinsic(Intrinsic::Integer(kind)) => lir::ExactValueLayoutV1::scalar(
                 identity,
                 lir::ScalarRepresentationKindV1::Integer(crate::metadata::integer_kind(*kind)),
                 foundation,
-                self.meter,
             )?,
             Kind::Intrinsic(Intrinsic::Boolean) => lir::ExactValueLayoutV1::scalar(
                 identity,
                 lir::ScalarRepresentationKindV1::Boolean,
                 foundation,
-                self.meter,
             )?,
             Kind::Intrinsic(Intrinsic::String)
             | Kind::Class { .. }
@@ -36,15 +33,14 @@ impl Projection<'_, '_> {
                 identity,
                 lir::NichePointerKind::Managed,
                 foundation,
-                self.meter,
             )?,
             Kind::Struct {
                 fields,
                 c_layout,
                 interior_mutable,
             } => {
-                let fields = self.fields(fields, depth)?;
-                let fields = fields.inputs(self.meter)?;
+                let fields = self.fields(fields)?;
+                let fields = fields.inputs()?;
                 match c_layout {
                     mir::MirTypeCLayoutPolicyV1::Ordinary => {
                         lir::ExactValueLayoutV1::ordinary_struct(
@@ -52,14 +48,9 @@ impl Projection<'_, '_> {
                             *interior_mutable,
                             &fields,
                             foundation,
-                            self.meter,
                         )?
                     }
                     mir::MirTypeCLayoutPolicyV1::CLayout(_) => {
-                        self.meter.charge_work(
-                            foundation.c_abi_layouts().len() as u64,
-                            &WirePath::root(),
-                        )?;
                         let contract = foundation
                             .c_abi_layouts()
                             .iter()
@@ -71,14 +62,13 @@ impl Projection<'_, '_> {
                             &fields,
                             contract,
                             foundation,
-                            self.meter,
                         )?
                     }
                 }
             }
             Kind::Enum { variants }
             | Kind::CoroutineStep { variants }
-            | Kind::CoroutineSlot { variants } => self.enumeration(identity, variants, depth)?,
+            | Kind::CoroutineSlot { variants } => self.enumeration(identity, variants)?,
         })
     }
 }

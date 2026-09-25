@@ -50,7 +50,6 @@ fn object_record_keeps_source_exact_and_replays_backing_fields_after_base_prefix
             value: &byte,
         }],
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     let object = source("Registry", SourceNominalKind::Object, 0);
@@ -76,7 +75,6 @@ fn object_record_keeps_source_exact_and_replays_backing_fields_after_base_prefix
             },
         ],
         &bound.foundation,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(layout.identity().exact(), object_exact.id());
@@ -110,7 +108,6 @@ fn object_record_requires_matching_backing_key_and_generated_field_owner() {
                 value: &unit
             }],
             &bound.foundation,
-            &mut meter(),
         ),
         Err(ExactLayoutReplayError::FieldOwner)
     ));
@@ -121,7 +118,6 @@ fn object_record_requires_matching_backing_key_and_generated_field_owner() {
             ClassLayoutBaseV1::NoBase,
             &[],
             &bound.foundation,
-            &mut meter(),
         ),
         Err(ExactLayoutReplayError::ObjectBackingIdentity)
     ));
@@ -135,7 +131,6 @@ fn object_record_requires_matching_backing_key_and_generated_field_owner() {
                 value: &unit
             }],
             &bound.foundation,
-            &mut meter(),
         ),
         Err(ExactLayoutReplayError::FieldOwner)
     ));
@@ -156,7 +151,6 @@ fn object_record_rejects_wrong_generated_family_and_fixed_unit_identity() {
             ClassLayoutBaseV1::NoBase,
             &[],
             &bound.foundation,
-            &mut meter(),
         ),
         Err(ExactLayoutReplayError::ObjectBackingIdentity)
     ));
@@ -170,7 +164,6 @@ fn object_record_rejects_wrong_generated_family_and_fixed_unit_identity() {
             ClassLayoutBaseV1::NoBase,
             &[],
             &bound.foundation,
-            &mut meter(),
         ),
         Err(ExactLayoutReplayError::IdentityKind)
     ));

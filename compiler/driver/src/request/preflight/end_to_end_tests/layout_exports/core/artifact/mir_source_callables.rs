@@ -22,7 +22,7 @@ pub(super) fn check(
         return;
     }
     source
-        .with_inheritance_graph(&[], &mut meter(), |graph, _| {
+        .with_inheritance_graph(&[],  |graph| {
             let replay = Replay {
                 source,
                 foundation,
@@ -31,7 +31,7 @@ pub(super) fn check(
                 graph,
             };
             replay
-                .validate(ordinary, section.callables(), &mut meter())
+                .validate(ordinary, section.callables())
                 .unwrap();
             inventory::check(&replay);
             signatures::check(&replay);
@@ -46,42 +46,14 @@ pub(super) fn check(
                 assert!(matches!(replay.reject(&replay.ordinary(records), section.callables().entries().to_vec()),
                     Error::Missing { declaration: actual, partition: Partition::Ordinary } if actual == declaration));
             }
-            let mut measured = meter();
+
             replay
-                .validate(ordinary, section.callables(), &mut measured)
+                .validate(ordinary, section.callables())
                 .unwrap();
-            let mut shared = scoop_wire::BudgetMeter::new(DecodeLimits {
-                validation_work_units: measured.usage().validation_work_units,
-                ..DecodeLimits::default()
-            });
-            replay
-                .validate(ordinary, section.callables(), &mut shared)
-                .unwrap();
-            assert!(
-                replay
-                    .validate(ordinary, section.callables(), &mut shared)
-                    .is_err()
-            );
-            for limits in [
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    replay
-                        .validate(
-                            ordinary,
-                            section.callables(),
-                            &mut scoop_wire::BudgetMeter::new(limits)
-                        )
-                        .is_err()
-                );
-            }
+
+
+
+
         })
         .unwrap();
 }
@@ -99,7 +71,6 @@ impl Replay<'_, '_> {
         &self,
         ordinary: &mir::CrossConeMirBridgeSectionV1,
         bindings: &mir::CanonicalMirCallableBindingsV1,
-        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<(), Error> {
         scoop_slib::validate_shared_mir_source_callables(
             self.source,
@@ -107,7 +78,6 @@ impl Replay<'_, '_> {
             self.graph,
             ordinary,
             bindings,
-            meter,
         )
     }
 
@@ -117,7 +87,7 @@ impl Replay<'_, '_> {
         records: Vec<mir::ParamFreeMirCallableBindingV1>,
     ) -> Error {
         let records = mir::CanonicalMirCallableBindingsV1::try_new(records).unwrap();
-        self.validate(ordinary, &records, &mut meter())
+        self.validate(ordinary, &records)
             .expect_err("machine candidates must agree with independently retained source metadata")
     }
 

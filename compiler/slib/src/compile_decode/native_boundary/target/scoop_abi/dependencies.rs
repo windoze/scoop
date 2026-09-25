@@ -27,27 +27,18 @@ impl<'a> From<scoop_hir::SharedTypeMetadataV1<'a>> for AbiReplayDependency<'a> {
 pub(crate) fn collect<'a>(
     current: AbiReplayDependency<'a>,
     dependencies: &[AbiReplayDependency<'a>],
-    meter: &mut BudgetMeter,
 ) -> Result<AbiReplayTypes<'a>, NativeBoundaryCompileError> {
     let mut exact = HashMap::new();
     let mut definitions = HashMap::new();
     let path = WirePath::root().field(34);
     for source in std::iter::once(current).chain(dependencies.iter().copied()) {
-        for (id, key) in exact_type_records(source.identities, meter)? {
-            meter
-                .charge_work(
-                    scoop_wire::encoded_length(key.as_ref())
-                        .map_err(NativeBoundaryCompileError::Encoding)?,
-                    &path,
-                )
-                .map_err(NativeBoundaryCompileError::Resource)?;
+        for (id, key) in exact_type_records(source.identities)? {
             if let Some(previous) = exact.get(&id) {
                 if previous != &key {
                     return Err(NativeBoundaryCompileError::ConflictingExactType { exact: id });
                 }
             } else {
-                meter
-                    .try_reserve_map_slots(&mut exact, 1, &path)
+                scoop_wire::allocation::try_reserve_map(&mut exact, 1, &path)
                     .map_err(NativeBoundaryCompileError::Resource)?;
                 exact.insert(id, key);
             }
@@ -57,12 +48,11 @@ pub(crate) fn collect<'a>(
                 &mut definitions,
                 record.owner(),
                 AbiNominalDefinition::native(record),
-                meter,
             )?;
         }
     }
     for source in std::iter::once(current).chain(dependencies.iter().copied()) {
-        shared::collect(source, &mut definitions, meter)?;
+        shared::collect(source, &mut definitions)?;
     }
     Ok(AbiReplayTypes { exact, definitions })
 }
@@ -71,29 +61,15 @@ fn insert_definition<'a>(
     definitions: &mut HashMap<NativeBoundaryNominalOwner, AbiNominalDefinition<'a>>,
     owner: NativeBoundaryNominalOwner,
     record: AbiNominalDefinition<'a>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), NativeBoundaryCompileError> {
     let path = WirePath::root().field(34);
-    meter
-        .charge_work(
-            scoop_wire::encoded_length(record.shape())
-                .map_err(NativeBoundaryCompileError::Encoding)?,
-            &path,
-        )
-        .map_err(NativeBoundaryCompileError::Resource)?;
+
     if let Some(previous) = definitions.get(&owner) {
         if previous != &record {
             return Err(NativeBoundaryCompileError::ConflictingTypeWitness { owner });
         }
     } else {
-        meter
-            .charge_owned_bytes(
-                std::mem::size_of::<AbiNominalDefinition<'_>>() as u64,
-                &path,
-            )
-            .map_err(NativeBoundaryCompileError::Resource)?;
-        meter
-            .try_reserve_map_slots(definitions, 1, &path)
+        scoop_wire::allocation::try_reserve_map(definitions, 1, &path)
             .map_err(NativeBoundaryCompileError::Resource)?;
         definitions.insert(owner, record);
     }

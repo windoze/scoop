@@ -19,11 +19,7 @@ fn reader_requires_a_known_role_on_every_strong_record() {
             *invalid.last_mut().unwrap() = 3;
         }
         bytes.splice(offset..offset + record.len(), invalid);
-        let error = decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(
-            &bytes,
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error = decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &if missing {

@@ -5,7 +5,7 @@ use scoop_wire::WirePath;
 use super::{Error, SharedMirTypeComponent as Component, validation::Comparison};
 
 pub(super) fn validate(
-    comparison: &mut Comparison<'_, '_, '_>,
+    comparison: &mut Comparison<'_, '_>,
     core: &hir::CoreBootstrapInterfaceSectionV1,
     shapes: &mir::CanonicalMirShapeSupportsV1,
 ) -> Result<(), Error> {
@@ -22,17 +22,16 @@ pub(super) fn validate(
         metadata.foundation.as_canonical(),
         metadata.public.nominal_interfaces(),
         metadata.public.callable_interfaces(),
-        comparison.meter,
     )?;
     let mut sources = Vec::new();
-    comparison.meter.try_reserve_collection_slots(
+    scoop_wire::allocation::try_reserve(
         &mut sources,
         requirements.roots().len(),
         &WirePath::root(),
     )?;
-    comparison.work(requirements.roots().len())?;
+
     sources.extend(requirements.roots().iter().map(|root| root.source()));
-    shapes.validate_required_sources(&sources, comparison.meter)?;
+    shapes.validate_required_sources(&sources)?;
     for (root, shape) in requirements.roots().iter().zip(shapes.records()) {
         mir::ParamFreeMirShapeSupportV1::try_new(
             mir::MirShapeSupportAuthority {
@@ -44,7 +43,6 @@ pub(super) fn validate(
             shape.boxed(),
             shape.coroutine_step(),
             shape.coroutine_slot(),
-            comparison.meter,
         )?;
         let source = comparison.require_type(root.exact())?;
         Error::require(
@@ -67,7 +65,7 @@ pub(super) fn validate(
                 Component::Base,
                 boxed.base_and_interfaces().base == mir::MirBaseClassV1::None,
             )?;
-            comparison.work(source.base_and_interfaces().interfaces.len())?;
+
             Error::require(
                 exact,
                 Component::Interfaces,

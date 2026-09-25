@@ -1,13 +1,11 @@
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
 #[test]
 fn library_manifest_wire_round_trips_without_promoting_carried_values() {
     let bytes = library_manifest_bytes();
-    let decoded =
-        decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     assert!(ensure_projection_equality(&bytes, &bytes).is_ok());
 
@@ -22,36 +20,19 @@ fn library_manifest_wire_round_trips_without_promoting_carried_values() {
 #[test]
 fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
     for bytes in [vec![0xa9], vec![0xab]] {
-        assert!(
-            decode_canonical::<DecodedSingleConeProductionManifestV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).is_err());
     }
+    assert!(decode_canonical::<DecodedArtifactDistributionClassV1>(&[0xa1, 0x00, 0x03]).is_err());
     assert!(
-        decode_canonical::<DecodedArtifactDistributionClassV1>(
-            &[0xa1, 0x00, 0x03],
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
-    assert!(
-        decode_canonical::<DecodedSingleConeProductionOutputV1>(
-            &[0xa2, 0x00, 0x01, 0x01, 0x00],
-            DecodeLimits::default()
-        )
-        .is_err()
+        decode_canonical::<DecodedSingleConeProductionOutputV1>(&[0xa2, 0x00, 0x01, 0x01, 0x00])
+            .is_err()
     );
 }
 
 #[test]
 fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
     let bytes = library_manifest_bytes();
-    let decoded =
-        decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
     let foundation = scoop_lir::OdrFreeLirFoundation::try_new(
         scoop_identity::ConeIdentity::CORE,
         scoop_lir::CanonicalLirFoundation::empty(),
@@ -60,11 +41,7 @@ fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
     let bridge_plan =
         scoop_lir::GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
     let checked = decoded
-        .validate_c_bridge_production(
-            &bridge_plan,
-            &c_bridge_profile(),
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
+        .validate_c_bridge_production(&bridge_plan, &c_bridge_profile())
         .unwrap();
     assert_eq!(
         checked.c_bridge_production(),

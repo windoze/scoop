@@ -112,7 +112,7 @@ mod tests {
         NativeExternalSymbolKey, NativeLibraryBinding, PersistentNativeExternalSymbolId,
         SourceNativeSymbol,
     };
-    use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::*;
     use crate::{
@@ -160,35 +160,20 @@ mod tests {
             }),
         ] {
             let bytes = encode(&production).unwrap();
-            let decoded =
-                decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes, DecodeLimits::default())
-                    .unwrap();
-            assert_eq!(
-                decoded
-                    .validate(
-                        production.clone(),
-                        &mut BudgetMeter::new(DecodeLimits::default())
-                    )
-                    .unwrap(),
-                production
-            );
+            let decoded = decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes).unwrap();
+            assert_eq!(decoded.validate(production.clone()).unwrap(), production);
         }
 
         let bytes = encode(&CBridgeProductionSetV1::NotUsed).unwrap();
-        let decoded =
-            decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let decoded = decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes).unwrap();
         assert!(matches!(
-            decoded.validate(
-                CBridgeProductionSetV1::Used(CBridgeProductionV1 {
-                    profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
-                    profile_fingerprint: profile().fingerprint(),
-                    source_template_fingerprint: profile().contract().source_template_fingerprint(),
-                    canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),
-                    units: vec![unit_id()],
-                }),
-                &mut BudgetMeter::new(DecodeLimits::default())
-            ),
+            decoded.validate(CBridgeProductionSetV1::Used(CBridgeProductionV1 {
+                profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
+                profile_fingerprint: profile().fingerprint(),
+                source_template_fingerprint: profile().contract().source_template_fingerprint(),
+                canonical_flag_fingerprint: profile().contract().canonical_flag_fingerprint(),
+                units: vec![unit_id()],
+            })),
             Err(CBridgeProductionValidationError::ProjectionMismatch)
         ));
     }
@@ -196,15 +181,12 @@ mod tests {
     #[test]
     fn decoded_production_rejects_unknown_and_extended_sum_shapes() {
         for bytes in [vec![0xa1, 0x00, 0x03], vec![0xa2, 0x00, 0x01, 0x01, 0x00]] {
-            assert!(
-                decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes, DecodeLimits::default())
-                    .is_err()
-            );
+            assert!(decode_canonical::<DecodedCBridgeProductionSetV1>(&bytes).is_err());
         }
     }
 
     #[test]
-    fn borrowed_c_bridge_validation_preserves_wire_and_cumulative_budget() {
+    fn borrowed_c_bridge_validation_preserves_wire() {
         let production = CBridgeProductionSetV1::Used(CBridgeProductionV1 {
             profile_id: CBridgeToolchainProfileId::darwin_aarch64_apple_clang(),
             profile_fingerprint: profile().fingerprint(),
@@ -213,30 +195,10 @@ mod tests {
             units: vec![unit_id()],
         });
         let bytes = encode(&production).unwrap();
-        let decoded: DecodedCBridgeProductionSetV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-        let mut measured = BudgetMeter::new(DecodeLimits::default());
-        assert_eq!(
-            decoded.validate(production.clone(), &mut measured).unwrap(),
-            production
-        );
+        let decoded: DecodedCBridgeProductionSetV1 = decode_canonical(&bytes).unwrap();
+
+        assert_eq!(decoded.validate(production.clone()).unwrap(), production);
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        let mut exact = BudgetMeter::new(DecodeLimits {
-            validation_work_units: measured.usage().validation_work_units,
-            ..DecodeLimits::default()
-        });
-        decoded.validate(production.clone(), &mut exact).unwrap();
-        assert!(matches!(decoded.validate(production.clone(), &mut exact),
-            Err(CBridgeProductionValidationError::Resource(error))
-            if matches!(error.kind(), scoop_wire::WireErrorKind::LimitExceeded { resource: scoop_wire::ResourceKind::ValidationWorkUnits, .. })));
-        let mut exhausted = BudgetMeter::new(DecodeLimits {
-            owned_bytes: 0,
-            ..DecodeLimits::default()
-        });
-        assert!(matches!(
-            decoded.validate(production, &mut exhausted),
-            Err(CBridgeProductionValidationError::Resource(_))
-        ));
     }
 
     fn profile() -> CBridgeToolchainProfileV1 {

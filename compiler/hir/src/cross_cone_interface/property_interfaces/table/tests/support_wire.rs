@@ -65,11 +65,8 @@ fn reader_rejects_old_property_records_tables_and_lookup_bearing_accessor_sets()
     old_record[0] = 0xa8;
     old_record.push(8);
     old_record.extend(encode(&f.record.access()).unwrap());
-    let error = decode_canonical::<crate::DecodedPropertyInterfaceRecordV1>(
-        &old_record,
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<crate::DecodedPropertyInterfaceRecordV1>(&old_record).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -78,11 +75,8 @@ fn reader_rejects_old_property_records_tables_and_lookup_bearing_accessor_sets()
         }
     );
     assert_eq!(error.path(), &WirePath::root());
-    let error = decode_canonical::<crate::DecodedPropertyDeclarationRecordV1>(
-        &seven_fields,
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error =
+        decode_canonical::<crate::DecodedPropertyDeclarationRecordV1>(&seven_fields).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
@@ -91,11 +85,7 @@ fn reader_rejects_old_property_records_tables_and_lookup_bearing_accessor_sets()
         }
     );
     let old_table = [b"\x81".as_slice(), &old_record].concat();
-    let error = decode_canonical::<DecodedCanonicalPropertyInterfacesV1>(
-        &old_table,
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedCanonicalPropertyInterfacesV1>(&old_table).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::WrongType {
@@ -109,11 +99,8 @@ fn reader_rejects_old_property_records_tables_and_lookup_bearing_accessor_sets()
         crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
-    let error = decode_canonical::<crate::DecodedPropertyAccessorsV1>(
-        &encode(&old_set).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<crate::DecodedPropertyAccessorsV1>(&encode(&old_set).unwrap())
+        .unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 2 });
 }
 

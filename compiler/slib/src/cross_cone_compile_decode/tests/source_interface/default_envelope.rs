@@ -1,8 +1,8 @@
 use scoop_hir::{
     DefaultBodyProviderEnvelopeSemanticValidationError as BodyError,
     DefaultBodyProviderTypeSiteV1 as Site, DefaultTemplateSourceEnvelopeError as EnvelopeError,
-    MeteredSignatureTypeSemanticError, SignatureBinderScopeError as ScopeError,
-    SignatureTypeSemanticError as TypeError, TemplateLocalScopeValidationError,
+    SignatureBinderScopeError as ScopeError, SignatureTypeSemanticError as TypeError,
+    TemplateLocalScopeValidationError,
 };
 use scoop_identity::{LocalValueSelector, NonEmptyVec};
 
@@ -40,12 +40,10 @@ fn ordinary_default_envelope_checks_the_types_of_unused_locals() {
     assert_eq!(index, 1);
     assert!(matches!(
         *error,
-        MeteredSignatureTypeSemanticError::Semantic(TypeError::BinderScope(
-            ScopeError::DepthOutOfRange {
-                depth: 0,
-                available_depths: 0
-            }
-        ))
+        TypeError::BinderScope(ScopeError::DepthOutOfRange {
+            depth: 0,
+            available_depths: 0
+        })
     ));
 }
 

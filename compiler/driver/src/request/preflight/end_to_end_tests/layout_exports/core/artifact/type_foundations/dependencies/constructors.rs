@@ -30,9 +30,7 @@ pub(super) fn check(
         );
         let provider = lower(sysroot, target, &root, vec![], &[core]);
         let checked = provider.check(&[core]).unwrap();
-        checked
-            .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
-            .unwrap();
+        checked.with_inheritance_graph(&[core], |_| ()).unwrap();
         constructor_rejections::check(checked, core);
         if name == "inheritance-members" {
             member_rejections::check(checked, core);
@@ -95,8 +93,8 @@ fn reject(
         source.selected().clone(),
     );
     candidate
-        .validate_shared_foundation(checked.metadata(), &[core], &mut meter())
+        .validate_shared_foundation(checked.metadata(), &[core])
         .unwrap()
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
+        .with_inheritance_graph(&[core], |_| ())
         .expect_err("decoded inheritance must agree with shared declaration metadata")
 }

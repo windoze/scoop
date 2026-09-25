@@ -141,7 +141,7 @@ fn call_domain_replay_rejects_final_overrides_and_effect_mismatches() {
 }
 
 #[test]
-fn call_domain_replay_rejects_cyclic_inheritance_and_preserves_the_reader_budget() {
+fn call_domain_replay_rejects_cyclic_inheritance() {
     let mut builder = Builder::new();
     let owner = builder.nominal("Cycle", Kind::Class, Visibility::Public, 0, vec![], None);
     let function = builder.function(
@@ -155,12 +155,7 @@ fn call_domain_replay_rejects_cyclic_inheritance_and_preserves_the_reader_budget
     let template = builder.template(function, function, vec![], None);
     let fixture = builder.clone().finish(vec![template]);
     fixture.validate().unwrap();
-    let limits = DecodeLimits {
-        validation_work_units: 1,
-        ..DecodeLimits::default()
-    };
-    let error = fixture.validate_limited(Some(limits)).unwrap_err();
-    assert!(error.to_string().contains("limit"), "{error}");
+
     builder.set_parents(owner, vec![support::applied(owner, vec![])]);
     let template = builder.template(function, function, vec![], None);
     assert!(

@@ -5,7 +5,7 @@ use scoop_hir::{
 use scoop_identity::{
     ConeIdentity, ExportBindingKey, PersistentExportBindingId, ValidatedIdentityGraph,
 };
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use super::{CanonicalCrossConeRouteAuthority, RouteProviderView, index};
 
@@ -16,17 +16,14 @@ impl<'a> CanonicalCrossConeRouteAuthority<'a> {
         interface: &CrossConeHirInterfaceSectionV1,
         direct: &'a [ConeIdentity],
         providers: &'a [RouteProviderView<'a>],
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, WireError> {
-        meter.charge_work(1, path)?;
-        meter.check_table_entries(direct.len() as u64, path)?;
-        meter.check_table_entries(providers.len() as u64, path)?;
         let closure_node_count = providers
             .len()
             .checked_add(1)
             .ok_or_else(|| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
-        let binding_keys = index::binding_keys(identities, interface, meter, path)?;
+        let binding_keys = index::binding_keys(identities, interface, path)?;
         Ok(Self {
             current,
             identities,
@@ -43,53 +40,35 @@ impl PublicExportBindingClosureAuthority for CanonicalCrossConeRouteAuthority<'_
         self.closure_node_count
     }
 
-    fn is_direct_dependency(
-        &self,
-        provider: ConeIdentity,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<bool, WireError> {
+    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
         for candidate in self.direct {
-            meter.charge_work(1, path)?;
             if *candidate == provider {
-                return Ok(true);
+                return true;
             }
         }
-        Ok(false)
+        false
     }
 
-    fn binding_key(
-        &self,
-        binding: PersistentExportBindingId,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<&ExportBindingKey>, WireError> {
+    fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
         let mut start = 0;
         let mut end = self.binding_keys.len();
         while start < end {
-            meter.charge_work(1, path)?;
             let middle = start + (end - start) / 2;
             match self.binding_keys[middle].0.cmp(&binding) {
                 std::cmp::Ordering::Less => start = middle + 1,
                 std::cmp::Ordering::Greater => end = middle,
-                std::cmp::Ordering::Equal => return Ok(Some(self.binding_keys[middle].1.as_ref())),
+                std::cmp::Ordering::Equal => return Some(self.binding_keys[middle].1.as_ref()),
             }
         }
-        Ok(None)
+        None
     }
 
-    fn public_bindings(
-        &self,
-        exporter: ConeIdentity,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, WireError> {
+    fn public_bindings(&self, exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
         for provider in self.providers {
-            meter.charge_work(1, path)?;
             if provider.identity == exporter {
-                return Ok(Some(provider.bindings));
+                return Some(provider.bindings);
             }
         }
-        Ok(None)
+        None
     }
 }

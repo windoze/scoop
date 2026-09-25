@@ -11,9 +11,7 @@ impl DecodedCanonicalExactLayoutExportsV1 {
     pub fn validate_against(
         self,
         expected: &CanonicalExactLayoutExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalExactLayoutExportsV1, ExactLayoutTableError> {
-        meter.charge_work(self.records.len() as u64, &WirePath::root())?;
         if self.records.len() != expected.records().len() {
             return Err(ExactLayoutTableError::Count);
         }
@@ -21,7 +19,7 @@ impl DecodedCanonicalExactLayoutExportsV1 {
             self.records.into_iter().zip(expected.records()).enumerate()
         {
             record
-                .validate_against(expected, meter)
+                .validate_against(expected)
                 .map_err(|source| ExactLayoutTableError::Record { index, source })?;
         }
         Ok(expected.clone())
@@ -50,7 +48,7 @@ impl WireEncode for DecodedCanonicalExactLayoutExportsV1 {
     }
 }
 impl WireDecode for DecodedCanonicalExactLayoutExportsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExactLayoutExportV1::decode(decoder))
             .map(|records| Self { records })

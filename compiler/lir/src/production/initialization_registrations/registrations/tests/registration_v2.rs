@@ -9,7 +9,7 @@ use crate::{
     StrongInitializationUnitSemanticPlanSetV2 as Semantics,
     StrongInitializationUnitSemanticPlanV2 as Semantic,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod reader;
 
@@ -46,13 +46,10 @@ fn dependency(
 ) -> Dependency {
     let plans = provider.build().unwrap();
     let definition = Definition::from_registrations(&plans, provider.unit).unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    let catalog = Catalog::new(consumer, &[definition], &mut meter).unwrap();
-    let id = decode_canonical(&encode(&provider.unit).unwrap(), DecodeLimits::default()).unwrap();
-    catalog
-        .resolve(unit, &[id], &mut meter)
-        .unwrap()
-        .references()[0]
+
+    let catalog = Catalog::new(consumer, &[definition]).unwrap();
+    let id = decode_canonical(&encode(&provider.unit).unwrap()).unwrap();
+    catalog.resolve(unit, &[id]).unwrap().references()[0]
 }
 
 #[test]
@@ -68,7 +65,7 @@ fn both_schedules_keep_all_twenty_eight_registration_fields_unchanged() {
         assert_eq!(bytes, encode(&old.registrations()[0]).unwrap());
         assert_eq!(&bytes[..2], &[0xb8, 28]);
         let decoded: DecodedStrongInitializationUnitRegistrationPlanV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(
             Definition::from_registrations(&current, fixture.unit),

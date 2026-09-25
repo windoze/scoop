@@ -1,5 +1,5 @@
 use scoop_identity::{CallableTemplateOrigin, StructuralDefinitionSiteRole};
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::super::test_support::*;
 use super::*;
@@ -19,8 +19,7 @@ fn local_function_round_trips_through_indexed_captures() {
     let bytes = encode(&expected.index_locals(&mut locals).unwrap()).unwrap();
 
     assert_eq!(bytes[0], 0xa5);
-    let decoded: DecodedDefaultLocalFunctionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultLocalFunctionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut locals),
         Ok(expected.clone())
@@ -54,8 +53,7 @@ fn local_function_rejects_non_function_declarations_on_both_sides() {
         declaration: CallableTemplateOrigin::Constructor(fixture.constructor),
         definition_path: path,
     };
-    let decoded: DecodedDefaultLocalFunctionV1 =
-        decode_canonical(&encode(&raw).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedDefaultLocalFunctionV1 = decode_canonical(&encode(&raw).unwrap()).unwrap();
     let mut locals = LocalResolver::new(Vec::new());
     assert_eq!(
         decoded.resolve(&mut fixture.resolver(), &mut locals),
@@ -91,11 +89,8 @@ fn local_function_index_error_identifies_capture_position() {
 
 #[test]
 fn local_function_decoder_requires_all_five_fields() {
-    let error = decode_canonical::<DecodedDefaultLocalFunctionV1>(
-        &[0xa1, 0x01, 0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let error = decode_canonical::<DecodedDefaultLocalFunctionV1>(&[0xa1, 0x01, 0xa1, 0x00, 0x01])
+        .unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {

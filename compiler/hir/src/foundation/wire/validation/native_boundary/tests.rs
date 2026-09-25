@@ -3,7 +3,6 @@ use scoop_identity::{
     EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityKey, FieldIdentityKey,
     PackagePath, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use super::*;
 use crate::{
@@ -16,13 +15,7 @@ fn validate_shape(
     variant_fields: &[VariantFieldRecord],
     definitions: &[NativeBoundaryTypeDefinitionRecord],
 ) -> Result<(), NativeBoundaryShapeCoverageError> {
-    match validate_shape_coverage(
-        fields,
-        variants,
-        variant_fields,
-        definitions,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    ) {
+    match validate_shape_coverage(fields, variants, variant_fields, definitions) {
         Ok(()) => Ok(()),
         Err(HirFoundationValidationError::NativeBoundaryShapeCoverage(error)) => Err(error),
         Err(error) => panic!("unexpected validation error: {error}"),
@@ -85,65 +78,6 @@ fn accepts_the_exact_source_struct_field_set() {
     .unwrap();
 
     validate_shape(&[field], &[], &[], &[definition]).unwrap();
-}
-
-#[test]
-fn shape_coverage_indexes_have_inclusive_heap_boundaries() {
-    let declaration = source_struct("BudgetedPair");
-    let field_key =
-        FieldIdentityKey::source_declared(&declaration, CanonicalIdentifier::new("first").unwrap())
-            .unwrap();
-    let field = CborIdentityRecord::from_key(field_key.clone()).unwrap();
-    let definition = NativeBoundaryTypeDefinitionRecord::new(
-        &declaration,
-        &[0],
-        NativeBoundaryNominalShape::Struct {
-            c_layout: NativeBoundaryCLayoutPolicy::NotCLayout,
-            fields: vec![
-                NativeBoundaryFieldDefinition::new(
-                    &field_key,
-                    scoop_identity::SignatureTypeKey::Nominal(
-                        scoop_identity::CoreBuiltinNominal::Unit
-                            .identity_record()
-                            .id(),
-                    ),
-                )
-                .unwrap(),
-            ],
-        },
-    )
-    .unwrap();
-    let required = 2 * scoop_wire::budget::COLLECTION_ELEMENT_BYTES;
-
-    for (limit, accepted) in [
-        (required - 1, false),
-        (required, true),
-        (required + 1, true),
-    ] {
-        let mut meter = BudgetMeter::new(DecodeLimits {
-            logical_heap_bytes: limit,
-            ..DecodeLimits::default()
-        });
-        let result = validate_shape_coverage(
-            std::slice::from_ref(&field),
-            &[],
-            &[],
-            std::slice::from_ref(&definition),
-            &mut meter,
-        );
-        assert_eq!(result.is_ok(), accepted);
-        if !accepted {
-            assert!(matches!(
-                result.unwrap_err(),
-                HirFoundationValidationError::Resource(ref error)
-                    if error.kind() == &WireErrorKind::LimitExceeded {
-                        resource: scoop_wire::ResourceKind::LogicalHeapBytes,
-                        limit,
-                        observed: required,
-                    }
-            ));
-        }
-    }
 }
 
 #[test]

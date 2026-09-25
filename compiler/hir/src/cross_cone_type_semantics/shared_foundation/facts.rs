@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, SignatureTypeKey};
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WirePath;
 
 use super::*;
 use crate::{
@@ -15,7 +15,6 @@ pub(super) fn validate<'a>(
     candidate: &'a CanonicalExactTypeFactsV1,
     types: MetadataTypes<'a, '_>,
     materialization: &NominalMaterializationClosure,
-    meter: &mut BudgetMeter,
 ) -> Result<CheckedExactTypeFactsV1<'a>, Error> {
     let mut replay = Replay {
         candidate,
@@ -24,11 +23,8 @@ pub(super) fn validate<'a>(
         foreign: BTreeMap::new(),
         active: BTreeSet::new(),
     };
-    super::requirements::project(&mut replay, materialization, meter)?;
-    meter.charge_work(
-        candidate.records().len() as u64 + replay.shapes.len() as u64,
-        &WirePath::root(),
-    )?;
+    super::requirements::project(&mut replay, materialization)?;
+
     if !candidate
         .records()
         .iter()
@@ -38,7 +34,7 @@ pub(super) fn validate<'a>(
         return Err(Error::FactInventory);
     }
     candidate
-        .validate_semantics_with_dependencies(&replay, &replay, meter)
+        .validate_semantics_with_dependencies(&replay, &replay)
         .map_err(|error| Error::Facts(Box::new(error)))
 }
 
@@ -54,56 +50,46 @@ impl Replay<'_, '_> {
     pub(super) fn signature(
         &mut self,
         signature: &SignatureTypeKey,
-        meter: &mut BudgetMeter,
     ) -> Result<PersistentExactTypeId, Error> {
-        let exact = self.types.exact(signature, 1, meter)?;
-        self.visit(exact, 1, meter)?;
+        let exact = self.types.exact(signature)?;
+        self.visit(exact)?;
         Ok(exact)
     }
 
-    pub(super) fn visit(
-        &mut self,
-        exact: PersistentExactTypeId,
-        depth: u64,
-        meter: &mut BudgetMeter,
-    ) -> Result<(), Error> {
+    pub(super) fn visit(&mut self, exact: PersistentExactTypeId) -> Result<(), Error> {
         let path = WirePath::root();
-        meter.check_semantic_depth(depth, &path)?;
-        meter.charge_work(
-            1 + u64::from((self.shapes.len() + self.foreign.len()).max(1).ilog2()),
-            &path,
-        )?;
+
         if self.shapes.contains_key(&exact) || self.foreign.contains_key(&exact) {
             return Ok(());
         }
-        let key = self.types.key(exact, meter)?;
+        let key = self.types.key(exact)?;
         if let ExactTypeKey::Nominal(owner) = key.as_ref() {
-            let provider = self.types.nominal_key(*owner, meter)?.origin();
+            let provider = self.types.nominal_key(*owner)?.origin();
             if provider != self.types.current.provider {
                 if self.candidate.get(exact).is_some() {
                     return Err(Error::ForeignFact(exact));
                 }
-                let fact = self.types.dependency_fact(provider, exact, meter)?;
-                meter.charge_collection_slots(1, &path)?;
+                let fact = self.types.dependency_fact(provider, exact)?;
+
                 self.foreign.insert(exact, fact);
                 return Ok(());
             }
         }
-        meter.charge_collection_slots(1, &path)?;
+
         if !self.active.insert(exact) {
             return Err(Error::ByValueCycle(exact));
         }
         let shape = match key.as_ref() {
-            ExactTypeKey::Nominal(owner) => self.nominal_shape(*owner, depth, meter)?,
+            ExactTypeKey::Nominal(owner) => self.nominal_shape(*owner)?,
             ExactTypeKey::Tuple(elements) => {
                 let mut children = Vec::new();
-                meter.try_reserve_collection_slots(
+                scoop_wire::allocation::try_reserve(
                     &mut children,
                     elements.as_slice().len(),
                     &path,
                 )?;
                 for element in elements.as_slice() {
-                    self.visit(*element, depth + 1, meter)?;
+                    self.visit(*element)?;
                     children.push(*element);
                 }
                 Shape::Tuple { elements: children }
@@ -115,37 +101,28 @@ impl Replay<'_, '_> {
             ExactTypeKey::NominalApplication { .. } => return Err(Error::GenericFact(exact)),
         };
         self.active.remove(&exact);
-        meter.charge_collection_slots(1, &path)?;
+
         self.shapes.insert(exact, shape);
         Ok(())
     }
 
-    fn nominal_shape(
-        &mut self,
-        owner: PersistentTypeId,
-        depth: u64,
-        meter: &mut BudgetMeter,
-    ) -> Result<Shape, Error> {
+    fn nominal_shape(&mut self, owner: PersistentTypeId) -> Result<Shape, Error> {
         if owner == CoreBuiltinNominal::Unit.identity_record().id() {
             return Ok(Shape::Unit);
         }
         if owner == CoreBuiltinNominal::Any.identity_record().id() {
             return Ok(Shape::Reference);
         }
-        let nominal = self.types.nominal(owner, meter)?;
+        let nominal = self.types.nominal(owner)?;
         match nominal.source_shape() {
             NominalSourceShapeV1::Struct(source) => {
-                let fields = self.fields(
-                    source.fields().iter().map(|field| field.value_type()),
-                    depth,
-                    meter,
-                )?;
+                let fields = self.fields(source.fields().iter().map(|field| field.value_type()))?;
                 Ok(match source.c_layout_policy() {
                     NominalCLayoutPolicyV1::Ordinary => Shape::OrdinaryStruct { fields },
                     NominalCLayoutPolicyV1::CLayout { .. } => Shape::CLayoutStruct { fields },
                 })
             }
-            NominalSourceShapeV1::Enum(source) => self.enumeration(source, depth, meter),
+            NominalSourceShapeV1::Enum(source) => self.enumeration(source),
             NominalSourceShapeV1::Class(_)
             | NominalSourceShapeV1::Object(_)
             | NominalSourceShapeV1::Interface => Ok(Shape::Reference),
@@ -160,24 +137,15 @@ impl Replay<'_, '_> {
         }
     }
 
-    fn enumeration(
-        &mut self,
-        source: &EnumSourceShapeV1,
-        depth: u64,
-        meter: &mut BudgetMeter,
-    ) -> Result<Shape, Error> {
+    fn enumeration(&mut self, source: &EnumSourceShapeV1) -> Result<Shape, Error> {
         let mut variants = Vec::new();
-        meter.try_reserve_collection_slots(
+        scoop_wire::allocation::try_reserve(
             &mut variants,
             source.variants().len(),
             &WirePath::root(),
         )?;
         for variant in source.variants() {
-            let fields = self.fields(
-                variant.fields().iter().map(|field| field.value_type()),
-                depth,
-                meter,
-            )?;
+            let fields = self.fields(variant.fields().iter().map(|field| field.value_type()))?;
             // Every field is recursively replayed by the shared facts validator.
             // This derived annotation is checked against those same child facts.
             let mut gc = ExactTypeGcV1::GcFree;
@@ -198,14 +166,12 @@ impl Replay<'_, '_> {
     fn fields<'s>(
         &mut self,
         fields: impl ExactSizeIterator<Item = &'s SignatureTypeKey>,
-        depth: u64,
-        meter: &mut BudgetMeter,
     ) -> Result<Vec<PersistentExactTypeId>, Error> {
         let mut exacts = Vec::new();
-        meter.try_reserve_collection_slots(&mut exacts, fields.len(), &WirePath::root())?;
+        scoop_wire::allocation::try_reserve(&mut exacts, fields.len(), &WirePath::root())?;
         for field in fields {
-            let exact = self.types.exact(field, depth + 1, meter)?;
-            self.visit(exact, depth + 1, meter)?;
+            let exact = self.types.exact(field)?;
+            self.visit(exact)?;
             exacts.push(exact);
         }
         Ok(exacts)
@@ -229,10 +195,7 @@ impl ExactTypeFactsDependencyLookupV1 for Replay<'_, '_> {
     fn get_dependency_fact(
         &self,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<CheckedExactTypeFactV1<'_>>, WireError> {
-        meter.charge_work(1 + u64::from(self.foreign.len().max(1).ilog2()), path)?;
-        Ok(self.foreign.get(&exact).copied())
+    ) -> Option<CheckedExactTypeFactV1<'_>> {
+        self.foreign.get(&exact).copied()
     }
 }

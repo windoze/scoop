@@ -17,11 +17,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     let imported = provider.import();
     let aliases = scoop_hir::CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
         .unwrap()
-        .expand_alias_closure(
-            &provider,
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
-            &scoop_wire::WirePath::root(),
-        )
+        .expand_alias_closure(&provider, &scoop_wire::WirePath::root())
         .unwrap();
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ConeIdentity::CORE,

@@ -6,10 +6,7 @@
 use std::fmt;
 
 use scoop_identity::{CBridgeToolchainProfileId, TargetProfileWireId};
-use scoop_wire::{
-    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use crate::{LirTargetProfile, TargetProfileFingerprint};
 
@@ -672,16 +669,6 @@ impl CBridgeToolchainFingerprint {
 
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
-    }
-
-    pub fn hash_stream_length(profile: &CBridgeToolchainProfileV1) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(
-            C_BRIDGE_TOOLCHAIN_PROFILE_DOMAIN,
-            &CBridgeToolchainFingerprintInput {
-                id: &profile.id,
-                contract: &profile.contract,
-            },
-        )
     }
 }
 

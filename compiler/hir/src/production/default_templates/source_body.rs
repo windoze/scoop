@@ -6,7 +6,6 @@ use super::{
 };
 use crate::*;
 use scoop_identity::CallableTemplateOrigin;
-use scoop_wire::{BudgetMeter, WirePath};
 
 mod accessors;
 mod errors;
@@ -27,9 +26,8 @@ impl<'a> DefaultSourceBodyProductionV1<'a> {
         export: &'a ExportHir,
         owner: ExportParameterOwner,
         parameter_position: u32,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, DefaultSourceBodyProductionError> {
-        let entities = DefaultEntityProjector::new(export, None, meter);
+        let entities = DefaultEntityProjector::new(export, None);
         Self::project(export, &entities, owner, parameter_position)
     }
 
@@ -37,25 +35,18 @@ impl<'a> DefaultSourceBodyProductionV1<'a> {
         output: &'a DependencyHirOutput,
         owner: ExportParameterOwner,
         parameter_position: u32,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, DefaultSourceBodyProductionError> {
         let export = output.output().export.module();
-        let entities =
-            DefaultEntityProjector::new(export, Some(output.imported_dependencies()), meter);
+        let entities = DefaultEntityProjector::new(export, Some(output.imported_dependencies()));
         Self::project(export, &entities, owner, parameter_position)
     }
 
     fn project(
         export: &'a ExportHir,
-        entities: &DefaultEntityProjector<'_, '_>,
+        entities: &DefaultEntityProjector<'_>,
         owner: ExportParameterOwner,
         parameter_position: u32,
     ) -> Result<Self, DefaultSourceBodyProductionError> {
-        entities.resources.with_meter(|meter, _| {
-            let path = WirePath::root();
-            meter.check_table_entries(export.source_parameter_interfaces.len() as u64, &path)?;
-            meter.charge_work(export.source_parameter_interfaces.len() as u64, &path)
-        })?;
         let mut sources = export
             .source_parameter_interfaces
             .iter()

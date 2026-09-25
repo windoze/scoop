@@ -68,28 +68,22 @@ impl MirTypeBridgeSemanticRecordV1<'_> {
         self,
         graph: &ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<MirTypeBridgeSemanticReferencesV1, MirTypeBridgeReferenceError> {
         match self {
-            Self::Type(record) => MirTypeBridgeSemanticReferencesV1::of_type(record, graph, meter),
-            Self::Callable(record) => {
-                MirTypeBridgeSemanticReferencesV1::of_callable(record, graph, meter)
-            }
+            Self::Type(record) => MirTypeBridgeSemanticReferencesV1::of_type(record, graph),
+            Self::Callable(record) => MirTypeBridgeSemanticReferencesV1::of_callable(record, graph),
             Self::Dispatch(record) => {
-                MirTypeBridgeSemanticReferencesV1::of_dispatch(record, graph, types, meter)
+                MirTypeBridgeSemanticReferencesV1::of_dispatch(record, graph, types)
             }
-            Self::Object(record) => {
-                MirTypeBridgeSemanticReferencesV1::of_object(record, graph, meter)
-            }
+            Self::Object(record) => MirTypeBridgeSemanticReferencesV1::of_object(record, graph),
             Self::ShapeSupport(record) => {
-                MirTypeBridgeSemanticReferencesV1::of_shape(record, graph, meter)
+                MirTypeBridgeSemanticReferencesV1::of_shape(record, graph)
             }
             Self::InitializationUnit(record) => {
                 MirTypeBridgeSemanticReferencesV1::of_initialization_contract(
                     record.unit(),
                     record.signature(),
                     graph,
-                    meter,
                 )
             }
         }

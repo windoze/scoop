@@ -1,7 +1,6 @@
 use scoop_identity::SourceDeclarationKey;
 use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath,
-    encode_canonical_temporary_with_meter,
+    Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode_canonical_temporary,
 };
 
 use super::*;
@@ -23,13 +22,11 @@ impl DecodedParamFreeShapeSupportExportV1 {
     pub fn validate_against(
         self,
         expected: &ParamFreeShapeSupportExportV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ParamFreeShapeSupportExportV1, ParamFreeShapeSupportWireError> {
-        meter.charge_work(1, &WirePath::root())?;
         let path = WirePath::root();
-        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
-        let expected_bytes = encode_canonical_temporary_with_meter(expected, meter, &path)?;
-        meter.charge_work(actual.len() as u64, &path)?;
+        let actual = encode_canonical_temporary(&self, &path)?;
+        let expected_bytes = encode_canonical_temporary(expected, &path)?;
+
         if actual != expected_bytes {
             return Err(ParamFreeShapeSupportWireError::RecordMismatch);
         }
@@ -44,7 +41,7 @@ impl WireEncode for DecodedParamFreeShapeSupportExportV1 {
 }
 
 impl WireDecode for DecodedParamFreeShapeSupportExportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedParamFreeShapeSupportRolesV1::decode(decoder).map(Self)
     }
 }
@@ -67,31 +64,25 @@ impl DecodedCanonicalParamFreeShapeSupportExportsV1 {
         layouts: &CanonicalExactLayoutExportsV1,
         descriptors: &CanonicalExactDescriptorExportsV1,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalParamFreeShapeSupportExportsV1, ParamFreeShapeSupportTableError> {
-        let path = WirePath::root();
-        meter.check_table_entries(self.records.len() as u64, &path)?;
-        meter.charge_work(self.records.len() as u64, &path)?;
         let expected = CanonicalParamFreeShapeSupportExportsV1::from_sources(
             sources,
             layouts,
             descriptors,
             foundation,
-            meter,
         )?;
-        self.validate_against(&expected, meter)
+        self.validate_against(&expected)
     }
 
     pub fn validate_against(
         self,
         expected: &CanonicalParamFreeShapeSupportExportsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalParamFreeShapeSupportExportsV1, ParamFreeShapeSupportTableError> {
         let path = WirePath::root();
-        meter.check_table_entries(self.records.len() as u64, &path)?;
-        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
-        let expected_bytes = encode_canonical_temporary_with_meter(expected, meter, &path)?;
-        meter.charge_work(actual.len() as u64, &path)?;
+
+        let actual = encode_canonical_temporary(&self, &path)?;
+        let expected_bytes = encode_canonical_temporary(expected, &path)?;
+
         if actual != expected_bytes {
             return Err(ParamFreeShapeSupportTableError::Coverage);
         }
@@ -106,7 +97,7 @@ impl WireEncode for DecodedCanonicalParamFreeShapeSupportExportsV1 {
 }
 
 impl WireDecode for DecodedCanonicalParamFreeShapeSupportExportsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedParamFreeShapeSupportExportV1::decode(decoder))
             .map(|records| Self { records })

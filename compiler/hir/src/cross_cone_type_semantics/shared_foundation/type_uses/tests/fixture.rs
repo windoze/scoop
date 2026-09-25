@@ -104,11 +104,8 @@ impl Artifact {
                     .collect(),
             )
             .unwrap();
-        let decoded: DecodedHirFoundation = scoop_wire::decode_canonical(
-            &scoop_wire::encode(&canonical).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded: DecodedHirFoundation =
+            scoop_wire::decode_canonical(&scoop_wire::encode(&canonical).unwrap()).unwrap();
         let mut pending = PendingIdentityValidation::new();
         for provider in BTreeSet::from([provider, ConeIdentity::CORE]) {
             pending.register_authority(provider).unwrap();
@@ -123,7 +120,7 @@ impl Artifact {
         let mut identities = pending.finish().unwrap();
         let foundation = OdrFreeHirFoundation::from_validated(
             decoded
-                .validate_with_dependency_sources(&self.coordinate, &mut identities, &mut meter())
+                .validate_with_dependency_sources(&self.coordinate, &mut identities)
                 .unwrap(),
         )
         .unwrap();
@@ -147,12 +144,9 @@ impl Artifact {
         );
         let decoded: DecodedCrossConeHirInterfaceSectionV1 = scoop_wire::decode_canonical(
             &scoop_wire::encode(&public.index_for_wire().unwrap()).unwrap(),
-            DecodeLimits::default(),
         )
         .unwrap();
-        let public = decoded
-            .resolve_metered(&mut identities, &mut meter())
-            .unwrap();
+        let public = decoded.resolve(&mut identities).unwrap();
         Loaded {
             provider,
             identities,
@@ -185,7 +179,6 @@ impl Loaded {
                 .iter()
                 .map(|dependency| dependency.metadata())
                 .collect::<Vec<_>>(),
-            &mut meter(),
         )
     }
 
@@ -193,7 +186,6 @@ impl Loaded {
         &self,
         selected: &CanonicalSelectedExternalTypeUsesV1,
         dependencies: &[&Loaded],
-        meter: &mut BudgetMeter,
     ) -> Result<(), Error> {
         self.metadata().validate_materialized_type_uses(
             selected,
@@ -201,7 +193,6 @@ impl Loaded {
                 .iter()
                 .map(|dependency| dependency.metadata())
                 .collect::<Vec<_>>(),
-            meter,
         )
     }
 }
@@ -218,8 +209,4 @@ pub(super) fn selected(
     records: Vec<SelectedExternalTypeUseV1>,
 ) -> CanonicalSelectedExternalTypeUsesV1 {
     CanonicalSelectedExternalTypeUsesV1::try_new(records).unwrap()
-}
-
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
 }

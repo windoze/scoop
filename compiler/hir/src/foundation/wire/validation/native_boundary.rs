@@ -5,7 +5,7 @@ use scoop_identity::{
     CborIdentityRecord, EnumVariantFieldKey, EnumVariantIdentityKey, FieldIdentityKey,
     PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentFieldId,
 };
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use super::HirFoundationValidationError;
 use crate::{
@@ -24,7 +24,6 @@ pub(super) fn validate_shape_coverage(
     variants: &[VariantRecord],
     variant_fields: &[VariantFieldRecord],
     definitions: &[NativeBoundaryTypeDefinitionRecord],
-    meter: &mut BudgetMeter,
 ) -> Result<(), HirFoundationValidationError> {
     let field_path = WirePath::root().field(12);
     let mut source_fields = HashSet::new();
@@ -32,8 +31,7 @@ pub(super) fn validate_shape_coverage(
         .iter()
         .filter(|field| field.key().source_owner().is_some())
         .count();
-    meter
-        .try_reserve_set_slots(&mut source_fields, source_field_count, &field_path)
+    scoop_wire::allocation::try_reserve_set(&mut source_fields, source_field_count, &field_path)
         .map_err(HirFoundationValidationError::Resource)?;
     source_fields.extend(
         fields
@@ -47,9 +45,12 @@ pub(super) fn validate_shape_coverage(
         .iter()
         .filter(|variant| variant.key().source_owner().is_some())
         .count();
-    meter
-        .try_reserve_set_slots(&mut source_variants, source_variant_count, &variant_path)
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut source_variants,
+        source_variant_count,
+        &variant_path,
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     source_variants.extend(variants.iter().filter_map(|variant| {
         variant
             .key()
@@ -59,13 +60,12 @@ pub(super) fn validate_shape_coverage(
 
     let variant_field_path = WirePath::root().field(14);
     let mut source_variant_fields = HashSet::new();
-    meter
-        .try_reserve_set_slots(
-            &mut source_variant_fields,
-            variant_fields.len(),
-            &variant_field_path,
-        )
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut source_variant_fields,
+        variant_fields.len(),
+        &variant_field_path,
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     source_variant_fields.extend(
         variant_fields
             .iter()
@@ -109,21 +109,26 @@ pub(super) fn validate_shape_coverage(
     )?;
     let definition_path = WirePath::root().field(34);
     let mut actual_fields = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut actual_fields, actual_field_count, &definition_path)
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut actual_fields,
+        actual_field_count,
+        &definition_path,
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     let mut actual_variants = HashSet::new();
-    meter
-        .try_reserve_set_slots(&mut actual_variants, actual_variant_count, &definition_path)
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut actual_variants,
+        actual_variant_count,
+        &definition_path,
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
     let mut actual_variant_fields = HashSet::new();
-    meter
-        .try_reserve_set_slots(
-            &mut actual_variant_fields,
-            actual_variant_field_count,
-            &definition_path,
-        )
-        .map_err(HirFoundationValidationError::Resource)?;
+    scoop_wire::allocation::try_reserve_set(
+        &mut actual_variant_fields,
+        actual_variant_field_count,
+        &definition_path,
+    )
+    .map_err(HirFoundationValidationError::Resource)?;
 
     for (definition_index, definition) in definitions.iter().enumerate() {
         let owner = definition.owner();

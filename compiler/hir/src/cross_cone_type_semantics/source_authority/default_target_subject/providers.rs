@@ -8,8 +8,6 @@ impl DefaultCallableDeclarationV1 {
     pub fn source_provider(
         self,
         identities: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<ConeIdentity, Error> {
         let declaration = match self {
             Self::Function(id) => CallableTemplateOrigin::Function(id),
@@ -17,12 +15,7 @@ impl DefaultCallableDeclarationV1 {
             Self::PropertyAccessor(id) => CallableTemplateOrigin::Accessor(id),
             Self::Generated(_) => return Err(Error::CallableRole(self)),
         };
-        DefaultTargetIdentityQueriesV1::source_callable_provider(
-            declaration,
-            identities,
-            meter,
-            path,
-        )
+        DefaultTargetIdentityQueriesV1::source_callable_provider(declaration, identities)
     }
 }
 
@@ -31,15 +24,8 @@ impl DefaultTargetIdentityQueriesV1<'_> {
     pub fn source_callable_provider(
         declaration: CallableTemplateOrigin,
         identities: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<ConeIdentity, Error> {
-        Route {
-            identities,
-            meter,
-            path,
-        }
-        .callable(declaration)
+        Route { identities }.callable(declaration)
     }
 }
 
@@ -50,14 +36,8 @@ impl DefaultSourceValueTargetV1<'_> {
         self,
         current: ConeIdentity,
         identities: &ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<ConeIdentity, Error> {
-        let mut route = Route {
-            identities,
-            meter,
-            path,
-        };
+        let mut route = Route { identities };
         match self {
             Self::Global(id) => route.source(id),
             Self::Singleton(id) => route.source(id),
@@ -97,13 +77,11 @@ impl DefaultSourceValueTargetV1<'_> {
     }
 }
 
-struct Route<'a, 'm> {
+struct Route<'a> {
     identities: &'a ValidatedIdentityGraph,
-    meter: &'m mut BudgetMeter,
-    path: &'m WirePath,
 }
 
-impl Route<'_, '_> {
+impl Route<'_> {
     fn callable(&mut self, declaration: CallableTemplateOrigin) -> Result<ConeIdentity, Error> {
         match declaration {
             CallableTemplateOrigin::Function(id) => self.source(id),
@@ -152,7 +130,7 @@ impl Route<'_, '_> {
 
     fn source<I: PersistentId + 'static>(&mut self, id: I) -> Result<ConeIdentity, Error> {
         let key = self.key::<_, SourceDeclarationKey>(id)?;
-        NominalRepresentationSupportV1::charge_source_key_resources(&key, self.meter, self.path)?;
+
         Ok(key.origin())
     }
 
@@ -160,12 +138,6 @@ impl Route<'_, '_> {
         &mut self,
         id: I,
     ) -> Result<Arc<K>, Error> {
-        self.meter.charge_edges(1, self.path)?;
-        self.meter.charge_nodes(1, self.path)?;
-        self.meter.charge_work(
-            (u64::from(self.identities.identity_count().max(1).ilog2()) + 1) * 65,
-            self.path,
-        )?;
         self.identities
             .canonical_key(id)
             .map_err(Error::IdentityLookup)

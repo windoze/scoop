@@ -21,7 +21,7 @@ fn runtime_cast_relations_require_both_actual_type_sites_and_the_original_origin
                     let references =
                         hir::CanonicalExternalHirReferencesV1::try_new(references).unwrap();
                     assert!(matches!(references.validate_type_site_relations(
-                    metadata.provider, metadata.identities, &[dependency.provider], &mut meter(),
+                    metadata.provider, metadata.identities, &[dependency.provider],
                 ), Err(hir::HirDependencyTypeRelationError::CallResult(actual)) if actual == position));
                 };
                 for role in [
@@ -50,11 +50,7 @@ fn runtime_cast_relations_require_both_actual_type_sites_and_the_original_origin
                                 reference.roles().clone(),
                                 reference.witnesses().clone(),
                                 reference.call_sites().clone(),
-                                hir::CanonicalHirDependencyTypeSitesV1::try_new(
-                                    types,
-                                    &mut meter(),
-                                )
-                                .unwrap(),
+                                hir::CanonicalHirDependencyTypeSitesV1::try_new(types).unwrap(),
                             )
                             .unwrap()
                         })

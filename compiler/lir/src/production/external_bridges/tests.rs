@@ -4,7 +4,7 @@ use scoop_identity::{
     PersistentExactTypeId, PersistentFunctionId, PersistentTypeId, ScoopAbiReturn,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 use crate::{CallingConvention, ExternalCallableRootPlan, ExternalTypeDescriptorValidationError};
@@ -19,8 +19,7 @@ fn external_bridge_surface_has_fixed_wire_and_validates_against_typed_authority(
         "82a2000301a20158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d02a201a20001015820134f8e77428aceb2c4829bb079d93ac3275bc15b42f263e0ae0d90d1360cc25a02a601a20001015820134f8e77428aceb2c4829bb079d93ac3275bc15b42f263e0ae0d90d1360cc25a02a401a4010102a1000103800458209480c22b8e3c0c0420acfe39cd82cd47051b0ae9da003202b0e10b24f60d16ff028003a10001040103a201a2000101582059c1afa2adf2d73b49fc3b3f9b6decad325c480961659263ecd9a45041b472da020104010501065820d248b27f46be7dbed9540e390a791abc23ae685f2574030fcaed997b7527e303a2000201a40158205ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d025820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee86803a201a20004015820ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868020104582053d2e2db6fa6ff1affee8d969eb8157363a6063d241bfe4b36e9453d41b0dc5b"
     );
 
-    let decoded: DecodedStrongExternalLirBridgeSurfaceV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongExternalLirBridgeSurfaceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(decoded.validate_against(&surface).unwrap(), surface);
 }
 
@@ -32,13 +31,7 @@ fn external_bridge_reader_rejects_open_sums_and_products() {
         vec![0x81, 0xa2, 0x00, 0x03, 0x01, 0xa0],
         vec![0x81, 0xa2, 0x00, 0x02, 0x01, 0xa2],
     ] {
-        assert!(
-            decode_canonical::<DecodedStrongExternalLirBridgeSurfaceV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedStrongExternalLirBridgeSurfaceV1>(&bytes,).is_err());
     }
 }
 
@@ -116,9 +109,9 @@ fn reader_does_not_repair_a_changed_protocol() {
         - 2;
     assert_eq!(&bytes[root_offset - 1..=root_offset + 1], &[5, 1, 6]);
     bytes[root_offset] = 2;
-    let changed = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let changed = decode_canonical(&bytes).unwrap();
     let mut decoded: DecodedStrongExternalLirBridgeSurfaceV1 =
-        decode_canonical(&encode(&surface).unwrap(), DecodeLimits::default()).unwrap();
+        decode_canonical(&encode(&surface).unwrap()).unwrap();
     decoded.bridges[0] = DecodedStrongExternalLirBridgeV1::Callable(Box::new(changed));
 
     assert!(matches!(
@@ -210,11 +203,5 @@ fn retired_callable_tag_cannot_wrap_a_shared_record() {
     let mut bytes = encode(&surface().unwrap()).unwrap();
     assert_eq!(&bytes[..4], &[0x82, 0xa2, 0, 3]);
     bytes[3] = 1;
-    assert!(
-        decode_canonical::<DecodedStrongExternalLirBridgeSurfaceV1>(
-            &bytes,
-            DecodeLimits::default(),
-        )
-        .is_err()
-    );
+    assert!(decode_canonical::<DecodedStrongExternalLirBridgeSurfaceV1>(&bytes,).is_err());
 }

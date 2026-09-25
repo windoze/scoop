@@ -40,7 +40,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         .complete_cross_cone_interface_source_points(
             output.hir().export.module(),
             output.cross_cone_section(),
-            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
         )
         .unwrap();
     assert!(output.foundation() == &expected_foundation);
@@ -62,7 +61,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let decoded =
         scoop_wire::decode_canonical::<scoop_hir::DecodedCoreBootstrapInterfaceSectionV1>(
             &production_bytes,
-            scoop_wire::DecodeLimits::default(),
         )
         .unwrap();
     let odr_free_foundation =
@@ -169,7 +167,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         output.foundation(),
         output.cross_cone_section().nominal_interfaces(),
         output.cross_cone_section().callable_interfaces(),
-        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
     .unwrap()
     .roots()
@@ -344,7 +341,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         CurrentConeInput::Manifest {
             root: ManifestRootLocator::cone_directory(slot.source_root()),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::BootstrapSelf,
         target,
         SlibOutputDestination::new(&artifact_path).unwrap(),
@@ -352,7 +349,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         StageDumpPolicy::None,
     )
     .unwrap();
-    let loaded = request.load_preflight(DecodeLimits::default()).unwrap();
+    let loaded = request.load_preflight().unwrap();
     let validated = loaded.validate().unwrap();
     assert!(
         matches!(validated.current(), ValidatedCurrentConeInput::Manifest { manifest }
@@ -365,7 +362,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     let parsed = validated.parse_current_sources().unwrap();
 
     let published = parsed
-        .build_and_publish(&sysroot.path().join("temporary"), DecodeLimits::default())
+        .build_and_publish(&sysroot.path().join("temporary"))
         .unwrap();
 
     assert_eq!(published.artifact().path(), artifact_path);
@@ -411,7 +408,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(&ordinary_source).unwrap(),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target,
         SlibOutputDestination::new(&ordinary_artifact_path).unwrap(),
@@ -419,9 +416,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         StageDumpPolicy::None,
     )
     .unwrap();
-    let ordinary_loaded = ordinary_request
-        .load_preflight(DecodeLimits::default())
-        .unwrap();
+    let ordinary_loaded = ordinary_request.load_preflight().unwrap();
     let ordinary_validated = ordinary_loaded.validate().unwrap();
     assert!(matches!(
         ordinary_validated.current(),
@@ -434,10 +429,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     let ordinary_parsed = ordinary_validated.parse_current_sources().unwrap();
 
     let ordinary_published = ordinary_parsed
-        .build_and_publish(
-            &sysroot.path().join("ordinary-temporary"),
-            DecodeLimits::default(),
-        )
+        .build_and_publish(&sysroot.path().join("ordinary-temporary"))
         .unwrap();
 
     assert_eq!(ordinary_published.artifact().path(), ordinary_artifact_path);

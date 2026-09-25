@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{CallableTemplateOrigin, PropertyOwner, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::{CrossConeHirInterfaceSectionV1, signature_nominal_walk::SignatureNominalWalker};
 use crate::{
@@ -17,7 +17,7 @@ impl CrossConeHirInterfaceSectionV1 {
     pub fn validate_default_reference_closure<A, E>(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExternalHirDefaultClosureValidationError<E>>
     where
@@ -27,7 +27,6 @@ impl CrossConeHirInterfaceSectionV1 {
         let mut validator = DefaultReferenceClosureValidator::new(
             self.external_references(),
             authority,
-            meter,
             &references_path,
         )?;
 
@@ -37,9 +36,7 @@ impl CrossConeHirInterfaceSectionV1 {
             let set = template.references();
             let set_path = path.clone().field(7).index(template_wire_index).field(11);
 
-            for (wire_index, (reference_index, reference)) in
-                (0_u64..).zip(set.callables().iter().enumerate())
-            {
+            for (reference_index, reference) in set.callables().iter().enumerate() {
                 if let Some(target) = callable_target(reference.target()) {
                     validator.observe(
                         target,
@@ -47,21 +44,17 @@ impl CrossConeHirInterfaceSectionV1 {
                             template_index,
                             reference_index,
                         },
-                        &set_path.clone().field(1).index(wire_index).field(1),
                     )?;
                 }
             }
 
-            for (wire_index, (reference_index, reference)) in
-                (0_u64..).zip(set.constructors().iter().enumerate())
-            {
+            for (reference_index, reference) in set.constructors().iter().enumerate() {
                 validator.observe(
                     constructor_target(reference.target()),
                     ExternalHirDefaultUseSiteV1::Constructor {
                         template_index,
                         reference_index,
                     },
-                    &set_path.clone().field(2).index(wire_index).field(1),
                 )?;
             }
 
@@ -78,35 +71,27 @@ impl CrossConeHirInterfaceSectionV1 {
                 )?;
             }
 
-            for (wire_index, (reference_index, reference)) in
-                (0_u64..).zip(set.globals().iter().enumerate())
-            {
+            for (reference_index, reference) in set.globals().iter().enumerate() {
                 validator.observe(
                     ExternalHirTargetV1::Property(PropertyOwner::Property(*reference.target())),
                     ExternalHirDefaultUseSiteV1::Global {
                         template_index,
                         reference_index,
                     },
-                    &set_path.clone().field(4).index(wire_index).field(1),
                 )?;
             }
 
-            for (wire_index, (reference_index, reference)) in
-                (0_u64..).zip(set.singleton_values().iter().enumerate())
-            {
+            for (reference_index, reference) in set.singleton_values().iter().enumerate() {
                 validator.observe(
                     ExternalHirTargetV1::ObjectValue(*reference.target()),
                     ExternalHirDefaultUseSiteV1::Singleton {
                         template_index,
                         reference_index,
                     },
-                    &set_path.clone().field(5).index(wire_index).field(1),
                 )?;
             }
 
-            for (wire_index, (reference_index, reference)) in
-                (0_u64..).zip(set.fields().iter().enumerate())
-            {
+            for (reference_index, reference) in set.fields().iter().enumerate() {
                 if let Some(target) = field_target(reference.target()) {
                     validator.observe(
                         target,
@@ -114,13 +99,12 @@ impl CrossConeHirInterfaceSectionV1 {
                             template_index,
                             reference_index,
                         },
-                        &set_path.clone().field(6).index(wire_index).field(1),
                     )?;
                 }
             }
         }
 
-        validator.finish(&references_path)
+        validator.finish()
     }
 }
 
@@ -129,22 +113,20 @@ struct DefaultReferenceClosureValidator<'references, 'validation, A> {
     seen: Vec<bool>,
     current: scoop_identity::ConeIdentity,
     authority: &'validation mut A,
-    meter: &'validation mut BudgetMeter,
 }
 
 impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 'validation, A> {
     fn new<E>(
         references: &'references CanonicalExternalHirReferencesV1,
         authority: &'validation mut A,
-        meter: &'validation mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, ExternalHirDefaultClosureValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         let mut seen = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut seen, references.records().len(), path)
+        scoop_wire::allocation::try_reserve(&mut seen, references.records().len(), path)
             .map_err(ExternalHirDefaultClosureValidationError::Resource)?;
         seen.resize(references.records().len(), false);
         Ok(Self {
@@ -152,7 +134,6 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
             seen,
             current: authority.current_cone(),
             authority,
-            meter,
         })
     }
 
@@ -165,13 +146,13 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        let mut walker = SignatureNominalWalker::new(signature, self.meter, path)
+        let mut walker = SignatureNominalWalker::new(signature, path)
             .map_err(ExternalHirDefaultClosureValidationError::Resource)?;
         while let Some(declaration) = walker
-            .next(self.meter, path)
+            .next(path)
             .map_err(ExternalHirDefaultClosureValidationError::Resource)?
         {
-            self.observe(ExternalHirTargetV1::from(declaration), site, path)?;
+            self.observe(ExternalHirTargetV1::from(declaration), site)?;
         }
         Ok(())
     }
@@ -180,7 +161,6 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
         &mut self,
         target: ExternalHirTargetV1,
         site: ExternalHirDefaultUseSiteV1,
-        path: &WirePath,
     ) -> Result<(), ExternalHirDefaultClosureValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
@@ -201,8 +181,7 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
 
         let record_index = self
             .references
-            .find_index_metered(target, self.meter, path)
-            .map_err(ExternalHirDefaultClosureValidationError::Resource)?
+            .find_index(target)
             .ok_or(ExternalHirDefaultClosureValidationError::MissingReference { site, target })?;
         let record = &self.references.records()[record_index];
         if record.origin() != expected {
@@ -230,11 +209,8 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
         Ok(())
     }
 
-    fn finish<E>(self, path: &WirePath) -> Result<(), ExternalHirDefaultClosureValidationError<E>> {
+    fn finish<E>(self) -> Result<(), ExternalHirDefaultClosureValidationError<E>> {
         for (record_index, record) in self.references.records().iter().enumerate() {
-            self.meter
-                .charge_work(1, path)
-                .map_err(ExternalHirDefaultClosureValidationError::Resource)?;
             if record
                 .roles()
                 .contains(ExternalHirReferenceRoleV1::DefaultDependency)

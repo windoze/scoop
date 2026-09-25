@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::{PendingIdentityValidation, PersistentTypeId};
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod fixture;
 mod layout_replay;
@@ -12,25 +12,15 @@ fn empty_section_roundtrips_as_one_complete_six_field_product() {
     let exports = empty_exports(cone("empty"));
     let expected = exports.clone();
     let source = Source::default();
-    let section =
-        CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &source, &mut meter())
-            .unwrap();
+    let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &source).unwrap();
     assert!(section.selected().is_empty());
 
     let bytes = encode(&section).unwrap();
     assert_eq!(bytes[0], 0xa6);
-    let decoded: DecodedCrossConeLayoutAbiSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
     let mut identities = PendingIdentityValidation::new().finish().unwrap();
     let replayed = decoded
-        .validate(
-            &expected,
-            &[],
-            Vec::new(),
-            &source,
-            &mut identities,
-            &mut meter(),
-        )
+        .validate(&expected, &[], Vec::new(), &source, &mut identities)
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);
 }
@@ -100,8 +90,7 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
     let dependencies = [&terminal];
     let section = section(expected.clone(), &dependencies, &roots).unwrap();
     let bytes = encode(&section).unwrap();
-    let decoded: DecodedCrossConeLayoutAbiSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(remote).unwrap();
     pending.register_authority(remote_layout).unwrap();
@@ -113,13 +102,11 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
             Vec::new(),
             &roots,
             &mut identities,
-            &mut meter(),
         )
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);
 
-    let decoded: DecodedCrossConeLayoutAbiSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
     assert!(matches!(
         decoded.validate(
             &expected,
@@ -127,7 +114,6 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
             Vec::new(),
             &Source::default(),
             &mut identities,
-            &mut meter(),
         ),
         Err(LayoutAbiSectionError::SelectedClosure)
     ));

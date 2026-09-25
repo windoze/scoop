@@ -11,17 +11,16 @@ impl DecodedCanonicalNominalSourceParameterProtocolsV1 {
     pub fn resolve<R: ProtectedCallableInterfaceResolver<E>, E: fmt::Display>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalNominalSourceParameterProtocolsV1, SourceInventoryError> {
-        let mut records = reserve(self.records.len(), meter)?;
+        let mut records = reserve(self.records.len())?;
         for record in self.records {
-            records.push(record.resolve(resolver, meter)?);
+            records.push(record.resolve(resolver)?);
         }
-        CanonicalNominalSourceParameterProtocolsV1::from_ordered(records, meter)
+        CanonicalNominalSourceParameterProtocolsV1::from_ordered(records)
     }
 }
 impl WireDecode for DecodedCanonicalNominalSourceParameterProtocolsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedProtocol::decode(d))
             .map(|records| Self { records })

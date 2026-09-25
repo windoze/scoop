@@ -31,14 +31,13 @@ pub(super) fn inventories(
                     callables: expected.callables(),
                 },
                 vec![],
-                &mut meter(),
             )
             .unwrap()
         } else {
             expected.dispatch().clone()
         };
         let objects = if missing == Inventory::Objects {
-            mir::CanonicalMirObjectValuesV1::try_new(vec![], &mut meter()).unwrap()
+            mir::CanonicalMirObjectValuesV1::try_new(vec![]).unwrap()
         } else {
             expected.objects().clone()
         };
@@ -52,7 +51,7 @@ pub(super) fn inventories(
         );
         assert!(
             matches!(
-                candidate.validate_sources(input.mir.module().cone, input.identities, source, &mut meter()),
+                candidate.validate_sources(input.mir.module().cone, input.identities, source),
                 Err(JoinError::Inventory(actual)) if actual == missing
             ),
             "missing {missing:?} must be rejected from independent source inventory"
@@ -65,7 +64,6 @@ pub(super) fn inventories(
             types: expected.types(),
         },
         vec![],
-        &mut meter(),
     )
     .unwrap();
     let candidate = mir::MirTypeBridgeExportConstituentsV1::new(
@@ -77,12 +75,7 @@ pub(super) fn inventories(
         expected.initialization_uses().clone(),
     );
     assert!(matches!(
-        candidate.validate_sources(
-            input.mir.module().cone,
-            input.identities,
-            source,
-            &mut meter()
-        ),
+        candidate.validate_sources(input.mir.module().cone, input.identities, source),
         Err(JoinError::Shape(
             mir::MirShapeSupportError::MissingSource { .. }
         ))

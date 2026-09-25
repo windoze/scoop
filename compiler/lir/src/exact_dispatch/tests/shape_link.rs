@@ -10,7 +10,6 @@ fn shape_link_dispatch_and_callable_contracts_keep_signature_gc_slots_and_adapta
         &[fixture.reference_input(Some(&fixture.owner))],
         &fixture.foundation,
         &mut fixture.local_resolver(),
-        &mut meter(),
     )
     .unwrap();
     let callable = ShapeLinkContractV1::CallableAbi {
@@ -23,29 +22,26 @@ fn shape_link_dispatch_and_callable_contracts_keep_signature_gc_slots_and_adapta
     };
     for contract in [callable, dispatch] {
         let bytes = encode(&contract).unwrap();
-        let raw: DecodedShapeLinkContractV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let raw: DecodedShapeLinkContractV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&raw).unwrap(), bytes);
-        raw.validate_against(&contract, &mut meter()).unwrap();
+        raw.validate_against(&contract).unwrap();
     }
-    let raw: DecodedShapeLinkContractV1 =
-        decode_canonical(&encode(&callable).unwrap(), DecodeLimits::default()).unwrap();
+    let raw: DecodedShapeLinkContractV1 = decode_canonical(&encode(&callable).unwrap()).unwrap();
     let wrong = ShapeLinkContractV1::CallableAbi {
         canonical_signature: fixture.abi.canonical_signature(),
         calling_convention: fixture.abi.calling_convention(),
         protocol: crate::ExactCallableProtocolV1::OrdinaryNoGc,
     };
     assert!(matches!(
-        raw.validate_against(&wrong, &mut meter()),
+        raw.validate_against(&wrong),
         Err(ShapeLinkError::Contract)
     ));
     let mut changed = encode(&dispatch).unwrap();
     let slot = fixture.slot.as_array();
     let offset = changed.windows(32).position(|part| part == slot).unwrap();
     changed[offset] ^= 1;
-    let raw: DecodedShapeLinkContractV1 =
-        decode_canonical(&changed, DecodeLimits::default()).unwrap();
-    assert!(raw.validate_against(&dispatch, &mut meter()).is_err());
+    let raw: DecodedShapeLinkContractV1 = decode_canonical(&changed).unwrap();
+    assert!(raw.validate_against(&dispatch).is_err());
 }
 
 #[test]
@@ -72,13 +68,12 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
             .unwrap();
     let callable = ExternalStrongShapeSubjectV1::Callable(fixture.target);
     assert!(
-        matches!(ShapeLinkProviderV1::reject_legacy_subject(&ordinary, None, callable, &mut meter()), Err(ShapeLinkError::LegacyPartition(actual)) if actual == callable)
+        matches!(ShapeLinkProviderV1::reject_legacy_subject(&ordinary, None, callable), Err(ShapeLinkError::LegacyPartition(actual)) if actual == callable)
     );
     ShapeLinkProviderV1::reject_legacy_subject(
         &ordinary,
         None,
         ExternalStrongShapeSubjectV1::DispatchTable(fixture.vtable.identity_record().id()),
-        &mut meter(),
     )
     .unwrap();
     let empty =
@@ -92,7 +87,7 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
     )
     .unwrap();
     assert!(matches!(
-        ShapeLinkProviderV1::reject_legacy_subject(&empty, Some(&thrower), callable, &mut meter()),
+        ShapeLinkProviderV1::reject_legacy_subject(&empty, Some(&thrower), callable),
         Err(ShapeLinkError::LegacyPartition(_))
     ));
 }

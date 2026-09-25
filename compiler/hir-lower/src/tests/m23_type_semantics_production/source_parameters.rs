@@ -16,11 +16,8 @@ const SOURCE: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/parameter-protocols.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_dependency_hir(output, &mut meter()).unwrap()
+    Table::from_dependency_hir(output).unwrap()
 }
 fn declaration(
     export: &hir::ExportHir,
@@ -125,8 +122,7 @@ fn inheritance_parameter_sources_preserve_names_categories_origins_and_empty_rec
             ))
         );
         let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
         let mut expected = BTreeSet::new();
         for owner in inventory.records() {
             expected.extend(
@@ -169,13 +165,10 @@ fn inheritance_parameter_source_bytes_replay_and_are_deterministic() {
             with_source(source, |output, _| {
                 let table = table(output);
                 let bytes = encode(&table).unwrap();
-                let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                let decoded: Decoded = decode_canonical(&bytes).unwrap();
                 assert_eq!(encode(&decoded).unwrap(), bytes);
                 let mut identities = source_inventory::identity_closure(output);
-                assert_eq!(
-                    decoded.resolve(&mut identities, &mut meter()).unwrap(),
-                    table
-                );
+                assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
                 bytes
             })
         };

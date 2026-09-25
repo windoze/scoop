@@ -1,8 +1,5 @@
 use super::*;
 
-pub(super) fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 pub(super) fn path() -> WirePath {
     WirePath::root().field(6)
 }
@@ -157,11 +154,4 @@ pub(super) fn old_default(local: bool) -> ExportDefaultTemplateV1 {
         ExpressionFixture::new().origin(),
     )
     .unwrap()
-}
-pub(super) fn limit(error: WireError, expected: ResourceKind) {
-    assert!(
-        matches!(error.kind(), WireErrorKind::LimitExceeded { resource, .. } if *resource == expected),
-        "{error:?}"
-    );
-    assert_eq!(error.byte_offset(), None);
 }

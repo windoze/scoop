@@ -133,7 +133,7 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceProductionError<E> {
             ),
             Self::Resource(source) => write!(
                 formatter,
-                "external HIR reference production exceeded its semantic resource budget: {source}"
+                "cannot allocate external HIR reference data: {source}"
             ),
             Self::Roles(source) => source.fmt(formatter),
             Self::Witnesses(source) => source.fmt(formatter),

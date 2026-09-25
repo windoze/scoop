@@ -53,7 +53,6 @@ fn real_manifest_request(
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(compiler).unwrap(),
         DiagnosticsPolicy::Structured,
-        BuildLimitsProfileV1::M23_DEFAULT,
     )
     .unwrap()
 }
@@ -72,7 +71,6 @@ fn real_single_file_request(
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(compiler).unwrap(),
         DiagnosticsPolicy::Structured,
-        BuildLimitsProfileV1::M23_DEFAULT,
     )
     .unwrap()
 }

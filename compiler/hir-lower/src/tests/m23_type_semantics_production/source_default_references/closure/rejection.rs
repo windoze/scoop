@@ -22,7 +22,7 @@ fn each_source_reference_domain_rejects_missing_extra_reordered_origin_and_targe
             ] {
                 let changed = changed(template, kind, change);
                 let error = changed
-                    .bind_reference_occurrences(&mut meter(), &WirePath::root())
+                    .bind_reference_occurrences(&WirePath::root())
                     .unwrap_err();
                 let actual = match (&change, &error) {
                     (Change::Missing, Error::Missing { kind, .. })
@@ -45,7 +45,7 @@ fn each_source_reference_domain_rejects_missing_extra_reordered_origin_and_targe
 fn repeated_occurrences_keep_distinct_sequence_positions_and_borrow_the_source_witness() {
     with_template(|template| {
         let bound = template
-            .bind_reference_occurrences(&mut meter(), &WirePath::root())
+            .bind_reference_occurrences(&WirePath::root())
             .unwrap();
         let mut next = std::collections::BTreeMap::new();
         for occurrence in bound.occurrences() {

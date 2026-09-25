@@ -6,11 +6,10 @@ use scoop_identity::{
     PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::*;
 
-mod budgets;
 mod complete_image;
 mod digests;
 mod initialization;
@@ -47,8 +46,7 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
     assert_eq!(encoded[0], 0xaa);
     assert_initialization_field(&encoded);
 
-    let decoded: DecodedStrongProductionSectionV1 =
-        decode_canonical(&encoded, DecodeLimits::default()).unwrap();
+    let decoded: DecodedStrongProductionSectionV1 = decode_canonical(&encoded).unwrap();
     let mut identities = identities(&foundation);
     let validated = decoded
         .validate(
@@ -70,10 +68,7 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
 #[test]
 fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
     for bytes in [vec![0xa9], vec![0xab]] {
-        assert!(
-            decode_canonical::<DecodedStrongProductionSectionV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedStrongProductionSectionV1>(&bytes).is_err());
     }
 }
 
@@ -82,10 +77,8 @@ fn assert_initialization_field(encoded: &[u8]) {
     let mut retired = vec![0xaa, 1, 0x80];
     retired.extend_from_slice(&encoded[1..encoded.len() - 2]);
     for error in [
-        decode_canonical::<DecodedStrongProductionSectionV1>(&retired, DecodeLimits::default())
-            .unwrap_err(),
-        decode_canonical::<DecodedStrongProductionSectionV2>(&retired, DecodeLimits::default())
-            .unwrap_err(),
+        decode_canonical::<DecodedStrongProductionSectionV1>(&retired).unwrap_err(),
+        decode_canonical::<DecodedStrongProductionSectionV2>(&retired).unwrap_err(),
     ] {
         assert_eq!(
             error.kind(),
@@ -99,12 +92,8 @@ fn assert_initialization_field(encoded: &[u8]) {
         let mut retired = encoded[..encoded.len() - 4].to_vec();
         retired.extend_from_slice(payload);
         retired.extend_from_slice(&[12, 0x80]);
-        let v1 =
-            decode_canonical::<DecodedStrongProductionSectionV1>(&retired, DecodeLimits::default())
-                .unwrap_err();
-        let v2 =
-            decode_canonical::<DecodedStrongProductionSectionV2>(&retired, DecodeLimits::default())
-                .unwrap_err();
+        let v1 = decode_canonical::<DecodedStrongProductionSectionV1>(&retired).unwrap_err();
+        let v2 = decode_canonical::<DecodedStrongProductionSectionV2>(&retired).unwrap_err();
         for error in [v1, v2] {
             assert_eq!(
                 error.kind(),
@@ -119,14 +108,8 @@ fn assert_initialization_field(encoded: &[u8]) {
         let mut invalid = encoded[..encoded.len() - 4].to_vec();
         invalid.extend_from_slice(payload);
         invalid.extend_from_slice(&[12, 0x80]);
-        assert!(
-            decode_canonical::<DecodedStrongProductionSectionV1>(&invalid, DecodeLimits::default())
-                .is_err()
-        );
-        assert!(
-            decode_canonical::<DecodedStrongProductionSectionV2>(&invalid, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedStrongProductionSectionV1>(&invalid).is_err());
+        assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&invalid).is_err());
     }
 }
 

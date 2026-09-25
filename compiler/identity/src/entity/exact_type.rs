@@ -1,4 +1,4 @@
-use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
+use scoop_wire::{Encoder, HashError, WireEncode};
 
 use super::{CallingConvention, Effect, NonEmptyVec};
 use crate::ids::derive_persistent_id;
@@ -109,10 +109,6 @@ impl WireEncode for ExactTypeKey {
 impl PersistentExactTypeId {
     pub fn from_key(key: &ExactTypeKey) -> Result<Self, HashError> {
         derive_persistent_id(EXACT_TYPE_HASH_DOMAIN, key)
-    }
-
-    pub fn hash_stream_length(key: &ExactTypeKey) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(EXACT_TYPE_HASH_DOMAIN, key)
     }
 }
 

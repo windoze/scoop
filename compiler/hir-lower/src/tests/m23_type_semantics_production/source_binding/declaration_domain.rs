@@ -24,18 +24,13 @@ fn with_domain(
     with_hir_source(source, |output, core| {
         let mut fixture = Fixture::from_output(output);
         let independent = Sources::from_output(output, &mut fixture);
-        let source = Domain::from_dependency_hir(output, &mut meter()).unwrap();
-        assert_eq!(
-            Domain::from_dependency_hir(output, &mut meter()).unwrap(),
-            source
-        );
+        let source = Domain::from_dependency_hir(output).unwrap();
+        assert_eq!(Domain::from_dependency_hir(output).unwrap(), source);
         let bytes = encode(&source).unwrap();
         let decoded: hir::DecodedTypeDeclarationSourceAuthorityV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        let restored = decoded
-            .resolve(&mut fixture.identities, &mut meter())
-            .unwrap();
+        let restored = decoded.resolve(&mut fixture.identities).unwrap();
         assert_eq!(restored, source);
         let core = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(
@@ -79,48 +74,38 @@ fn declaration_domain_roundtrips_and_replays_the_complete_artifact_source_chain(
             assert_eq!(e.constructors, independent.constructors);
             let produced = hir::ProtectedDeclarationSourceProductionV1::from_export_hir(
                 &output.output().export,
-                &mut meter(),
             )
             .unwrap();
             let (table, protocols) =
                 super::protected_declarations::support::restore(fixture, &produced);
             let foundation = fixture.bind().unwrap();
             domain
-                .with_bound_sources(
-                    &foundation,
-                    &independent.protocols,
-                    core,
-                    &mut meter(),
-                    |authority, meter| {
-                        assert_eq!(authority.provider(), fixture.source.entries().provider);
-                        assert_eq!(
-                            authority.required_protected_declarations().unwrap(),
-                            &e.required_protected
-                        );
-                        let entries = fixture.source.entries();
-                        let graph =
-                            hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
-                                entries.local_inheritance_edges.records().iter(),
-                                entries.source_roots.values().iter().copied(),
-                                &foundation,
-                                meter,
+                .with_bound_sources(&foundation, &independent.protocols, core, |authority| {
+                    assert_eq!(authority.provider(), fixture.source.entries().provider);
+                    assert_eq!(
+                        authority.required_protected_declarations().unwrap(),
+                        &e.required_protected
+                    );
+                    let entries = fixture.source.entries();
+                    let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
+                        entries.local_inheritance_edges.records().iter(),
+                        entries.source_roots.values().iter().copied(),
+                        &foundation,
+                    )
+                    .unwrap();
+                    assert!(std::ptr::eq(
+                        authority
+                            .validate_protected_sources(
+                                &table,
+                                &protocols,
+                                &entries.representations,
+                                &graph
                             )
-                            .unwrap();
-                        assert!(std::ptr::eq(
-                            authority
-                                .validate_protected_sources(
-                                    &table,
-                                    &protocols,
-                                    &entries.representations,
-                                    &graph,
-                                    meter
-                                )
-                                .unwrap()
-                                .table(),
-                            &table
-                        ));
-                    },
-                )
+                            .unwrap()
+                            .table(),
+                        &table
+                    ));
+                })
                 .unwrap();
             if input == SOURCE {
                 let mut names: Vec<_> = e

@@ -16,18 +16,11 @@ where
     pub(super) fn process_statement<'body>(
         &mut self,
         statement: &'body DefaultStatementV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        self.process_statement_kind(
-            statement.kind(),
-            statement.definition_origin(),
-            depth,
-            pending,
-        )?;
+        self.process_statement_kind(statement.kind(), statement.definition_origin(), pending)?;
         self.push_child(
             pending,
-            depth,
             BodyNode::Origin {
                 source: statement.definition_origin(),
                 site: DefaultBodyOriginSiteV1::Statement,
@@ -39,36 +32,31 @@ where
         &mut self,
         kind: &'body DefaultStatementKindV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match kind {
             DefaultStatementKindV1::Expr(expression)
             | DefaultStatementKindV1::Throw(expression) => {
-                self.push_child(pending, depth, BodyNode::Expression(expression))
+                self.push_child(pending, BodyNode::Expression(expression))
             }
             DefaultStatementKindV1::InitializationEnsure(_)
             | DefaultStatementKindV1::Break
             | DefaultStatementKindV1::Continue => Ok(()),
             DefaultStatementKindV1::LocalFunction(function) => self.push_child(
                 pending,
-                depth,
                 BodyNode::LocalFunction {
                     function,
                     definition_origin,
                 },
             ),
             DefaultStatementKindV1::Return(value) => match value.as_ref() {
-                Some(expression) => {
-                    self.push_child(pending, depth, BodyNode::Expression(expression))
-                }
+                Some(expression) => self.push_child(pending, BodyNode::Expression(expression)),
                 None => Ok(()),
             },
             DefaultStatementKindV1::ValDecl { pattern, init } => {
-                self.push_child(pending, depth, BodyNode::Expression(init))?;
+                self.push_child(pending, BodyNode::Expression(init))?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::Pattern {
                         pattern,
                         definition_origin,
@@ -76,10 +64,9 @@ where
                 )
             }
             DefaultStatementKindV1::Assign { target, value } => {
-                self.push_child(pending, depth, BodyNode::Expression(value))?;
+                self.push_child(pending, BodyNode::Expression(value))?;
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::AssignTarget {
                         target,
                         definition_origin,
@@ -92,23 +79,22 @@ where
                 else_body,
             } => {
                 if let OptionalDefaultStatementListViewV1::Present(statements) = else_body.view() {
-                    self.push_statements(pending, depth, statements)?;
+                    self.push_statements(pending, statements)?;
                 }
-                self.push_statements(pending, depth, then_body)?;
-                self.push_child(pending, depth, BodyNode::Expression(condition))
+                self.push_statements(pending, then_body)?;
+                self.push_child(pending, BodyNode::Expression(condition))
             }
             DefaultStatementKindV1::While {
                 condition_setup,
                 condition,
                 body,
             } => {
-                self.push_statements(pending, depth, body)?;
-                self.push_child(pending, depth, BodyNode::Expression(condition))?;
-                self.push_statements(pending, depth, condition_setup)
+                self.push_statements(pending, body)?;
+                self.push_child(pending, BodyNode::Expression(condition))?;
+                self.push_statements(pending, condition_setup)
             }
             DefaultStatementKindV1::For(plan) => self.push_child(
                 pending,
-                depth,
                 BodyNode::For {
                     plan,
                     definition_origin,
@@ -116,7 +102,6 @@ where
             ),
             DefaultStatementKindV1::When(value) => self.push_child(
                 pending,
-                depth,
                 BodyNode::When {
                     value,
                     definition_origin,
@@ -124,7 +109,6 @@ where
             ),
             DefaultStatementKindV1::Try(value) => self.push_child(
                 pending,
-                depth,
                 BodyNode::Try {
                     value,
                     definition_origin,
@@ -137,7 +121,6 @@ where
         &mut self,
         pattern: &'body DefaultPatternV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match pattern.view() {
@@ -149,7 +132,6 @@ where
             } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::LiteralEquality {
                         equality,
                         definition_origin,
@@ -166,7 +148,6 @@ where
                 for field in fields.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::Pattern {
                             pattern: field.pattern(),
                             definition_origin,
@@ -175,7 +156,6 @@ where
                 }
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::EnumVariantRef {
                         variant,
                         definition_origin,
@@ -183,13 +163,12 @@ where
                 )
             }
             DefaultPatternViewV1::Tuple { elements } => {
-                self.push_patterns(pending, depth, elements, definition_origin)
+                self.push_patterns(pending, elements, definition_origin)
             }
             DefaultPatternViewV1::Struct { owner_type, fields } => {
                 for field in fields.iter().rev() {
                     self.push_child(
                         pending,
-                        depth,
                         BodyNode::Pattern {
                             pattern: field.pattern(),
                             definition_origin,
@@ -209,14 +188,12 @@ where
     fn push_patterns<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,
-        depth: u64,
         patterns: &'body [DefaultPatternV1],
         definition_origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), M::Error> {
         for pattern in patterns.iter().rev() {
             self.push_child(
                 pending,
-                depth,
                 BodyNode::Pattern {
                     pattern,
                     definition_origin,
@@ -230,25 +207,23 @@ where
         &mut self,
         target: &'body DefaultAssignTargetV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-        depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match target {
             DefaultAssignTargetV1::Local { .. } | DefaultAssignTargetV1::Global { .. } => Ok(()),
             DefaultAssignTargetV1::Index { array, index } => {
-                self.push_child(pending, depth, BodyNode::Expression(index))?;
-                self.push_child(pending, depth, BodyNode::Expression(array))
+                self.push_child(pending, BodyNode::Expression(index))?;
+                self.push_child(pending, BodyNode::Expression(array))
             }
             DefaultAssignTargetV1::Field { receiver, field } => {
                 self.push_child(
                     pending,
-                    depth,
                     BodyNode::FieldRef {
                         field,
                         definition_origin,
                     },
                 )?;
-                self.push_child(pending, depth, BodyNode::Expression(receiver))
+                self.push_child(pending, BodyNode::Expression(receiver))
             }
         }
     }
@@ -256,11 +231,10 @@ where
     pub(super) fn push_statements<'body>(
         &mut self,
         pending: &mut Vec<WorkItem<'body>>,
-        depth: u64,
         statements: &'body [DefaultStatementV1],
     ) -> Result<(), M::Error> {
         for statement in statements.iter().rev() {
-            self.push_child(pending, depth, BodyNode::Statement(statement))?;
+            self.push_child(pending, BodyNode::Statement(statement))?;
         }
         Ok(())
     }

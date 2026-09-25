@@ -1,9 +1,7 @@
 use scoop_identity::CallableTemplateOrigin;
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::super::{ProtectedDefaultReferenceKindV1, ProtectedDefaultReferenceV1};
 use super::*;
-use crate::compare_default_signature_reference_targets;
 
 impl ProtectedDefaultTemplateV1 {
     pub(super) fn finish(self) -> Result<Self, ProtectedDefaultTemplateBuildError> {
@@ -11,40 +9,6 @@ impl ProtectedDefaultTemplateV1 {
             return Err(self.result_error());
         }
         self.validate_locals_and_owners()?;
-        Ok(self)
-    }
-
-    pub(super) fn finish_metered<E>(
-        self,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, ProtectedDefaultTemplateResolutionError<E>> {
-        use ProtectedDefaultTemplateResolutionError as Error;
-        let path = WirePath::root();
-        if !compare_default_signature_reference_targets(
-            self.body.value().result_type(),
-            &self.result,
-            meter,
-            &path,
-        )
-        .map_err(Error::Resource)?
-        .is_eq()
-        {
-            return Err(Error::Record(self.result_error()));
-        }
-        let references = &self.references;
-        for count in [
-            references.callables().len(),
-            references.constructors().len(),
-            references.types().len(),
-            references.globals().len(),
-            references.singleton_values().len(),
-            references.fields().len(),
-        ] {
-            meter
-                .charge_work(count as u64, &path)
-                .map_err(Error::Resource)?;
-        }
-        self.validate_locals_and_owners().map_err(Error::Record)?;
         Ok(self)
     }
 

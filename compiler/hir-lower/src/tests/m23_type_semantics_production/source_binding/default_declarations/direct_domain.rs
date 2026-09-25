@@ -18,11 +18,9 @@ fn default_direct_domains_replay_visibility_owners_variants_and_reference_free_b
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let mut snapshot = String::new();
             for name in [
                 "DirectDomainHost.exposed",
@@ -32,9 +30,7 @@ fn default_direct_domains_replay_visibility_owners_variants_and_reference_free_b
                 "DirectDomainHost.Entry.Local.duplicate",
                 "FileDomainBase.fileValue",
             ] {
-                let contract = bound
-                    .declaration(key(output, name, 0), &mut meter())
-                    .unwrap();
+                let contract = bound.declaration(key(output, name, 0)).unwrap();
                 snapshot.push_str(&format!(
                     "{name}: {}\n",
                     summary(contract.direct_call_domain())
@@ -91,16 +87,14 @@ fn default_direct_domains_keep_original_provider_and_full_static_nested_visibili
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let base = bound
-                .declaration(key(output, "DirectDomainBase.inherited", 0), &mut meter())
+                .declaration(key(output, "DirectDomainBase.inherited", 0))
                 .unwrap();
             let child = bound
-                .declaration(key(output, "DirectDomainChild.inherited", 0), &mut meter())
+                .declaration(key(output, "DirectDomainChild.inherited", 0))
                 .unwrap();
             assert_ne!(base.key().owner(), child.key().owner());
             assert_eq!(base.direct_call_domain(), child.direct_call_domain());
@@ -116,9 +110,7 @@ fn default_direct_domains_keep_original_provider_and_full_static_nested_visibili
                     "[SubclassesOf]; generic 1",
                 ),
             ] {
-                let contract = bound
-                    .declaration(key(output, name, 0), &mut meter())
-                    .unwrap();
+                let contract = bound.declaration(key(output, name, 0)).unwrap();
                 assert_eq!(summary(contract.direct_call_domain()), expected);
                 if name.contains(".Static.") {
                     assert_eq!(contract.provider_binders().binder_arity(), 0);

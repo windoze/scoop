@@ -29,9 +29,7 @@ pub(super) fn check(
     );
     let provider = lower(sysroot, target, &root, vec![], &[core]);
     let checked = provider.check(&[core]).unwrap();
-    checked
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
-        .unwrap();
+    checked.with_inheritance_graph(&[core], |_| ()).unwrap();
     rejections::check(checked, core);
     properties::check(checked, core);
     nested::check(checked, core);
@@ -60,9 +58,9 @@ fn reject(
         source.selected().clone(),
     );
     candidate
-        .validate_shared_foundation(checked.metadata(), &[core], &mut meter())
+        .validate_shared_foundation(checked.metadata(), &[core])
         .unwrap()
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
+        .with_inheritance_graph(&[core], |_| ())
         .expect_err("protected source payloads must agree with shared declarations")
 }
 

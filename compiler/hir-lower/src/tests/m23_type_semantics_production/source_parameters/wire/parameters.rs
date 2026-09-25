@@ -35,38 +35,26 @@ fn source_parameter_wire_has_exact_fields_and_closed_calling_tags() {
         };
         for tag in 1..=4 {
             let bytes = record_bytes(record.owner(), &[fields(tag)]);
-            let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: Decoded = decode_canonical(&bytes).unwrap();
             let restored = decoded
-                .resolve(
-                    &mut source_inventory::identity_closure(output),
-                    &mut meter(),
-                )
+                .resolve(&mut source_inventory::identity_closure(output))
                 .unwrap();
             assert_eq!(encode(&restored).unwrap(), bytes);
         }
         for invalid in [0, 5] {
             assert!(
-                decode_canonical::<Decoded>(
-                    &record_bytes(record.owner(), &[fields(invalid)]),
-                    DecodeLimits::default()
-                )
-                .is_err()
+                decode_canonical::<Decoded>(&record_bytes(record.owner(), &[fields(invalid)]))
+                    .is_err()
             );
         }
         for count in [2, 4] {
             let mut bad = fields(1);
             bad[0] = 0xa0 | count;
-            assert!(
-                decode_canonical::<Decoded>(
-                    &record_bytes(record.owner(), &[bad]),
-                    DecodeLimits::default()
-                )
-                .is_err()
-            );
+            assert!(decode_canonical::<Decoded>(&record_bytes(record.owner(), &[bad])).is_err());
         }
         let mut bad = record_bytes(record.owner(), &[fields(1)]);
         bad[1] = 0xa3;
-        assert!(decode_canonical::<Decoded>(&bad, DecodeLimits::default()).is_err());
+        assert!(decode_canonical::<Decoded>(&bad).is_err());
     });
 }
 
@@ -96,7 +84,7 @@ fn source_parameter_reader_rejects_duplicate_names_and_multiple_varargs() {
                     })
                     .collect()
             };
-            assert!(Record::try_new(record.owner(), parameters.clone(), &mut meter()).is_err());
+            assert!(Record::try_new(record.owner(), parameters.clone()).is_err());
             let bytes = record_bytes(
                 record.owner(),
                 &parameters
@@ -104,12 +92,9 @@ fn source_parameter_reader_rejects_duplicate_names_and_multiple_varargs() {
                     .map(|p| encode(p).unwrap())
                     .collect::<Vec<_>>(),
             );
-            let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: Decoded = decode_canonical(&bytes).unwrap();
             assert!(matches!(
-                decoded.resolve(
-                    &mut source_inventory::identity_closure(output),
-                    &mut meter()
-                ),
+                decoded.resolve(&mut source_inventory::identity_closure(output)),
                 Err(hir::SourceInventoryError::Reference(_))
             ));
         }
@@ -117,14 +102,10 @@ fn source_parameter_reader_rejects_duplicate_names_and_multiple_varargs() {
         let property = export.properties.iter().next().unwrap().1;
         let accessor = export.property_accessor_identities[property.capability.getter()].id();
         let owner = CallableTemplateOrigin::Accessor(accessor);
-        assert!(Record::try_new(owner, vec![], &mut meter()).is_err());
-        let decoded: Decoded =
-            decode_canonical(&record_bytes(owner, &[]), DecodeLimits::default()).unwrap();
+        assert!(Record::try_new(owner, vec![]).is_err());
+        let decoded: Decoded = decode_canonical(&record_bytes(owner, &[])).unwrap();
         assert!(matches!(
-            decoded.resolve(
-                &mut source_inventory::identity_closure(output),
-                &mut meter()
-            ),
+            decoded.resolve(&mut source_inventory::identity_closure(output)),
             Err(hir::SourceInventoryError::Reference(_))
         ));
     });

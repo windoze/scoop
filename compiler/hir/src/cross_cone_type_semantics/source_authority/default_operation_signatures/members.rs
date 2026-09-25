@@ -6,10 +6,9 @@ impl BoundNominalMemberSourcesV1<'_, '_, '_> {
     pub fn default_member_callable_shape(
         &self,
         reference: &DefaultCallableRefV1,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<DefaultCallableOperationShapeV1, Error> {
-        query(self.callables().records().len(), meter, path)?;
         let declaration = match reference.declaration() {
             DefaultCallableDeclarationV1::Function(id) => CallableTemplateOrigin::Function(id),
             DefaultCallableDeclarationV1::GenericFunction(id) => {
@@ -41,13 +40,12 @@ impl BoundNominalMemberSourcesV1<'_, '_, '_> {
             owner_type,
             source.type_parameters().len_u32(),
             reference.type_arguments(),
-            meter,
             path,
         )?;
         owner_matches(&applied, source.owner())?;
         Ok(DefaultCallableOperationShapeV1::new(
             source.effects().execution(),
-            Some(applied.owner_type(meter, path)?),
+            Some(applied.owner_type(path)?),
             Vec::new(),
             applied.sequence(
                 source
@@ -55,10 +53,9 @@ impl BoundNominalMemberSourcesV1<'_, '_, '_> {
                     .parameters()
                     .iter()
                     .map(SourceParameterShapeV1::value_type),
-                meter,
                 path,
             )?,
-            applied.field_type(source.result(), meter, path)?,
+            applied.field_type(source.result())?,
         ))
     }
 }

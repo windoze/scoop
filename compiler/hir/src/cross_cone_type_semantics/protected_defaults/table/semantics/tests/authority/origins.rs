@@ -22,9 +22,8 @@ impl ProtectedDefaultOriginSemanticAuthority<&'static str> for Authority<'_> {
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
         origin: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
-        self.check_source(key, root, path, meter)?;
+        self.check_source(key, root, path)?;
         self.origin_calls += 1;
         if self.case != Case::Origin && origin == &self.fixture.origin {
             Ok(())
@@ -39,9 +38,8 @@ impl ProtectedDefaultOriginSemanticAuthority<&'static str> for Authority<'_> {
         path: &StructuralDefinitionPath,
         local: &LocalValueSelector,
         origin: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
-        self.check_source(key, root, path, meter)?;
+        self.check_source(key, root, path)?;
         self.origin_calls += 1;
         let declared = self.case.flow() && local == &declared_local();
         if origin == &self.fixture.origin

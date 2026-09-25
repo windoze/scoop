@@ -8,7 +8,7 @@ use scoop_identity::{
     CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph, PersistentExactTypeId,
     RepresentationRole,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod tables;
 
@@ -31,7 +31,6 @@ impl ExactDescriptorExportV1 {
         dispatch: &CanonicalExactDispatchExportsV1,
         diagnostics: &impl ExactTypeDiagnosticGraph,
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactDescriptorError> {
         if layouts.provider() != foundation.producer()
             || dispatch.provider() != foundation.producer()
@@ -42,8 +41,7 @@ impl ExactDescriptorExportV1 {
             return Err(ExactDescriptorError::Target);
         }
         let exact = source.exact;
-        let path = WirePath::root();
-        meter.charge_work(layouts.records().len() as u64, &path)?;
+
         let instance = layouts
             .find_exact_role(exact, RepresentationRole::ManagedObject)
             .ok_or(ExactDescriptorError::MissingInstanceLayout(exact))?;
@@ -56,14 +54,9 @@ impl ExactDescriptorExportV1 {
             Some(scan) => TypeDescriptorInlineScanV1::Defined(scan),
             None => TypeDescriptorInlineScanV1::Null,
         };
-        let name = CanonicalExactTypeDiagnosticName::from_validated_graph_metered(
-            exact,
-            diagnostics,
-            meter,
-        )?;
-        let (vtable, itables) = tables::replay(source, dispatch, meter)?;
-        resources::shape(layout.shape(), meter)?;
-        meter.charge_owned_bytes(name.as_str().len() as u64, &path)?;
+        let name = CanonicalExactTypeDiagnosticName::from_validated_graph(exact, diagnostics)?;
+        let (vtable, itables) = tables::replay(source, dispatch)?;
+
         let semantic = StrongTypeDescriptorSemanticPlanV2::from_artifact(
             exact,
             name.as_str().to_owned(),
@@ -78,7 +71,6 @@ impl ExactDescriptorExportV1 {
         let physical = StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::TypeRegistration(exact),
             foundation,
-            meter,
         )?;
         let fingerprint = scoop_identity::DigestNodeId::from_key(
             &scoop_identity::DigestNodeKey::strong_registration(physical.definition()),
@@ -96,7 +88,6 @@ impl ExactDescriptorExportV1 {
             registration,
             diagnostics,
             foundation,
-            meter,
         )
     }
 }

@@ -2,7 +2,7 @@ use super::*;
 use hir::{DefaultSourceAccessDomainV1 as Domain, PersistentAccessConstraintV1 as Constraint};
 mod expected;
 mod rejection;
-mod resources;
+
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/lookup-domains.scoop"
@@ -45,19 +45,18 @@ fn default_source_lookup_domains_equal_sealed_lookup_for_all_declaration_roles()
             let expected = expected::lookups(export);
             let foundation = fixture.bind().unwrap();
             let bound = foundation
-                .bind_default_access_declarations(table, required, &mut meter())
+                .bind_default_access_declarations(table, required)
                 .unwrap();
             for record in table.records() {
                 let subject = record.subject();
                 roles.insert(subject.kind_tag());
-                let actual = bound.source_lookup_domain(subject, &mut meter()).unwrap();
-                let expected =
-                    Domain::from_export_hir(export, expected[&subject], &mut meter()).unwrap();
+                let actual = bound.source_lookup_domain(subject).unwrap();
+                let expected = Domain::from_export_hir(export, expected[&subject]).unwrap();
                 assert_eq!(
                     actual,
                     expected,
                     "subject={subject:?}, key={:?}, access={:?}",
-                    bound.source_key(subject, &mut meter()).unwrap(),
+                    bound.source_key(subject).unwrap(),
                     record.declaration_access(),
                 );
                 assert!(!actual.is_empty());
@@ -71,7 +70,7 @@ fn default_source_lookup_domain_dump_preserves_file_lexical_and_concrete_class_c
     with_sources(SOURCE, |output, fixture, required, table| {
         let foundation = fixture.bind().unwrap();
         let bound = foundation
-            .bind_default_access_declarations(table, required, &mut meter())
+            .bind_default_access_declarations(table, required)
             .unwrap();
         let export = output.output().export.module();
         let mut snapshot = String::new();
@@ -87,9 +86,7 @@ fn default_source_lookup_domain_dump_preserves_file_lexical_and_concrete_class_c
             "Host.protectedMember",
             "Host.Nested.Inner.layered",
         ] {
-            let domain = bound
-                .source_lookup_domain(function(export, name), &mut meter())
-                .unwrap();
+            let domain = bound.source_lookup_domain(function(export, name)).unwrap();
             snapshot.push_str(&format!("{name}: {}\n", summary(&domain)));
         }
         assert_eq!(
@@ -110,14 +107,9 @@ fn default_source_lookup_domain_dump_preserves_file_lexical_and_concrete_class_c
         let setter = Subject::PropertyAccessor(
             export.property_accessor_identities[property.capability.setter().unwrap()].id(),
         );
-        assert!(
-            bound
-                .source_lookup_domain(getter, &mut meter())
-                .unwrap()
-                .is_universal()
-        );
+        assert!(bound.source_lookup_domain(getter).unwrap().is_universal());
         assert_eq!(
-            summary(&bound.source_lookup_domain(setter, &mut meter()).unwrap()),
+            summary(&bound.source_lookup_domain(setter).unwrap()),
             "[Cone, File]; generic 0"
         );
     });
@@ -128,7 +120,7 @@ fn default_source_lookup_domains_keep_generic_outer_regions_across_static_nested
         assert!(fixture.source.entries().sources.records().is_empty());
         let foundation = fixture.bind().unwrap();
         let bound = foundation
-            .bind_default_access_declarations(table, required, &mut meter())
+            .bind_default_access_declarations(table, required)
             .unwrap();
         let export = output.output().export.module();
         for (name, expected) in [
@@ -138,9 +130,7 @@ fn default_source_lookup_domains_keep_generic_outer_regions_across_static_nested
             ("GenericHost.Static.Again.duplicate", "[Cone]; generic 1"),
             ("GenericHost.Middle.Inner.deep", "[Cone]; generic 3"),
         ] {
-            let domain = bound
-                .source_lookup_domain(function(export, name), &mut meter())
-                .unwrap();
+            let domain = bound.source_lookup_domain(function(export, name)).unwrap();
             assert_eq!(summary(&domain), expected, "{name}");
         }
     });

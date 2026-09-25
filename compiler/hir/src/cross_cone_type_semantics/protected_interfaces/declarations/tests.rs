@@ -2,16 +2,12 @@ use super::*;
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::{Fixture, nominal};
 use crate::*;
 use scoop_identity::{CallableTemplateOrigin, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod accessor_rejections;
 mod support;
 mod wire_tests;
 use support::*;
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 impl ProtectedDeclarationSemanticAuthority<&'static str> for Fixture {
     fn required_protected_declarations(
@@ -28,24 +24,21 @@ fn protected_declaration_table_roundtrips_all_four_kinds_and_closes_sources() {
     let (mut fixture, table) = complete();
     let bytes = encode(&table).unwrap();
     let decoded: DecodedCanonicalProtectedDeclarationInterfacesV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), table);
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), table);
     let roots = fixture.protected_roots.clone();
     let decoded: DecodedCanonicalProtectedDeclarationRefsV1 =
-        decode_canonical(&encode(&roots).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture, &mut meter()).unwrap(), roots);
+        decode_canonical(&encode(&roots).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), roots);
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let representations = representations(&fixture);
     assert_eq!(
         table
-            .validate_sources(&graph, &representations, &mut fixture, &mut meter())
+            .validate_sources(&graph, &representations, &mut fixture)
             .unwrap()
             .table(),
         &table
@@ -62,24 +55,21 @@ fn protected_declaration_table_roundtrips_all_four_kinds_and_closes_sources() {
 fn source_table_requires_the_independent_complete_declaration_inventory() {
     let (mut fixture, table) = complete();
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let representations = representations(&fixture);
     let missing =
         CanonicalProtectedDeclarationInterfacesV1::try_new(table.records()[1..].to_vec()).unwrap();
     assert!(matches!(
-        missing.validate_sources(&graph, &representations, &mut fixture, &mut meter()),
+        missing.validate_sources(&graph, &representations, &mut fixture),
         Err(ProtectedDeclarationSemanticError::Table(
             ProtectedDeclarationTableError::Inventory
         ))
     ));
     fixture.protected_roots = CanonicalProtectedDeclarationRefsV1::default();
     assert!(matches!(
-        table.validate_sources(&graph, &representations, &mut fixture, &mut meter()),
+        table.validate_sources(&graph, &representations, &mut fixture),
         Err(ProtectedDeclarationSemanticError::Table(
             ProtectedDeclarationTableError::Inventory
         ))
@@ -106,12 +96,11 @@ fn property_closure_requires_getter_and_only_truly_protected_setters() {
         let graph = CheckedNominalInheritanceGraphV1::validate(
             graph_source.records.values(),
             &graph_source,
-            &mut meter(),
         )
         .unwrap();
         let representations = representations(&fixture);
         table
-            .validate_sources(&graph, &representations, &mut fixture, &mut meter())
+            .validate_sources(&graph, &representations, &mut fixture)
             .unwrap();
         let missing = with_inventory(
             &mut fixture,
@@ -123,7 +112,7 @@ fn property_closure_requires_getter_and_only_truly_protected_setters() {
                 .collect(),
         );
         assert!(matches!(
-            missing.validate_sources(&graph, &representations, &mut fixture, &mut meter()),
+            missing.validate_sources(&graph, &representations, &mut fixture),
             Err(ProtectedDeclarationSemanticError::Table(
                 ProtectedDeclarationTableError::AccessorClosure
             ))
@@ -142,14 +131,11 @@ fn protected_accessor_root_does_not_require_a_protected_property_record() {
         ))],
     );
     let graph_source = fixture.graph.clone();
-    let graph = CheckedNominalInheritanceGraphV1::validate(
-        graph_source.records.values(),
-        &graph_source,
-        &mut meter(),
-    )
-    .unwrap();
+    let graph =
+        CheckedNominalInheritanceGraphV1::validate(graph_source.records.values(), &graph_source)
+            .unwrap();
     let representations = representations(&fixture);
     table
-        .validate_sources(&graph, &representations, &mut fixture, &mut meter())
+        .validate_sources(&graph, &representations, &mut fixture)
         .unwrap();
 }

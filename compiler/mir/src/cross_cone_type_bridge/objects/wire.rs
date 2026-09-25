@@ -25,7 +25,7 @@ macro_rules! encode_read {
 encode_read!(MirObjectValueReadPlanV1);
 encode_read!(DecodedReadPlan);
 impl WireDecode for DecodedReadPlan {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => decoder
@@ -50,9 +50,7 @@ impl DecodedParamFreeMirObjectValueV1 {
         graph: &mut ValidatedIdentityGraph,
         types: &dyn MirTypeBridgeTypeLookupV1,
         callables: &dyn MirTypeBridgeCallableLookupV1,
-        meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirObjectValueV1, MirObjectBridgeError> {
-        meter.charge_work(6, &WirePath::root())?;
         let value = graph.resolve(self.value)?;
         let backing = graph.resolve(self.backing)?;
         let unit = graph.resolve(self.unit)?;
@@ -72,7 +70,6 @@ impl DecodedParamFreeMirObjectValueV1 {
             unit,
             ensure,
             read,
-            meter,
         )
     }
 }
@@ -98,7 +95,7 @@ macro_rules! encode_object {
 encode_object!(ParamFreeMirObjectValueV1);
 encode_object!(DecodedParamFreeMirObjectValueV1);
 impl WireDecode for DecodedParamFreeMirObjectValueV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
             value: decoder.field(1, DecodedPersistentId::decode)?,
@@ -144,7 +141,7 @@ macro_rules! encode_cause {
 encode_cause!(MirExternalInitializationCauseV1);
 encode_cause!(DecodedCause);
 impl WireDecode for DecodedCause {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => decoder
@@ -172,9 +169,7 @@ impl DecodedSelectedExternalInitializationUseV1 {
         self,
         consumer: ConeIdentity,
         graph: &mut ValidatedIdentityGraph,
-        meter: &mut BudgetMeter,
     ) -> Result<SelectedExternalInitializationUseV1, MirObjectBridgeError> {
-        meter.charge_work(4, &WirePath::root())?;
         let local_unit = graph.resolve(self.local_unit)?;
         let provider = graph.resolve(self.provider)?;
         let dependency_unit = graph.resolve(self.dependency_unit)?;
@@ -196,7 +191,6 @@ impl DecodedSelectedExternalInitializationUseV1 {
             provider,
             dependency_unit,
             cause,
-            meter,
         )
     }
 }
@@ -220,7 +214,7 @@ macro_rules! encode_use {
 encode_use!(SelectedExternalInitializationUseV1);
 encode_use!(DecodedSelectedExternalInitializationUseV1);
 impl WireDecode for DecodedSelectedExternalInitializationUseV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
             local_unit: decoder.field(1, DecodedPersistentId::decode)?,

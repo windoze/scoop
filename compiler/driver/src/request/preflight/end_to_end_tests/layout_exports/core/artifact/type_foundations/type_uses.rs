@@ -6,7 +6,7 @@ pub(super) fn check(
     dependencies: &[CheckedSharedTypeFoundationV1<'_>],
 ) {
     current
-        .validate_materialized_type_uses(dependencies, &mut meter())
+        .validate_materialized_type_uses(dependencies)
         .unwrap();
     let original = current.section().selected().records();
     for position in 0..original.len() {
@@ -61,10 +61,10 @@ fn reject(
         CanonicalSelectedExternalTypeUsesV1::try_new(records).unwrap(),
     );
     let candidate = candidate
-        .validate_shared_foundation(current.metadata(), dependencies, &mut meter())
+        .validate_shared_foundation(current.metadata(), dependencies)
         .unwrap();
     assert!(matches!(
-        candidate.validate_materialized_type_uses(dependencies, &mut meter()),
+        candidate.validate_materialized_type_uses(dependencies),
         Err(Error::TypeUseInventory)
     ));
 }

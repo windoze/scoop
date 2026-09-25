@@ -14,11 +14,11 @@ pub(super) use schemas::{interface_sources, slot_selections};
 pub(super) use slots::SlotContracts;
 mod source_callables;
 mod source_constructors;
+pub(in crate::production) mod source_errors;
 pub(in crate::production::type_semantics) mod source_inventory;
 mod source_parameters;
 pub(in crate::production::type_semantics) mod source_properties;
 mod source_protected_callables;
-pub(in crate::production) mod source_resources;
 pub(super) use source_callables::project as source_callables;
 pub(super) use source_constructors::project as source_constructors;
 pub(super) use source_inventory::project as source_inventory;
@@ -32,7 +32,6 @@ pub(super) fn produce(
     inventory: &CanonicalSourceInheritanceInventoriesV1,
     source_constructors: &CanonicalInheritanceSourceConstructorsV1,
     slots: &SlotContracts<'_>,
-    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<CanonicalNominalInheritanceInterfacesV1, Error> {
     let mut records = Vec::with_capacity(nominals.len());
     for nominal in nominals {
@@ -42,8 +41,8 @@ pub(super) fn produce(
         let record = NominalInheritanceInterfaceV1::try_new(
             project_edges(export, nominal)?,
             project_domains(export, nominal)?,
-            constructors::project(nominal.exact, source, source_constructors, meter)?,
-            slots.project(nominal.exact, source.slot_schemas(), meter)?,
+            constructors::project(nominal.exact, source, source_constructors)?,
+            slots.project(nominal.exact, source.slot_schemas())?,
             source.protected_members().clone(),
             source.slot_schemas().clone(),
         )

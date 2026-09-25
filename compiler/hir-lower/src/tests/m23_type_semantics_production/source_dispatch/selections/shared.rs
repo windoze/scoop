@@ -42,7 +42,7 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
                 );
                 count += expected.len();
                 let decoded: DecodedCanonicalNominalDispatchSelectionsV1 =
-                    decode_canonical(&encode(choices).unwrap(), DecodeLimits::default()).unwrap();
+                    decode_canonical(&encode(choices).unwrap()).unwrap();
                 assert_eq!(decoded.resolve(&mut identities).unwrap(), *choices);
             }
             assert_eq!(count, selected.records().len());
@@ -95,7 +95,7 @@ fn shared_generic_choices_keep_source_identity_without_materializing_exact_types
                 ));
             }
             let decoded: DecodedCanonicalNominalDispatchSelectionsV1 =
-                decode_canonical(&encode(choices).unwrap(), DecodeLimits::default()).unwrap();
+                decode_canonical(&encode(choices).unwrap()).unwrap();
             assert_eq!(decoded.resolve(&mut identities).unwrap(), *choices);
         }
         rows.sort();

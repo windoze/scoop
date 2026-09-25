@@ -1,7 +1,5 @@
 //! Equality replay for typed semantic projections from checked provider plans.
-use scoop_wire::{
-    BudgetMeter, WireEncode, WireError, WirePath, encode_canonical_temporary_with_meter,
-};
+use scoop_wire::{WireEncode, WireError, WirePath, encode_canonical_temporary};
 
 #[derive(Debug)]
 pub enum StrongSemanticProjectionError {
@@ -26,12 +24,11 @@ impl std::error::Error for StrongSemanticProjectionError {}
 pub(super) fn compare_semantics(
     actual: &impl WireEncode,
     expected: &impl WireEncode,
-    meter: &mut BudgetMeter,
 ) -> Result<(), StrongSemanticProjectionError> {
     let path = WirePath::root();
-    let actual = encode_canonical_temporary_with_meter(actual, meter, &path)?;
-    let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
-    meter.charge_work(actual.len() as u64, &path)?;
+    let actual = encode_canonical_temporary(actual, &path)?;
+    let expected = encode_canonical_temporary(expected, &path)?;
+
     if actual != expected {
         return Err(StrongSemanticProjectionError::Mismatch);
     }

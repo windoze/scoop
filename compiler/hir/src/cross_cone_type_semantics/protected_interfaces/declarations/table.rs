@@ -1,5 +1,5 @@
 use super::*;
-use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalProtectedDeclarationRefsV1 {
@@ -76,28 +76,21 @@ impl DecodedCanonicalProtectedDeclarationInterfacesV1 {
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalProtectedDeclarationInterfacesV1, ProtectedDeclarationResolutionError<E>>
     {
         use ProtectedDeclarationResolutionError as Error;
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), &WirePath::root())
             .map_err(Error::Resource)?;
-        meter
-            .charge_work(
-                (self.records.len() as u64).saturating_mul(128),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+
         for record in self.records {
-            records.push(record.resolve(resolver, meter)?);
+            records.push(record.resolve(resolver)?);
         }
         CanonicalProtectedDeclarationInterfacesV1::from_ordered(records).map_err(Error::Table)
     }
 }
 impl WireDecode for DecodedCanonicalProtectedDeclarationInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedProtectedDeclarationInterfaceV1::decode(d))
             .map(|records| Self { records })
@@ -114,21 +107,9 @@ pub struct DecodedCanonicalProtectedDeclarationRefsV1 {
     values: Vec<DecodedProtectedDeclarationRefV1>,
 }
 impl DecodedCanonicalProtectedDeclarationRefsV1 {
-    pub(crate) fn charge_resolution_at(
-        &self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), WireError> {
-        meter.check_semantic_depth(1, path)?;
-        meter.check_table_entries(self.values.len() as u64, path)?;
-        meter.charge_nodes(self.values.len() as u64, path)?;
-        meter.charge_work((self.values.len() as u64).saturating_mul(128), path)
-    }
-
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<CanonicalProtectedDeclarationRefsV1, ProtectedDeclarationResolutionError<E>>
     where
         R: crate::CallableDeclarationIdResolver<E>
@@ -137,15 +118,9 @@ impl DecodedCanonicalProtectedDeclarationRefsV1 {
     {
         use ProtectedDeclarationResolutionError as Error;
         let mut values = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut values, self.values.len(), &WirePath::root())
+        scoop_wire::allocation::try_reserve(&mut values, self.values.len(), &WirePath::root())
             .map_err(Error::Resource)?;
-        meter
-            .charge_work(
-                (self.values.len() as u64).saturating_mul(128),
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
+
         for value in self.values {
             values.push(value.resolve(resolver)?);
         }
@@ -153,7 +128,7 @@ impl DecodedCanonicalProtectedDeclarationRefsV1 {
     }
 }
 impl WireDecode for DecodedCanonicalProtectedDeclarationRefsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|d, _| DecodedProtectedDeclarationRefV1::decode(d))
             .map(|values| Self { values })

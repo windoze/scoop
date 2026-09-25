@@ -49,7 +49,7 @@ impl WireEncode for DecodedNestedSourceMemberRefV1 {
     }
 }
 impl WireDecode for DecodedNestedSourceMemberRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => decoder
@@ -69,10 +69,9 @@ impl WireDecode for DecodedNestedSourceMemberRefV1 {
 pub(super) fn resolve_members<R: NestedSourceInterfaceResolver<E>, E>(
     values: Vec<DecodedNestedSourceMemberRefV1>,
     resolver: &mut R,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalNestedMemberRefsV1, NestedSourceResolutionError<E>> {
     let mut members = Vec::new();
-    reserve(&mut members, values.len(), meter)?;
+    reserve(&mut members, values.len())?;
     for value in values {
         members.push(
             value
@@ -85,10 +84,9 @@ pub(super) fn resolve_members<R: NestedSourceInterfaceResolver<E>, E>(
 pub(super) fn resolve_children<R: NestedSourceInterfaceResolver<E>, E>(
     values: Vec<DecodedSourceNominalId>,
     resolver: &mut R,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalNestedNominalRefsV1, NestedSourceResolutionError<E>> {
     let mut children: Vec<SourceNominalId> = Vec::new();
-    reserve(&mut children, values.len(), meter)?;
+    reserve(&mut children, values.len())?;
     for value in values {
         children.push(
             value

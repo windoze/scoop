@@ -149,7 +149,7 @@ impl WireEncode for DecodedCanonicalCallableSourceInterfacesV1 {
 }
 
 impl WireDecode for DecodedCanonicalCallableSourceInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedCallableSourceInterfaceV1::decode(decoder))
             .map(|records| Self { records })

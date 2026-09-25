@@ -16,9 +16,9 @@ fn dispatch_keys_must_be_owned_even_when_the_validated_graph_contains_them() {
             let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
             let foundation = fixture
                 .source
-                .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+                .bind_to_foundation(&incomplete, &fixture.identities)
                 .unwrap();
-            let error = sources.bind(&foundation, &mut meter()).unwrap_err();
+            let error = sources.bind(&foundation).unwrap_err();
             assert!(matches!(
                 (field, error),
                 (1, Error::MissingFunction(_))
@@ -69,9 +69,9 @@ fn dispatch_access_joins_the_exact_function_or_accessor_definition_origin() {
                 .unwrap(),
             );
             forged.callables =
-                hir::CanonicalInheritanceSourceCallablesV1::try_new(records, &mut meter()).unwrap();
+                hir::CanonicalInheritanceSourceCallablesV1::try_new(records).unwrap();
             assert!(
-                matches!(forged.bind(&foundation, &mut meter()), Err(Error::DefinitionOrigin(actual)) if actual == declaration)
+                matches!(forged.bind(&foundation), Err(Error::DefinitionOrigin(actual)) if actual == declaration)
             );
         }
     });
@@ -104,10 +104,9 @@ fn dispatch_access_cannot_forge_its_lexical_owner_chain() {
             )
             .unwrap(),
         );
-        sources.callables =
-            hir::CanonicalInheritanceSourceCallablesV1::try_new(records, &mut meter()).unwrap();
+        sources.callables = hir::CanonicalInheritanceSourceCallablesV1::try_new(records).unwrap();
         assert!(
-            matches!(sources.bind(&foundation, &mut meter()), Err(Error::Access { declaration: actual, .. }) if actual == declaration)
+            matches!(sources.bind(&foundation), Err(Error::Access { declaration: actual, .. }) if actual == declaration)
         );
     });
 }

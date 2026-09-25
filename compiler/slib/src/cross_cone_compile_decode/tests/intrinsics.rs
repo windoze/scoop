@@ -1,5 +1,4 @@
 use scoop_hir::IntrinsicFunctionKind;
-use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::*;
 use crate::CrossConeIntrinsicDeclarationError;
@@ -29,67 +28,6 @@ fn compile_callable_gate_rejects_missing_intrinsic_roles_and_duplicate_kinds() {
 }
 
 #[test]
-fn shared_intrinsic_validation_preserves_empty_and_continuous_budget_semantics() {
-    let bytes = intrinsic_artifact(1);
-    let front = validate_until_property(&bytes);
-    let interface = front.hir_interface();
-    let mut decoded = open_graph(&bytes)
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
-    let identities = decoded
-        .validate_foundation_identities(std::iter::empty())
-        .unwrap();
-    let mut zero = BudgetMeter::new(DecodeLimits {
-        validation_work_units: 0,
-        ..DecodeLimits::default()
-    });
-    crate::cross_cone_hir_authority::validate_intrinsic_declarations(
-        &CrossConeHirInterfaceSectionV1::empty(),
-        &identities,
-        [],
-        &mut zero,
-    )
-    .unwrap();
-    assert!(matches!(
-        crate::cross_cone_hir_authority::validate_intrinsic_declarations(
-            interface,
-            &identities,
-            [],
-            &mut zero,
-        ),
-        Err(CrossConeIntrinsicDeclarationError::Resource(_))
-    ));
-
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    assert!(matches!(
-        crate::cross_cone_hir_authority::validate_intrinsic_declarations(
-            interface,
-            &identities,
-            [],
-            &mut meter,
-        ),
-        Err(CrossConeIntrinsicDeclarationError::MissingTypeRoles(provider)) if provider == cone().identity()
-    ));
-    let used = meter.usage().validation_work_units;
-    assert!(used > interface.callable_interfaces().records().len() as u64);
-    meter
-        .charge_work(
-            meter.limits().validation_work_units - used,
-            &WirePath::root(),
-        )
-        .unwrap();
-    assert!(matches!(
-        crate::cross_cone_hir_authority::validate_intrinsic_declarations(
-            interface,
-            &identities,
-            [],
-            &mut meter,
-        ),
-        Err(CrossConeIntrinsicDeclarationError::Resource(_))
-    ));
-}
-
-#[test]
 fn intrinsic_provider_lookup_rejects_duplicate_provider_entries_and_missing_actual_roles() {
     let bytes = intrinsic_artifact(1);
     let front = validate_until_property(&bytes);
@@ -106,7 +44,7 @@ fn intrinsic_provider_lookup_rejects_duplicate_provider_entries_and_missing_actu
             front.hir_interface(),
             &identities,
             [(provider, section), (provider, section)],
-            &mut BudgetMeter::new(DecodeLimits::default()),
+
         ),
         Err(CrossConeIntrinsicDeclarationError::DuplicateProvider(actual)) if actual == provider
     ));
@@ -115,7 +53,7 @@ fn intrinsic_provider_lookup_rejects_duplicate_provider_entries_and_missing_actu
             front.hir_interface(),
             &identities,
             [(ConeIdentity::CORE, section)],
-            &mut BudgetMeter::new(DecodeLimits::default()),
+
         ),
         Err(CrossConeIntrinsicDeclarationError::MissingTypeRoles(actual)) if actual == provider
     ));

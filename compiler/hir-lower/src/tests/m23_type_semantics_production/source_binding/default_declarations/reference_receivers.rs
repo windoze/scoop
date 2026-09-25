@@ -18,11 +18,9 @@ fn source_reference_receivers_keep_this_explicit_super_and_constructor_contexts(
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let mut snapshot = String::new();
             for (name, position) in [
                 ("ReceiverHost.ownField", 0),
@@ -32,9 +30,7 @@ fn source_reference_receivers_keep_this_explicit_super_and_constructor_contexts(
                 ("ReceiverHost.parent", 0),
                 ("ReceiverHost.construct", 0),
             ] {
-                let contract = bound
-                    .declaration(key(output, name, position), &mut meter())
-                    .unwrap();
+                let contract = bound.declaration(key(output, name, position)).unwrap();
                 let mut references = 0;
                 for occurrence in contract.references().occurrences() {
                     if matches!(
@@ -91,11 +87,9 @@ fn source_reference_receivers_preserve_nested_captures_and_assignment_metadata()
         let foundation = fixture.bind().unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
-                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .bind_parameter_protocols(constructors, &sources.protocols)
                 .unwrap();
-            let bound = parameters
-                .bind_default_declarations(&table, &[], &mut meter())
-                .unwrap();
+            let bound = parameters.bind_default_declarations(&table, &[]).unwrap();
             let mut captures = 0;
             let mut local_functions = 0;
             let mut assignments = 0;
@@ -153,57 +147,5 @@ fn source_reference_receivers_preserve_nested_captures_and_assignment_metadata()
             assert!(assignments > 0);
             assert!(explicit >= 2);
         });
-    });
-}
-
-#[test]
-fn source_reference_receiver_indices_share_the_occurrence_budget() {
-    with_sources(SOURCE, |output, _, _, _| {
-        let table = templates(output);
-        let template = table.get(key(output, "ReceiverHost.explicit", 1)).unwrap();
-        let mut measured = meter();
-        template
-            .bind_reference_occurrences(&mut measured, &WirePath::root())
-            .unwrap();
-        let usage = measured.usage();
-        for limits in [
-            DecodeLimits {
-                validation_work_units: usage.validation_work_units - 1,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                owned_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                template
-                    .bind_reference_occurrences(&mut BudgetMeter::new(limits), &WirePath::root()),
-                Err(hir::DefaultSourceReferenceClosureError::Resource(_))
-            ));
-        }
-        let mut shared = BudgetMeter::new(DecodeLimits {
-            validation_work_units: usage.validation_work_units * 2 - 1,
-            ..DecodeLimits::default()
-        });
-        template
-            .bind_reference_occurrences(&mut shared, &WirePath::root())
-            .unwrap();
-        assert!(matches!(
-            template.bind_reference_occurrences(&mut shared, &WirePath::root()),
-            Err(hir::DefaultSourceReferenceClosureError::Resource(_))
-        ));
     });
 }

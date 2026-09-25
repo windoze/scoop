@@ -1,5 +1,4 @@
 use scoop_identity::{ConeIdentity, PersistentInitializationUnitId};
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::StrongInitializationUnitDefinitionRefV2;
 use crate::{
@@ -21,21 +20,19 @@ impl StrongExternalInitializationUseV2 {
         local_unit: PersistentInitializationUnitId,
         dependency: StrongInitializationUnitDefinitionRefV2,
         selected: &StrongProductionDependencySelectionV2<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, StrongExternalInitializationUseErrorV2> {
         let value = Self {
             consumer: selected.consumer(),
             local_unit,
             dependency,
         };
-        value.validate_against(selected, meter)?;
+        value.validate_against(selected)?;
         Ok(value)
     }
 
     pub(crate) fn validate_against(
         self,
         selected: &StrongProductionDependencySelectionV2<'_>,
-        meter: &mut BudgetMeter,
     ) -> Result<(), StrongExternalInitializationUseErrorV2> {
         if self.consumer != selected.consumer() {
             return Err(StrongExternalInitializationUseErrorV2::ConsumerMismatch {
@@ -48,10 +45,7 @@ impl StrongExternalInitializationUseV2 {
         if self.consumer == provider {
             return Err(StrongExternalInitializationUseErrorV2::CurrentProvider { provider });
         }
-        meter.charge_work(
-            selected.physical_imports().records().len() as u64,
-            &WirePath::root(),
-        )?;
+
         let import = selected
             .physical_imports()
             .records()

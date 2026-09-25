@@ -91,12 +91,11 @@ pub(super) fn check(
         &[provider.layout],
         source.imports(provider.view, consumer, &definitions),
         &source,
-        &mut meter(),
     )
     .unwrap();
     let string = scoop_lir_lower::RuntimeStringDescriptor::External(
         selected
-            .materialize_type_descriptor(provider.layout.provider(), provider.string, &mut meter())
+            .materialize_type_descriptor(provider.layout.provider(), provider.string)
             .unwrap(),
     );
     assert!(matches!(
@@ -107,8 +106,7 @@ pub(super) fn check(
     let coordinate = ConeCoordinate::new("dev.example", "shape-consumer", "0.1.0").unwrap();
     assert_eq!(consumer, coordinate.identity().unwrap());
     let coordinates = [ConeCoordinate::reserved_core(), coordinate.clone()];
-    let diagnostics =
-        ExactTypeDiagnosticCatalog::try_new(input.identities, &coordinates, &mut meter()).unwrap();
+    let diagnostics = ExactTypeDiagnosticCatalog::try_new(input.identities, &coordinates).unwrap();
     rejections::check(
         input.mir,
         callables,
@@ -125,7 +123,6 @@ pub(super) fn check(
         provider.target.lir_target(),
         &selected,
         &diagnostics,
-        &mut meter(),
     )
     .unwrap_or_else(|error| panic!("{name} dependency machine lowering: {error}"));
     assert!(output.module().meta.type_descriptors.is_empty());

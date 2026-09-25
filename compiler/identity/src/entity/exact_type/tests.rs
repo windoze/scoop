@@ -88,10 +88,7 @@ fn exact_type_variants_have_distinct_fixed_wire_and_hash() {
         hex(&encoded),
         format!("a2000301825820{}5820{}", nominal, nominal)
     );
-    assert_eq!(
-        PersistentExactTypeId::hash_stream_length(&tuple_key).unwrap(),
-        8 + "scoop-exact-type-v1".len() as u64 + encoded.len() as u64
-    );
+
     assert_eq!(
         tuple.to_string(),
         "8567e8450c021da219bdedb25eed21433bacff159b424ed4bd45bcc7cd95135d"
@@ -180,18 +177,17 @@ fn missing_child_is_a_typed_error_instead_of_a_panic() {
 }
 
 #[test]
-fn shared_dag_cost_is_recounted_before_any_large_allocation() {
+fn deep_exact_type_names_use_an_iterative_walk() {
     let (mut graph, mut root) = nominal_graph();
-    for _ in 0..20 {
-        let key = ExactTypeKey::Tuple(NonEmptyVec::from_first(root, [root]));
+    for _ in 0..4096 {
+        let key = ExactTypeKey::RawPointer(root);
         let id = PersistentExactTypeId::from_key(&key).unwrap();
         graph.exact.insert(id, key);
         root = id;
     }
-    assert!(matches!(
-        CanonicalExactTypeDiagnosticName::from_validated_graph(root, &graph),
-        Err(super::ExactTypeDiagnosticError::NameTooLong { .. })
-    ));
+    let name = CanonicalExactTypeDiagnosticName::from_validated_graph(root, &graph).unwrap();
+    assert_eq!(name.as_str().matches("r(").count(), 4096);
+    assert!(name.as_str().ends_with(&")".repeat(4096)));
 }
 
 fn hex(bytes: &[u8]) -> String {

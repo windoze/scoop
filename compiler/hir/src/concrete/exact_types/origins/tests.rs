@@ -7,7 +7,7 @@ use crate::{
 use scoop_identity::{
     PendingIdentityValidation, PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint,
 };
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 type NominalCase = (TypeId, PersistentTypeId, ConeIdentity);
 
@@ -103,8 +103,7 @@ fn with_types(
 
 fn imported_protocols(origin: ConeIdentity) -> ImportedCoreProtocols {
     let (surface, foundation) = standalone_at(origin);
-    let decoded: DecodedHirFoundation =
-        decode_canonical(&encode(&foundation).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedHirFoundation = decode_canonical(&encode(&foundation).unwrap()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     if origin != ConeIdentity::CORE {

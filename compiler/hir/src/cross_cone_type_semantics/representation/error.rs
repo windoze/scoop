@@ -86,6 +86,7 @@ impl std::error::Error for NominalRepresentationBuildError {}
 
 #[derive(Debug)]
 pub enum NominalRepresentationResolutionError<E> {
+    Allocation(scoop_wire::WireError),
     Reference(E),
     Access(DeclarationAccessSourceResolutionError<E>),
     Field(RepresentationFieldResolutionError<E, PersistentFieldId>),
@@ -98,6 +99,7 @@ pub enum NominalRepresentationResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for NominalRepresentationResolutionError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Allocation(error) => error.fmt(f),
             Self::Reference(error) => write!(f, "invalid representation reference: {error}"),
             Self::Access(error) => error.fmt(f),
             Self::Field(error) => error.fmt(f),

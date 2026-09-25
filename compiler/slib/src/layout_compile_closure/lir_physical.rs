@@ -3,7 +3,7 @@
 use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 use std::{collections::BTreeMap, convert::Infallible};
 use typed_arena::Arena;
 
@@ -55,7 +55,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
             |artifact, _, _, _| {
                 artifact
                     .prepared
-                    .validate_link_materializations(&artifact.strong)
+                    .validate_link_materializations()
                     .map_err(SharedLirPhysicalError::from)
             },
             |physical, _: Vec<()>| use_checked(physical),

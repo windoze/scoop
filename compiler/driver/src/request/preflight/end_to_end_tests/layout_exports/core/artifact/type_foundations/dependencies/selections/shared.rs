@@ -75,7 +75,7 @@ fn reject(
             details.members().clone(),
             details.children().clone(),
             details.dispatch_order().clone(),
-            CanonicalNominalDispatchSelectionsV1::try_new(records, &mut meter()).unwrap(),
+            CanonicalNominalDispatchSelectionsV1::try_new(records).unwrap(),
         ),
     )
 }

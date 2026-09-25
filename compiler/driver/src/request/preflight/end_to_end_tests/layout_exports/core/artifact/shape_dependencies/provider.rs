@@ -7,12 +7,9 @@ pub(in super::super) fn objects(
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     target: &scoop_toolchain::ResolvedTargetProfile,
 ) -> crate::object_production::layout::PreparedLayoutObjects {
-    let selected = lir::StrongProductionDependencySelectionV2::empty(
-        layout.provider(),
-        target.lir_target(),
-        &mut meter(),
-    )
-    .unwrap();
+    let selected =
+        lir::StrongProductionDependencySelectionV2::empty(layout.provider(), target.lir_target())
+            .unwrap();
     let production = producer
         .build_production_section_v2(
             ConeCoordinate::reserved_core(),
@@ -20,10 +17,9 @@ pub(in super::super) fn objects(
             lir::EntryProductionSourceV1::Library,
             &selected,
             &[],
-            &mut meter(),
         )
         .unwrap()
-        .validate_layout_abi(layout, &mut meter())
+        .validate_layout_abi(layout)
         .unwrap();
     let directory = tempfile::tempdir().unwrap();
     let emitted = scoop_codegen::emit_object_set_v2(

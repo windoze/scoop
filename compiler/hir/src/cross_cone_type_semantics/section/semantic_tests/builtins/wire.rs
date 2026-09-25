@@ -52,12 +52,11 @@ fn round_trip(
     section: &CrossConeTypeSemanticsSectionV1,
     identities: &mut ValidatedIdentityGraph,
 ) -> CrossConeTypeSemanticsSectionV1 {
-    let bytes = encode(&section.index_for_wire(&mut meter()).unwrap()).unwrap();
+    let bytes = encode(&section.index_for_wire().unwrap()).unwrap();
     assert_eq!(bytes[0], 0xa8);
-    let decoded: DecodedCrossConeTypeSemanticsSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCrossConeTypeSemanticsSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    let restored = decoded.resolve(identities, &mut meter(), &path()).unwrap();
+    let restored = decoded.resolve(identities, &path()).unwrap();
     assert_eq!(&restored, section);
     restored
 }

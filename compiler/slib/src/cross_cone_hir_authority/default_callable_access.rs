@@ -27,8 +27,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
     ) -> Result<(), Error> {
         let path = WirePath::root().field(7);
         let templates = self.current_interface.default_templates().records();
-        self.meter
-            .check_table_entries(templates.len() as u64, &path)?;
+
         for (index, template) in templates.iter().enumerate() {
             let path = path.clone().index(index as u64);
             self.validate_template_callable_access(template, protocols, &path)
@@ -46,8 +45,8 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         protocols: &CoreBootstrapInterfaceSectionV1,
         path: &WirePath,
     ) -> Result<(), Error> {
-        let nested = template.index_nested_callables(self.meter, path)?;
-        let occurrences = occurrences::collect(template, self.meter, path)?;
+        let nested = template.index_nested_callables(path)?;
+        let occurrences = occurrences::collect(template, path)?;
         for occurrence in occurrences {
             let index = occurrence.index;
             let context = Context {
@@ -65,12 +64,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 let actual = template.references().callables()[index]
                     .witness()
                     .target_domain();
-                let cost = scoop_wire::encoded_length(&expected)
-                    .and_then(|left| {
-                        scoop_wire::encoded_length(actual).map(|right| left.saturating_add(right))
-                    })
-                    .map_err(|error| Error::Encoding(error.to_string()))?;
-                self.meter.charge_work(cost, &path)?;
+
                 if actual != &expected {
                     return Err(Error::WitnessDomain);
                 }

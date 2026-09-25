@@ -95,7 +95,7 @@ impl WireEncode for DecodedSourceDeclarationKey {
 }
 
 impl WireDecode for DecodedSourceDeclarationKey {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(7)?;
         Ok(Self {
             origin: decoder.field(1, DecodedPersistentId::decode)?,
@@ -275,9 +275,7 @@ fn optional_signature(value: OptionalSignatureType) -> Option<crate::SignatureTy
     }
 }
 
-fn decode_declaration_kind(
-    decoder: &mut Decoder<'_, '_>,
-) -> Result<SourceDeclarationKind, WireError> {
+fn decode_declaration_kind(decoder: &mut Decoder<'_>) -> Result<SourceDeclarationKind, WireError> {
     match decoder.unsigned()? {
         1 => Ok(SourceDeclarationKind::Class),
         2 => Ok(SourceDeclarationKind::Interface),
@@ -300,9 +298,7 @@ fn decode_declaration_kind(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{
-        DecodeLimits, Decoder, Encoder, WireDecode, WireEncode, decode_canonical, encode,
-    };
+    use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, decode_canonical, encode};
 
     use super::{DecodedSourceDeclarationKey, SourceDeclarationResolutionError};
     use crate::{
@@ -439,9 +435,7 @@ mod tests {
 
         for key in keys {
             let bytes = encode(&key).unwrap();
-            let decoded =
-                decode_canonical::<DecodedSourceDeclarationKey>(&bytes, DecodeLimits::default())
-                    .unwrap();
+            let decoded = decode_canonical::<DecodedSourceDeclarationKey>(&bytes).unwrap();
             assert_eq!(decoded.resolve(&mut Resolver).unwrap(), key);
         }
     }
@@ -453,7 +447,7 @@ mod tests {
         let bytes = encode(&record).unwrap();
         let decoded = decode_canonical::<
             DecodedCborIdentityRecord<PersistentFunctionId, DecodedSourceDeclarationKey>,
-        >(&bytes, DecodeLimits::default())
+        >(&bytes)
         .unwrap();
         let resolved = decoded.resolve(|key| key.resolve(&mut Resolver)).unwrap();
         assert_eq!(resolved, record);
@@ -463,9 +457,7 @@ mod tests {
     fn declaration_kind_and_duplicate_signature_must_match() {
         let key = SourceDeclarationKey::function(site(), name("work"), 0, None, vec![]);
         let bytes = encode(&key).unwrap();
-        let mut decoded =
-            decode_canonical::<DecodedSourceDeclarationKey>(&bytes, DecodeLimits::default())
-                .unwrap();
+        let mut decoded = decode_canonical::<DecodedSourceDeclarationKey>(&bytes).unwrap();
         decoded.declaration_kind = SourceDeclarationKind::Property;
         assert!(matches!(
             decoded.resolve(&mut Resolver),
@@ -485,14 +477,14 @@ mod tests {
     }
 
     impl WireDecode for DecodedKind {
-        fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+        fn decode(decoder: &mut Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
             super::decode_declaration_kind(decoder).map(Self)
         }
     }
 
     #[test]
     fn declaration_kind_decoder_rejects_unknown_tags() {
-        let error = decode_canonical::<DecodedKind>(b"\x0c", DecodeLimits::default()).unwrap_err();
+        let error = decode_canonical::<DecodedKind>(b"\x0c").unwrap_err();
         assert_eq!(
             error.kind(),
             &scoop_wire::WireErrorKind::UnknownTag { tag: 12 }

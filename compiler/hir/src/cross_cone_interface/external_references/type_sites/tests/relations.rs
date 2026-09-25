@@ -88,22 +88,17 @@ impl Types {
             .unwrap(),
             CanonicalDependencyBindingWitnessesV1::try_new(vec![]).unwrap(),
             Default::default(),
-            CanonicalHirDependencyTypeSitesV1::try_new(sites, &mut meter()).unwrap(),
+            CanonicalHirDependencyTypeSitesV1::try_new(sites).unwrap(),
         )
         .unwrap()
     }
 
     fn table(&self, references: Vec<ExternalHirReferenceV1>) -> CanonicalExternalHirReferencesV1 {
-        CanonicalExternalHirReferencesV1::try_new_metered(references, &mut meter()).unwrap()
+        CanonicalExternalHirReferencesV1::try_new(references).unwrap()
     }
 
     fn validate(&self, table: &CanonicalExternalHirReferencesV1) -> Result<(), Error> {
-        table.validate_type_site_relations(
-            self.fixture.current,
-            &self.graph,
-            &[ConeIdentity::CORE],
-            &mut meter(),
-        )
+        table.validate_type_site_relations(self.fixture.current, &self.graph, &[ConeIdentity::CORE])
     }
 }
 
@@ -128,12 +123,7 @@ fn a_structural_type_requires_the_same_occurrence_in_every_foreign_nominal_recor
         Err(Error::NominalClosure(_))
     ));
     assert!(matches!(
-        complete.validate_type_site_relations(
-            types.fixture.current,
-            &types.graph,
-            &[],
-            &mut meter()
-        ),
+        complete.validate_type_site_relations(types.fixture.current, &types.graph, &[]),
         Err(Error::UnreachableNominal { .. })
     ));
 }
@@ -196,35 +186,12 @@ fn actual_call_results_require_an_equal_value_type_occurrence() {
         ),
     ]);
     types.validate(&table).unwrap();
-    let mut baseline = meter();
+
     table
-        .validate_type_site_relations(
-            types.fixture.current,
-            &types.graph,
-            &[ConeIdentity::CORE],
-            &mut baseline,
-        )
+        .validate_type_site_relations(types.fixture.current, &types.graph, &[ConeIdentity::CORE])
         .unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: baseline.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
+
     table
-        .validate_type_site_relations(
-            types.fixture.current,
-            &types.graph,
-            &[ConeIdentity::CORE],
-            &mut shared,
-        )
+        .validate_type_site_relations(types.fixture.current, &types.graph, &[ConeIdentity::CORE])
         .unwrap();
-    assert!(
-        table
-            .validate_type_site_relations(
-                types.fixture.current,
-                &types.graph,
-                &[ConeIdentity::CORE],
-                &mut shared
-            )
-            .is_err()
-    );
 }

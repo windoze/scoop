@@ -91,7 +91,7 @@ impl DecodedProtectedDeclarationRefV1 {
     }
 }
 impl WireDecode for DecodedProtectedDeclarationRefV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => decoder

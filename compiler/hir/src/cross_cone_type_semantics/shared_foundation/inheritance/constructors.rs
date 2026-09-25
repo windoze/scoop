@@ -10,14 +10,12 @@ pub(super) fn validate(
     nominal: &NominalInterfaceRecordV1,
     record: &NominalInheritanceInterfaceV1,
     context: &Context<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    contracts::lookup(context.sources.len(), meter)?;
     let owners = context
         .source(nominal.declaration())?
         .access
         .lexical_owners();
-    meter.charge_work(owners.len() as u64, &WirePath::root())?;
+
     if owners
         .iter()
         .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)))
@@ -30,14 +28,11 @@ pub(super) fn validate(
     }
     let metadata = provider.metadata;
     let required = nominal.declaration_details().constructors().values();
-    meter.charge_work(
-        required.len() as u64 + record.constructors().records().len() as u64,
-        &WirePath::root(),
-    )?;
+
     let mut candidates = record.constructors().records().iter();
     for id in required {
         let declaration = CallableTemplateOrigin::Constructor(*id);
-        let source = contracts::callable(metadata, declaration, meter)?;
+        let source = contracts::callable(metadata, declaration)?;
         if source.owner().nominal_owner() != Some(nominal.declaration()) {
             return Err(Error::CallableContract(declaration));
         }
@@ -57,12 +52,11 @@ pub(super) fn validate(
             declaration,
             candidate.declaration_access(),
             candidate.payload(),
-            meter,
         )?;
         if source.declared_visibility() == DeclaredVisibilityV1::Protected {
             let reference = ProtectedDeclarationRefV1::Constructor(*id);
             let table = provider.section.protected_declarations();
-            contracts::lookup(table.records().len(), meter)?;
+
             let Some(ProtectedDeclarationInterfaceV1::Constructor(protected)) =
                 table.get(reference)
             else {
@@ -73,7 +67,6 @@ pub(super) fn validate(
                 declaration,
                 protected.declaration_access(),
                 protected.payload(),
-                meter,
             )?;
         }
     }

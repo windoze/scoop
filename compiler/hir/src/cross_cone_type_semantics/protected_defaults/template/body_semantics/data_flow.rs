@@ -1,7 +1,7 @@
 use super::*;
 use crate::{DefaultBodyDataFlowAuthority, ExportDefaultLocalDataFlowValidationError};
 use scoop_identity::{PersistentFieldId, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 pub trait ProtectedDefaultLocalDataFlowSemanticAuthority<E> {
     fn default_binding_struct_field_index(
@@ -9,8 +9,6 @@ pub trait ProtectedDefaultLocalDataFlowSemanticAuthority<E> {
         template: &ProtectedDefaultTemplateV1,
         declaration: PersistentFieldId,
         owner_type: &SignatureTypeKey,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<u32, E>;
 }
 impl ProtectedDefaultTemplateV1 {
@@ -21,7 +19,7 @@ impl ProtectedDefaultTemplateV1 {
     >(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         DefaultBodyValidationInputV1::from(self).validate_local_data_flow(
@@ -29,7 +27,6 @@ impl ProtectedDefaultTemplateV1 {
                 template: self,
                 authority,
             },
-            meter,
             path,
         )
     }
@@ -45,15 +42,8 @@ impl<A: ProtectedDefaultLocalDataFlowSemanticAuthority<E>, E> DefaultBodyDataFlo
         &mut self,
         declaration: PersistentFieldId,
         owner_type: &SignatureTypeKey,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<u32, E> {
-        self.authority.default_binding_struct_field_index(
-            self.template,
-            declaration,
-            owner_type,
-            meter,
-            path,
-        )
+        self.authority
+            .default_binding_struct_field_index(self.template, declaration, owner_type)
     }
 }

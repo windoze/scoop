@@ -16,7 +16,7 @@ pub(super) fn check(
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
     source
-        .with_inheritance_graph(&[], &mut meter(), |graph, _| {
+        .with_inheritance_graph(&[], |graph| {
             let replay = Replay {
                 source,
                 core,
@@ -30,34 +30,11 @@ pub(super) fn check(
                 core,
                 section.types(),
                 section.shape_support(),
-                &mut meter(),
             )
             .unwrap();
             inventory::check(&replay);
             representation::check(&replay, name == "shared-mir-combined");
             helpers::check(&replay, name == "shared-dispatch-combined");
-            for limits in [
-                DecodeLimits {
-                    validation_work_units: 0,
-                    ..DecodeLimits::default()
-                },
-                DecodeLimits {
-                    logical_heap_bytes: 0,
-                    ..DecodeLimits::default()
-                },
-            ] {
-                assert!(
-                    scoop_slib::validate_shared_mir_type_exports(
-                        source,
-                        graph,
-                        core,
-                        section.types(),
-                        section.shape_support(),
-                        &mut scoop_wire::BudgetMeter::new(limits),
-                    )
-                    .is_err()
-                );
-            }
         })
         .unwrap();
 }
@@ -87,7 +64,6 @@ impl Replay<'_, '_> {
             self.core,
             &types,
             shapes,
-            &mut meter(),
         )
         .expect_err("MIR corruption must not agree with unchanged shared HIR declarations")
     }

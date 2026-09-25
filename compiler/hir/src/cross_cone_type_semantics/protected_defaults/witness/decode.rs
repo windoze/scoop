@@ -8,9 +8,7 @@ use crate::{
     CallableDeclarationIdResolver, DecodedPersistentAccessDomainV1, PersistentAccessResolutionError,
 };
 use scoop_identity::{CallableTemplateOrigin, DecodedCallableTemplateOrigin};
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 pub trait ProtectedDefaultAccessWitnessResolver<E>:
     ProtectedDefaultSlotCallDomainResolver<E> + CallableDeclarationIdResolver<E>
@@ -37,16 +35,10 @@ impl DecodedProtectedDefaultAccessWitnessV1 {
     pub fn resolve<R: ProtectedDefaultAccessWitnessResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<ProtectedDefaultAccessWitnessV1, ProtectedDefaultAccessWitnessResolutionError<E>>
     {
         use ProtectedDefaultAccessWitnessResolutionError as Error;
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(Error::Resource)?;
-        meter
-            .charge_work(1, &WirePath::root())
-            .map_err(Error::Resource)?;
+
         match self {
             Self::ParamFree {
                 owner,
@@ -56,14 +48,10 @@ impl DecodedProtectedDefaultAccessWitnessV1 {
             } => {
                 let owner = resolve_owner(owner, resolver).map_err(Error::Foundation)?;
                 let direct = direct_call_domain
-                    .resolve_metered(resolver, meter)
+                    .resolve(resolver)
                     .map_err(Error::Domain)?;
-                let slots = slot_call_domains
-                    .resolve(resolver, meter)
-                    .map_err(Error::Slots)?;
-                let target = target_domain
-                    .resolve_metered(resolver, meter)
-                    .map_err(Error::Domain)?;
+                let slots = slot_call_domains.resolve(resolver).map_err(Error::Slots)?;
+                let target = target_domain.resolve(resolver).map_err(Error::Domain)?;
                 ProtectedDefaultAccessWitnessV1::param_free(
                     owner,
                     PersistentLookupDomainV1::new(direct),
@@ -115,7 +103,7 @@ impl WireEncode for DecodedProtectedDefaultAccessWitnessV1 {
     }
 }
 impl WireDecode for DecodedProtectedDefaultAccessWitnessV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
             1 => {

@@ -77,8 +77,7 @@ pub(super) fn replace_field(bytes: &[u8], field: u64, replacement: &[u8]) -> Vec
 }
 
 pub(super) fn field_range(bytes: &[u8], field: u64) -> Range<usize> {
-    let mut budget = meter();
-    let mut decoder = scoop_wire::Decoder::new(bytes, &mut budget).unwrap();
+    let mut decoder = scoop_wire::Decoder::new(bytes).unwrap();
     let count = decoder.map().unwrap();
     let mut found = None;
     for _ in 0..count {
@@ -94,8 +93,7 @@ pub(super) fn field_range(bytes: &[u8], field: u64) -> Range<usize> {
 }
 
 pub(super) fn array_parts(bytes: &[u8]) -> Vec<&[u8]> {
-    let mut budget = meter();
-    let mut decoder = scoop_wire::Decoder::new(bytes, &mut budget).unwrap();
+    let mut decoder = scoop_wire::Decoder::new(bytes).unwrap();
     let count = decoder.array().unwrap();
     let mut parts = Vec::new();
     for _ in 0..count {
@@ -107,7 +105,7 @@ pub(super) fn array_parts(bytes: &[u8]) -> Vec<&[u8]> {
     parts
 }
 
-fn skip(bytes: &[u8], decoder: &mut scoop_wire::Decoder<'_, '_>) {
+fn skip(bytes: &[u8], decoder: &mut scoop_wire::Decoder<'_>) {
     match bytes[decoder.position() as usize] >> 5 {
         0 => {
             decoder.unsigned().unwrap();

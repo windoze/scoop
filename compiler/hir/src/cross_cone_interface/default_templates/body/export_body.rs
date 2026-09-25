@@ -1,5 +1,3 @@
-mod resolution_nodes;
-
 use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
@@ -112,7 +110,7 @@ impl WireEncode for DecodedExportDefaultBodyV1 {
 }
 
 impl WireDecode for DecodedExportDefaultBodyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             statements: decoder.field(1, |decoder| {
@@ -219,7 +217,7 @@ fn encode_body(
 #[cfg(test)]
 mod tests {
     use scoop_identity::LocalValueSelector;
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+    use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::*;
     use crate::{DefaultExpressionKindV1, DefaultStatementKindV1, OptionalDefaultExpressionV1};
@@ -245,8 +243,7 @@ mod tests {
         .unwrap();
 
         let bytes = encode(&body.index_locals(&mut fixture.locals()).unwrap()).unwrap();
-        let decoded: DecodedExportDefaultBodyV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedExportDefaultBodyV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
         assert_eq!(
             decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
@@ -292,11 +289,8 @@ mod tests {
 
     #[test]
     fn export_default_body_decoder_requires_exact_product() {
-        let error = decode_canonical::<DecodedExportDefaultBodyV1>(
-            &[0xa1, 0x01, 0x80],
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error =
+            decode_canonical::<DecodedExportDefaultBodyV1>(&[0xa1, 0x01, 0x80]).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {

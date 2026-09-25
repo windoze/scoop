@@ -27,7 +27,7 @@ impl WireEncode for DecodedAccessor {
 }
 
 impl WireDecode for DecodedAccessor {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             accessor: decoder.field(1, DecodedPersistentId::decode)?,
@@ -96,7 +96,7 @@ fn encode_accessors<T: WireEncode>(
 }
 
 impl WireDecode for DecodedPropertyAccessorsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let expected = match tag {

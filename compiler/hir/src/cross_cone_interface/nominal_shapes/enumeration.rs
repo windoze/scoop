@@ -22,7 +22,7 @@ impl WireEncode for EnumSourceVariantStyleV1 {
 }
 
 impl WireDecode for EnumSourceVariantStyleV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Unit),
             2 => Ok(Self::Positional),
@@ -99,7 +99,7 @@ impl WireEncode for DecodedEnumSourceFieldV1 {
 }
 
 impl WireDecode for DecodedEnumSourceFieldV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             field: decoder.field(1, DecodedPersistentId::decode)?,
@@ -212,7 +212,7 @@ impl WireEncode for DecodedEnumSourceVariantV1 {
 }
 
 impl WireDecode for DecodedEnumSourceVariantV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
             variant: decoder.field(1, DecodedPersistentId::decode)?,

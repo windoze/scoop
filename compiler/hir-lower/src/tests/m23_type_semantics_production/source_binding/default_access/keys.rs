@@ -14,8 +14,7 @@ fn default_access_accessor_keys_require_the_actual_logical_property_owner_key() 
                 export.property_accessor_identities[property.capability.getter()].id(),
             );
             let required = BTreeSet::from([subject]);
-            let table =
-                Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+            let table = Table::from_export_hir(&output.output().export, &required).unwrap();
             assert_eq!(table.records().len(), 1);
             let mut canonical = fixture.foundation.as_canonical().clone();
             let owner = match &export.property_identities[id] {
@@ -31,10 +30,10 @@ fn default_access_accessor_keys_require_the_actual_logical_property_owner_key() 
             let incomplete = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
             let foundation = fixture
                 .source
-                .bind_to_foundation(&incomplete, &fixture.identities, &mut meter())
+                .bind_to_foundation(&incomplete, &fixture.identities)
                 .unwrap();
             assert!(
-                matches!(foundation.bind_default_access_declarations(&table, &required, &mut meter()),
+                matches!(foundation.bind_default_access_declarations(&table, &required),
                 Err(Error::MissingKey(id)) if id == owner)
             );
         }
@@ -81,13 +80,9 @@ fn default_access_binding_rejects_local_callable_owner_even_with_forged_source_r
             hir::ExportDefinitionSourceV1::new(origin),
         )
         .unwrap();
-        let table = Table::try_new(
-            vec![Record::try_new(subject, access).unwrap()],
-            &mut meter(),
-        )
-        .unwrap();
+        let table = Table::try_new(vec![Record::try_new(subject, access).unwrap()]).unwrap();
         assert!(
-            matches!(fixture.bind().unwrap().bind_default_access_declarations(&table, &BTreeSet::from([subject]), &mut meter()),
+            matches!(fixture.bind().unwrap().bind_default_access_declarations(&table, &BTreeSet::from([subject])),
             Err(Error::NonNominalOwner(id)) if id == subject)
         );
     });

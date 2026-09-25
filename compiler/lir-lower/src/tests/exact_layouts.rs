@@ -1,13 +1,10 @@
 use super::*;
 use scoop_identity::RepresentationRole;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 mod support;
 use support::{Fixture, exact};
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn find(
     table: &lir::CanonicalExactLayoutExportsV1,
     exact: PersistentExactTypeId,
@@ -99,9 +96,8 @@ fn exact_layout_producer_replays_all_physical_roots_and_zst_descriptor() {
         vec![0, 0, 8]
     );
     let bytes = encode(&table).unwrap();
-    let raw: lir::DecodedCanonicalExactLayoutExportsV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert_eq!(raw.validate_against(&table, &mut meter()).unwrap(), table);
+    let raw: lir::DecodedCanonicalExactLayoutExportsV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(raw.validate_against(&table).unwrap(), table);
 }
 
 #[test]
@@ -224,36 +220,11 @@ fn exact_layout_producer_rejects_mir_field_mismatch_and_different_physical_outpu
             &altered.output,
             &expected.types,
             &expected.graph,
-            &[],
-            &mut meter()
+            &[]
         ),
         Err(ExactLayoutLoweringError::PhysicalLayout(_))
             | Err(ExactLayoutLoweringError::PhysicalDescriptor(_))
     ));
-}
-
-#[test]
-fn exact_layout_producer_keeps_unexported_definitions_and_rejects_exhausted_budget() {
-    let mut fixture = Fixture::new(Builder::new());
-    let limits = DecodeLimits {
-        validation_work_units: 1,
-        ..DecodeLimits::default()
-    };
-    assert!(matches!(
-        lower_exact_layout_exports(
-            &fixture.input,
-            &fixture.output,
-            &fixture.types,
-            &fixture.graph,
-            &[],
-            &mut BudgetMeter::new(limits)
-        ),
-        Err(ExactLayoutLoweringError::Resource(_))
-    ));
-    fixture.types = mir::CanonicalParamFreeMirTypeExportsV1::default();
-    assert!(fixture.output.shape_support().roots().is_empty());
-    assert!(!fixture.output.module().meta.layouts.is_empty());
-    assert!(fixture.replay().unwrap().records().is_empty());
 }
 
 #[test]

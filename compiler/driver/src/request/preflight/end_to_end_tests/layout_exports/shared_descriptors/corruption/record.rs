@@ -20,7 +20,7 @@ pub(super) fn check(records: &[lir::ExactDescriptorExportV1]) {
             component,
         });
         assert!(
-            wire.validate_against(value, &mut meter()).is_err(),
+            wire.validate_against(value).is_err(),
             "descriptor field {component}"
         );
     }

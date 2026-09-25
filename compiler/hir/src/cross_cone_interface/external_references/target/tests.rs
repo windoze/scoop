@@ -9,7 +9,7 @@ use scoop_identity::{
     PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -31,26 +31,19 @@ fn target_variants_have_frozen_tags_and_round_trip() {
     for (tag, target) in (1_u8..=8).zip(targets) {
         let bytes = encode(&target).unwrap();
         assert_eq!(bytes[2], tag);
-        let decoded: DecodedExternalHirTargetV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedExternalHirTargetV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut resolver), Ok(target));
     }
 }
 
 #[test]
 fn decoder_rejects_unknown_tags_and_wrong_sum_length() {
-    let unknown = decode_canonical::<DecodedExternalHirTargetV1>(
-        &[0xa2, 0x00, 0x09, 0x01, 0x00],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown = decode_canonical::<DecodedExternalHirTargetV1>(&[0xa2, 0x00, 0x09, 0x01, 0x00])
+        .unwrap_err();
     assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 9 });
 
-    let wrong_length = decode_canonical::<DecodedExternalHirTargetV1>(
-        &[0xa1, 0x00, 0x01],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let wrong_length =
+        decode_canonical::<DecodedExternalHirTargetV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(
         wrong_length.kind(),
         &WireErrorKind::InvalidLength {
@@ -65,8 +58,7 @@ fn resolution_error_preserves_the_target_kind() {
     let fixture = Fixture::new();
     let missing = nominal("Missing", SourceNominalKind::Struct);
     let target = ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(missing));
-    let decoded: DecodedExternalHirTargetV1 =
-        decode_canonical(&encode(&target).unwrap(), DecodeLimits::default()).unwrap();
+    let decoded: DecodedExternalHirTargetV1 = decode_canonical(&encode(&target).unwrap()).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut fixture.resolver()),

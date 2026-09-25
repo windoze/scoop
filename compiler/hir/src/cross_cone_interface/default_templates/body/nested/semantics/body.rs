@@ -11,7 +11,7 @@ use crate::{
 use super::{
     DefaultNestedCallableAbiValidationError, DefaultNestedCallableSemanticAuthority, Validator,
 };
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 mod expression;
 mod statement;
@@ -23,7 +23,7 @@ impl ExportDefaultBodyV1 {
         &self,
         template: &ExportDefaultTemplateV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>>
     where
@@ -35,7 +35,6 @@ impl ExportDefaultBodyV1 {
                 template,
                 authority,
             },
-            meter,
             path,
         )
     }
@@ -46,10 +45,10 @@ impl DefaultBodyValidationInputV1<'_> {
         self,
         body: &ExportDefaultBodyV1,
         authority: &mut A,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
-        Validator::new(self, authority, meter, path).validate_body(body)
+        Validator::new(self, authority, path).validate_body(body)
     }
 }
 
@@ -63,16 +62,12 @@ where
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         self.next_site = super::DefaultNestedCallableSiteV1::Body { ordinal: 0 };
         let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut pending, 1, self.path)
             .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
-        pending.push(WorkItem {
-            node: BodyNode::Body(body),
-            depth: 1,
-        });
+        pending.push(BodyNode::Body(body));
 
         while let Some(work) = pending.pop() {
-            self.process_node(work.node, work.depth, &mut pending)?;
+            self.process_node(work, &mut pending)?;
         }
 
         debug_assert!(self.local_scopes.is_empty());
@@ -82,81 +77,42 @@ where
     fn process_node<'body>(
         &mut self,
         node: BodyNode<'body>,
-        depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         match node {
             BodyNode::LeaveLocalScope => self.leave_local_scope(),
             BodyNode::StatementBlock(statements) => {
-                self.enter_node(depth)?;
                 self.enter_local_scope()?;
-                self.push_child(pending, depth, BodyNode::LeaveLocalScope)?;
-                self.push_statements(pending, depth, statements)
+                self.push_child(pending, BodyNode::LeaveLocalScope)?;
+                self.push_statements(pending, statements)
             }
             BodyNode::Evaluation { setup, value } => {
-                self.enter_node(depth)?;
                 self.enter_local_scope()?;
-                self.push_child(pending, depth, BodyNode::LeaveLocalScope)?;
-                self.push_child(pending, depth, BodyNode::Expression(value))?;
-                self.push_statements(pending, depth, setup)
+                self.push_child(pending, BodyNode::LeaveLocalScope)?;
+                self.push_child(pending, BodyNode::Expression(value))?;
+                self.push_statements(pending, setup)
             }
-            BodyNode::Body(body) => {
-                self.enter_node(depth)?;
-                self.process_body(body, depth, pending)
-            }
-            BodyNode::Statement(statement) => {
-                self.enter_node(depth)?;
-                self.process_statement(statement, depth, pending)
-            }
-            BodyNode::Expression(expression) => {
-                self.enter_node(depth)?;
-                self.process_expression(expression, depth, pending)
-            }
-            BodyNode::AssignTarget(target) => {
-                self.enter_node(depth)?;
-                self.process_assign_target(target, depth, pending)
-            }
-            BodyNode::When(value) => {
-                self.enter_node(depth)?;
-                self.process_when(value, depth, pending)
-            }
-            BodyNode::WhenArm(arm) => {
-                self.enter_node(depth)?;
-                self.process_when_arm(arm, depth, pending)
-            }
-            BodyNode::WhenGuard(guard) => {
-                self.enter_node(depth)?;
-                self.process_when_guard(guard, depth, pending)
-            }
-            BodyNode::WhenFallback(fallback) => {
-                self.enter_node(depth)?;
-                self.process_when_fallback(fallback, depth, pending)
-            }
-            BodyNode::Try(value) => {
-                self.enter_node(depth)?;
-                self.process_try(value, depth, pending)
-            }
-            BodyNode::Catch(catch) => {
-                self.enter_node(depth)?;
-                self.process_catch(catch, depth, pending)
-            }
-            BodyNode::For(plan) => {
-                self.enter_node(depth)?;
-                self.process_for(plan, depth, pending)
-            }
-            BodyNode::BindingAction(action) => {
-                self.enter_node(depth)?;
-                self.process_binding_action(action, depth, pending)
-            }
+            BodyNode::Body(body) => self.process_body(body, pending),
+            BodyNode::Statement(statement) => self.process_statement(statement, pending),
+            BodyNode::Expression(expression) => self.process_expression(expression, pending),
+            BodyNode::AssignTarget(target) => self.process_assign_target(target, pending),
+            BodyNode::When(value) => self.process_when(value, pending),
+            BodyNode::WhenArm(arm) => self.process_when_arm(arm, pending),
+            BodyNode::WhenGuard(guard) => self.process_when_guard(guard, pending),
+            BodyNode::WhenFallback(fallback) => self.process_when_fallback(fallback, pending),
+            BodyNode::Try(value) => self.process_try(value, pending),
+            BodyNode::Catch(catch) => self.process_catch(catch, pending),
+            BodyNode::For(plan) => self.process_for(plan, pending),
+            BodyNode::BindingAction(action) => self.process_binding_action(action, pending),
             BodyNode::LocalFunction(function) => {
-                self.validate_local_function(function, depth)?;
+                self.validate_local_function(function)?;
                 self.record_local_declaration(function.declaration())
             }
-            BodyNode::Lambda(lambda) => self.validate_lambda(lambda, depth),
-            BodyNode::AnonymousFunction(function) => self.validate_anonymous(function, depth),
+            BodyNode::Lambda(lambda) => self.validate_lambda(lambda),
+            BodyNode::AnonymousFunction(function) => self.validate_anonymous(function),
             BodyNode::CallableReference(reference) => {
-                self.validate_callable_reference(reference, depth)?;
-                self.process_callable_reference(reference, depth, pending)
+                self.validate_callable_reference(reference)?;
+                self.process_callable_reference(reference, pending)
             }
         }
     }
@@ -164,34 +120,24 @@ where
     fn process_body<'body>(
         &mut self,
         body: &'body ExportDefaultBodyV1,
-        depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
+        pending: &mut Vec<BodyNode<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         self.enter_local_scope()?;
-        self.push_child(pending, depth, BodyNode::LeaveLocalScope)?;
-        self.push_child(pending, depth, BodyNode::Expression(body.value()))?;
-        self.push_statements(pending, depth, body.statements())
+        self.push_child(pending, BodyNode::LeaveLocalScope)?;
+        self.push_child(pending, BodyNode::Expression(body.value()))?;
+        self.push_statements(pending, body.statements())
     }
 
     pub(super) fn push_child<'body>(
         &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        parent_depth: u64,
+        pending: &mut Vec<BodyNode<'body>>,
         node: BodyNode<'body>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
-        let depth = self.child_depth(parent_depth)?;
-        self.meter
-            .try_reserve_collection_slots(pending, 1, self.path)
+        scoop_wire::allocation::try_reserve(pending, 1, self.path)
             .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
-        pending.push(WorkItem { node, depth });
+        pending.push(node);
         Ok(())
     }
-}
-
-#[derive(Clone, Copy)]
-pub(super) struct WorkItem<'a> {
-    node: BodyNode<'a>,
-    depth: u64,
 }
 
 #[derive(Clone, Copy)]

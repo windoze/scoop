@@ -33,27 +33,12 @@ pub struct CanonicalDefaultSourceProfilesV1 {
     records: Vec<DefaultSourceProfileV1>,
 }
 impl CanonicalDefaultSourceProfilesV1 {
-    pub fn try_new(
-        mut records: Vec<DefaultSourceProfileV1>,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, SourceInventoryError> {
-        charge_sort(records.len(), meter)?;
+    pub fn try_new(mut records: Vec<DefaultSourceProfileV1>) -> Result<Self, SourceInventoryError> {
         records.sort_unstable_by_key(DefaultSourceProfileV1::key);
-        Self::from_ordered(records, meter)
+        Self::from_ordered(records)
     }
-    fn from_ordered(
-        records: Vec<DefaultSourceProfileV1>,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, SourceInventoryError> {
-        meter.check_semantic_depth(1, &WirePath::root())?;
-        meter.charge_nodes(1, &WirePath::root())?;
-        meter.charge_work(1, &WirePath::root())?;
-        validate_order(
-            &records,
-            DefaultSourceProfileV1::key,
-            "default profiles",
-            meter,
-        )?;
+    fn from_ordered(records: Vec<DefaultSourceProfileV1>) -> Result<Self, SourceInventoryError> {
+        validate_order(&records, DefaultSourceProfileV1::key, "default profiles")?;
         Ok(Self { records })
     }
     pub fn records(&self) -> &[DefaultSourceProfileV1] {
@@ -68,16 +53,7 @@ impl CanonicalDefaultSourceProfilesV1 {
     pub fn validate_template_coverage(
         &self,
         templates: &CanonicalDefaultSourceTemplatesV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), SourceInventoryError> {
-        let path = WirePath::root();
-        meter.check_semantic_depth(1, &path)?;
-        meter.charge_nodes(1, &path)?;
-        meter.check_table_entries(templates.records().len() as u64, &path)?;
-        meter.charge_work(
-            self.records.len() as u64 + templates.records().len() as u64 + 1,
-            &path,
-        )?;
         let mut actual = self.records.iter();
         for template in templates.records() {
             let expected = template.key();

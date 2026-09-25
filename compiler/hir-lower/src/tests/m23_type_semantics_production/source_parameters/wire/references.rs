@@ -57,15 +57,11 @@ fn parameter_reader_resolves_value_types_and_origins_in_the_same_identity_graph(
                     parameter.calling_kind(),
                     origin,
                 )],
-                &mut meter(),
             )
             .unwrap();
             let bytes = encode(&Records(&[record])).unwrap();
-            let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-            let result = decoded.resolve(
-                &mut source_inventory::identity_closure(output),
-                &mut meter(),
-            );
+            let decoded: Decoded = decode_canonical(&bytes).unwrap();
+            let result = decoded.resolve(&mut source_inventory::identity_closure(output));
             assert!(
                 matches!(result, Err(hir::SourceInventoryError::Reference(_))),
                 "wrong_origin={wrong_origin}: {result:?}"

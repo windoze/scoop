@@ -15,34 +15,31 @@ fn shared_shape_sites_match_actual_boxes_unboxes_and_checked_targets() {
             let mut actual = Vec::new();
             let mut operations = [0_usize; 4];
             module
-                .visit_executable_expressions(
-                    &mut BudgetMeter::new(DecodeLimits::default()),
-                    |occurrence, _| {
-                        let expression = occurrence.expression;
-                        let (role, ty, index) = match &expression.kind {
-                            ExprKind::Box(operand) => {
-                                (HirExpressionTypeRoleV1::BoxedValue, operand.ty, 0)
-                            }
-                            ExprKind::Unbox(_) => {
-                                (HirExpressionTypeRoleV1::BoxedValue, expression.ty, 1)
-                            }
-                            ExprKind::Cast { check_ty, .. } => {
-                                (HirExpressionTypeRoleV1::TypeTest, *check_ty, 2)
-                            }
-                            ExprKind::IsInstance { check_ty, .. } => {
-                                (HirExpressionTypeRoleV1::TypeTest, *check_ty, 3)
-                            }
-                            _ => return Ok::<_, std::convert::Infallible>(()),
-                        };
-                        operations[index] += 1;
-                        actual.push((
-                            occurrence.position,
-                            role,
-                            module.exact_type_identities.get(ty).unwrap().id(),
-                        ));
-                        Ok(())
-                    },
-                )
+                .visit_executable_expressions(|occurrence| {
+                    let expression = occurrence.expression;
+                    let (role, ty, index) = match &expression.kind {
+                        ExprKind::Box(operand) => {
+                            (HirExpressionTypeRoleV1::BoxedValue, operand.ty, 0)
+                        }
+                        ExprKind::Unbox(_) => {
+                            (HirExpressionTypeRoleV1::BoxedValue, expression.ty, 1)
+                        }
+                        ExprKind::Cast { check_ty, .. } => {
+                            (HirExpressionTypeRoleV1::TypeTest, *check_ty, 2)
+                        }
+                        ExprKind::IsInstance { check_ty, .. } => {
+                            (HirExpressionTypeRoleV1::TypeTest, *check_ty, 3)
+                        }
+                        _ => return Ok::<_, std::convert::Infallible>(()),
+                    };
+                    operations[index] += 1;
+                    actual.push((
+                        occurrence.position,
+                        role,
+                        module.exact_type_identities.get(ty).unwrap().id(),
+                    ));
+                    Ok(())
+                })
                 .unwrap();
             assert!(operations[0] > 0 && operations[2] > 0 && operations[3] > 0);
             if case == "shape-combined" {

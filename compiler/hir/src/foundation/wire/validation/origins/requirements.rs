@@ -6,7 +6,7 @@ use scoop_identity::{
     CallableMaterialization, CallableTemplateOwner, DefinitionOriginSubject, GeneratedCallableKey,
     LocalValueSelector, PersistentGeneratedCallableId,
 };
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use super::{
     DefinitionOriginValidationError, GeneratedCallableRecord, HirFoundationValidationError,
@@ -24,20 +24,17 @@ impl<'a> OriginRequirements<'a> {
     pub(super) fn new(
         generated_records: &'a [GeneratedCallableRecord],
         required_count: usize,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Self, HirFoundationValidationError> {
         let mut required = HashMap::new();
-        meter
-            .try_reserve_map_slots(&mut required, required_count, path)
+        scoop_wire::allocation::try_reserve_map(&mut required, required_count, path)
             .map_err(HirFoundationValidationError::Resource)?;
         let mut optional = HashMap::new();
-        meter
-            .try_reserve_map_slots(&mut optional, generated_records.len(), path)
+        scoop_wire::allocation::try_reserve_map(&mut optional, generated_records.len(), path)
             .map_err(HirFoundationValidationError::Resource)?;
         let mut generated = HashMap::new();
-        meter
-            .try_reserve_map_slots(&mut generated, generated_records.len(), path)
+        scoop_wire::allocation::try_reserve_map(&mut generated, generated_records.len(), path)
             .map_err(HirFoundationValidationError::Resource)?;
         generated.extend(
             generated_records
@@ -45,8 +42,7 @@ impl<'a> OriginRequirements<'a> {
                 .map(|record| (record.id(), record.key())),
         );
         let mut visiting = HashSet::new();
-        meter
-            .try_reserve_set_slots(&mut visiting, generated_records.len(), path)
+        scoop_wire::allocation::try_reserve_set(&mut visiting, generated_records.len(), path)
             .map_err(HirFoundationValidationError::Resource)?;
         Ok(Self {
             required,
@@ -83,15 +79,9 @@ impl<'a> OriginRequirements<'a> {
     pub(super) fn local_value(
         &mut self,
         record: &LocalValueRecord,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<(), HirFoundationValidationError> {
-        meter
-            .charge_work(1, path)
-            .map_err(HirFoundationValidationError::Resource)?;
-        meter
-            .charge_edges(1, path)
-            .map_err(HirFoundationValidationError::Resource)?;
         let selector = record.key().selector();
         if !matches!(
             selector,
@@ -120,7 +110,7 @@ impl<'a> OriginRequirements<'a> {
         }
         let subject = DefinitionOriginSubject::LocalValue(record.id());
         let anchor = self
-            .materialization_subject(record.key().owner(), meter, path)?
+            .materialization_subject(record.key().owner(), path)?
             .ok_or(DefinitionOriginValidationError::MissingSourceAnchor { subject })?;
         self.require(subject, OriginExpectation::SameSource(anchor))?;
         Ok(())
@@ -129,43 +119,40 @@ impl<'a> OriginRequirements<'a> {
     fn materialization_subject(
         &mut self,
         materialization: CallableMaterialization,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
-        self.callable_subject(materialization.template(), meter, path)
+        self.callable_subject(materialization.template(), path)
     }
 
     pub(super) fn callable_subject(
         &mut self,
         owner: CallableTemplateOwner,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
         self.visiting.clear();
-        self.resolve_callable_subject(owner, meter, path)
+        self.resolve_callable_subject(owner, path)
     }
 
     pub(super) fn generated_subject(
         &mut self,
         id: PersistentGeneratedCallableId,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
         self.visiting.clear();
-        self.resolve_callable_subject(CallableTemplateOwner::Generated(id), meter, path)
+        self.resolve_callable_subject(CallableTemplateOwner::Generated(id), path)
     }
 
     fn resolve_callable_subject(
         &mut self,
         mut owner: CallableTemplateOwner,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<Option<DefinitionOriginSubject>, HirFoundationValidationError> {
         let mut depth = 1_u64;
         loop {
-            meter
-                .check_semantic_depth(depth, path)
-                .map_err(HirFoundationValidationError::Resource)?;
             match owner {
                 CallableTemplateOwner::Function(id) => {
                     return Ok(Some(DefinitionOriginSubject::Function(id)));
@@ -186,9 +173,7 @@ impl<'a> OriginRequirements<'a> {
                     if !self.visiting.insert(id) {
                         return Ok(None);
                     }
-                    meter
-                        .charge_edges(1, path)
-                        .map_err(HirFoundationValidationError::Resource)?;
+
                     let Some(key) = self.generated.get(&id) else {
                         return Ok(None);
                     };

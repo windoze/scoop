@@ -105,68 +105,54 @@ impl Artifact {
             ),
             _ => panic!("fixture requires a class or struct"),
         };
-        let source = TypeFoundationSourceAuthorityV1::try_new(
-            TypeFoundationSourceEntriesV1 {
-                provider: cone,
-                exact_keys,
-                sources: CanonicalTypeSourceNominalsV1::try_new(
-                    vec![TypeSourceNominalV1::new(
-                        SourceNominalId::Concrete(owner),
-                        access.clone(),
-                    )],
-                    &mut meter(),
+        let source = TypeFoundationSourceAuthorityV1::try_new(TypeFoundationSourceEntriesV1 {
+            provider: cone,
+            exact_keys,
+            sources: CanonicalTypeSourceNominalsV1::try_new(vec![TypeSourceNominalV1::new(
+                SourceNominalId::Concrete(owner),
+                access.clone(),
+            )])
+            .unwrap(),
+            representations: CanonicalNominalRepresentationSupportV1::try_new(vec![
+                NominalRepresentationSupportV1::try_new(&key, access, shape).unwrap(),
+            ])
+            .unwrap(),
+            generated_nominals: CanonicalPersistentIdsV1::empty(),
+            accessor_keys: CanonicalPersistentIdsV1::empty(),
+            definition_sources: CanonicalExportDefinitionSourcesV1::try_new(vec![source_origin])
+                .unwrap(),
+            source_roots: CanonicalSourceNominalIdsV1::try_new(vec![SourceNominalId::Concrete(
+                owner,
+            )])
+            .unwrap(),
+            local_exact_facts: CanonicalPersistentIdsV1::try_new(vec![exact]).unwrap(),
+            dependency_facts: CanonicalTypeSectionDependencyFactsV1::try_new(
+                base.into_iter()
+                    .map(|base| TypeSectionDependencyFactV1 {
+                        provider: base.provider(),
+                        exact: base.exact,
+                    })
+                    .collect(),
+            )
+            .unwrap(),
+            local_inheritance_edges: CanonicalNominalInheritanceEdgesV1::try_new(vec![
+                NominalInheritanceEdgesV1::try_new(
+                    exact,
+                    modality,
+                    base.map_or(DirectClassBaseV1::NoClassBase, |base| {
+                        DirectClassBaseV1::ClassBase { exact: base.exact }
+                    }),
+                    vec![],
                 )
                 .unwrap(),
-                representations: CanonicalNominalRepresentationSupportV1::try_new(vec![
-                    NominalRepresentationSupportV1::try_new(&key, access, shape).unwrap(),
-                ])
-                .unwrap(),
-                generated_nominals: CanonicalPersistentIdsV1::empty(),
-                accessor_keys: CanonicalPersistentIdsV1::empty(),
-                definition_sources: CanonicalExportDefinitionSourcesV1::try_new(vec![
-                    source_origin,
-                ])
-                .unwrap(),
-                source_roots: CanonicalSourceNominalIdsV1::try_new(
-                    vec![SourceNominalId::Concrete(owner)],
-                    &mut meter(),
-                )
-                .unwrap(),
-                local_exact_facts: CanonicalPersistentIdsV1::try_new(vec![exact]).unwrap(),
-                dependency_facts: CanonicalTypeSectionDependencyFactsV1::try_new(
-                    base.into_iter()
-                        .map(|base| TypeSectionDependencyFactV1 {
-                            provider: base.provider(),
-                            exact: base.exact,
-                        })
-                        .collect(),
-                    &mut meter(),
-                )
-                .unwrap(),
-                local_inheritance_edges: CanonicalNominalInheritanceEdgesV1::try_new(
-                    vec![
-                        NominalInheritanceEdgesV1::try_new(
-                            exact,
-                            modality,
-                            base.map_or(DirectClassBaseV1::NoClassBase, |base| {
-                                DirectClassBaseV1::ClassBase { exact: base.exact }
-                            }),
-                            vec![],
-                        )
-                        .unwrap(),
-                    ],
-                    &mut meter(),
-                )
-                .unwrap(),
-                fact_shapes: CanonicalExactTypeFactShapesV1::try_new(
-                    vec![ExactTypeFactShapeRecordV1::new(exact, fact_shape)],
-                    &mut meter(),
-                )
-                .unwrap(),
-                representation_owners: CanonicalPersistentIdsV1::try_new(vec![owner]).unwrap(),
-            },
-            &mut meter(),
-        )
+            ])
+            .unwrap(),
+            fact_shapes: CanonicalExactTypeFactShapesV1::try_new(vec![
+                ExactTypeFactShapeRecordV1::new(exact, fact_shape),
+            ])
+            .unwrap(),
+            representation_owners: CanonicalPersistentIdsV1::try_new(vec![owner]).unwrap(),
+        })
         .unwrap();
         Self {
             coordinate,
@@ -179,7 +165,7 @@ impl Artifact {
 
     pub fn load(self, dependency: Option<&Loaded>) -> Loaded {
         let decoded: DecodedHirFoundation =
-            decode_canonical(&encode(&self.canonical).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&self.canonical).unwrap()).unwrap();
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(ConeIdentity::CORE).unwrap();
         pending
@@ -198,13 +184,13 @@ impl Artifact {
         let mut identities = pending.finish().unwrap();
         let foundation = OdrFreeHirFoundation::from_validated(
             decoded
-                .validate_with_dependency_sources(&self.coordinate, &mut identities, &mut meter())
+                .validate_with_dependency_sources(&self.coordinate, &mut identities)
                 .unwrap(),
         )
         .unwrap();
         let source: DecodedTypeFoundationSourceAuthorityV1 =
-            decode_canonical(&encode(&self.source).unwrap(), DecodeLimits::default()).unwrap();
-        let source = source.resolve(&mut identities, &mut meter()).unwrap();
+            decode_canonical(&encode(&self.source).unwrap()).unwrap();
+        let source = source.resolve(&mut identities).unwrap();
         Loaded {
             source,
             foundation,
@@ -221,7 +207,7 @@ impl Loaded {
     }
     pub fn bind(&self) -> BoundTypeFoundationSourcesV1<'_> {
         self.source
-            .bind_to_foundation(&self.foundation, &self.identities, &mut meter())
+            .bind_to_foundation(&self.foundation, &self.identities)
             .unwrap()
     }
 }
@@ -250,7 +236,6 @@ pub(super) fn public_proof(
         cone,
         &CanonicalDirectPublicSurfaceV1::try_new(vec![]).unwrap(),
         &mut crate::cross_cone_interface::EmptyPublicSemanticAuthority(cone),
-        &mut meter(),
         &WirePath::root(),
     )
     .unwrap()
@@ -263,7 +248,6 @@ pub(super) fn provider<'a>(
     TypeFoundationSourceProviderV1::try_new(
         bound,
         public_proof(public, bound.source().entries().provider),
-        &mut meter(),
     )
     .unwrap()
 }

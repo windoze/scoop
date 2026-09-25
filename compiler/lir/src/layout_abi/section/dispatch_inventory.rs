@@ -6,7 +6,6 @@ use scoop_identity::{PersistentDispatchTableId, PersistentExactTypeId};
 
 pub(super) fn validate<E>(
     exports: &LayoutAbiExportConstituentsV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSectionError<E>> {
     let dispatch = exports.dispatch();
     let mut expected = 0_usize;
@@ -21,7 +20,6 @@ pub(super) fn validate<E>(
             tables.vtable(),
             descriptor.exact(),
             ExactDispatchRoleV1::Vtable,
-            meter,
         )?;
         for table in tables.itables() {
             check(
@@ -31,7 +29,6 @@ pub(super) fn validate<E>(
                 ExactDispatchRoleV1::Itable {
                     interface_exact: table.interface().exact_type(),
                 },
-                meter,
             )?;
         }
     }
@@ -50,12 +47,7 @@ fn check<E>(
     table: PersistentDispatchTableId,
     owner: PersistentExactTypeId,
     role: ExactDispatchRoleV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSectionError<E>> {
-    meter.charge_work(
-        u64::from(dispatch.records().len().max(1).ilog2()) + 1,
-        &WirePath::root(),
-    )?;
     let record = dispatch
         .get(table)
         .ok_or(ExactDispatchTableError::Missing(table))?;

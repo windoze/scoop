@@ -1,8 +1,5 @@
 use super::*;
-use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode,
-    encoded_length,
-};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode};
 use std::fmt;
 
 mod errors;
@@ -49,34 +46,19 @@ impl DecodedCanonicalSelectedExternalTypeUsesV1 {
     pub fn resolve<R: SelectedTypeUseResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
+
         path: &WirePath,
     ) -> Result<CanonicalSelectedExternalTypeUsesV1, SelectedTypeUseResolutionError<E>> {
         use SelectedTypeUseResolutionError as Error;
-        meter
-            .check_table_entries(self.records.len() as u64, path)
-            .map_err(Error::Resource)?;
-        meter
-            .charge_work(self.records.len() as u64, path)
-            .map_err(Error::Resource)?;
+
         let mut records = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), path)
+        scoop_wire::allocation::try_reserve(&mut records, self.records.len(), path)
             .map_err(Error::Resource)?;
         let mut previous: Option<Vec<u8>> = None;
         for (index, decoded) in self.records.into_iter().enumerate() {
-            let at = path.clone().index(index as u64);
-            let bytes = encoded_length(&decoded).map_err(Error::Encoding)?;
-            meter
-                .charge_owned_bytes(bytes, &at)
-                .map_err(Error::Resource)?;
-            meter.charge_work(bytes, &at).map_err(Error::Resource)?;
-            let record = decoded.resolve(resolver, meter, &at)?;
+            let record = decoded.resolve(resolver)?;
             let key = encode(&record).map_err(Error::Encoding)?;
             if let Some(previous) = &previous {
-                meter
-                    .charge_work(previous.len() as u64 + key.len() as u64, &at)
-                    .map_err(Error::Resource)?;
                 match previous.cmp(&key) {
                     std::cmp::Ordering::Equal => return Err(Error::Duplicate { index }),
                     std::cmp::Ordering::Greater => return Err(Error::NonCanonicalOrder { index }),
@@ -95,7 +77,7 @@ impl WireEncode for DecodedCanonicalSelectedExternalTypeUsesV1 {
     }
 }
 impl WireDecode for DecodedCanonicalSelectedExternalTypeUsesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedSelectedExternalTypeUseV1::decode(decoder))
             .map(|records| Self { records })

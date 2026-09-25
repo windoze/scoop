@@ -2,7 +2,6 @@ use super::super::source_dispatch::{with_hir_source, with_hir_sources};
 use super::*;
 use scoop_identity::CallableTemplateOrigin;
 
-mod resources;
 mod support;
 mod varargs;
 use support::*;
@@ -27,8 +26,7 @@ fn complete_type_defaults_roundtrip_and_preserve_source_bodies_and_occurrences()
                 produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
             let section = restore(output, production.section());
             let sources =
-                hir::NominalDefaultSourceProductionV1::from_dependency_hir(output, &mut meter())
-                    .unwrap();
+                hir::NominalDefaultSourceProductionV1::from_dependency_hir(output).unwrap();
             let expected_keys = section
                 .protected_source_interfaces()
                 .records()
@@ -54,7 +52,7 @@ fn complete_type_defaults_roundtrip_and_preserve_source_bodies_and_occurrences()
                 let original = sources.templates().get(template.key()).unwrap();
                 assert_source_body(template, original);
                 let closure = original
-                    .bind_reference_occurrences(&mut meter(), &WirePath::root())
+                    .bind_reference_occurrences(&WirePath::root())
                     .unwrap();
                 let mut visitor = Occurrences::new(&closure, &domains[&template.key().owner()]);
                 template
@@ -66,7 +64,6 @@ fn complete_type_defaults_roundtrip_and_preserve_source_bodies_and_occurrences()
                         template.definition_origin(),
                         template.receiver(),
                         &mut visitor,
-                        &mut meter(),
                         &WirePath::root(),
                     )
                     .unwrap();
@@ -107,7 +104,7 @@ fn type_default_production_is_stable_across_unrelated_source_allocation() {
         with_hir_sources(files, |output, _| {
             let production =
                 produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
-            encode(&production.section().index_for_wire(&mut meter()).unwrap()).unwrap()
+            encode(&production.section().index_for_wire().unwrap()).unwrap()
         })
     };
     let first = produce(&[("src/main.scoop", REFERENCES)]);
@@ -126,9 +123,7 @@ fn type_default_body_closure_rejects_missing_references_and_incorrect_uses() {
     with_hir_source(REFERENCES, |output, _| {
         let production =
             produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
-        let sources =
-            hir::NominalDefaultSourceProductionV1::from_dependency_hir(output, &mut meter())
-                .unwrap();
+        let sources = hir::NominalDefaultSourceProductionV1::from_dependency_hir(output).unwrap();
         let template = production
             .section()
             .protected_defaults()
@@ -138,7 +133,7 @@ fn type_default_body_closure_rejects_missing_references_and_incorrect_uses() {
             .unwrap();
         let original = sources.templates().get(template.key()).unwrap();
         let closure = original
-            .bind_reference_occurrences(&mut meter(), &WirePath::root())
+            .bind_reference_occurrences(&WirePath::root())
             .unwrap();
         let references = template.references();
         let domains = direct_domains(output);
@@ -183,7 +178,6 @@ fn type_default_body_closure_rejects_missing_references_and_incorrect_uses() {
                         template.definition_origin(),
                         template.receiver(),
                         &mut Occurrences::new(&closure, &domains[&template.key().owner()]),
-                        &mut meter(),
                         &WirePath::root()
                     )
                     .is_err()
@@ -194,7 +188,7 @@ fn type_default_body_closure_rejects_missing_references_and_incorrect_uses() {
             production
                 .section()
                 .protected_source_interfaces()
-                .index_templates(empty.keys(), &mut meter())
+                .index_templates(empty.keys())
                 .is_err()
         );
     });

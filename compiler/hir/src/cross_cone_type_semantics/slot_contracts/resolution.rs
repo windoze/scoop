@@ -4,7 +4,7 @@ use scoop_identity::{
     PersistentDispatchSlotId, PersistentFunctionId, PersistentIdResolver, PersistentKeyResolver,
     PersistentPropertyAccessorId, PersistentSourceContextId, SourceContextKey,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::*;
 use crate::{
@@ -33,11 +33,7 @@ impl DecodedInheritanceSlotTargetV1 {
     pub fn resolve<R: InheritanceSlotResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<InheritanceSlotTargetV1, InheritanceSlotResolutionError<E>> {
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(InheritanceSlotResolutionError::Resource)?;
         let declaration = self
             .declaration
             .resolve(resolver)
@@ -47,11 +43,11 @@ impl DecodedInheritanceSlotTargetV1 {
             .map_err(InheritanceSlotResolutionError::Identity)?;
         let signature = self
             .signature
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Signature)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Source)?;
         InheritanceSlotTargetV1::try_new(declaration, owner, signature, self.modality, access)
             .map_err(InheritanceSlotResolutionError::Contract)
@@ -61,15 +57,14 @@ impl DecodedInheritanceSlotImplementationV1 {
     pub fn resolve<R: InheritanceSlotResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<InheritanceSlotImplementationV1, InheritanceSlotResolutionError<E>> {
         match self {
             Self::Abstract => Ok(InheritanceSlotImplementationV1::Abstract),
             Self::Concrete(target) => target
-                .resolve(resolver, meter)
+                .resolve(resolver)
                 .map(InheritanceSlotImplementationV1::Concrete),
             Self::InterfaceDefault(target) => target
-                .resolve(resolver, meter)
+                .resolve(resolver)
                 .map(InheritanceSlotImplementationV1::InterfaceDefault),
         }
     }
@@ -78,11 +73,7 @@ impl DecodedInheritanceSlotContractV1 {
     pub fn resolve<R: InheritanceSlotResolver<E>, E>(
         self,
         resolver: &mut R,
-        meter: &mut BudgetMeter,
     ) -> Result<InheritanceSlotContractV1, InheritanceSlotResolutionError<E>> {
-        meter
-            .charge_nodes(1, &WirePath::root())
-            .map_err(InheritanceSlotResolutionError::Resource)?;
         let slot = resolver
             .resolve(self.slot)
             .map_err(InheritanceSlotResolutionError::Identity)?;
@@ -95,16 +86,16 @@ impl DecodedInheritanceSlotContractV1 {
             .map_err(InheritanceSlotResolutionError::Identity)?;
         let signature = self
             .signature
-            .resolve(resolver, meter)
+            .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Signature)?;
         let domain = self
             .domain
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Domain)?;
-        let implementation = self.implementation.resolve(resolver, meter)?;
+        let implementation = self.implementation.resolve(resolver)?;
         let access = self
             .declaration_access
-            .resolve_metered(resolver, meter)
+            .resolve(resolver)
             .map_err(InheritanceSlotResolutionError::Source)?;
         InheritanceSlotContractV1::try_new(
             slot,

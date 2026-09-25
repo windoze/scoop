@@ -27,12 +27,10 @@ impl Sources {
     pub(super) fn from_output(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Self {
         macro_rules! restore {
             ($canonical:ty, $decoded:ty) => {{
-                let source = <$canonical>::from_dependency_hir(output, &mut meter()).unwrap();
+                let source = <$canonical>::from_dependency_hir(output).unwrap();
                 let bytes = encode(&source).unwrap();
-                let decoded: $decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-                let restored = decoded
-                    .resolve(&mut fixture.identities, &mut meter())
-                    .unwrap();
+                let decoded: $decoded = decode_canonical(&bytes).unwrap();
+                let restored = decoded.resolve(&mut fixture.identities).unwrap();
                 assert_eq!(encode(&restored).unwrap(), bytes);
                 restored
             }};
@@ -60,14 +58,12 @@ impl Sources {
     pub(super) fn bind<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
-        meter: &mut BudgetMeter,
     ) -> Result<hir::BoundInheritanceDispatchSourcesV1<'a, 'f>, Error> {
         foundation.bind_inheritance_dispatch_sources(
             &self.inventory,
             &self.interfaces,
             &self.selections,
             &self.callables,
-            meter,
         )
     }
 }
@@ -79,20 +75,17 @@ fn byte_restored_dispatch_sources_replay_against_their_own_foundation() {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let bound = sources.bind(&foundation, &mut meter()).unwrap();
+            let bound = sources.bind(&foundation).unwrap();
             let entries = fixture.source.entries();
             let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
                 entries.local_inheritance_edges.records().iter(),
                 entries.source_roots.values().iter().copied(),
                 &foundation,
-                &mut meter(),
             )
             .unwrap();
             assert_eq!(bound.inventory(), &sources.inventory);
             for owner in sources.inventory.owners().values() {
-                let checked = graph
-                    .validate_slot_schemas(*owner, &bound, &mut meter())
-                    .unwrap();
+                let checked = graph.validate_slot_schemas(*owner, &bound).unwrap();
                 assert_eq!(
                     checked.schemas(),
                     sources.inventory.get(*owner).unwrap().slot_schemas()
@@ -112,40 +105,4 @@ fn byte_restored_dispatch_sources_replay_against_their_own_foundation() {
             }
         });
     }
-}
-
-#[test]
-fn dispatch_binding_is_budgeted_before_it_publishes_source_authority() {
-    with_source(INTERFACES, |output, _| {
-        let mut fixture = Fixture::from_output(output);
-        let sources = Sources::from_output(output, &mut fixture);
-        let foundation = fixture.bind().unwrap();
-        for limits in [
-            DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                decoded_nodes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_recursion: 0,
-                ..DecodeLimits::default()
-            },
-        ] {
-            assert!(matches!(
-                sources.bind(&foundation, &mut BudgetMeter::new(limits)),
-                Err(Error::Resource(_))
-            ));
-        }
-    });
 }

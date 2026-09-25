@@ -4,7 +4,6 @@ use super::{
 };
 use crate::TypeParameterBoundsV1;
 use scoop_identity::SignatureTypeKey;
-use scoop_wire::{BudgetMeter, WirePath};
 
 pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_types<
     A: ProtectedCallableSemanticAuthority<E>,
@@ -13,14 +12,10 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_types
     payload: &NominalSourceCallablePayloadV1,
     owner_arity: u32,
     authority: &mut A,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error<E>> {
     let outer = (owner_arity != 0).then_some(owner_arity);
     let scope = payload.type_parameters().signature_scope(outer);
-    let path = WirePath::root();
-    meter
-        .charge_work(payload.type_parameters().len_u32() as u64, &path)
-        .map_err(Error::Resource)?;
+
     for binder in payload.type_parameters().binders() {
         if let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() {
             for bound in bounds
@@ -29,7 +24,7 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_types
                 .chain(bounds.interfaces().values())
             {
                 scope
-                    .validate_signature_semantics_metered(bound, authority, meter, &path)
+                    .validate_signature_semantics(bound, authority)
                     .map_err(Error::Signature)?;
             }
         }
@@ -46,7 +41,7 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_types
         .chain(std::iter::once(payload.result()))
     {
         scope
-            .validate_signature_semantics_metered(value, authority, meter, &path)
+            .validate_signature_semantics(value, authority)
             .map_err(Error::Signature)?;
     }
     Ok(())

@@ -66,11 +66,7 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<DefaultTemplateProviderShapeV1, &'static str> {
-        meter
-            .charge_work(path.segments().len() as u64, &WirePath::root())
-            .map_err(|_| "provider budget")?;
         if root == self.root && path == &self.path {
             Ok(self.provider)
         } else {
@@ -81,11 +77,7 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, &'static str> {
-        meter
-            .charge_work(1, &WirePath::root())
-            .map_err(|_| "provider budget")?;
         if root != self.root || path != &self.path {
             return Err("wrong provider parameter");
         }
@@ -100,11 +92,7 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority {
         &mut self,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
-        meter: &mut BudgetMeter,
     ) -> Result<Option<SignatureTypeKey>, &'static str> {
-        meter
-            .charge_work(1, &WirePath::root())
-            .map_err(|_| "provider budget")?;
         if root == self.root && path == &self.path {
             Ok(self.provider_receiver.clone())
         } else {
@@ -117,11 +105,7 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority {
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
         mapping: &CanonicalBinderUseListV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
-        meter
-            .charge_work(1, &WirePath::root())
-            .map_err(|_| "provider budget")?;
         self.inherited_calls += 1;
         if self.inherited
             && key == self.key
@@ -157,11 +141,7 @@ impl ProtectedDefaultOriginSemanticAuthority<&'static str> for Authority {
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
         origin: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
-        meter
-            .charge_work(path.segments().len() as u64, &WirePath::root())
-            .map_err(|_| "origin budget")?;
         if !self.reject_origin
             && key == self.key
             && root == self.root
@@ -180,11 +160,7 @@ impl ProtectedDefaultOriginSemanticAuthority<&'static str> for Authority {
         path: &StructuralDefinitionPath,
         selector: &LocalValueSelector,
         origin: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
-        meter
-            .charge_work(self.locals.len() as u64, &WirePath::root())
-            .map_err(|_| "origin budget")?;
         if !self.reject_local
             && key == self.key
             && root == self.root

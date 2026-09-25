@@ -1,7 +1,5 @@
 use super::*;
-use scoop_wire::{
-    BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, decode_canonical, encode,
-};
+use scoop_wire::{decode_canonical, encode};
 
 #[test]
 fn normalization_preserves_final_bytes_and_accepts_adjacent_slots_in_either_order() {
@@ -109,8 +107,7 @@ fn borrowed_object_projection_preserves_wire_and_requires_actual_definition_rang
         fixture.member,
         offset,
     );
-    let decoded: crate::DecodedLinkIdentityClosureSectionV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: crate::DecodedLinkIdentityClosureSectionV1 = decode_canonical(&bytes).unwrap();
     let patch = ProvisionalDigestPatchSiteV1::new(fixture.intent, fixture.member, offset, 32);
     let patches = verify_scoop_lir_digest_patch_sites_v1(
         fixture.builtins,
@@ -124,24 +121,12 @@ fn borrowed_object_projection_preserves_wire_and_requires_actual_definition_rang
     )
     .unwrap();
     let plan = patches.builtins().member_plan();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-    decoded
-        .replay_object_projections(plan, &patches, &mut meter)
-        .unwrap();
+
+    decoded.replay_object_projections(plan, &patches).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    let usage = meter.usage();
-    let mut exact = BudgetMeter::new(DecodeLimits {
-        validation_work_units: usage.validation_work_units,
-        ..DecodeLimits::default()
-    });
-    decoded
-        .replay_object_projections(plan, &patches, &mut exact)
-        .unwrap();
-    assert!(
-        matches!(decoded.replay_object_projections(plan, &patches, &mut exact),
-        Err(crate::LinkObjectProjectionValidationError::Resource(error))
-            if matches!(error.kind(), WireErrorKind::LimitExceeded { resource: ResourceKind::ValidationWorkUnits, .. }))
-    );
+
+    decoded.replay_object_projections(plan, &patches).unwrap();
+
     let stale =
         crate::link_object::encoded_link_identity_closure_without_object_projection_for_test(
             plan,
@@ -149,29 +134,9 @@ fn borrowed_object_projection_preserves_wire_and_requires_actual_definition_rang
             fixture.member,
             offset,
         );
-    let stale: crate::DecodedLinkIdentityClosureSectionV1 =
-        decode_canonical(&stale, DecodeLimits::default()).unwrap();
+    let stale: crate::DecodedLinkIdentityClosureSectionV1 = decode_canonical(&stale).unwrap();
     assert_eq!(
-        stale.replay_object_projections(
-            plan,
-            &patches,
-            &mut BudgetMeter::new(DecodeLimits::default())
-        ),
+        stale.replay_object_projections(plan, &patches),
         Err(crate::LinkObjectProjectionValidationError::ProjectionMismatch)
     );
-    for limits in [
-        DecodeLimits {
-            owned_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            decoded.replay_object_projections(plan, &patches, &mut BudgetMeter::new(limits)),
-            Err(crate::LinkObjectProjectionValidationError::Resource(_))
-        ));
-    }
 }

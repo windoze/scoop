@@ -2,7 +2,6 @@ use std::fmt;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::DecodeUsage;
 
 use crate::{
     ArtifactFingerprint, CompatibilityRecord, ConeKind, ConeSourceForm, DecodedSlibEnvelope,
@@ -72,10 +71,6 @@ impl ValidatedGraphArtifact<'_> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.envelope.manifest().artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.envelope.decode_usage()
     }
 }
 

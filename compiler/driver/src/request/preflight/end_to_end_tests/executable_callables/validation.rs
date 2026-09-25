@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_count: usize) {
-    let loaded = request.load_preflight(DecodeLimits::default()).unwrap();
+    let loaded = request.load_preflight().unwrap();
     let request = loaded.validate().unwrap();
     let parsed = request.parse_current_sources().unwrap();
     let ValidatedCompilerProtocols::Imported(inputs) = request.protocols() else {

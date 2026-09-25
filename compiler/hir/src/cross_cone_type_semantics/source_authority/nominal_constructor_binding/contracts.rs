@@ -6,7 +6,6 @@ pub(super) fn validate(
     nominal: &NominalSourceContractV1,
     key: &SourceDeclarationKey,
     record: &NominalSupportConstructorInterfaceV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let declaration = record.declaration();
     let payload = record.payload();
@@ -22,7 +21,7 @@ pub(super) fn validate(
             "constructor differs from its nominal inventory owner",
         ));
     }
-    super::access::validate(nominals.foundation, key, record, meter)?;
+    super::access::validate(nominals.foundation, key, record)?;
     let effects = payload.effects();
     if effects.execution() != scoop_identity::Effect::Ordinary
         || effects.implementation() != CallableImplementationV1::Scoop
@@ -40,8 +39,7 @@ pub(super) fn validate(
         ));
     };
     let actual = payload.parameters().parameters();
-    meter.check_table_entries(actual.len() as u64, &path)?;
-    meter.charge_work(actual.len() as u64, &path)?;
+
     if parameters.len() != actual.len() {
         return Err(invalid(
             declaration,
@@ -51,23 +49,19 @@ pub(super) fn validate(
     let scope = nominal.type_parameters().signature_scope(None);
     let mut shapes = super::signatures::Shapes(nominals);
     for (expected, actual) in parameters.iter().zip(actual) {
-        if !NominalRepresentationSupportV1::signature_types_match_metered(
-            expected,
-            actual.value_type(),
-            3,
-            meter,
-            &path,
-        )? {
+        if !crate::compare_default_signature_reference_targets(expected, actual.value_type(), &path)
+            .map(|ordering| ordering.is_eq())?
+        {
             return Err(invalid(
                 declaration,
                 "constructor parameter type differs from source key",
             ));
         }
-        super::signatures::validate(declaration, &scope, actual.value_type(), &mut shapes, meter)?;
+        super::signatures::validate(declaration, &scope, actual.value_type(), &mut shapes)?;
     }
-    super::signatures::validate(declaration, &scope, payload.result(), &mut shapes, meter)?;
+    super::signatures::validate(declaration, &scope, payload.result(), &mut shapes)?;
     let arity = nominal.type_parameters().len_u32();
-    meter.charge_work(u64::from(arity) + 1, &path)?;
+
     let matches = match (nominal.owner(), payload.result()) {
         (SourceNominalId::Concrete(owner), SignatureTypeKey::Nominal(actual)) => owner == *actual,
         (SourceNominalId::GenericTemplate(owner), SignatureTypeKey::NominalApplication { origin, arguments }) => {

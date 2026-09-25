@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 mod callables;
 mod descriptors;
@@ -41,7 +41,6 @@ pub struct LayoutAbiExportDependenciesV1<'a> {
 pub fn lower_layout_abi_exports(
     input: LayoutAbiExportInputV1<'_>,
     dependencies: LayoutAbiExportDependenciesV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<lir::LayoutAbiExportConstituentsV1, Error> {
     let provider = input.lir.foundation().producer();
     let target = input.lir.module().meta.target_profile;
@@ -52,31 +51,25 @@ pub fn lower_layout_abi_exports(
     if registrations.target() != &target.wire_id() {
         return Err(Error::Target);
     }
-    lookup::validate_dependencies(provider, target, dependencies, meter)?;
+    lookup::validate_dependencies(provider, target, dependencies)?;
     let layouts = crate::lower_exact_layout_exports(
         input.mir,
         input.lir,
         input.bridge.types(),
         input.identities,
         dependencies.layouts,
-        meter,
     )?;
     let lookup = lookup::Layouts {
         local: &layouts,
         dependencies: dependencies.layouts,
     };
-    let callables = callables::lower(input, &lookup, meter)?;
-    let diagnostics =
-        ExactTypeDiagnosticCatalog::try_new(input.identities, input.coordinates, meter)?;
-    let descriptors = descriptors::lower(input, &layouts, &diagnostics, meter)?;
-    let dispatch = dispatch::lower(input, &lookup, &callables, dependencies.callables, meter)?;
+    let callables = callables::lower(input, &lookup)?;
+    let diagnostics = ExactTypeDiagnosticCatalog::try_new(input.identities, input.coordinates)?;
+    let descriptors = descriptors::lower(input, &layouts, &diagnostics)?;
+    let dispatch = dispatch::lower(input, &lookup, &callables, dependencies.callables)?;
     let roots = input.lir.shape_support().roots();
-    let mut sources = reserve(roots.len(), meter)?;
+    let mut sources = reserve(roots.len())?;
     for root in roots {
-        meter.charge_owned_bytes(
-            scoop_wire::encoded_length(root.declaration())?,
-            &WirePath::root(),
-        )?;
         sources.push(root.declaration().clone());
     }
     let shapes = lir::CanonicalParamFreeShapeSupportExportsV1::from_sources(
@@ -84,7 +77,6 @@ pub fn lower_layout_abi_exports(
         &layouts,
         &descriptors,
         input.lir.foundation(),
-        meter,
     )?;
     Ok(lir::LayoutAbiExportConstituentsV1::try_new(
         layouts,
@@ -95,18 +87,10 @@ pub fn lower_layout_abi_exports(
     )?)
 }
 
-fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, Error> {
+fn reserve<T>(count: usize) -> Result<Vec<T>, Error> {
     let path = WirePath::root();
-    meter.check_table_entries(count as u64, &path)?;
-    meter.charge_owned_bytes(
-        (count as u64).saturating_mul(std::mem::size_of::<T>() as u64),
-        &path,
-    )?;
-    let mut values = Vec::new();
-    meter.try_reserve_collection_slots(&mut values, count, &path)?;
-    Ok(values)
-}
 
-fn search(count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    Ok(meter.charge_work(u64::from(count.max(1).ilog2()) + 1, &WirePath::root())?)
+    let mut values = Vec::new();
+    scoop_wire::allocation::try_reserve(&mut values, count, &path)?;
+    Ok(values)
 }

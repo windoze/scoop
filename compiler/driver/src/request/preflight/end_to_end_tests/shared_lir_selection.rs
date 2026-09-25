@@ -56,7 +56,7 @@ fn shared_protocol_and_lir_projection_uses_actual_providers() {
             )
         };
         if name == "combined" {
-            let loaded = request().load_preflight(DecodeLimits::default()).unwrap();
+            let loaded = request().load_preflight().unwrap();
             let validated = loaded.validate().unwrap();
             let closure = &validated.dependencies().closure;
             let core = closure.share_artifact(ConeIdentity::CORE).unwrap();
@@ -70,7 +70,7 @@ fn shared_protocol_and_lir_projection_uses_actual_providers() {
         for (kind, suffix) in [(StageDumpKind::Mir, "mir"), (StageDumpKind::Lir, "lir")] {
             let mut request = request();
             request.emit = StageDumpPolicy::Stage(kind);
-            let artifact = request.build_and_publish(DecodeLimits::default()).unwrap();
+            let artifact = request.build_and_publish().unwrap();
             let dump = artifact.emitted_dump().unwrap().text();
             let snapshot = crate::workspace_root().join(format!(
                 "tests/fixtures/m23-shared-lir-selection/{name}.{suffix}.snap"

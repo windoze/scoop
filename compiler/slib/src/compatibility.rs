@@ -7,10 +7,7 @@ use scoop_lir::{
     BackendProfileFingerprint, RuntimeAbiContract, RuntimeAbiFingerprint, TargetProfileFingerprint,
     ValidatedLirTargetSelection,
 };
-use scoop_wire::{
-    Encoder, HashError, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use crate::{ArtifactCapabilityProfile, ArtifactCapabilityProfileFingerprint};
 
@@ -156,26 +153,6 @@ impl CompatibilityRecord {
         })
     }
 
-    pub(crate) fn hash_stream_lengths(
-        selection: ValidatedLirTargetSelection,
-        artifact_profile: ArtifactCapabilityProfile,
-    ) -> Result<[u64; 6], HashError> {
-        let descriptor_shape = IdentityAbiDescriptor::current()?;
-        Ok([
-            domain_separated_cbor_hash_stream_length(LANGUAGE_ABI_DOMAIN, &LanguageAbiContract)?,
-            RuntimeAbiContract.hash_stream_length()?,
-            TargetProfileFingerprint::hash_stream_length(selection.target())?,
-            BackendProfileFingerprint::hash_stream_length(selection.backend())?,
-            domain_separated_cbor_hash_stream_length(
-                COMPOSITE_IDENTITY_ABI_DOMAIN,
-                &descriptor_shape,
-            )?,
-            ArtifactCapabilityProfileFingerprint::hash_stream_length(
-                &artifact_profile.descriptor(),
-            )?,
-        ])
-    }
-
     pub const fn language_abi(&self) -> LanguageAbiFingerprint {
         self.language_abi
     }
@@ -306,7 +283,7 @@ mod tests {
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "a2172217523ca6415bf16fa191ec9af7bfd9f10a64970935713ab49a2cecb59d"
+            "c9dd14cdce30fe2e455f7a7c8ef2954f82b4bb2f1a561bc93da8ed0401d5e191"
         );
     }
 

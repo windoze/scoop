@@ -9,7 +9,7 @@ use crate::{
     DefaultFieldRefV1, HirClassConstructorIdentity, HirSignatureBinder, LexicalDefinitionRoot,
 };
 
-impl DefaultEntityProjector<'_, '_> {
+impl DefaultEntityProjector<'_> {
     pub(in crate::production::default_templates) fn struct_constructor(
         &self,
         application: crate::StructConstructorApplicationId,
@@ -255,7 +255,6 @@ impl DefaultEntityProjector<'_, '_> {
         root: LexicalDefinitionRoot,
         path: &scoop_identity::StructuralDefinitionPath,
     ) -> Result<GeneratedCallableKey, super::super::DefaultEntityProjectionError> {
-        self.resources.path(path)?;
         Ok(GeneratedCallableKey::CallableReferenceInvoke {
             parent: self.lexical_parent(root)?,
             path: path.clone(),

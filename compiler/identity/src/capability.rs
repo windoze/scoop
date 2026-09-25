@@ -104,7 +104,7 @@ impl WireEncode for DecodedCapabilityId {
 }
 
 impl WireDecode for DecodedCapabilityId {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         let namespace = decoder.field(1, Decoder::owned_text)?;
         let name = decoder.field(2, Decoder::owned_text)?;
@@ -214,31 +214,35 @@ pub struct ArtifactCapabilityProfileId(CapabilityId);
 
 impl ArtifactCapabilityProfileId {
     pub fn identity_foundation() -> Self {
-        Self(CapabilityId::known(
-            "org.scoop-lang.slib-profile",
-            "identity-foundation",
-        ))
+        Self(CapabilityId {
+            namespace: "org.scoop-lang.slib-profile".to_owned(),
+            name: "identity-foundation".to_owned(),
+            major_version: 2,
+        })
     }
 
     pub fn single_cone_strong() -> Self {
-        Self(CapabilityId::known(
-            "org.scoop-lang.slib-profile",
-            "single-cone-strong",
-        ))
+        Self(CapabilityId {
+            namespace: "org.scoop-lang.slib-profile".to_owned(),
+            name: "single-cone-strong".to_owned(),
+            major_version: 2,
+        })
     }
 
     pub fn cross_cone_semantics_strong() -> Self {
-        Self(CapabilityId::known(
-            "org.scoop-lang.slib-profile",
-            "cross-cone-semantics-strong",
-        ))
+        Self(CapabilityId {
+            namespace: "org.scoop-lang.slib-profile".to_owned(),
+            name: "cross-cone-semantics-strong".to_owned(),
+            major_version: 2,
+        })
     }
 
     pub fn cross_cone_layout_strong() -> Self {
-        Self(CapabilityId::known(
-            "org.scoop-lang.slib-profile",
-            "cross-cone-layout-strong",
-        ))
+        Self(CapabilityId {
+            namespace: "org.scoop-lang.slib-profile".to_owned(),
+            name: "cross-cone-layout-strong".to_owned(),
+            major_version: 2,
+        })
     }
 
     pub fn capability(&self) -> &CapabilityId {
@@ -381,7 +385,7 @@ fn validate_label(value: &str, maximum_length: usize) -> Result<(), CapabilityLa
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+    use scoop_wire::{decode_canonical, encode};
 
     use super::{
         ArtifactCapabilityProfileId, CBridgeToolchainProfileId, CapabilityId, DecodedCapabilityId,
@@ -442,11 +446,8 @@ mod tests {
     #[test]
     fn capability_decode_validates_grammar_before_refinement() {
         let target = TargetProfileWireId::darwin_aarch64();
-        let decoded = decode_canonical::<DecodedCapabilityId>(
-            &encode(target.capability()).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedCapabilityId>(&encode(target.capability()).unwrap()).unwrap();
         assert_eq!(
             TargetProfileWireId::refine(decoded.validate().unwrap()),
             Ok(target)
@@ -454,7 +455,7 @@ mod tests {
 
         let malformed = b"\xa3\x01\x63Org\x02\x64name\x03\x01";
         assert!(
-            decode_canonical::<DecodedCapabilityId>(malformed, DecodeLimits::default())
+            decode_canonical::<DecodedCapabilityId>(malformed)
                 .unwrap()
                 .validate()
                 .is_err()

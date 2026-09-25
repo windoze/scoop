@@ -2,13 +2,10 @@ use super::*;
 mod malformed;
 use crate::cross_cone_type_semantics::slot_schemas::tests::support::Fixture;
 use scoop_identity::{DecodedPersistentId, PersistentIdResolver, SourceNominalKind};
-use scoop_wire::{DecodeLimits, WireDecode, decode_canonical, encode};
+use scoop_wire::{WireDecode, decode_canonical, encode};
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 #[test]
@@ -28,8 +25,7 @@ fn interface_source_wire_preserves_parent_member_order_and_canonical_overrides()
         ),
     ];
     let source =
-        InterfaceSourceDispatchV1::try_new(c.exact, vec![b.exact, a.exact], members, &mut meter())
-            .unwrap();
+        InterfaceSourceDispatchV1::try_new(c.exact, vec![b.exact, a.exact], members).unwrap();
     let expected = [
         vec![0xa3, 1],
         encode(&c.exact).unwrap(),
@@ -46,10 +42,10 @@ fn interface_source_wire_preserves_parent_member_order_and_canonical_overrides()
     .concat();
     assert_eq!(encode(&source).unwrap(), expected);
     let read: DecodedInterfaceSourceDispatchV1 = decoded(&source);
-    assert_eq!(read.resolve(&mut fixture, &mut meter()).unwrap(), source);
-    let table = CanonicalInterfaceSourceDispatchesV1::try_new(vec![source], &mut meter()).unwrap();
+    assert_eq!(read.resolve(&mut fixture).unwrap(), source);
+    let table = CanonicalInterfaceSourceDispatchesV1::try_new(vec![source]).unwrap();
     let read: DecodedCanonicalInterfaceSourceDispatchesV1 = decoded(&table);
-    assert_eq!(read.resolve(&mut fixture, &mut meter()).unwrap(), table);
+    assert_eq!(read.resolve(&mut fixture).unwrap(), table);
 }
 
 #[test]
@@ -71,95 +67,40 @@ fn interface_source_rejects_duplicate_parents_members_self_overrides_and_wrong_m
         ),
     ] {
         assert!(matches!(
-            InterfaceSourceDispatchV1::try_new(owner, parents, members, &mut meter()),
+            InterfaceSourceDispatchV1::try_new(owner, parents, members),
             Err(SourceInventoryError::InvalidInterfaceDispatch { .. })
         ));
     }
-    assert!(
-        decode_canonical::<DecodedInterfaceSourceDispatchV1>(&[0xa0], DecodeLimits::default())
-            .is_err()
-    );
+    assert!(decode_canonical::<DecodedInterfaceSourceDispatchV1>(&[0xa0]).is_err());
 }
 
 #[test]
-fn interface_source_reader_rejects_noncanonical_tables_unknown_refs_and_nested_budget_before_lookup()
- {
+fn interface_source_reader_rejects_noncanonical_tables_and_unknown_refs() {
     let mut fixture = Fixture::default();
     let first = fixture.add("First", SourceNominalKind::Interface);
     let second = fixture.add("Second", SourceNominalKind::Interface);
     let record =
-        InterfaceSourceDispatchV1::try_new(first.exact, vec![second.exact], vec![], &mut meter())
-            .unwrap();
-    let other =
-        InterfaceSourceDispatchV1::try_new(second.exact, vec![], vec![], &mut meter()).unwrap();
-    let table =
-        CanonicalInterfaceSourceDispatchesV1::try_new(vec![record.clone(), other], &mut meter())
-            .unwrap();
+        InterfaceSourceDispatchV1::try_new(first.exact, vec![second.exact], vec![]).unwrap();
+    let other = InterfaceSourceDispatchV1::try_new(second.exact, vec![], vec![]).unwrap();
+    let table = CanonicalInterfaceSourceDispatchesV1::try_new(vec![record.clone(), other]).unwrap();
     for records in [
         vec![record.clone(), record.clone()],
         table.records().iter().rev().cloned().collect(),
     ] {
         let read: DecodedCanonicalInterfaceSourceDispatchesV1 = decoded(&RawTable(records));
         assert!(matches!(
-            read.resolve(&mut fixture, &mut meter()),
+            read.resolve(&mut fixture),
             Err(SourceInventoryError::NonCanonicalOrder { .. })
         ));
     }
     let mut rejecting = Rejecting(0);
-    let read: DecodedInterfaceSourceDispatchV1 = decoded(&record);
-    assert!(matches!(
-        read.resolve(
-            &mut rejecting,
-            &mut BudgetMeter::new(DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(SourceInventoryError::Resource(_))
-    ));
+
     assert_eq!(rejecting.0, 0);
     let read: DecodedInterfaceSourceDispatchV1 = decoded(&record);
     assert!(matches!(
-        read.resolve(&mut rejecting, &mut meter()),
+        read.resolve(&mut rejecting),
         Err(SourceInventoryError::Reference(_))
     ));
-}
-
-#[test]
-fn nested_override_budget_is_preflighted_before_the_owner_lookup() {
-    let mut fixture = Fixture::default();
-    let node = fixture.add("Owner", SourceNominalKind::Interface);
-    let slot = fixture.function(node, "run");
-    let first = fixture.function(node, "first");
-    let second = fixture.function(node, "second");
-    let record = InterfaceSourceDispatchV1::try_new(
-        node.exact,
-        vec![],
-        vec![InterfaceSourceMemberV1::new(
-            slot,
-            CanonicalPersistentIdsV1::try_new(vec![first, second]).unwrap(),
-        )],
-        &mut meter(),
-    )
-    .unwrap();
-    let mut resolver = Rejecting(0);
-    for limits in [
-        DecodeLimits {
-            semantic_table_entries: 1,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        let read: DecodedInterfaceSourceDispatchV1 = decoded(&record);
-        assert!(matches!(
-            read.resolve(&mut resolver, &mut BudgetMeter::new(limits)),
-            Err(SourceInventoryError::Resource(_))
-        ));
-        assert_eq!(resolver.0, 0);
-    }
 }
 
 struct RawTable(Vec<InterfaceSourceDispatchV1>);

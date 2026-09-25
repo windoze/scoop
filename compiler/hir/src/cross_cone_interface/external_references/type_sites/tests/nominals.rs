@@ -25,28 +25,10 @@ fn structural_exact_types_visit_only_reachable_nominal_leaves() {
         NominalDeclarationOwner::Concrete(any),
     ];
     expected.sort_unstable();
-    let query = |root, meter: &mut BudgetMeter| {
-        collect_type_site_nominals(root, |id| keys.get(&id).ok_or("missing exact"), meter)
-    };
-    assert_eq!(query(tuple, &mut meter()).unwrap(), expected);
+    let query = |root| collect_type_site_nominals(root, |id| keys.get(&id).ok_or("missing exact"));
+    assert_eq!(query(tuple).unwrap(), expected);
     assert_eq!(
-        query(pointer, &mut meter()).unwrap(),
+        query(pointer).unwrap(),
         vec![NominalDeclarationOwner::Concrete(unit)]
     );
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            semantic_recursion: 1,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(query(tuple, &mut BudgetMeter::new(limits)).is_err());
-    }
 }

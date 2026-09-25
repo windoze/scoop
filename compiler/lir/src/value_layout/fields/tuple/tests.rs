@@ -1,11 +1,7 @@
 use super::*;
 use crate::value_layout::fields::tests::{TARGET, value};
 use scoop_identity::NonEmptyVec;
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+use scoop_wire::{decode_canonical, encode};
 
 fn tuple(
     values: &[&ValueLayoutConstituentV1],
@@ -26,7 +22,7 @@ fn tuple_replay_preserves_exact_positions_zst_alignment_and_reference_offsets() 
     ];
     let refs: Vec<_> = values.iter().collect();
     let exact = tuple(&refs);
-    let layout = TupleStorageLayoutV1::replay(TARGET, &exact, &refs, &mut meter()).unwrap();
+    let layout = TupleStorageLayoutV1::replay(TARGET, &exact, &refs).unwrap();
     assert_eq!(layout.exact(), exact.id());
     assert_eq!(layout.storage().byte_size(), 16);
     assert_eq!(layout.storage().alignment().get(), 16);
@@ -42,8 +38,7 @@ fn tuple_replay_preserves_exact_positions_zst_alignment_and_reference_offsets() 
         assert_eq!(field.index().tuple(), exact.id());
         assert_eq!(field.index().ordinal(), ordinal as u64);
         let bytes = encode(field).unwrap();
-        let decoded: DecodedTupleElementStorageV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedTupleElementStorageV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.validate_against(field).unwrap(), *field);
     }
     assert_eq!(
@@ -59,7 +54,7 @@ fn all_zst_tuple_has_canonical_zero_offsets_and_maximum_alignment() {
         value("Aligned", 0, 16, RefScan::None),
     ];
     let refs: Vec<_> = values.iter().collect();
-    let layout = TupleStorageLayoutV1::replay(TARGET, &tuple(&refs), &refs, &mut meter()).unwrap();
+    let layout = TupleStorageLayoutV1::replay(TARGET, &tuple(&refs), &refs).unwrap();
     assert_eq!(
         (
             layout.storage().byte_size(),
@@ -81,16 +76,16 @@ fn tuple_replay_rejects_arity_and_exact_type_mismatches() {
     let second = value("Second", 8, 8, RefScan::None);
     let exact = tuple(&[&first]);
     assert!(matches!(
-        TupleStorageLayoutV1::replay(TARGET, &exact, &[], &mut meter()),
+        TupleStorageLayoutV1::replay(TARGET, &exact, &[]),
         Err(TupleStorageReplayError::ArityMismatch)
     ));
     assert!(matches!(
-        TupleStorageLayoutV1::replay(TARGET, &exact, &[&second], &mut meter()),
+        TupleStorageLayoutV1::replay(TARGET, &exact, &[&second]),
         Err(TupleStorageReplayError::ElementTypeMismatch)
     ));
     let nominal = CborIdentityRecord::from_key(ExactTypeKey::RawPointer(first.exact())).unwrap();
     assert!(matches!(
-        TupleStorageLayoutV1::replay(TARGET, &nominal, &[&first], &mut meter()),
+        TupleStorageLayoutV1::replay(TARGET, &nominal, &[&first]),
         Err(TupleStorageReplayError::ExpectedTuple)
     ));
 }
@@ -99,14 +94,13 @@ fn tuple_replay_rejects_arity_and_exact_type_mismatches() {
 fn tuple_wire_cannot_change_position_access_alignment_or_zst_offset() {
     let value = value("Empty", 0, 8, RefScan::None);
     let exact = tuple(&[&value]);
-    let layout = TupleStorageLayoutV1::replay(TARGET, &exact, &[&value], &mut meter()).unwrap();
+    let layout = TupleStorageLayoutV1::replay(TARGET, &exact, &[&value]).unwrap();
     let field = &layout.elements()[0];
     let bytes = encode(field).unwrap();
     for index in [2, bytes.len() - 1] {
         let mut changed = bytes.clone();
         changed[index] = 1;
-        let decoded: DecodedTupleElementStorageV1 =
-            decode_canonical(&changed, DecodeLimits::default()).unwrap();
+        let decoded: DecodedTupleElementStorageV1 = decode_canonical(&changed).unwrap();
         assert!(decoded.validate_against(field).is_err());
     }
     let whole = StorageGeometryV1::new(TARGET, 16, 8).unwrap();

@@ -1,7 +1,6 @@
 use scoop_hir::OdrFreeHirFoundation;
 use scoop_lir::OdrFreeLirFoundation;
 use scoop_mir::OdrFreeMirFoundation;
-use scoop_wire::{BudgetMeter, DecodeUsage};
 
 use super::*;
 use crate::{
@@ -39,10 +38,6 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
@@ -328,10 +323,8 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
         &CoreBootstrapInterfaceSectionV1,
         &CrossConeHirInterfaceSectionV1,
         &CrossConeTypeSemanticsSectionV1,
-        &mut BudgetMeter,
     ) {
         let Self {
-            graph,
             identities,
             foundations,
             hir_core_production,
@@ -345,7 +338,6 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
             hir_core_production,
             hir_interface,
             hir_type_semantics,
-            graph.envelope.meter_mut(),
         )
     }
 }

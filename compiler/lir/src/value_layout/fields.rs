@@ -3,9 +3,6 @@
 //! responsibility of the complete layout section validator.
 //!
 //! These builders accept already checked, in-memory declaration sequences.
-//! A wire section reader must charge its shared decode/validation meter for
-//! field tables and complete inherited projections before invoking replay;
-//! the per-scan budget does not authorize allocating an enclosing table.
 
 use std::{collections::BTreeSet, sync::Arc};
 

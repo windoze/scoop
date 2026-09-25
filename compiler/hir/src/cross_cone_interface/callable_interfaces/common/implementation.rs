@@ -33,7 +33,7 @@ impl WireEncode for CallableImplementationV1 {
 }
 
 impl WireDecode for CallableImplementationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(error(decoder, WireErrorKind::MissingField { field: 0 }));
@@ -65,7 +65,7 @@ impl WireDecode for CallableImplementationV1 {
     }
 }
 
-fn error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

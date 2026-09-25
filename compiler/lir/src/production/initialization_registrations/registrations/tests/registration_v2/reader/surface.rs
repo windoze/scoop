@@ -48,16 +48,15 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
         )
         .unwrap();
         let decoded: crate::DecodedStrongRegistrationProductionSurfaceV2 =
-            decode_canonical(&encode(&original).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&original).unwrap()).unwrap();
         let replayed = decoded
             .replay(
                 LirTargetProfile::DARWIN_AARCH64,
                 &fixture.foundation,
                 &fixture.digests,
                 &crate::StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
-                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[], &mut meter()).unwrap(),
-                &Catalog::new(producer, &[definition(&provider)], &mut meter()).unwrap(),
-                &mut meter(),
+                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
+                &Catalog::new(producer, &[definition(&provider)]).unwrap(),
             )
             .unwrap();
         assert_eq!(
@@ -87,7 +86,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
         )
         .unwrap();
         let decoded: crate::DecodedStrongProductionSectionV2 =
-            decode_canonical(&encode(&section).unwrap(), DecodeLimits::default()).unwrap();
+            decode_canonical(&encode(&section).unwrap()).unwrap();
         let complete = decoded
             .replay(
                 coordinate,
@@ -98,9 +97,8 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 crate::EntryProductionSourceV1::Library,
                 &[],
                 None,
-                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[], &mut meter()).unwrap(),
-                &Catalog::new(producer, &[definition(&provider)], &mut meter()).unwrap(),
-                &mut meter(),
+                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
+                &Catalog::new(producer, &[definition(&provider)]).unwrap(),
             )
             .unwrap();
         assert_eq!(

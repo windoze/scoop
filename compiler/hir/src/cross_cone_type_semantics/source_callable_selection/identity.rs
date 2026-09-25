@@ -7,14 +7,12 @@ pub(super) fn is_local(
     provider: ConeIdentity,
     identities: &ValidatedIdentityGraph,
     declaration: Origin,
-    meter: &mut BudgetMeter,
 ) -> Result<bool, Error> {
-    lookup(identities.identity_count(), meter)?;
     let key = match declaration {
         Origin::Function(id) => identities.canonical_key::<_, SourceDeclarationKey>(id)?,
         Origin::Accessor(id) => {
             let key = identities.canonical_key::<_, PropertyAccessorKey>(id)?;
-            lookup(identities.identity_count(), meter)?;
+
             match key.owner() {
                 PropertyOwner::Property(id) => {
                     identities.canonical_key::<_, SourceDeclarationKey>(id)?
@@ -31,9 +29,8 @@ pub(super) fn is_local(
     Ok(key.origin() == provider)
 }
 
-impl Selection<'_, '_, '_> {
+impl Selection<'_, '_> {
     pub(super) fn require_property(&mut self, id: PersistentPropertyId) -> Result<(), Error> {
-        lookup(self.identities.identity_count(), self.meter)?;
         if self
             .identities
             .canonical_key::<_, SourceDeclarationKey>(id)?
@@ -42,11 +39,8 @@ impl Selection<'_, '_, '_> {
         {
             return Ok(());
         }
-        lookup(self.properties.len(), self.meter)?;
+
         if !self.properties.contains(&id) {
-            self.meter
-                .check_table_entries(self.properties.len() as u64 + 1, &WirePath::root())?;
-            self.meter.charge_collection_slots(1, &WirePath::root())?;
             self.properties.insert(id);
         }
         Ok(())
@@ -61,14 +55,10 @@ impl Selection<'_, '_, '_> {
             return Ok(false);
         };
         let key = ExactTypeKey::Nominal(owner);
-        self.meter.charge_sha256(
-            PersistentExactTypeId::hash_stream_length(&key)
-                .map_err(|error| Error::Key(error.to_string()))?,
-            &WirePath::root(),
-        )?;
+
         let exact =
             PersistentExactTypeId::from_key(&key).map_err(|error| Error::Key(error.to_string()))?;
-        lookup(types.inheritance().records().len(), self.meter)?;
+
         Ok(types.inheritance().get(exact).is_some())
     }
 }

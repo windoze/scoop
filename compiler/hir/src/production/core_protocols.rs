@@ -79,7 +79,7 @@ impl WireEncode for DecodedCoreProtocolCallableDefinitionV1 {
 }
 
 impl WireDecode for DecodedCoreProtocolCallableDefinitionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         if fields == 0 {
             return Err(wire_error(
@@ -164,7 +164,7 @@ impl WireEncode for DecodedCoreProtocolCallableV1 {
 }
 
 impl WireDecode for DecodedCoreProtocolCallableV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             definition: decoder.field(1, DecodedCoreProtocolCallableDefinitionV1::decode)?,
@@ -185,11 +185,7 @@ fn encode_value_sum(
     value.encode(encoder)
 }
 
-fn require_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
+fn require_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Result<(), WireError> {
     if actual == expected {
         Ok(())
     } else {
@@ -200,7 +196,7 @@ fn require_sum_length(
     }
 }
 
-fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {
+fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
 

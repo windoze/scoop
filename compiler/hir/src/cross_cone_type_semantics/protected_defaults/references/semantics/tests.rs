@@ -3,7 +3,6 @@ use crate::cross_cone_type_semantics::inheritance::inheritance_interface_fixture
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::{Fixture, nominal};
 use crate::*;
 use scoop_identity::*;
-use scoop_wire::DecodeLimits;
 
 mod authority;
 mod cases;
@@ -26,17 +25,14 @@ enum Case {
     GenericLie,
     EmptyReferences,
 }
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn run(
     case: Case,
 ) -> Result<(bool, usize, usize), ProtectedDefaultReferenceSemanticError<&'static str>> {
-    run_with_limits(case, DecodeLimits::default())
+    run_with_limits(case)
 }
 fn run_with_limits(
     case: Case,
-    limits: DecodeLimits,
 ) -> Result<(bool, usize, usize), ProtectedDefaultReferenceSemanticError<&'static str>> {
     let mut bundle = inheritance_interface_fixture();
     let generic = matches!(case, Case::Generic | Case::GenericReject);
@@ -60,7 +56,6 @@ fn run_with_limits(
         graph_source.records.values(),
         graph_source.keys.keys().copied(),
         &graph_source,
-        &mut meter(),
     )
     .unwrap();
     let mut source_foundation = bundle.fixture.clone();
@@ -71,12 +66,11 @@ fn run_with_limits(
             &graph,
             &CanonicalNominalRepresentationSupportV1::try_new(vec![]).unwrap(),
             &mut bundle.fixture,
-            &mut meter(),
         )
         .unwrap();
     let inheritance = bundle
         .table
-        .validate_interfaces(&graph, protected, &mut bundle.fixture, &mut meter())
+        .validate_interfaces(&graph, protected, &mut bundle.fixture)
         .unwrap();
     let key = ProtectedDefaultTemplateKeyV1::try_new(record.declaration(), 0).unwrap();
     let origin = bundle.fixture.graph.origins[&owner].clone();
@@ -85,7 +79,7 @@ fn run_with_limits(
     } else {
         ProtectedDefaultWitnessSourceProfileV1::ParamFree
     };
-    let target_domain = graph.replay_nominal_access(target, &mut meter()).unwrap();
+    let target_domain = graph.replay_nominal_access(target).unwrap();
     let witness = if generic || matches!(case, Case::GenericLie) {
         ProtectedDefaultAccessWitnessV1::generic_source_metadata(key.owner()).unwrap()
     } else {
@@ -117,7 +111,6 @@ fn run_with_limits(
         &graph,
         inheritance,
         &mut authority,
-        &mut BudgetMeter::new(limits),
         &WirePath::root(),
     )?;
     assert_eq!(checked.template().key(), key);

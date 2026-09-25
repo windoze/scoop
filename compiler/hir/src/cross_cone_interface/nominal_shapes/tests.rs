@@ -5,7 +5,7 @@ use scoop_identity::{
     PersistentEnumVariantId, PersistentFieldId, PersistentObjectValueId, SignatureTypeKey,
     SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, ValidatedIdentityGraph,
 };
-use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
@@ -45,7 +45,7 @@ fn source_shape_and_variant_style_tags_have_fixed_wire() {
     ] {
         assert_eq!(encode(&style).unwrap(), [tag]);
         assert_eq!(
-            decode_canonical::<EnumSourceVariantStyleV1>(&[tag], DecodeLimits::default()).unwrap(),
+            decode_canonical::<EnumSourceVariantStyleV1>(&[tag]).unwrap(),
             style
         );
     }
@@ -253,37 +253,27 @@ fn reader_rejects_missing_typed_authority() {
 #[test]
 fn reader_rejects_unknown_tags_and_wrong_sum_lengths() {
     for retired in [1, 5] {
-        let error = decode_canonical::<DecodedNominalSourceShapeV1>(
-            &[0xa1, 0x00, retired],
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
+        let error =
+            decode_canonical::<DecodedNominalSourceShapeV1>(&[0xa1, 0x00, retired]).unwrap_err();
         assert!(
             matches!(error.kind(), WireErrorKind::UnknownTag { tag } if *tag == u64::from(retired))
         );
     }
-    let unknown_shape = decode_canonical::<DecodedNominalSourceShapeV1>(
-        &[0xa1, 0x00, 0x09],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let unknown_shape =
+        decode_canonical::<DecodedNominalSourceShapeV1>(&[0xa1, 0x00, 0x09]).unwrap_err();
     assert!(matches!(
         unknown_shape.kind(),
         WireErrorKind::UnknownTag { tag: 9 }
     ));
 
-    let unknown_style =
-        decode_canonical::<EnumSourceVariantStyleV1>(&[0x05], DecodeLimits::default()).unwrap_err();
+    let unknown_style = decode_canonical::<EnumSourceVariantStyleV1>(&[0x05]).unwrap_err();
     assert!(matches!(
         unknown_style.kind(),
         WireErrorKind::UnknownTag { tag: 5 }
     ));
 
-    let wrong_length = decode_canonical::<DecodedNominalSourceShapeV1>(
-        &[0xa1, 0x00, 0x07],
-        DecodeLimits::default(),
-    )
-    .unwrap_err();
+    let wrong_length =
+        decode_canonical::<DecodedNominalSourceShapeV1>(&[0xa1, 0x00, 0x07]).unwrap_err();
     assert!(matches!(
         wrong_length.kind(),
         WireErrorKind::InvalidLength {
@@ -388,7 +378,7 @@ fn authority(fixture: &Fixture) -> ValidatedIdentityGraph {
 }
 
 fn decode_shape<T: WireEncode>(value: &T) -> DecodedNominalSourceShapeV1 {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 struct InvalidStructShape(Vec<NominalSourceFieldV1>);

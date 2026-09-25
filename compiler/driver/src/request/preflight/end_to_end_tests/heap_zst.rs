@@ -26,7 +26,7 @@ fn zero_sized_fields_and_captures_publish_without_payload_memory_operations() {
                 vec![],
             );
             request.emit = StageDumpPolicy::Stage(kind);
-            let library = request.build_and_publish(DecodeLimits::default()).unwrap();
+            let library = request.build_and_publish().unwrap();
             let dump = library.emitted_dump().unwrap();
             let snapshot = directory.join(format!("{case}.{stage}.snap"));
             if std::env::var_os("SCOOP_UPDATE_HEAP_ZST").is_some() {
@@ -44,7 +44,6 @@ fn zero_sized_fields_and_captures_publish_without_payload_memory_operations() {
                 vec![ConeIdentity::CORE],
                 vec![&core_bytes],
                 &bytes,
-                DecodeLimits::default(),
                 target.c_bridge_toolchain().profile(),
                 &mut scoop_identity::SemanticIdentitySession::new(),
             )

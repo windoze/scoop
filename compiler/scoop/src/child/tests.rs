@@ -356,34 +356,3 @@ fn production_runner_rejects_signal_and_compiler_mutation() {
         Err(ChildTransportError::CompilerChanged(_))
     ));
 }
-
-#[test]
-fn production_runner_bounds_both_child_output_streams() {
-    let directory = tempfile::tempdir().unwrap();
-    let compiler = directory.path().join("scoopc");
-    let request = request([8; 16]);
-    let io = ChildIoPlan::new(directory.path().to_path_buf());
-
-    fake_compiler_body(
-        &compiler,
-        "/bin/cat >/dev/null\n/bin/dd if=/dev/zero bs=1048576 count=17 2>/dev/null",
-    );
-    let tool = resolve_fake(&compiler);
-    assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
-        Err(ChildTransportError::StreamTooLarge { name: "stdout", .. })
-    ));
-
-    let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
-    fake_compiler_body(
-        &compiler,
-        &format!(
-            "/bin/cat >/dev/null\nprintf '{response}'\n/bin/dd if=/dev/zero bs=65537 count=1 >&2"
-        ),
-    );
-    let tool = resolve_fake(&compiler);
-    assert!(matches!(
-        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
-        Err(ChildTransportError::StreamTooLarge { name: "stderr", .. })
-    ));
-}

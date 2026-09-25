@@ -8,7 +8,7 @@ use crate::{
 };
 
 impl WireDecode for DecodedExactDescriptorExportV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
             semantic: DecodedExactDescriptorSemanticProjectionV1::decode_fields(decoder)?,
@@ -23,7 +23,7 @@ impl WireDecode for DecodedExactDescriptorExportV1 {
 }
 
 impl WireDecode for DecodedAncestry {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             parent: decoder.field(1, DecodedOptionalStrongTypeDescriptorRefV2::decode)?,
@@ -35,7 +35,7 @@ impl WireDecode for DecodedAncestry {
 }
 
 impl WireDecode for DecodedDispatch {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             vtable: decoder.field(1, DecodedPersistentId::decode)?,
@@ -47,7 +47,7 @@ impl WireDecode for DecodedDispatch {
 }
 
 impl WireDecode for DecodedItable {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             interface: decoder.field(1, DecodedStrongTypeDescriptorRefV2::decode)?,
@@ -57,7 +57,7 @@ impl WireDecode for DecodedItable {
 }
 
 impl WireDecode for DecodedCanonicalExactDescriptorExportsV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedExactDescriptorExportV1::decode(decoder))
             .map(|records| Self { records })
@@ -123,7 +123,7 @@ fn encode_sequence<T: WireEncode>(
 }
 
 impl DecodedExactDescriptorSemanticProjectionV1 {
-    fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode_fields(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         Ok(Self {
             exact: decoder.field(1, DecodedPersistentId::decode)?,
             value_layout: decoder.field(2, DecodedPersistentId::decode)?,
@@ -155,7 +155,7 @@ impl DecodedExactDescriptorSemanticProjectionV1 {
     }
 }
 impl WireDecode for DecodedExactDescriptorSemanticProjectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(8)?;
         Self::decode_fields(decoder)
     }

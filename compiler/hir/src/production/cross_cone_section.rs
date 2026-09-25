@@ -66,19 +66,16 @@ impl CrossConeHirInterfaceSectionV1 {
     {
         let imported_dependencies =
             dependency_output.map(DependencyHirOutput::imported_dependencies);
-        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
-        let roots =
-            super::nominal_interfaces::SharedSourceRoots::from_export_hir(export, &mut meter)
+
+        let roots = super::nominal_interfaces::SharedSourceRoots::from_export_hir(export)
+            .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
+        let nominal_interfaces =
+            CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(export, &roots)
                 .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
-        let nominal_interfaces = CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(
-            export, &roots, &mut meter,
-        )
-        .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
         let property_interfaces = CanonicalPropertyInterfacesV1::from_export_hir_with_nominals(
             export,
             &nominal_interfaces,
             &roots,
-            &mut meter,
         )
         .map_err(CrossConeHirInterfaceProductionError::Properties)?;
         let callable_interfaces = CanonicalCallableInterfacesV1::from_export_hir_with_nominals(
@@ -86,7 +83,6 @@ impl CrossConeHirInterfaceSectionV1 {
             &property_interfaces,
             &nominal_interfaces,
             &roots,
-            &mut meter,
         )
         .map_err(CrossConeHirInterfaceProductionError::Callables)?;
         let type_aliases = CanonicalTypeAliasInterfacesV1::from_export_hir(export)

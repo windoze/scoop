@@ -22,8 +22,6 @@ use scoop_protocol::{
 };
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 
-const MAX_EXPLICIT_ARTIFACTS_PER_ROLE: usize = 4_096;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HostArtifactLocator(PathBuf);
 
@@ -48,23 +46,8 @@ pub struct ExplicitDependencyInputs {
 }
 
 impl ExplicitDependencyInputs {
-    pub fn new(
-        direct: Vec<HostArtifactLocator>,
-        support: Vec<HostArtifactLocator>,
-    ) -> Result<Self, SingleConeBuildRequestError> {
-        if direct.len() > MAX_EXPLICIT_ARTIFACTS_PER_ROLE {
-            return Err(SingleConeBuildRequestError::TooManyDependencyInputs {
-                role: "direct",
-                actual: direct.len(),
-            });
-        }
-        if support.len() > MAX_EXPLICIT_ARTIFACTS_PER_ROLE {
-            return Err(SingleConeBuildRequestError::TooManyDependencyInputs {
-                role: "support",
-                actual: support.len(),
-            });
-        }
-        Ok(Self { direct, support })
+    pub fn new(direct: Vec<HostArtifactLocator>, support: Vec<HostArtifactLocator>) -> Self {
+        Self { direct, support }
     }
 
     pub fn direct(&self) -> &[HostArtifactLocator] {
@@ -151,10 +134,6 @@ impl SingleConeBuildRequest {
 #[derive(Debug)]
 pub enum SingleConeBuildRequestError {
     EmptyArtifactLocator,
-    TooManyDependencyInputs {
-        role: &'static str,
-        actual: usize,
-    },
     EmptyOutputDestination,
     InvalidOutputExtension {
         path: PathBuf,
@@ -172,10 +151,6 @@ impl fmt::Display for SingleConeBuildRequestError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyArtifactLocator => formatter.write_str("artifact locator must not be empty"),
-            Self::TooManyDependencyInputs { role, actual } => write!(
-                formatter,
-                "too many {role} dependency inputs: limit 4096, found {actual}"
-            ),
             Self::EmptyOutputDestination => {
                 formatter.write_str(".slib output destination must not be empty")
             }
@@ -530,7 +505,7 @@ fn explicit_dependencies(
         .map(HostArtifactLocator::new)
         .collect::<Result<Vec<_>, _>>()
         .map_err(BuildRequestNormalizationError::Request)?;
-    ExplicitDependencyInputs::new(direct, support).map_err(BuildRequestNormalizationError::Request)
+    Ok(ExplicitDependencyInputs::new(direct, support))
 }
 
 fn protocol_paths(

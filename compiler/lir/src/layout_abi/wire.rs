@@ -23,7 +23,7 @@ encode_target!(LayoutAbiSemanticTargetV1);
 encode_target!(DecodedLayoutAbiSemanticTargetV1);
 
 impl WireDecode for DecodedLayoutAbiSemanticTargetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(match decoder.field(0, Decoder::unsigned)? {
             1 => Self::Layout(decoder.field(1, DecodedPersistentId::decode)?),
@@ -54,7 +54,7 @@ encode_dependency!(LayoutAbiDependencyV1);
 encode_dependency!(DecodedLayoutAbiDependencyV1);
 
 impl WireDecode for DecodedLayoutAbiDependencyV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
             provider: decoder.field(1, DecodedPersistentId::decode)?,

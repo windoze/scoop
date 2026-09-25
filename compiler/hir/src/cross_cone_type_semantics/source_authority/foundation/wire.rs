@@ -74,7 +74,7 @@ pub struct DecodedTypeFoundationSourceAuthorityV1 {
 mod resolve;
 
 impl WireDecode for DecodedTypeFoundationSourceAuthorityV1 {
-    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         d.expect_map(13)?;
         Ok(Self {
             provider: d.field(1, DecodedPersistentId::decode)?,

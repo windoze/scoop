@@ -1,11 +1,9 @@
 use super::{LocalNominalId, owner_atom, owner_resolution, source_nominal_id, source_shape};
 use crate::production::signatures::HirInterfaceSignatureProjector;
-use crate::production::type_semantics::inheritance::source_resources::{
-    self as resources, invalid, resource, work,
-};
+use crate::production::type_semantics::inheritance::source_errors::{invalid, resource};
 use crate::*;
 use scoop_identity::SourceDeclarationKey;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 type Error = CrossConeTypeSemanticsProductionError;
 
@@ -29,20 +27,14 @@ impl CanonicalNominalSourceContractsV1 {
     pub fn from_export_hir(
         output: &ExportHirOutput,
         required: &CanonicalSourceNominalIdsV1,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let export = output.module();
         let path = WirePath::root();
         let mut records = Vec::new();
-        meter.check_semantic_depth(1, &path).map_err(resource)?;
-        meter
-            .check_table_entries(required.values().len() as u64, &path)
-            .map_err(resource)?;
-        meter
-            .try_reserve_collection_slots(&mut records, required.values().len(), &path)
+
+        scoop_wire::allocation::try_reserve(&mut records, required.values().len(), &path)
             .map_err(resource)?;
         for local in locals(export) {
-            work(meter, required.values().len())?;
             let identity = local
                 .identity(export)
                 .ok_or_else(|| invalid("sealed nominal has no typed identity"))?;
@@ -55,14 +47,14 @@ impl CanonicalNominalSourceContractsV1 {
             {
                 continue;
             }
-            records.push(projection::project(export, local, source, meter)?);
+            records.push(projection::project(export, local, source)?);
         }
         if records.len() != required.values().len() {
             return Err(invalid(
                 "required nominal source owner is absent from this sealed HIR",
             ));
         }
-        Self::try_new(records, meter).map_err(Error::SourceInventory)
+        Self::try_new(records).map_err(Error::SourceInventory)
     }
 }
 
@@ -117,45 +109,20 @@ fn validate_owner(
     }
     Ok(())
 }
-fn push<T>(values: &mut Vec<T>, value: T, meter: &mut BudgetMeter) -> Result<(), Error> {
+fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), Error> {
     let path = WirePath::root();
-    meter
-        .check_table_entries(values.len() as u64 + 1, &path)
-        .map_err(resource)?;
-    meter.charge_nodes(1, &path).map_err(resource)?;
-    meter
-        .try_reserve_collection_slots(values, 1, &path)
-        .map_err(resource)?;
+
+    scoop_wire::allocation::try_reserve(values, 1, &path).map_err(resource)?;
     values.push(value);
     Ok(())
 }
-fn charge_canonical(count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
-    let path = WirePath::root();
-    let count = count as u64;
-    meter.check_table_entries(count, &path).map_err(resource)?;
-    meter
-        .charge_owned_bytes(count.saturating_mul(128), &path)
-        .map_err(resource)?;
-    meter
-        .charge_collection_slots(count.saturating_mul(2), &path)
-        .map_err(resource)?;
-    meter
-        .charge_work(
-            count
-                .saturating_mul(128)
-                .saturating_mul(u64::from(count.max(1).ilog2()) + 1),
-            &path,
-        )
-        .map_err(resource)
-}
+
 fn children(
     export: &ExportHir,
     owner: SourceNominalId,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalNestedNominalRefsV1, Error> {
     let mut children = Vec::new();
     for local in locals(export) {
-        work(meter, 1)?;
         let identity = local
             .identity(export)
             .ok_or_else(|| invalid("nested nominal has no identity"))?;
@@ -172,9 +139,9 @@ fn children(
                     "nested nominal source disagrees with its HIR owner",
                 ));
             }
-            push(&mut children, source_nominal_id(source), meter)?;
+            push(&mut children, source_nominal_id(source))?;
         }
     }
-    charge_canonical(children.len(), meter)?;
+
     CanonicalNestedNominalRefsV1::try_new(children).map_err(invalid)
 }

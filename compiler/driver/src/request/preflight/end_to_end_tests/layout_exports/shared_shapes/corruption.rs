@@ -12,7 +12,7 @@ pub(super) fn check(
     let records = shapes.records();
     let reject = |rows: &[lir::ParamFreeShapeSupportExportV1]| {
         let wire: lir::DecodedCanonicalParamFreeShapeSupportExportsV1 = decoded(&Rows(rows));
-        assert!(wire.validate_against(shapes, &mut meter()).is_err());
+        assert!(wire.validate_against(shapes).is_err());
     };
     for index in 0..records.len() {
         let mut missing = records.to_vec();
@@ -50,13 +50,10 @@ pub(super) fn check(
                 .filter(|record| record.exact() != exact)
                 .cloned()
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
-        assert!(
-            matches!(replay(input, expected.layouts(), &descriptors, &mut meter()),
-            Err(Error::Replay(lir::ParamFreeShapeSupportTableError::Record(lir::ParamFreeShapeSupportExportError::MissingDescriptor(missing)))) if missing == exact)
-        );
+        assert!(matches!(replay(input, expected.layouts(), &descriptors),
+            Err(Error::Replay(lir::ParamFreeShapeSupportTableError::Record(lir::ParamFreeShapeSupportExportError::MissingDescriptor(missing)))) if missing == exact));
         let layouts = lir::CanonicalExactLayoutExportsV1::try_new(
             expected.target_profile(),
             input.lir.foundation(),
@@ -71,13 +68,10 @@ pub(super) fn check(
                 })
                 .cloned()
                 .collect(),
-            &mut meter(),
         )
         .unwrap();
-        assert!(
-            matches!(replay(input, &layouts, expected.descriptors(), &mut meter()),
-            Err(Error::Replay(lir::ParamFreeShapeSupportTableError::Record(lir::ParamFreeShapeSupportExportError::MissingValueLayout(missing)))) if missing == exact)
-        );
+        assert!(matches!(replay(input, &layouts, expected.descriptors()),
+            Err(Error::Replay(lir::ParamFreeShapeSupportTableError::Record(lir::ParamFreeShapeSupportExportError::MissingValueLayout(missing)))) if missing == exact));
     }
     let empty = scoop_identity::PendingIdentityValidation::new()
         .finish()
@@ -88,8 +82,7 @@ pub(super) fn check(
             expected.layouts(),
             expected.descriptors(),
             &empty,
-            input.lir.foundation(),
-            &mut meter()
+            input.lir.foundation()
         ),
         Err(Error::Identity(_))
     ));

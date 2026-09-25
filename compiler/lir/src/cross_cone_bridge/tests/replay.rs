@@ -1,16 +1,12 @@
 use super::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical};
-
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+use scoop_wire::decode_canonical;
 
 fn decode(value: &impl WireEncode) -> DecodedCrossConeLirBridgeSectionV1 {
-    decode_canonical(&scoop_wire::encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&scoop_wire::encode(value).unwrap()).unwrap()
 }
 
 #[test]
-fn metered_ordinary_replay_preserves_both_provider_contracts() {
+fn ordinary_bridge_preserves_both_provider_contracts() {
     for provider in [Fixture::new("ordinary").producer, ConeIdentity::CORE] {
         let fixture = Fixture::for_producer(provider, "exported");
         let expected = CrossConeLirBridgeSectionV1::try_new(
@@ -19,17 +15,9 @@ fn metered_ordinary_replay_preserves_both_provider_contracts() {
             vec![],
         )
         .unwrap();
-        let replayed = CrossConeLirBridgeSectionV1::try_new_with_meter(
-            &fixture.foundation,
-            vec![fixture.export()],
-            vec![],
-            &mut meter(),
-        )
-        .unwrap();
-        assert_eq!(replayed, expected);
         assert_eq!(
-            decode(&replayed)
-                .validate_against(replayed, &mut meter())
+            decode(&expected)
+                .validate_against(expected.clone())
                 .unwrap(),
             expected
         );
@@ -37,7 +25,7 @@ fn metered_ordinary_replay_preserves_both_provider_contracts() {
 }
 
 #[test]
-fn metered_ordinary_replay_requires_body_symbol_definition_and_primary_atom() {
+fn ordinary_bridge_requires_body_symbol_definition_and_primary_atom() {
     let fixture = Fixture::new("physical");
     for missing in 0..4 {
         let mut canonical = fixture.foundation.as_canonical().clone();
@@ -49,25 +37,20 @@ fn metered_ordinary_replay_requires_body_symbol_definition_and_primary_atom() {
             _ => unreachable!(),
         }
         let foundation = OdrFreeLirFoundation::try_new(fixture.producer, canonical).unwrap();
-        let result = CrossConeLirBridgeSectionV1::try_new_with_meter(
-            &foundation,
-            vec![fixture.export()],
-            vec![],
-            &mut meter(),
-        );
+        let result =
+            CrossConeLirBridgeSectionV1::try_new(&foundation, vec![fixture.export()], vec![]);
         assert!(result.is_err(), "missing physical component {missing}");
     }
 }
 
 #[test]
-fn metered_ordinary_replay_rejects_duplicate_exports_and_self_selection() {
+fn ordinary_bridge_rejects_duplicate_exports_and_self_selection() {
     let fixture = Fixture::new("repeated");
     assert!(matches!(
-        CrossConeLirBridgeSectionV1::try_new_with_meter(
+        CrossConeLirBridgeSectionV1::try_new(
             &fixture.foundation,
             vec![fixture.export(), fixture.export()],
             vec![],
-            &mut meter(),
         ),
         Err(CrossConeLirBridgeBuildError::DuplicateExport(_))
     ));
@@ -81,12 +64,7 @@ fn metered_ordinary_replay_rejects_duplicate_exports_and_self_selection() {
     )
     .unwrap();
     assert!(matches!(
-        CrossConeLirBridgeSectionV1::try_new_with_meter(
-            &fixture.foundation,
-            vec![],
-            vec![selected],
-            &mut meter(),
-        ),
+        CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, vec![], vec![selected],),
         Err(CrossConeLirBridgeBuildError::Relation(
             CrossConeLirBridgeRelationError::SelectedCurrentProvider { .. }
         ))
@@ -96,13 +74,9 @@ fn metered_ordinary_replay_rejects_duplicate_exports_and_self_selection() {
 #[test]
 fn ordinary_wire_replay_rejects_missing_extra_and_changed_gc_records() {
     let fixture = Fixture::new("wire");
-    let expected = CrossConeLirBridgeSectionV1::try_new_with_meter(
-        &fixture.foundation,
-        vec![fixture.export()],
-        vec![],
-        &mut meter(),
-    )
-    .unwrap();
+    let expected =
+        CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, vec![fixture.export()], vec![])
+            .unwrap();
     let managed = ParamFreeLirCallableExportV1::new(
         fixture.producer,
         fixture.declaration,
@@ -129,7 +103,7 @@ fn ordinary_wire_replay_rejects_missing_extra_and_changed_gc_records() {
             selected: vec![],
         };
         assert!(matches!(
-            decode(&candidate).validate_against(expected.clone(), &mut meter()),
+            decode(&candidate).validate_against(expected.clone()),
             Err(CrossConeLirBridgeValidationError::SectionMismatch)
         ));
     }
@@ -154,68 +128,20 @@ fn ordinary_wire_replay_rejects_selected_order_and_missing_dependency_uses() {
             .unwrap()
         })
         .collect();
-    let expected = CrossConeLirBridgeSectionV1::try_new_with_meter(
-        &fixture.foundation,
-        vec![fixture.export()],
-        selected,
-        &mut meter(),
-    )
-    .unwrap();
+    let expected =
+        CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, vec![fixture.export()], selected)
+            .unwrap();
     let mut reversed = expected.clone();
     reversed.selected.reverse();
     assert!(
         decode(&reversed)
-            .validate_against(expected.clone(), &mut meter())
+            .validate_against(expected.clone())
             .is_err()
     );
     let mut missing = expected.clone();
     missing.selected.pop();
-    assert!(
-        decode(&missing)
-            .validate_against(expected.clone(), &mut meter())
-            .is_err()
-    );
+    assert!(decode(&missing).validate_against(expected.clone()).is_err());
     let mut duplicate = expected.clone();
     duplicate.selected[1] = duplicate.selected[0].clone();
-    assert!(
-        decode(&duplicate)
-            .validate_against(expected, &mut meter())
-            .is_err()
-    );
-}
-
-#[test]
-fn ordinary_replay_and_wire_comparison_use_the_shared_budget() {
-    let fixture = Fixture::new("budget");
-    let replay = |meter: &mut BudgetMeter| {
-        CrossConeLirBridgeSectionV1::try_new_with_meter(
-            &fixture.foundation,
-            vec![fixture.export()],
-            vec![],
-            meter,
-        )
-    };
-    let mut measured = meter();
-    let expected = replay(&mut measured).unwrap();
-    let mut shared = BudgetMeter::new(DecodeLimits {
-        validation_work_units: measured.usage().validation_work_units,
-        ..DecodeLimits::default()
-    });
-    replay(&mut shared).unwrap();
-    assert!(replay(&mut shared).is_err());
-    for limits in [
-        DecodeLimits {
-            validation_work_units: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            decode(&expected).validate_against(expected.clone(), &mut BudgetMeter::new(limits)),
-            Err(CrossConeLirBridgeValidationError::Resource(_))
-        ));
-    }
+    assert!(decode(&duplicate).validate_against(expected).is_err());
 }

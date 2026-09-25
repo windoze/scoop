@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use scoop_identity::{PersistentDispatchSlotId, PersistentExactTypeId};
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{ConcreteNominal, Error, NominalLocalId, exact};
 use crate::*;
@@ -16,12 +16,10 @@ pub(in crate::production::type_semantics) use source::project as interface_sourc
 pub(super) fn project(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<CanonicalInheritanceSlotSchemasV1, Error> {
     let mut projection = Projection {
         export,
         owner: nominal.exact,
-        meter,
     };
     let mut schemas = Vec::new();
     let mut interfaces = Vec::new();
@@ -51,24 +49,22 @@ pub(super) fn project(
     for ty in interfaces {
         let application = projection.interface_application(ty)?;
         for inherited in projection.interface_postorder(application)? {
-            projection.search(seen.len())?;
             if seen.insert(inherited) {
                 let schema = projection.interface(inherited)?;
                 projection.push(&mut schemas, schema)?;
             }
         }
     }
-    projection.sort_work(schemas.len())?;
+
     CanonicalInheritanceSlotSchemasV1::try_new(schemas).map_err(|error| projection.invalid(error))
 }
 
-struct Projection<'a, 'm> {
+struct Projection<'a> {
     export: &'a ExportHir,
     owner: PersistentExactTypeId,
-    meter: &'m mut BudgetMeter,
 }
 
-impl Projection<'_, '_> {
+impl Projection<'_> {
     fn invalid(&self, reason: impl std::fmt::Display) -> Error {
         Error::InvalidInheritance {
             exact: self.owner,
@@ -76,36 +72,8 @@ impl Projection<'_, '_> {
         }
     }
 
-    fn work(&mut self, count: usize) -> Result<(), Error> {
-        self.meter
-            .charge_work(count as u64, &WirePath::root())
-            .map_err(resource)
-    }
-
-    fn search(&mut self, length: usize) -> Result<(), Error> {
-        self.work(length.max(1).ilog2() as usize + 1)?;
-        self.meter
-            .charge_collection_slots(1, &WirePath::root())
-            .map_err(resource)
-    }
-
-    fn sort_work(&mut self, length: usize) -> Result<(), Error> {
-        for _ in 0..=length.max(1).ilog2() {
-            self.work(length)?;
-        }
-        Ok(())
-    }
-
     fn reserve<T>(&mut self, values: &mut Vec<T>, additional: usize) -> Result<(), Error> {
-        self.meter
-            .check_table_entries(
-                values.len().saturating_add(additional) as u64,
-                &WirePath::root(),
-            )
-            .map_err(resource)?;
-        self.meter
-            .try_reserve_collection_slots(values, additional, &WirePath::root())
-            .map_err(resource)
+        scoop_wire::allocation::try_reserve(values, additional, &WirePath::root()).map_err(resource)
     }
 
     fn push<T>(&mut self, values: &mut Vec<T>, value: T) -> Result<(), Error> {
@@ -115,7 +83,6 @@ impl Projection<'_, '_> {
     }
 
     fn extend<T: Copy>(&mut self, values: &mut Vec<T>, additions: &[T]) -> Result<(), Error> {
-        self.work(additions.len())?;
         self.reserve(values, additions.len())?;
         values.extend_from_slice(additions);
         Ok(())
@@ -126,10 +93,6 @@ impl Projection<'_, '_> {
         role: InheritanceSlotSchemaRoleV1,
         slots: Vec<PersistentDispatchSlotId>,
     ) -> Result<InheritanceSlotSchemaV1, Error> {
-        self.sort_work(slots.len())?;
-        self.meter
-            .charge_collection_slots(slots.len() as u64, &WirePath::root())
-            .map_err(resource)?;
         InheritanceSlotSchemaV1::try_new(role, slots).map_err(|error| self.invalid(error))
     }
 }

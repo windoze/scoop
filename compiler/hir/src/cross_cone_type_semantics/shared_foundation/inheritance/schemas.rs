@@ -20,19 +20,18 @@ pub(super) fn validate(
     dependencies: &[CheckedSharedTypeFoundationV1<'_>],
     sources: &Context<'_>,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let mut context = SchemaDeclarations::default();
     for provider in std::iter::once(current).chain(dependencies.iter().copied()) {
-        declarations::collect(&mut context, provider, dependencies, graph, meter)?;
+        declarations::collect(&mut context, provider, dependencies, graph)?;
     }
     for (owner, order) in &context.orders {
-        classes::validate(*owner, order, &context, graph, meter)?;
+        classes::validate(*owner, order, &context, graph)?;
         graph
-            .validate_slot_schemas(*owner, &context, meter)
+            .validate_slot_schemas(*owner, &context)
             .map_err(|error| Error::SlotSchemas(Box::new(error)))?;
     }
-    slots::validate(current, dependencies, sources, &mut context, graph, meter)
+    slots::validate(current, dependencies, sources, &mut context, graph)
 }
 
 #[derive(Default)]

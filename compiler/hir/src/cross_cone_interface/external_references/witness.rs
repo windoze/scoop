@@ -62,7 +62,7 @@ impl WireEncode for DecodedDependencyBindingWitnessV1 {
 }
 
 impl WireDecode for DecodedDependencyBindingWitnessV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         DecodedReexportRouteV1::decode(decoder).map(|route| Self { route })
     }
 }
@@ -157,7 +157,7 @@ impl WireEncode for DecodedCanonicalDependencyBindingWitnessesV1 {
 }
 
 impl WireDecode for DecodedCanonicalDependencyBindingWitnessesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder
             .decode_array(|decoder, _| DecodedDependencyBindingWitnessV1::decode(decoder))
             .map(|witnesses| Self { witnesses })

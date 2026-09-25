@@ -14,14 +14,12 @@ pub(super) fn check(
             callables: &[],
             dispatch: &[],
         },
-        &mut meter(),
     )
     .unwrap();
     let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
         input,
         scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
         &mir_source,
-        &mut meter(),
     )
     .unwrap();
     let missing = lir::LayoutAbiExportConstituentsV1::try_new(
@@ -29,7 +27,6 @@ pub(super) fn check(
             input.lir.module().meta.target_profile,
             input.lir.foundation(),
             vec![],
-            &mut meter(),
         )
         .unwrap(),
         exports.descriptors().clone(),
@@ -39,40 +36,18 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(matches!(
-        source.validate_local_exports(&missing, &mut meter()),
+        source.validate_local_exports(&missing),
         Err(Error::Inventory(LayoutAbiSourceInventoryV1::Layouts))
     ));
-    assert!(matches!(
-        source.validate_local_exports(
-            &exports,
-            &mut BudgetMeter::new(DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            })
-        ),
-        Err(Error::Resource(_))
-    ));
-    let section = lir::CrossConeLayoutAbiSectionV1::try_new(
-        exports.clone(),
-        &[],
-        vec![],
-        &source,
-        &mut meter(),
-    )
-    .unwrap();
+
+    let section =
+        lir::CrossConeLayoutAbiSectionV1::try_new(exports.clone(), &[], vec![], &source).unwrap();
     let bytes = encode(&section).unwrap();
     let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&section);
     assert_eq!(encode(&wire).unwrap(), bytes);
     let mut identities = identity_graph(mir_input.hir, mir_input.mir, Some(input.lir));
     let replayed = wire
-        .validate(
-            &exports,
-            &[],
-            vec![],
-            &source,
-            &mut identities,
-            &mut meter(),
-        )
+        .validate(&exports, &[], vec![], &source, &mut identities)
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);
     let missing_callables = lir::LayoutAbiExportConstituentsV1::try_new(
@@ -83,7 +58,6 @@ pub(super) fn check(
             input.lir.module().meta.target_profile,
             input.lir.foundation(),
             vec![],
-            &mut meter(),
         )
         .unwrap(),
         exports.shape_support().clone(),
@@ -96,7 +70,6 @@ pub(super) fn check(
             input.lir.module().meta.target_profile,
             input.lir.foundation(),
             vec![],
-            &mut meter(),
         )
         .unwrap(),
         exports.callables().clone(),
@@ -109,7 +82,6 @@ pub(super) fn check(
             input.lir.module().meta.target_profile,
             input.lir.foundation(),
             vec![],
-            &mut meter(),
         )
         .unwrap(),
         exports.dispatch().clone(),
@@ -127,7 +99,6 @@ pub(super) fn check(
             exports.layouts(),
             exports.descriptors(),
             input.lir.foundation(),
-            &mut meter(),
         )
         .unwrap(),
     )
@@ -144,21 +115,18 @@ pub(super) fn check(
     {
         let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&section);
         let checked = wire
-            .validate_layouts(exports.layouts(), &mut meter())
+            .validate_layouts(exports.layouts())
             .unwrap()
-            .validate_callables(exports.callables(), &mut meter())
+            .validate_callables(exports.callables())
             .unwrap()
-            .validate_dispatch(exports.dispatch(), &mut meter())
+            .validate_dispatch(exports.dispatch())
             .unwrap()
-            .validate_descriptors(exports.descriptors(), &mut meter())
+            .validate_descriptors(exports.descriptors())
             .unwrap()
-            .validate_shape_support::<std::convert::Infallible>(
-                exports.shape_support(),
-                &mut meter(),
-            )
+            .validate_shape_support::<std::convert::Infallible>(exports.shape_support())
             .unwrap();
         let error = checked
-            .validate(altered, &[], vec![], &source, &mut identities, &mut meter())
+            .validate(altered, &[], vec![], &source, &mut identities)
             .err()
             .expect("a checked constituent cannot be replaced before final validation");
         match index {

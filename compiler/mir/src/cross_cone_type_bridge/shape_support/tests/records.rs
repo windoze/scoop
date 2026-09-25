@@ -7,7 +7,7 @@ fn zst_scalar_and_reference_families_keep_distinct_box_obligations() {
         Family::value(true),
         Family::reference(true),
     ] {
-        let record = family.build(&mut meter()).unwrap();
+        let record = family.build().unwrap();
         assert_eq!(record.source(), family.fixture.empty.id());
         assert_eq!(record.exact(), family.fixture.payload.id());
         assert_eq!(record.boxed(), family.boxed);
@@ -22,7 +22,7 @@ fn zst_scalar_and_reference_families_keep_distinct_box_obligations() {
         assert_eq!(record.provider(), ConeIdentity::SINGLE_FILE);
         family
             .table()
-            .validate_required_sources(&[record.source()], &mut meter())
+            .validate_required_sources(&[record.source()])
             .unwrap();
     }
 }
@@ -32,13 +32,13 @@ fn value_cannot_omit_box_and_reference_cannot_request_one() {
     let mut value = Family::value(false);
     value.boxed = MirBoxedShapeSupportV1::ReferenceNominalRequiresNoBox;
     assert!(matches!(
-        value.build(&mut meter()),
+        value.build(),
         Err(MirShapeSupportError::BoxAvailability { .. })
     ));
     let mut reference = Family::reference(true);
     reference.boxed = MirBoxedShapeSupportV1::Available(reference.fixture.step_export().exact());
     assert!(matches!(
-        reference.build(&mut meter()),
+        reference.build(),
         Err(MirShapeSupportError::BoxAvailability { .. })
     ));
 }
@@ -46,7 +46,7 @@ fn value_cannot_omit_box_and_reference_cannot_request_one() {
 #[test]
 fn helper_gc_is_joined_to_the_source_instead_of_trusting_local_enum_facts() {
     assert!(matches!(
-        Family::reference(false).build(&mut meter()),
+        Family::reference(false).build(),
         Err(MirShapeSupportError::HelperGc { .. })
     ));
 }
@@ -56,7 +56,7 @@ fn missing_helper_and_wrong_role_are_rejected() {
     let mut family = Family::value(false);
     family.boxed = MirBoxedShapeSupportV1::Available(family.fixture.step_export().exact());
     assert!(matches!(
-        family.build(&mut meter()),
+        family.build(),
         Err(MirShapeSupportError::HelperRole { .. })
     ));
     family.boxed = MirBoxedShapeSupportV1::Available(family.fixture.boxed_export().exact());
@@ -67,7 +67,7 @@ fn missing_helper_and_wrong_role_are_rejected() {
     ])
     .unwrap();
     assert!(matches!(
-        family.build(&mut meter()),
+        family.build(),
         Err(MirShapeSupportError::MissingType { .. })
     ));
 }
@@ -82,7 +82,7 @@ fn same_shape_box_from_another_source_cannot_satisfy_the_family() {
     family.types = CanonicalParamFreeMirTypeExportsV1::try_new(types).unwrap();
     family.boxed = MirBoxedShapeSupportV1::Available(other_boxed.exact());
     assert!(matches!(
-        family.build(&mut meter()),
+        family.build(),
         Err(MirShapeSupportError::HelperRole { exact }) if exact == other_boxed.exact()
     ));
 }
@@ -102,7 +102,6 @@ fn source_identity_cannot_be_replaced_by_an_unrelated_nominal_or_a_helper() {
                 family.boxed,
                 family.fixture.step_export().exact(),
                 family.fixture.slot_export().exact(),
-                &mut meter(),
             ),
             Err(MirShapeSupportError::InvalidSource { .. })
         ));
@@ -112,7 +111,7 @@ fn source_identity_cannot_be_replaced_by_an_unrelated_nominal_or_a_helper() {
 #[test]
 fn shape_table_checks_all_providers_and_duplicate_sources() {
     let family = Family::value(false);
-    let record = family.build(&mut meter()).unwrap();
+    let record = family.build().unwrap();
     let other_provider = scoop_identity::ConeCoordinate::new("test", "other", "1.0.0")
         .unwrap()
         .identity()
@@ -121,8 +120,7 @@ fn shape_table_checks_all_providers_and_duplicate_sources() {
         CanonicalMirShapeSupportsV1::try_new(
             other_provider,
             family.authority(),
-            vec![record.clone()],
-            &mut meter()
+            vec![record.clone()]
         ),
         Err(MirShapeSupportError::ProviderMismatch { .. })
     ));
@@ -130,31 +128,23 @@ fn shape_table_checks_all_providers_and_duplicate_sources() {
         CanonicalMirShapeSupportsV1::try_new(
             ConeIdentity::CORE,
             family.authority(),
-            vec![record.clone()],
-            &mut meter()
+            vec![record.clone()]
         ),
         Err(MirShapeSupportError::ProviderMismatch { .. })
     ));
-    let empty_core = CanonicalMirShapeSupportsV1::try_new(
-        ConeIdentity::CORE,
-        family.authority(),
-        vec![],
-        &mut meter(),
-    )
-    .unwrap();
-    empty_core
-        .validate_required_sources(&[], &mut meter())
-        .unwrap();
+    let empty_core =
+        CanonicalMirShapeSupportsV1::try_new(ConeIdentity::CORE, family.authority(), vec![])
+            .unwrap();
+    empty_core.validate_required_sources(&[]).unwrap();
     assert!(matches!(
-        empty_core.validate_required_sources(&[record.source()], &mut meter()),
+        empty_core.validate_required_sources(&[record.source()]),
         Err(MirShapeSupportError::MissingSource { source }) if source == record.source()
     ));
     assert!(matches!(
         CanonicalMirShapeSupportsV1::try_new(
             ConeIdentity::SINGLE_FILE,
             family.authority(),
-            vec![record.clone(), record],
-            &mut meter()
+            vec![record.clone(), record]
         ),
         Err(MirShapeSupportError::DuplicateSource { .. })
     ));
@@ -165,25 +155,18 @@ fn independently_required_roots_detect_missing_extra_and_noncanonical_sets() {
     let family = Family::value(false);
     let table = family.table();
     assert!(matches!(
-        table.validate_required_sources(&[], &mut meter()),
+        table.validate_required_sources(&[]),
         Err(MirShapeSupportError::UnexpectedSource { .. })
     ));
-    let empty = CanonicalMirShapeSupportsV1::try_new(
-        ConeIdentity::SINGLE_FILE,
-        family.authority(),
-        vec![],
-        &mut meter(),
-    )
-    .unwrap();
+    let empty =
+        CanonicalMirShapeSupportsV1::try_new(ConeIdentity::SINGLE_FILE, family.authority(), vec![])
+            .unwrap();
     assert!(matches!(
-        empty.validate_required_sources(&[family.fixture.empty.id()], &mut meter()),
+        empty.validate_required_sources(&[family.fixture.empty.id()]),
         Err(MirShapeSupportError::MissingSource { .. })
     ));
     assert!(matches!(
-        table.validate_required_sources(
-            &[family.fixture.empty.id(), family.fixture.empty.id()],
-            &mut meter()
-        ),
+        table.validate_required_sources(&[family.fixture.empty.id(), family.fixture.empty.id()]),
         Err(MirShapeSupportError::NonCanonicalRequiredSources { .. })
     ));
 }

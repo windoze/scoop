@@ -1,5 +1,4 @@
 use scoop_identity::{PersistentDispatchSlotId, PersistentExactTypeId, SourceDeclarationKind};
-use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
     InheritanceSlotContractSemanticAuthority, InheritanceSlotContractSemanticError as Error,
@@ -16,7 +15,6 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
     owner: PersistentExactTypeId,
     record: &InheritanceSlotContractV1,
     authority: &A,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error<E>> {
     let node = graph
         .get(owner)
@@ -24,13 +22,10 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
             owner,
         )))?;
     let schemas = graph
-        .validate_slot_schemas(owner, authority, meter)
+        .validate_slot_schemas(owner, authority)
         .map_err(Error::Schema)?;
     let mut member = false;
     for schema in schemas.schemas().records() {
-        meter
-            .charge_work(schema.slots().len() as u64, &WirePath::root())
-            .map_err(Error::Resource)?;
         member |= schema.slots().contains(&record.slot());
     }
     if !member {
@@ -43,7 +38,6 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
         record.signature(),
         record.declaration_access(),
         authority,
-        meter,
     )?;
     let source = graph
         .source(SourceNominalId::Concrete(record.declaration_owner()))
@@ -59,7 +53,7 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
         return Err(Error::SlotIdentity);
     }
     let domain = graph
-        .validate_access_domain(record.domain().domain(), meter)
+        .validate_access_domain(record.domain().domain())
         .map_err(Error::Access)?;
     if domain.domain() != root_domains.lookup().domain() {
         return Err(Error::Domain);
@@ -72,11 +66,9 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
             ) {
                 return Err(Error::AbstractObligation);
             }
-            let owner_domains = graph
-                .replay_nominal_domains(owner, meter)
-                .map_err(Error::Access)?;
+            let owner_domains = graph.replay_nominal_domains(owner).map_err(Error::Access)?;
             if !domain
-                .covers(owner_domains.inheritance(), meter)
+                .covers(owner_domains.inheritance())
                 .map_err(Error::Access)?
             {
                 return Err(Error::AbstractObligation);
@@ -91,7 +83,6 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
                 target.signature(),
                 target.declaration_access(),
                 authority,
-                meter,
             )?;
             if root.key.name() != implementation.key.name() {
                 return Err(Error::TargetName);
@@ -101,14 +92,9 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
                 && target.declaration_access().declared_visibility()
                     == DeclaredVisibilityV1::Protected
                 && graph
-                    .is_subclass(implementation.exact_owner, root.exact_owner, meter)
+                    .is_subclass(implementation.exact_owner, root.exact_owner)
                     .map_err(Error::Inheritance)?;
-            if !preserves_protected
-                && !access
-                    .declared()
-                    .covers(&domain, meter)
-                    .map_err(Error::Access)?
-            {
+            if !preserves_protected && !access.declared().covers(&domain).map_err(Error::Access)? {
                 return Err(Error::Domain);
             }
             let source = graph
@@ -126,12 +112,10 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
             let applicable = if implementation.exact_owner == owner {
                 true
             } else if is_interface {
-                schemas
-                    .supports_interface(implementation.exact_owner, meter)
-                    .map_err(Error::Resource)?
+                schemas.supports_interface(implementation.exact_owner)
             } else if source.key.declaration_kind() == SourceDeclarationKind::Class {
                 graph
-                    .is_subclass(owner, implementation.exact_owner, meter)
+                    .is_subclass(owner, implementation.exact_owner)
                     .map_err(Error::Inheritance)?
             } else {
                 false

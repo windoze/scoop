@@ -10,8 +10,8 @@ use crate::{
     ExportDefaultReferences, ExportHir, HirSignatureBinder, SourceAccessDomainV1,
 };
 
-pub(super) struct ReferenceProjection<'a, 'hir, 'meter> {
-    pub(super) entities: &'a DefaultEntityProjector<'hir, 'meter>,
+pub(super) struct ReferenceProjection<'a, 'hir> {
+    pub(super) entities: &'a DefaultEntityProjector<'hir>,
     pub(super) source_owner: CallableTemplateOrigin,
     pub(super) source_domain: SourceCallDomain<'hir>,
     pub(super) target_owner: CallableTemplateOrigin,
@@ -21,7 +21,7 @@ pub(super) struct ReferenceProjection<'a, 'hir, 'meter> {
 }
 
 pub(super) fn project(
-    projection: &ReferenceProjection<'_, '_, '_>,
+    projection: &ReferenceProjection<'_, '_>,
     references: &ExportDefaultReferences,
 ) -> Result<ExportDefaultReferenceSetV1, super::DefaultReferenceProjectionError> {
     let mut callables = Vec::with_capacity(references.callables.len());
@@ -153,7 +153,7 @@ fn canonicalize<T: Ord>(records: &mut Vec<T>) {
 }
 
 fn witness(
-    projection: &ReferenceProjection<'_, '_, '_>,
+    projection: &ReferenceProjection<'_, '_>,
     witness: &ExportDefaultAccessWitness,
     kind: ExportDefaultReferenceKindV1,
     index: usize,
@@ -173,27 +173,24 @@ fn witness(
     if !projection.source_domain.matches(&witness.call_domain) {
         return Err(super::DefaultReferenceProjectionError::InvalidCallDomain { kind, index });
     }
-    projection
-        .entities
-        .resources
-        .with_fallible_meter(|meter, _| {
-            let export = projection.entities.export();
-            let direct = SourceAccessDomainV1::from_export_hir(
-                export,
-                projection.target_domain.direct,
-                meter,
-            )?;
-            let slot = projection
-                .target_domain
-                .slot
-                .map(|slot| SourceAccessDomainV1::from_export_hir(export, slot, meter))
-                .transpose()?;
-            let target =
-                SourceAccessDomainV1::from_export_hir(export, &witness.target_domain, meter)?;
-            ExportDefaultAccessWitnessV1::try_new(projection.target_owner, direct, slot, target)
-                .map_err(super::DefaultSourceAccessProductionError::SharedBuild)
-        })
-        .map_err(super::DefaultReferenceProjectionError::Access)
+    let export = projection.entities.export();
+    let direct = SourceAccessDomainV1::from_export_hir(export, projection.target_domain.direct)
+        .map_err(super::DefaultReferenceProjectionError::Access)?;
+    let slot = projection
+        .target_domain
+        .slot
+        .map(|slot| SourceAccessDomainV1::from_export_hir(export, slot))
+        .transpose()
+        .map_err(super::DefaultReferenceProjectionError::Access)?;
+    let target = SourceAccessDomainV1::from_export_hir(export, &witness.target_domain)
+        .map_err(super::DefaultReferenceProjectionError::Access)?;
+    ExportDefaultAccessWitnessV1::try_new(projection.target_owner, direct, slot, target).map_err(
+        |source| {
+            super::DefaultReferenceProjectionError::Access(
+                super::DefaultSourceAccessProductionError::SharedBuild(source),
+            )
+        },
+    )
 }
 
 fn origin(

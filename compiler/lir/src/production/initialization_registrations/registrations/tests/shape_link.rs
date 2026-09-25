@@ -1,13 +1,10 @@
 use super::{Fixture, Options};
 use crate::*;
 use scoop_identity::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use ExternalStrongShapeSubjectV1 as Subject;
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
 
 mod fixture;
 use fixture::{ProviderFixture, consumer};
@@ -38,24 +35,19 @@ fn shape_link_replays_actual_storage_unit_and_callable_definitions_for_both_sche
                 ConeIdentity::CORE,
                 &consumer,
                 &support,
-                &mut meter(),
             )
             .unwrap();
-            let physical = StrongShapeDefinitionRefV1::from_foundation(
-                subject,
-                &fixture.source.foundation,
-                &mut meter(),
-            )
-            .unwrap();
+            let physical =
+                StrongShapeDefinitionRefV1::from_foundation(subject, &fixture.source.foundation)
+                    .unwrap();
             assert_eq!(import.required_definition(), physical.definition());
             assert_eq!(import.expected_symbol(), physical.symbol());
             assert!(import.contract().matches_subject(subject));
             let bytes = encode(&import).unwrap();
             assert_eq!(bytes[0], 0xa5);
-            let raw: DecodedExternalShapeLinkImportV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let raw: DecodedExternalShapeLinkImportV1 = decode_canonical(&bytes).unwrap();
             assert_eq!(encode(&raw).unwrap(), bytes);
-            raw.validate_against(&import, &mut meter()).unwrap();
+            raw.validate_against(&import).unwrap();
         }
     }
 }
@@ -66,7 +58,7 @@ fn shape_link_rejects_private_support_local_use_and_consumer_defined_symbol() {
     let provider = fixture.provider();
     let subject = Subject::StaticStorage(fixture.unit().storage());
     assert!(
-        matches!(ExternalShapeLinkImportV1::replay(&provider, subject, ConeIdentity::CORE, &consumer(), &fixture.support(false), &mut meter()), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
+        matches!(ExternalShapeLinkImportV1::replay(&provider, subject, ConeIdentity::CORE, &consumer(), &fixture.support(false)), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
     );
     assert!(matches!(
         ExternalShapeLinkImportV1::replay(
@@ -74,8 +66,7 @@ fn shape_link_rejects_private_support_local_use_and_consumer_defined_symbol() {
             subject,
             ConeIdentity::SINGLE_FILE,
             &consumer(),
-            &fixture.support(true),
-            &mut meter()
+            &fixture.support(true)
         ),
         Err(ShapeLinkError::LocalImport)
     ));
@@ -85,8 +76,7 @@ fn shape_link_rejects_private_support_local_use_and_consumer_defined_symbol() {
             subject,
             ConeIdentity::CORE,
             fixture.section.canonical_definitions(),
-            &fixture.support(true),
-            &mut meter()
+            &fixture.support(true)
         ),
         Err(ShapeLinkError::ConsumerDefinition(_))
     ));
@@ -101,7 +91,6 @@ fn shape_link_reader_rejects_definition_symbol_and_semantic_tampering() {
         ConeIdentity::CORE,
         &consumer(),
         &fixture.support(true),
-        &mut meter(),
     )
     .unwrap();
     let bytes = encode(&import).unwrap();
@@ -115,9 +104,8 @@ fn shape_link_reader_rejects_definition_symbol_and_semantic_tampering() {
             .position(|part| part == needle)
             .unwrap();
         altered[index] ^= 1;
-        let raw: DecodedExternalShapeLinkImportV1 =
-            decode_canonical(&altered, DecodeLimits::default()).unwrap();
-        assert!(raw.validate_against(&import, &mut meter()).is_err());
+        let raw: DecodedExternalShapeLinkImportV1 = decode_canonical(&altered).unwrap();
+        assert!(raw.validate_against(&import).is_err());
     }
     let mut altered = bytes;
     let symbol = encode(&import.expected_symbol()).unwrap();
@@ -126,10 +114,9 @@ fn shape_link_reader_rejects_definition_symbol_and_semantic_tampering() {
         .position(|part| part == symbol)
         .unwrap();
     altered[index + symbol.len() - 1] = 2;
-    let raw: DecodedExternalShapeLinkImportV1 =
-        decode_canonical(&altered, DecodeLimits::default()).unwrap();
+    let raw: DecodedExternalShapeLinkImportV1 = decode_canonical(&altered).unwrap();
     assert!(matches!(
-        raw.validate_against(&import, &mut meter()),
+        raw.validate_against(&import),
         Err(ShapeLinkError::Header)
     ));
 }
@@ -144,7 +131,6 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
         ConeIdentity::CORE,
         &consumer(),
         &fixture.support(true),
-        &mut meter(),
     )
     .unwrap();
     let terminal = layout_section(
@@ -159,7 +145,6 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
         &dependencies,
         vec![import],
         &LayoutSource,
-        &mut meter(),
     )
     .unwrap();
     let definition = StrongInitializationUnitDefinitionRefV2::from_registrations(
@@ -171,8 +156,7 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
     )
     .unwrap();
     let use_record =
-        StrongExternalInitializationUseV2::try_new(unit, definition, &selected, &mut meter())
-            .unwrap();
+        StrongExternalInitializationUseV2::try_new(unit, definition, &selected).unwrap();
 
     assert_eq!(use_record.consumer(), ConeIdentity::CORE);
     assert_eq!(use_record.provider(), fixture.source.foundation.producer());
@@ -182,11 +166,7 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
 struct LayoutSource;
 
 impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
-    fn validate_local_exports(
-        &self,
-        _: &LayoutAbiExportConstituentsV1,
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
         Ok(())
     }
 
@@ -194,11 +174,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
         Ok(&[])
     }
 
-    fn validate_physical_imports(
-        &self,
-        _: &[ExternalShapeLinkImportV1<'_>],
-        _: &mut BudgetMeter,
-    ) -> Result<(), ()> {
+    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1<'_>]) -> Result<(), ()> {
         Ok(())
     }
 }
@@ -208,14 +184,7 @@ fn layout_section<'a>(
     dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
     imports: Vec<ExternalShapeLinkImportV1<'a>>,
 ) -> CrossConeLayoutAbiSectionV1<'a> {
-    CrossConeLayoutAbiSectionV1::try_new(
-        exports,
-        dependencies,
-        imports,
-        &LayoutSource,
-        &mut meter(),
-    )
-    .unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &LayoutSource).unwrap()
 }
 
 fn layout_exports(
@@ -230,7 +199,6 @@ fn layout_exports(
         &layouts,
         &descriptors,
         foundation,
-        &mut meter(),
     )
     .unwrap();
     LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shape_support)
@@ -240,19 +208,14 @@ fn layout_exports(
 fn empty_layout_exports(provider: ConeIdentity) -> LayoutAbiExportConstituentsV1 {
     let foundation =
         OdrFreeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
-    let layouts =
-        CanonicalExactLayoutExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
-            .unwrap();
+    let layouts = CanonicalExactLayoutExportsV1::try_new(TARGET, &foundation, Vec::new()).unwrap();
     let descriptors =
-        CanonicalExactDescriptorExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
-            .unwrap();
+        CanonicalExactDescriptorExportsV1::try_new(TARGET, &foundation, Vec::new()).unwrap();
     layout_exports(
         layouts,
         descriptors,
-        CanonicalExactDispatchExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
-            .unwrap(),
-        CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
-            .unwrap(),
+        CanonicalExactDispatchExportsV1::try_new(TARGET, &foundation, Vec::new()).unwrap(),
+        CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, Vec::new()).unwrap(),
         &foundation,
     )
 }

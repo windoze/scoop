@@ -36,11 +36,5 @@ fn every_inheritance_constructor_slot_root_and_target_keeps_its_own_source_use()
     fixture.inheritance = bundle.table;
     let declared = fixture.declared();
     assert!(declared.sources().len() < fixture.expected.len());
-    assert_eq!(
-        fixture
-            .validate(&declared, DecodeLimits::default())
-            .unwrap()
-            .0,
-        6
-    );
+    assert_eq!(fixture.validate(&declared).unwrap(), 6);
 }

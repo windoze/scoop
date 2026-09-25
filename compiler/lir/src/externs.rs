@@ -122,7 +122,7 @@ impl scoop_wire::WireEncode for CallingConvention {
 }
 
 impl scoop_wire::WireDecode for CallingConvention {
-    fn decode(decoder: &mut scoop_wire::Decoder<'_, '_>) -> Result<Self, scoop_wire::WireError> {
+    fn decode(decoder: &mut scoop_wire::Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
         match decoder.unsigned()? {
             1 => Ok(Self::Cdecl),
             tag => Err(scoop_wire::WireError::new(

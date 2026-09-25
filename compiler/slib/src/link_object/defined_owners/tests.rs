@@ -1,5 +1,5 @@
 use scoop_identity::{ConeIdentity, StrongDefinitionEntity, StrongDefinitionRole};
-use scoop_wire::{DecodeLimits, decode_canonical, encode};
+use scoop_wire::{decode_canonical, encode};
 
 use super::super::strong_relocation_closure::tests::verified_member_without_relocations;
 use super::super::symbol_verification::tests::{fixture_for_producer, fixture_named};
@@ -84,8 +84,7 @@ fn owner_set_wire_round_trips_only_against_the_rebuilt_projection() {
     let expected =
         CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure).unwrap();
     let bytes = encode(&expected).unwrap();
-    let decoded: DecodedCanonicalDefinedLinkSymbolOwnerSetV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let decoded: DecodedCanonicalDefinedLinkSymbolOwnerSetV1 = decode_canonical(&bytes).unwrap();
 
     assert_eq!(
         decoded.clone().validate_against(&expected),
@@ -103,13 +102,7 @@ fn owner_set_wire_round_trips_only_against_the_rebuilt_projection() {
 #[test]
 fn owner_set_reader_rejects_non_closed_records() {
     for bytes in [vec![0x81, 0xa2], vec![0x81, 0xa4]] {
-        assert!(
-            decode_canonical::<DecodedCanonicalDefinedLinkSymbolOwnerSetV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<DecodedCanonicalDefinedLinkSymbolOwnerSetV1>(&bytes,).is_err());
     }
 }
 

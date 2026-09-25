@@ -18,52 +18,31 @@ impl Query<'_, '_> {
                 .inherited
                 .iter()
                 .filter(|candidate| candidate.source.declaration.declaration() == original);
-            self.authority
-                .meter
-                .charge_work((publisher.inherited.len() as u64).saturating_mul(65), path)?;
+
             let source = candidates.next().ok_or(Error::InheritedProvider)?;
             if candidates.next().is_some()
-                || !signatures::equal_arguments(
-                    &source.arguments,
-                    template.type_parameters(),
-                    self.authority.meter,
-                    path,
-                )?
+                || !signatures::equal_arguments(&source.arguments, template.type_parameters())
             {
                 return Err(Error::ProviderMapping);
             }
         }
         let references = template.references();
-        self.check_records(
-            references.callables(),
-            Kind::Callable,
-            template,
-            &publisher,
-            path,
-        )?;
+        self.check_records(references.callables(), Kind::Callable, template, &publisher)?;
         self.check_records(
             references.constructors(),
             Kind::Constructor,
             template,
             &publisher,
-            path,
         )?;
-        self.check_records(references.types(), Kind::Type, template, &publisher, path)?;
-        self.check_records(
-            references.globals(),
-            Kind::Global,
-            template,
-            &publisher,
-            path,
-        )?;
+        self.check_records(references.types(), Kind::Type, template, &publisher)?;
+        self.check_records(references.globals(), Kind::Global, template, &publisher)?;
         self.check_records(
             references.singleton_values(),
             Kind::Singleton,
             template,
             &publisher,
-            path,
         )?;
-        self.check_records(references.fields(), Kind::Field, template, &publisher, path)
+        self.check_records(references.fields(), Kind::Field, template, &publisher)
     }
 
     fn check_records<T>(
@@ -72,11 +51,7 @@ impl Query<'_, '_> {
         kind: Kind,
         template: &ExportDefaultTemplateV1,
         domains: &Domains<'_>,
-        path: &WirePath,
     ) -> Result<(), Error> {
-        self.authority
-            .meter
-            .check_table_entries(references.len() as u64, path)?;
         for (index, reference) in references.iter().enumerate() {
             let invalid = |reason| Error::Witness {
                 kind,
@@ -84,34 +59,32 @@ impl Query<'_, '_> {
                 reason,
             };
             let witness = reference.witness();
-            self.authority.meter.charge_work(65, path)?;
+
             if witness.owner() != template.key().owner() {
                 return Err(invalid("publisher identity mismatch"));
             }
-            if !self.equal_domains(witness.direct_call_domain(), &domains.direct, path)? {
+            if !self.equal_domains(witness.direct_call_domain(), &domains.direct) {
                 return Err(invalid(
                     "direct call domain differs from the actual source declaration",
                 ));
             }
-            match (witness.slot_call_domain(), domains.slot.as_deref()) {
-                (None, None) => self.authority.meter.charge_work(1, path)?,
-                (Some(actual), Some(expected)) if self.equal_domains(actual, expected, path)? => {
-                    self.authority.meter.charge_work(1, path)?
-                }
-                _ => {
-                    return Err(invalid(
-                        "slot call domain differs from the actual inherited contract",
-                    ));
-                }
+            let slot_matches = match (witness.slot_call_domain(), domains.slot.as_deref()) {
+                (None, None) => true,
+                (Some(actual), Some(expected)) => self.equal_domains(actual, expected),
+                _ => false,
+            };
+            if !slot_matches {
+                return Err(invalid(
+                    "slot call domain differs from the actual inherited contract",
+                ));
             }
             for call_domain in
                 std::iter::once(domains.direct.as_ref()).chain(domains.slot.as_deref())
             {
-                if !self.authority.source_domain_is_subset(
-                    call_domain,
-                    witness.target_domain(),
-                    path,
-                )? {
+                if !self
+                    .authority
+                    .source_domain_is_subset(call_domain, witness.target_domain())?
+                {
                     return Err(invalid(
                         "target access does not cover the complete call domain",
                     ));
@@ -121,18 +94,7 @@ impl Query<'_, '_> {
         Ok(())
     }
 
-    fn equal_domains(
-        &mut self,
-        left: &SourceAccessDomainV1,
-        right: &SourceAccessDomainV1,
-        path: &WirePath,
-    ) -> Result<bool, Error> {
-        let cost = scoop_wire::encoded_length(left)
-            .and_then(|left| {
-                scoop_wire::encoded_length(right).map(|right| left.saturating_add(right))
-            })
-            .map_err(|e| Error::Encoding(e.to_string()))?;
-        self.authority.meter.charge_work(cost, path)?;
-        Ok(left == right)
+    fn equal_domains(&mut self, left: &SourceAccessDomainV1, right: &SourceAccessDomainV1) -> bool {
+        left == right
     }
 }

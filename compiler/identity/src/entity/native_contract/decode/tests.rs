@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
+use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
 use super::{
     DecodedNativeExternAbi, DecodedNativeExternalContract, DecodedNativeExternalContractRecord,
@@ -45,11 +45,7 @@ fn both_native_function_abis_round_trip_and_resolve() {
     ];
 
     for value in values {
-        let decoded = decode_canonical::<DecodedNativeExternAbi>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded = decode_canonical::<DecodedNativeExternAbi>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), value);
     }
 }
@@ -61,11 +57,8 @@ fn all_native_contract_kinds_round_trip_and_resolve() {
     values.insert(1, scoop_function_contract());
 
     for value in values {
-        let decoded = decode_canonical::<DecodedNativeExternalContract>(
-            &encode(&value).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap();
+        let decoded =
+            decode_canonical::<DecodedNativeExternalContract>(&encode(&value).unwrap()).unwrap();
         assert_eq!(decoded.resolve(&mut Resolver).unwrap(), value);
     }
 }
@@ -73,21 +66,15 @@ fn all_native_contract_kinds_round_trip_and_resolve() {
 #[test]
 fn native_contract_record_round_trips_and_verifies_derived_ids() {
     let record = record();
-    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedNativeExternalContractRecord>(&encode(&record).unwrap()).unwrap();
 
     assert_eq!(
         decoded.into_candidate_fingerprint().unwrap(),
         record.fingerprint()
     );
-    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(
-        &encode(&record).unwrap(),
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedNativeExternalContractRecord>(&encode(&record).unwrap()).unwrap();
     assert_eq!(decoded.resolve(&mut Resolver).unwrap(), record);
 }
 
@@ -96,11 +83,7 @@ fn native_contract_record_rejects_wrong_symbol_id_and_fingerprint() {
     let record = record();
     let mut symbol_bytes = encode(&record).unwrap();
     mutate_id(&mut symbol_bytes, record.symbol_id().as_array());
-    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(
-        &symbol_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(&symbol_bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut Resolver),
         Err(NativeExternalContractResolutionError::SymbolId(_))
@@ -108,11 +91,8 @@ fn native_contract_record_rejects_wrong_symbol_id_and_fingerprint() {
 
     let mut fingerprint_bytes = encode(&record).unwrap();
     mutate_id(&mut fingerprint_bytes, record.fingerprint().as_array());
-    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(
-        &fingerprint_bytes,
-        DecodeLimits::default(),
-    )
-    .unwrap();
+    let decoded =
+        decode_canonical::<DecodedNativeExternalContractRecord>(&fingerprint_bytes).unwrap();
     assert!(matches!(
         decoded.resolve(&mut Resolver),
         Err(NativeExternalContractResolutionError::Fingerprint(_))
@@ -124,9 +104,7 @@ fn native_contract_record_revalidates_symbol_key() {
     let record = record();
     let mut bytes = encode(&record).unwrap();
     replace_once(&mut bytes, b"_entry", b"xentry");
-    let decoded =
-        decode_canonical::<DecodedNativeExternalContractRecord>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(&bytes).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver),
@@ -141,9 +119,7 @@ fn native_contract_record_resolves_source_as_a_typed_reference() {
     let record = record();
     let mut bytes = encode(&record).unwrap();
     mutate_id(&mut bytes, record.source().as_array());
-    let decoded =
-        decode_canonical::<DecodedNativeExternalContractRecord>(&bytes, DecodeLimits::default())
-            .unwrap();
+    let decoded = decode_canonical::<DecodedNativeExternalContractRecord>(&bytes).unwrap();
 
     assert_eq!(
         decoded.resolve(&mut Resolver),
@@ -158,13 +134,10 @@ fn native_contract_decoder_rejects_unknown_tags() {
     let mut abi = encode(&NativeExternAbi::C(c_signature())).unwrap();
     assert_eq!(&abi[..3], &[0xa2, 0x00, 0x01]);
     abi[2] = 3;
-    let error =
-        decode_canonical::<DecodedNativeExternAbi>(&abi, DecodeLimits::default()).unwrap_err();
+    let error = decode_canonical::<DecodedNativeExternAbi>(&abi).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let error =
-        decode_canonical::<DecodedNativeExternalContract>(b"\xa1\x00\x06", DecodeLimits::default())
-            .unwrap_err();
+    let error = decode_canonical::<DecodedNativeExternalContract>(b"\xa1\x00\x06").unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 6 });
 }
 

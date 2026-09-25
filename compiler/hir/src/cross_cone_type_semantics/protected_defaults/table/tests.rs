@@ -1,6 +1,6 @@
 use super::*;
 use crate::*;
-use scoop_wire::{BudgetMeter, DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
+use scoop_wire::{Encoder, WireEncode, decode_canonical, encode};
 
 mod source;
 mod support;

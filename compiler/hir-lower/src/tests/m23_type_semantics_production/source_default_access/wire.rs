@@ -51,11 +51,11 @@ fn source_domain_fixed_vectors_preserve_empty_universal_and_required_fields() {
     for header in [0xa0, 0xa1, 0xa3] {
         let mut malformed = universal.clone();
         malformed[0] = header;
-        assert!(decode_canonical::<DecodedDomain>(&malformed, DecodeLimits::default()).is_err());
+        assert!(decode_canonical::<DecodedDomain>(&malformed).is_err());
     }
     let mut malformed = universal;
     malformed[7] = 3;
-    assert!(decode_canonical::<DecodedDomain>(&malformed, DecodeLimits::default()).is_err());
+    assert!(decode_canonical::<DecodedDomain>(&malformed).is_err());
 }
 
 #[test]
@@ -67,9 +67,9 @@ fn source_domain_reader_rejects_duplicate_reordered_unknown_and_empty_generic_co
                 &encode(&hir::PersistentAccessDomainV1::universal()).unwrap(),
                 &array(&bad),
             );
-            let decoded: DecodedDomain = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: DecodedDomain = decode_canonical(&bytes).unwrap();
             assert!(matches!(
-                decoded.resolve(&mut identity_closure(output), &mut meter()),
+                decoded.resolve(&mut identity_closure(output)),
                 Err(hir::DefaultSourceAccessResolutionError::GenericSubclasses(
                     _
                 ))
@@ -79,9 +79,9 @@ fn source_domain_reader_rejects_duplicate_reordered_unknown_and_empty_generic_co
             &encode(&hir::PersistentAccessDomainV1::empty()).unwrap(),
             &array(&ids),
         );
-        let decoded: DecodedDomain = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDomain = decode_canonical(&bytes).unwrap();
         assert!(matches!(
-            decoded.resolve(&mut identity_closure(output), &mut meter()),
+            decoded.resolve(&mut identity_closure(output)),
             Err(hir::DefaultSourceAccessResolutionError::Build(
                 hir::DefaultSourceAccessBuildError::GenericConstraintsOnEmpty
             ))
@@ -90,11 +90,11 @@ fn source_domain_reader_rejects_duplicate_reordered_unknown_and_empty_generic_co
             &encode(&hir::PersistentAccessDomainV1::universal()).unwrap(),
             &array(&ids),
         );
-        let decoded: DecodedDomain = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedDomain = decode_canonical(&bytes).unwrap();
         let mut empty = scoop_identity::PendingIdentityValidation::new()
             .finish()
             .unwrap();
-        assert!(decoded.resolve(&mut empty, &mut meter()).is_err());
+        assert!(decoded.resolve(&mut empty).is_err());
         assert!(hir::CanonicalPersistentIdsV1::try_new(vec![ids[0], ids[0]]).is_err());
     });
 }
@@ -109,13 +109,7 @@ fn source_slot_absence_is_distinct_from_an_empty_present_domain() {
     assert_ne!(absent, empty);
     assert_eq!(absent, [0xa1, 0, 1]);
     for bytes in [vec![0xa1, 0, 3], vec![0xa2, 0, 1, 1, 0], vec![0xa1, 0, 2]] {
-        assert!(
-            decode_canonical::<hir::DecodedOptionalDefaultSourceSlotDomainV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err()
-        );
+        assert!(decode_canonical::<hir::DecodedOptionalDefaultSourceSlotDomainV1>(&bytes).is_err());
     }
 }
 
@@ -127,10 +121,9 @@ fn source_domain_reader_does_not_repair_persistent_constraint_order() {
         let file = hir::PersistentAccessConstraintV1::File(export.source_files[0].identity.clone());
         for constraints in [vec![file, cone.clone()], vec![cone.clone(), cone]] {
             let persistent = [vec![0xa2, 0, 2, 1], array(&constraints)].concat();
-            let decoded: DecodedDomain =
-                decode_canonical(&product(&persistent, &[0x80]), DecodeLimits::default()).unwrap();
+            let decoded: DecodedDomain = decode_canonical(&product(&persistent, &[0x80])).unwrap();
             assert!(matches!(
-                decoded.resolve(&mut identity_closure(output), &mut meter()),
+                decoded.resolve(&mut identity_closure(output)),
                 Err(hir::DefaultSourceAccessResolutionError::Domain(
                     hir::PersistentAccessResolutionError::Domain(
                         hir::PersistentAccessDomainError::NonCanonicalOrder { .. }

@@ -9,21 +9,10 @@ pub(super) fn replay(
     objects: &ReplayedLayoutLinkObjectContentsV1<'_>,
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     input: &ReplayInputs<'_, '_>,
-    costs: &resources::SymbolCosts,
-    meter: &mut BudgetMeter,
 ) -> Result<VerifiedEntryPatchSetV2, LayoutLinkSymbolUseError> {
-    objects.charge_registration_fingerprints(input.strong, meter)?;
-    for _ in 0..2 {
-        costs.copy_cross(objects, undefined.cross_cone(), meter)?;
-        costs.uses::<CanonicalUndefinedSymbolRequirementV1>(4, meter)?;
-    }
     let candidates = objects.objects().candidates();
     let registrations = registrations::replay(objects, undefined, &candidates)?;
-    objects.charge_final_object_reconstruction(
-        input.strong,
-        input.manifest.compatibility(),
-        meter,
-    )?;
+
     let image = verify_cone_image_v1(
         objects.patch_sites().clone(),
         input.strong.image_plan().clone(),
@@ -57,7 +46,6 @@ pub(super) fn replay(
         .replay_runtime_projection(
             input.strong.registration_identities(),
             finalized.runtime_images().fingerprint(),
-            meter,
         )?;
     Ok(finalized)
 }

@@ -1,7 +1,4 @@
-use scoop_wire::{
-    HashError, WireDecode, WireEncode, domain_separated_cbor_hash,
-    domain_separated_cbor_hash_stream_length,
-};
+use scoop_wire::{HashError, WireDecode, WireEncode, domain_separated_cbor_hash};
 
 use super::PendingIdentityResolver;
 use crate::ids::PersistentIdConstruction;
@@ -45,13 +42,10 @@ mod private {
 ///
 /// The trait is sealed: artifact readers can use the implementations supplied
 /// by this crate but cannot declare an alternative hash preimage or resolver.
-pub trait DecodedIdentityKey<I: PersistentId>: private::Sealed<I> + WireDecode {
+pub trait DecodedIdentityKey<I: PersistentId>: private::Sealed<I> + WireDecode + Clone {
     type Canonical: CborIdentityKey<I> + Clone + Eq + Send + Sync + 'static;
 
     fn candidate_identity(&self) -> Result<I, HashError>;
-
-    #[doc(hidden)]
-    fn candidate_hash_stream_lengths(&self) -> Result<(u64, Option<u64>), HashError>;
 
     #[doc(hidden)]
     fn resolve_identity_key(
@@ -67,13 +61,6 @@ fn derive_candidate<I: PersistentIdConstruction>(
     domain_separated_cbor_hash(domain, key).map(I::from_digest)
 }
 
-fn candidate_hash_stream_length(
-    domain: &'static str,
-    key: &impl WireEncode,
-) -> Result<(u64, Option<u64>), HashError> {
-    domain_separated_cbor_hash_stream_length(domain, key).map(|length| (length, None))
-}
-
 macro_rules! decoded_key {
     ($decoded:ty => $canonical:ty, $id:ty, $domain:literal) => {
         impl private::Sealed<$id> for $decoded {}
@@ -83,10 +70,6 @@ macro_rules! decoded_key {
 
             fn candidate_identity(&self) -> Result<$id, HashError> {
                 derive_candidate($domain, self)
-            }
-
-            fn candidate_hash_stream_lengths(&self) -> Result<(u64, Option<u64>), HashError> {
-                candidate_hash_stream_length($domain, self)
             }
 
             fn resolve_identity_key(
@@ -108,10 +91,6 @@ macro_rules! source_declaration_key {
 
             fn candidate_identity(&self) -> Result<$id, HashError> {
                 derive_candidate($domain, self)
-            }
-
-            fn candidate_hash_stream_lengths(&self) -> Result<(u64, Option<u64>), HashError> {
-                candidate_hash_stream_length($domain, self)
             }
 
             fn resolve_identity_key(
@@ -148,10 +127,6 @@ impl DecodedIdentityKey<PersistentTypeId> for DecodedSourceDeclarationKey {
         derive_candidate("scoop-type-id-v1", &SourceTypeCandidate(self))
     }
 
-    fn candidate_hash_stream_lengths(&self) -> Result<(u64, Option<u64>), HashError> {
-        candidate_hash_stream_length("scoop-type-id-v1", &SourceTypeCandidate(self))
-    }
-
     fn resolve_identity_key(
         self,
         resolver: &mut PendingIdentityResolver<'_>,
@@ -184,10 +159,6 @@ impl DecodedIdentityKey<PersistentTypeId> for DecodedGeneratedNominalKey {
         derive_candidate("scoop-type-id-v1", &GeneratedTypeCandidate(self))
     }
 
-    fn candidate_hash_stream_lengths(&self) -> Result<(u64, Option<u64>), HashError> {
-        candidate_hash_stream_length("scoop-type-id-v1", &GeneratedTypeCandidate(self))
-    }
-
     fn resolve_identity_key(
         self,
         resolver: &mut PendingIdentityResolver<'_>,
@@ -209,19 +180,6 @@ impl WireEncode for ObjectValueCandidate {
     }
 }
 
-struct ObjectValueLengthCandidate;
-
-impl WireEncode for ObjectValueLengthCandidate {
-    fn encode(
-        &self,
-        encoder: &mut scoop_wire::Encoder,
-    ) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(1)?;
-        encoder.field(1)?;
-        encoder.bytes(&[0; 32])
-    }
-}
-
 impl private::Sealed<PersistentObjectValueId> for DecodedSourceDeclarationKey {}
 
 impl DecodedIdentityKey<PersistentObjectValueId> for DecodedSourceDeclarationKey {
@@ -233,18 +191,6 @@ impl DecodedIdentityKey<PersistentObjectValueId> for DecodedSourceDeclarationKey
             "scoop-object-value-id-v1",
             &ObjectValueCandidate(source_type),
         )
-    }
-
-    fn candidate_hash_stream_lengths(&self) -> Result<(u64, Option<u64>), HashError> {
-        let source_type = domain_separated_cbor_hash_stream_length(
-            "scoop-type-id-v1",
-            &SourceTypeCandidate(self),
-        )?;
-        let object_value = domain_separated_cbor_hash_stream_length(
-            "scoop-object-value-id-v1",
-            &ObjectValueLengthCandidate,
-        )?;
-        Ok((source_type, Some(object_value)))
     }
 
     fn resolve_identity_key(
@@ -301,10 +247,6 @@ impl DecodedIdentityKey<NativeLinkRequirementId> for DecodedNativeLinkRequiremen
 
     fn candidate_identity(&self) -> Result<NativeLinkRequirementId, HashError> {
         derive_candidate("scoop-native-link-requirement-v1", self)
-    }
-
-    fn candidate_hash_stream_lengths(&self) -> Result<(u64, Option<u64>), HashError> {
-        candidate_hash_stream_length("scoop-native-link-requirement-v1", self)
     }
 
     fn resolve_identity_key(

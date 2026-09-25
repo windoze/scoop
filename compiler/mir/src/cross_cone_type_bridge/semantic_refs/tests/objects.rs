@@ -5,9 +5,7 @@ use crate::cross_cone_type_bridge::objects::tests::support::Fixture;
 fn object_edges_keep_source_backing_ensure_and_unit_separate() {
     let fixture = Fixture::new();
     let record = fixture.object(1);
-    let references =
-        MirTypeBridgeSemanticReferencesV1::of_object(&record, &fixture.graph, &mut meter())
-            .unwrap();
+    let references = MirTypeBridgeSemanticReferencesV1::of_object(&record, &fixture.graph).unwrap();
     assert_eq!(
         references.targets(),
         expected(vec![
@@ -20,19 +18,15 @@ fn object_edges_keep_source_backing_ensure_and_unit_separate() {
     let references = MirTypeBridgeSemanticReferencesV1::of_type(
         fixture.types.get(record.backing()).unwrap(),
         &fixture.graph,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(
         references.targets(),
         &[MirTypeBridgeTargetV1::Type(record.read().object())]
     );
-    let references = MirTypeBridgeSemanticReferencesV1::of_initialization_unit(
-        record.unit(),
-        &fixture.graph,
-        &mut meter(),
-    )
-    .unwrap();
+    let references =
+        MirTypeBridgeSemanticReferencesV1::of_initialization_unit(record.unit(), &fixture.graph)
+            .unwrap();
     assert!(references.targets().is_empty());
     let references = MirTypeBridgeSemanticReferencesV1::of_initialization_contract(
         record.unit(),
@@ -42,7 +36,6 @@ fn object_edges_keep_source_backing_ensure_and_unit_separate() {
             .unwrap()
             .semantic_signature(),
         &fixture.graph,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(
@@ -69,12 +62,9 @@ fn initialization_cause_does_not_reclassify_old_accessor_as_new_callable() {
         ),
     ] {
         let record = fixture.use_for(dependency, cause).unwrap();
-        let references = MirTypeBridgeSemanticReferencesV1::of_initialization_use(
-            &record,
-            &fixture.graph,
-            &mut meter(),
-        )
-        .unwrap();
+        let references =
+            MirTypeBridgeSemanticReferencesV1::of_initialization_use(&record, &fixture.graph)
+                .unwrap();
         let mut targets = vec![
             MirTypeBridgeTargetV1::InitializationUnit(fixture.units[0].id()),
             MirTypeBridgeTargetV1::InitializationUnit(fixture.units[dependency].id()),
@@ -93,7 +83,6 @@ fn object_ensure_collects_logical_unit_type_and_unit_role() {
     let references = MirTypeBridgeSemanticReferencesV1::of_callable(
         fixture.callables.get(object.ensure()).unwrap(),
         &fixture.graph,
-        &mut meter(),
     )
     .unwrap();
     assert_eq!(
@@ -120,7 +109,7 @@ fn generic_initialization_unit_still_requires_the_next_stage() {
         .unwrap();
     assert!(
         matches!(MirTypeBridgeSemanticReferencesV1::of_initialization_unit(
-        generic.id(), &fixture.graph, &mut meter(),
+        generic.id(), &fixture.graph,
     ), Err(MirTypeBridgeReferenceError::GenericUnitGate(unit)) if unit == generic.id())
     );
 }

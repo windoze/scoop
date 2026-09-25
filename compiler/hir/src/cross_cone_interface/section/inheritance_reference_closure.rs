@@ -6,7 +6,7 @@ use crate::{
     ExternalHirReferenceRoleV1 as Role, ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1,
 };
 use scoop_identity::ConeIdentity;
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::WireError;
 
 impl CrossConeHirInterfaceSectionV1 {
     pub fn validate_inheritance_reference_closure<
@@ -15,25 +15,15 @@ impl CrossConeHirInterfaceSectionV1 {
     >(
         &self,
         authority: &mut A,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
     ) -> Result<(), ExternalHirInheritanceClosureValidationError<E>> {
         use ExternalHirInheritanceClosureValidationError as Error;
         let mut required = BTreeSet::new();
-        for (partition, index, nominal) in self.nominal_interfaces().wire_records() {
-            let path = path
-                .clone()
-                .field(2)
-                .field(partition)
-                .index(index as u64)
-                .field(9)
-                .field(7);
+        for nominal in self.nominal_interfaces().all_records() {
             for choice in nominal
                 .declaration_details()
                 .dispatch_selections()
                 .records()
             {
-                meter.charge_work(1, &path).map_err(Error::Resource)?;
                 let Some(target) = choice.callable_target() else {
                     continue;
                 };
@@ -46,8 +36,7 @@ impl CrossConeHirInterfaceSectionV1 {
                 }
                 let index = self
                     .external_references()
-                    .find_index_metered(target, meter, &path)
-                    .map_err(Error::Resource)?
+                    .find_index(target)
                     .ok_or(Error::MissingReference(target))?;
                 let reference = &self.external_references().records()[index];
                 if reference.origin() != expected {
@@ -60,19 +49,11 @@ impl CrossConeHirInterfaceSectionV1 {
                 if !reference.roles().contains(Role::InheritanceDependency) {
                     return Err(Error::MissingRole(target));
                 }
-                meter
-                    .charge_work(1 + u64::from(required.len().max(1).ilog2()), &path)
-                    .map_err(Error::Resource)?;
-                meter
-                    .charge_collection_slots(1, &path)
-                    .map_err(Error::Resource)?;
+
                 required.insert(target);
             }
         }
         for reference in self.external_references().records() {
-            meter
-                .charge_work(1 + u64::from(required.len().max(1).ilog2()), path)
-                .map_err(Error::Resource)?;
             if reference.roles().contains(Role::InheritanceDependency)
                 && !required.contains(&reference.target())
             {

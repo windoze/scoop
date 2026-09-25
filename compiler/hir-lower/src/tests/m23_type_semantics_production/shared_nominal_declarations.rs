@@ -12,31 +12,25 @@ const COMBINED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-shared-nominal-declarations/combined.scoop"
 ));
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 #[test]
 fn shared_nominal_declarations_survive_ordinary_foundation_bytes_and_keep_lookup_separate() {
     for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
         with_hir_source(source, |output, _| {
             let foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
-            let table = hir::CanonicalNominalInterfacesV1::from_export_hir_with_budget(
-                output.output().export.module(),
-                &mut meter(),
-            )
-            .unwrap();
+            let table =
+                hir::CanonicalNominalInterfacesV1::from_export_hir(output.output().export.module())
+                    .unwrap();
             table
-                .validate_declared_field_inventory(&foundation, &mut meter())
+                .validate_declared_field_inventory(&foundation)
                 .unwrap();
             table
-                .validate_declared_relation_inventory(&foundation, &mut meter())
+                .validate_declared_relation_inventory(&foundation)
                 .unwrap();
             let mut identities =
                 source_inventory::identity_closure_for_foundation(output, foundation);
             let bytes = encode(&table).unwrap();
             let decoded: hir::DecodedCanonicalNominalInterfacesV1 =
-                decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+                decode_canonical(&bytes).unwrap();
             assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
             let mut rows = Vec::new();
             for record in table.all_records() {
@@ -127,7 +121,7 @@ fn shared_nominal_declarations_reject_omitted_private_relationships() {
             )
             .unwrap();
             let error = corrupt
-                .validate_declared_relation_inventory(&foundation, &mut meter())
+                .validate_declared_relation_inventory(&foundation)
                 .unwrap_err();
             match (relation, error) {
                 (
@@ -151,24 +145,13 @@ fn shared_nominal_declarations_reject_omitted_private_relationships() {
 }
 
 #[test]
-fn shared_nominal_projection_charges_the_callers_budget_and_ignores_unrelated_arena_entries() {
+fn shared_nominal_projection_ignores_unrelated_arena_entries() {
     let project = |source: &str| {
         with_hir_source(source, |output, _| {
             let export = output.output().export.module();
-            let mut first = meter();
-            let table =
-                hir::CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, &mut first)
-                    .unwrap();
-            let mut shared = BudgetMeter::new(DecodeLimits {
-                validation_work_units: first.usage().validation_work_units,
-                ..DecodeLimits::default()
-            });
-            hir::CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, &mut shared)
-                .unwrap();
-            assert!(matches!(
-                hir::CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, &mut shared),
-                Err(hir::NominalInterfaceBuildError::Resource(_))
-            ));
+
+            let table = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
+
             encode(&table).unwrap()
         })
     };

@@ -11,8 +11,6 @@ use scoop_manifest::{
 };
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
 
-use scoop_wire::DecodeLimits;
-
 use super::{
     CurrentConeDiagnosticSet, CurrentConeInput, DiagnosticOutputPolicy, EmittedStageDump,
     SingleConeBuildRequest, SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind,
@@ -107,7 +105,6 @@ impl SingleConeBuildRequest {
     /// the resulting `.slib` artifact.
     pub fn build_and_publish(
         self,
-        limits: DecodeLimits,
     ) -> Result<SingleConeProductionSuccess, SingleConeProductionError> {
         let temporary_parent = self
             .output
@@ -119,7 +116,7 @@ impl SingleConeBuildRequest {
             .tempdir_in(temporary_parent)
             .map_err(SingleConeProductionError::TemporaryWorkspace)?;
         let loaded = self
-            .load_preflight(limits)
+            .load_preflight()
             .map_err(SingleConeProductionError::Preflight)?;
         let validated = loaded
             .validate()
@@ -128,18 +125,15 @@ impl SingleConeBuildRequest {
             .parse_current_sources()
             .map_err(SingleConeProductionError::Sources)?;
         parsed
-            .build_and_publish(temporary.path(), limits)
+            .build_and_publish(temporary.path())
             .map_err(|source| SingleConeProductionError::Production(Box::new(source)))
     }
 
     /// Loads the current manifest, every explicit dependency artifact, and
     /// trusted core bytes. Current source discovery and parsing remain
     /// deliberately unavailable at this stage.
-    pub fn load_preflight(
-        self,
-        limits: DecodeLimits,
-    ) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
-        self.load_preflight_inner(limits)
+    pub fn load_preflight(self) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
+        self.load_preflight_inner()
     }
 }
 

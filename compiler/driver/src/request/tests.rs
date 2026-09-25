@@ -57,26 +57,14 @@ fn operand_classifier_uses_only_the_closed_file_shapes() {
 }
 
 #[test]
-fn explicit_dependency_roles_are_bounded_and_preserved() {
+fn explicit_dependency_roles_are_preserved() {
     let locator = HostArtifactLocator::new("dependency.slib").unwrap();
     let inputs = ExplicitDependencyInputs::new(
         vec![locator.clone()],
         vec![HostArtifactLocator::new("support.slib").unwrap()],
-    )
-    .unwrap();
+    );
     assert_eq!(inputs.direct()[0].as_path(), Path::new("dependency.slib"));
     assert_eq!(inputs.support()[0].as_path(), Path::new("support.slib"));
-
-    assert!(matches!(
-        ExplicitDependencyInputs::new(
-            vec![locator; MAX_EXPLICIT_ARTIFACTS_PER_ROLE + 1],
-            Vec::new(),
-        ),
-        Err(SingleConeBuildRequestError::TooManyDependencyInputs {
-            role: "direct",
-            actual
-        }) if actual == MAX_EXPLICIT_ARTIFACTS_PER_ROLE + 1
-    ));
 }
 
 #[test]
@@ -123,8 +111,7 @@ fn output_isolation_rejects_dependency_aliases_before_writing() {
     let dependencies = ExplicitDependencyInputs::new(
         vec![HostArtifactLocator::new(&dependency).unwrap()],
         Vec::new(),
-    )
-    .unwrap();
+    );
     let trusted_core = TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap());
     let output = SlibOutputDestination::new(&dependency).unwrap();
 
@@ -150,7 +137,7 @@ fn output_isolation_accepts_a_new_file_in_an_existing_directory() {
     let current = CurrentConeInput::Manifest {
         root: ManifestRootLocator::cone_directory(directory.0.clone()),
     };
-    let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap();
+    let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new());
     let trusted_core = TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap());
     let output = SlibOutputDestination::new(directory.0.join("output.slib")).unwrap();
 

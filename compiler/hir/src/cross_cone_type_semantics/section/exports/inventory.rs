@@ -6,11 +6,7 @@ use std::collections::BTreeMap;
 pub(super) fn dependencies<E>(
     provider: ConeIdentity,
     dependencies: &[&CheckedCrossConeTypeSemanticsSectionV1<'_>],
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
-    meter.check_table_entries(dependencies.len() as u64, path)?;
-    meter.charge_work(dependencies.len() as u64, path)?;
     let mut previous = None;
     for section in dependencies {
         let next = section.provider();
@@ -27,13 +23,11 @@ pub(super) fn sources<F: TypeSectionFoundationSemanticAuthority<E>, E>(
     roots: &[SourceNominalId],
     edges: &[NominalInheritanceEdgesV1],
     foundation: &F,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
     use TypeSectionExportValidationError as Error;
-    meter.check_table_entries(roots.len() as u64, path)?;
-    meter.check_table_entries(edges.len() as u64, path)?;
-    meter.charge_work((roots.len() + edges.len()) as u64, path)?;
+
     if roots.windows(2).any(|pair| pair[0] >= pair[1]) {
         return Err(Error::SourceRootOrder);
     }
@@ -60,14 +54,13 @@ pub(super) fn sources<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         }
     }
     for record in candidate.representation_support.records() {
-        meter.charge_work((roots.len() as u64 + 1).ilog2() as u64 + 1, path)?;
         if roots
             .binary_search(&SourceNominalId::Concrete(record.owner()))
             .is_err()
         {
             return Err(Error::SourceRoot(SourceNominalId::Concrete(record.owner())));
         }
-        let exact = nominal_exact(record.owner(), meter, path)?;
+        let exact = nominal_exact(record.owner(), path)?;
         if candidate.exact_facts.get(exact).is_none() || candidate.inheritance.get(exact).is_none()
         {
             return Err(Error::MissingNominalSupport(record.owner()));
@@ -80,7 +73,7 @@ pub(super) fn sources<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         let ExactTypeKey::Nominal(owner) = key else {
             return Err(Error::InheritanceInventory);
         };
-        meter.charge_work((roots.len() as u64 + 1).ilog2() as u64 + 1, path)?;
+
         if roots
             .binary_search(&SourceNominalId::Concrete(*owner))
             .is_err()
@@ -98,13 +91,11 @@ pub(super) fn sources<F: TypeSectionFoundationSemanticAuthority<E>, E>(
 
 pub(super) fn nominal_exact(
     owner: scoop_identity::PersistentTypeId,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<PersistentExactTypeId, WireError> {
     let key = ExactTypeKey::Nominal(owner);
-    let bytes = PersistentExactTypeId::hash_stream_length(&key)
-        .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
-    meter.charge_sha256(bytes, path)?;
+
     PersistentExactTypeId::from_key(&key)
         .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))
 }
@@ -114,8 +105,6 @@ pub(super) struct FactDependencies<'a>(BTreeMap<PersistentExactTypeId, CheckedEx
 pub(super) fn inheritance_records<'a, E>(
     local: CheckedNominalInheritanceInterfacesV1<'a>,
     dependencies: &[&'a CheckedCrossConeTypeSemanticsSectionV1<'a>],
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<
     BTreeMap<PersistentExactTypeId, &'a NominalInheritanceInterfaceV1>,
     TypeSectionExportValidationError<E>,
@@ -126,8 +115,6 @@ pub(super) fn inheritance_records<'a, E>(
             .iter()
             .flat_map(|section| section.exports.inheritance.table().records()),
     ) {
-        meter.charge_work((result.len() as u64 + 1).ilog2() as u64 + 1, path)?;
-        meter.charge_collection_slots(1, path)?;
         if result.insert(record.owner(), record).is_some() {
             return Err(TypeSectionExportValidationError::InheritanceInventory);
         }
@@ -138,11 +125,8 @@ impl ExactTypeFactsDependencyLookupV1 for FactDependencies<'_> {
     fn get_dependency_fact(
         &self,
         exact: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Option<CheckedExactTypeFactV1<'_>>, WireError> {
-        meter.charge_work((self.0.len() as u64 + 1).ilog2() as u64 + 1, path)?;
-        Ok(self.0.get(&exact).copied())
+    ) -> Option<CheckedExactTypeFactV1<'_>> {
+        self.0.get(&exact).copied()
     }
 }
 
@@ -150,8 +134,6 @@ pub(super) fn facts<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     candidate: &CrossConeTypeSemanticsSectionV1,
     dependencies: &[&'a CheckedCrossConeTypeSemanticsSectionV1<'a>],
     foundation: &F,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<FactDependencies<'a>, TypeSectionExportValidationError<E>> {
     use TypeSectionExportValidationError as Error;
     let local = foundation
@@ -159,12 +141,7 @@ pub(super) fn facts<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
         .map_err(Error::Source)?
         .values();
     let foreign = foundation.dependency_facts().map_err(Error::Source)?;
-    meter.check_table_entries(local.len() as u64, path)?;
-    meter.check_table_entries(foreign.len() as u64, path)?;
-    meter.charge_work(
-        (local.len() + foreign.len() + candidate.exact_facts.records().len()) as u64,
-        path,
-    )?;
+
     if !local.iter().copied().eq(candidate
         .exact_facts
         .records()
@@ -181,10 +158,6 @@ pub(super) fn facts<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     }
     let mut facts = BTreeMap::new();
     for required in foreign {
-        meter.charge_work(
-            (local.len() as u64 + dependencies.len() as u64 + 2).ilog2() as u64 + 2,
-            path,
-        )?;
         if local.binary_search(&required.exact).is_ok() {
             return Err(Error::DependencyFact(required.exact));
         }
@@ -198,8 +171,7 @@ pub(super) fn facts<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
             .facts
             .get_checked(required.exact)
             .ok_or(Error::DependencyFact(required.exact))?;
-        meter.charge_collection_slots(1, path)?;
-        meter.charge_work((facts.len() as u64 + 1).ilog2() as u64 + 1, path)?;
+
         facts.insert(required.exact, fact);
     }
     Ok(FactDependencies(facts))

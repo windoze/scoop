@@ -6,16 +6,14 @@ use hir::{
     DefaultSourceReferencesV1 as References,
 };
 use scoop_wire::{decode_canonical, encode};
-mod budgets;
+
 mod closure;
 mod wire;
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/references.scoop"
 ));
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn function(export: &hir::ExportHir, name: &str) -> hir::ExportParameterOwner {
     hir::ExportParameterOwner::Function(
         export
@@ -63,8 +61,7 @@ fn source_reference_occurrences_cover_six_kinds_and_round_trip_real_foundation()
             "field",
             "combined",
         ] {
-            let body =
-                Body::from_dependency_hir(output, function(export, name), 0, &mut meter()).unwrap();
+            let body = Body::from_dependency_hir(output, function(export, name), 0).unwrap();
             let refs = body.references();
             let actual = counts(refs);
             assert_eq!(actual, raw_counts(body.source_references()));
@@ -72,15 +69,12 @@ fn source_reference_occurrences_cover_six_kinds_and_round_trip_real_foundation()
                 *total += count;
             }
             let bytes = encode(refs).unwrap();
-            let decoded: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+            let decoded: Decoded = decode_canonical(&bytes).unwrap();
             assert_eq!(encode(&decoded).unwrap(), bytes);
-            let restored = decoded
-                .resolve(&mut identity_closure(output), &mut meter())
-                .unwrap();
+            let restored = decoded.resolve(&mut identity_closure(output)).unwrap();
             assert_eq!(&restored, refs);
             assert_eq!(encode(&restored).unwrap(), bytes);
-            let again =
-                Body::from_dependency_hir(output, function(export, name), 0, &mut meter()).unwrap();
+            let again = Body::from_dependency_hir(output, function(export, name), 0).unwrap();
             assert_eq!(again.references(), refs);
             summary.push(format!("{name}: {actual:?}"));
         }
@@ -99,8 +93,7 @@ fn source_reference_occurrences_cover_six_kinds_and_round_trip_real_foundation()
 fn source_references_preserve_callable_order_multiplicity_and_each_origin() {
     with_hir_source(SOURCE, |output, _| {
         let export = output.output().export.module();
-        let body = Body::from_dependency_hir(output, function(export, "combined"), 0, &mut meter())
-            .unwrap();
+        let body = Body::from_dependency_hir(output, function(export, "combined"), 0).unwrap();
         let refs = body.references().callables();
         assert_eq!(refs.len(), 3);
         assert_eq!(refs[0].target(), refs[2].target());
@@ -131,12 +124,8 @@ fn source_references_preserve_callable_order_multiplicity_and_each_origin() {
             assert_eq!(record.definition_origin().origin(), &origin);
             assert_eq!(
                 record.witness(),
-                &hir::DefaultSourceAccessWitnessV1::from_export_hir(
-                    export,
-                    &source.witness,
-                    &mut meter()
-                )
-                .unwrap()
+                &hir::DefaultSourceAccessWitnessV1::from_export_hir(export, &source.witness)
+                    .unwrap()
             );
         }
     });
@@ -150,32 +139,17 @@ fn inherited_and_generic_source_references_keep_original_providers() {
     ));
     with_hir_source(source, |output, _| {
         let export = output.output().export.module();
-        let parent = Body::from_dependency_hir(
-            output,
-            function(export, "LocalBase.choose"),
-            0,
-            &mut meter(),
-        )
-        .unwrap();
-        let child = Body::from_dependency_hir(
-            output,
-            function(export, "LocalChild.choose"),
-            0,
-            &mut meter(),
-        )
-        .unwrap();
+        let parent =
+            Body::from_dependency_hir(output, function(export, "LocalBase.choose"), 0).unwrap();
+        let child =
+            Body::from_dependency_hir(output, function(export, "LocalChild.choose"), 0).unwrap();
         assert_ne!(child.owner(), parent.owner());
         assert_eq!(child.references(), parent.references());
         for name in ["LocalBase.hidden", "LocalChild.choose", "Generic.choose"] {
-            let body =
-                Body::from_dependency_hir(output, function(export, name), 0, &mut meter()).unwrap();
-            let decoded: Decoded =
-                decode_canonical(&encode(body.references()).unwrap(), DecodeLimits::default())
-                    .unwrap();
+            let body = Body::from_dependency_hir(output, function(export, name), 0).unwrap();
+            let decoded: Decoded = decode_canonical(&encode(body.references()).unwrap()).unwrap();
             assert_eq!(
-                decoded
-                    .resolve(&mut identity_closure(output), &mut meter())
-                    .unwrap(),
+                decoded.resolve(&mut identity_closure(output)).unwrap(),
                 *body.references()
             );
             for record in body.references().types() {
@@ -206,7 +180,7 @@ fn source_producer_rejects_reference_provider_from_another_body() {
             .unwrap()
             .1;
         template.references.callables[0].witness.owner = wrong;
-        let error = Body::from_export_hir(&export, owner, 0, &mut meter()).unwrap_err();
+        let error = Body::from_export_hir(&export, owner, 0).unwrap_err();
         assert!(
             matches!(
                 error,

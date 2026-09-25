@@ -27,7 +27,6 @@ pub(super) fn verify(
     let resolve = |values: &[hir::NominalDispatchSelectionV1]| {
         decode_canonical::<DecodedCanonicalNominalDispatchSelectionsV1>(
             &encode(&Sequence(values)).unwrap(),
-            DecodeLimits::default(),
         )
         .unwrap()
     };
@@ -42,7 +41,7 @@ pub(super) fn verify(
         Err(ResolutionError::Order(BuildError::Duplicate(slot))) if slot == records[0].slot())
     );
     assert!(
-        matches!(CanonicalNominalDispatchSelectionsV1::try_new(vec![records[0], records[0]], &mut BudgetMeter::new(DecodeLimits::default())),
+        matches!(CanonicalNominalDispatchSelectionsV1::try_new(vec![records[0], records[0]]),
         Err(BuildError::Duplicate(slot)) if slot == records[0].slot())
     );
     let mut missing = scoop_identity::PendingIdentityValidation::new()
@@ -52,19 +51,9 @@ pub(super) fn verify(
         resolve(records).resolve(&mut missing),
         Err(ResolutionError::Reference(_))
     ));
-    assert!(
-        decode_canonical::<DecodedCanonicalNominalDispatchSelectionsV1>(
-            &encode(choices).unwrap(),
-            DecodeLimits {
-                validation_work_units: 0,
-                ..DecodeLimits::default()
-            }
-        )
-        .is_err()
-    );
+
     let error = decode_canonical::<hir::DecodedNominalDeclarationDetailsV1>(
         &encode(&OldDetails(nominal.declaration_details())).unwrap(),
-        DecodeLimits::default(),
     )
     .unwrap_err();
     assert!(matches!(

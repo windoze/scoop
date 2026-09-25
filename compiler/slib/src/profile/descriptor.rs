@@ -82,12 +82,6 @@ impl ArtifactCapabilityProfileFingerprint {
             .map(|digest| Self(*digest.as_array()))
     }
 
-    pub(crate) fn hash_stream_length(
-        descriptor: &ArtifactCapabilityProfileDescriptor,
-    ) -> Result<u64, HashError> {
-        domain_separated_cbor_hash_stream_length(ARTIFACT_PROFILE_DOMAIN, descriptor)
-    }
-
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
     }
@@ -167,17 +161,6 @@ impl WireEncode for ExtraSectionPolicy {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum SlibDecodeCostModel {
-    DeterministicLogicalCost,
-}
-
-impl WireEncode for SlibDecodeCostModel {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(1)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum LinkProofPolicy {
     Forbidden,
     Required,
@@ -196,7 +179,6 @@ impl WireEncode for LinkProofPolicy {
 pub struct ArtifactValidationPolicy {
     pub(super) odr: OdrValidationPolicy,
     pub(super) extra_sections: ExtraSectionPolicy,
-    pub(super) decode_cost_model: SlibDecodeCostModel,
     pub(super) link_proof: LinkProofPolicy,
 }
 
@@ -204,15 +186,9 @@ impl ArtifactValidationPolicy {
     pub const fn odr(self) -> OdrValidationPolicy {
         self.odr
     }
-
     pub const fn extra_sections(self) -> ExtraSectionPolicy {
         self.extra_sections
     }
-
-    pub const fn decode_cost_model(self) -> SlibDecodeCostModel {
-        self.decode_cost_model
-    }
-
     pub const fn link_proof(self) -> LinkProofPolicy {
         self.link_proof
     }
@@ -220,13 +196,11 @@ impl ArtifactValidationPolicy {
 
 impl WireEncode for ArtifactValidationPolicy {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         self.odr.encode(encoder)?;
         encoder.field(2)?;
         self.extra_sections.encode(encoder)?;
-        encoder.field(3)?;
-        self.decode_cost_model.encode(encoder)?;
         encoder.field(4)?;
         self.link_proof.encode(encoder)
     }

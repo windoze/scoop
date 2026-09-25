@@ -3,7 +3,7 @@ use scoop_hir as hir;
 use scoop_identity::{PendingIdentityValidation, ValidatedIdentityGraph};
 use scoop_lir as lir;
 use scoop_mir as mir;
-use scoop_wire::{BudgetMeter, WireDecode, WireEncode, decode_canonical, encode};
+use scoop_wire::{WireDecode, WireEncode, decode_canonical, encode};
 
 mod assertions;
 mod core;
@@ -22,12 +22,8 @@ mod source_contracts;
 mod source_uses;
 mod support;
 
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
-
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
-    decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    decode_canonical(&encode(value).unwrap()).unwrap()
 }
 
 #[test]
@@ -47,7 +43,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
             &source,
             |input, dependencies| {
                 let result =
-                    scoop_lir_lower::lower_layout_abi_exports(input, dependencies, &mut meter())
+                    scoop_lir_lower::lower_layout_abi_exports(input, dependencies)
                         .unwrap_or_else(|error| {
                             let missing = input
                                 .lir
@@ -107,8 +103,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
             ),
             |input, dependencies| {
                 let result =
-                    scoop_lir_lower::lower_layout_abi_exports(input, dependencies, &mut meter())
-                        .unwrap();
+                    scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
                 private_types::check(input, &result);
                 shared_layouts::check(input, dependencies, &result);
                 shared_abis::check(input, dependencies, &result);

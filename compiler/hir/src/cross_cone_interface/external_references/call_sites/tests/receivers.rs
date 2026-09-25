@@ -21,24 +21,18 @@ fn source_call_receiver_round_trips_and_is_required_on_the_wire() {
     let fixture = Fixture::new();
     for site in [fixture.site(0, vec![0]).unwrap(), receiver_call(&fixture)] {
         let bytes = encode(&site).unwrap();
-        let decoded: DecodedHirDependencyCallSiteV1 =
-            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        let decoded: DecodedHirDependencyCallSiteV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(
             decoded
-                .resolve(&mut fixture.graph(), &mut meter(), &WirePath::root())
+                .resolve(&mut fixture.graph(), &WirePath::root())
                 .unwrap(),
             site
         );
         let mut missing = bytes;
         missing.truncate(missing.len() - 1 - encode(&site.receiver()).unwrap().len());
-        assert!(
-            decode_canonical::<DecodedHirDependencyCallSiteV1>(&missing, DecodeLimits::default())
-                .is_err()
-        );
+        assert!(decode_canonical::<DecodedHirDependencyCallSiteV1>(&missing).is_err());
         missing[0] = 0xa6;
-        let error =
-            decode_canonical::<DecodedHirDependencyCallSiteV1>(&missing, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<DecodedHirDependencyCallSiteV1>(&missing).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
@@ -57,9 +51,7 @@ fn source_call_receiver_rejects_unknown_tags_and_inexact_payloads() {
         let mut bytes = encode(&site).unwrap();
         bytes.truncate(bytes.len() - encode(&site.receiver()).unwrap().len());
         bytes.extend(malformed);
-        let error =
-            decode_canonical::<DecodedHirDependencyCallSiteV1>(&bytes, DecodeLimits::default())
-                .unwrap_err();
+        let error = decode_canonical::<DecodedHirDependencyCallSiteV1>(&bytes).unwrap_err();
         assert_eq!(error.path(), &WirePath::root().field(7));
     }
 }
@@ -92,51 +84,4 @@ fn source_call_receiver_requires_an_argument_and_cannot_enter_runtime_constructi
         ),
         Err(HirDependencyCallSiteBuildError::RuntimeReceiver)
     );
-}
-
-#[test]
-fn source_call_receiver_resolution_uses_exact_and_cumulative_budgets() {
-    let fixture = Fixture::new();
-    let bytes = encode(&receiver_call(&fixture)).unwrap();
-    let decoded: DecodedHirDependencyCallSiteV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    let resolve = |meter: &mut BudgetMeter| {
-        decoded
-            .clone()
-            .resolve(&mut fixture.graph(), meter, &WirePath::root())
-    };
-    let mut measured = meter();
-    resolve(&mut measured).unwrap();
-    let cost = measured.usage();
-    let limits = DecodeLimits {
-        validation_work_units: cost.validation_work_units,
-        owned_bytes: cost.owned_bytes,
-        decoded_nodes: cost.decoded_nodes,
-        ..DecodeLimits::default()
-    };
-    let mut exact = BudgetMeter::new(limits);
-    resolve(&mut exact).unwrap();
-    assert!(matches!(
-        resolve(&mut exact),
-        Err(HirDependencyCallSiteResolutionError::Resource(_))
-    ));
-    for limits in [
-        DecodeLimits {
-            validation_work_units: cost.validation_work_units - 1,
-            ..limits
-        },
-        DecodeLimits {
-            owned_bytes: cost.owned_bytes - 1,
-            ..limits
-        },
-        DecodeLimits {
-            decoded_nodes: cost.decoded_nodes - 1,
-            ..limits
-        },
-    ] {
-        assert!(matches!(
-            resolve(&mut BudgetMeter::new(limits)),
-            Err(HirDependencyCallSiteResolutionError::Resource(_))
-        ));
-    }
 }

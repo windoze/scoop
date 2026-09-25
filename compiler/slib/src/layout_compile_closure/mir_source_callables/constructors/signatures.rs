@@ -7,14 +7,7 @@ pub(super) fn validate(
     metadata: hir::SharedTypeMetadataV1<'_>,
     source: &hir::CallableDeclarationRecordV1,
     binding: &mir::ParamFreeMirCallableBindingV1,
-    meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
-    for length in [
-        scoop_wire::encoded_length(source),
-        scoop_wire::encoded_length(binding),
-    ] {
-        meter.charge_work(length.map_err(Error::Encoding)?, &WirePath::root())?;
-    }
     Error::require(
         declaration,
         Component::Implementation,
@@ -27,11 +20,8 @@ pub(super) fn validate(
             component: Component::Owner,
         });
     };
-    let exact = metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner), meter)?;
-    lookup(
-        metadata.public.nominal_interfaces().declaration_count(),
-        meter,
-    )?;
+    let exact = metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner))?;
+
     let nominal = metadata
         .public
         .nominal_interfaces()
@@ -63,7 +53,7 @@ pub(super) fn validate(
         semantic.parameters().len() == parameters.len(),
     )?;
     for (index, (actual, source)) in semantic.parameters().iter().zip(parameters).enumerate() {
-        let expected = metadata.signature_exact_type(source.value_type(), meter)?;
+        let expected = metadata.signature_exact_type(source.value_type())?;
         Error::require(
             declaration,
             Component::Parameter { index },
@@ -83,19 +73,15 @@ pub(super) fn validate(
         hir::NominalSourceShapeV1::Class(_) => (
             mir::MirCallableLoweringRoleV1::ClassInitializer { owner: exact },
             Some(exact),
-            metadata.signature_exact_type(
-                &SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
-                meter,
-            )?,
+            metadata.signature_exact_type(&SignatureTypeKey::Nominal(
+                CoreBuiltinNominal::Unit.identity_record().id(),
+            ))?,
             mir::GcEffect::Managed,
         ),
         hir::NominalSourceShapeV1::Struct(shape) => {
             // A primary has the unique constructor key for the complete field
             // sequence. Secondary constructors cannot reuse that signature.
-            meter.charge_work(
-                scoop_wire::encoded_length(nominal.source_shape()).map_err(Error::Encoding)?,
-                &WirePath::root(),
-            )?;
+
             let primary = parameters
                 .iter()
                 .map(|parameter| parameter.value_type())

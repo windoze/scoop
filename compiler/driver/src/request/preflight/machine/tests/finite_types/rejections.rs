@@ -10,8 +10,7 @@ fn finite_mir_exports_require_the_same_identity_and_generated_foundation() {
                 CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
                     input,
                     sources,
-                    &empty_graph,
-                    &mut BudgetMeter::new(DecodeLimits::default())
+                    &empty_graph
                 ),
                 Err(scoop_mir::MirTypeBridgeError::Reference(_))
             ));
@@ -21,11 +20,7 @@ fn finite_mir_exports_require_the_same_identity_and_generated_foundation() {
             .unwrap();
             let restored: scoop_mir::DecodedCanonicalParamFreeMirTypeExportsV1 = decoded(records);
             assert!(matches!(
-                restored.validate(
-                    graph,
-                    &empty_foundation,
-                    &mut BudgetMeter::new(DecodeLimits::default())
-                ),
+                restored.validate(graph, &empty_foundation),
                 Err(scoop_mir::MirTypeBridgeError::MissingGeneratedFoundation { .. })
             ));
         },

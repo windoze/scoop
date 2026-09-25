@@ -8,15 +8,14 @@ impl<'a> HirInterfaceValidationInput<'a> {
     pub(crate) fn nominals(
         self,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
-        meter: &'a mut BudgetMeter,
     ) -> Result<(), CrossConeHirNominalSurfaceError> {
         self.interface
             .nominal_interfaces()
-            .validate_declared_field_inventory(self.foundation.as_canonical(), meter)
+            .validate_declared_field_inventory(self.foundation.as_canonical())
             .map_err(CrossConeHirNominalSurfaceError::Fields)?;
         self.interface
             .nominal_interfaces()
-            .validate_declared_relation_inventory(self.foundation.as_canonical(), meter)
+            .validate_declared_relation_inventory(self.foundation.as_canonical())
             .map_err(CrossConeHirNominalSurfaceError::Relations)?;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             self.current,
@@ -24,7 +23,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             self.foundation,
             self.interface,
             dependencies,
-            meter,
         );
         self.interface
             .nominal_interfaces()
@@ -40,7 +38,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
     pub(crate) fn properties(
         self,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
-        meter: &'a mut BudgetMeter,
     ) -> Result<(), CrossConeHirPropertySurfaceError> {
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             self.current,
@@ -48,7 +45,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             self.foundation,
             self.interface,
             dependencies,
-            meter,
         );
         self.interface
             .property_interfaces()
@@ -71,11 +67,10 @@ impl<'a> HirInterfaceValidationInput<'a> {
     pub(crate) fn callables(
         self,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
-        meter: &'a mut BudgetMeter,
     ) -> Result<(), CrossConeHirCallableSurfaceError> {
         self.interface
             .nominal_interfaces()
-            .validate_dispatch_declarations(self.interface.callable_interfaces(), meter)
+            .validate_dispatch_declarations(self.interface.callable_interfaces())
             .map_err(CrossConeHirCallableSurfaceError::Dispatch)?;
         crate::cross_cone_hir_authority::validate_intrinsic_declarations(
             self.interface,
@@ -85,7 +80,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
                     .iter()
                     .map(|provider| (provider.identity, provider.core)),
             ),
-            meter,
         )
         .map_err(|error| CrossConeHirCallableSurfaceError::Intrinsics(Box::new(error)))?;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
@@ -94,7 +88,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             self.foundation,
             self.interface,
             dependencies,
-            meter,
         );
         self.interface
             .callable_interfaces()
@@ -120,7 +113,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
     pub(crate) fn type_aliases(
         self,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
-        meter: &'a mut BudgetMeter,
     ) -> Result<(), CrossConeHirTypeAliasSurfaceError> {
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             self.current,
@@ -128,7 +120,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             self.foundation,
             self.interface,
             dependencies,
-            meter,
         );
         self.interface
             .type_aliases()

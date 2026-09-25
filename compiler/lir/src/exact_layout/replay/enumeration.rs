@@ -30,9 +30,8 @@ impl ExactValueLayoutV1 {
         identity: ExactLayoutIdentityV1,
         variants: &[EnumLayoutVariantInputV1<'_>],
         foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
-        validate_variants(&identity, variants, meter)?;
+        validate_variants(&identity, variants)?;
         if let Some((index, kind, payload)) = niche(variants) {
             let roles: &[RepresentationRole] = match kind {
                 NichePointerKind::Managed => &[RepresentationRole::ManagedValue],
@@ -42,9 +41,9 @@ impl ExactValueLayoutV1 {
             };
             require_roles(&identity, roles)?;
             let whole = geometry(payload)?;
-            let mut placed = reserve(variants.len(), meter)?;
+            let mut placed = reserve(variants.len())?;
             for variant in variants {
-                let mut fields = reserve(variant.fields.len(), meter)?;
+                let mut fields = reserve(variant.fields.len())?;
                 for field in variant.fields {
                     fields.push(EnumVariantFieldLayoutV1 {
                         field: field.field.id(),
@@ -66,19 +65,18 @@ impl ExactValueLayoutV1 {
                     payload_variant: variants[index].variant.id(),
                 }),
                 foundation,
-                meter,
             );
         }
         require_roles(&identity, &[RepresentationRole::ManagedValue])?;
-        let mut geometries = reserve(variants.len(), meter)?;
+        let mut geometries = reserve(variants.len())?;
         for variant in variants {
-            let mut fields = reserve(variant.fields.len(), meter)?;
+            let mut fields = reserve(variant.fields.len())?;
             for field in variant.fields {
                 fields.push(geometry(field.value)?);
             }
             geometries.push(fields);
         }
-        let mut inputs = reserve(variants.len(), meter)?;
+        let mut inputs = reserve(variants.len())?;
         for (variant, fields) in variants.iter().zip(&geometries) {
             inputs.push(EnumVariantGeometryInputV1 {
                 fields,
@@ -88,10 +86,10 @@ impl ExactValueLayoutV1 {
                     .all(|field| !storage_scan(field.value.value.storage()).contains_reference()),
             });
         }
-        let geometry = EnumStorageGeometryV1::tagged(identity.target(), &inputs, meter)?;
-        let mut placed = reserve(variants.len(), meter)?;
+        let geometry = EnumStorageGeometryV1::tagged(identity.target(), &inputs)?;
+        let mut placed = reserve(variants.len())?;
         for (variant, placement) in variants.iter().zip(geometry.variants()) {
-            let mut fields = reserve(variant.fields.len(), meter)?;
+            let mut fields = reserve(variant.fields.len())?;
             for (field, position) in variant.fields.iter().zip(placement.fields()) {
                 fields.push(EnumVariantFieldLayoutV1 {
                     field: field.field.id(),
@@ -126,7 +124,6 @@ impl ExactValueLayoutV1 {
                 variants: placed,
             }),
             foundation,
-            meter,
         )
     }
 }
@@ -142,14 +139,12 @@ fn geometry(value: &ExactValueLayoutV1) -> Result<StorageGeometryV1, ExactLayout
 fn validate_variants(
     identity: &ExactLayoutIdentityV1,
     variants: &[EnumLayoutVariantInputV1<'_>],
-    meter: &mut BudgetMeter,
 ) -> Result<(), ExactLayoutReplayError> {
     let owner = nominal(identity.exact_key())?;
     if variants.is_empty() {
         return Err(ExactLayoutReplayError::EmptyEnum);
     }
-    meter.charge_work(variants.len() as u64, &WirePath::root())?;
-    meter.charge_collection_slots(variants.len() as u64, &WirePath::root())?;
+
     let mut seen = BTreeSet::new();
     for variant in variants {
         let key = variant.variant.key();
@@ -162,8 +157,7 @@ fn validate_variants(
         if !seen.insert(variant.variant.id()) {
             return Err(ExactLayoutReplayError::DuplicateVariant);
         }
-        meter.charge_work(variant.fields.len() as u64, &WirePath::root())?;
-        meter.charge_collection_slots(variant.fields.len() as u64, &WirePath::root())?;
+
         let mut fields = BTreeSet::new();
         for (index, field) in variant.fields.iter().enumerate() {
             if field.field.key().variant() != variant.variant.id() {

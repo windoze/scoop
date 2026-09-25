@@ -1,6 +1,6 @@
 //! Stable occurrences borrowed directly from materialized executable bodies.
 
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{WireError, WirePath};
 
 use super::*;
 
@@ -31,21 +31,15 @@ impl Module {
     /// their function bodies have their own materialization roots.
     pub fn visit_executable_expressions<'a, E>(
         &'a self,
-        meter: &mut BudgetMeter,
-        mut visitor: impl FnMut(ExecutableExpressionOccurrence<'a>, &mut BudgetMeter) -> Result<(), E>,
+
+        mut visitor: impl FnMut(ExecutableExpressionOccurrence<'a>) -> Result<(), E>,
     ) -> Result<(), ExecutableExpressionVisitError<E>> {
-        let roots = roots::collect(self, meter)?;
+        let roots = roots::collect(self)?;
         for (root, body) in roots {
-            let mut traversal = Traversal::new(self, meter);
+            let mut traversal = Traversal::new(self);
             body.schedule(&mut traversal)?;
             let mut expression_index = 0_u32;
-            while let Some((item, depth)) = traversal.pending.pop() {
-                traversal
-                    .meter
-                    .check_semantic_depth(depth, &traversal.path)?;
-                traversal.meter.charge_work(1, &traversal.path)?;
-                traversal.meter.charge_nodes(1, &traversal.path)?;
-                traversal.depth = depth;
+            while let Some(item) = traversal.pending.pop() {
                 match item {
                     Item::Expression(expression) => {
                         let position = ExecutableExpressionPosition {
@@ -55,13 +49,10 @@ impl Module {
                         expression_index = expression_index
                             .checked_add(1)
                             .ok_or(StructureError::ExpressionIndexOverflow(root))?;
-                        visitor(
-                            ExecutableExpressionOccurrence {
-                                position,
-                                expression,
-                            },
-                            traversal.meter,
-                        )
+                        visitor(ExecutableExpressionOccurrence {
+                            position,
+                            expression,
+                        })
                         .map_err(ExecutableExpressionVisitError::Visitor)?;
                         traversal.expression(expression)?;
                     }
@@ -80,37 +71,28 @@ enum Item<'a> {
     Pattern(&'a Pattern),
 }
 
-struct Traversal<'a, 'm> {
+struct Traversal<'a> {
     module: &'a Module,
-    meter: &'m mut BudgetMeter,
-    pending: Vec<(Item<'a>, u64)>,
-    depth: u64,
+
+    pending: Vec<Item<'a>>,
+
     path: WirePath,
 }
 
-impl<'a, 'm> Traversal<'a, 'm> {
-    fn new(module: &'a Module, meter: &'m mut BudgetMeter) -> Self {
+impl<'a> Traversal<'a> {
+    fn new(module: &'a Module) -> Self {
         Self {
             module,
-            meter,
+
             pending: Vec::new(),
-            depth: 0,
+
             path: WirePath::root(),
         }
     }
 
     fn push(&mut self, item: Item<'a>) -> Result<(), StructureError> {
-        let depth = self
-            .depth
-            .checked_add(1)
-            .ok_or(StructureError::DepthOverflow)?;
-        self.meter.check_semantic_depth(depth, &self.path)?;
-        self.meter.charge_edges(1, &self.path)?;
-        self.meter
-            .charge_owned_bytes(std::mem::size_of::<(Item<'_>, u64)>() as u64, &self.path)?;
-        self.meter
-            .try_reserve_collection_slots(&mut self.pending, 1, &self.path)?;
-        self.pending.push((item, depth));
+        scoop_wire::allocation::try_reserve(&mut self.pending, 1, &self.path)?;
+        self.pending.push(item);
         Ok(())
     }
 

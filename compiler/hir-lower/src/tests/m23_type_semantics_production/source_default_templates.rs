@@ -5,8 +5,8 @@ use hir::{
     DecodedDefaultSourceTemplateV1 as Decoded, DefaultSourceBodyProductionV1 as Body,
     DefaultSourceTemplateV1 as Template,
 };
-use scoop_wire::{decode_canonical, decode_canonical_with_meter, encode};
-mod budgets;
+use scoop_wire::{decode_canonical, encode};
+
 mod casts;
 mod nested_occurrences;
 mod public_receivers;
@@ -17,9 +17,7 @@ const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/templates.scoop"
 ));
-fn meter() -> BudgetMeter {
-    BudgetMeter::new(DecodeLimits::default())
-}
+
 fn function(export: &hir::ExportHir, name: &str) -> hir::ExportParameterOwner {
     hir::ExportParameterOwner::Function(
         export
@@ -31,36 +29,29 @@ fn function(export: &hir::ExportHir, name: &str) -> hir::ExportParameterOwner {
     )
 }
 fn template(output: &hir::DependencyHirOutput, name: &str, position: u32) -> Template {
-    let mut shared = meter();
     Body::from_dependency_hir(
         output,
         function(output.output().export.module(), name),
         position,
-        &mut shared,
     )
     .unwrap()
-    .into_source_template(&mut shared)
+    .into_source_template()
     .unwrap()
 }
 fn bytes(value: &Template) -> Vec<u8> {
-    encode(&value.index_locals(&mut meter()).unwrap()).unwrap()
+    encode(&value.index_locals().unwrap()).unwrap()
 }
 fn round_trip(output: &hir::DependencyHirOutput, value: &Template) -> Template {
     let bytes = bytes(value);
     assert_eq!(&bytes[..2], &[0xac, 1]);
-    let mut shared = meter();
-    let input: Decoded = decode_canonical_with_meter(&bytes, &mut shared).unwrap();
+
+    let input: Decoded = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&input).unwrap(), bytes);
-    let before = shared.usage();
-    let restored = input
-        .resolve(&mut identity_closure(output), &mut shared)
-        .unwrap();
+
+    let restored = input.resolve(&mut identity_closure(output)).unwrap();
     assert_eq!(&restored, value);
-    assert!(shared.usage().validation_work_units > before.validation_work_units);
-    assert_eq!(
-        encode(&restored.index_locals(&mut shared).unwrap()).unwrap(),
-        bytes
-    );
+
+    assert_eq!(encode(&restored.index_locals().unwrap()).unwrap(), bytes);
     restored
 }
 
@@ -116,7 +107,6 @@ fn source_template_conversion_moves_owned_leaves_without_reprojection() {
             output,
             function(output.output().export.module(), "literal"),
             0,
-            &mut meter(),
         )
         .unwrap();
         let hir::DefaultExpressionKindV1::StringLiteral { value, .. } = body.body().value().kind()
@@ -125,7 +115,7 @@ fn source_template_conversion_moves_owned_leaves_without_reprojection() {
         };
         let pointer = value.as_ptr();
         let refs_pointer = body.references().types().as_ptr();
-        let template = body.into_source_template(&mut meter()).unwrap();
+        let template = body.into_source_template().unwrap();
         let hir::DefaultExpressionKindV1::StringLiteral { value, .. } =
             template.body().value().kind()
         else {
@@ -162,16 +152,11 @@ fn source_template_round_trips_all_reference_kinds_and_constructor_providers() {
                     ) {
                         continue;
                     }
-                    let mut shared = meter();
-                    let value = Body::from_dependency_hir(
-                        output,
-                        interface.owner,
-                        position as u32,
-                        &mut shared,
-                    )
-                    .unwrap()
-                    .into_source_template(&mut shared)
-                    .unwrap();
+
+                    let value = Body::from_dependency_hir(output, interface.owner, position as u32)
+                        .unwrap()
+                        .into_source_template()
+                        .unwrap();
                     round_trip(output, &value);
                 }
             }

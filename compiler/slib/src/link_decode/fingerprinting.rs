@@ -13,10 +13,6 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
         self.graph.artifact_fingerprint()
     }
 
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
-    }
-
     pub fn identity_count(&self) -> usize {
         self.identities.identity_count()
     }
@@ -90,7 +86,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
     ) -> Result<LinkSymbolCheckedSingleConeLinkSections<'input>, StrongLinkSymbolRequirementError>
     {
         let Self {
-            mut graph,
+            graph,
             identities,
             foundations,
             production,
@@ -154,11 +150,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
             crate::finalize_undefined_symbol_requirements_v1(current_cone, external)
                 .map_err(StrongLinkSymbolRequirementError::UndefinedSymbols)?;
         let link_identity_closure = link_identity_closure
-            .validate_symbol_projections(
-                &defined_symbols,
-                &undefined_symbols,
-                graph.envelope.meter_mut(),
-            )
+            .validate_symbol_projections(&defined_symbols, &undefined_symbols)
             .map_err(StrongLinkSymbolRequirementError::ClosureProjection)?;
 
         Ok(LinkSymbolCheckedSingleConeLinkSections {
@@ -192,10 +184,6 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {
@@ -383,10 +371,6 @@ impl<'input> RegistrationDependencyFingerprintedSingleConeLinkSections<'input> {
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {
@@ -680,10 +664,6 @@ impl ValidatedSingleConeStrongLinkArtifact<'_> {
 
     pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
         self.graph.envelope.manifest().semantic_fingerprints()
-    }
-
-    pub const fn decode_usage(&self) -> DecodeUsage {
-        self.graph.decode_usage()
     }
 
     pub fn identity_count(&self) -> usize {

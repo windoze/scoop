@@ -6,14 +6,14 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
     public: &CrossConeHirInterfaceSectionV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     foundation: &F,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
     let required = foundation
         .required_representation_owners()
         .map_err(TypeSectionExportValidationError::Source)?
         .values();
-    sequence(public.nominal_interfaces().records().len(), meter, path)?;
+
     for (index, old) in public.nominal_interfaces().records().iter().enumerate() {
         let at = path.clone().field(2).index(index as u64);
         let source = graph
@@ -27,7 +27,7 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         )?;
         require(
             graph
-                .replay_nominal_access(old.declaration(), meter)
+                .replay_nominal_access(old.declaration())
                 .map_err(|e| match e {
                     AccessDomainSemanticError::Resource(e) => {
                         TypeSectionExportValidationError::Resource(e)
@@ -41,26 +41,22 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         let SourceNominalId::Concrete(owner) = old.declaration() else {
             continue;
         };
-        lookup(required.len(), meter, &at)?;
+
         if required.binary_search(&owner).is_err() {
             // Source-only declarations have already passed the common source
             // checks. The complete machine inventory is checked separately.
             continue;
         }
-        lookup(
-            candidate.representation_support().records().len(),
-            meter,
-            &at,
-        )?;
+
         let representation = candidate
             .representation_support()
             .get(owner)
             .ok_or(TypeSectionExportValidationError::PublicOverlap)?;
-        require(representation.public_source_shape_matches(old.source_shape(), meter, &at)?)?;
-        meter.charge_work(64, &at)?;
+        require(representation.public_source_shape_matches(old.source_shape(), &at)?)?;
+
         let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner))
             .map_err(|_| TypeSectionExportValidationError::PublicOverlap)?;
-        lookup(candidate.inheritance().records().len(), meter, &at)?;
+
         let new = candidate
             .inheritance()
             .get(exact)
@@ -68,10 +64,9 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         require(supertypes(
             old.exact_supertypes().values(),
             new.edges(),
-            meter,
             &at,
         )?)?;
-        constructors(old, new, public, graph, meter, &at)?;
+        constructors(old, new, public, graph, &at)?;
     }
     Ok(())
 }
@@ -89,11 +84,9 @@ fn kind(kind: SourceDeclarationKind) -> Option<PublicNominalKindV1> {
 fn supertypes(
     old: &[SignatureTypeKey],
     new: &NominalInheritanceEdgesV1,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<bool, WireError> {
-    sequence(old.len(), meter, path)?;
-    sequence(new.direct_interfaces().len(), meter, path)?;
     let base = match new.direct_base() {
         DirectClassBaseV1::NoClassBase => None,
         DirectClassBaseV1::ClassBase { exact } => Some(exact),
@@ -105,10 +98,10 @@ fn supertypes(
         let SignatureTypeKey::Nominal(id) = value else {
             return Ok(false);
         };
-        meter.charge_work(64, path)?;
+
         let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(*id))
             .map_err(|_| overflow(path))?;
-        lookup(new.direct_interfaces().len(), meter, path)?;
+
         if Some(exact) != base && new.direct_interfaces().binary_search(&exact).is_err() {
             return Ok(false);
         }
@@ -120,11 +113,9 @@ fn constructors<E>(
     new: &NominalInheritanceInterfaceV1,
     public: &CrossConeHirInterfaceSectionV1,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
-    meter: &mut BudgetMeter,
+
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
-    sequence(old.constructors().values().len(), meter, path)?;
-    sequence(new.constructors().records().len(), meter, path)?;
     let mut visible = 0;
     for constructor in new.constructors().records() {
         let source = constructor.source();
@@ -134,12 +125,11 @@ fn constructors<E>(
             source.payload(),
             public,
             graph,
-            meter,
             path,
         )?;
-        if effective_public(source.declaration_access(), graph, meter, path)? {
+        if effective_public(source.declaration_access(), graph)? {
             visible += 1;
-            lookup(old.constructors().values().len(), meter, path)?;
+
             require(
                 old.constructors()
                     .values()

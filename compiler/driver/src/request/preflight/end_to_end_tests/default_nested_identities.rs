@@ -1,6 +1,6 @@
 use super::*;
 use scoop_hir::DefaultSourceNestedCallableDescriptorV1 as Descriptor;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 #[test]
 fn ordinary_reader_binds_nested_default_identities_from_published_bytes() {
@@ -22,7 +22,7 @@ fn ordinary_reader_binds_nested_default_identities_from_published_bytes() {
             vec![],
         );
         request.emit = StageDumpPolicy::Stage(StageDumpKind::Hir);
-        let library = request.build_and_publish(DecodeLimits::default()).unwrap();
+        let library = request.build_and_publish().unwrap();
         let dump = library.emitted_dump().unwrap();
         let snapshot = directory.join(format!("{case}.hir.snap"));
         if std::env::var_os("SCOOP_UPDATE_NESTED_IDENTITY_SNAPSHOTS").is_some() {
@@ -41,7 +41,6 @@ fn ordinary_reader_binds_nested_default_identities_from_published_bytes() {
             vec![ConeIdentity::CORE],
             vec![&core_bytes],
             &bytes,
-            DecodeLimits::default(),
             target.c_bridge_toolchain().profile(),
             &mut session,
         )
@@ -56,12 +55,7 @@ fn ordinary_reader_binds_nested_default_identities_from_published_bytes() {
         let mut kinds = [false; 4];
         let mut expanded_arguments = false;
         for template in templates {
-            let nested = template
-                .index_nested_callables(
-                    &mut BudgetMeter::new(DecodeLimits::default()),
-                    &WirePath::root(),
-                )
-                .unwrap();
+            let nested = template.index_nested_callables(&WirePath::root()).unwrap();
             assert_eq!(nested.template(), template.key());
             for occurrence in nested.occurrences() {
                 let descriptor = occurrence.descriptor();
