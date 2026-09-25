@@ -1850,6 +1850,8 @@ session有两层interner。artifact-origin registry以`ConeIdentity`为key，要
 
 因此两个Cone产生相同tuple/function exact type、layout key或bridge unit时，只要canonical key相同就复用同一structural world id；它们各自的materialization/definition内容保留per-origin record，由后续ODR/object proof比较。diamond路径再次读取同declaration origin/key/fingerprint时复用world id；同id但key不同仍是确定性冲突。不同Cone的同FQN或display name不会intern成同一declaration。
 
+依赖 identity graph 已完成键和引用验证后，导入阶段共享其 canonical key，仅核对当前合并发生的实体与键冲突；同一共享键不重复判等。实体冲突通过当次导入的索引查询，不逐项遍历全部既有键；不可变来源图不重复检查记录消失或未解析状态。
+
 re-encode只读取persistent id/key并按canonical sort重建DTO，不读imported arena number。因此`encode -> decode -> remap -> re-encode`必须逐byte相同，即使consumer事先预占了不同数量的arena entry。
 
 ### 11.3 跨层完备性

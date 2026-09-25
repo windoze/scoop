@@ -213,7 +213,7 @@ impl SemanticIdentitySession {
             let slot = SemanticIdentitySlot::from_key_slot(*key_slot);
             if let Some(existing) = self.entities.get(&slot) {
                 if existing.key_slot.key_type != key_slot.key_type
-                    || !existing.key.equals(key.as_ref())
+                    || (!Arc::ptr_eq(&existing.key, key) && !existing.key.equals(key.as_ref()))
                 {
                     return Err(SemanticIdentityImportError::IdentityConflict {
                         kind: key_slot.kind,

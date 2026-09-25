@@ -814,6 +814,8 @@ M23-6 的 Link strong requirement 在一个共有分类步骤中解析。输入�
 
 core 可在任意普通源码目录修改、扩展和重建。manifest、构建图、缓存、依赖类型查询及产物消费使用共有路径。显式 direct/support 输入已有 core 时复用该输入，否则从 sysroot 默认位置查找；错误显式输入不能回退。Unit/Any 保持语言内建 typed identity，其他类型由实际声明及 provider 决定。identity、coordinate 与内容 fingerprint 分别承担实体身份、依赖选择与缓存失效职责，不承担来源认证。
 
+已验证依赖 identity graph 的导入复用 canonical key 对象，只检查与当前图实际发生的实体/键冲突；共享同一键对象的菱形引用直接复用。冲突查询使用当次导入的实体索引，不为每条记录重新扫描全表，也不重新检查该不可变图是否在遍历间丢失记录。
+
 - 前端识别 intrinsic、检查语言声明与默认参数规则，并输出完整 typed operation、实际声明引用、签名、effect、visibility 和依赖关系。IR/meta crate 保存这些数据及格式、引用不变量，不再实现一套语言语义或来源授权体系。
 - canonical ABI 从实际 exact type、签名、target 与 provider 的布局计算。所有 Cone 使用同一规则，空集合自然成功；删除 CORE 验证跳过与专用空表限制。后端直接消费完整 ABI，边界核对实际调用和定义的一致性。
 - native boundary 从当前声明与普通依赖查询取得完整 nominal、字段/variant、表示及 CLayout policy；按 FFI 的 C-safe、GC-free、布局和调用约定检查。删除 TrustedCore 外来类型入口及后端固定 CORE 身份重建。
