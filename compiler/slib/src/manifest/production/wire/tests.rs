@@ -60,7 +60,11 @@ fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
     let bridge_plan =
         scoop_lir::GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
     let checked = decoded
-        .validate_c_bridge_production(&bridge_plan, &c_bridge_profile())
+        .validate_c_bridge_production(
+            &bridge_plan,
+            &c_bridge_profile(),
+            &mut BudgetMeter::new(DecodeLimits::default()),
+        )
         .unwrap();
     assert_eq!(
         checked.c_bridge_production(),

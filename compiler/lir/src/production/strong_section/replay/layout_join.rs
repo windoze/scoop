@@ -132,10 +132,7 @@ impl ValidatedStrongProductionSectionV2 {
     }
 
     pub fn safepoint_semantics(&self) -> crate::StrongSafepointSemanticPlanSetV1 {
-        self.replayed
-            .section
-            .registration_production()
-            .safepoint_semantics()
+        self.replayed.safepoint_semantics()
     }
 
     pub fn immortal_registrations(&self) -> &crate::StrongImmortalObjectRegistrationPlanSetV1 {

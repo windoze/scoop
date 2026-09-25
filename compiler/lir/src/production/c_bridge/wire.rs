@@ -4,7 +4,10 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use scoop_identity::{DecodedCapabilityId, DecodedPersistentId, GeneratedBridgeUnitId};
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{
+    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
+    encode_canonical_temporary_with_meter,
+};
 
 use super::CBridgeProductionSetV1;
 use crate::{
@@ -65,15 +68,23 @@ pub struct DecodedCBridgeProductionSetV1 {
 impl DecodedCBridgeProductionSetV1 {
     /// Promotes only the trusted projection after exact canonical equality.
     pub fn validate(
-        self,
-        expected: &CBridgeProductionSetV1,
+        &self,
+        expected: CBridgeProductionSetV1,
+        meter: &mut BudgetMeter,
     ) -> Result<CBridgeProductionSetV1, CBridgeProductionValidationError> {
-        let actual = encode(&self).map_err(CBridgeProductionValidationError::Encode)?;
-        let expected_bytes = encode(expected).map_err(CBridgeProductionValidationError::Encode)?;
+        let path = WirePath::root().field(10);
+        let actual = encode_canonical_temporary_with_meter(self, meter, &path)?;
+        let expected_bytes = encode_canonical_temporary_with_meter(&expected, meter, &path)?;
+        meter.charge_work(
+            (actual.len() as u64)
+                .saturating_add(expected_bytes.len() as u64)
+                .saturating_mul(3),
+            &path,
+        )?;
         if actual != expected_bytes {
             return Err(CBridgeProductionValidationError::ProjectionMismatch);
         }
-        Ok(expected.clone())
+        Ok(expected)
     }
 }
 
@@ -138,7 +149,13 @@ impl WireDecode for DecodedCBridgeProductionSetV1 {
 #[derive(Debug)]
 pub enum CBridgeProductionValidationError {
     ProjectionMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
+    Resource(WireError),
+}
+
+impl From<WireError> for CBridgeProductionValidationError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
 }
 
 impl fmt::Display for CBridgeProductionValidationError {
@@ -150,7 +167,7 @@ impl fmt::Display for CBridgeProductionValidationError {
 impl std::error::Error for CBridgeProductionValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Encode(error) => Some(error),
+            Self::Resource(error) => Some(error),
             Self::ProjectionMismatch => None,
         }
     }

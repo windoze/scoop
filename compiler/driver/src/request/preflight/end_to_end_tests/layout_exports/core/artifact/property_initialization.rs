@@ -46,8 +46,13 @@ pub(super) fn check(
     .unwrap();
     let core = bootstrap_core(directory, target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-property-initialization");
-    for (name, count) in [("standalone", 1), ("combined", 4)] {
+    for (family, name, count) in [
+        ("m23-property-initialization", "standalone", 1),
+        ("m23-property-initialization", "combined", 4),
+        ("m23-link-object-contents", "standalone", 1),
+        ("m23-link-object-contents", "combined", 4),
+    ] {
+        let fixtures = crate::workspace_root().join("tests/fixtures").join(family);
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
         support::with_pair(
             directory,
@@ -165,6 +170,18 @@ pub(super) fn check(
                 );
                 super::source_calls::check(input, core_input, core_artifact, &artifact);
                 super::link_materializations::check(core_artifact, &artifact);
+                if family == "m23-link-object-contents" {
+                    snapshot(
+                        &fixtures.join(format!("{name}.hir.snap")),
+                        &hir::dump(&input.hir.output().export),
+                    );
+                    super::link_object_contents::check(
+                        name,
+                        core_artifact,
+                        &artifact,
+                        &prepared.c_bridge_profile,
+                    );
+                }
                 let mut dump = format!("mir-uses={count}\n");
                 for (view, closure) in [
                     ("compile", reader::read(core_artifact, &artifact)),

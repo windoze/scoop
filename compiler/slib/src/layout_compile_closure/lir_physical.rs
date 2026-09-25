@@ -14,10 +14,13 @@ use super::{
 };
 use crate::dependency_reachability::transitive_positions;
 
+mod driver;
 mod errors;
+mod objects;
 mod replay;
 mod support;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
+pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
 
 pub type PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked> =
     LirConstituentsValidatedCrossConeLayoutSections<
@@ -45,76 +48,13 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
             PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input>,
         ) -> R,
     ) -> Result<R, CrossConeLayoutLirPhysicalError> {
-        let arena = Arena::new();
-        let mut complete = Vec::new();
-        for (position, artifact) in self.dependency_first.into_iter().enumerate() {
-            let provider = artifact.identity();
-            let replay = || -> Result<_, SharedLirPhysicalError> {
-                let LirDependencyGraphReplayedCrossConeLayoutSections {
-                    mut prepared,
-                    mir,
-                    units,
-                    strong,
-                    ordinary,
-                    layout,
-                } = artifact;
-                prepared.validate_link_materializations(&strong)?;
-                let parts = prepared.semantic_parts();
-                let reachable =
-                    transitive_positions(position, &self.dependency_positions, parts.meter)?;
-                let mut dependencies = Vec::new();
-                parts.meter.try_reserve_collection_slots(
-                    &mut dependencies,
-                    reachable.len(),
-                    &WirePath::root(),
-                )?;
-                dependencies.extend(reachable.into_iter().map(|index| complete[index]));
-                let layout = replay::physical(
-                    layout,
-                    &strong,
-                    &mir,
-                    &dependencies,
-                    parts.identities,
-                    parts.meter,
-                )?;
-                strong.validate_replayed_layout_selection(&layout, parts.meter)?;
-                if let Some(link) = parts.link_sections {
-                    link.layout_link_closure_wire()
-                        .validate_physical_imports_against(
-                            layout.physical_imports(),
-                            parts.meter,
-                        )?;
-                }
-                parts.meter.charge_owned_bytes(
-                    std::mem::size_of::<PhysicalImportsReplayedCrossConeLayoutSections<'_, '_>>()
-                        as u64,
-                    &WirePath::root(),
-                )?;
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut complete, 1, &WirePath::root())?;
-                Ok(PhysicalImportsReplayedCrossConeLayoutSections {
-                    prepared,
-                    mir,
-                    units,
-                    strong,
-                    ordinary,
-                    layout,
-                })
-            };
-            let artifact = replay().map_err(|source| CrossConeLayoutLirPhysicalError {
-                provider,
-                source: Box::new(source),
-            })?;
-            complete.push(&*arena.alloc(artifact));
-        }
-        Ok(use_checked(PhysicalImportsReplayedCrossConeLayoutClosure {
-            current: self.current,
-            target: self.target,
-            direct: self.direct,
-            artifacts: complete,
-            positions: self.positions,
-        }))
+        self.with_replayed_physical(
+            |prepared, strong| {
+                prepared.validate_link_materializations(strong)?;
+                Ok(())
+            },
+            |physical, _| use_checked(physical),
+        )
     }
 }
 

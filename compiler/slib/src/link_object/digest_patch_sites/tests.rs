@@ -20,6 +20,8 @@ const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
 const SLOT_IN_ATOM: u64 = 16;
 
+mod reader;
+
 #[test]
 fn verifies_complete_zero_patch_materialization() {
     let fixture = patch_fixture([0; 64], &[]);

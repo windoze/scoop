@@ -3,6 +3,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
 
+mod digest_inputs;
 mod materializations;
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::fixture_named;
@@ -135,7 +136,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     let checked = decoded
         .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
         .unwrap()
-        .validate_digest_patch_inputs(digest_plan)
+        .validate_digest_patch_inputs(digest_plan, &mut BudgetMeter::new(DecodeLimits::default()))
         .unwrap();
     assert_eq!(checked.member_plan(), &plan);
     assert_eq!(checked.provisional_patch_sites().len(), 1);
@@ -152,7 +153,10 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
     .unwrap();
     assert_eq!(
-        missing.validate_digest_patch_inputs(digest_plan),
+        missing.validate_digest_patch_inputs(
+            digest_plan,
+            &mut BudgetMeter::new(DecodeLimits::default())
+        ),
         Err(LinkDigestPatchInputValidationError::MissingPatchIntent(
             intent
         ))
@@ -175,7 +179,10 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
     .unwrap();
     assert_eq!(
-        unknown.validate_digest_patch_inputs(digest_plan),
+        unknown.validate_digest_patch_inputs(
+            digest_plan,
+            &mut BudgetMeter::new(DecodeLimits::default())
+        ),
         Err(LinkDigestPatchInputValidationError::UnknownPatchIntent(
             *unknown_intent.as_array()
         ))

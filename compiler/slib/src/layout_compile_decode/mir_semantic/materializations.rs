@@ -1,6 +1,25 @@
 use super::*;
 
-impl PreparedCrossConeLayoutMirSections<'_> {
+impl<'input> PreparedCrossConeLayoutMirSections<'input> {
+    pub(crate) fn replay_link_object_contents(
+        &mut self,
+        strong: &scoop_lir::ReplayedStrongProductionSectionV2,
+        profile: &scoop_lir::CBridgeToolchainProfileV1,
+    ) -> Result<crate::ReplayedLayoutLinkObjectContentsV1<'input>, crate::SharedLirPhysicalError>
+    {
+        let link = self
+            .view
+            .link()
+            .ok_or(crate::LayoutLinkObjectContentsError::CompileView)?;
+        crate::layout_link_objects::replay(
+            link,
+            &mut self.graph,
+            &self.foundations.lir,
+            strong,
+            profile,
+        )
+    }
+
     pub(crate) fn validate_link_materializations(
         &mut self,
         strong: &scoop_lir::ReplayedStrongProductionSectionV2,

@@ -12,7 +12,10 @@ use scoop_lir::{
     DecodedCBridgeProductionSetV1, DecodedStrongRegistrationIdentitySurfaceV1,
     GeneratedBridgePlanSetV1,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{
+    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
+    encode, encode_canonical_temporary_with_meter,
+};
 
 use super::SingleConeProductionManifestV1;
 use crate::CrossConeLayoutProductionManifestV1;
@@ -192,14 +195,37 @@ impl DecodedSingleConeProductionManifestV1 {
         self,
         bridge_plan: &GeneratedBridgePlanSetV1,
         profile: &CBridgeToolchainProfileV1,
+        meter: &mut BudgetMeter,
     ) -> Result<CBridgeCheckedSingleConeProductionManifestV1, CBridgeProductionValidationError>
     {
-        let expected = CBridgeProductionSetV1::from_generated_bridge_plan(bridge_plan, profile);
-        let c_bridge_production = self.c_bridge_production.clone().validate(&expected)?;
+        let c_bridge_production = self.replay_c_bridge_production(bridge_plan, profile, meter)?;
         Ok(CBridgeCheckedSingleConeProductionManifestV1 {
             decoded: self,
             c_bridge_production,
         })
+    }
+
+    /// Replays only this field while retaining the original manifest for the
+    /// later registration and Code fingerprint comparison.
+    pub fn replay_c_bridge_production(
+        &self,
+        bridge_plan: &GeneratedBridgePlanSetV1,
+        profile: &CBridgeToolchainProfileV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<CBridgeProductionSetV1, CBridgeProductionValidationError> {
+        let path = WirePath::root().field(10);
+        let count = bridge_plan.units().len() as u64;
+        meter.check_table_entries(count, &path)?;
+        meter.charge_collection_slots(count, &path)?;
+        meter.charge_owned_bytes(count.saturating_mul(32), &path)?;
+        meter.charge_work(count, &path)?;
+        if count != 0 {
+            let profile_bytes = encode_canonical_temporary_with_meter(profile.id(), meter, &path)?;
+            meter.charge_owned_bytes(profile_bytes.len() as u64, &path)?;
+            meter.charge_work((profile_bytes.len() as u64).saturating_mul(3), &path)?;
+        }
+        let expected = CBridgeProductionSetV1::from_generated_bridge_plan(bridge_plan, profile);
+        self.c_bridge_production.validate(expected, meter)
     }
 
     /// Rebuilds the complete manifest from the verified Code proof and only

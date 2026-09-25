@@ -1,7 +1,6 @@
 //! Strict untrusted wire projection for the Link identity closure.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
 
 use scoop_identity::{
     DecodedPersistentId, DefinitionAtomRole, DigestPatchIntentId, GeneratedBridgeUnitId,
@@ -12,7 +11,12 @@ use scoop_wire::{
     BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode,
 };
 
+mod digest_inputs;
+mod errors;
+pub use errors::*;
 mod materializations;
+mod object_projections;
+mod resources;
 
 use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
 use crate::SlibMemberId;
@@ -365,77 +369,14 @@ impl MaterializationCheckedLinkIdentityClosureSectionV1 {
     pub fn validate_digest_patch_inputs(
         self,
         digest_plan: &StrongDigestFinalizationPlanV1,
+        meter: &mut BudgetMeter,
     ) -> Result<
         DigestPatchInputCheckedLinkIdentityClosureSectionV1,
         LinkDigestPatchInputValidationError,
     > {
-        let scoop_members = self
-            .member_plan
-            .scoop_lir_members()
-            .iter()
-            .map(|member| member.member_id())
-            .collect::<BTreeSet<_>>();
-        let mut expected = BTreeMap::new();
-        for node in digest_plan.nodes() {
-            for patch in node.patch_intents() {
-                let intent = patch.id();
-                let definition = patch.key().target_definition();
-                let member = self.member_plan.member_for_definition(definition).ok_or(
-                    LinkDigestPatchInputValidationError::MissingTargetMember { intent, definition },
-                )?;
-                if !scoop_members.contains(&member) {
-                    return Err(LinkDigestPatchInputValidationError::NonScoopTargetMember {
-                        intent,
-                        member,
-                    });
-                }
-                if expected
-                    .insert(*intent.as_array(), (intent, member))
-                    .is_some()
-                {
-                    return Err(
-                        LinkDigestPatchInputValidationError::DuplicateExpectedPatchIntent(intent),
-                    );
-                }
-            }
-        }
-
-        let mut sites = Vec::with_capacity(self.decoded.patch_sites.len());
-        let mut seen = BTreeSet::new();
-        let mut previous = None;
-        for (index, decoded) in self.decoded.patch_sites.iter().enumerate() {
-            let (intent, member) = expected.get(decoded.intent.as_array()).copied().ok_or(
-                LinkDigestPatchInputValidationError::UnknownPatchIntent(*decoded.intent.as_array()),
-            )?;
-            if let Some(previous) = previous {
-                if previous >= intent {
-                    return Err(if previous == intent {
-                        LinkDigestPatchInputValidationError::DuplicatePatchIntent(intent)
-                    } else {
-                        LinkDigestPatchInputValidationError::NonCanonicalPatchSiteOrder { index }
-                    });
-                }
-            }
-            if !decoded.member.matches(member.as_array()) {
-                return Err(LinkDigestPatchInputValidationError::PatchMemberMismatch {
-                    intent,
-                    expected: member,
-                });
-            }
-            previous = Some(intent);
-            seen.insert(intent);
-            sites.push(ProvisionalDigestPatchSiteV1::new(
-                intent,
-                member,
-                decoded.checked_offset,
-                32,
-            ));
-        }
-        if let Some((intent, _)) = expected.values().find(|(intent, _)| !seen.contains(intent)) {
-            return Err(LinkDigestPatchInputValidationError::MissingPatchIntent(
-                *intent,
-            ));
-        }
+        let sites =
+            self.decoded
+                .replay_digest_patch_inputs(&self.member_plan, digest_plan, meter)?;
 
         Ok(DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
             decoded: self.decoded,
@@ -466,18 +407,13 @@ impl DigestPatchInputCheckedLinkIdentityClosureSectionV1 {
     pub fn validate_object_projections(
         self,
         patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
+        meter: &mut BudgetMeter,
     ) -> Result<
         ObjectProjectionCheckedLinkIdentityClosureSectionV1,
         LinkObjectProjectionValidationError,
     > {
-        if patch_sites.builtins().member_plan() != &self.member_plan {
-            return Err(LinkObjectProjectionValidationError::MemberPlanMismatch);
-        }
-        validate_array_projection(
-            &self.decoded.definition_indexes,
-            &super::definition_indexes(patch_sites.builtins()),
-        )?;
-        validate_array_projection(&self.decoded.patch_sites, patch_sites.sites())?;
+        self.decoded
+            .replay_object_projections(&self.member_plan, patch_sites, meter)?;
         Ok(ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
             decoded: self.decoded,
             member_plan: self.member_plan,
@@ -587,110 +523,6 @@ impl DecodedLinkIdentityClosureSectionV1 {
     }
 }
 
-#[derive(Debug)]
-pub enum LinkObjectMaterializationValidationError {
-    Resource(WireError),
-    UnknownScoopLirDefinition([u8; 32]),
-    UnknownGeneratedBridgeUnit([u8; 32]),
-    ScoopUnitSet(ObjectUnitSetError),
-    BridgeUnitSet(ObjectUnitSetError),
-    MemberPlan(LinkObjectMemberSetPlanError),
-    ProjectionMismatch,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum LinkDigestPatchInputValidationError {
-    DuplicateExpectedPatchIntent(DigestPatchIntentId),
-    MissingTargetMember {
-        intent: DigestPatchIntentId,
-        definition: ObjectDefinitionPlanId,
-    },
-    NonScoopTargetMember {
-        intent: DigestPatchIntentId,
-        member: SlibMemberId,
-    },
-    UnknownPatchIntent([u8; 32]),
-    DuplicatePatchIntent(DigestPatchIntentId),
-    NonCanonicalPatchSiteOrder {
-        index: usize,
-    },
-    MissingPatchIntent(DigestPatchIntentId),
-    PatchMemberMismatch {
-        intent: DigestPatchIntentId,
-        expected: SlibMemberId,
-    },
-}
-
-impl fmt::Display for LinkDigestPatchInputValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid Link digest patch input: {self:?}")
-    }
-}
-
-impl std::error::Error for LinkDigestPatchInputValidationError {}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum LinkObjectProjectionValidationError {
-    MemberPlanMismatch,
-    ProjectionMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
-}
-
-#[derive(Debug)]
-pub enum LinkSymbolProjectionValidationError {
-    DefinedSymbols(DefinedLinkSymbolOwnerValidationError),
-    UndefinedSymbols(UndefinedSymbolRequirementValidationError),
-}
-
-impl fmt::Display for LinkSymbolProjectionValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid Link symbol projection: {self:?}")
-    }
-}
-
-impl std::error::Error for LinkSymbolProjectionValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::DefinedSymbols(error) => error,
-            Self::UndefinedSymbols(error) => error,
-        })
-    }
-}
-
-impl fmt::Display for LinkObjectProjectionValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid Link object projection: {self:?}")
-    }
-}
-
-impl std::error::Error for LinkObjectProjectionValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Encode(error) => Some(error),
-            Self::MemberPlanMismatch | Self::ProjectionMismatch => None,
-        }
-    }
-}
-
-impl fmt::Display for LinkObjectMaterializationValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid Link object materialization: {self:?}")
-    }
-}
-
-impl std::error::Error for LinkObjectMaterializationValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Resource(error) => Some(error),
-            Self::ScoopUnitSet(error) | Self::BridgeUnitSet(error) => Some(error),
-            Self::MemberPlan(error) => Some(error),
-            Self::UnknownScoopLirDefinition(_)
-            | Self::UnknownGeneratedBridgeUnit(_)
-            | Self::ProjectionMismatch => None,
-        }
-    }
-}
-
 impl WireEncode for DecodedLinkIdentityClosureSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(8)?;
@@ -749,43 +581,6 @@ fn validate_against(
         return Err(LinkIdentityClosureSectionValidationError::ProjectionMismatch);
     }
     Ok(expected.clone())
-}
-
-fn validate_array_projection(
-    actual: &[impl WireEncode],
-    expected: &[impl WireEncode],
-) -> Result<(), LinkObjectProjectionValidationError> {
-    let actual = encode(&WireArray(actual)).map_err(LinkObjectProjectionValidationError::Encode)?;
-    let expected =
-        encode(&WireArray(expected)).map_err(LinkObjectProjectionValidationError::Encode)?;
-    if actual == expected {
-        Ok(())
-    } else {
-        Err(LinkObjectProjectionValidationError::ProjectionMismatch)
-    }
-}
-
-#[derive(Debug)]
-pub enum LinkIdentityClosureSectionValidationError {
-    Expected(LinkIdentityClosureBuildError),
-    ProjectionMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
-}
-
-impl fmt::Display for LinkIdentityClosureSectionValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid decoded Link identity closure: {self:?}")
-    }
-}
-
-impl std::error::Error for LinkIdentityClosureSectionValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Expected(error) => Some(error),
-            Self::Encode(error) => Some(error),
-            Self::ProjectionMismatch => None,
-        }
-    }
 }
 
 fn decode_persistent_id_array<I: PersistentId>(

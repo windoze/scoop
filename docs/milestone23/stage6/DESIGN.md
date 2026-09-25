@@ -1058,6 +1058,8 @@ envelope/profile/target/resource checks
 
 layout profile 的 Link reader 在同一共有语义重放之后，必须从当前 artifact 已验证的 LIR definition plans 与 generated bridge plan 重建完整 producer unit 分区，再逐项核对 Link identity closure 的实际对象物化表。普通 Strong 与 generated C bridge 使用各自 typed unit id，不以候选 member id 或名称补出所属关系；每个 unit 恰好物化一次，完整 member id、顺序和分组都须与重建结果相等。物化表与原 archive 的 LinkObject directory 精确对应，稳定键、role 和实际 payload 均须存在且一致，额外对象、漏项、错 provider 或 foreign unit 均拒绝。该查询与 ordinary Link reader 共用检查，沿用原 artifact 的累计预算并在分配、查询、排序及比较前计量；不重开或复制整个产物，不新增 wire 字段、CORE 例外或机器资格。本项只关闭物化与目录关系，对象内容、重定位、registration、Code/runtime 指纹和完整 Compile/Link 一致性仍须继续验证。
 
+layout Link 对象内容重放在同一次共有语义与物化表校验中读取原 archive 的实际成员，显式接收已解析的 C bridge toolchain profile。它复用共有检查重建 generated C production、envelope 与符号计划，逐个 digest patch intent 核对真实目标定义、member、完整集合和 canonical 顺序；随后从最终对象只归零这些已核对的补丁槽，重放 Strong 符号、重定位、definition atom 范围及补丁物理位置。stackmap 与 safepoint、callable、type、immortal、static storage、initialization 六类 registration 均对照同一 Strong 计划检查实际对象，type 与 initialization 使用 V2 的完整外来引用关系。成功结果按 artifact 保留原最终对象、归一化对象及全部物理检查结果，不回读文件、不替换元数据、不复制整份未信任 Link wire；Compile 输入不能冒充 Link 对象重放输入。查询、递归、临时目录、对象解析和验证所需复制沿用当前 artifact 的累计预算，失败不返回部分对象集合。对象内容检查不代替 actual undefined-use 分区、registration dependency 指纹、Code/runtime 指纹、最终对象补丁重放或完整源码操作资格；不增加 wire 字段、CORE 例外和可发布的机器资格。
+
 错误前不发布partial world、arena、artifact或cache entry。MIR/LIR自身不报告新的源码visibility/overload错误；不完整selected集合属于compiler/artifact invariant。
 
 ### 11.2 semantic dependency与physical use分开

@@ -104,8 +104,9 @@ pub fn normalize_final_scoop_lir_objects_v1(
         }
         let member_ranges = ranges.entry(site.member()).or_default();
         if member_ranges
-            .iter()
-            .any(|(existing_start, existing_end)| start < *existing_end && *existing_start < end)
+            .range(..(end, 0))
+            .next_back()
+            .is_some_and(|(_, existing_end)| *existing_end > start)
         {
             return Err(FinalObjectNormalizationError::OverlappingPatch {
                 member: site.member(),

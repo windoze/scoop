@@ -77,8 +77,9 @@ pub use lir_ordinary::{
     SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
 };
 pub use lir_physical::{
-    CrossConeLayoutLirPhysicalError, PhysicalImportsReplayedCrossConeLayoutClosure,
-    PhysicalImportsReplayedCrossConeLayoutSections, SharedLirPhysicalError,
+    CrossConeLayoutLirPhysicalError, LinkObjectsReplayedCrossConeLayoutClosure,
+    PhysicalImportsReplayedCrossConeLayoutClosure, PhysicalImportsReplayedCrossConeLayoutSections,
+    SharedLirPhysicalError,
 };
 pub use lir_shape_support::{
     CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,

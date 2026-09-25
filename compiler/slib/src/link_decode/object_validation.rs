@@ -142,7 +142,7 @@ impl<'input> MaterializationCheckedSingleConeLinkSections<'input> {
         profile: &CBridgeToolchainProfileV1,
     ) -> Result<CBridgeCheckedSingleConeLinkSections<'input>, StrongLinkCBridgeError> {
         let Self {
-            graph,
+            mut graph,
             identities,
             foundations,
             production,
@@ -153,7 +153,7 @@ impl<'input> MaterializationCheckedSingleConeLinkSections<'input> {
         } = self;
         let bridge_plan = production.lir().generated_bridge_plan();
         let production_manifest = production_manifest
-            .validate_c_bridge_production(bridge_plan, profile)
+            .validate_c_bridge_production(bridge_plan, profile, graph.envelope.meter_mut())
             .map_err(StrongLinkCBridgeError::ManifestProduction)?;
         let c_bridge_production = crate::verify_c_bridge_production_envelopes_v1(
             bridge_plan.clone(),
@@ -239,7 +239,7 @@ impl<'input> CBridgeCheckedSingleConeLinkSections<'input> {
     ) -> Result<BuiltinObjectCheckedSingleConeLinkSections<'input>, StrongLinkBuiltinObjectError>
     {
         let Self {
-            graph,
+            mut graph,
             identities,
             foundations,
             production,
@@ -250,7 +250,10 @@ impl<'input> CBridgeCheckedSingleConeLinkSections<'input> {
             production_manifest,
         } = self;
         let link_identity_closure = link_identity_closure
-            .validate_digest_patch_inputs(production.lir().digest_finalization_plan())
+            .validate_digest_patch_inputs(
+                production.lir().digest_finalization_plan(),
+                graph.envelope.meter_mut(),
+            )
             .map_err(StrongLinkBuiltinObjectError::ClosureInput)?;
         let scoop_objects = crate::normalize_final_scoop_lir_objects_v1(
             link_identity_closure.member_plan(),
@@ -345,7 +348,7 @@ impl<'input> BuiltinObjectCheckedSingleConeLinkSections<'input> {
         self,
     ) -> Result<DigestPatchCheckedSingleConeLinkSections<'input>, StrongLinkDigestPatchError> {
         let Self {
-            graph,
+            mut graph,
             identities,
             foundations,
             production,
@@ -365,7 +368,7 @@ impl<'input> BuiltinObjectCheckedSingleConeLinkSections<'input> {
         )
         .map_err(StrongLinkDigestPatchError::ObjectSites)?;
         let link_identity_closure = link_identity_closure
-            .validate_object_projections(&digest_patch_sites)
+            .validate_object_projections(&digest_patch_sites, graph.envelope.meter_mut())
             .map_err(StrongLinkDigestPatchError::ClosureProjection)?;
         Ok(DigestPatchCheckedSingleConeLinkSections {
             graph,

@@ -1,0 +1,20 @@
+dependency: objects=69 generated=0 patches=667 stackmaps=141 safepoints=141 callables=68 types=73 immortals=7 storages=6 initializations=2
+current: objects=7 generated=1 patches=59 stackmaps=19 safepoints=19 callables=6 types=0 immortals=0 storages=2 initializations=1
+reject Envelope
+reject CBridgeEnvelope
+reject Symbols
+reject Relocations
+reject Stackmaps
+reject Safepoints
+reject Callables
+reject Types
+reject Immortals
+reject Storages
+reject Initializations
+reject AtomRange
+reject DigestIntent
+reject CompileView
+reject MixedView
+reject CBridgeProfile
+reject WorkBudget
+reject OwnedBudget
