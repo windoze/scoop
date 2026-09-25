@@ -9,6 +9,7 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 mod callables;
 mod error;
+mod initialization;
 mod inputs;
 mod source;
 use MirTypeBridgeExportProductionError as Error;
@@ -21,10 +22,10 @@ pub use source::{MirTypeBridgeSourceProjectionError, MirTypeBridgeSourceProjecti
 pub fn lower_type_bridge_exports(
     input: MirTypeBridgeExportInputV1<'_>,
     dependencies: MirTypeBridgeDependencyTablesV1<'_>,
-    initialization_uses: mir::CanonicalMirExternalInitializationUsesV1,
     meter: &mut BudgetMeter,
 ) -> Result<mir::MirTypeBridgeExportConstituentsV1, Error> {
-    input.validate(&initialization_uses, meter)?;
+    input.validate(meter)?;
+    let initialization_uses = initialization::project(input, meter)?;
     let types = crate::lower_type_exports(input.source, input.mir, input.identities, meter)
         .map_err(Error::Types)?;
     let tables = with_local(&types, dependencies.types, meter)?;

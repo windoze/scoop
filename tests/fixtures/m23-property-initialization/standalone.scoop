@@ -1,0 +1,4 @@
+import dependency.api.runtimeValue
+
+public val localValue: Int = runtimeValue
+public fun outside(): Int = runtimeValue

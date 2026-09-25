@@ -1,7 +1,7 @@
 public struct OriginValue(val field: Int = 1)
 public enum OriginChoice { Item(val value: Int = 2) }
 public object OriginMarker {}
-public val originSeed: Int = 7
+@Global public var originSeed: Int = 7
 public fun originFirst(): Int = 1
 public open class OriginHost protected constructor(seed: Int = 3) {
     private fun local(seed: Int, value: Int = if (true) { val copy = seed; copy } else { seed }): Int = value

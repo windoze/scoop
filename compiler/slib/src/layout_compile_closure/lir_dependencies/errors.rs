@@ -14,6 +14,7 @@ pub enum SharedLirDependencyGraphError {
     },
     Resource(scoop_wire::WireError),
     TypeOccurrences(Box<scoop_hir::HirDependencyTypeRelationError>),
+    InitializationEdges(Box<mir::MirObjectBridgeError>),
     Lir(Box<lir::LayoutAbiSectionError<Infallible>>),
 }
 

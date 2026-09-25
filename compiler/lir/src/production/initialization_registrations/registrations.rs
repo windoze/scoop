@@ -21,6 +21,7 @@ use crate::{
 };
 
 mod build;
+mod external_edges;
 mod model;
 mod validation;
 pub use model::*;

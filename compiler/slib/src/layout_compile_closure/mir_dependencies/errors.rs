@@ -8,6 +8,10 @@ pub enum SharedMirDependencyGraphError {
     },
     Resource(scoop_wire::WireError),
     TypeOccurrences(Box<scoop_hir::HirDependencyTypeRelationError>),
+    InitializationOccurrences(Box<scoop_hir::HirInitializationUseError>),
+    InitializationUse(Box<mir::MirObjectBridgeError>),
+    InitializationUseInventory,
+    MissingInitializationUnit(scoop_identity::PersistentInitializationUnitId),
     Mir(Box<mir::MirTypeBridgeSectionError<Infallible>>),
 }
 

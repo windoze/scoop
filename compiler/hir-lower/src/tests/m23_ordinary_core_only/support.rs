@@ -325,3 +325,19 @@ pub(crate) fn parsed_ordinary_text(source: &str) -> CurrentConeParsedSources {
         source,
     )
 }
+
+pub(crate) fn parsed_ordinary_text_at(
+    coordinate: &ConeCoordinate,
+    source: &str,
+) -> CurrentConeParsedSources {
+    parsed_sources(
+        SourceIdentity::new(
+            coordinate.identity().unwrap(),
+            NormalizedSourcePath::new("src/main.scoop").unwrap(),
+        )
+        .unwrap(),
+        scoop_parser::parse(source).unwrap(),
+        "<dependency-main>",
+        source,
+    )
+}

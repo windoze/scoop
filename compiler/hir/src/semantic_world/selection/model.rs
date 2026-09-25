@@ -267,9 +267,17 @@ pub struct SelectedImportedDependencyCallable {
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: ParamFreeNominalCallableV1,
+    pub(super) initialization_unit: Option<scoop_identity::PersistentInitializationUnitId>,
 }
 
 impl SelectedImportedDependencyCallable {
+    /// The directly ensured source unit, when this callable is a property accessor.
+    pub const fn initialization_unit(
+        &self,
+    ) -> Option<scoop_identity::PersistentInitializationUnitId> {
+        self.initialization_unit
+    }
+
     pub const fn provider(&self) -> ConeIdentity {
         self.certificate.identity()
     }

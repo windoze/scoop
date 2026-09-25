@@ -1,0 +1,9 @@
+package dependency.api
+
+public fun seedValue(): Int = 7
+public var runtimeValue: Int = seedValue()
+public val otherValue: Int = seedValue()
+public val imageValue: Int = 4
+public var imageMutable: Int = 5
+public val computedValue: Int
+    get() = runtimeValue

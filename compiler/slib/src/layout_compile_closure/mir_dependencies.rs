@@ -18,12 +18,13 @@ use super::{
 use crate::dependency_reachability::transitive_positions;
 
 mod errors;
+mod initialization;
 mod replay;
 pub use errors::{CrossConeLayoutMirDependenciesError, SharedMirDependencyGraphError};
 pub use replay::replay_shared_mir_dependency_graph;
 
 /// The recursive selected graph agrees with shared materialized type roots.
-/// Per-use HIR/access, initialization-use and final LIR/Link joins are still
+/// Per-use HIR/access and final LIR/Link joins are still
 /// required; these records cannot construct an external machine arena.
 pub type MirDependencyGraphReplayedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
@@ -94,6 +95,23 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                         .iter()
                         .map(|&index| complete[index].mir.dependency_view(&complete[index].units)),
                 );
+                let mut source_dependencies = Vec::new();
+                parts.meter.charge_owned_bytes(
+                    (reachable.len() as u64).saturating_mul(std::mem::size_of::<
+                        scoop_hir::SharedTypeMetadataV1<'_>,
+                    >() as u64),
+                    &path,
+                )?;
+                parts.meter.try_reserve_collection_slots(
+                    &mut source_dependencies,
+                    reachable.len(),
+                    &path,
+                )?;
+                source_dependencies.extend(
+                    reachable
+                        .iter()
+                        .map(|&index| complete[index].prepared.shared_metadata()),
+                );
                 replay_shared_mir_dependency_graph(
                     scoop_hir::SharedTypeMetadataV1 {
                         provider,
@@ -101,6 +119,7 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                         foundation: parts.hir_foundation,
                         public: parts.hir_interface,
                     },
+                    &source_dependencies,
                     &mir,
                     &units,
                     &dependencies,

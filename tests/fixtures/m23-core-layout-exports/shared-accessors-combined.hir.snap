@@ -10,5 +10,5 @@ AccessorObject.objectStorage: Public getter=Storage setter=Some(Storage) lookup=
 AccessorView.defaulted: Public getter=Body setter=None lookup=true
 AccessorView.slot: Public getter=AbstractSlot setter=Some(AbstractSlot) lookup=true
 Extension.extension: Public getter=Body setter=None lookup=true
-TopLevel.accessorGlobal: Public getter=Storage setter=Some(Storage) lookup=true
+TopLevel.accessorGlobal: Public getter=Body setter=Some(Body) lookup=true
 TopLevel.accessorMarker: Public getter=Constant setter=None lookup=true

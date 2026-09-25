@@ -17,6 +17,7 @@ pub enum MirTypeBridgeExportProductionError {
     Dispatch(crate::SourceMirDispatchProductionError),
     Shapes(mir::MirShapeSupportError),
     InitializationUse(mir::MirObjectBridgeError),
+    InitializationSource(Box<hir::HirInitializationUseError>),
     MissingInitializationUnit(PersistentInitializationUnitId),
     OrdinaryCallableMismatch(StrongCallableDefinitionOwner),
     OrdinarySource(Box<hir::SharedTypeMetadataError>),

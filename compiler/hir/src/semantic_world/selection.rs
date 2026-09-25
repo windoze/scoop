@@ -278,6 +278,8 @@ impl ImportedDependencySelectionPlan {
             });
         };
         let id = candidate.callable;
+        let initialization_unit =
+            self.catalog.callables[&candidate.interface.declaration()].initialization_unit;
         if let Some(selected) = self.callables.get_mut(&id) {
             if selected.provider() != candidate.provider()
                 || selected.capability.declaration() != capability.declaration()
@@ -296,6 +298,7 @@ impl ImportedDependencySelectionPlan {
                     certificate: candidate.certificate,
                     interface: candidate.interface,
                     source: candidate.source,
+                    initialization_unit,
                     capability,
                 },
             );

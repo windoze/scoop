@@ -11,6 +11,7 @@ mod mir_objects;
 mod mir_source_callables;
 mod mir_types;
 mod mir_units;
+mod property_initialization;
 mod shape_dependencies;
 mod type_foundations;
 
@@ -91,5 +92,16 @@ pub(super) fn check(
     if name == "base" {
         shape_dependencies::check(lir, &ordinary, mir_section, layout, &artifact, target);
         lir_dependencies::check(&artifact, mir_section, layout);
+    }
+    if name == "property-initialization-provider" {
+        property_initialization::check(
+            directory,
+            target,
+            input,
+            lir,
+            mir_section,
+            layout,
+            &artifact,
+        );
     }
 }

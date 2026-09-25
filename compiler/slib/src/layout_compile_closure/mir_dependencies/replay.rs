@@ -6,6 +6,7 @@ use super::{SharedMirDependencyGraphError as Error, *};
 /// records, MIR type lookup tables and physical imports cannot add source roots.
 pub fn replay_shared_mir_dependency_graph(
     source: scoop_hir::SharedTypeMetadataV1<'_>,
+    source_dependencies: &[scoop_hir::SharedTypeMetadataV1<'_>],
     mir: &mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     units: &[mir::MirTypeBridgeInitializationUnitV1],
     dependencies: &[mir::MirTypeBridgeDependencyViewV1<'_>],
@@ -18,6 +19,7 @@ pub fn replay_shared_mir_dependency_graph(
         });
     }
     let path = WirePath::root();
+    super::initialization::replay(source, source_dependencies, mir, units, meter)?;
     let mut providers = Vec::new();
     meter.try_reserve_collection_slots(&mut providers, dependencies.len(), &path)?;
     providers.extend(dependencies.iter().map(|view| view.provider()));

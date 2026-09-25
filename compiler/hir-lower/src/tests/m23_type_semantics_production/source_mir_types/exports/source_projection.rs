@@ -10,7 +10,6 @@ fn project(
     dependencies: &mir::CanonicalParamFreeMirTypeExportsV1,
     meter: &mut BudgetMeter,
 ) -> Result<MirTypeBridgeSourceProjectionV1, MirTypeBridgeSourceProjectionError> {
-    let uses = mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], meter).unwrap();
     MirTypeBridgeSourceProjectionV1::from_input(
         input,
         MirTypeBridgeDependencyTablesV1 {
@@ -18,7 +17,6 @@ fn project(
             callables: &[],
             dispatch: &[],
         },
-        uses,
         meter,
     )
 }

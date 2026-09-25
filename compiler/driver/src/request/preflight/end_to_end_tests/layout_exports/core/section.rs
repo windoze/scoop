@@ -14,7 +14,6 @@ pub(super) fn check<'a>(
             callables: &[],
             dispatch: &[],
         },
-        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
         &mut meter(),
     )
     .unwrap();

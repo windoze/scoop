@@ -19,7 +19,7 @@ Module
   object HeapSingleton <object0 type0 value0 root0 init0>
     field4 property6: HeapEmpty
     property6 var empty: HeapEmpty getter6=storage setter4=storage <stored field4 init=expression>
-  property7 var heapEffects: Int getter7=storage setter5=storage <stored global0 image>
+  property7 var heapEffects: Int getter7=body($get$heapEffects) setter5=body($set$heapEffects) <stored global0 image>
   var heapEffects: Int <global0 managed>
   fun $init$body$0(): Unit
     assign singleton-root#0
@@ -27,12 +27,12 @@ Module
   fun $init$ensure$0(): Unit
   fun heapEmptySource(): HeapEmpty
     val local0
-      GlobalRead heapEffects : Int
+      Call $get$heapEffects : Int
     val local1
       IntegerLiteral 1 : Int
     val local2
       Local $dependency.argument.0 : Int
-    assign global heapEffects
+    Call $set$heapEffects : Unit
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
@@ -104,7 +104,7 @@ Module
       FieldAccess class field number : Int
         Local derived : HeapDerived
     val local19
-      GlobalRead heapEffects : Int
+      Call $get$heapEffects : Int
     val local20
       Local $dependency.argument.0 : Int
     assign .field
@@ -115,4 +115,10 @@ Module
     return
       FieldAccess class field empty : HeapEmpty
         SingletonValue HeapSingleton : HeapSingleton
+  fun $get$heapEffects(): Int
+    return
+      GlobalRead heapEffects : Int
+  fun $set$heapEffects(value: Int): Unit
+    assign global heapEffects
+      Local value : Int
   output library

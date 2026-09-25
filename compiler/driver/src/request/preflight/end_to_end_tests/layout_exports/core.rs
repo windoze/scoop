@@ -143,6 +143,11 @@ fn shared_strong_reader_replays_complete_sections_from_actual_artifact_bytes() {
     check_core_layout_exports(&["shared-production-standalone", "shared-production-combined"]);
 }
 
+#[test]
+fn property_initialization_uses_close_source_mir_lir_and_both_artifact_views() {
+    check_core_layout_exports(&["property-initialization-provider"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
@@ -237,7 +242,6 @@ fn check_core_layout_exports(names: &[&str]) {
                 callables: &[],
                 dispatch: &[],
             },
-            mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
             &mut meter(),
         )
         .unwrap_or_else(|error| panic!("{name} MIR exports: {error}"));

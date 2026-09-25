@@ -30,6 +30,24 @@ pub(super) fn assemble(
         .unwrap()
         .validate_layout_abi(layout, &mut meter())
         .unwrap();
+    assemble_with_production(
+        directory, target, core, input, lir, mir, layout, owners, production,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(in super::super) fn assemble_with_production(
+    directory: &Path,
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
+    lir: &lir::SingleConeStrongLirOutput,
+    mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
+    layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
+    owners: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
+    production: lir::ValidatedStrongProductionSectionV2,
+) -> scoop_slib::AssembledCrossConeLayoutStrongArtifactV1 {
+    let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
     let emitted = scoop_codegen::emit_object_set_v2(
         lir,
         production,

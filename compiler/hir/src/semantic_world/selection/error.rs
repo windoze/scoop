@@ -12,6 +12,7 @@ use crate::NominalCallableClassificationError;
 pub enum ImportedDependencySelectionPlanBuildError {
     NominalClassifier(crate::NominalExactLeafClassifierBuildError),
     Classification(NominalCallableClassificationError),
+    Initialization(crate::HirInitializationUseError),
     DuplicateCallable(CallableTemplateOrigin),
     MissingCallableSourceName(CallableTemplateOrigin),
     TooManyCallables {
@@ -46,6 +47,7 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
         match self {
             Self::NominalClassifier(error) => error.fmt(formatter),
             Self::Classification(error) => error.fmt(formatter),
+            Self::Initialization(error) => error.fmt(formatter),
             Self::DuplicateCallable(declaration) => write!(
                 formatter,
                 "dependency semantic world contains duplicate callable {declaration:?}"
@@ -106,6 +108,7 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
         match self {
             Self::NominalClassifier(error) => Some(error),
             Self::Classification(error) => Some(error),
+            Self::Initialization(error) => Some(error),
             Self::DirectBindingMerge { source, .. } => Some(source),
             Self::DuplicateCallable(_)
             | Self::MissingCallableSourceName(_)

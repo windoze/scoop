@@ -28,6 +28,7 @@ pub(super) fn check(
     let replay = |candidate: &_, meter: &mut BudgetMeter| {
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
+            &[],
             candidate,
             section.initialization_units(),
             &dependencies,
@@ -92,6 +93,7 @@ pub(super) fn check(
                 provider: core.provider(),
                 ..metadata
             },
+            &[],
             &resolved,
             section.initialization_units(),
             &dependencies,
@@ -102,6 +104,7 @@ pub(super) fn check(
     assert!(
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
+            &[],
             &resolved,
             section.initialization_units(),
             &[],

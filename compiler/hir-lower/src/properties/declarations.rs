@@ -124,6 +124,8 @@ impl Lowerer {
                 ..
             })
         );
+        let exported_storage = matches!(backing, Some(hir::PropertyBacking::TopLevelGlobal { .. }))
+            && Self::declaration_is_exported(&access);
         if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
             return Some(self.allocate_delegated_property_accessors(
                 property,
@@ -176,7 +178,10 @@ impl Lowerer {
                 )
             }
             _ if backing.is_some()
-                && (runtime_storage || dispatch_storage || getter_source.is_some()) =>
+                && (runtime_storage
+                    || exported_storage
+                    || dispatch_storage
+                    || getter_source.is_some()) =>
             {
                 let function_declaration = self.implicit_getter_function_declaration(
                     declaration,
@@ -282,7 +287,10 @@ impl Lowerer {
                 )
             }
             _ if backing.is_some()
-                && (runtime_storage || dispatch_storage || setter_source.is_some()) =>
+                && (runtime_storage
+                    || exported_storage
+                    || dispatch_storage
+                    || setter_source.is_some()) =>
             {
                 let parameter = setter_source.map_or_else(
                     || ast::Ident {

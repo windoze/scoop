@@ -49,7 +49,7 @@ pub use lir_callable_abis::{
 pub use lir_dependencies::{
     CrossConeLayoutLirDependenciesError, LirDependencyGraphReplayedCrossConeLayoutClosure,
     LirDependencyGraphReplayedCrossConeLayoutSections, SharedLirDependencyGraphError,
-    replay_shared_lir_dependency_graph,
+    replay_shared_lir_dependency_graph, replay_shared_lir_initialization_dependencies,
 };
 pub use lir_descriptors::{
     CrossConeLayoutLirDescriptorsError, LirDescriptorsValidatedCrossConeLayoutClosure,

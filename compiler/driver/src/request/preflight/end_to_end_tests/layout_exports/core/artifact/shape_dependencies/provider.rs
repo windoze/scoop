@@ -2,7 +2,7 @@
 
 use super::*;
 
-pub(super) fn objects(
+pub(in super::super) fn objects(
     producer: &lir::SingleConeStrongLirOutput,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     target: &scoop_toolchain::ResolvedTargetProfile,

@@ -27,6 +27,7 @@ pub(super) struct CallableCatalogEntry {
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: Option<ParamFreeNominalCallableV1>,
+    pub(super) initialization_unit: Option<scoop_identity::PersistentInitializationUnitId>,
     pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
@@ -86,6 +87,20 @@ impl ImportedSemanticWorld<'_> {
             let definition_sources = Arc::new(imported_definition_sources(provider)?);
             for callable in provider.interface().callable_interfaces().records() {
                 let declaration = callable.declaration();
+                let initialization_unit = match declaration {
+                    CallableTemplateOrigin::Accessor(accessor) => {
+                        crate::initialization_dependencies::accessor_initialization_unit(
+                            accessor,
+                            provider.interface().property_interfaces(),
+                            provider
+                                .foundation()
+                                .canonical_for_semantic_authority()
+                                .type_source_initialization_records(),
+                        )
+                        .map_err(ImportedDependencySelectionPlanBuildError::Initialization)?
+                    }
+                    _ => None,
+                };
                 let entry = CallableCatalogEntry {
                     name: super::intrinsics::callable_catalog_name(provider, declaration)?,
                     certificate: provider.certificate().clone(),
@@ -98,6 +113,7 @@ impl ImportedSemanticWorld<'_> {
                     capability: classifier
                         .classify_callable(callable)
                         .map_err(ImportedDependencySelectionPlanBuildError::Classification)?,
+                    initialization_unit,
                     default_templates: provider
                         .interface()
                         .default_templates()
@@ -204,7 +220,9 @@ impl ImportedSemanticWorld<'_> {
         let direct_callable_bindings = self.direct_callable_bindings()?;
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
-                direct_binding_witnesses: Arc::new(self.direct_binding_witnesses()),
+                direct_binding_witnesses: Arc::new(
+                    self.direct_binding_witnesses(&direct_callable_bindings),
+                ),
                 world_brand: self.brand,
                 consumer: self.current,
                 projection,

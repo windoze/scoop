@@ -64,7 +64,6 @@ pub(super) fn check(
             callables: &[],
             dispatch: &[],
         },
-        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
         &mut meter(),
     )
     .unwrap();
@@ -102,7 +101,6 @@ fn reject_missing_shared_occurrences(
             callables: &[],
             dispatch: &[],
         },
-        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
         &mut meter(),
     );
     assert!(matches!(

@@ -12,11 +12,13 @@ use super::{
 use crate::{CurrentConeSources, lower_current_cone};
 
 mod extension;
+mod initialization;
 
 struct DependencyPropertyFixture {
     core: TrustedCoreFixture,
     coordinate: ConeCoordinate,
     foundation: scoop_hir::ImportedHirFoundation,
+    source_foundation: scoop_hir::OdrFreeHirFoundation,
     interface: scoop_hir::CrossConeHirInterfaceSectionV1,
     aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
 }
@@ -38,11 +40,14 @@ impl DependencyPropertyFixture {
         };
         let (foundation, interface) =
             project_dependency_without_default_roles(&core, &coordinate, provider, core_types);
+        let source_foundation =
+            scoop_hir::OdrFreeHirFoundation::try_new(foundation.clone()).unwrap();
         let foundation = core.import_dependency_foundation(&coordinate, &foundation, 57);
         Self {
             core,
             coordinate,
             foundation,
+            source_foundation,
             interface,
             aliases: empty_alias_expansions(),
         }
@@ -54,6 +59,14 @@ impl DependencyPropertyFixture {
         inspect: impl FnOnce(Result<scoop_hir::DependencyHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
     ) -> R {
         let ordinary = parsed_ordinary(consumer);
+        self.inspect_parsed(&ordinary, inspect)
+    }
+
+    fn inspect_parsed<R>(
+        &self,
+        ordinary: &scoop_ast::CurrentConeParsedSources,
+        inspect: impl FnOnce(Result<scoop_hir::DependencyHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
+    ) -> R {
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
             ordinary.cone(),
             vec![
@@ -73,7 +86,7 @@ impl DependencyPropertyFixture {
             .foundation
             .import_core_inputs(&self.core.interface)
             .unwrap();
-        let input = CurrentConeSources::try_new(&ordinary, core, &world).unwrap();
+        let input = CurrentConeSources::try_new(ordinary, core, &world).unwrap();
         inspect(lower_current_cone(
             scoop_identity::RequestedConeKind::Library,
             &input,

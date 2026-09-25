@@ -10,8 +10,8 @@ Module
   object AccessRegistry <object0 type0 value0 root0 init0>
     field1 property2: Int
     property2 val seed: Int getter2=storage <stored field1 init=expression>
-  property3 val ACCESS_GLOBAL: Int getter3=storage <stored global0 image>
-  val ACCESS_GLOBAL: Int <global0 managed>
+  property3 var ACCESS_GLOBAL: Int getter3=storage setter0=storage <native-storage global0>
+  var ACCESS_GLOBAL: Int <global0 global>
   fun $init$body$0(): Unit
     assign singleton-root#0
       ClassInit AccessRegistry : AccessRegistry

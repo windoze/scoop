@@ -2,7 +2,7 @@
 
 use super::*;
 
-mod assembly;
+pub(super) mod assembly;
 pub(super) mod corruption;
 pub(super) mod reader;
 
@@ -23,6 +23,7 @@ pub(super) fn check(
             &target,
             &core_bytes,
             &source,
+            None,
             |mir_input, _, lir_input, _, owners| {
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                     types: &[core_mir.types()],
@@ -32,16 +33,12 @@ pub(super) fn check(
                 let exports = scoop_mir_lower::lower_type_bridge_exports(
                     mir_input,
                     dependencies,
-                    mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter())
-                        .unwrap(),
                     &mut meter(),
                 )
                 .unwrap();
                 let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
                     mir_input,
                     dependencies,
-                    mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter())
-                        .unwrap(),
                     &mut meter(),
                 )
                 .unwrap();

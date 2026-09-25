@@ -1,7 +1,7 @@
 package dependency.defaultCombinations
 
 public fun identity(value: Int): Int = value
-public val global: Int = 3
+@Global public var global: Int = 3
 public struct Record(val value: Int)
 public object Singleton {
     public fun read(): Int = 4

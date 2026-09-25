@@ -49,6 +49,9 @@ pub use output_kind::*;
 mod imported_dependency;
 pub use imported_dependency::*;
 
+mod initialization_dependencies;
+pub use initialization_dependencies::{HirInitializationUseError, HirPropertyInitializationUseV1};
+
 mod production;
 pub use production::*;
 

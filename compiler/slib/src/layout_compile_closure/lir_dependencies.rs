@@ -18,8 +18,10 @@ use super::{
 use crate::dependency_reachability::transitive_positions;
 
 mod errors;
+mod initialization;
 mod replay;
 pub use errors::{CrossConeLayoutLirDependenciesError, SharedLirDependencyGraphError};
+pub use initialization::replay_shared_lir_initialization_dependencies;
 pub use replay::replay_shared_lir_dependency_graph;
 
 /// Complete semantic graph replay for local exports and shared type roots.
@@ -71,6 +73,11 @@ impl<'input> MirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
+                replay_shared_lir_initialization_dependencies(
+                    mir.exports().initialization_uses(),
+                    strong.initialization_registrations(),
+                    parts.meter,
+                )?;
                 let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
                 let layout =
                     layout.resolve_dependencies::<Infallible>(parts.identities, parts.meter)?;

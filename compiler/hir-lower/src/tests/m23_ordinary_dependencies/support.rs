@@ -10,7 +10,9 @@ use super::super::{ident, sp};
 
 mod projection;
 
-pub(crate) use projection::{project_dependency, project_dependency_without_default_roles};
+pub(crate) use projection::{
+    project_dependency, project_dependency_text, project_dependency_without_default_roles,
+};
 
 pub(super) struct DependencyFunctionFixture {
     pub(super) coordinate: ConeCoordinate,

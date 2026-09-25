@@ -31,7 +31,7 @@ impl FunctionIdentityBuilder<'_> {
                 })
             }
             hir::HirFunctionIdentity::PropertyAccessor(accessor) => {
-                self.accessor_context(function, accessor)
+                self.accessor_context(function, parent, accessor)
             }
             hir::HirFunctionIdentity::LexicalGenerated(record) => {
                 let site = self
@@ -159,6 +159,7 @@ impl FunctionIdentityBuilder<'_> {
     pub(super) fn accessor_context(
         &self,
         function: hir::FunctionId,
+        accessor_function: hir::FunctionId,
         accessor: hir::HirPropertyAccessorFunction,
     ) -> Result<CallableContext, PersistentFunctionIdentityError> {
         let (property, persistent) = match accessor {
@@ -183,7 +184,7 @@ impl FunctionIdentityBuilder<'_> {
         let signature = self
             .lowerer
             .signatures
-            .get(&function)
+            .get(&accessor_function)
             .ok_or_else(|| self.failure(function, Detail::MissingSignature))?;
         Ok(CallableContext {
             parent: LexicalCallableParent::accessor(persistent),
@@ -235,7 +236,7 @@ impl FunctionIdentityBuilder<'_> {
         let signature = self
             .lowerer
             .signatures
-            .get(&function)
+            .get(&initialization_function)
             .ok_or_else(|| self.failure(function, Detail::MissingSignature))?;
         Ok(CallableContext {
             parent,

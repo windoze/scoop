@@ -2,7 +2,7 @@ public struct Value(val field: Int)
 public enum Choice { Item(val value: Int) }
 public class Box public constructor(public val field: Int)
 public object Marker {}
-public val seed: Int = 7
+@Global public var seed: Int = 7
 public fun first(): Int = 1
 public fun second(): Int = 2
 public fun callable(value: Int = first()): Int = value

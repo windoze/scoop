@@ -24,6 +24,18 @@ impl LayoutAbiSourceProjectionV1 {
             .bridge
             .validate_sources(input.mir.module().cone, input.identities, mir_source, meter)
             .map_err(|error| Error::MirSource(Box::new(error)))?;
+        input
+            .bridge
+            .initialization_uses()
+            .validate_registration_edges(
+                input
+                    .registration
+                    .registration_production()
+                    .initialization_units()
+                    .external_dependency_edges(meter)?,
+                meter,
+            )
+            .map_err(|error| Error::InitializationEdges(Box::new(error)))?;
         let committed = mir_source.committed_external_uses().map_err(|error| {
             Error::MirSource(Box::new(mir::MirTypeBridgeSourceJoinError::Source(error)))
         })?;
@@ -133,6 +145,7 @@ pub enum LayoutAbiSourceInventoryV1 {
 #[derive(Debug)]
 pub enum LayoutAbiSourceProjectionError {
     MirSource(Box<dyn std::error::Error + Send + Sync>),
+    InitializationEdges(Box<mir::MirObjectBridgeError>),
     Production(LayoutAbiExportLoweringError),
     Resource(WireError),
     Encoding(scoop_wire::cbor::EncodeError),
@@ -173,6 +186,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::MirSource(error) => Some(error.as_ref()),
+            Self::InitializationEdges(error) => Some(error.as_ref()),
             Self::Production(error) => Some(error),
             Self::Resource(error) => Some(error),
             Self::Encoding(error) => Some(error),

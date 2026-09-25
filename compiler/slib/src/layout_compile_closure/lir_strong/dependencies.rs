@@ -62,8 +62,29 @@ pub(super) fn definitions(
                 .shared_metadata()
                 .identities
                 .canonical_key::<_, CallableBodyKey>(callable.body())?;
-            let CallableBodyKeyKind::Strong(target) = key.kind() else {
-                return Err(Error::CallableBody(callable.body()));
+            let target = match key.kind() {
+                CallableBodyKeyKind::Strong(target) => target,
+                CallableBodyKeyKind::InitializationStartupGateway(unit) => {
+                    let units = strong.initialization_registrations().registrations();
+                    meter.charge_work(units.len() as u64, &path)?;
+                    let registration = units
+                        .iter()
+                        .find(|record| record.semantic().unit() == unit)
+                        .ok_or(Error::CallableBody(callable.body()))?;
+                    if !matches!(
+                        registration.schedule(),
+                        lir::StrongInitializationRegistrationSchedulePlanV1::EagerStartup { gateway, .. }
+                            if gateway.body() == callable.body()
+                                && gateway.entry_symbol() == callable.entry_symbol()
+                    ) {
+                        return Err(Error::CallableBody(callable.body()));
+                    }
+                    // Gateways are unit-owned entries, not ordinary dispatch targets.
+                    continue;
+                }
+                CallableBodyKeyKind::Odr(_) | CallableBodyKeyKind::RootGateway { .. } => {
+                    return Err(Error::CallableBody(callable.body()));
+                }
             };
             types.push(lir::StrongShapeDefinitionRefV1::from_foundation(
                 lir::ExternalStrongShapeSubjectV1::Callable(target),

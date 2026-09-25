@@ -24,10 +24,9 @@ impl MirTypeBridgeSourceProjectionV1 {
     pub fn from_input(
         input: MirTypeBridgeExportInputV1<'_>,
         dependencies: MirTypeBridgeDependencyTablesV1<'_>,
-        initialization_uses: mir::CanonicalMirExternalInitializationUsesV1,
         meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeSourceProjectionError> {
-        let expected = lower_type_bridge_exports(input, dependencies, initialization_uses, meter)
+        let expected = lower_type_bridge_exports(input, dependencies, meter)
             .map_err(MirTypeBridgeSourceProjectionError::Production)?;
         let inventory = inventory::Inventory::from_source(input, &expected, meter)?;
         let units = units::InitializationContracts::from_input(input, meter)?;

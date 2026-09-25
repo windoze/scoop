@@ -1,2 +1,2 @@
-public val ACCESS_GLOBAL: Int = 7
+@Global public var ACCESS_GLOBAL: Int = 7
 public fun accessValue(value: Int = ACCESS_GLOBAL): Int = value

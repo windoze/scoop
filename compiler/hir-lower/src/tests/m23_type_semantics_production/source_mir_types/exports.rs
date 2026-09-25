@@ -78,7 +78,6 @@ fn produce(
     types: &[&mir::CanonicalParamFreeMirTypeExportsV1],
     meter: &mut BudgetMeter,
 ) -> Result<mir::MirTypeBridgeExportConstituentsV1, Error> {
-    let uses = mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], meter).unwrap();
     lower_type_bridge_exports(
         input,
         MirTypeBridgeDependencyTablesV1 {
@@ -86,7 +85,6 @@ fn produce(
             callables: &[],
             dispatch: &[],
         },
-        uses,
         meter,
     )
 }

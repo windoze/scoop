@@ -47,10 +47,10 @@ Module
   class HeapSingleton vtable=0 itables=0
   class box<HeapEmpty> vtable=0 itables=0
   class box<HeapPair> vtable=0 itables=0
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=1
-  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn5 captures=1
-  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn6 captures=1
-  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn7 captures=1
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=1
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn7 captures=1
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn8 captures=1
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn9 captures=1
   generated_exact_type get0 location=enum8 nominal_id=981f1503d64db886acecc0e1b4d18f93ca9eb09b9e6f712e82ea0ad956e44aea exact_id=1246064da34f404a04d2149173683262d56a7032e82bbedced0b1df768b52f10
   generated_exact_type get1 location=class5 nominal_id=925a77258bc47ca36b176c940ff137420b2508d0482cec835e2e5ce3cc893f3b exact_id=1636256d1cd8085ef47cbc8f948ae25692ebe04ef446f4c562a242e196d18509
   generated_exact_type get2 location=enum7 nominal_id=7e4f7bef1d89e471476a0a751fbe7aa0da2abccf60e3a5448fbd3639b8c56f37 exact_id=1860ba9cf317626950e6a5a7fcc5a5a4dcb85b628950c7f85519b5c5983c320f
@@ -74,7 +74,7 @@ Module
       assign $new.1
         Type HeapSingleton
         ClassAlloc HeapSingleton
-      call @fn11 direct
+      call @fn13 direct
         Type HeapSingleton
         Local $new.1
       global_assign $singleton$HeapSingleton
@@ -181,23 +181,21 @@ Module
       unreachable
   fun heapEmptySource @fn2() -> HeapEmpty
     bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        GlobalRead heapEffects
+      call $dependency.receiver: Int = @fn4 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      global_assign heapEffects
+      call @fn5 direct
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call $call.1: HeapEmpty = @fn12 direct
+      call $call.1: HeapEmpty = @fn14 direct
       return
         Type HeapEmpty
         Local $call.1
@@ -207,14 +205,14 @@ Module
       val $argument.0: HeapEmpty
         Type HeapEmpty
         Local empty
-      call $argument.1: HeapEmpty = @fn12 direct
+      call $argument.1: HeapEmpty = @fn14 direct
       val $parameter.first: HeapEmpty
         Type HeapEmpty
         Local $argument.0
       val $parameter.second: HeapEmpty
         Type HeapEmpty
         Local $argument.1
-      call pair: HeapPair = @fn13 direct
+      call pair: HeapPair = @fn15 direct
         Type HeapEmpty
         Local $parameter.first
         Type HeapEmpty
@@ -234,7 +232,7 @@ Module
       assign $new.1
         Type HeapDerived
         ClassAlloc HeapDerived
-      call @fn10 direct
+      call @fn12 direct
         Type HeapDerived
         Local $new.1
         Type Int
@@ -253,7 +251,7 @@ Module
       assign $new.2
         Type HeapCell
         ClassAlloc HeapCell
-      call @fn8 direct
+      call @fn10 direct
         Type HeapCell
         Local $new.2
         Type HeapEmpty
@@ -324,9 +322,7 @@ Module
         FieldAccess 1
           Type HeapDerived
           Local derived
-      val $dependency.argument.0: Int
-        Type Int
-        GlobalRead heapEffects
+      call $dependency.argument.0: Int = @fn4 direct
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
@@ -345,28 +341,39 @@ Module
         FieldAccess 0
           Type HeapSingleton
           GlobalRead $singleton$HeapSingleton
-  fun $lambda.0 @fn4($closure: () -> HeapEmpty) -> HeapEmpty
+  fun $get$heapEffects @fn4() -> Int
+    bb0 entry
+      return
+        Type Int
+        GlobalRead heapEffects
+  fun $set$heapEffects @fn5(value: Int) -> Unit
+    bb0 entry
+      global_assign heapEffects
+        Type Int
+        Local value
+      return
+  fun $lambda.0 @fn6($closure: () -> HeapEmpty) -> HeapEmpty
     bb0 entry
       return
         Type HeapEmpty
         ClosureCapture cc0 0
           Type () -> HeapEmpty
           Local $closure
-  fun $lambda.1 @fn5($closure: () -> HeapPair) -> HeapPair
+  fun $lambda.1 @fn7($closure: () -> HeapPair) -> HeapPair
     bb0 entry
       return
         Type HeapPair
         ClosureCapture cc1 0
           Type () -> HeapPair
           Local $closure
-  fun $lambda.2 @fn6($closure: () -> HeapDerived) -> HeapDerived
+  fun $lambda.2 @fn8($closure: () -> HeapDerived) -> HeapDerived
     bb0 entry
       return
         Type HeapDerived
         ClosureCapture cc2 0
           Type () -> HeapDerived
           Local $closure
-  fun $lambda.3 @fn7($closure: () -> HeapEmpty) -> HeapEmpty
+  fun $lambda.3 @fn9($closure: () -> HeapEmpty) -> HeapEmpty
     bb0 entry
       return
         Type HeapEmpty
@@ -375,7 +382,7 @@ Module
           ClosureCapture cc3 0
             Type () -> HeapEmpty
             Local $closure
-  fun init.HeapCell.$c0 @fn8(this: HeapCell, empty: HeapEmpty) -> Unit
+  fun init.HeapCell.$c0 @fn10(this: HeapCell, empty: HeapEmpty) -> Unit
     bb0 entry
       field_set 0
         Type HeapCell
@@ -383,7 +390,7 @@ Module
         Type HeapEmpty
         Local empty
       return
-  fun init.HeapBase.$c1 @fn9(this: HeapBase, first: HeapEmpty) -> Unit
+  fun init.HeapBase.$c1 @fn11(this: HeapBase, first: HeapEmpty) -> Unit
     bb0 entry
       field_set 0
         Type HeapBase
@@ -391,13 +398,13 @@ Module
         Type HeapEmpty
         Local first
       return
-  fun init.HeapDerived.$c2 @fn10(this: HeapDerived, number: Int, pair: HeapPair) -> Unit
+  fun init.HeapDerived.$c2 @fn12(this: HeapDerived, number: Int, pair: HeapPair) -> Unit
     bb0 entry
-      call $argument.0: HeapEmpty = @fn12 direct
+      call $argument.0: HeapEmpty = @fn14 direct
       val $parameter.first: HeapEmpty
         Type HeapEmpty
         Local $argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type HeapBase
         Retype HeapBase
           Type HeapDerived
@@ -415,7 +422,7 @@ Module
         Type HeapPair
         Local pair
       return
-  fun init.HeapSingleton.$c3 @fn11(this: HeapSingleton) -> Unit
+  fun init.HeapSingleton.$c3 @fn13(this: HeapSingleton) -> Unit
     bb0 entry
       call $call.1: HeapEmpty = @fn2 direct
       field_set 0
@@ -424,12 +431,12 @@ Module
         Type HeapEmpty
         Local $call.1
       return
-  fun ctor.HeapEmpty.$c0 @fn12() -> HeapEmpty <no-gc>
+  fun ctor.HeapEmpty.$c0 @fn14() -> HeapEmpty <no-gc>
     bb0 entry
       return
         Type HeapEmpty
         StructInit HeapEmpty
-  fun ctor.HeapPair.$c1 @fn13(first: HeapEmpty, second: HeapEmpty) -> HeapPair <no-gc>
+  fun ctor.HeapPair.$c1 @fn15(first: HeapEmpty, second: HeapEmpty) -> HeapPair <no-gc>
     bb0 entry
       return
         Type HeapPair

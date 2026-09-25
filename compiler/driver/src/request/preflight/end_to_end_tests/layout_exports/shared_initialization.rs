@@ -48,20 +48,12 @@ pub(super) fn check(
     }
 }
 
-pub(super) fn check_absence(
+pub(super) fn check_consumption(
     input: scoop_lir_lower::LayoutAbiExportInputV1<'_>,
     layouts: &lir::CanonicalExactLayoutExportsV1,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
 ) {
-    assert!(
-        input
-            .mir
-            .production()
-            .strong_callable_bridges()
-            .initialization_cycle()
-            .is_none()
-    );
-    assert!(
+    assert_eq!(
         scoop_slib::replay_shared_initialization_abi(
             input.lir.module().meta.target_profile,
             input.mir.production().strong_callable_bridges(),
@@ -71,6 +63,7 @@ pub(super) fn check_absence(
             &mut meter(),
         )
         .unwrap()
-        .is_none()
+        .as_deref(),
+        input.lir.initialization_cycle_abi(),
     );
 }

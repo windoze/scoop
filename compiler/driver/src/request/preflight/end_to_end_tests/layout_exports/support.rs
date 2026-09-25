@@ -35,6 +35,7 @@ pub(super) fn with_inspection(
         target,
         core_bytes,
         source,
+        None,
         |mir, projection, lir, dependencies, _| {
             inspect(mir, projection);
             run(lir, dependencies);
@@ -47,6 +48,10 @@ pub(super) fn with_pair(
     target: &scoop_toolchain::ResolvedTargetProfile,
     core_bytes: &[u8],
     source: &str,
+    provider_exports: Option<(
+        &mir::CrossConeMirTypeBridgeSectionV1<'_>,
+        &lir::CrossConeLayoutAbiSectionV1<'_>,
+    )>,
     run: impl FnOnce(
         scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
         &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
@@ -163,7 +168,18 @@ pub(super) fn with_pair(
         &mut meter(),
     )
     .unwrap();
-    let types = dependencies::mir_types(&mir.strong, &graph);
+    let types = match provider_exports {
+        Some((provider, _)) => provider.types().clone(),
+        None => dependencies::mir_types(&mir.strong, &graph),
+    };
+    let mir_callables = provider_exports
+        .map(|(provider, _)| provider.callables())
+        .into_iter()
+        .collect::<Vec<_>>();
+    let dispatch = provider_exports
+        .map(|(provider, _)| provider.dispatch())
+        .into_iter()
+        .collect::<Vec<_>>();
     let input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
         hir: &hir.hir,
         public: &hir.cross_cone_section,
@@ -175,20 +191,14 @@ pub(super) fn with_pair(
     };
     let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
         types: &[&types],
-        callables: &[],
-        dispatch: &[],
+        callables: &mir_callables,
+        dispatch: &dispatch,
     };
-    let bridge = scoop_mir_lower::lower_type_bridge_exports(
-        input,
-        dependencies,
-        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
-        &mut meter(),
-    )
-    .unwrap();
+    let bridge =
+        scoop_mir_lower::lower_type_bridge_exports(input, dependencies, &mut meter()).unwrap();
     let projected = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
         input,
         dependencies,
-        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
         &mut meter(),
     )
     .unwrap();
@@ -210,7 +220,14 @@ pub(super) fn with_pair(
         mir.strong.materialization().initialization_roots().len(),
     );
     let mir_input = input;
-    let layouts = dependencies::layouts(&types, &core_lir, &graph, target.lir_target());
+    let layouts = match provider_exports {
+        Some((_, provider)) => provider.layouts().clone(),
+        None => dependencies::layouts(&types, &core_lir, &graph, target.lir_target()),
+    };
+    let lir_callables = provider_exports
+        .map(|(_, provider)| provider.callables())
+        .into_iter()
+        .collect::<Vec<_>>();
     let selected = lir::StrongProductionDependencySelectionV2::empty(
         lir.module().cone,
         target.lir_target(),
@@ -237,9 +254,26 @@ pub(super) fn with_pair(
     };
     let dependencies = scoop_lir_lower::LayoutAbiExportDependenciesV1 {
         layouts: &[&layouts],
-        callables: &[],
+        callables: &lir_callables,
     };
-    source_contracts::check(input, dependencies, &projected);
+    if bridge.initialization_uses().records().is_empty() {
+        source_contracts::check(input, dependencies, &projected);
+    } else {
+        // The baseline has no selected descriptors or external registration edges.
+        let error = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
+            input,
+            dependencies,
+            &projected,
+            &mut meter(),
+        )
+        .err()
+        .unwrap();
+        assert!(matches!(
+            error,
+            scoop_lir_lower::LayoutAbiSourceProjectionError::InitializationEdges(error)
+                if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
+        ));
+    }
     shared_ordinary::check_dependency_uses(
         hir::SharedTypeMetadataV1 {
             provider: input.mir.module().cone,

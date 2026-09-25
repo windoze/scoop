@@ -60,7 +60,14 @@ pub fn verify_external_shape_requirements_v1<'a>(
     symbols.reject_old_partitions(legacy, meter)?;
     let classified = classify(legacy.remaining_external_candidates(), &symbols, meter)?;
     for (index, import) in imports.records().iter().enumerate() {
-        if !classified.used[index] {
+        // Initialization edges retain canonical unit ids in metadata. Their
+        // complete descriptor support is checked by the source/registration
+        // join and need not produce an object pointer relocation.
+        let metadata_support = matches!(
+            import.subject(),
+            scoop_lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(_)
+        );
+        if !classified.used[index] && !metadata_support {
             return Err(LayoutLinkClosureError::UnusedImport {
                 import_index: index as u32,
                 provider: import.provider(),

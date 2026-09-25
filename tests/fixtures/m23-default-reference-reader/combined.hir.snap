@@ -5,9 +5,9 @@ Module
   object ReaderDefaults <object0 type0 value0 root0 init0>
     field0 property1: Int
     property1 val seed: Int getter1=storage <stored field0 init=expression>
-  property2 val READER_SEED: Int getter2=constant <const Integer(Signed32(3))>
-  property3 val READER_GLOBAL: Int getter3=storage <stored global0 image>
-  val READER_GLOBAL: Int <global0 managed>
+  property2 var READER_GLOBAL: Int getter2=storage setter0=storage <native-storage global0>
+  property3 val READER_SEED: Int getter3=constant <const Integer(Signed32(3))>
+  var READER_GLOBAL: Int <global0 global>
   fun $init$body$0(): Unit
     assign singleton-root#0
       ClassInit ReaderDefaults : ReaderDefaults

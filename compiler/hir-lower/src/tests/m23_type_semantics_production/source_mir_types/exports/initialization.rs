@@ -6,9 +6,9 @@ use scoop_identity::{
 };
 
 #[test]
-fn actual_mir_export_assembly_preserves_explicit_initialization_edges_and_checks_local_roots() {
+fn actual_mir_export_assembly_rejects_initialization_edges_without_source_uses() {
     let (_, source) = fixture("combined");
-    with_exports(&source, |input, dependencies, _| {
+    with_exports(&source, |input, dependencies, exports| {
         let foreign = object(ConeIdentity::CORE, "DependencyRegistry");
         let missing = object(input.mir.module().cone, "UnmaterializedRegistry");
         let units: Vec<mir::InitializationUnitIdentityRecord> = [&foreign, &missing]
@@ -33,7 +33,17 @@ fn actual_mir_export_assembly_preserves_explicit_initialization_edges_and_checks
             ..input
         };
         let local = input.mir.materialization().initialization_roots()[0].identity();
-        for (local_unit, emitted) in [(local, true), (units[1].id(), false)] {
+        let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
+            input,
+            MirTypeBridgeDependencyTablesV1 {
+                types: &[dependencies],
+                callables: &[],
+                dispatch: &[],
+            },
+            &mut meter(),
+        )
+        .unwrap();
+        for local_unit in [local, units[1].id()] {
             let record = mir::SelectedExternalInitializationUseV1::try_new(
                 input.mir.module().cone,
                 &graph,
@@ -47,63 +57,20 @@ fn actual_mir_export_assembly_preserves_explicit_initialization_edges_and_checks
             let uses =
                 mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![record], &mut meter())
                     .unwrap();
-            let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-                input,
-                MirTypeBridgeDependencyTablesV1 {
-                    types: &[dependencies],
-                    callables: &[],
-                    dispatch: &[],
-                },
-                uses.clone(),
-                &mut meter(),
-            );
-            let result = lower_type_bridge_exports(
-                input,
-                MirTypeBridgeDependencyTablesV1 {
-                    types: &[dependencies],
-                    callables: &[],
-                    dispatch: &[],
-                },
+            let candidate = mir::MirTypeBridgeExportConstituentsV1::new(
+                exports.types().clone(),
+                exports.callables().clone(),
+                exports.dispatch().clone(),
+                exports.objects().clone(),
+                exports.shapes().clone(),
                 uses,
-                &mut meter(),
             );
-            if emitted {
-                let candidate = result.unwrap();
-                let source = source.unwrap();
-                assert_eq!(candidate.initialization_uses().records(), &[record]);
-                candidate
-                    .validate_sources(input.mir.module().cone, &graph, &source, &mut meter())
-                    .unwrap();
-                let stripped = mir::MirTypeBridgeExportConstituentsV1::new(
-                    candidate.types().clone(),
-                    candidate.callables().clone(),
-                    candidate.dispatch().clone(),
-                    candidate.objects().clone(),
-                    candidate.shapes().clone(),
-                    mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter())
-                        .unwrap(),
-                );
-                assert!(matches!(
-                    stripped.validate_sources(
-                        input.mir.module().cone,
-                        &graph,
-                        &source,
-                        &mut meter()
-                    ),
-                    Err(mir::MirTypeBridgeSourceJoinError::Record(
-                        mir::MirTypeBridgeSourceRecordV1::InitializationUses
-                    ))
-                ));
-            } else {
-                assert!(
-                    matches!(result, Err(Error::MissingInitializationUnit(actual)) if actual == local_unit)
-                );
-                assert!(
-                    matches!(source, Err(scoop_mir_lower::MirTypeBridgeSourceProjectionError::Production(
-                    Error::MissingInitializationUnit(actual)
-                )) if actual == local_unit)
-                );
-            }
+            assert!(matches!(
+                candidate.validate_sources(input.mir.module().cone, &graph, &source, &mut meter()),
+                Err(mir::MirTypeBridgeSourceJoinError::Record(
+                    mir::MirTypeBridgeSourceRecordV1::InitializationUses
+                ))
+            ));
         }
     });
 }

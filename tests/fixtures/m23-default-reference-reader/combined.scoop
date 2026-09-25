@@ -1,5 +1,5 @@
 public const val READER_SEED: Int = 3
-public val READER_GLOBAL: Int = 4
+@Global public var READER_GLOBAL: Int = 4
 public struct ReaderBox<T>(val value: T)
 public object ReaderDefaults {
     public val seed: Int = 5

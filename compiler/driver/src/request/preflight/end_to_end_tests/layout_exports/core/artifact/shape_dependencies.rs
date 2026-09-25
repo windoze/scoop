@@ -7,7 +7,7 @@ mod lir_reader;
 mod lower;
 mod machine;
 mod mir_reader;
-mod provider;
+pub(super) mod provider;
 
 pub(super) fn check(
     producer: &lir::SingleConeStrongLirOutput,
@@ -62,20 +62,12 @@ pub(super) fn check(
                     callables: &[core_mir.callables()],
                     dispatch: &[core_mir.dispatch()],
                 };
-                let initialization =
-                    mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter())
+                let exports =
+                    scoop_mir_lower::lower_type_bridge_exports(input, dependencies, &mut meter())
                         .unwrap();
-                let exports = scoop_mir_lower::lower_type_bridge_exports(
-                    input,
-                    dependencies,
-                    initialization.clone(),
-                    &mut meter(),
-                )
-                .unwrap();
                 let projection = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
                     input,
                     dependencies,
-                    initialization,
                     &mut meter(),
                 )
                 .unwrap();

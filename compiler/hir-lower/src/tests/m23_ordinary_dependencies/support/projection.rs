@@ -5,7 +5,7 @@ use scoop_identity::{
 };
 
 use super::super::super::m23_ordinary_core_only::support::{
-    TrustedCoreFixture, parsed_ordinary_at,
+    TrustedCoreFixture, parsed_ordinary_at, parsed_ordinary_text_at,
 };
 use crate::{CurrentConeSources, lower_current_cone};
 
@@ -44,13 +44,39 @@ fn project_dependency_with_core_roles(
     scoop_hir::CrossConeHirInterfaceSectionV1,
 ) {
     let parsed = parsed_ordinary_at(coordinate, source);
+    project_parsed_dependency(core, coordinate, &parsed, core_types, include_default_role)
+}
+
+pub(crate) fn project_dependency_text(
+    core: &TrustedCoreFixture,
+    coordinate: &ConeCoordinate,
+    source: &str,
+    core_types: &[&str],
+) -> (
+    scoop_hir::CanonicalHirFoundation,
+    scoop_hir::CrossConeHirInterfaceSectionV1,
+) {
+    let parsed = parsed_ordinary_text_at(coordinate, source);
+    project_parsed_dependency(core, coordinate, &parsed, core_types, false)
+}
+
+fn project_parsed_dependency(
+    core: &TrustedCoreFixture,
+    coordinate: &ConeCoordinate,
+    parsed: &scoop_ast::CurrentConeParsedSources,
+    core_types: &[&str],
+    include_default_role: bool,
+) -> (
+    scoop_hir::CanonicalHirFoundation,
+    scoop_hir::CrossConeHirInterfaceSectionV1,
+) {
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let witnesses = core_types
         .iter()
         .flat_map(|name| core_type_witnesses(core, name, include_default_role))
         .collect::<Vec<_>>();
     let world = core.world(parsed.cone());
-    let input = CurrentConeSources::try_new(&parsed, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(parsed, core_inputs, &world).unwrap();
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the dependency provider must lower before interface projection");
     let current_nominals = current_nominal_targets(output.output().export.module());
