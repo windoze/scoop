@@ -218,20 +218,15 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-6 跨Cone layout、typed ABI与ZST
 
-总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage6/DESIGN.md`。
+总体设计见 [M23 设计](milestone23/DESIGN.md)，详细设计见 [M23-6](milestone23/stage6/DESIGN.md)，清理范围见 [清理设计](milestone23/stage6/CORE-AUTHORITY-CLEANUP.md)。
 
-- 以新required MIR/LIR section首次实现并冻结通用、可跨Cone复用的`ValueStorageLayout`、Scoop typed ABI与scan/TypeDescriptor proof，包括zero-payload elision、C ABI零尺寸拒绝、boxing/address/static token、`Array`/`MutableArray<ZST>`、param-free inheritance/slot/dispatch与protected access bridge。每个定义Cone同时为可跨Cone引用的param-free source nominal预物化并导出`BoxedValue`、`CoroutineStep`与`CoroutineSlot`的有限`ExactOwnerRoot` shape-support closure，下游只引用external typed definition。M23-2 foundation中的layout/scan/dispatch只含identity key，`NativeBoundaryTypeDefinitionRecordV1`只服务extern/callback source witness；本阶段不得改写已冻结的exact identity、witness或extern/callback contract bytes。
-- 新增 `cross-cone-layout-strong/1` profile 及 HIR type/inheritance、MIR type bridge、LIR layout/ABI、Link-only layout-use closure 四条 section，strong-production/5 升级为 /6。退役独立 HIR source-authority 草案，将完整声明、表示、参数/default 和实际 selected use 合入共有 metadata；producer 与 bytes-only reader 共用 identity、访问、依赖、ABI/layout、预算及 object 校验。源码接口保留完整声明，机器接口按实际物化闭包执行 M23-7/10 gate，core 与普通 library 相同。旧capability语义不改，三层outer schema仍为1。旧core和M23-5 callable分区保持，新增general type/dispatch物理use形成第三个互斥分区。生产仍拒绝全部ODR；generic/structural表示矩阵使用内部typed/单image harness验证，其独立物化留M23-7。
-- 已补齐实际 Box/Unbox/is/as 的共有 HIR 形状根查询、MIR/LIR selected 递归重放，以及提供方 Unit/Any 的有限 helper 发布；独立、组合、缺项、额外依赖、错误 provider 与累计预算测试覆盖同一共有路径。跨 Cone 机器消费、逐次访问和初始化用途、最终 Compile/Link 闭包继续作为阶段完成门。
-- 已接通 LIR/codegen 的外来 boxed descriptor 引用：完整 layout/ABI 选择集核验 source ShapeSupport、helper 与物理导入，ZST/非零 payload 通过同一 typed descriptor 引用发射；真实提供方的独立/组合 LIR golden、LLVM、对象发射与资格/绑定/预算反例已覆盖。源代码跨 Cone 装箱及最终双 view 闭包仍继续验收。
-- 已将 MIR 有限 helper 按 source exact 的实际 provider 分为本地定义与依赖引用，并接入完整 layout 选择的 LIR 消费入口。真实源码的 Int 装箱/拆箱、Unit 零尺寸装箱、String 类型测试和 default 组合已通过 MIR/LIR golden、LLVM 与对象发射验证；缺失选择、错误 provider/物理导入、裸描述符与预算反例同路径拒绝。普通 CLI 的 layout profile、访问/初始化用途及 Compile/Link 双 view 发布继续闭合。
-- layout 来源投影已复用 MIR IR 接口的实际 Type/ShapeSupport 用途，并先核对完整 MIR source/export 关系；真实装箱和类型测试源码生成的完整 layout section 通过共有字节依赖重放与 Strong V2 registration/object 验证，与独立语义图保持相同 golden。来源记录漂移和累计预算反例同入口拒绝；CLI profile 和最终双 view 发布继续推进。
-- 真实源码装箱产物已接入 `.slib` 组装与共有 Compile reader 的物理导入重放；独立 Int 及 Unit ZST、拆箱、类型测试、default、String 字面量组合保持完整 provider/definition 和双 view canonical bytes。layout 产物的 callable/immortal 指纹使用完整引用分区，修复旧 legacy 投影丢失实际 helper 重定位的问题；截断分区反例仍拒绝。最终 CLI 与完整双 view 消费条件继续独立验收。
-- 实际普通 `as` 的 source-only 异常构造已在 MIR 前通过共有声明物化查询诊断；独立与 default 组合锁定表达式位置，未展开默认值、未物化泛型及静态上行转换继续通过，direct/support 精确身份与累计预算反例均已覆盖。参数自由外来异常的完整机器构造及最终发布条件继续验收。
-- Link view 已按所有权接入共有 HIR/MIR/LIR、Strong 与物理导入重放，保留原累计预算和四组 Link-only 载荷；真实 Int/Unit 装箱及 default/String 组合独立得到与 Compile 一致的结果。只改 Link provider 并重建合法 archive hash 的反例在物理关联处拒绝，空/重复/缺失导入与预算边界同路径覆盖。source/access、实际初始化用途、完整对象覆盖和最终 CLI 发布条件继续验收。
-- 属性初始化依赖已从 sealed HIR 的实际外来 getter/setter 调用独立投影，删除手填用途接口；共享 Compile/Link reader 重算同一来源，精确核对 MIR 用途、LIR 登记边和 provider unit/descriptor。已展开 default、重复访问、getter/setter 合并、静态映像、computed 属性和独立闭包分别覆盖，真实 `.slib` 的独立及组合场景保持双 view 一致；公开静态映像属性同时补齐真实访问器导出。缺失、额外、错误 provider/unit 及累计预算反例通过；显式 object value/初始化支持、完整 source/access、对象覆盖与最终 CLI 发布条件继续验收。
-- 已补齐共有 Link reader 的九字段 Code 重算与 production manifest 完整比较：复用最终对象、原始 Strong payload 和共有 provider/用途关系，独立与组合产物保持原 Code 值；当前及依赖的 distribution、output、native 表与双 Code 篡改、精确预算边界均验证。完整 source/access 与最终 Compile/Link 发布条件继续独立验收。
-- 完成compiler/layout/object级ZST与ABI矩阵；真实多Cone链接后的moving-GC留M23-9/M23-11总验收。
+- 完成共有 `ValueStorageLayout`、canonical Scoop ABI、scan/TypeDescriptor、ZST payload elision、boxing/address/static token、Array/Ptr 与 C 边界；完成 param-free 跨 Cone 类型、constructor/member/object、继承、dispatch/protected 和有限 shape-support 的实际发布与消费。
+- core 作为普通 library 使用相同构建、缓存、依赖、类型查询和产物消费。完成 canonical ABI、native boundary、compiler protocol、String/初始化及 Link 路径中的专用资格清理。已完成部分核对生产调用链并复用。
+- 清除 compiler/slib/runtime 的通用资源预算、计费与配额，删除成本策略与 profile/fingerprint/runtime ABI 的绑定。保留实际范围、整数溢出、非法环与 GC 契约检查。
+- 清除额外来源授权、防伪、重复证明和测试专用来源工厂；默认参数、名称解析和语言规则由前端负责，IR/meta 与 reader 不再另建语言语义实现。Compile/Link 共享同一不可变语义结果；发布与 runtime 热点不反复完整重放。
+- producer、reader、linker、wire/profile、版本、fingerprint、fixture、golden 和文档同步。退役 tag 不复用，不兼容产物重建。保留实际 C ABI、String 表示和 typed identity。
+- 真实源码生成完整 `.slib`，由本阶段跨 Cone Compile/Link 路径消费，并完成适用链接与运行；覆盖 core 修改、扩展、重建、下游使用，以及类型、成员、dispatch、ABI、ZST 的独立与组合场景。手工 metadata 和证明反例不能替代验收。
+- 原有可复用实现与测试继续核对；只有实际功能、上述清理和必要验收全部完成且按功能提交，才完成 M23-6。当前仍在实施。ODR、multi-image startup、artifact-only program-link 按 M23-7/8/9 的原阶段安排，不提前承接。
 
 ### M23-7 跨Cone generic、ODR与generic delegated extension
 
