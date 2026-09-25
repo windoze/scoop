@@ -136,6 +136,7 @@ impl Lowerer {
                 let expression = hir::Expr {
                     kind: hir::ExprKind::Call {
                         callee,
+                        receiver: resolved.source_receiver,
                         args: resolved.args,
                     },
                     ty: resolved.return_ty,

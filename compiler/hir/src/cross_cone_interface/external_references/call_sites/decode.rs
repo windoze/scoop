@@ -48,6 +48,7 @@ pub struct DecodedHirDependencyCallSiteV1 {
     arguments: Vec<DecodedPersistentId<PersistentExactTypeId>>,
     result: DecodedPersistentId<PersistentExactTypeId>,
     reason: DecodedHirDependencyCallReasonV1,
+    receiver: crate::SourceCallReceiver<DecodedPersistentId<PersistentExactTypeId>>,
 }
 
 impl DecodedHirDependencyCallSiteV1 {
@@ -70,7 +71,10 @@ impl DecodedHirDependencyCallSiteV1 {
             .map_err(Error::Resource)?;
         meter.charge_work(bytes, path).map_err(Error::Resource)?;
         meter
-            .charge_nodes(1 + self.arguments.len() as u64, path)
+            .charge_nodes(
+                2 + self.arguments.len() as u64 + u64::from(self.receiver.has_receiver()),
+                path,
+            )
             .map_err(Error::Resource)?;
         let position = ExecutableExpressionPosition {
             root: self.root.resolve(resolver).map_err(Error::Identity)?,
@@ -86,14 +90,20 @@ impl DecodedHirDependencyCallSiteV1 {
         }
         let result = resolver.resolve(self.result).map_err(Error::Identity)?;
         let reason = self.reason.resolve(resolver).map_err(Error::Identity)?;
-        HirDependencyCallSiteV1::try_new_with_reason(position, origin, arguments, result, reason)
-            .map_err(Error::Shape)
+        let receiver = self
+            .receiver
+            .try_map(|ty| resolver.resolve(ty))
+            .map_err(Error::Identity)?;
+        HirDependencyCallSiteV1::try_new_with_reason(
+            position, origin, arguments, result, reason, receiver,
+        )
+        .map_err(Error::Shape)
     }
 }
 
 impl WireEncode for DecodedHirDependencyCallSiteV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encoder.field(1)?;
         self.root.encode(encoder)?;
         encoder.field(2)?;
@@ -108,13 +118,15 @@ impl WireEncode for DecodedHirDependencyCallSiteV1 {
         encoder.field(5)?;
         self.result.encode(encoder)?;
         encoder.field(6)?;
-        self.reason.encode(encoder)
+        self.reason.encode(encoder)?;
+        encoder.field(7)?;
+        self.receiver.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedHirDependencyCallSiteV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
+        decoder.expect_map(7)?;
         Ok(Self {
             root: decoder.field(1, DecodedCallableMaterialization::decode)?,
             expression_index: decoder.field(2, Decoder::u32)?,
@@ -123,6 +135,7 @@ impl WireDecode for DecodedHirDependencyCallSiteV1 {
                 .field(4, |d| d.decode_array(|d, _| DecodedPersistentId::decode(d)))?,
             result: decoder.field(5, DecodedPersistentId::decode)?,
             reason: decoder.field(6, DecodedHirDependencyCallReasonV1::decode)?,
+            receiver: decoder.field(7, crate::SourceCallReceiver::decode)?,
         })
     }
 }

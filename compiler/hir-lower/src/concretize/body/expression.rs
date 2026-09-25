@@ -415,7 +415,12 @@ impl Concretizer<'_> {
             export::ExprKind::ArrayClone(array) => concrete::ExprKind::ArrayClone(Box::new(
                 self.lower_expr(array, substitution, locals),
             )),
-            export::ExprKind::Call { callee, args } => concrete::ExprKind::Call {
+            export::ExprKind::Call {
+                callee,
+                args,
+                receiver,
+            } => concrete::ExprKind::Call {
+                receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
                 callee: self.lower_callable(*callee, substitution),
                 args: args
                     .iter()
@@ -427,7 +432,9 @@ impl Concretizer<'_> {
                 callee,
                 binding,
                 args,
+                receiver,
             } => concrete::ExprKind::ImportedDependencyCall {
+                receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
                 callee: self.imported_dependency_callable_map[callee],
                 binding: std::sync::Arc::clone(binding),
                 args: args
@@ -555,7 +562,7 @@ impl Concretizer<'_> {
         let CoreConcretizationAuthority::Defined(protocols) = self.core else {
             return None;
         };
-        let export::ExprKind::Call { callee, args } = &source.kind else {
+        let export::ExprKind::Call { callee, args, .. } = &source.kind else {
             return None;
         };
         if !args.is_empty()

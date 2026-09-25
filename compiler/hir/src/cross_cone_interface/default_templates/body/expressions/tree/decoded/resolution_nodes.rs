@@ -61,3 +61,15 @@ resource_node!(DecodedDefaultIntegerArgumentsV1, node, children, {
     }
     Ok(())
 });
+
+resource_node!(
+    crate::SourceCallReceiver<DecodedSignatureTypeKey>,
+    node,
+    children,
+    {
+        match node {
+            Self::NoReceiver => Ok(()),
+            Self::Receiver { static_type } => children.push(static_type),
+        }
+    }
+);

@@ -3,6 +3,9 @@ use scoop_hir as hir;
 
 use crate::{Lowerer, Owner, TypeId};
 
+mod receiver;
+pub(crate) use receiver::PropertyCallReceiver;
+
 mod access;
 mod declarations;
 mod delegates;
@@ -270,6 +273,7 @@ impl Lowerer {
                     }
                     (None, None) => Some(hir::Expr {
                         kind: hir::ExprKind::Call {
+                            receiver: hir::SourceCallReceiver::NoReceiver,
                             callee: hir::Callable::Function(function),
                             args: Vec::new(),
                         },
@@ -342,6 +346,7 @@ impl Lowerer {
                     }
                     (None, None) => hir::Expr {
                         kind: hir::ExprKind::Call {
+                            receiver: hir::SourceCallReceiver::NoReceiver,
                             callee: hir::Callable::Function(function),
                             args: vec![value],
                         },

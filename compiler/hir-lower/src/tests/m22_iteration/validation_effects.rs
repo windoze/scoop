@@ -388,7 +388,7 @@ fn iteration_plan_validator_rejects_a_forged_box_receiver_adaptation() {
     let setup_local = *setup_local;
     assert!(matches!(init.kind, hir::ExprKind::Box(_)));
     init.ty = unrelated_type;
-    let hir::ExprKind::Call { callee, args } = &mut parts.iterator_call.kind else {
+    let hir::ExprKind::Call { callee, args, .. } = &mut parts.iterator_call.kind else {
         panic!("the extension iterator is a direct call")
     };
     *callee = hir::Callable::Function(unrelated_iterator);

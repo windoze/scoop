@@ -7,6 +7,7 @@ use crate::{
     ExternalHirReferenceSetBuildError, ExternalHirReferenceV1,
 };
 
+mod receivers;
 mod runtime;
 pub(super) mod support;
 use support::Fixture;
@@ -16,11 +17,11 @@ fn meter() -> BudgetMeter {
 }
 
 #[test]
-fn six_field_call_sites_round_trip_without_erasing_repeated_unit_arguments() {
+fn seven_field_call_sites_round_trip_without_erasing_repeated_unit_arguments() {
     let fixture = Fixture::new();
     let site = fixture.site(7, vec![0, 3]).unwrap();
     let bytes = encode(&site).unwrap();
-    assert_eq!(bytes[0], 0xa6);
+    assert_eq!(bytes[0], 0xa7);
     assert_eq!(site.arguments(), &[fixture.unit, fixture.unit]);
     assert_eq!(site.witness_indices(), &[0, 3]);
     let decoded: DecodedHirDependencyCallSiteV1 =
@@ -52,8 +53,11 @@ fn call_routes_are_nonempty_ordered_and_unique_on_both_sides_of_the_codec() {
     let site = fixture.site(0, vec![0, 1]).unwrap();
     for suffix in [vec![0x80], vec![0x82, 1, 0], vec![0x82, 0, 0]] {
         let mut bytes = encode(&site).unwrap();
-        bytes.truncate(bytes.len() - 3);
+        let receiver = encode(&site.receiver()).unwrap();
+        bytes.truncate(bytes.len() - 3 - 1 - receiver.len());
         bytes.extend(suffix);
+        bytes.push(7);
+        bytes.extend(receiver);
         let decoded: DecodedHirDependencyCallSiteV1 =
             decode_canonical(&bytes, DecodeLimits::default()).unwrap();
         assert!(matches!(

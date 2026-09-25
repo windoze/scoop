@@ -17,7 +17,10 @@ impl Lowerer {
             call_span,
             ..
         } = probe;
-        let ImportedCallReceiver::Member(ImportedMemberReceiver::LiteralSubject(_)) = receiver
+        let ImportedCallReceiver::Member {
+            value: ImportedMemberReceiver::LiteralSubject(_),
+            ..
+        } = receiver
         else {
             unreachable!("literal equality probes retain their explicit subject type")
         };

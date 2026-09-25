@@ -177,9 +177,11 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             ),
             Self::ArrayLen(operand) => encode_one(encoder, 42, operand.as_ref()),
             Self::ArrayClone(operand) => encode_one(encoder, 43, operand.as_ref()),
-            Self::Call { callee, arguments } => {
-                encode_two(encoder, 44, callee, &WireSequence(arguments))
-            }
+            Self::Call {
+                callee,
+                arguments,
+                receiver,
+            } => encode_three(encoder, 57, callee, &WireSequence(arguments), receiver),
             Self::LocalFunctionCall {
                 declaration,
                 callee,
@@ -409,11 +411,12 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
             }
             42 => decode_boxed_expression(decoder, fields).map(Self::ArrayLen),
             43 => decode_boxed_expression(decoder, fields).map(Self::ArrayClone),
-            44 => {
-                expect_sum_length(decoder, fields, 3)?;
+            57 => {
+                expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::Call {
                     callee: decoder.field(1, DecodedDefaultCallableRefV1::decode)?,
                     arguments: decoder.field(2, decode_expression_array)?,
+                    receiver: decoder.field(3, crate::SourceCallReceiver::decode)?,
                 })
             }
             45 => {

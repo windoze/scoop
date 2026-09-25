@@ -399,11 +399,9 @@ pub enum ExprKind {
     Call {
         callee: Callable,
         args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
     },
-    /// Direct call to a param-free strong callable selected from the trusted
-    /// core artifact. The target belongs to this module's imported-callable
-    /// arena and cannot be represented as a local source declaration.
-    /// Direct call to a core-closed callable owned by an ordinary dependency.
+    /// Direct call to a callable selected from a dependency artifact.
     /// Its branded arena use resolves only through this output's dependency
     /// selection sidecar.
     ImportedDependencyCall {
@@ -412,6 +410,7 @@ pub enum ExprKind {
         /// callable handle may also be reached through other bindings.
         binding: std::sync::Arc<DirectImportedTargetBinding>,
         args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
     },
     /// Direct call of a lifted local function. Hidden capture arguments are
     /// explicit and precede source arguments in the lowered ABI.

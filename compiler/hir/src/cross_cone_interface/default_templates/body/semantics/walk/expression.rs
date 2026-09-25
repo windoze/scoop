@@ -286,7 +286,19 @@ where
                 self.push_child(pending, depth, BodyNode::Expression(index))?;
                 self.push_child(pending, depth, BodyNode::Expression(receiver))
             }
-            DefaultExpressionKindV1::Call { callee, arguments } => {
+            DefaultExpressionKindV1::Call {
+                callee,
+                arguments,
+                receiver,
+            } => {
+                if let crate::SourceCallReceiver::Receiver { static_type } = receiver {
+                    self.push_type(
+                        pending,
+                        static_type,
+                        DefaultBodyProviderTypeSiteV1::CallReceiver,
+                        definition_origin,
+                    )?;
+                }
                 self.push_expressions(pending, depth, arguments)?;
                 self.push_child(
                     pending,

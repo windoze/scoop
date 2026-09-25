@@ -8,6 +8,10 @@ pub enum HirDependencyCallSignatureError {
     Target(ExternalHirTargetV1),
     Declaration(CallableTemplateOrigin),
     GenericDeclaration(CallableTemplateOrigin),
+    ReceiverRole {
+        expected: bool,
+        actual: bool,
+    },
     ArgumentCount {
         expected: usize,
         actual: usize,
@@ -58,6 +62,10 @@ impl std::fmt::Display for HirDependencyCallSignatureError {
             Self::ArgumentCount { expected, actual } => write!(
                 f,
                 "source call has {actual} logical arguments, expected {expected}"
+            ),
+            Self::ReceiverRole { expected, actual } => write!(
+                f,
+                "source call receiver presence is {actual}, expected {expected} from its declaration"
             ),
             Self::Argument {
                 index,

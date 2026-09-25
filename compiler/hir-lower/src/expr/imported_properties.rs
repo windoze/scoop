@@ -9,6 +9,7 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 use crate::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
+use crate::properties::PropertyCallReceiver;
 
 mod extension;
 mod read;
@@ -23,7 +24,7 @@ pub(crate) struct ImportedDependencyPropertyRead {
 
 struct PreparedImportedPropertySetter {
     candidate: hir::ImportedDependencyCallableCandidate,
-    receiver: Option<hir::Expr>,
+    receiver: Option<PropertyCallReceiver>,
     value_type: hir::TypeId,
 }
 
@@ -92,9 +93,9 @@ impl Lowerer {
     fn validate_imported_property_receiver(
         &mut self,
         property: &hir::ImportedDependencyPropertyCandidate,
-        receiver: Option<hir::Expr>,
+        receiver: Option<PropertyCallReceiver>,
         span: ast::Span,
-    ) -> Option<Option<hir::Expr>> {
+    ) -> Option<Option<PropertyCallReceiver>> {
         match (property.interface().owner(), receiver) {
             (hir::PublicDeclarationOwnerV1::TopLevel, None) => Some(None),
             (hir::PublicDeclarationOwnerV1::Extension, Some(receiver)) => Some(Some(receiver)),
@@ -158,6 +159,7 @@ impl Lowerer {
         &mut self,
         candidate: hir::ImportedDependencyCallableCandidate,
         args: Vec<hir::Expr>,
+        receiver: hir::SourceCallReceiver<hir::TypeId>,
         result_type: hir::TypeId,
         span: ast::Span,
         unsafe_operation: &str,
@@ -180,6 +182,7 @@ impl Lowerer {
                 callee,
                 binding,
                 args,
+                receiver,
             },
             ty: result_type,
             span,

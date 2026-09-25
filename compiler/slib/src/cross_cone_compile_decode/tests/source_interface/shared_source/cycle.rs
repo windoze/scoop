@@ -29,6 +29,7 @@ pub(super) fn install(fixture: &mut CallableSourceSurface) {
         .result();
     let call = DefaultExpressionV1::try_new(
         DefaultExpressionKindV1::Call {
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
             callee: callee.clone(),
             arguments: vec![value.clone()],
         },

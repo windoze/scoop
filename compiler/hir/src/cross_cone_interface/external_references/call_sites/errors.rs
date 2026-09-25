@@ -4,6 +4,8 @@ use crate::concrete::ExecutableExpressionPosition;
 pub enum HirDependencyCallSiteBuildError {
     EmptyWitnessIndices,
     RuntimeArguments,
+    RuntimeReceiver,
+    MissingReceiverArgument,
     WitnessIndexOrder { index: usize },
     DuplicatePosition(ExecutableExpressionPosition),
     PositionOrder { index: usize },

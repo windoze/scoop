@@ -243,6 +243,12 @@ impl Lowerer {
             ..
         } = transaction;
         *self = *state;
+        let source_receiver = match &evaluation_receiver {
+            Some(receiver) => hir::SourceCallReceiver::Receiver {
+                static_type: receiver.ty,
+            },
+            None => hir::SourceCallReceiver::NoReceiver,
+        };
         let argument_map = candidate
             .argument_map
             .as_ref()
@@ -295,6 +301,7 @@ impl Lowerer {
             type_args,
             args,
             receiver: instance_receiver,
+            source_receiver,
             return_ty,
         })
     }

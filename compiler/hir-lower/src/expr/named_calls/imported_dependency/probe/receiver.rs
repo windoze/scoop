@@ -52,7 +52,10 @@ impl Lowerer {
                     Ok(expected) => {
                         self.adapt_imported_receiver(receiver, expected, name, "extension")?
                     }
-                    Err(_) => receiver,
+                    Err(_) => ImportedCallReceiver::Member {
+                        static_type: receiver.ty(),
+                        value: receiver,
+                    },
                 }
             }
             hir::PublicDeclarationOwnerV1::Nominal(owner) => {
@@ -85,7 +88,7 @@ impl Lowerer {
                 self.adapt_imported_receiver(receiver, expected, name, "member")?
             }
         };
-        Ok(ImportedCallReceiver::Member(receiver))
+        Ok(receiver)
     }
 
     fn adapt_imported_receiver(
@@ -94,7 +97,7 @@ impl Lowerer {
         expected: hir::TypeId,
         name: &ast::Ident,
         kind: &str,
-    ) -> Result<ImportedMemberReceiver, Box<Lowerer>> {
+    ) -> Result<ImportedCallReceiver, Box<Lowerer>> {
         if !self.is_subtype(receiver.ty(), expected) {
             self.error(
                 name.span,
@@ -107,13 +110,15 @@ impl Lowerer {
             );
             return Err(Box::new(self.clone()));
         }
-        Ok(match receiver {
+        let static_type = receiver.ty();
+        let value = match receiver {
             ImportedMemberReceiver::Value(value) => {
                 ImportedMemberReceiver::Value(self.adapt_to(value, expected))
             }
             ImportedMemberReceiver::LiteralSubject(_) => {
                 ImportedMemberReceiver::LiteralSubject(expected)
             }
-        })
+        };
+        Ok(ImportedCallReceiver::Member { value, static_type })
     }
 }

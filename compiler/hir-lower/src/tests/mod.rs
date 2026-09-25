@@ -78,6 +78,7 @@ mod m23_ordinary_dependency_type_aliases;
 mod m23_output_kind;
 mod m23_pattern_paths;
 mod m23_property_interface_production;
+mod m23_source_call_receivers;
 mod m23_source_model;
 mod m23_type_alias_interface_production;
 mod m23_type_alias_targets;

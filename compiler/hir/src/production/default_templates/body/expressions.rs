@@ -265,17 +265,26 @@ impl BodyProjection<'_, '_, '_> {
             ExprKind::ArrayClone(value) => {
                 DefaultExpressionKindV1::ArrayClone(Box::new(self.expression(value)?))
             }
-            ExprKind::Call { callee, args } => DefaultExpressionKindV1::Call {
+            ExprKind::Call {
+                callee,
+                args,
+                receiver,
+            } => DefaultExpressionKindV1::Call {
                 callee: self.entities.callable(*callee, self.binders)?,
+                receiver: receiver.try_map(|ty| self.type_key(ty))?,
                 arguments: self.expressions(args)?,
             },
 
-            ExprKind::ImportedDependencyCall { callee, args, .. } => {
-                DefaultExpressionKindV1::Call {
-                    callee: self.entities.imported_dependency_callable(*callee)?,
-                    arguments: self.expressions(args)?,
-                }
-            }
+            ExprKind::ImportedDependencyCall {
+                callee,
+                args,
+                receiver,
+                ..
+            } => DefaultExpressionKindV1::Call {
+                callee: self.entities.imported_dependency_callable(*callee)?,
+                receiver: receiver.try_map(|ty| self.type_key(ty))?,
+                arguments: self.expressions(args)?,
+            },
             ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

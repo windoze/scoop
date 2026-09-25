@@ -67,6 +67,13 @@ impl HirDependencyCallSiteV1 {
                 .transpose()?,
         };
         let parameters = source.parameters().parameters();
+        meter.charge_work(1, path)?;
+        if self.receiver().has_receiver() != receiver.is_some() {
+            return Err(Error::ReceiverRole {
+                expected: receiver.is_some(),
+                actual: self.receiver().has_receiver(),
+            });
+        }
         let expected = parameters
             .len()
             .saturating_add(usize::from(receiver.is_some()));

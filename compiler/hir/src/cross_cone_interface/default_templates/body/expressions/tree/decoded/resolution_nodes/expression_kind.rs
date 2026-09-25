@@ -207,7 +207,12 @@ resource_node!(DecodedDefaultExpressionKindV1, node, children, {
         Self::ArrayClone(field_0) => {
             children.push(field_0)?;
         }
-        Self::Call { callee, arguments } => {
+        Self::Call {
+            callee,
+            arguments,
+            receiver,
+        } => {
+            children.push(receiver)?;
             children.push(arguments)?;
             children.push(callee)?;
         }

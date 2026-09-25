@@ -44,6 +44,7 @@ pub(crate) struct ResolvedCallee {
     /// Materialized instance receiver. Extension receivers are normalized to
     /// the hidden first direct-call argument instead.
     pub(crate) receiver: Option<hir::Expr>,
+    pub(crate) source_receiver: hir::SourceCallReceiver<TypeId>,
     pub(crate) return_ty: TypeId,
 }
 

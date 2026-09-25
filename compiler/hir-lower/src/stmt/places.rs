@@ -26,7 +26,7 @@ pub(super) enum WriteCapability {
     DirectInterfaceProperty(QualifiedInterfaceProperty),
     ImportedDependencyProperty {
         binding: hir::DirectImportedTargetBinding,
-        receiver: Option<hir::Expr>,
+        receiver: Option<crate::properties::PropertyCallReceiver>,
         name: ast::Ident,
     },
     OperatorSet {

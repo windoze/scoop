@@ -256,7 +256,7 @@ fn inapplicable_member_layer_falls_through_to_extension() {
     let module = lower_user(file).expect("an applicable extension layer must be reached");
     let body = body_of(&module, module.entry());
     let init = local_init(body, "result");
-    let hir::ExprKind::Call { callee, args } = &init.kind else {
+    let hir::ExprKind::Call { callee, args, .. } = &init.kind else {
         panic!("an extension is emitted as a direct call")
     };
     assert_eq!(

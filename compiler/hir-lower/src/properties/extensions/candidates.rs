@@ -20,6 +20,7 @@ impl Lowerer {
             return ExtensionPropertySelectionOutcome::NoCandidate;
         }
         let no_type_args = [];
+        let static_receiver_type = receiver.ty;
         let no_arguments = [];
         let call = OverloadCall {
             explicit_type_args: &no_type_args,
@@ -129,11 +130,13 @@ impl Lowerer {
                     },
                     receiver,
                     value_type: resolved.return_ty,
+                    static_receiver_type,
                     has_setter: self.properties[property].capability.setter().is_some(),
                 };
                 let read = hir::Expr {
                     kind: hir::ExprKind::Call {
                         callee,
+                        receiver: resolved.source_receiver,
                         args: resolved.args,
                     },
                     ty: resolved.return_ty,
@@ -153,6 +156,7 @@ impl Lowerer {
                         name: name.clone(),
                     },
                     receiver: selected.receiver,
+                    static_receiver_type: selected.static_receiver_type,
                     value_type: selected.value_type,
                     has_setter: selected.has_setter,
                 };
@@ -175,7 +179,10 @@ impl Lowerer {
                         };
                         let Some(read) = self.lower_imported_dependency_property_read(
                             binding,
-                            Some(write.receiver.clone()),
+                            Some(crate::properties::PropertyCallReceiver {
+                                value: write.receiver.clone(),
+                                static_type: write.static_receiver_type,
+                            }),
                             name.span,
                         ) else {
                             return ExtensionPropertySelectionOutcome::Failed;

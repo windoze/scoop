@@ -13,6 +13,8 @@ use crate::{
     DefaultPrimitiveUnaryKindV1, DefaultStringOwnerV1, DefaultUnaryOperatorV1,
 };
 
+mod receivers;
+
 #[test]
 fn every_expression_variant_keeps_its_frozen_wire_tag() {
     let fixture = Fixture::new();
@@ -191,6 +193,7 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
         DefaultExpressionKindV1::ArrayLen(Box::new(unit(&fixture))),
         DefaultExpressionKindV1::ArrayClone(Box::new(unit(&fixture))),
         DefaultExpressionKindV1::Call {
+            receiver: crate::SourceCallReceiver::NoReceiver,
             callee: fixture.callable(),
             arguments: vec![unit(&fixture)],
         },
@@ -246,7 +249,11 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
 
     assert_eq!(cases.len(), 56);
     for (index, kind) in cases.into_iter().enumerate() {
-        let expected_tag = u64::try_from(index + 1).unwrap();
+        let expected_tag = if index == 43 {
+            57
+        } else {
+            u64::try_from(index + 1).unwrap()
+        };
         let expression = expression(kind, &fixture);
         let bytes = encode(&expression.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(expression_tag(&bytes), expected_tag);
@@ -348,11 +355,11 @@ fn explicit_optional_expression_sum_round_trips() {
 #[test]
 fn expression_decoder_rejects_unknown_tags_and_non_exact_sums() {
     let error = decode_canonical::<DecodedDefaultExpressionV1>(
-        &[0xa3, 0x01, 0xa1, 0x00, 0x18, 0x39],
+        &[0xa3, 0x01, 0xa1, 0x00, 0x18, 0x3a],
         DecodeLimits::default(),
     )
     .unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 57 });
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 58 });
 
     let error = decode_canonical::<DecodedDefaultExpressionV1>(
         &[0xa3, 0x01, 0xa2, 0x00, 0x04, 0x01, 0x00],

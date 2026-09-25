@@ -192,17 +192,32 @@ impl ReferenceCollector<'_> {
                 }
                 self.type_reference(result_type, origin);
             }
-            hir::ExprKind::Call { callee, args } => {
+            hir::ExprKind::Call {
+                callee,
+                args,
+                receiver,
+            } => {
                 self.callable_use(*callee, origin);
                 self.expressions(args);
+                if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
+                    self.type_reference(*static_type, origin);
+                }
             }
 
-            hir::ExprKind::ImportedDependencyCall { callee, args, .. } => {
+            hir::ExprKind::ImportedDependencyCall {
+                callee,
+                args,
+                receiver,
+                ..
+            } => {
                 self.record_callable(
                     hir::ExportDefaultCallableTarget::ImportedDependency(*callee),
                     origin,
                 );
                 self.expressions(args);
+                if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
+                    self.type_reference(*static_type, origin);
+                }
             }
             hir::ExprKind::LocalFunctionCall {
                 local_function,

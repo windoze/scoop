@@ -174,8 +174,15 @@ impl Lowerer {
                 args,
             },
             LocalDelegateDispatch::Extension(callee) => {
+                let source_receiver = hir::SourceCallReceiver::Receiver {
+                    static_type: receiver.ty,
+                };
                 args.insert(0, receiver);
-                hir::ExprKind::Call { callee, args }
+                hir::ExprKind::Call {
+                    callee,
+                    args,
+                    receiver: source_receiver,
+                }
             }
         };
         hir::Expr {
@@ -264,6 +271,7 @@ impl Lowerer {
                     let expression = hir::Expr {
                         kind: hir::ExprKind::Call {
                             callee: callable,
+                            receiver: resolved.source_receiver,
                             args: resolved.args,
                         },
                         ty: resolved.return_ty,

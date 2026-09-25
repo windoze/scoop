@@ -341,7 +341,7 @@ pub(super) fn dump_expr(
         ExprKind::InitializingStructFieldAccess { index, .. } => out.push_str(&format!(
             "{pad}InitializingStructFieldAccess {index} : {ty}\n"
         )),
-        ExprKind::Call { callee, args } => {
+        ExprKind::Call { callee, args, .. } => {
             let (function, type_args) = callable_dump_parts(module, *callee);
             let callee = &module.functions[function];
             let type_args = if type_args.is_empty() {

@@ -30,6 +30,7 @@ pub struct HirDependencyCallSiteV1 {
     arguments: Vec<PersistentExactTypeId>,
     result: PersistentExactTypeId,
     reason: HirDependencyCallReasonV1,
+    receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
 }
 
 impl HirDependencyCallSiteV1 {
@@ -39,6 +40,7 @@ impl HirDependencyCallSiteV1 {
         arguments: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
         witness_indices: Vec<u32>,
+        receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
     ) -> Result<Self, HirDependencyCallSiteBuildError> {
         Self::try_new_with_reason(
             position,
@@ -46,6 +48,7 @@ impl HirDependencyCallSiteV1 {
             arguments,
             result,
             HirDependencyCallReasonV1::SourceBinding(witness_indices),
+            receiver,
         )
     }
 
@@ -55,7 +58,16 @@ impl HirDependencyCallSiteV1 {
         arguments: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
         reason: HirDependencyCallReasonV1,
+        receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
     ) -> Result<Self, HirDependencyCallSiteBuildError> {
+        if receiver.has_receiver() {
+            if matches!(reason, HirDependencyCallReasonV1::CastFailure { .. }) {
+                return Err(HirDependencyCallSiteBuildError::RuntimeReceiver);
+            }
+            if arguments.is_empty() {
+                return Err(HirDependencyCallSiteBuildError::MissingReceiverArgument);
+            }
+        }
         match &reason {
             HirDependencyCallReasonV1::SourceBinding(indices) => validate_witness_indices(indices),
             HirDependencyCallReasonV1::CastFailure { .. } if !arguments.is_empty() => {
@@ -69,6 +81,7 @@ impl HirDependencyCallSiteV1 {
             arguments,
             result,
             reason,
+            receiver,
         })
     }
 
@@ -88,6 +101,10 @@ impl HirDependencyCallSiteV1 {
         self.result
     }
 
+    pub const fn receiver(&self) -> crate::SourceCallReceiver<PersistentExactTypeId> {
+        self.receiver
+    }
+
     pub fn witness_indices(&self) -> &[u32] {
         match &self.reason {
             HirDependencyCallReasonV1::SourceBinding(indices) => indices,
@@ -102,7 +119,7 @@ impl HirDependencyCallSiteV1 {
 
 impl WireEncode for HirDependencyCallSiteV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encoder.field(1)?;
         self.position.root.encode(encoder)?;
         encoder.field(2)?;
@@ -117,7 +134,9 @@ impl WireEncode for HirDependencyCallSiteV1 {
         encoder.field(5)?;
         self.result.encode(encoder)?;
         encoder.field(6)?;
-        self.reason.encode(encoder)
+        self.reason.encode(encoder)?;
+        encoder.field(7)?;
+        self.receiver.encode(encoder)
     }
 }
 

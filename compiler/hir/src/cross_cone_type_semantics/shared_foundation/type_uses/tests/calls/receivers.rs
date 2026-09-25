@@ -1,0 +1,40 @@
+use super::*;
+
+#[test]
+fn shared_call_receiver_demands_its_original_static_type_before_argument_adaptation() {
+    let core = Artifact::new(ConeCoordinate::reserved_core()).load(&[]);
+    let mut source = Artifact::new(coordinate("receiver-provider"));
+    let base = source.nominal("Base", SourceNominalKind::Class, &[]);
+    let derived = source.nominal("Derived", SourceNominalKind::Class, &[base]);
+    let mut provider = source.load(&[&core]);
+    let member = provider.callable(nominal_owner(base), "run", CallForm::Function);
+    let dependencies = dependencies(&core, &provider);
+    let mut consumer = Artifact::new(coordinate_for_consumer()).load(&dependencies);
+    consumer.calls(&provider, &[member, member]);
+    consumer.change_last_call(|site| {
+        assert_eq!(site.arguments()[0], exact(base));
+        crate::HirDependencyCallSiteV1::try_new(
+            site.position(),
+            site.origin().clone(),
+            site.arguments().to_vec(),
+            site.result(),
+            site.witness_indices().to_vec(),
+            crate::SourceCallReceiver::Receiver {
+                static_type: exact(derived),
+            },
+        )
+        .unwrap()
+    });
+    let expected = selected(signature_uses(provider.provider(), &[base, derived]));
+    let actual = consumer.uses(&dependencies).unwrap();
+    assert_eq!(actual, expected);
+    consumer
+        .validate(&actual, &dependencies, &mut meter())
+        .unwrap();
+    let missing = selected(signature_uses(provider.provider(), &[base]));
+    assert!(matches!(
+        consumer.validate(&missing, &dependencies, &mut meter()),
+        Err(Error::TypeUseInventory)
+    ));
+    snapshot("call-receiver-static", &actual);
+}

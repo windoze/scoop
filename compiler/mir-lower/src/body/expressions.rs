@@ -639,7 +639,7 @@ impl BodyLowerer<'_> {
             } => {
                 return self.lower_cast(operand, *check_ty, *optional, expr.ty, expr.span);
             }
-            hir::ExprKind::Call { callee, args } => {
+            hir::ExprKind::Call { callee, args, .. } => {
                 return self.lower_call(*callee, args, expr.ty);
             }
 

@@ -88,6 +88,7 @@ fn shared_source_construction_checks_every_logical_argument_and_result_at_the_ac
                     arguments,
                     result,
                     site.witness_indices().to_vec(),
+                    site.receiver(),
                 )
                 .unwrap()
             });

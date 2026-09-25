@@ -220,7 +220,7 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
-            ExprKind::Call { callee, args } => {
+            ExprKind::Call { callee, args, .. } => {
                 record(*callee);
                 for arg in args {
                     self.collect_generic_calls_in_expr(arg, out);

@@ -259,7 +259,10 @@ impl Lowerer {
         if !candidate.executable()
             || (matches!(
                 receiver,
-                super::ImportedCallReceiver::Member(ImportedMemberReceiver::LiteralSubject(_))
+                super::ImportedCallReceiver::Member {
+                    value: ImportedMemberReceiver::LiteralSubject(_),
+                    ..
+                }
             ) && candidate.integer_equality_kind().is_none())
         {
             state.imported_dependency_capability_error(

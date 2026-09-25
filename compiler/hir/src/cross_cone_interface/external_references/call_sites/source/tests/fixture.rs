@@ -15,6 +15,7 @@ pub(super) struct Fixture {
     foundation: crate::OdrFreeHirFoundation,
     pub public: crate::CrossConeHirInterfaceSectionV1,
     pub target: ExternalHirTargetV1,
+    pub receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
 }
 
 impl Fixture {
@@ -43,6 +44,19 @@ impl Fixture {
             ))
             .unwrap();
         let target = CallableTemplateOrigin::Function(function.id());
+        let source_receiver = match owner.nominal_owner() {
+            Some(SourceNominalId::Concrete(owner)) => crate::SourceCallReceiver::Receiver {
+                static_type: exact(ExactTypeKey::Nominal(owner)),
+            },
+            Some(SourceNominalId::GenericTemplate(_)) => crate::SourceCallReceiver::NoReceiver,
+            None => match receiver.as_ref() {
+                Some(SignatureTypeKey::Nominal(owner)) => crate::SourceCallReceiver::Receiver {
+                    static_type: exact(ExactTypeKey::Nominal(*owner)),
+                },
+                Some(other) => panic!("fixture requires an explicit concrete receiver: {other:?}"),
+                None => crate::SourceCallReceiver::NoReceiver,
+            },
+        };
         let declaration = crate::CallableDeclarationRecordV1::try_new(
             target,
             owner,
@@ -125,6 +139,7 @@ impl Fixture {
                 Default::default(),
             ),
             target: ExternalHirTargetV1::Callable(target),
+            receiver: source_receiver,
         }
     }
 
@@ -160,6 +175,7 @@ impl Fixture {
             arguments,
             result,
             vec![0],
+            self.receiver,
         )
         .unwrap()
     }

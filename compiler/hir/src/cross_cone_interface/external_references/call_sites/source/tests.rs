@@ -6,6 +6,7 @@ use scoop_identity::{ExactTypeKey, NonEmptyVec};
 use scoop_wire::DecodeLimits;
 
 mod fixture;
+mod receivers;
 mod resources;
 use fixture::*;
 
@@ -201,6 +202,7 @@ fn source_signature_cannot_substitute_for_runtime_role_validation() {
         HirDependencyCallReasonV1::CastFailure {
             checked_type: bool_exact(),
         },
+        crate::SourceCallReceiver::NoReceiver,
     )
     .unwrap();
     assert!(matches!(

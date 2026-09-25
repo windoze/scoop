@@ -87,6 +87,12 @@ impl Loaded {
                         .unwrap(),
                 );
             }
+            let receiver = match arguments.first() {
+                Some(static_type) => crate::SourceCallReceiver::Receiver {
+                    static_type: *static_type,
+                },
+                None => crate::SourceCallReceiver::NoReceiver,
+            };
             for parameter in declaration.parameters().parameters() {
                 arguments.push(
                     provider
@@ -113,6 +119,7 @@ impl Loaded {
                 arguments,
                 result,
                 vec![0],
+                receiver,
             )
             .unwrap();
             by_target.entry(target).or_default().push(call);

@@ -74,6 +74,7 @@ fn runtime_adapter_requires_complete_defaultable_parameters_and_its_generated_ro
                     vec![],
                     result,
                     site.reason().clone(),
+                    scoop_hir::SourceCallReceiver::NoReceiver,
                 )
                 .unwrap();
                 let adapter = CborIdentityRecord::<PersistentGeneratedCallableId, _>::from_key(

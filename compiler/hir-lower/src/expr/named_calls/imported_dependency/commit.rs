@@ -30,10 +30,19 @@ impl Lowerer {
             self.require_unsafe_operation(call_span, "calling an unsafe dependency function");
         }
 
-        let receiver = match receiver {
-            ImportedCallReceiver::Absent => None,
-            ImportedCallReceiver::Member(ImportedMemberReceiver::Value(receiver)) => Some(receiver),
-            ImportedCallReceiver::Member(ImportedMemberReceiver::LiteralSubject(_)) => {
+        let (receiver, source_receiver) = match receiver {
+            ImportedCallReceiver::Absent => (None, hir::SourceCallReceiver::NoReceiver),
+            ImportedCallReceiver::Member {
+                value: ImportedMemberReceiver::Value(receiver),
+                static_type,
+            } => (
+                Some(receiver),
+                hir::SourceCallReceiver::Receiver { static_type },
+            ),
+            ImportedCallReceiver::Member {
+                value: ImportedMemberReceiver::LiteralSubject(_),
+                ..
+            } => {
                 unreachable!("literal subjects commit through the pattern equality entry")
             }
         };
@@ -183,6 +192,7 @@ impl Lowerer {
                 callee,
                 binding,
                 args,
+                receiver: source_receiver,
             },
             ty: result_type,
             span: call_span,

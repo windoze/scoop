@@ -13,6 +13,7 @@ pub(super) enum PendingCallSite<'a> {
         origin: ConcreteExpressionOrigin,
         arguments: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
+        receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
         binding: &'a DirectImportedTargetBinding,
     },
     Runtime(HirDependencyCallSiteV1),
@@ -29,7 +30,10 @@ pub(super) fn project<'a, E>(
     let exact = &output.output().local.module().exact_type_identities;
     let mut arguments = Vec::new();
     meter
-        .charge_work(2 + call.arguments().len() as u64, &path)
+        .charge_work(
+            3 + call.arguments().len() as u64 + u64::from(call.receiver().has_receiver()),
+            &path,
+        )
         .map_err(Error::Resource)?;
     meter
         .charge_owned_bytes(
@@ -59,11 +63,18 @@ pub(super) fn project<'a, E>(
         })?
         .id();
     let origin = super::origins::project(output, call.origin(), meter)?;
+    let receiver = call.receiver().try_map(|ty| {
+        exact
+            .get(ty)
+            .map(|identity| identity.id())
+            .ok_or(Error::ExpressionType { position, ty })
+    })?;
     Ok(PendingCallSite::Bound {
         position,
         origin,
         arguments,
         result,
+        receiver,
         binding: call.binding(),
     })
 }
@@ -75,14 +86,15 @@ impl PendingCallSite<'_> {
         meter: &mut BudgetMeter,
     ) -> Result<HirDependencyCallSiteV1, ExternalHirReferenceProductionError<E>> {
         use ExternalHirReferenceProductionError as Error;
-        let (position, origin, arguments, result, binding) = match self {
+        let (position, origin, arguments, result, receiver, binding) = match self {
             Self::Bound {
                 position,
                 origin,
                 arguments,
                 result,
+                receiver,
                 binding,
-            } => (position, origin, arguments, result, binding),
+            } => (position, origin, arguments, result, receiver, binding),
             Self::Runtime(site) => return Ok(site),
         };
         let path = WirePath::root();
@@ -108,7 +120,7 @@ impl PendingCallSite<'_> {
         }
         indices.sort_unstable();
         indices.dedup();
-        HirDependencyCallSiteV1::try_new(position, origin, arguments, result, indices)
+        HirDependencyCallSiteV1::try_new(position, origin, arguments, result, indices, receiver)
             .map_err(Error::CallSite)
     }
 }

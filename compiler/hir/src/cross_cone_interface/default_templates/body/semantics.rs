@@ -119,6 +119,7 @@ pub enum DefaultBodyProviderTypeSiteV1 {
     ArrayAssemblyElement,
     ArrayAssemblyResult,
     CallableCallFunction,
+    CallReceiver,
     CallableOwner,
     CallableTypeArgument { index: usize },
     BoundCallableBound,

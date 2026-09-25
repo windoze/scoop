@@ -34,6 +34,7 @@ fn runtime_constructor_source_and_role_reject_wrong_provider_owner_and_target() 
                     vec![],
                     unit,
                     site.reason().clone(),
+                    scoop_hir::SourceCallReceiver::NoReceiver,
                 )
                 .unwrap();
                 assert_eq!(
@@ -64,6 +65,7 @@ fn runtime_constructor_source_and_role_reject_wrong_provider_owner_and_target() 
                     vec![],
                     other_result,
                     site.reason().clone(),
+                    scoop_hir::SourceCallReceiver::NoReceiver,
                 )
                 .unwrap();
                 let target = hir::ExternalHirTargetV1::Callable(other.declaration());

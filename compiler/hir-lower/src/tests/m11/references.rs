@@ -246,7 +246,7 @@ fn extension_receiver_is_a_typed_this_parameter_and_direct_call_argument() {
         panic!("main body")
     };
     let init = local_init(main, "result");
-    let hir::ExprKind::Call { callee, args } = &init.kind else {
+    let hir::ExprKind::Call { callee, args, .. } = &init.kind else {
         panic!("extension invocation must be a direct call")
     };
     assert_eq!(

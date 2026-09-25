@@ -16,6 +16,7 @@ pub struct CommittedDependencyCallOccurrence<'a> {
     binding: &'a DirectImportedTargetBinding,
     callable: &'a SelectedImportedDependencyCallable,
     arguments: &'a [concrete::Expr],
+    receiver: crate::SourceCallReceiver<concrete::TypeId>,
 }
 
 impl<'a> CommittedDependencyCallOccurrence<'a> {
@@ -40,6 +41,9 @@ impl<'a> CommittedDependencyCallOccurrence<'a> {
     }
     pub const fn result_type(self) -> concrete::TypeId {
         self.occurrence.expression.ty
+    }
+    pub const fn receiver(self) -> crate::SourceCallReceiver<concrete::TypeId> {
+        self.receiver
     }
 }
 
@@ -85,6 +89,7 @@ pub(super) fn visit<'a>(
                 callee,
                 binding,
                 args,
+                receiver,
             } = &occurrence.expression.kind
             else {
                 return Ok(());
@@ -112,6 +117,7 @@ pub(super) fn visit<'a>(
                     binding,
                     callable,
                     arguments: args,
+                    receiver: *receiver,
                 },
                 meter,
             )

@@ -203,6 +203,7 @@ impl Lowerer {
         Some(hir::Expr {
             kind: ExprKind::Call {
                 callee,
+                receiver: resolved.source_receiver,
                 args: resolved.args,
             },
             ty,

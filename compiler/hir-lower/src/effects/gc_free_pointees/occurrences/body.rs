@@ -633,7 +633,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
             collect_expr_type_occurrences(lowerer, index, out);
             collect_expr_type_occurrences(lowerer, value, out);
         }
-        ExprKind::Call { callee, args } => {
+        ExprKind::Call { callee, args, .. } => {
             push_types_at_expression(
                 expression,
                 |types| collect_callable_types(lowerer, *callee, types),

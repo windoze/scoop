@@ -4,7 +4,7 @@ impl Lowerer {
     pub(crate) fn lower_imported_dependency_property_read(
         &mut self,
         binding: &hir::DirectImportedTargetBinding,
-        receiver: Option<hir::Expr>,
+        receiver: Option<PropertyCallReceiver>,
         span: ast::Span,
     ) -> Option<ImportedDependencyPropertyRead> {
         let property = self.imported_dependency_property_candidate(binding, span)?;
@@ -32,9 +32,14 @@ impl Lowerer {
         )?;
         let receiver = self.validate_imported_property_receiver(&property, receiver, span)?;
         let result_type = self.imported_property_value_type(&property, span)?;
+        let source_receiver = PropertyCallReceiver::source_type(&receiver);
         let expression = self.emit_imported_property_accessor(
             candidate,
-            receiver.into_iter().collect(),
+            receiver
+                .map(|receiver| receiver.value)
+                .into_iter()
+                .collect(),
+            source_receiver,
             result_type,
             span,
             "reading an unsafe dependency property",

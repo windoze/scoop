@@ -61,7 +61,7 @@ impl Validator<'_> {
                 }
                 (receiver.ty, info)
             }
-            ExprKind::Call { callee, args } => {
+            ExprKind::Call { callee, args, .. } => {
                 let [receiver] = args.as_slice() else {
                     return fail(role);
                 };

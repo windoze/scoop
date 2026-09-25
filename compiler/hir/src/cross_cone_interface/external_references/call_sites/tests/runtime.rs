@@ -10,6 +10,7 @@ fn cast(fixture: &Fixture) -> HirDependencyCallSiteV1 {
         HirDependencyCallReasonV1::CastFailure {
             checked_type: fixture.unit,
         },
+        crate::SourceCallReceiver::NoReceiver,
     )
     .unwrap()
 }
@@ -34,6 +35,7 @@ fn runtime_call_reason_round_trips_without_a_source_name_witness() {
             vec![fixture.unit],
             fixture.unit,
             site.reason().clone(),
+            crate::SourceCallReceiver::NoReceiver,
         ),
         Err(HirDependencyCallSiteBuildError::RuntimeArguments)
     );
@@ -46,8 +48,11 @@ fn call_reasons_reject_legacy_arrays_and_unknown_tags() {
     let reason = encode(site.reason()).unwrap();
     for suffix in [vec![0x81, 0], vec![0xa2, 0, 3, 1, 0], vec![0xa1, 0, 1]] {
         let mut bytes = encode(&site).unwrap();
-        bytes.truncate(bytes.len() - reason.len());
+        let receiver = encode(&site.receiver()).unwrap();
+        bytes.truncate(bytes.len() - reason.len() - 1 - receiver.len());
         bytes.extend(suffix);
+        bytes.push(7);
+        bytes.extend(receiver);
         assert!(
             decode_canonical::<DecodedHirDependencyCallSiteV1>(&bytes, DecodeLimits::default())
                 .is_err()

@@ -307,9 +307,14 @@ impl DecodedDefaultExpressionKindV1 {
             Self::ArrayClone(operand) => DefaultExpressionKindV1::ArrayClone(resolve_child(
                 operand, resolver, locals, 43, 1,
             )?),
-            Self::Call { callee, arguments } => DefaultExpressionKindV1::Call {
-                callee: resolve_callable(callee, resolver, 44, 1)?,
-                arguments: resolve_sequence(arguments, resolver, locals, 44, 2)?,
+            Self::Call {
+                callee,
+                arguments,
+                receiver,
+            } => DefaultExpressionKindV1::Call {
+                callee: resolve_callable(callee, resolver, 57, 1)?,
+                arguments: resolve_sequence(arguments, resolver, locals, 57, 2)?,
+                receiver: receiver.try_map(|ty| resolve_type(ty, resolver, 57, 3))?,
             },
             Self::LocalFunctionCall {
                 declaration,

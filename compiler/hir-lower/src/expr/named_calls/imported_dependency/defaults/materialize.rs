@@ -120,9 +120,19 @@ impl Lowerer {
                 value.origin = origin;
                 return Ok(value);
             }
-            Kind::Call { callee, arguments } => {
+            Kind::Call {
+                callee,
+                arguments,
+                receiver,
+            } => {
                 let args = self.materialize_imported_default_expressions(arguments, context)?;
-                self.imported_default_call_kind(callee, args, context)?
+                let receiver = receiver
+                    .as_ref()
+                    .try_map(|ty| self.imported_default_core_type(ty))
+                    .map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?;
+                self.imported_default_call_kind(callee, args, receiver, context)?
             }
             Kind::PrimitiveBinary { kind, lhs, rhs } => hir::ExprKind::PrimitiveBinary {
                 kind: (*kind).into(),
@@ -252,6 +262,7 @@ impl Lowerer {
         &mut self,
         callee: &hir::DefaultCallableRefV1,
         args: Vec<hir::Expr>,
+        receiver: hir::SourceCallReceiver<hir::TypeId>,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
         let candidate =
@@ -267,6 +278,7 @@ impl Lowerer {
             callee,
             binding,
             args,
+            receiver,
         })
     }
 

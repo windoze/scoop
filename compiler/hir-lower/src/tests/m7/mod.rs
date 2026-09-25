@@ -70,7 +70,7 @@ fn call_in_main(
     let hir::StatementKind::Expr(expr) = &body.statements[statement_index].kind else {
         unreachable!()
     };
-    let hir::ExprKind::Call { callee, args } = &expr.kind else {
+    let hir::ExprKind::Call { callee, args, .. } = &expr.kind else {
         panic!("statement {index} is not a call")
     };
     if unnest {
@@ -85,7 +85,7 @@ fn call_in_main(
                     hir::ExprKind::Box(operand) => &operand.kind,
                     kind => kind,
                 };
-                let hir::ExprKind::Call { callee, args } = inner else {
+                let hir::ExprKind::Call { callee, args, .. } = inner else {
                     return None;
                 };
                 Some((callee, args.as_slice()))

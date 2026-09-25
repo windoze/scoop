@@ -3,6 +3,7 @@ use fixture::CallForm;
 
 mod constructors;
 mod negative;
+mod receivers;
 mod resources;
 mod signatures;
 

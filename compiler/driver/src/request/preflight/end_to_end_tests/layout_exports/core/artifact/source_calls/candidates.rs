@@ -63,6 +63,7 @@ pub(super) fn mutations(public: &hir::CrossConeHirInterfaceSectionV1) -> Vec<Can
                 arguments,
                 result,
                 call.witness_indices().to_vec(),
+                call.receiver(),
             )
             .unwrap();
             let mut references = public.external_references().records().to_vec();

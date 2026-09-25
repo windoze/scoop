@@ -176,6 +176,7 @@ pub enum DefaultExpressionKindV1 {
     Call {
         callee: DefaultCallableRefV1,
         arguments: Vec<DefaultExpressionV1>,
+        receiver: crate::SourceCallReceiver<SignatureTypeKey>,
     },
     LocalFunctionCall {
         declaration: CallableTemplateOrigin,
@@ -315,6 +316,7 @@ pub enum DefaultExpressionBuildError {
     TooManyArguments,
     TooManyFields,
     TooManyCaptures,
+    MissingReceiverArgument,
     StructInitRequiresStructConstructor,
     ClassInitRequiresClassConstructor,
     UnsupportedLocalFunctionDeclaration(CallableTemplateOrigin),
@@ -332,6 +334,9 @@ impl fmt::Display for DefaultExpressionBuildError {
             Self::TooManyFields => formatter.write_str("default struct field count exceeds u32"),
             Self::TooManyCaptures => {
                 formatter.write_str("default local-function capture count exceeds u32")
+            }
+            Self::MissingReceiverArgument => {
+                formatter.write_str("default call receiver has no logical argument")
             }
             Self::StructInitRequiresStructConstructor => {
                 formatter.write_str("default struct initialization requires a struct constructor")
@@ -396,9 +401,18 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         DefaultExpressionKindV1::VariantConstruct { arguments, .. }
         | DefaultExpressionKindV1::MethodCall { arguments, .. }
         | DefaultExpressionKindV1::DirectSuperMethodCall { arguments, .. }
-        | DefaultExpressionKindV1::Call { arguments, .. }
         | DefaultExpressionKindV1::CallableCall { arguments, .. } => {
             require_arguments(arguments)?;
+        }
+        DefaultExpressionKindV1::Call {
+            arguments,
+            receiver,
+            ..
+        } => {
+            require_arguments(arguments)?;
+            if receiver.has_receiver() && arguments.is_empty() {
+                return Err(DefaultExpressionBuildError::MissingReceiverArgument);
+            }
         }
         DefaultExpressionKindV1::LocalFunctionCall {
             declaration,

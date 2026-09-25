@@ -16,6 +16,7 @@ fn complete_six_domain_body_matches_exact_receiver_and_occurrence_sets() {
         expression(
             &f,
             DefaultExpressionKindV1::Call {
+                receiver: crate::SourceCallReceiver::NoReceiver,
                 callee: f.callable(),
                 arguments: vec![],
             },

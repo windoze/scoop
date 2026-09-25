@@ -158,6 +158,7 @@ fn repeated_literals_get_separate_constants_deterministically() {
     body.statements.push(hir::Statement {
         kind: hir::StatementKind::Expr(hir::Expr {
             kind: hir::ExprKind::Call {
+                receiver: scoop_hir::SourceCallReceiver::NoReceiver,
                 callee: hir::Callable::Function(println),
                 args: vec![hir::Expr {
                     kind: hir::ExprKind::StringLiteral {

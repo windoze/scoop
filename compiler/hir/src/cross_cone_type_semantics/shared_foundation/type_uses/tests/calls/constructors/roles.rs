@@ -30,6 +30,7 @@ fn shared_source_and_runtime_calls_of_one_constructor_keep_both_reasons() {
         HirDependencyCallReasonV1::CastFailure {
             checked_type: exact(owner),
         },
+        crate::SourceCallReceiver::NoReceiver,
     )
     .unwrap();
     let roles = CanonicalExternalHirReferenceRolesV1::try_new(vec![

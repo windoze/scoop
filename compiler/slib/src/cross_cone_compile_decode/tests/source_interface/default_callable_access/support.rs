@@ -99,6 +99,7 @@ pub(super) fn install_call(
         }
     } else {
         DefaultExpressionKindV1::Call {
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
             callee: callee.clone(),
             arguments,
         }

@@ -281,7 +281,19 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 self.push_child(pending, depth, BodyNode::Expression(index))?;
                 self.push_child(pending, depth, BodyNode::Expression(receiver))
             }
-            DefaultExpressionKindV1::Call { callee, arguments } => {
+            DefaultExpressionKindV1::Call {
+                callee,
+                arguments,
+                receiver,
+            } => {
+                if let crate::SourceCallReceiver::Receiver { static_type } = receiver {
+                    self.push_type(
+                        pending,
+                        static_type,
+                        origin,
+                        DefaultBodyProviderTypeSiteV1::CallReceiver,
+                    )?;
+                }
                 self.push_expressions(pending, depth, arguments)?;
                 self.push_child(
                     pending,

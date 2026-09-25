@@ -254,7 +254,12 @@ impl Lowerer {
             hir::ExprKind::ArrayClone(value) => {
                 hir::ExprKind::ArrayClone(Box::new(self.instantiate_default_expr(value, context)))
             }
-            hir::ExprKind::Call { callee, args } => hir::ExprKind::Call {
+            hir::ExprKind::Call {
+                callee,
+                args,
+                receiver,
+            } => hir::ExprKind::Call {
+                receiver: receiver.map(|ty| self.instantiate_method_ty(ty, &context.bindings)),
                 callee: self.instantiate_default_callable(*callee, context),
                 args: self.instantiate_default_exprs(args, context),
             },
@@ -263,7 +268,9 @@ impl Lowerer {
                 callee,
                 binding,
                 args,
+                receiver,
             } => hir::ExprKind::ImportedDependencyCall {
+                receiver: receiver.map(|ty| self.instantiate_method_ty(ty, &context.bindings)),
                 callee: *callee,
                 binding: std::sync::Arc::clone(binding),
                 args: self.instantiate_default_exprs(args, context),

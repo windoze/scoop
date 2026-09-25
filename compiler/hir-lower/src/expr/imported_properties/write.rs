@@ -34,7 +34,7 @@ impl Lowerer {
     pub(crate) fn lower_imported_dependency_property_write(
         &mut self,
         binding: &hir::DirectImportedTargetBinding,
-        receiver: Option<hir::Expr>,
+        receiver: Option<PropertyCallReceiver>,
         value: hir::Expr,
         name: &ast::Ident,
         span: ast::Span,
@@ -59,7 +59,7 @@ impl Lowerer {
     fn prepare_imported_property_setter(
         &mut self,
         binding: &hir::DirectImportedTargetBinding,
-        receiver: Option<hir::Expr>,
+        receiver: Option<PropertyCallReceiver>,
         name: &ast::Ident,
     ) -> Option<PreparedImportedPropertySetter> {
         let property = self.imported_dependency_property_candidate(binding, name.span)?;
@@ -100,11 +100,13 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::StatementKind> {
         let mut args = Vec::with_capacity(1 + usize::from(prepared.receiver.is_some()));
-        args.extend(prepared.receiver);
+        let source_receiver = PropertyCallReceiver::source_type(&prepared.receiver);
+        args.extend(prepared.receiver.map(|receiver| receiver.value));
         args.push(value);
         self.emit_imported_property_accessor(
             prepared.candidate,
             args,
+            source_receiver,
             self.unit,
             span,
             "writing an unsafe dependency property",

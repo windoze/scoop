@@ -154,6 +154,7 @@ enum DecodedDefaultExpressionKindV1 {
     Call {
         callee: DecodedDefaultCallableRefV1,
         arguments: Vec<DecodedDefaultExpressionV1>,
+        receiver: crate::SourceCallReceiver<DecodedSignatureTypeKey>,
     },
     LocalFunctionCall {
         declaration: DecodedCallableTemplateOrigin,

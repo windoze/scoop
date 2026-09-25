@@ -352,7 +352,7 @@ impl Lowerer {
                 ));
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
-            ExprKind::Call { callee, args } => {
+            ExprKind::Call { callee, args, .. } => {
                 self.check_no_gc_callee(*callee, expr.span, out);
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);

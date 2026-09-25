@@ -10,6 +10,7 @@ impl Lowerer {
         let ResolvedExtensionPropertyWrite {
             target,
             receiver,
+            static_receiver_type,
             value_type: _,
             has_setter: _,
         } = resolved;
@@ -18,12 +19,22 @@ impl Lowerer {
                 property,
                 type_args,
             } => self.lower_current_extension_property_write(
-                property, receiver, &type_args, value, span,
+                property,
+                crate::properties::PropertyCallReceiver {
+                    value: receiver,
+                    static_type: static_receiver_type,
+                },
+                &type_args,
+                value,
+                span,
             ),
             ResolvedExtensionPropertyTarget::Dependency { binding, name } => self
                 .lower_imported_dependency_property_write(
                     &binding,
-                    Some(receiver),
+                    Some(crate::properties::PropertyCallReceiver {
+                        value: receiver,
+                        static_type: static_receiver_type,
+                    }),
                     value,
                     &name,
                     span,
@@ -34,7 +45,7 @@ impl Lowerer {
     fn lower_current_extension_property_write(
         &mut self,
         property: hir::PropertyId,
-        receiver: hir::Expr,
+        receiver: crate::properties::PropertyCallReceiver,
         type_args: &[TypeId],
         value: hir::Expr,
         span: ast::Span,
@@ -49,7 +60,11 @@ impl Lowerer {
             return None;
         };
         let setter = self.property_setters[setter].clone();
-        if !self.property_accessor_is_accessible(property, &setter.access, Some(receiver.ty)) {
+        if !self.property_accessor_is_accessible(
+            property,
+            &setter.access,
+            Some(receiver.static_type),
+        ) {
             self.error(
                 span,
                 format!(
@@ -77,7 +92,10 @@ impl Lowerer {
         Some(hir::StatementKind::Expr(hir::Expr {
             kind: hir::ExprKind::Call {
                 callee,
-                args: vec![receiver, value],
+                receiver: hir::SourceCallReceiver::Receiver {
+                    static_type: receiver.static_type,
+                },
+                args: vec![receiver.value, value],
             },
             ty: self.unit,
             span,

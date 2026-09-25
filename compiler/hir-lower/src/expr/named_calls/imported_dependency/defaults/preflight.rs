@@ -81,7 +81,14 @@ impl Lowerer {
             }),
             Kind::Local(local) if locals.contains(local) => Ok(()),
             Kind::Local(local) => Err(ImportedDefaultPlanError::UnknownLocal(local.clone())),
-            Kind::Call { callee, arguments } => {
+            Kind::Call {
+                callee,
+                arguments,
+                receiver,
+            } => {
+                receiver
+                    .as_ref()
+                    .try_map(|ty| self.imported_default_core_type(ty))?;
                 self.prepare_imported_default_call(template, callee, callables)?;
                 self.preflight_imported_default_expressions(
                     owner, template, arguments, locals, callables,

@@ -28,6 +28,8 @@ use crate::{
     TemplateLocalDefinitionV1, TemplateLocalRecordV1, TemplateValueParameterV1,
 };
 
+mod receivers;
+
 #[test]
 fn validates_a_nested_option_and_boolean_expression_with_one_meter() {
     let fixture = Fixture::new();
@@ -247,6 +249,7 @@ fn rejects_suspend_invocation_when_the_template_does_not_allow_it() {
     let value = expression(
         &fixture,
         DefaultExpressionKindV1::Call {
+            receiver: crate::SourceCallReceiver::NoReceiver,
             callee: fixture.callable(),
             arguments: Vec::new(),
         },

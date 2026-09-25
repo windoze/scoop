@@ -154,9 +154,11 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             ),
             Self::ArrayLen(operand) => encode_one(encoder, 42, operand.as_ref()),
             Self::ArrayClone(operand) => encode_one(encoder, 43, operand.as_ref()),
-            Self::Call { callee, arguments } => {
-                encode_two(encoder, 44, *callee, &WireSequence(arguments))
-            }
+            Self::Call {
+                callee,
+                arguments,
+                receiver,
+            } => encode_three(encoder, 57, *callee, &WireSequence(arguments), *receiver),
             Self::LocalFunctionCall {
                 declaration,
                 callee,

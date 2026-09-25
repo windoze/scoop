@@ -106,6 +106,7 @@ impl Fixture {
             vec![self.unit, self.unit],
             self.unit,
             indices,
+            crate::SourceCallReceiver::NoReceiver,
         )
     }
 

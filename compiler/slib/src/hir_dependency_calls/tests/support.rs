@@ -122,6 +122,7 @@ impl Fixture {
             arguments,
             self.unit,
             vec![0],
+            scoop_hir::SourceCallReceiver::NoReceiver,
         )
         .unwrap()
     }

@@ -8,6 +8,7 @@ pub(crate) struct ImportedDependencyExtensionPropertyProbe {
     state: Box<Lowerer>,
     binding: hir::DirectImportedTargetBinding,
     receiver: hir::Expr,
+    static_receiver_type: hir::TypeId,
     receiver_type: hir::TypeId,
     value_type: hir::TypeId,
     has_setter: bool,
@@ -18,6 +19,7 @@ pub(crate) struct ImportedDependencyExtensionPropertyProbe {
 pub(crate) struct ImportedDependencyExtensionPropertySelection {
     pub(crate) binding: hir::DirectImportedTargetBinding,
     pub(crate) receiver: hir::Expr,
+    pub(crate) static_receiver_type: hir::TypeId,
     pub(crate) value_type: hir::TypeId,
     pub(crate) has_setter: bool,
 }
@@ -122,6 +124,7 @@ impl Lowerer {
         {
             return Err(Box::new(state));
         }
+        let static_receiver_type = receiver.ty;
         let receiver = state.adapt_to(receiver, receiver_type);
         Ok(ImportedDependencyExtensionPropertyProbe {
             declaration_file: state.current_file,
@@ -130,6 +133,7 @@ impl Lowerer {
             binding: binding.clone(),
             receiver,
             receiver_type,
+            static_receiver_type,
             value_type,
             has_setter: property.interface().capability().setter().is_some(),
         })
@@ -144,6 +148,7 @@ impl Lowerer {
             binding,
             receiver,
             value_type,
+            static_receiver_type,
             has_setter,
             ..
         } = probe;
@@ -152,6 +157,7 @@ impl Lowerer {
             binding,
             receiver,
             value_type,
+            static_receiver_type,
             has_setter,
         }
     }

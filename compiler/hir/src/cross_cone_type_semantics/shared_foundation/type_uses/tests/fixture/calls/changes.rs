@@ -11,6 +11,7 @@ impl Loaded {
                 arguments,
                 site.result(),
                 site.witness_indices().to_vec(),
+                site.receiver(),
             )
             .unwrap()
         });

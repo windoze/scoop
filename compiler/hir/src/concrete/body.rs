@@ -299,11 +299,13 @@ pub enum ExprKind {
     Call {
         callee: Callable,
         args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
     },
     ImportedDependencyCall {
         callee: ImportedDependencyCallableUseId,
         binding: std::sync::Arc<crate::DirectImportedTargetBinding>,
         args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
     },
     LocalFunctionCall {
         local_function: LocalFunctionId,

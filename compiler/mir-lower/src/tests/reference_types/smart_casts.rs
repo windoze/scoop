@@ -17,6 +17,7 @@ fn smart_cast_unboxes_bind_typed_hidden_locals() {
     let a = locals.alloc(local("a", any));
     let print_call = expr(
         hir::ExprKind::Call {
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
             callee: hir::Callable::Function(println_int),
             args: vec![expr(
                 hir::ExprKind::FieldAccess {

@@ -78,6 +78,7 @@ fn runtime_cast_relations_require_both_actual_type_sites_and_the_original_origin
                                         vec![],
                                         site.result(),
                                         site.reason().clone(),
+                                        scoop_hir::SourceCallReceiver::NoReceiver,
                                     )
                                     .unwrap()
                                 } else {

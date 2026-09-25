@@ -100,5 +100,8 @@ impl ImportedMemberReceiver {
 
 pub(super) enum ImportedCallReceiver {
     Absent,
-    Member(ImportedMemberReceiver),
+    Member {
+        value: ImportedMemberReceiver,
+        static_type: hir::TypeId,
+    },
 }

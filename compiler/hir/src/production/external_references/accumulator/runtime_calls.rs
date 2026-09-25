@@ -68,6 +68,7 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
                     Vec::new(),
                     result,
                     HirDependencyCallReasonV1::CastFailure { checked_type },
+                    crate::SourceCallReceiver::NoReceiver,
                 )
                 .map_err(Error::CallSite)?;
                 let Some(pending) = self.observe_pending(target, role)? else {

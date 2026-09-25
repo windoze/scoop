@@ -1,3 +1,5 @@
+mod calls;
+
 use scoop_identity::{CallableTemplateOrigin, Effect, SignatureTypeKey};
 
 use crate::{
@@ -868,7 +870,11 @@ where
                     )
                 }
             }
-            crate::DefaultExpressionKindV1::Call { callee, arguments } => {
+            crate::DefaultExpressionKindV1::Call {
+                callee,
+                arguments,
+                receiver,
+            } => {
                 let shape = self.callable_shape(
                     DefaultOperationEntityV1::Callable(callee),
                     operation,
@@ -879,6 +885,7 @@ where
                     &shape,
                     Self::site(operation, DefaultOperationValueRoleV1::Callable),
                 )?;
+                self.expect_source_receiver(operation, receiver, &shape)?;
                 self.expect_direct_call_arguments(operation, arguments, &shape)?;
                 self.expect_result(expression, operation, shape.result(), true)?;
                 self.push_expressions(pending, arguments, depth)
@@ -1527,39 +1534,6 @@ where
                 actual.result_type(),
                 expected,
                 Self::site(operation, role(index)),
-            )?;
-        }
-        Ok(())
-    }
-
-    fn expect_direct_call_arguments(
-        &mut self,
-        operation: DefaultExpressionOperationV1,
-        actual: &[crate::DefaultExpressionV1],
-        shape: &DefaultCallableOperationShapeV1,
-    ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        let receiver_count = usize::from(shape.receiver().is_some());
-        self.expect_arity(
-            actual.len(),
-            receiver_count + shape.parameters().len(),
-            Self::site(operation, DefaultOperationValueRoleV1::Callable),
-        )?;
-        if let Some(receiver) = shape.receiver() {
-            self.expect_type(
-                actual[0].result_type(),
-                receiver,
-                Self::site(operation, DefaultOperationValueRoleV1::Receiver),
-            )?;
-        }
-        for (index, (actual, expected)) in actual[receiver_count..]
-            .iter()
-            .zip(shape.parameters())
-            .enumerate()
-        {
-            self.expect_type(
-                actual.result_type(),
-                expected,
-                Self::site(operation, DefaultOperationValueRoleV1::Argument { index }),
             )?;
         }
         Ok(())

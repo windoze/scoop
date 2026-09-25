@@ -142,6 +142,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     Call {
         callee: &'a DefaultCallableRefV1,
         arguments: Vec<IndexedDefaultExpressionV1<'a>>,
+        receiver: &'a crate::SourceCallReceiver<SignatureTypeKey>,
     },
     LocalFunctionCall {
         declaration: &'a CallableTemplateOrigin,
@@ -464,12 +465,15 @@ impl DefaultExpressionV1 {
             DefaultExpressionKindV1::ArrayClone(operand) => {
                 IndexedDefaultExpressionKindV1::ArrayClone(index_child(operand, resolver, 43, 1)?)
             }
-            DefaultExpressionKindV1::Call { callee, arguments } => {
-                IndexedDefaultExpressionKindV1::Call {
-                    callee,
-                    arguments: index_sequence(arguments, resolver, 44, 2)?,
-                }
-            }
+            DefaultExpressionKindV1::Call {
+                callee,
+                arguments,
+                receiver,
+            } => IndexedDefaultExpressionKindV1::Call {
+                callee,
+                arguments: index_sequence(arguments, resolver, 57, 2)?,
+                receiver,
+            },
             DefaultExpressionKindV1::LocalFunctionCall {
                 declaration,
                 callee,

@@ -86,6 +86,7 @@ fn callable_access_requires_local_and_generated_targets_at_actual_body_attachmen
         origin,
         ty,
         DefaultExpressionKindV1::Call {
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
             callee: callee.clone(),
             arguments: vec![value],
         },

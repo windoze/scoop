@@ -2376,7 +2376,7 @@ fn assert_adapted_extension_component(
     let [(component, call)] = components.as_slice() else {
         panic!("one written position must have exactly one component result")
     };
-    let hir::ExprKind::Call { callee, args } = &call.kind else {
+    let hir::ExprKind::Call { callee, args, .. } = &call.kind else {
         panic!("an extension component must remain a direct typed call")
     };
     let [argument] = args.as_slice() else {

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v18_requires_typed_call_reasons_for_runtime_construction() {
+fn source_interface_v19_requires_original_source_call_receivers() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        18,
+        19,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
@@ -13,10 +13,10 @@ fn source_interface_v18_requires_typed_call_reasons_for_runtime_construction() {
 }
 
 #[test]
-fn type_semantics_v3_rejects_default_casts_without_explicit_checked_types() {
+fn type_semantics_v4_requires_default_call_receiver_signatures() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        3,
+        4,
         &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG],
     );
 }

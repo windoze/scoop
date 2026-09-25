@@ -23,6 +23,7 @@ impl ResolvedExtensionPropertyRead {
 pub(crate) struct ResolvedExtensionPropertyWrite {
     target: ResolvedExtensionPropertyTarget,
     receiver: hir::Expr,
+    static_receiver_type: TypeId,
     value_type: TypeId,
     has_setter: bool,
 }

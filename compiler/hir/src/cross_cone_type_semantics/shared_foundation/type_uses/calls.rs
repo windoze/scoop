@@ -1,5 +1,6 @@
 use super::*;
 
+mod receivers;
 mod signatures;
 
 impl Graph<'_> {
@@ -33,6 +34,7 @@ impl Graph<'_> {
                                 position: call.position(),
                                 source: Box::new(source),
                             })?;
+                        self.source_receiver(call.receiver(), meter)?;
                         self.call_signature(source, meter, &path)?;
                         self.source_construction(source, meter)?;
                     }

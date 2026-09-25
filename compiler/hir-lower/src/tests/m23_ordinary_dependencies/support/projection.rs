@@ -80,7 +80,8 @@ fn project_parsed_dependency(
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the dependency provider must lower before interface projection");
     let current_nominals = current_nominal_targets(output.output().export.module());
-    let foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
+    let mut foundation =
+        scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
     let mut authority = ProviderProjectionAuthority {
         provider: coordinate.identity().unwrap(),
         current_nominals,
@@ -91,6 +92,13 @@ fn project_parsed_dependency(
         &mut authority,
     )
     .unwrap();
+    foundation
+        .complete_cross_cone_interface_source_points(
+            output.output().export.module(),
+            &interface,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+        )
+        .unwrap();
     (foundation, interface)
 }
 

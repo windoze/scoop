@@ -40,6 +40,7 @@ fn accepts_the_exact_deduplicated_six_domain_closure() {
     let values = vec![
         expression(
             DefaultExpressionKindV1::Call {
+                receiver: crate::SourceCallReceiver::NoReceiver,
                 callee: fixture.callable(),
                 arguments: Vec::new(),
             },
