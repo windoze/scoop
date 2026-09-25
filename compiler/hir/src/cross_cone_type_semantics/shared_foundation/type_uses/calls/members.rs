@@ -3,8 +3,6 @@ use crate::cross_cone_type_semantics::inheritance::is_nominal_ancestor;
 use crate::{InheritanceCallableDeclarationV1 as Member, SourceCallReceiver};
 use scoop_identity::{AccessorRole, CallableTemplateOrigin, PropertyAccessorKey, PropertyOwner};
 
-mod parents;
-
 impl Graph<'_> {
     pub(super) fn source_member(
         &mut self,
@@ -46,10 +44,10 @@ impl Graph<'_> {
         if provider != metadata.provider {
             return Err(Error::CallableContract(source.declaration()));
         }
-        let invalid = || Error::MemberCallReceiver {
+        let invalid = || Error::CallReceiver {
             position: Box::new(call.position()),
             receiver: call.receiver(),
-            owner: owner_exact,
+            expected: owner_exact,
         };
         let SourceCallReceiver::Receiver { static_type } = call.receiver() else {
             return Err(invalid());
@@ -65,7 +63,7 @@ impl Graph<'_> {
                 .as_ref(),
             ExactTypeKey::Nominal(_)
         ) || !is_nominal_ancestor(static_type, owner_exact, meter, path, |current, meter| {
-            self.member_receiver_parents(current, meter, path)
+            self.source_receiver_parents(current, meter, path)
         })? {
             return Err(invalid());
         }

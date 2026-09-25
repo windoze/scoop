@@ -59,49 +59,9 @@ pub(super) fn check(
     );
     let payload = wire::replace_types(artifact, &candidate);
     for link in [false, true] {
-        let open = DecodedSlibEnvelope::open(
-            &payload,
-            DecodeLimits::default(),
-            artifact.target_selection(),
-        )
-        .unwrap()
-        .validate_graph()
-        .unwrap();
-        let (provider, consumer) = if link {
-            (
-                super::super::lir_dependencies::reader::open_link(provider_artifact)
-                    .into_shared_sections()
-                    .unwrap(),
-                open.decode_cross_cone_layout_link_sections()
-                    .unwrap()
-                    .into_shared_sections()
-                    .unwrap(),
-            )
-        } else {
-            (
-                super::super::lir_dependencies::reader::open(provider_artifact),
-                open.decode_cross_cone_layout_compile_sections().unwrap(),
-            )
-        };
-        let mut closure = slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
-            consumer.identity(),
-            consumer.target_selection(),
-            vec![provider.identity()],
-            vec![provider],
-            consumer,
-        )
-        .validate_profile_graph()
-        .unwrap()
-        .validate_identities()
-        .unwrap()
-        .validate_foundation_structure()
-        .unwrap()
-        .resolve_hir_sections()
-        .unwrap()
-        .validate_hir_productions()
-        .unwrap()
-        .validate_hir_declarations()
-        .unwrap();
+        let mut closure = reader::open(provider_artifact, artifact, &payload, link)
+            .validate_hir_declarations()
+            .unwrap();
         let error = match closure.validate_type_foundations() {
             Ok(_) => panic!("a member-use claim needs an actual source member call"),
             Err(error) => error,

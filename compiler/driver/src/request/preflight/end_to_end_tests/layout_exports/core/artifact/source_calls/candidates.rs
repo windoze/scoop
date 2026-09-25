@@ -33,7 +33,12 @@ pub(super) fn mutations(public: &hir::CrossConeHirInterfaceSectionV1) -> Vec<Can
         .iter()
         .enumerate()
         .find(|(_, reference)| {
-            reference.call_sites().records().len() > 1
+            matches!(
+                reference.target(),
+                hir::ExternalHirTargetV1::Callable(
+                    scoop_identity::CallableTemplateOrigin::Accessor(_)
+                )
+            ) && reference.call_sites().records().len() > 1
                 && reference
                     .call_sites()
                     .records()
@@ -41,10 +46,6 @@ pub(super) fn mutations(public: &hir::CrossConeHirInterfaceSectionV1) -> Vec<Can
                     .all(|call| call.result() != unit)
         })
         .expect("property fixtures contain repeated getter calls with non-Unit results");
-    assert!(matches!(
-        reference.target(),
-        hir::ExternalHirTargetV1::Callable(scoop_identity::CallableTemplateOrigin::Accessor(_))
-    ));
     let mut mutations = Vec::new();
     for call_index in [0, reference.call_sites().records().len() - 1] {
         let call = &reference.call_sites().records()[call_index];

@@ -374,6 +374,8 @@ layout reader 的 protected 声明全集从共有 nominal、callable、property 
 
 共有 selected 的 MemberCall 用途从实际 SourceBinding call-site 逐次推导。完成同一次调用的逻辑签名核对后，nominal Function、Getter、Setter 分别保留完整 typed 声明；accessor 的角色从真实 provider 的 canonical PropertyAccessorKey 读取。receiver 使用参数适配前保存的静态 exact，沿实际共有 nominal 声明的 class base 与 interface 边证明其可到达声明 owner；每次调用先验证，再对完整用途去重，不能因同一目标已有正确调用而省略其他位置。选中记录的 provider 是成员声明所属 provider，不能使用 receiver 所属 provider；当前 Cone 的派生类型调用外来基类或接口成员也遵守此规则。原始 receiver 与声明 owner 的 Signature/Representation 及传递需求分别闭合；构造调用、top-level 与 extension 不产生 MemberCall。source object exact 不由 backing exact 替代，generic/source-only 类型继续遵守 M23-7 物化边界。producer 与 Compile/Link reader 使用同一从共有来源推导的集合，候选表在这一用途分区必须精确相等；缺失、额外、错误 provider、声明角色或 receiver 均拒绝。身份查询、逐次关系遍历、去重和候选比较沿用 artifact 累计预算，此检查不替代成员访问、slot/dispatch、MIR 实现与机器布局闭包，不新增 wire 字段或版本。
 
+实际 extension 调用的原始 receiver 同样须独立重放类型可应用性，不能因适配后的首个逻辑参数已匹配声明而省略。expected receiver 从实际 provider 的共有 extension 声明取得，actual receiver 使用 call-site 保留的适配前 exact；按语言规范 3.1、3.2、8.1.1、8.6 核对 exact 相等、到 Any 的上行关系、真实 nominal class/interface 继承，以及同挂起性和元数下函数参数逆变、结果协变。tuple、原生 pointer 与 native function pointer 不按元素或签名生成隐式型变，整数也不因位宽或表示相似建立子类型关系；generic/source-only 物化继续受 M23-7 限制。每次调用分别验证，失败保留原调用位置、actual receiver 与 expected exact；构造及无 receiver 的 top-level 调用保持各自角色，extension 不生成 MemberCall。两端类型与其传递需求仍从共有来源完整收集，派生关系不能用同名、同布局或 provider 标签替代。producer 与 Compile/Link reader 复用同一检查和原累计预算；函数类型关系的重复子查询只在本次调用中复用，跨调用不跳过校验。此项不替代实际适配操作、装箱/函数 adapter、访问或机器 ABI 闭包，不新增 wire 字段或版本。
+
 ### 4.1 type semantics section
 
 ```text

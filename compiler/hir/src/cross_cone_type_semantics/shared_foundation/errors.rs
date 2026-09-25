@@ -23,10 +23,10 @@ pub enum SharedTypeMetadataError {
         position: crate::concrete::ExecutableExpressionPosition,
         source: Box<crate::HirDependencyCallSignatureError>,
     },
-    MemberCallReceiver {
+    CallReceiver {
         position: Box<crate::concrete::ExecutableExpressionPosition>,
         receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
-        owner: PersistentExactTypeId,
+        expected: PersistentExactTypeId,
     },
     RuntimeConstructor(Box<crate::HirRuntimeConstructorError>),
     TypeUseInventory,

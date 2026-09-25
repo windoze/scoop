@@ -7,3 +7,9 @@ public val imageValue: Int = 4
 public var imageMutable: Int = 5
 public val computedValue: Int
     get() = runtimeValue
+
+public fun String.receiverAnswer(): Int = 7
+public fun receiverDefault(value: Int = "provider-default".receiverAnswer()): Int = value
+public var String.receiverScore: Int
+    get() = 7
+    set(value) {}

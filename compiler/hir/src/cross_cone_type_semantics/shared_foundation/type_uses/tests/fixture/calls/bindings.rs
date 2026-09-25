@@ -26,16 +26,22 @@ pub(super) fn target(provider: &Loaded, target: CallableTemplateOrigin) -> Bindi
                 .identities
                 .canonical_key::<_, PropertyAccessorKey>(id)
                 .unwrap();
-            let PropertyOwner::Property(property) = key.owner() else {
-                panic!("fixture accessors use ordinary properties");
-            };
-            BindingTarget::property(
-                provider
-                    .identities
-                    .canonical_key::<_, SourceDeclarationKey>(property)
-                    .unwrap()
-                    .as_ref(),
-            )
+            match key.owner() {
+                PropertyOwner::Property(property) => BindingTarget::property(
+                    provider
+                        .identities
+                        .canonical_key::<_, SourceDeclarationKey>(property)
+                        .unwrap()
+                        .as_ref(),
+                ),
+                PropertyOwner::ExtensionProperty(property) => BindingTarget::extension_property(
+                    provider
+                        .identities
+                        .canonical_key::<_, SourceDeclarationKey>(property)
+                        .unwrap()
+                        .as_ref(),
+                ),
+            }
             .unwrap()
         }
         CallableTemplateOrigin::Constructor(_) => {

@@ -2,6 +2,7 @@ use super::*;
 use fixture::CallForm;
 
 mod constructors;
+mod extensions;
 mod members;
 mod negative;
 mod receivers;

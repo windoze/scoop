@@ -1,0 +1,20 @@
+Module
+  property0 val localValue: Int getter0=body($get$localValue) <stored global0 init0>
+  val localValue: Int <global0 managed>
+  fun outside(): Int
+    val local0
+      ImportedDependencyCall #0 : Int
+    val local1
+      StringLiteral "standalone" : String
+    return
+      ImportedDependencyCall #1 : Int
+        Local $dependency.receiver : String
+  fun $init$body$0(): Unit
+    assign global localValue
+      ImportedDependencyCall #0 : Int
+  fun $init$ensure$0(): Unit
+  fun $get$localValue(): Int
+    ensure init0 top-level:localValue
+    return
+      GlobalRead localValue : Int
+  output library

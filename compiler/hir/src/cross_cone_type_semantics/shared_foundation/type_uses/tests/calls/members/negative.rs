@@ -27,10 +27,10 @@ fn shared_member_calls_reject_later_unrelated_and_same_named_receivers() {
                 .validate(&actual, &dependencies, &mut meter())
                 .unwrap_err(),
         ] {
-            assert!(matches!(error, Error::MemberCallReceiver {
+            assert!(matches!(error, Error::CallReceiver {
                 position,
                 receiver: crate::SourceCallReceiver::Receiver { static_type },
-                owner: actual_owner,
+                expected: actual_owner,
             } if position.expression_index == 1
                 && static_type == exact(receiver)
                 && actual_owner == exact(owner)));

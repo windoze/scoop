@@ -5,7 +5,11 @@ use scoop_slib as slib;
 
 mod candidates;
 mod members;
+mod reader;
+mod receivers;
 mod wire;
+
+pub(super) use receivers::check as check_receivers;
 
 pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
@@ -51,47 +55,7 @@ pub(super) fn check(
         candidate.check_error(&source);
         let payload = wire::replace_public(artifact, candidate.public.clone());
         for link in [false, true] {
-            let open = DecodedSlibEnvelope::open(
-                &payload,
-                DecodeLimits::default(),
-                artifact.target_selection(),
-            )
-            .unwrap()
-            .validate_graph()
-            .unwrap();
-            let (provider, consumer) = if link {
-                (
-                    super::lir_dependencies::reader::open_link(provider_artifact)
-                        .into_shared_sections()
-                        .unwrap(),
-                    open.decode_cross_cone_layout_link_sections()
-                        .unwrap()
-                        .into_shared_sections()
-                        .unwrap(),
-                )
-            } else {
-                (
-                    super::lir_dependencies::reader::open(provider_artifact),
-                    open.decode_cross_cone_layout_compile_sections().unwrap(),
-                )
-            };
-            let closure = slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
-                consumer.identity(),
-                consumer.target_selection(),
-                vec![provider.identity()],
-                vec![provider],
-                consumer,
-            )
-            .validate_profile_graph()
-            .unwrap()
-            .validate_identities()
-            .unwrap()
-            .validate_foundation_structure()
-            .unwrap()
-            .resolve_hir_sections()
-            .unwrap()
-            .validate_hir_productions()
-            .unwrap();
+            let closure = reader::open(provider_artifact, artifact, &payload, link);
             let error = match closure.validate_hir_declarations() {
                 Ok(_) => panic!("invalid source call passed the shared reader (link={link})"),
                 Err(error) => error,

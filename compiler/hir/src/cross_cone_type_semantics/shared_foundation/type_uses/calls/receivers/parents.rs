@@ -1,7 +1,7 @@
 use super::*;
 
 impl Graph<'_> {
-    pub(super) fn member_receiver_parents(
+    pub(in super::super) fn source_receiver_parents(
         &self,
         receiver: PersistentExactTypeId,
         meter: &mut BudgetMeter,

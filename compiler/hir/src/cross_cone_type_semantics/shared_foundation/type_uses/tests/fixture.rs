@@ -4,6 +4,7 @@ mod callables;
 mod calls;
 mod constructors;
 mod nominals;
+mod signatures;
 pub(super) use callables::{CallForm, origin};
 
 pub(super) struct Artifact {

@@ -49,6 +49,8 @@ pub(super) fn check(
     for (family, name, count) in [
         ("m23-property-initialization", "standalone", 1),
         ("m23-property-initialization", "combined", 4),
+        ("m23-extension-call-receivers", "standalone", 1),
+        ("m23-extension-call-receivers", "combined", 4),
         ("m23-link-object-contents", "standalone", 1),
         ("m23-link-object-contents", "combined", 4),
         ("m23-link-symbol-uses", "standalone", 1),
@@ -177,7 +179,9 @@ pub(super) fn check(
                         &fixtures.join(format!("{name}.hir.snap")),
                         &hir::dump(&input.hir.output().export),
                     );
-                    if family == "m23-link-object-contents" {
+                    if family == "m23-extension-call-receivers" {
+                        super::source_calls::check_receivers(input, core_artifact, &artifact);
+                    } else if family == "m23-link-object-contents" {
                         super::link_object_contents::check(
                             name,
                             core_artifact,
