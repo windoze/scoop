@@ -14,7 +14,7 @@ pub use descriptor::CrossConeTypeDescriptorProjectionError;
 pub use errors::*;
 pub use protocols::{CrossConeInitializationSelectionError, CrossConeProtocolImportError};
 
-impl ValidatedCrossConeSemanticClosure<'_> {
+impl ValidatedCrossConeSemanticClosure {
     /// Projects actual executable HIR calls into matching provider MIR exports.
     ///
     /// Constants have already been inlined into HIR and therefore do not

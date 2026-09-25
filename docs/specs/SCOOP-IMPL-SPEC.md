@@ -825,6 +825,8 @@ core 可在任意普通源码目录修改、扩展和重建。manifest、构建�
 
 产物读取按明确边界完成检查并保留结果：envelope 验证长度、目录、版本和内容 hash；共有 HIR/MIR/LIR 解码验证格式、typed 引用与跨层关系；Link 在该结果上追加对象范围、符号、relocation、registration 和 Code/runtime fingerprint 检查。同一字节快照及其依赖不分别执行两轮完整 Compile、Link 语义重放。发布复用同次编译的完整 IR、已检查依赖与最终对象，写入后只核对实际写入内容，再原子替换目标。外部新输入仍须经过对应读取边界；结果改变时重新检查受影响部分。
 
+完整 Compile/Link 读取结果拥有所需 manifest、typed IR 和对象信息，生命周期不依附原始解码借用。构建图、缓存命中和已完成节点共享这些完整结果；查询视图直接借用已保存数据，不为一次 accessor 再创建 session、重开原始字节或重放依赖闭包。一个依赖集合只保留一份顺序、边和产物表，Compile/Link 从同一集合读取各自数据，不设置用途凭证或复制两套状态。
+
 删除 BudgetMeter、累计 usage、逻辑 heap/work、节点/边/复制收费及相应参数、错误和专用测试，不保留 unlimited 或空壳接口。 机器协议按实际 frame 长度和字段格式检查，不设置输入产物数、诊断条数或文本字节配额；管道输出的完整读取与展示截断分离。长度与索引先 checked 转换，并核对真实输入范围；分配失败和实际表示溢出有明确错误。递归算法使用针对其图的环检查或迭代遍历，不建立跨阶段资源配额。内容 fingerprint、schema/profile 只覆盖实际格式与语义；成本策略不进入兼容性或 runtime ABI。 容器、manifest、section 与显式依赖输入不设置额外的字节或成员数量配额；保留 ar 固定字段宽度和实际 member ordinal 的表示范围。Wire CBOR 集合声明的元素数须落在实际剩余输入所能容纳的范围内，随后按真实容量分配；不得用配额代替截断与溢出检查。artifact validation policy 的旧成本字段 3 退役，现有四个 SLIB profile 的 major 升为 2；旧 profile 产物需要重建，不保留成本模型兼容路径。
 
 M23-6 的 runtime 消费编译器或 artifact reader 已验证的静态 TypeDescriptor、布局与 scan，正常分配、装箱、数组和 GC 只核对当前对象范围、动态长度及操作所需的 GC 契约。完整静态交叉检查通过 `SCOOP_VERIFY_METADATA=1` 显式启用。装箱根直接加载实际 TD 的 inline scan，复用该只读指针；callable 不再发射一份重复的装箱 scan。M23-8 的多 image 登记边界保持后续范围，不为当前清理新建登记或证明框架。

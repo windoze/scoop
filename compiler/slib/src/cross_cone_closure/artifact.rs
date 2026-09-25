@@ -67,32 +67,32 @@ impl<'input> CrossConeArtifactClosureInput<'input> {
 /// The exact artifact set after every member has independently passed both
 /// views and every cross-Cone requirement has resolved to a provider Strong
 /// definition.
-pub struct ValidatedCrossConeArtifactClosure<'input> {
-    semantic: ValidatedCrossConeSemanticClosure<'input>,
-    links: Vec<ValidatedCrossConeStrongLinkArtifact<'input>>,
+pub struct ValidatedCrossConeArtifactClosure {
+    semantic: ValidatedCrossConeSemanticClosure,
+    links: Vec<ValidatedCrossConeStrongLinkArtifact>,
     publications: Vec<PublishableCrossConeArtifact>,
     positions: BTreeMap<ConeIdentity, usize>,
 }
 
 /// Closure proof produced only when the current artifact bytes participated
 /// in validation. The retained position makes all three current views total.
-pub struct ValidatedCompletedCrossConeArtifactClosure<'input> {
-    closure: ValidatedCrossConeArtifactClosure<'input>,
+pub struct ValidatedCompletedCrossConeArtifactClosure {
+    closure: ValidatedCrossConeArtifactClosure,
     current_position: usize,
 }
 
-impl<'input> ValidatedCompletedCrossConeArtifactClosure<'input> {
-    pub const fn semantic(&self) -> &ValidatedCrossConeSemanticClosure<'input> {
+impl ValidatedCompletedCrossConeArtifactClosure {
+    pub const fn semantic(&self) -> &ValidatedCrossConeSemanticClosure {
         &self.closure.semantic
     }
 
     pub fn current_compile(
         &self,
-    ) -> &ValidatedCompileArtifact<'input, crate::CrossConeSemanticsStrongProfile> {
+    ) -> &ValidatedCompileArtifact<crate::CrossConeSemanticsStrongProfile> {
         self.closure.semantic.artifact_at(self.current_position)
     }
 
-    pub fn current_link(&self) -> &ValidatedCrossConeStrongLinkArtifact<'input> {
+    pub fn current_link(&self) -> &ValidatedCrossConeStrongLinkArtifact {
         &self.closure.links[self.current_position]
     }
 
@@ -100,13 +100,29 @@ impl<'input> ValidatedCompletedCrossConeArtifactClosure<'input> {
         &self.closure.publications[self.current_position]
     }
 
+    pub fn into_current_parts(
+        mut self,
+    ) -> (
+        ValidatedCompileArtifact<crate::CrossConeSemanticsStrongProfile>,
+        ValidatedCrossConeStrongLinkArtifact,
+        PublishableCrossConeArtifact,
+    ) {
+        let compile = self
+            .closure
+            .semantic
+            .into_artifact_at(self.current_position);
+        let link = self.closure.links.swap_remove(self.current_position);
+        let publication = self.closure.publications.swap_remove(self.current_position);
+        (compile, link, publication)
+    }
+
     pub fn into_current_publication(mut self) -> PublishableCrossConeArtifact {
         self.closure.publications.swap_remove(self.current_position)
     }
 }
 
-impl ValidatedCrossConeArtifactClosure<'_> {
-    pub const fn semantic(&self) -> &ValidatedCrossConeSemanticClosure<'_> {
+impl ValidatedCrossConeArtifactClosure {
+    pub const fn semantic(&self) -> &ValidatedCrossConeSemanticClosure {
         &self.semantic
     }
 
@@ -126,10 +142,7 @@ impl ValidatedCrossConeArtifactClosure<'_> {
             .map(|position| &self.publications[*position])
     }
 
-    pub fn link(
-        &self,
-        identity: ConeIdentity,
-    ) -> Option<&ValidatedCrossConeStrongLinkArtifact<'_>> {
+    pub fn link(&self, identity: ConeIdentity) -> Option<&ValidatedCrossConeStrongLinkArtifact> {
         self.positions
             .get(&identity)
             .map(|position| &self.links[*position])
@@ -155,7 +168,7 @@ pub fn validate_cross_cone_artifact_closure<'input>(
 
     c_bridge_profile: &CBridgeToolchainProfileV1,
     session: &mut SemanticIdentitySession,
-) -> Result<ValidatedCrossConeArtifactClosure<'input>, CrossConeArtifactClosureValidationError> {
+) -> Result<ValidatedCrossConeArtifactClosure, CrossConeArtifactClosureValidationError> {
     let CrossConeArtifactClosureInput {
         current,
         target,
@@ -238,10 +251,7 @@ pub fn validate_completed_cross_cone_artifact_closure<'input>(
 
     c_bridge_profile: &CBridgeToolchainProfileV1,
     session: &mut SemanticIdentitySession,
-) -> Result<
-    ValidatedCompletedCrossConeArtifactClosure<'input>,
-    CrossConeArtifactClosureValidationError,
-> {
+) -> Result<ValidatedCompletedCrossConeArtifactClosure, CrossConeArtifactClosureValidationError> {
     let closure = validate_cross_cone_artifact_closure(
         CrossConeArtifactClosureInput::completed(
             current,
@@ -295,20 +305,20 @@ fn decode_compile_front<'input>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn validate_link<'input>(
-    semantic: &ValidatedCrossConeSemanticClosure<'input>,
+fn validate_link(
+    semantic: &ValidatedCrossConeSemanticClosure,
     identity: ConeIdentity,
-    bytes: &'input [u8],
+    bytes: &[u8],
 
     target: ValidatedLirTargetSelection,
-    validated_links: &[ValidatedCrossConeStrongLinkArtifact<'input>],
+    validated_links: &[ValidatedCrossConeStrongLinkArtifact],
     validated_positions: &BTreeMap<ConeIdentity, usize>,
     c_bridge_profile: &CBridgeToolchainProfileV1,
     slot: CrossConeClosureArtifactSlotV1,
 ) -> Result<
     (
         PublishableCrossConeArtifact,
-        ValidatedCrossConeStrongLinkArtifact<'input>,
+        ValidatedCrossConeStrongLinkArtifact,
     ),
     CrossConeArtifactClosureValidationError,
 > {

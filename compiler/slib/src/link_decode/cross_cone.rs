@@ -68,8 +68,8 @@ pub struct FinalizedCrossConeStrongLinkObjectSections<'input> {
 
 /// Fully validated Link view for one `CrossConeSemanticsStrongProfile`
 /// artifact, including its independently reconstructed physical-use closure.
-pub struct ValidatedCrossConeStrongLinkArtifact<'input> {
-    graph: ValidatedGraphArtifact<'input>,
+pub struct ValidatedCrossConeStrongLinkArtifact {
+    metadata: crate::graph::ArtifactMetadata,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
@@ -87,7 +87,7 @@ pub(super) fn validate_cross_cone_strong_link_parts<'input>(
     lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
     let DecodedCrossConeLinkSections {
         common,
         cross_cone_link_closure,
@@ -137,7 +137,7 @@ pub(super) fn validate_self_describing_cross_cone_strong_link_parts<'input, 'aut
     lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
     let DecodedCrossConeLinkSections {
         common,
         cross_cone_link_closure,
@@ -465,7 +465,7 @@ impl<'input> CrossConeRegistrationDependencyFingerprintedSections<'input> {
 impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
     pub fn validate_code_and_closures(
         self,
-    ) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkFinalValidationError> {
+    ) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkFinalValidationError> {
         let Self {
             graph,
             identities,
@@ -529,7 +529,7 @@ impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
             .validate_against(&expected_cross_cone_link_closure)
             .map_err(StrongLinkFinalValidationError::CrossConeLinkClosure)?;
         Ok(ValidatedCrossConeStrongLinkArtifact {
-            graph,
+            metadata: graph.into(),
             identities,
             foundations,
             production,
@@ -541,45 +541,45 @@ impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
     }
 }
 
-impl ValidatedCrossConeStrongLinkArtifact<'_> {
+impl ValidatedCrossConeStrongLinkArtifact {
     pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
         &self.identities
     }
 
     pub const fn coordinate(&self) -> &ConeCoordinate {
-        self.graph.coordinate()
+        self.metadata.coordinate()
     }
 
     pub const fn identity(&self) -> ConeIdentity {
-        self.graph.identity()
+        self.metadata.identity()
     }
 
     pub const fn kind(&self) -> ConeKind {
-        self.graph.kind()
+        self.metadata.kind()
     }
 
     pub const fn source_form(&self) -> ConeSourceForm {
-        self.graph.source_form()
+        self.metadata.source_form()
     }
 
     pub const fn compatibility(&self) -> &crate::CompatibilityRecord {
-        self.graph.compatibility()
+        self.metadata.compatibility()
     }
 
     pub const fn target_selection(&self) -> scoop_lir::ValidatedLirTargetSelection {
-        self.graph.target_selection()
+        self.metadata.target_selection()
     }
 
     pub fn direct_dependencies(&self) -> &[crate::DependencyRecord] {
-        self.graph.direct_dependencies()
+        self.metadata.direct_dependencies()
     }
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
-        self.graph.artifact_fingerprint()
+        self.metadata.artifact_fingerprint()
     }
 
     pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
-        self.graph.envelope.manifest().semantic_fingerprints()
+        self.metadata.manifest.semantic_fingerprints()
     }
 
     pub fn identity_count(&self) -> usize {

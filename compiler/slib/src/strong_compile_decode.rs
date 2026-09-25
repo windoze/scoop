@@ -157,10 +157,8 @@ pub fn validate_single_cone_strong_compile_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     session: &mut SemanticIdentitySession,
-) -> Result<
-    ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
-    StrongCompileArtifactValidationError,
-> {
+) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, StrongCompileArtifactValidationError>
+{
     graph
         .decode_single_cone_compile_sections()
         .map_err(|error| StrongCompileArtifactValidationError::Decode(Box::new(error)))?
@@ -187,10 +185,8 @@ pub fn validate_single_cone_strong_compile_artifact<'input>(
 pub fn validate_self_describing_single_cone_strong_compile_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
     session: &mut SemanticIdentitySession,
-) -> Result<
-    ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
-    StrongCompileArtifactValidationError,
-> {
+) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, StrongCompileArtifactValidationError>
+{
     let mut front = graph
         .decode_single_cone_compile_sections()
         .map_err(|error| StrongCompileArtifactValidationError::Decode(Box::new(error)))?
@@ -733,7 +729,7 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
     pub fn commit(
         self,
         session: &mut SemanticIdentitySession,
-    ) -> Result<ValidatedCompileArtifact<'input, SingleConeStrongProfile>, CompileCommitError> {
+    ) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, CompileCommitError> {
         let StructurallyValidatedSingleConeCompileProduction {
             mut graph,
             identities,

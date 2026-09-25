@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::artifact::{CompileArtifactPurpose, LinkArtifactPurpose};
 use scoop_identity::ConeIdentity;
 use scoop_protocol::{RequestCorrelationId, StructuredDiagnosticV1};
 use scoop_slib::ConeKind;
@@ -80,8 +79,6 @@ impl ExecutedBuildGraph {
 
     pub fn into_outcome(self) -> BuildGraphOutcome {
         let root = self.completed[&self.root].clone();
-        let compile = root.compile_closure().clone();
-        let link = root.link_closure().clone();
         let warnings = self
             .dependency_first
             .iter()
@@ -90,15 +87,11 @@ impl ExecutedBuildGraph {
         match root.artifact().publication().kind() {
             ConeKind::Library => BuildGraphOutcome::Library {
                 root,
-                compile,
-                link,
                 warnings,
                 observations: self.observations,
             },
             ConeKind::Executable => BuildGraphOutcome::ExecutableArtifact {
                 root,
-                compile,
-                link,
                 warnings,
                 observations: self.observations,
             },
@@ -110,15 +103,11 @@ impl ExecutedBuildGraph {
 pub enum BuildGraphOutcome {
     Library {
         root: CompletedNode,
-        compile: ValidatedArtifactClosure<CompileArtifactPurpose>,
-        link: ValidatedArtifactClosure<LinkArtifactPurpose>,
         warnings: Vec<StructuredDiagnosticV1>,
         observations: BuildObservations,
     },
     ExecutableArtifact {
         root: CompletedNode,
-        compile: ValidatedArtifactClosure<CompileArtifactPurpose>,
-        link: ValidatedArtifactClosure<LinkArtifactPurpose>,
         warnings: Vec<StructuredDiagnosticV1>,
         observations: BuildObservations,
     },
@@ -131,16 +120,8 @@ impl BuildGraphOutcome {
         }
     }
 
-    pub const fn compile(&self) -> &ValidatedArtifactClosure<CompileArtifactPurpose> {
-        match self {
-            Self::Library { compile, .. } | Self::ExecutableArtifact { compile, .. } => compile,
-        }
-    }
-
-    pub const fn link(&self) -> &ValidatedArtifactClosure<LinkArtifactPurpose> {
-        match self {
-            Self::Library { link, .. } | Self::ExecutableArtifact { link, .. } => link,
-        }
+    pub fn closure(&self) -> &ValidatedArtifactClosure {
+        self.root().closure()
     }
 
     pub fn warnings(&self) -> &[StructuredDiagnosticV1] {

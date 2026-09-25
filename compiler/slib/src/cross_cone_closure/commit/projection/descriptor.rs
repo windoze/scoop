@@ -5,7 +5,7 @@ use scoop_lir::{ExternalTypeDescriptor, ImportedLirTypeDescriptorProjectionError
 
 use super::ValidatedCrossConeSemanticClosure;
 
-impl ValidatedCrossConeSemanticClosure<'_> {
+impl ValidatedCrossConeSemanticClosure {
     /// Resolves the source key before selecting its actual defining provider.
     pub fn project_source_type_descriptor(
         &self,

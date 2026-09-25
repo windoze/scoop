@@ -26,11 +26,11 @@ pub use projection::*;
 /// The provider storage is intentionally private. Public lookup can enumerate
 /// only `DirectCrossConeSemanticProvider`; support providers expose typed
 /// lookup methods but no binding-table iterator.
-pub struct ValidatedCrossConeSemanticClosure<'input> {
+pub struct ValidatedCrossConeSemanticClosure {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
     direct: Vec<ConeIdentity>,
-    dependency_first: Vec<ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>>,
+    dependency_first: Vec<ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>>,
     positions: std::collections::BTreeMap<ConeIdentity, usize>,
     dependency_positions: Vec<Vec<usize>>,
 }
@@ -43,7 +43,7 @@ impl<'input> LirBridgeValidatedCrossConeHirClosure<'input> {
     pub fn commit(
         self,
         session: &mut SemanticIdentitySession,
-    ) -> Result<ValidatedCrossConeSemanticClosure<'input>, CrossConeSemanticCommitError> {
+    ) -> Result<ValidatedCrossConeSemanticClosure, CrossConeSemanticCommitError> {
         let artifact_count = self.dependency_first.len();
         if self.type_alias_expansions.len() != artifact_count {
             return Err(CrossConeSemanticCommitError::StateCountMismatch {
@@ -94,7 +94,7 @@ impl<'input> LirBridgeValidatedCrossConeHirClosure<'input> {
     }
 }
 
-impl<'input> ValidatedCrossConeSemanticClosure<'input> {
+impl ValidatedCrossConeSemanticClosure {
     pub const fn current(&self) -> ConeIdentity {
         self.current
     }
@@ -112,7 +112,7 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
     pub fn direct_provider(
         &self,
         identity: ConeIdentity,
-    ) -> Option<DirectCrossConeSemanticProvider<'_, 'input>> {
+    ) -> Option<DirectCrossConeSemanticProvider<'_>> {
         self.direct
             .binary_search(&identity)
             .ok()
@@ -123,7 +123,7 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
     pub fn support_provider(
         &self,
         identity: ConeIdentity,
-    ) -> Option<SupportCrossConeSemanticProvider<'_, 'input>> {
+    ) -> Option<SupportCrossConeSemanticProvider<'_>> {
         self.direct
             .binary_search(&identity)
             .is_err()
@@ -134,7 +134,7 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
 
     pub fn direct_providers(
         &self,
-    ) -> impl ExactSizeIterator<Item = DirectCrossConeSemanticProvider<'_, 'input>> {
+    ) -> impl ExactSizeIterator<Item = DirectCrossConeSemanticProvider<'_>> {
         self.direct.iter().map(|identity| {
             let artifact = self
                 .provider(*identity)
@@ -165,7 +165,7 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
     fn provider(
         &self,
         identity: ConeIdentity,
-    ) -> Option<&ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>> {
+    ) -> Option<&ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>> {
         if identity == self.current {
             return None;
         }
@@ -178,7 +178,7 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
     /// with [`DecodedCrossConeClosure::with_current_artifact`].
     pub fn current_artifact(
         &self,
-    ) -> Option<&ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>> {
+    ) -> Option<&ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>> {
         self.positions
             .get(&self.current)
             .map(|position| &self.dependency_first[*position])
@@ -186,26 +186,33 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
 
     pub(super) fn all_artifacts_for_validation(
         &self,
-    ) -> impl ExactSizeIterator<Item = &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>>
+    ) -> impl ExactSizeIterator<Item = &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>>
     {
         self.dependency_first.iter()
+    }
+
+    pub(super) fn into_artifact_at(
+        mut self,
+        position: usize,
+    ) -> ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
+        self.dependency_first.swap_remove(position)
     }
 
     pub(super) fn artifact_at(
         &self,
         position: usize,
-    ) -> &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile> {
+    ) -> &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
         &self.dependency_first[position]
     }
 }
 
 /// Enumeration-capable view of one validated direct dependency.
 #[derive(Clone, Copy)]
-pub struct DirectCrossConeSemanticProvider<'closure, 'input> {
-    artifact: &'closure ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>,
+pub struct DirectCrossConeSemanticProvider<'closure> {
+    artifact: &'closure ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
 }
 
-impl<'closure> DirectCrossConeSemanticProvider<'closure, '_> {
+impl<'closure> DirectCrossConeSemanticProvider<'closure> {
     pub const fn coordinate(self) -> &'closure ConeCoordinate {
         self.artifact.coordinate()
     }
@@ -233,11 +240,11 @@ impl<'closure> DirectCrossConeSemanticProvider<'closure, '_> {
 
 /// Non-enumerable view of one transitive support provider.
 #[derive(Clone, Copy)]
-pub struct SupportCrossConeSemanticProvider<'closure, 'input> {
-    artifact: &'closure ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>,
+pub struct SupportCrossConeSemanticProvider<'closure> {
+    artifact: &'closure ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
 }
 
-impl<'closure> SupportCrossConeSemanticProvider<'closure, '_> {
+impl<'closure> SupportCrossConeSemanticProvider<'closure> {
     pub const fn coordinate(self) -> &'closure ConeCoordinate {
         self.artifact.coordinate()
     }

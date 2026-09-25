@@ -63,8 +63,8 @@ impl CompileCapabilityProfile for CrossConeSemanticsStrongProfile {
 ///
 /// This type deliberately exposes no publication, dependency, object, or Link
 /// conversion.
-pub struct ValidatedCompileArtifact<'input, P: CompileCapabilityProfile> {
-    graph: ValidatedGraphArtifact<'input>,
+pub struct ValidatedCompileArtifact<P: CompileCapabilityProfile> {
+    metadata: crate::graph::ArtifactMetadata,
     hir: ImportedHirFoundation,
     mir: ImportedMirFoundation,
     lir: ImportedLirFoundation,
@@ -79,8 +79,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
     pub fn commit(
         self,
         session: &mut SemanticIdentitySession,
-    ) -> Result<ValidatedCompileArtifact<'input, IdentityFoundationProfile>, CompileCommitError>
-    {
+    ) -> Result<ValidatedCompileArtifact<IdentityFoundationProfile>, CompileCommitError> {
         let StructurallyValidatedFoundations {
             mut graph,
             identities,
@@ -91,7 +90,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
         let imported = commit_identity_graph(&mut graph, &identities, session)?;
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
         Ok(ValidatedCompileArtifact {
-            graph,
+            metadata: graph.into(),
             hir: ImportedHirFoundation::from_validated(hir, hir_identities),
             mir: ImportedMirFoundation::from_validated(mir, mir_identities),
             lir: ImportedLirFoundation::from_validated(lir, lir_identities),
@@ -101,16 +100,16 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
     }
 }
 
-impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
+impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
     pub(crate) fn from_parts(
-        graph: ValidatedGraphArtifact<'input>,
+        graph: ValidatedGraphArtifact<'_>,
         hir: ImportedHirFoundation,
         mir: ImportedMirFoundation,
         lir: ImportedLirFoundation,
         production: P::Production,
     ) -> Self {
         Self {
-            graph,
+            metadata: graph.into(),
             hir,
             mir,
             lir,
@@ -120,39 +119,39 @@ impl<'input, P: CompileCapabilityProfile> ValidatedCompileArtifact<'input, P> {
     }
 
     pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
-        self.graph.coordinate()
+        self.metadata.coordinate()
     }
 
     pub const fn identity(&self) -> scoop_identity::ConeIdentity {
-        self.graph.identity()
+        self.metadata.identity()
     }
 
     pub const fn kind(&self) -> ConeKind {
-        self.graph.kind()
+        self.metadata.kind()
     }
 
     pub const fn source_form(&self) -> ConeSourceForm {
-        self.graph.source_form()
+        self.metadata.source_form()
     }
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
-        self.graph.target_selection()
+        self.metadata.target_selection()
     }
 
     pub fn direct_dependencies(&self) -> &[DependencyRecord] {
-        self.graph.direct_dependencies()
+        self.metadata.direct_dependencies()
     }
 
     pub const fn compatibility(&self) -> &crate::CompatibilityRecord {
-        self.graph.compatibility()
+        self.metadata.compatibility()
     }
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
-        self.graph.artifact_fingerprint()
+        self.metadata.artifact_fingerprint()
     }
 
     pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
-        self.graph.envelope.manifest().semantic_fingerprints()
+        self.metadata.manifest.semantic_fingerprints()
     }
 
     /// Projects the exact graph/semantic authority of this validated artifact

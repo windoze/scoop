@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use scoop_identity::{ArtifactCapabilityProfileId, ConeIdentity};
@@ -13,20 +14,19 @@ use scoop_slib::{
 use super::{CacheReceiptBodyV1, ConeCompileCacheKeyV1, RawCompileCacheEntryV1};
 use crate::artifact::{
     ArtifactClosurePlan, ArtifactClosureValidationError, CompletedNode,
-    CrossConeArtifactValidationError, ValidatedCrossConeArtifactHandle,
-    ValidatedDualArtifactClosure,
+    CrossConeArtifactValidationError, ValidatedArtifactClosure, ValidatedCrossConeArtifactHandle,
 };
 use crate::{CompileCacheKeyError, PairedCompilerFingerprintV1, StagingError};
 
 pub(crate) struct ValidatedCacheHitV1 {
     identity: ConeIdentity,
-    artifact: Arc<ValidatedCrossConeArtifactHandle>,
-    closures: ValidatedDualArtifactClosure,
+    artifact: Rc<ValidatedCrossConeArtifactHandle>,
+    closures: ValidatedArtifactClosure,
     warnings: Vec<StructuredDiagnosticV1>,
 }
 
 impl ValidatedCacheHitV1 {
-    pub(crate) const fn artifact(&self) -> &Arc<ValidatedCrossConeArtifactHandle> {
+    pub(crate) const fn artifact(&self) -> &Rc<ValidatedCrossConeArtifactHandle> {
         &self.artifact
     }
 
@@ -103,7 +103,7 @@ pub(crate) fn validate_cache_entry(
     let artifact = plan
         .validate_completed_artifact(identity, artifact_snapshot, &artifacts, c_bridge_profile)
         .map_err(|source| CacheCompletionError::Artifact(Box::new(source)))?;
-    artifacts.insert(identity, Arc::clone(&artifact));
+    artifacts.insert(identity, Rc::clone(&artifact));
     let closures = plan
         .validate(identity, &artifacts)
         .map_err(|source| CacheCompletionError::Plan(Box::new(source)))?;
@@ -130,7 +130,7 @@ pub(crate) fn validate_cache_entry(
     .map_err(CacheCompletionError::ReceiptBinding)?;
     validate_warning_origins(
         entry.receipt().body().structured_warnings(),
-        closures.compile().dependency_first(),
+        closures.dependency_first(),
     )?;
     Ok(ValidatedCacheHitV1 {
         identity,

@@ -3,7 +3,7 @@ use super::*;
 mod descriptors;
 mod protocols;
 mod selections;
-type Compile<'closure, 'input> = scoop_slib::DirectCrossConeSemanticProvider<'closure, 'input>;
+type Compile<'closure, 'input> = scoop_slib::DirectCrossConeSemanticProvider<'closure>;
 
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(crate::workspace_root().join(format!(

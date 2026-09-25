@@ -185,7 +185,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         self,
         imported: ImportedIdentityLayers,
         type_alias_expansions: CanonicalTypeAliasExpansionsV1,
-    ) -> ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile> {
+    ) -> ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
         let Self {
             graph,
             identities: _,

@@ -14,7 +14,7 @@ use super::*;
 pub fn validate_and_commit_cross_cone_semantic_closure<'input>(
     closure: DecodedCrossConeClosure<'input>,
     session: &mut SemanticIdentitySession,
-) -> Result<ValidatedCrossConeSemanticClosure<'input>, CrossConeSemanticClosureValidationError> {
+) -> Result<ValidatedCrossConeSemanticClosure, CrossConeSemanticClosureValidationError> {
     closure
         .validate_profile_graph()
         .map_err(|source| CrossConeSemanticClosureValidationError::Graph(Box::new(source)))?

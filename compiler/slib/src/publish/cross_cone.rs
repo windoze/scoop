@@ -39,8 +39,8 @@ pub struct PublishableCrossConeArtifact {
 
 impl PublishableCrossConeArtifact {
     pub fn from_validated_views(
-        compile: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
-        link: &ValidatedCrossConeStrongLinkArtifact<'_>,
+        compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
+        link: &ValidatedCrossConeStrongLinkArtifact,
     ) -> Result<Self, CrossConePublishViewMismatchError> {
         validate_common_views(compile, link)?;
         validate_semantic_import_projection(
@@ -131,8 +131,8 @@ impl PublishableCrossConeArtifact {
 }
 
 fn validate_common_views(
-    compile: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
-    link: &ValidatedCrossConeStrongLinkArtifact<'_>,
+    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
+    link: &ValidatedCrossConeStrongLinkArtifact,
 ) -> Result<(), PublishViewMismatchError> {
     if compile.artifact_fingerprint() != link.artifact_fingerprint() {
         return Err(PublishViewMismatchError::ArtifactFingerprint);

@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_protocol::StructuredDiagnosticV1;
-use scoop_slib::{ArtifactFingerprint, DependencyRecord, SemanticFingerprintRecord};
+use scoop_slib::{ArtifactFingerprint, DependencyRecord};
 
 use super::{
-    ArtifactClosurePlan, ArtifactClosureValidationError, CompileArtifactPurpose,
-    CrossConeArtifactValidationError, LinkArtifactPurpose, ValidatedArtifactClosure,
-    ValidatedCrossConeArtifactHandle, ValidatedDualArtifactClosure,
+    ArtifactClosurePlan, ArtifactClosureValidationError, CrossConeArtifactValidationError,
+    ValidatedArtifactClosure, ValidatedCrossConeArtifactHandle,
 };
 use crate::{CacheCompletionError, PreparedArtifactCandidate};
 
@@ -37,15 +37,13 @@ impl PrivateArtifactPath {
     }
 }
 
-/// A node is complete only after its artifact and both purpose closures pass
-/// the parent-side validation gate.
+/// A completed node retains its artifact data and exact dependency closure.
 #[derive(Clone, Debug)]
 pub struct CompletedNode {
     cone: ConeIdentity,
     origin: CompletedNodeOrigin,
-    artifact: Arc<ValidatedCrossConeArtifactHandle>,
-    compile_closure: ValidatedArtifactClosure<CompileArtifactPurpose>,
-    link_closure: ValidatedArtifactClosure<LinkArtifactPurpose>,
+    artifact: Rc<ValidatedCrossConeArtifactHandle>,
+    closure: Rc<ValidatedArtifactClosure>,
     materialized_child_path: PrivateArtifactPath,
     warnings: Vec<StructuredDiagnosticV1>,
 }
@@ -63,12 +61,8 @@ impl CompletedNode {
         &self.artifact
     }
 
-    pub const fn compile_closure(&self) -> &ValidatedArtifactClosure<CompileArtifactPurpose> {
-        &self.compile_closure
-    }
-
-    pub const fn link_closure(&self) -> &ValidatedArtifactClosure<LinkArtifactPurpose> {
-        &self.link_closure
+    pub fn closure(&self) -> &ValidatedArtifactClosure {
+        &self.closure
     }
 
     pub const fn materialized_child_path(&self) -> &PrivateArtifactPath {
@@ -79,8 +73,8 @@ impl CompletedNode {
         &self.warnings
     }
 
-    pub(crate) fn shared_artifact(&self) -> Arc<ValidatedCrossConeArtifactHandle> {
-        Arc::clone(&self.artifact)
+    pub(crate) fn shared_artifact(&self) -> Rc<ValidatedCrossConeArtifactHandle> {
+        Rc::clone(&self.artifact)
     }
 
     pub(crate) fn replace_warnings(&mut self, warnings: Vec<StructuredDiagnosticV1>) {
@@ -89,18 +83,16 @@ impl CompletedNode {
 
     pub(crate) fn from_cache_hit(
         cone: ConeIdentity,
-        artifact: Arc<ValidatedCrossConeArtifactHandle>,
-        closures: ValidatedDualArtifactClosure,
+        artifact: Rc<ValidatedCrossConeArtifactHandle>,
+        closures: ValidatedArtifactClosure,
         materialized_child_path: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
     ) -> Self {
-        let (compile_closure, link_closure) = closures.into_parts();
         Self {
             cone,
             origin: CompletedNodeOrigin::CacheHit,
             artifact,
-            compile_closure,
-            link_closure,
+            closure: Rc::new(closures),
             materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
             warnings,
         }
@@ -108,18 +100,16 @@ impl CompletedNode {
 
     fn from_compiled(
         cone: ConeIdentity,
-        artifact: Arc<ValidatedCrossConeArtifactHandle>,
-        closures: ValidatedDualArtifactClosure,
+        artifact: Rc<ValidatedCrossConeArtifactHandle>,
+        closures: ValidatedArtifactClosure,
         materialized_child_path: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
     ) -> Self {
-        let (compile_closure, link_closure) = closures.into_parts();
         Self {
             cone,
             origin: CompletedNodeOrigin::Compiled,
             artifact,
-            compile_closure,
-            link_closure,
+            closure: Rc::new(closures),
             materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
             warnings,
         }
@@ -202,11 +192,11 @@ pub(crate) fn complete_compiled_candidate(
     let artifact = plan
         .validate_completed_artifact(identity, snapshot, &artifacts, c_bridge_profile)
         .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?;
-    artifacts.insert(identity, Arc::clone(&artifact));
+    artifacts.insert(identity, Rc::clone(&artifact));
     let closures = plan
         .validate(identity, &artifacts)
         .map_err(|source| CompiledCompletionError::Plan(Box::new(source)))?;
-    crate::validate_warning_origins(&warnings, closures.compile().dependency_first())
+    crate::validate_warning_origins(&warnings, closures.dependency_first())
         .map_err(|source| CompiledCompletionError::Warnings(Box::new(source)))?;
     Ok(CompletedNode::from_compiled(
         identity,
@@ -303,19 +293,12 @@ impl std::error::Error for PrebuiltCompletionError {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct CandidateAgreement {
-    artifact: ArtifactFingerprint,
-    compile_semantic: SemanticFingerprintRecord,
-    link_semantic: SemanticFingerprintRecord,
-}
-
 struct ValidatedCandidate {
     source_locator: PathBuf,
     materialized_path: PathBuf,
-    artifact: Arc<ValidatedCrossConeArtifactHandle>,
-    closures: ValidatedDualArtifactClosure,
-    agreement: CandidateAgreement,
+    artifact: Rc<ValidatedCrossConeArtifactHandle>,
+    closures: ValidatedArtifactClosure,
+    agreement: ArtifactFingerprint,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -355,7 +338,7 @@ pub(crate) fn complete_prebuilt_candidates(
                 path: candidate.source_locator().to_path_buf(),
                 source: Box::new(source),
             })?;
-        artifacts.insert(identity, Arc::clone(&artifact));
+        artifacts.insert(identity, Rc::clone(&artifact));
         let closures = plan
             .validate(identity, &artifacts)
             .map_err(|source| match source {
@@ -380,11 +363,7 @@ pub(crate) fn complete_prebuilt_candidates(
         validated.push(ValidatedCandidate {
             source_locator: candidate.source_locator().to_path_buf(),
             materialized_path: candidate.materialized_path().to_path_buf(),
-            agreement: CandidateAgreement {
-                artifact: publication.artifact_fingerprint(),
-                compile_semantic: publication.compile_summary().semantic_fingerprints(),
-                link_semantic: publication.link_summary().semantic_fingerprints(),
-            },
+            agreement: publication.artifact_fingerprint(),
             artifact,
             closures,
         });
@@ -407,13 +386,11 @@ pub(crate) fn complete_prebuilt_candidates(
         .into_iter()
         .min_by(|left, right| left.source_locator.cmp(&right.source_locator))
         .ok_or(PrebuiltCompletionError::EmptyCandidateSet(identity))?;
-    let (compile_closure, link_closure) = selected.closures.into_parts();
     Ok(CompletedNode {
         cone: identity,
         origin: CompletedNodeOrigin::Prebuilt,
         artifact: selected.artifact,
-        compile_closure,
-        link_closure,
+        closure: Rc::new(selected.closures),
         materialized_child_path: PrivateArtifactPath::new(selected.materialized_path),
         warnings: Vec::new(),
     })

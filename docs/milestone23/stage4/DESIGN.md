@@ -59,7 +59,7 @@ completed node = immutable artifact snapshot
 - bounded `.slib` manifest summary probe；
 - identity/content claim合并、reserved identity、kind、single-version、cycle与canonical topological order验证；
 - graph-wide source snapshot、artifact snapshot及TOCTOU检查；
-- per-artifact Compile/Link双视图handle，以及purpose保持不擦除的`ValidatedArtifactClosure<Compile>` / `<Link>`；
+- per-artifact 完整 Compile/Link 数据，以及一个共有的 `ValidatedArtifactClosure`；
 - direct/support closure投影与canonical child argument顺序；
 - `ConeCompileCacheKeyV1`、cache receipt、per-key lock、atomic entry publication与warning replay；
 - trusted core slot freshness、bootstrap调度和slot/cache隔离规则；
@@ -90,7 +90,7 @@ M23-4不以“已有dependency artifact”为理由删除M23-3能力门。真实
 
 | 阶段 | M23-4 接收 | M23-4 交付 |
 | --- | --- | --- |
-| M23-3 | strict manifest/locator projection、trusted core slot、single-Cone request、child DTO、双视图有效strong artifact | exact DAG、cache、真实child orchestration与purpose-preserving closure；不改`scoopc`编译语义 |
+| M23-3 | strict manifest/locator projection、trusted core slot、single-Cone request、child DTO、双视图有效strong artifact | exact DAG、cache、真实child orchestration与共有完整产物闭包；不改`scoopc`编译语义 |
 | M23-5 | graph中已完成的direct/support artifact和Compile closure | `SemanticWorld`可直接消费的完整artifact集合与稳定origin；删除的只有非core能力拒绝，不重做locator/cache |
 | M23-6/7 | Link closure、三层fingerprint与stable origin | 新layout/ODR profile仍经同一cache/child/double-view流程；cache key按新增实际消费capability升版而非旁路验证 |
 | M23-8 | canonical dependency-first Cone order | runtime registration/startup沿用该order，不从link input或地址顺序重算另一套 |
@@ -129,7 +129,7 @@ compiler/scoop  (scoop)
   locator/      exact locator与bounded summary discovery
   graph/        claim merge、DAG验证、canonical order、closure projection
   snapshot/     source/artifact immutable snapshot与TOCTOU门禁
-  artifact/     双视图gate、purpose closure与completed artifact handle
+  artifact/     产物读取、共有依赖闭包与完整产物句柄
   cache/        key、receipt、lock、lookup与atomic publication
   child/        配套scoopc解析、protocol transport与response验证
   schedule/     dependency-first serial state machine
@@ -204,7 +204,7 @@ ResolvedTargetProfile {
 
 - `PrebuiltManifestSummaryV1`的bounded probe；
 - immutable artifact snapshot上的双视图验证入口；
-- purpose保持的artifact certificate/closure组合API。
+- 完整产物数据及其依赖闭包 API。
 
 `.slib` container、member、IR capability与strong profile schema不变。summary probe不是新的ArtifactPurpose，也不能调用Compile/Link API。
 
@@ -672,7 +672,7 @@ artifact `sha256`只是snapshot完整性值，不是`ArtifactFingerprint`。后�
 所有explicit/search/prebuilt candidate在graph preflight中先完成第1步；scheduler到达该node且其全部dependency Completed后完成第2～6步：
 
 1. 从snapshot重跑summary，必须与discovery summary逐字段相同；
-2. 使用当前target、profile、已完成trusted core owner proof和C bridge profile分别运行M23-3 self-describing Compile与Link验证；后续profile若要求完整dependency closure，则从已完成dependency的purpose handle构造对应reader输入；
+2. 使用实际 target、profile、C bridge profile 和已检查依赖读取完整产物；共有语义只检查一次，Link 增加真实对象检查，结果保留供后续消费；
 3. 使用第 7 章的完整产物读取结果；
 4. 对同coordinate的全部候选比较实际`ArtifactFingerprint`和semantic/code/runtime-image summary；
 5. 即使fingerprint相同，每个candidate自身也必须通过；一个损坏副本不会因另一个副本有效而被忽略；
@@ -954,7 +954,7 @@ receipt使用canonical Wire CBOR、bounded decode，并从不含fingerprint字�
 4. snapshot `artifact.slib`；
 5. 完整双视图验证；
 6. 比较receipt、artifact、resolved node、target、profile和当前dependency records；receipt的dependency列表按coordinate排序，artifact的列表遵守slib自己的顺序，两者先按同一coordinate顺序比较完整record，不能把表示顺序差异误报为内容不一致；
-7. 构造两份purpose closure；
+7. 保留一个含完整 Compile/Link 数据的依赖闭包；
 8. 成功才返回cache hit并重放warnings。
 
 exact key位置存在但receipt/artifact损坏、缺文件、wrong type、symlink、fingerprint不符或plan不符时返回`CacheEntryCorrupt`，不静默当miss并覆盖证据。M23-4不自动删除；用户或未来cache maintenance可显式清理。旧schema位于不同namespace，按miss处理。
@@ -1163,7 +1163,7 @@ Success response中的identity/fingerprint只作快速cross-check。parent必须
 3. 完整运行Compile/Link双视图；
 4. 用actual artifact结果核对response全部fingerprint；
 5. 再核对resolved graph、source plan、dependency plan和cache key；
-6. 构造两份purpose closure；
+6. 保留一个含完整 Compile/Link 数据的依赖闭包；
 7. 最后才生成receipt并发布cache。
 
 response匹配但artifact无效仍失败；artifact有效但response字段不符也失败。不能“相信更完整的一方”继续。
@@ -1321,12 +1321,11 @@ manifest whitespace/comment改变不会改变normalized semantic cache字段；s
 ### 13.4 dual view与closure
 
 - Compile成功/Link失败不能完成；Link成功/Compile失败不能完成；
-- Graph-only/summary-only类型无法调用completed构造器的compile-fail测试；
-- same bytes两种purpose独立decode；
+- 仅有 Graph/summary 的输入不能代替完整 IR 或 Link 对象；
+- 同一快照的 Compile/Link 共有数据复用，accessor 不重开或重演；
 - missing/extra/stale direct edge、transitive mismatch、wrong target/profile；
 - diamond只保存一份snapshot且closure只含一份identity；
-- Compile closure不能传入Link API，反向同理；
-- scoped view不能逃逸snapshot lifetime的compile-fail测试。
+- 同一产物集合直接提供 Compile/Link 数据，完整结果拥有自己的元数据，不依附原始解码借用。
 
 ### 13.5 cache key
 
@@ -1409,7 +1408,7 @@ sealed recording runner记录`ScoopcInvocation`并返回test-only completed arti
 4. 实现manifest/artifact/search-root locator、claim收敛及negative矩阵；
 5. 实现resolved graph、reserved/kind/version/cycle验证、canonical Kahn和direct/support projection；
 6. 实现source/artifact snapshot、private materialization、全图preflight与TOCTOU测试；
-7. 实现purpose-preserving artifact closure和prebuilt stale-edge验证；
+7. 实现共有完整产物闭包和prebuilt stale-edge验证；
 8. 实现`ConeCompileCacheKeyV1` fixed vectors、receipt、lookup、per-key lock和atomic directory publication；
 9. 在`scoopc`接入隐藏protocol transport入口，并实现production process runner；
 10. 实现serial scheduler、child request构造、response/output/plan交叉验证和warning汇总；

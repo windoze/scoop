@@ -3,7 +3,7 @@ use scoop_identity::{ExactTypeKey, PersistentExactTypeId};
 use scoop_slib::CrossConeTypeDescriptorProjectionError as Error;
 
 pub(super) fn check(
-    closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
+    closure: &scoop_slib::ValidatedCrossConeSemanticClosure,
     core: &Compile<'_, '_>,
     ordinary: &Compile<'_, '_>,
 ) {

@@ -6,7 +6,7 @@ use scoop_mir::{SelectedExternalMirCallable, SelectedExternalMirSet};
 
 use super::{CrossConeLirSelectionProjectionError as Error, ValidatedCrossConeSemanticClosure};
 
-impl ValidatedCrossConeSemanticClosure<'_> {
+impl ValidatedCrossConeSemanticClosure {
     /// Projects the complete MIR selection through the same committed closure.
     pub fn project_dependency_callables_to_lir(
         &self,

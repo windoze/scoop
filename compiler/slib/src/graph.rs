@@ -74,6 +74,56 @@ impl ValidatedGraphArtifact<'_> {
     }
 }
 
+/// Owned manifest data retained after section and object decoding.
+#[derive(Debug)]
+pub(crate) struct ArtifactMetadata {
+    pub(crate) manifest: crate::BootstrapManifest,
+    target: ValidatedLirTargetSelection,
+}
+
+impl From<ValidatedGraphArtifact<'_>> for ArtifactMetadata {
+    fn from(graph: ValidatedGraphArtifact<'_>) -> Self {
+        Self {
+            target: graph.target_selection(),
+            manifest: graph.envelope.into_manifest(),
+        }
+    }
+}
+
+impl ArtifactMetadata {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.manifest.cone().coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.manifest.cone().identity()
+    }
+
+    pub const fn kind(&self) -> ConeKind {
+        self.manifest.cone().kind()
+    }
+
+    pub const fn source_form(&self) -> ConeSourceForm {
+        self.manifest.cone().source_form()
+    }
+
+    pub fn direct_dependencies(&self) -> &[DependencyRecord] {
+        self.manifest.direct_dependencies()
+    }
+
+    pub const fn compatibility(&self) -> &CompatibilityRecord {
+        self.manifest.compatibility()
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target
+    }
+
+    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+        self.manifest.artifact_fingerprint()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GraphValidationError {
     SelfDependency { cone: ConeIdentity },

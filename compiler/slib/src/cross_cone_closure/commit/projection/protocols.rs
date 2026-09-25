@@ -12,7 +12,7 @@ use super::ValidatedCrossConeSemanticClosure;
 mod errors;
 pub use errors::{CrossConeInitializationSelectionError, CrossConeProtocolImportError};
 
-impl ValidatedCrossConeSemanticClosure<'_> {
+impl ValidatedCrossConeSemanticClosure {
     /// Imports only the frontend roles from an already validated provider.
     pub fn import_compiler_protocols(
         &self,

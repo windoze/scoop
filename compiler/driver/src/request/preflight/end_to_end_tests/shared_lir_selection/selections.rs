@@ -7,7 +7,7 @@ use scoop_mir::{SelectedDependencyMirCallableV1 as Record, SelectedExternalMirSe
 use scoop_slib::CrossConeLirSelectionProjectionError as Error;
 
 pub(super) fn check(
-    closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
+    closure: &scoop_slib::ValidatedCrossConeSemanticClosure,
     core: &Compile<'_, '_>,
     ordinary: &Compile<'_, '_>,
 ) {

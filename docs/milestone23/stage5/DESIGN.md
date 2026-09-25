@@ -2270,7 +2270,7 @@ negative：
 1. 先更新language/implementation spec、M23总设计与ROADMAP，冻结新profile、capability和Stage5成功矩阵；
 2. 在identity/HIR meta实现re-export binding的external authority registration与route DTO，不增加新persistent entity id；
 3. 实现`cross-cone-interface/1` wire、canonical validation、default/alias/const与fixed vectors；
-4. 在slib实现新profile、closure-wide atomic identity/surface/route validation和purpose-preserving handles；
+4. 在slib实现新profile、closure-wide atomic identity/surface/route validation和持有完整语义和对象数据的普通产物句柄；
 5. 在HIR建立`ImportedSemanticWorld`、direct/support API隔离和package/static-owner namespace；
 6. 接入exact/star/alias/public import、candidate layers、visibility witness、split package与re-export conflict；
 7. 实现default实例化、alias expander、lookup observation、selected HIR set与stage capability gate；

@@ -412,14 +412,7 @@ SingleConeBuildRequest
   -> current source discovery / parser
 ```
 
-`load_preflight`读取current `Cone.toml`、trusted-core artifact bytes以及全部显式dependency artifact bytes，但不读取
-`src/*.scoop`或single-file正文；显式输入在loaded状态中保留`DirectArtifact(index, path)`或
-`SupportArtifact(index, path)`角色。随后`LoadedSingleConeBuildRequest::validate`必须先为普通分支构造7.4节的
-`ValidatedTrustedCoreArtifact`，再把每个显式artifact独立重开为Compile/Link两种view并完成5.2节的闭包验证；
-bootstrap分支则保留成组产生的self slot且要求显式闭包为空。只有闭包完整有效且manifest dependency与两组参数均
-为空，才产生私有构造的`ValidatedExplicitDependencyInputSet`；闭包有效但非空时稳定返回本节的阶段能力诊断。raw
-request和loaded preflight不暴露current locator getter；只有最终proof能进入current source loader。不存在跳过core或
-dependency proof的兼容parser入口。
+`load_preflight` 读取当前 manifest 和实际依赖产物，不提前读取当前源码正文。依赖按 direct/support 关系进入共有 reader：完整语义数据检查一次，Link 在其上检查真实对象；core 使用相同路径，默认查找位置不授予额外资格。已完成结果供后续源码编译直接消费，不单独构造 trusted-core owner proof，也不为 Compile/Link 分别重开产物。M23-3 的阶段性空依赖限制由 M23-5/6 的实际依赖消费取代；当前实现按实际 manifest、依赖及完整 typed IR 编排。
 
 ### 5.4 child protocol
 

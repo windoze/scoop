@@ -707,11 +707,11 @@ fn foundation_artifact(
     .unwrap()
 }
 
-fn compile<'input>(
-    bytes: &'input [u8],
+fn compile(
+    bytes: &[u8],
     selection: ValidatedLirTargetSelection,
     session: &mut SemanticIdentitySession,
-) -> ValidatedCompileArtifact<'input, IdentityFoundationProfile> {
+) -> ValidatedCompileArtifact<IdentityFoundationProfile> {
     crate::DecodedSlibEnvelope::open(bytes, selection)
         .unwrap()
         .validate_graph()

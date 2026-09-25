@@ -42,7 +42,7 @@ pub use validated::{
 /// Proof that the manifest, explicit artifacts, and their recursive closure
 /// were validated before current-source discovery begins.
 pub struct ValidatedExplicitDependencyInputSet<'input> {
-    closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
+    closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure>,
     dependency_first: Vec<&'input [u8]>,
     direct_dependencies: Vec<scoop_slib::DependencyRecord>,
     _semantic_session: SemanticIdentitySession,
@@ -54,7 +54,7 @@ impl<'input> ValidatedExplicitDependencyInputSet<'input> {
     }
 
     pub(crate) fn new(
-        closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
+        closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure>,
         dependency_first: Vec<&'input [u8]>,
         direct_dependencies: Vec<scoop_slib::DependencyRecord>,
         semantic_session: SemanticIdentitySession,
@@ -67,7 +67,7 @@ impl<'input> ValidatedExplicitDependencyInputSet<'input> {
         }
     }
 
-    pub(crate) fn semantic(&self) -> &scoop_slib::ValidatedCrossConeSemanticClosure<'_> {
+    pub(crate) fn semantic(&self) -> &scoop_slib::ValidatedCrossConeSemanticClosure {
         self.closure.semantic()
     }
 

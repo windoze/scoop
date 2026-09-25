@@ -3,7 +3,7 @@ use scoop_mir::SelectedExternalMirSet as Selection;
 use scoop_slib::{CrossConeInitializationSelectionError as Error, CrossConeProtocolImportError};
 
 pub(super) fn check(
-    closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
+    closure: &scoop_slib::ValidatedCrossConeSemanticClosure,
     core: &Compile<'_, '_>,
     ordinary: &Compile<'_, '_>,
 ) {

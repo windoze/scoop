@@ -91,7 +91,7 @@ pub struct PublishableSingleConeArtifact {
 
 impl PublishableSingleConeArtifact {
     pub fn from_validated_views(
-        compile: &ValidatedCompileArtifact<'_, SingleConeStrongProfile>,
+        compile: &ValidatedCompileArtifact<SingleConeStrongProfile>,
         link: &ValidatedSingleConeStrongLinkArtifact<'_>,
     ) -> Result<Self, PublishViewMismatchError> {
         if compile.artifact_fingerprint() != link.artifact_fingerprint() {
@@ -286,7 +286,7 @@ pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<
     (
-        ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
+        ValidatedCompileArtifact<SingleConeStrongProfile>,
         ValidatedSingleConeStrongLinkArtifact<'input>,
     ),
     PublishableArtifactValidationError,

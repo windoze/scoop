@@ -1,41 +1,23 @@
-//! Purpose-preserving artifact closure authority for an exact resolved graph.
+//! Complete artifacts and dependency edges for an exact resolved graph.
 
 mod authority;
 mod completion;
 mod error;
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::rc::Rc;
 
-use scoop_identity::{
-    ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity, SemanticIdentitySession,
-};
+use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_slib::{
-    ArtifactFingerprint, ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError,
-    CrossConeSemanticsStrongProfile, DependencyRecord, ValidatedCompileArtifact,
-    ValidatedCompletedCrossConeArtifactClosure, ValidatedCrossConeStrongLinkArtifact,
-    validate_completed_cross_cone_artifact_closure,
-};
+use scoop_slib::{ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord};
 
-pub use authority::{
-    CrossConeArtifactValidationError, CrossConePurposeArtifactHandle,
-    ValidatedCrossConeArtifactHandle,
-};
+pub use authority::{CrossConeArtifactValidationError, ValidatedCrossConeArtifactHandle};
 pub use completion::{
     CompiledCompletionError, CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError,
     PrivateArtifactPath,
 };
 pub(crate) use completion::{complete_compiled_candidate, complete_prebuilt_candidates};
 pub use error::{ArtifactClosureValidationError, ArtifactPlanField};
-
-/// Selects the declaration and type data consumed while compiling.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct CompileArtifactPurpose;
-
-/// Selects the checked object and symbol data consumed while linking.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct LinkArtifactPurpose;
 
 #[derive(Clone, Debug)]
 pub(crate) struct PlannedArtifactNode {
@@ -82,9 +64,7 @@ impl PlannedArtifactEdge {
     }
 }
 
-/// Immutable projection of the exact resolved graph used to validate artifact
-/// closures. It contains no artifact bytes and grants no Compile or Link
-/// authority by itself.
+/// Immutable dependency plan used to match artifacts to the resolved graph.
 #[derive(Clone, Debug)]
 pub struct ArtifactClosurePlan {
     root: ConeIdentity,
@@ -130,13 +110,12 @@ impl ArtifactClosurePlan {
         self.target
     }
 
-    /// Validates one completed root and its transitive dependency artifacts,
-    /// then projects two independently typed closures from the dual handles.
+    /// Matches completed artifacts to one root and its transitive dependencies.
     pub fn validate(
         &self,
         root: ConeIdentity,
-        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
-    ) -> Result<ValidatedDualArtifactClosure, ArtifactClosureValidationError> {
+        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
+    ) -> Result<ValidatedArtifactClosure, ArtifactClosureValidationError> {
         if !self.nodes.contains_key(&root) {
             return Err(ArtifactClosureValidationError::UnknownRoot(root));
         }
@@ -154,35 +133,15 @@ impl ArtifactClosurePlan {
         }
         self.validate_dependency_first(&reachable, &order)?;
 
-        let mut compile = BTreeMap::new();
-        let mut link = BTreeMap::new();
-        for identity in &order {
-            let artifact = Arc::clone(&artifacts[identity]);
-            compile.insert(
-                *identity,
-                CrossConePurposeArtifactHandle::<CompileArtifactPurpose>::from_validated(
-                    Arc::clone(&artifact),
-                ),
-            );
-            link.insert(
-                *identity,
-                CrossConePurposeArtifactHandle::<LinkArtifactPurpose>::from_validated(artifact),
-            );
-        }
-        let edges = self.validated_edges(&reachable);
-        Ok(ValidatedDualArtifactClosure {
-            compile: ValidatedArtifactClosure {
-                root,
-                order: order.clone(),
-                artifacts: compile,
-                edges: edges.clone(),
-            },
-            link: ValidatedArtifactClosure {
-                root,
-                order,
-                artifacts: link,
-                edges,
-            },
+        let retained = order
+            .iter()
+            .map(|identity| (*identity, Rc::clone(&artifacts[identity])))
+            .collect();
+        Ok(ValidatedArtifactClosure {
+            root,
+            order,
+            artifacts: retained,
+            edges: self.validated_edges(&reachable),
         })
     }
 
@@ -212,7 +171,7 @@ impl ArtifactClosurePlan {
         &self,
         identity: ConeIdentity,
         artifact: &ValidatedCrossConeArtifactHandle,
-        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         self.validate_artifact_shape(identity, artifact)?;
         self.validate_dependencies(
@@ -289,7 +248,7 @@ impl ArtifactClosurePlan {
         &self,
         dependent: ConeIdentity,
         records: &[DependencyRecord],
-        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         let expected = &self.direct[&dependent];
         let expected_by_identity: BTreeMap<_, _> = expected
@@ -363,7 +322,7 @@ impl ArtifactClosurePlan {
     fn validate_versions(
         &self,
         reachable: &BTreeSet<ConeIdentity>,
-        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         let mut versions = BTreeMap::<(String, String), String>::new();
         for identity in reachable {
@@ -441,17 +400,16 @@ impl ValidatedDependencyEdge {
     }
 }
 
-/// A non-empty, dependency-first closure whose handles retain their purpose in
-/// the Rust type. It has no public constructor.
+/// A dependency-first collection of complete immutable artifact results.
 #[derive(Clone, Debug)]
-pub struct ValidatedArtifactClosure<P> {
+pub struct ValidatedArtifactClosure {
     root: ConeIdentity,
     order: Vec<ConeIdentity>,
-    artifacts: BTreeMap<ConeIdentity, CrossConePurposeArtifactHandle<P>>,
+    artifacts: BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
     edges: BTreeSet<ValidatedDependencyEdge>,
 }
 
-impl<P> ValidatedArtifactClosure<P> {
+impl ValidatedArtifactClosure {
     pub const fn root(&self) -> ConeIdentity {
         self.root
     }
@@ -460,114 +418,20 @@ impl<P> ValidatedArtifactClosure<P> {
         &self.order
     }
 
-    pub fn artifact(&self, identity: ConeIdentity) -> Option<&CrossConePurposeArtifactHandle<P>> {
-        self.artifacts.get(&identity)
+    pub fn artifact(&self, identity: ConeIdentity) -> Option<&ValidatedCrossConeArtifactHandle> {
+        self.artifacts.get(&identity).map(Rc::as_ref)
     }
 
     pub fn artifacts(
         &self,
-    ) -> impl ExactSizeIterator<Item = (ConeIdentity, &CrossConePurposeArtifactHandle<P>)> {
+    ) -> impl ExactSizeIterator<Item = (ConeIdentity, &ValidatedCrossConeArtifactHandle)> {
         self.order
             .iter()
-            .map(|identity| (*identity, &self.artifacts[identity]))
+            .map(|identity| (*identity, self.artifacts[identity].as_ref()))
     }
 
     pub fn edges(&self) -> impl ExactSizeIterator<Item = ValidatedDependencyEdge> + '_ {
         self.edges.iter().copied()
-    }
-
-    fn with_completed_closure<R>(
-        &self,
-        identity: ConeIdentity,
-        use_closure: impl for<'view> FnOnce(&ValidatedCompletedCrossConeArtifactClosure<'view>) -> R,
-    ) -> Result<Option<R>, CrossConeArtifactClosureValidationError> {
-        let Some(current) = self.artifact(identity) else {
-            return Ok(None);
-        };
-        let mut reachable = BTreeSet::new();
-        let mut pending = vec![identity];
-        while let Some(dependent) = pending.pop() {
-            if !reachable.insert(dependent) {
-                continue;
-            }
-            pending.extend(
-                self.edges
-                    .iter()
-                    .filter(|edge| edge.dependent == dependent)
-                    .map(|edge| edge.dependency),
-            );
-        }
-        let dependency_first = self
-            .order
-            .iter()
-            .filter(|candidate| reachable.contains(candidate) && **candidate != identity)
-            .map(|dependency| self.artifacts[dependency].snapshot().as_bytes())
-            .collect::<Vec<_>>();
-        let mut direct = self
-            .edges
-            .iter()
-            .filter(|edge| edge.dependent == identity)
-            .map(|edge| edge.dependency)
-            .collect::<Vec<_>>();
-        direct.sort_unstable();
-        let mut session = SemanticIdentitySession::new();
-        let closure = validate_completed_cross_cone_artifact_closure(
-            identity,
-            current.publication().target_selection(),
-            direct,
-            dependency_first,
-            current.snapshot().as_bytes(),
-            current.c_bridge_profile(),
-            &mut session,
-        )?;
-        Ok(Some(use_closure(&closure)))
-    }
-}
-
-impl ValidatedArtifactClosure<CompileArtifactPurpose> {
-    pub fn with_view<R>(
-        &self,
-        identity: ConeIdentity,
-        use_view: impl for<'view> FnOnce(
-            &ValidatedCompileArtifact<'view, CrossConeSemanticsStrongProfile>,
-        ) -> R,
-    ) -> Result<Option<R>, CrossConeArtifactClosureValidationError> {
-        self.with_completed_closure(identity, |closure| use_view(closure.current_compile()))
-    }
-}
-
-impl ValidatedArtifactClosure<LinkArtifactPurpose> {
-    pub fn with_view<R>(
-        &self,
-        identity: ConeIdentity,
-        use_view: impl for<'view> FnOnce(&ValidatedCrossConeStrongLinkArtifact<'view>) -> R,
-    ) -> Result<Option<R>, CrossConeArtifactClosureValidationError> {
-        self.with_completed_closure(identity, |closure| use_view(closure.current_link()))
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ValidatedDualArtifactClosure {
-    compile: ValidatedArtifactClosure<CompileArtifactPurpose>,
-    link: ValidatedArtifactClosure<LinkArtifactPurpose>,
-}
-
-impl ValidatedDualArtifactClosure {
-    pub const fn compile(&self) -> &ValidatedArtifactClosure<CompileArtifactPurpose> {
-        &self.compile
-    }
-
-    pub const fn link(&self) -> &ValidatedArtifactClosure<LinkArtifactPurpose> {
-        &self.link
-    }
-
-    pub fn into_parts(
-        self,
-    ) -> (
-        ValidatedArtifactClosure<CompileArtifactPurpose>,
-        ValidatedArtifactClosure<LinkArtifactPurpose>,
-    ) {
-        (self.compile, self.link)
     }
 }
 

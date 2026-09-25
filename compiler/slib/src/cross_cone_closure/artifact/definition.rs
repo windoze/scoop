@@ -16,7 +16,7 @@ use super::{
 use crate::{LinkDefinitionOwnerV1, StrongDefinitionOwnerV1, ValidatedCrossConeStrongLinkArtifact};
 
 pub(super) fn validate_terminal_definitions(
-    links: &[ValidatedCrossConeStrongLinkArtifact<'_>],
+    links: &[ValidatedCrossConeStrongLinkArtifact],
     positions: &BTreeMap<ConeIdentity, usize>,
 ) -> Result<(), CrossConeArtifactClosureValidationError> {
     for consumer in links {
@@ -40,7 +40,7 @@ pub(super) fn validate_terminal_definitions(
 fn validate_terminal_definition(
     consumer: ConeIdentity,
     import: &crate::CrossConeLinkSemanticImportV1,
-    provider: &ValidatedCrossConeStrongLinkArtifact<'_>,
+    provider: &ValidatedCrossConeStrongLinkArtifact,
 ) -> Result<(), CrossConeDefinitionResolutionError> {
     let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(import.target()))
         .map_err(CrossConeDefinitionResolutionError::Identity)?;

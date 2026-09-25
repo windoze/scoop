@@ -7,7 +7,7 @@ use scoop_identity::SemanticOriginFingerprint;
 use super::ValidatedCrossConeSemanticClosure;
 use crate::{CrossConeSemanticsStrongProfile, ValidatedCompileArtifact};
 
-impl ValidatedCrossConeSemanticClosure<'_> {
+impl ValidatedCrossConeSemanticClosure {
     /// Projects this atomically committed closure into HIR's immutable,
     /// role-separated semantic world. Support artifacts are supplied through
     /// a distinct input type and therefore cannot acquire binding enumeration
@@ -53,7 +53,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
 }
 
 pub(super) fn provider_certificate(
-    artifact: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
+    artifact: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
 ) -> ImportedProviderCertificate {
     let semantic = artifact.semantic_fingerprints();
     ImportedProviderCertificate::from_validated(

@@ -5,11 +5,11 @@ use crate::{CrossConeSemanticsStrongProfile, PublishViewMismatchError, Validated
 
 pub fn validate_cross_cone_strong_link_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
-    compile: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
+    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
     validate_compile_view(&graph, compile)?;
     cross_cone::validate_cross_cone_strong_link_parts(
         graph,
@@ -23,10 +23,10 @@ pub fn validate_cross_cone_strong_link_artifact<'input>(
 
 pub fn validate_self_describing_cross_cone_strong_link_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
-    compile: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
+    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
     validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
         graph,
         std::iter::empty(),
@@ -42,10 +42,10 @@ pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_auth
 >(
     graph: ValidatedGraphArtifact<'input>,
     external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
-    compile: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
+    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
     validate_compile_view(&graph, compile)?;
     cross_cone::validate_self_describing_cross_cone_strong_link_parts(
         graph,
@@ -59,7 +59,7 @@ pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_auth
 
 fn validate_compile_view(
     graph: &ValidatedGraphArtifact<'_>,
-    compile: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
+    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
 ) -> Result<(), StrongLinkArtifactValidationError> {
     use PublishViewMismatchError as Error;
     let mismatch =
