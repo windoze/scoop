@@ -11,8 +11,20 @@ use crate::{
 };
 
 mod boxing;
+mod shapes;
 
 impl SelectedDependencyLayoutAbiSetV1<'_> {
+    /// Materializes only the source descriptor or one of its finite helpers.
+    pub fn materialize_shape_type_descriptor(
+        &self,
+        provider: ConeIdentity,
+        source: scoop_identity::PersistentTypeId,
+        exact: PersistentExactTypeId,
+        meter: &mut BudgetMeter,
+    ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
+        shapes::materialize(self, provider, source, exact, meter)
+    }
+
     /// Refines an imported helper from the complete source shape and physical
     /// descriptor contract selected for this consumer.
     pub fn materialize_boxed_value_descriptor(
@@ -61,6 +73,25 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
 }
 
 impl StrongProductionDependencySelectionV2<'_> {
+    pub fn selected_shape_support(
+        &self,
+        provider: ConeIdentity,
+        source: scoop_identity::PersistentTypeId,
+        meter: &mut BudgetMeter,
+    ) -> Result<Option<&crate::ParamFreeShapeSupportExportV1>, scoop_wire::WireError> {
+        shapes::selected(self, provider, source, meter)
+    }
+
+    pub fn materialize_shape_type_descriptor(
+        &self,
+        provider: ConeIdentity,
+        source: scoop_identity::PersistentTypeId,
+        exact: PersistentExactTypeId,
+        meter: &mut BudgetMeter,
+    ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
+        shapes::materialize(self, provider, source, exact, meter)
+    }
+
     pub fn materialize_boxed_value_descriptor(
         &self,
         provider: ConeIdentity,
@@ -301,6 +332,10 @@ pub enum LayoutExternalMaterializationError {
         source: scoop_identity::PersistentTypeId,
     },
     UnavailableBoxedValue(scoop_identity::PersistentTypeId),
+    UnavailableShapeDescriptor {
+        source: scoop_identity::PersistentTypeId,
+        exact: PersistentExactTypeId,
+    },
     BoxDescriptor(crate::BoxDescriptorError),
     MissingCallable {
         provider: ConeIdentity,

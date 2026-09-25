@@ -5,7 +5,7 @@ pub(super) fn with_mir(
     target: &scoop_toolchain::ResolvedTargetProfile,
     core_bytes: &[u8],
     source: &str,
-    inspect: impl FnOnce(scoop_mir_lower::MirTypeBridgeExportInputV1<'_>),
+    inspect: impl FnOnce(scoop_mir_lower::MirTypeBridgeExportInputV1<'_>, &lir::SelectedExternalLirSet),
 ) {
     let root = sysroot.join("shape-consumer");
     write_manifest_cone(&root, "dev.example", "shape-consumer", "library", source);
@@ -37,6 +37,9 @@ pub(super) fn with_mir(
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();
     let mir = hir.machine_input().lower_selected_mir(selected).unwrap();
+    let callables = closure
+        .project_dependency_callables_to_lir(&mir.selected_callables)
+        .unwrap();
     let core = DecodedSlibEnvelope::open(
         core_bytes,
         DecodeLimits::default(),
@@ -71,13 +74,16 @@ pub(super) fn with_mir(
         &mut meter(),
     )
     .unwrap();
-    inspect(scoop_mir_lower::MirTypeBridgeExportInputV1 {
-        hir: &hir.hir,
-        public: &hir.cross_cone_section,
-        source: &source,
-        mir: &mir.strong,
-        ordinary: &mir.public,
-        nominal_classifier: &hir.nominal_classifier,
-        identities: &identities,
-    });
+    inspect(
+        scoop_mir_lower::MirTypeBridgeExportInputV1 {
+            hir: &hir.hir,
+            public: &hir.cross_cone_section,
+            source: &source,
+            mir: &mir.strong,
+            ordinary: &mir.public,
+            nominal_classifier: &hir.nominal_classifier,
+            identities: &identities,
+        },
+        &callables,
+    );
 }

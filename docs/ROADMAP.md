@@ -224,6 +224,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 新增 `cross-cone-layout-strong/1` profile 及 HIR type/inheritance、MIR type bridge、LIR layout/ABI、Link-only layout-use closure 四条 section，strong-production/5 升级为 /6。退役独立 HIR source-authority 草案，将完整声明、表示、参数/default 和实际 selected use 合入共有 metadata；producer 与 bytes-only reader 共用 identity、访问、依赖、ABI/layout、预算及 object 校验。源码接口保留完整声明，机器接口按实际物化闭包执行 M23-7/10 gate，core 与普通 library 相同。旧capability语义不改，三层outer schema仍为1。旧core和M23-5 callable分区保持，新增general type/dispatch物理use形成第三个互斥分区。生产仍拒绝全部ODR；generic/structural表示矩阵使用内部typed/单image harness验证，其独立物化留M23-7。
 - 已补齐实际 Box/Unbox/is/as 的共有 HIR 形状根查询、MIR/LIR selected 递归重放，以及提供方 Unit/Any 的有限 helper 发布；独立、组合、缺项、额外依赖、错误 provider 与累计预算测试覆盖同一共有路径。跨 Cone 机器消费、逐次访问和初始化用途、最终 Compile/Link 闭包继续作为阶段完成门。
 - 已接通 LIR/codegen 的外来 boxed descriptor 引用：完整 layout/ABI 选择集核验 source ShapeSupport、helper 与物理导入，ZST/非零 payload 通过同一 typed descriptor 引用发射；真实提供方的独立/组合 LIR golden、LLVM、对象发射与资格/绑定/预算反例已覆盖。源代码跨 Cone 装箱及最终双 view 闭包仍继续验收。
+- 已将 MIR 有限 helper 按 source exact 的实际 provider 分为本地定义与依赖引用，并接入完整 layout 选择的 LIR 消费入口。真实源码的 Int 装箱/拆箱、Unit 零尺寸装箱、String 类型测试和 default 组合已通过 MIR/LIR golden、LLVM 与对象发射验证；缺失选择、错误 provider/物理导入、裸描述符与预算反例同路径拒绝。普通 CLI 的 layout profile、访问/初始化用途及 Compile/Link 双 view 发布继续闭合。
 - 完成compiler/layout/object级ZST与ABI矩阵；真实多Cone链接后的moving-GC留M23-9/M23-11总验收。
 
 ### M23-7 跨Cone generic、ODR与generic delegated extension

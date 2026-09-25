@@ -2,7 +2,7 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId};
 use scoop_lir::*;
 use scoop_wire::BudgetMeter;
 
-use super::{boxed_exact, meter};
+use super::meter;
 
 /// Test source uses taken from real producer shape records. It authorizes
 /// only the LIR harness; it does not stand in for a Compile source reader.
@@ -36,7 +36,9 @@ impl Source {
             .map(|shape| {
                 (
                     provider,
-                    ExternalStrongShapeSubjectV1::TypeDescriptor(boxed_exact(shape)),
+                    ExternalStrongShapeSubjectV1::TypeDescriptor(
+                        shape.roles().boxed_value().available().unwrap().exact(),
+                    ),
                 )
             })
             .collect::<Vec<_>>();

@@ -8,7 +8,7 @@ use super::meter;
 
 mod consumer;
 mod rejections;
-mod selection;
+use super::machine_selection as selection;
 
 pub(super) fn check(
     name: &str,

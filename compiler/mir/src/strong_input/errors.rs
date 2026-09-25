@@ -58,6 +58,15 @@ pub enum SingleConeStrongMirInputError {
     MissingCallableSubject(FunctionId),
     OdrCallableSubject(FunctionId),
     OdrGeneratedNominalShape(GeneratedExactTypeLocation),
+    ForeignGeneratedHelperCallable(GeneratedExactTypeLocation),
+    MissingGeneratedSourceExact {
+        location: GeneratedExactTypeLocation,
+        exact: PersistentExactTypeId,
+    },
+    InvalidGeneratedSourceOwner {
+        location: GeneratedExactTypeLocation,
+        exact: PersistentExactTypeId,
+    },
     MissingShapeSupportSource {
         source: PersistentTypeId,
         exact: PersistentExactTypeId,
@@ -109,6 +118,9 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::MissingCallableSubject(_)
             | Self::OdrCallableSubject(_)
             | Self::OdrGeneratedNominalShape(_)
+            | Self::ForeignGeneratedHelperCallable(_)
+            | Self::MissingGeneratedSourceExact { .. }
+            | Self::InvalidGeneratedSourceOwner { .. }
             | Self::MissingShapeSupportSource { .. }
             | Self::MissingBoxedValue(_)
             | Self::MissingCoroutineStep(_)

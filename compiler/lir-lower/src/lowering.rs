@@ -12,6 +12,8 @@ pub(super) fn lower_graph(
     runtime_string: RuntimeStringDescriptor,
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
+    selected_layout: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
+    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<LoweredModule, StrongLirLoweringError> {
     let module = input.module();
     module
@@ -19,7 +21,16 @@ pub(super) fn lower_graph(
         .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
     let context = LoweringContext::new(target_profile);
     let identity_roots = IdentityRoots::new(input);
-    validate_strong_materialization(input, &identity_roots)
+    let (mut external_type_descriptors, imported_runtime_string) =
+        lower_runtime_string(input, runtime_string)?;
+    let dependency_types = dependency_types::lower(
+        input,
+        target_profile,
+        selected_layout,
+        &mut external_type_descriptors,
+        meter,
+    )?;
+    validate_strong_materialization(input, &identity_roots, &dependency_types)
         .map_err(StrongLirLoweringError::Capability)?;
     // Every string selected by the sealed materialization plan becomes a
     // global with the same typed identity.
@@ -48,8 +59,6 @@ pub(super) fn lower_graph(
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums)?;
-    let (external_type_descriptors, imported_runtime_string) =
-        lower_runtime_string(input, runtime_string)?;
     let (external_callables, external_callable_map) =
         lower_external_callables(&context, input, selected_callables, &structs, &enums)?;
     let native_abi = native_abi::lower(
@@ -182,6 +191,7 @@ pub(super) fn lower_graph(
         &enums,
         &local_function_map,
         imported_runtime_string,
+        dependency_types,
     )?;
     let (arrays, array_type_map) = array_types(
         &context,

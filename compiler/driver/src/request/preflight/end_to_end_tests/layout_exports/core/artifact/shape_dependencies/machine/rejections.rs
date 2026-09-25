@@ -1,0 +1,178 @@
+use super::*;
+use scoop_lir_lower::{RuntimeStringDescriptor, StrongLirLoweringError as Error};
+
+pub(super) fn check(
+    input: &mir::SingleConeStrongMirInput,
+    callables: &lir::SelectedExternalLirSet,
+    diagnostics: &ExactTypeDiagnosticCatalog<'_>,
+    string: RuntimeStringDescriptor,
+    selected: &lir::StrongProductionDependencySelectionV2<'_>,
+    source: &Source,
+    provider: Provider<'_, '_>,
+) {
+    let lower = |selection: &lir::StrongProductionDependencySelectionV2<'_>,
+                 meter: &mut scoop_wire::BudgetMeter| {
+        scoop_lir_lower::lower_with_layout_dependencies(
+            input,
+            string,
+            callables,
+            provider.target.lir_target(),
+            selection,
+            diagnostics,
+            meter,
+        )
+    };
+    let absent = Source {
+        roots: vec![],
+        physical: vec![],
+    };
+    for owner in [input.module().cone, provider.layout.provider()] {
+        let empty = lir::StrongProductionDependencySelectionV2::try_new(
+            owner,
+            provider.target.lir_target(),
+            &[],
+            vec![],
+            &absent,
+            &mut meter(),
+        )
+        .unwrap();
+        let error = lower(&empty, &mut meter()).err().unwrap();
+        if owner == input.module().cone {
+            assert!(
+                matches!(
+                    error,
+                    Error::DependencyLayout(
+                        lir::LayoutExternalMaterializationError::MissingShapeSupport { .. }
+                    )
+                ),
+                "{error}"
+            );
+        } else {
+            assert!(
+                matches!(error, Error::DependencyLayoutConsumer { .. }),
+                "{error}"
+            );
+        }
+    }
+    let root = input
+        .materialization()
+        .dependency_generated_nominal_shapes()[0];
+    let subject = lir::ExternalStrongShapeSubjectV1::TypeDescriptor(root.exact());
+    let missing = Source {
+        roots: source.roots.clone(),
+        physical: source
+            .physical
+            .iter()
+            .copied()
+            .filter(|(_, item)| *item != subject)
+            .collect(),
+    };
+    let imports = selected
+        .physical_imports()
+        .records()
+        .iter()
+        .filter(|import| import.subject() != subject)
+        .cloned()
+        .collect();
+    let incomplete = lir::StrongProductionDependencySelectionV2::try_new(
+        input.module().cone,
+        provider.target.lir_target(),
+        &[provider.layout],
+        imports,
+        &missing,
+        &mut meter(),
+    )
+    .unwrap();
+    assert!(
+        matches!(lower(&incomplete, &mut meter()), Err(Error::DependencyLayout(
+        lir::LayoutExternalMaterializationError::MissingPhysicalImport { subject: found, .. }
+    )) if found == subject)
+    );
+
+    let descriptor_only = Source {
+        roots: source
+            .physical
+            .iter()
+            .map(|(owner, subject)| {
+                let lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = subject else {
+                    panic!("these fixtures only import type descriptors")
+                };
+                lir::LayoutAbiDependencyV1::new(
+                    *owner,
+                    lir::LayoutAbiSemanticTargetV1::Descriptor(*exact),
+                )
+            })
+            .collect(),
+        physical: source.physical.clone(),
+    };
+    let unqualified = lir::StrongProductionDependencySelectionV2::try_new(
+        input.module().cone,
+        provider.target.lir_target(),
+        &[provider.layout],
+        selected.physical_imports().records().to_vec(),
+        &descriptor_only,
+        &mut meter(),
+    )
+    .unwrap();
+    assert!(matches!(
+        lower(&unqualified, &mut meter()),
+        Err(Error::DependencyLayout(
+            lir::LayoutExternalMaterializationError::MissingShapeSupport { .. }
+        ))
+    ));
+    let reference_source = provider
+        .layout
+        .shape_support()
+        .records()
+        .iter()
+        .find(|shape| shape.exact() == provider.string)
+        .unwrap()
+        .source_nominal();
+    let reference_root = lir::LayoutAbiDependencyV1::new(
+        provider.layout.provider(),
+        lir::LayoutAbiSemanticTargetV1::ShapeSupport(reference_source),
+    );
+    if source.roots.contains(&reference_root) {
+        let runtime_only = Source {
+            roots: source
+                .roots
+                .iter()
+                .copied()
+                .filter(|root| *root != reference_root)
+                .collect(),
+            physical: source.physical.clone(),
+        };
+        let unqualified = lir::StrongProductionDependencySelectionV2::try_new(
+            input.module().cone,
+            provider.target.lir_target(),
+            &[provider.layout],
+            selected.physical_imports().records().to_vec(),
+            &runtime_only,
+            &mut meter(),
+        )
+        .unwrap();
+        assert!(
+            matches!(lower(&unqualified, &mut meter()), Err(Error::Capability(error))
+            if error.requirement() == &scoop_lir_lower::StrongLirMaterializationRequirement::TypeDescriptor(mir::Type::String))
+        );
+    }
+    assert!(matches!(
+        selected.materialize_shape_type_descriptor(
+            root.provider(),
+            root.source(),
+            provider.string,
+            &mut meter(),
+        ),
+        Err(lir::LayoutExternalMaterializationError::UnavailableShapeDescriptor { .. })
+    ));
+    let mut exhausted = scoop_wire::BudgetMeter::new(DecodeLimits {
+        validation_work_units: 0,
+        ..DecodeLimits::default()
+    });
+    assert!(matches!(
+        lower(selected, &mut exhausted),
+        Err(Error::DependencyLayout(
+            lir::LayoutExternalMaterializationError::Resource(_)
+        ))
+    ));
+}

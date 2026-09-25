@@ -167,6 +167,7 @@ pub use runtime_string::RuntimeStringDescriptor;
 use runtime_string::lower_runtime_string;
 mod external_callables;
 use external_callables::lower_external_callables;
+mod dependency_types;
 
 mod strong_production_v2;
 pub use strong_production_v2::{
@@ -175,7 +176,7 @@ pub use strong_production_v2::{
 
 mod lower_profile;
 mod lowering;
-pub use lower_profile::{lower, lower_with_diagnostics};
+pub use lower_profile::{lower, lower_with_diagnostics, lower_with_layout_dependencies};
 
 mod abi;
 mod callbacks;

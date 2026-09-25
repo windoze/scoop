@@ -12,6 +12,20 @@ pub(crate) use storage::StorageResult;
 #[derive(Debug)]
 pub enum StrongLirLoweringError {
     Capability(StrongLirCapabilityError),
+    DependencyLayout(lir::LayoutExternalMaterializationError),
+    DependencyLayoutConsumer {
+        expected: scoop_identity::ConeIdentity,
+        actual: scoop_identity::ConeIdentity,
+    },
+    DependencyLayoutTarget {
+        expected: lir::LirTargetProfile,
+        actual: lir::LirTargetProfile,
+    },
+    MissingDependencyLayoutSelection {
+        provider: scoop_identity::ConeIdentity,
+        exact: scoop_identity::PersistentExactTypeId,
+    },
+    DependencyDescriptorBinding(scoop_identity::PersistentExactTypeId),
     Diagnostic(scoop_identity::ExactTypeDiagnosticError),
     StorageReplay(StorageLoweringError),
     RuntimeStringProviderMismatch {
@@ -72,6 +86,23 @@ impl fmt::Display for StrongLirLoweringError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Capability(source) => source.fmt(formatter),
+            Self::DependencyLayout(source) => source.fmt(formatter),
+            Self::DependencyLayoutConsumer { expected, actual } => write!(
+                formatter,
+                "layout selection belongs to consumer {actual}, expected {expected}",
+            ),
+            Self::DependencyLayoutTarget { expected, actual } => write!(
+                formatter,
+                "layout selection target {actual:?} differs from {expected:?}",
+            ),
+            Self::MissingDependencyLayoutSelection { provider, exact } => write!(
+                formatter,
+                "dependency helper {exact} from {provider} requires a complete layout selection",
+            ),
+            Self::DependencyDescriptorBinding(exact) => write!(
+                formatter,
+                "dependency descriptor {exact} disagrees with its MIR or external arena binding",
+            ),
             Self::Diagnostic(source) => source.fmt(formatter),
             Self::StorageReplay(source) => source.fmt(formatter),
             Self::ExternalCallable(source) => source.fmt(formatter),
@@ -151,12 +182,17 @@ impl std::error::Error for StrongLirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Capability(source) => Some(source),
+            Self::DependencyLayout(source) => Some(source),
             Self::Diagnostic(source) => Some(source),
             Self::StorageReplay(source) => Some(source),
             Self::ExternalCallable(source) => Some(source),
             Self::CallableAbi(source) => Some(source),
             Self::Output(source) => Some(source),
             Self::InvalidInitializationCallable(_)
+            | Self::DependencyLayoutConsumer { .. }
+            | Self::DependencyLayoutTarget { .. }
+            | Self::MissingDependencyLayoutSelection { .. }
+            | Self::DependencyDescriptorBinding(_)
             | Self::RuntimeStringProviderMismatch { .. }
             | Self::RuntimeStringExactMismatch { .. }
             | Self::ForeignExternalLirSelection { .. }

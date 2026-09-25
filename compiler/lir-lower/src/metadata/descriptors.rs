@@ -103,6 +103,7 @@ pub(crate) fn type_descriptors(
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
     imported_runtime_string: Option<lir::TypeDescriptorRef>,
+    dependencies: crate::dependency_types::DependencyTypeDescriptors,
 ) -> Result<
     (
         Arena<lir::TypeDescriptor>,
@@ -114,8 +115,28 @@ pub(crate) fn type_descriptors(
     let mut descriptors = Arena::new();
     let mut refs = TypeDescriptorRefs {
         string: imported_runtime_string,
+        boxed: dependencies.boxed,
         ..TypeDescriptorRefs::default()
     };
+    for (ty, reference) in dependencies.source {
+        match ty {
+            mir::Type::Class(id) => {
+                refs.classes.insert(id, reference);
+            }
+            mir::Type::Interface(id) => {
+                refs.interfaces.insert(id, reference);
+            }
+            mir::Type::String => {
+                refs.string = Some(reference);
+            }
+            _ => unreachable!("only reference nominals have direct source descriptor imports"),
+        }
+    }
+    for (location, reference) in dependencies.generated {
+        if let mir::GeneratedExactTypeLocation::Class(id) = location {
+            refs.classes.insert(id, reference);
+        }
+    }
     for (interface, def) in module.interfaces.iter() {
         let ty = mir::Type::Interface(interface);
         if !identity_roots.materializes_type(&ty) {
@@ -257,6 +278,9 @@ pub(crate) fn type_descriptors(
         )?);
     }
     for boxed in &module.meta.boxed_types {
+        if !identity_roots.materializes_type(&mir::Type::Class(boxed.class())) {
+            continue;
+        }
         let Some(descriptor) = refs.classes.get(&boxed.class()).copied() else {
             continue;
         };

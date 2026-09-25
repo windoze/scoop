@@ -10,6 +10,12 @@ impl Lowerer {
     pub(crate) fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
         let class_id = self.boxed.order[index];
         let payload = self.classes[class_id].declared_fields()[0].ty.clone();
+        if matches!(
+            self.source_exact_types.get(&payload).map(|source| source.owner()),
+            Some(mir::SourceExactTypeOwner::Cone(provider)) if provider != module.cone
+        ) {
+            return;
+        }
         let payload_name = mir::type_name(&self.shell, &payload);
         debug_assert!(self.classes[class_id].vtable.is_empty());
         let interfaces = self.classes[class_id].interfaces.clone();

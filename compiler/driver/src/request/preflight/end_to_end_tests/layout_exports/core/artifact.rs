@@ -3,6 +3,7 @@ use super::*;
 mod bytes;
 mod external_boxing;
 mod lir_dependencies;
+mod machine_selection;
 mod mir_constructors;
 mod mir_dispatch;
 mod mir_equality;
@@ -48,6 +49,22 @@ pub(super) fn check(
         objects.production(),
     );
     external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
+    if name == "base" {
+        let provider = lir::ShapeLinkProviderV1::try_new(
+            lir::ShapeLinkProviderPartsV1 {
+                foundation: lir.foundation(),
+                production: lir::ShapeLinkProductionV1::Reader(objects.production()),
+                ordinary: &ordinary,
+                layouts: layout.layouts(),
+                callables: layout.callables(),
+                descriptors: layout.descriptors(),
+                dispatch: layout.dispatch(),
+            },
+            &mut meter(),
+        )
+        .unwrap();
+        shape_dependencies::check(provider, mir_section, layout);
+    }
     let generated =
         scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();
@@ -89,6 +106,5 @@ pub(super) fn check(
     );
     if name == "base" {
         lir_dependencies::check(&artifact, mir_section, layout);
-        shape_dependencies::check(&artifact, mir_section, layout);
     }
 }

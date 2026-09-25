@@ -9,14 +9,15 @@ use scoop_identity::{
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
     EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId, FunctionId,
-    GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId, InitializationUnitId, MirOutput,
-    Module, ObjectId, OdrFreeMirFoundation, SelectedExternalMirSet, SourceExactTypeOwner,
-    StringConstId, Type,
+    GeneratedExactTypeLocation, GlobalId, InitializationUnitId, MirOutput, Module, ObjectId,
+    OdrFreeMirFoundation, SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
 };
 
 mod errors;
 pub use errors::*;
+mod generated_shapes;
 mod initialization;
+pub use generated_shapes::StrongDependencyGeneratedNominalShapeRoot;
 #[cfg(test)]
 pub(crate) use initialization::initialization_test_input;
 pub use initialization::{
@@ -142,6 +143,7 @@ pub struct SingleConeStrongMaterializationPlan {
     external_callable_roots: Vec<StrongExternalCallableRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
+    dependency_generated_nominal_shapes: Vec<StrongDependencyGeneratedNominalShapeRoot>,
     shape_support: Vec<StrongSourceShapeSupportRoot>,
     extern_functions: Vec<ExternFunctionId>,
     globals: Vec<GlobalId>,
@@ -172,6 +174,12 @@ impl SingleConeStrongMaterializationPlan {
 
     pub fn generated_nominal_shapes(&self) -> &[StrongGeneratedNominalShapeRoot] {
         &self.generated_nominal_shapes
+    }
+
+    pub fn dependency_generated_nominal_shapes(
+        &self,
+    ) -> &[StrongDependencyGeneratedNominalShapeRoot] {
+        &self.dependency_generated_nominal_shapes
     }
 
     pub fn generated_nominal_shape(
@@ -278,21 +286,10 @@ impl SingleConeStrongMirInput {
             .collect::<Vec<_>>();
         source_nominal_shapes.sort_unstable_by_key(StrongSourceNominalShapeRoot::exact);
 
-        let mut generated_nominal_shapes =
-            Vec::with_capacity(module.meta.generated_exact_types.len());
-        for identity in module.meta.generated_exact_types.iter() {
-            if identity.owner() != &GeneratedExactTypeOwner::ConeOwned {
-                return Err(SingleConeStrongMirInputError::OdrGeneratedNominalShape(
-                    identity.location(),
-                ));
-            }
-            generated_nominal_shapes.push(StrongGeneratedNominalShapeRoot {
-                location: identity.location(),
-                nominal: identity.nominal_record().id(),
-                exact: identity.exact_record().id(),
-            });
-        }
-        generated_nominal_shapes.sort_unstable_by_key(|root| root.exact());
+        let generated_shapes::Partition {
+            local: generated_nominal_shapes,
+            dependencies: dependency_generated_nominal_shapes,
+        } = generated_shapes::partition(&module)?;
 
         let shape_support =
             shape_support::validate(shape_support_sources, &module, &source_nominal_shapes)?;
@@ -301,6 +298,7 @@ impl SingleConeStrongMirInput {
             external_callable_roots,
             source_nominal_shapes,
             generated_nominal_shapes,
+            dependency_generated_nominal_shapes,
             shape_support,
             extern_functions: module.extern_functions.iter().map(|(id, _)| id).collect(),
             globals: module.globals.iter().map(|(id, _)| id).collect(),

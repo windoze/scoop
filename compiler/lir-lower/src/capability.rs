@@ -4,7 +4,7 @@ use std::fmt;
 
 use scoop_mir as mir;
 
-use crate::identity_roots::IdentityRoots;
+use crate::{dependency_types::DependencyTypeDescriptors, identity_roots::IdentityRoots};
 
 /// One persistent entity required by reachable MIR but unavailable without
 /// independent generic or structural ownership.
@@ -50,6 +50,7 @@ impl std::error::Error for StrongLirCapabilityError {}
 pub(crate) fn validate_strong_materialization(
     input: &mir::SingleConeStrongMirInput,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
 ) -> Result<(), StrongLirCapabilityError> {
     let module = input.module();
     for root in input.materialization().callable_roots() {
@@ -57,9 +58,9 @@ pub(crate) fn validate_strong_materialization(
         let function = &module.functions[function_id];
         for (_, block) in function.body.blocks.iter() {
             for statement in &block.statements {
-                validate_statement(module, roots, function_id, statement)?;
+                validate_statement(module, roots, dependencies, function_id, statement)?;
             }
-            validate_terminator(module, roots, function_id, &block.terminator)?;
+            validate_terminator(module, roots, dependencies, function_id, &block.terminator)?;
         }
     }
     Ok(())
@@ -68,21 +69,26 @@ pub(crate) fn validate_strong_materialization(
 fn validate_statement(
     module: &mir::Module,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
     function: mir::FunctionId,
     statement: &mir::Statement,
 ) -> Result<(), StrongLirCapabilityError> {
     match &statement.kind {
-        mir::StatementKind::Expr(expr) => validate_expr(module, roots, function, expr),
+        mir::StatementKind::Expr(expr) => {
+            validate_expr(module, roots, dependencies, function, expr)
+        }
         mir::StatementKind::Call(effect) => {
             let call = match effect {
                 mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => call,
             };
-            validate_call(module, roots, function, call)
+            validate_call(module, roots, dependencies, function, call)
         }
-        mir::StatementKind::ValDecl { init, .. } => validate_expr(module, roots, function, init),
+        mir::StatementKind::ValDecl { init, .. } => {
+            validate_expr(module, roots, dependencies, function, init)
+        }
         mir::StatementKind::Assign { value, .. }
         | mir::StatementKind::GlobalAssign { value, .. } => {
-            validate_expr(module, roots, function, value)
+            validate_expr(module, roots, dependencies, function, value)
         }
         mir::StatementKind::ArraySet {
             array_type,
@@ -91,14 +97,14 @@ fn validate_statement(
             value,
         } => {
             require_array(roots, function, *array_type)?;
-            validate_expr(module, roots, function, array)?;
-            validate_expr(module, roots, function, index)?;
-            validate_expr(module, roots, function, value)
+            validate_expr(module, roots, dependencies, function, array)?;
+            validate_expr(module, roots, dependencies, function, index)?;
+            validate_expr(module, roots, dependencies, function, value)
         }
         mir::StatementKind::FieldSet { object, value, .. }
         | mir::StatementKind::AtomicFieldStore { object, value, .. } => {
-            validate_expr(module, roots, function, object)?;
-            validate_expr(module, roots, function, value)
+            validate_expr(module, roots, dependencies, function, object)?;
+            validate_expr(module, roots, dependencies, function, value)
         }
         mir::StatementKind::Eh(_) => Ok(()),
     }
@@ -107,20 +113,33 @@ fn validate_statement(
 fn validate_call(
     module: &mir::Module,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
     function: mir::FunctionId,
     call: &mir::Call,
 ) -> Result<(), StrongLirCapabilityError> {
     match call.target.kind {
         mir::CallKind::Interface { interface, .. } => {
-            require_descriptor(module, roots, function, &mir::Type::Interface(interface))?;
+            require_descriptor(
+                module,
+                roots,
+                dependencies,
+                function,
+                &mir::Type::Interface(interface),
+            )?;
         }
         mir::CallKind::FunctionBridge { function_type } => {
-            require_descriptor(module, roots, function, &mir::Type::Function(function_type))?;
+            require_descriptor(
+                module,
+                roots,
+                dependencies,
+                function,
+                &mir::Type::Function(function_type),
+            )?;
         }
         mir::CallKind::Direct | mir::CallKind::Virtual { .. } | mir::CallKind::Closure { .. } => {}
     }
     for argument in &call.args {
-        validate_expr(module, roots, function, argument)?;
+        validate_expr(module, roots, dependencies, function, argument)?;
     }
     Ok(())
 }
@@ -128,16 +147,19 @@ fn validate_call(
 fn validate_terminator(
     module: &mir::Module,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
     function: mir::FunctionId,
     terminator: &mir::Terminator,
 ) -> Result<(), StrongLirCapabilityError> {
     match terminator {
-        mir::Terminator::Branch { cond, .. } => validate_expr(module, roots, function, cond),
+        mir::Terminator::Branch { cond, .. } => {
+            validate_expr(module, roots, dependencies, function, cond)
+        }
         mir::Terminator::Return { value: Some(value) } => {
-            validate_expr(module, roots, function, value)
+            validate_expr(module, roots, dependencies, function, value)
         }
         mir::Terminator::Throw { exception, .. } => {
-            validate_expr(module, roots, function, exception)
+            validate_expr(module, roots, dependencies, function, exception)
         }
         mir::Terminator::Goto(_)
         | mir::Terminator::Return { value: None }
@@ -151,18 +173,19 @@ fn validate_terminator(
 fn validate_expr(
     module: &mir::Module,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
     function: mir::FunctionId,
     expression: &mir::Expr,
 ) -> Result<(), StrongLirCapabilityError> {
     let mut failure = None;
     mir::visit_expr(expression, &mut |expression| {
         if failure.is_none() {
-            failure = expression_requirement(module, roots, expression).map(|requirement| {
-                StrongLirCapabilityError {
+            failure = expression_requirement(module, roots, dependencies, expression).map(
+                |requirement| StrongLirCapabilityError {
                     function,
                     requirement,
-                }
-            });
+                },
+            );
         }
     });
     match failure {
@@ -174,15 +197,21 @@ fn validate_expr(
 fn expression_requirement(
     module: &mir::Module,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
     expression: &mir::Expr,
 ) -> Option<StrongLirMaterializationRequirement> {
     match &expression.kind {
         mir::ExprKind::ClassAlloc { class_id } => {
-            unavailable_descriptor(module, roots, &mir::Type::Class(*class_id))
+            unavailable_descriptor(module, roots, dependencies, &mir::Type::Class(*class_id))
         }
-        mir::ExprKind::Box(operand) => unavailable_descriptor(module, roots, &operand.ty),
+        mir::ExprKind::Box(operand) => {
+            unavailable_descriptor(module, roots, dependencies, &operand.ty)
+        }
+        mir::ExprKind::Unbox(_) => {
+            unavailable_descriptor(module, roots, dependencies, &expression.ty)
+        }
         mir::ExprKind::IsInstance { check_ty, .. } => {
-            unavailable_descriptor(module, roots, check_ty)
+            unavailable_descriptor(module, roots, dependencies, check_ty)
         }
         mir::ExprKind::ArrayLiteral { array_type, .. }
         | mir::ExprKind::ArrayAssembly { array_type, .. }
@@ -225,7 +254,6 @@ fn expression_requirement(
         | mir::ExprKind::FieldAccess { .. }
         | mir::ExprKind::AtomicFieldLoad { .. }
         | mir::ExprKind::AtomicFieldCompareExchange { .. }
-        | mir::ExprKind::Unbox(_)
         | mir::ExprKind::Cast { .. }
         | mir::ExprKind::Binary { .. }
         | mir::ExprKind::Unary { .. }
@@ -247,10 +275,11 @@ fn expression_requirement(
 fn require_descriptor(
     module: &mir::Module,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
     function: mir::FunctionId,
     ty: &mir::Type,
 ) -> Result<(), StrongLirCapabilityError> {
-    match unavailable_descriptor(module, roots, ty) {
+    match unavailable_descriptor(module, roots, dependencies, ty) {
         Some(requirement) => Err(StrongLirCapabilityError {
             function,
             requirement,
@@ -262,11 +291,12 @@ fn require_descriptor(
 fn unavailable_descriptor(
     module: &mir::Module,
     roots: &IdentityRoots<'_>,
+    dependencies: &DependencyTypeDescriptors,
     ty: &mir::Type,
 ) -> Option<StrongLirMaterializationRequirement> {
     let available = match ty {
         mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::String => {
-            roots.materializes_type(ty)
+            roots.materializes_type(ty) || dependencies.contains(ty)
         }
         mir::Type::Struct(_)
         | mir::Type::Enum(..)
@@ -277,7 +307,9 @@ fn unavailable_descriptor(
         | mir::Type::Unit
         | mir::Type::Ptr(_)
         | mir::Type::FunPtr(_) => module.meta.boxed_types.iter().any(|boxed| {
-            boxed.payload() == ty && roots.materializes_type(&mir::Type::Class(boxed.class()))
+            boxed.payload() == ty
+                && (roots.materializes_type(&mir::Type::Class(boxed.class()))
+                    || dependencies.contains(&mir::Type::Class(boxed.class())))
         }),
         mir::Type::Function(_) | mir::Type::Any => false,
     };
