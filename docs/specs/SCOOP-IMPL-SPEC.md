@@ -596,6 +596,8 @@ reader先执行所有view共享的“受限canonical normal-archive读取 → ma
 
 公开 binding route 与 dependency binding witness 的共有语义校验必须显式接收当前 artifact 已有的累计预算。依赖可达性、provider 目录、typed binding key 索引的收集与排序、直接依赖查询、provider 与 binding 查找、逐 hop 关系和完整 suffix 比较均在实际操作前计量；临时目录与索引先检查表大小，并按元素存储扣减分配和复制预算。路由长度同时受显式依赖闭包及语义深度限制，遍历计入节点、边与工作预算。公开重导出和外部引用 witness 复用相同的有预算后缀比较；预算耗尽保留准确字段路径并中止当前闭包，不能改用新预算、跳过比较或退化为只检查首 hop。ordinary 与 layout 的 Compile/Link 读取及 producer 的相应查询使用同一合同；不增加 wire 字段、来源资格或 CORE 例外，既有身份、直接依赖、terminal declaration 与 exact suffix 规则不变。
 
+共有 HIR 的实际 `SourceBinding` 调用在进入 MIR 前，必须按外部引用的 typed target 和真实 provider 查询同份已验证 callable declaration，逐项核对逻辑 receiver、声明序参数及结果的完整 exact type。成员的隐式 receiver 来自声明的 nominal owner，extension receiver 来自原声明；Unit/ZST 参数仍占逻辑参数位置，不能按物理参数数目比较。每个调用位置独立核对，后续调用不能借用同一 target 的首个调用结果；泛型 binder 或未代入的 owner 不得按无参数签名通过。本项直接复用共有声明到 exact type 的 canonical 查询，查询和比较沿用当前 artifact 的累计预算。HIR producer 与 ordinary/layout 的共有 reader 使用相同检查，MIR 阶段继续核对实际 Strong 正文和被选机器签名；源码访问、dispatch、运行时角色及完整 selected-use 闭包仍分别校验，不由本项推导新资格。不增加 wire 字段、版本或 CORE 特例。
+
 ### 2.7 `scoop` umbrella 与 single-Cone `scoopc`
 
 本节是M23-3/M23-4/M23-11逐步落地、在M23-11切换为唯一生产入口的最终合同；第2.6节identity与container/member wire基础在M23-2冻结，第2.8节program-link在M23-9/M23-10分两步完成。本规范不为迁移期保留第二套稳定工具契约。

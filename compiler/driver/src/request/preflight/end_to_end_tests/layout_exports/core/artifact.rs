@@ -13,6 +13,7 @@ mod mir_types;
 mod mir_units;
 mod property_initialization;
 mod shape_dependencies;
+mod source_calls;
 mod type_foundations;
 
 #[allow(clippy::too_many_arguments)]

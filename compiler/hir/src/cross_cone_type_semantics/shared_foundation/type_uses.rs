@@ -12,11 +12,11 @@ use crate::{
     SelectedExternalTypeUseV1, SelectedTypeUseV1, SourceNominalId,
 };
 
+mod calls;
 mod declarations;
 mod graph;
 mod nominals;
 mod roots;
-mod runtime_calls;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum Kind {

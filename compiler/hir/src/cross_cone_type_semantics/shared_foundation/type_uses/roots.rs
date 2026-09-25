@@ -11,6 +11,7 @@ impl Graph<'_> {
                 .copied()
                 .filter(|provider| *provider != self.current.provider),
         );
+        self.calls(meter)?;
         self.current
             .public
             .external_references()
@@ -21,7 +22,6 @@ impl Graph<'_> {
                 meter,
             )
             .map_err(|error| Error::TypeUseRelations(Box::new(error)))?;
-        self.runtime_calls(meter)?;
         for (_, owner) in self
             .current
             .public

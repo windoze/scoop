@@ -9,6 +9,7 @@ mod decode;
 mod errors;
 mod reason;
 mod runtime;
+mod source;
 mod table;
 #[cfg(test)]
 mod tests;
@@ -17,6 +18,7 @@ pub use errors::{HirDependencyCallSiteBuildError, HirDependencyCallSiteResolutio
 use reason::DecodedHirDependencyCallReasonV1;
 pub use reason::HirDependencyCallReasonV1;
 pub use runtime::HirRuntimeConstructorError;
+pub use source::HirDependencyCallSignatureError;
 pub use table::{CanonicalHirDependencyCallSitesV1, DecodedCanonicalHirDependencyCallSitesV1};
 #[cfg(test)]
 pub(super) use tests::support::Fixture;

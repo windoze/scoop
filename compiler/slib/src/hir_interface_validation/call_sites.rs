@@ -1,7 +1,10 @@
 //! Call origins are resolved in the actual current/dependency foundations.
 
 use scoop_hir::concrete::ExecutableExpressionPosition;
-use scoop_hir::{DefinitionSourceLocationValidationError, ExecutableEvaluationValidationError};
+use scoop_hir::{
+    DefinitionSourceLocationValidationError, ExecutableEvaluationValidationError,
+    HirDependencyCallReasonV1, HirDependencyCallSignatureError, SharedTypeMetadataV1,
+};
 use scoop_wire::{WireError, WirePath};
 
 use super::*;
@@ -31,11 +34,42 @@ impl HirInterfaceValidationInput<'_> {
                     .field(5)
                     .index(site_index as u64);
                 self.executable_origin(site.position(), site.origin(), dependencies, meter, &path)?;
-                self.runtime_call(reference, site, dependencies, meter, &path)
-                    .map_err(|source| CrossConeHirCallSiteOriginError::Runtime {
-                        position: site.position(),
-                        source: Box::new(source),
-                    })?;
+                match site.reason() {
+                    HirDependencyCallReasonV1::SourceBinding(_) => {
+                        meter.charge_work(dependencies.len() as u64 + 1, &path)?;
+                        let provider = dependencies
+                            .iter()
+                            .find(|provider| provider.identity == reference.origin())
+                            .ok_or(CrossConeHirCallSiteOriginError::UnreachableTarget {
+                                position: site.position(),
+                                provider: reference.origin(),
+                            })?;
+                        site.validate_source_signature(
+                            reference.target(),
+                            SharedTypeMetadataV1 {
+                                provider: provider.identity,
+                                identities: provider.identities,
+                                foundation: provider.foundation,
+                                public: provider.interface,
+                            },
+                            meter,
+                            &path,
+                        )
+                        .map_err(|source| {
+                            CrossConeHirCallSiteOriginError::Signature {
+                                position: site.position(),
+                                source: Box::new(source),
+                            }
+                        })?;
+                    }
+                    HirDependencyCallReasonV1::CastFailure { .. } => {
+                        self.runtime_call(reference, site, dependencies, meter, &path)
+                            .map_err(|source| CrossConeHirCallSiteOriginError::Runtime {
+                                position: site.position(),
+                                source: Box::new(source),
+                            })?;
+                    }
+                }
             }
         }
         Ok(())
@@ -86,9 +120,17 @@ impl HirInterfaceValidationInput<'_> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum CrossConeHirCallSiteOriginError {
     Resource(WireError),
+    Signature {
+        position: ExecutableExpressionPosition,
+        source: Box<HirDependencyCallSignatureError>,
+    },
+    UnreachableTarget {
+        position: ExecutableExpressionPosition,
+        provider: ConeIdentity,
+    },
     Runtime {
         position: ExecutableExpressionPosition,
         source: Box<CrossConeHirRuntimeCallError>,
@@ -117,6 +159,15 @@ impl std::fmt::Display for CrossConeHirCallSiteOriginError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Resource(source) => source.fmt(f),
+            Self::Signature { position, source } => {
+                write!(f, "invalid source call signature at {position:?}: {source}")
+            }
+            Self::UnreachableTarget { position, provider } => {
+                write!(
+                    f,
+                    "call {position:?} has an unreachable target provider {provider}"
+                )
+            }
             Self::Runtime { position, source } => {
                 write!(f, "invalid runtime call at {position:?}: {source}")
             }
