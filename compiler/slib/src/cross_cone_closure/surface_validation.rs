@@ -156,15 +156,6 @@ impl_surface_closure_accessors!(
 );
 
 impl<'input> ConstValidatedCrossConeHirClosure<'input> {
-    pub(super) fn route_validation_parts(
-        &self,
-    ) -> (
-        &[ConstValidatedCrossConeHirFrontSections<'input>],
-        &[Vec<usize>],
-    ) {
-        (&self.0.dependency_first, &self.0.dependency_positions)
-    }
-
     pub(super) fn hir_semantic_validation_parts(
         &mut self,
     ) -> (

@@ -594,6 +594,8 @@ authority。
 
 reader先执行所有view共享的“受限canonical normal-archive读取 → manifest/directory/hash/compatibility验证”，随后按`P`分层：Graph只验证graph envelope；Compile解码HIR/MIR/LIR、验证index/identity/arity/origin/visibility/bridge并完成typed remap/semantic-world commit；Link解码LIR verification surface、运行Link handler、重算native contract与每条member-aware defined/undefined use、ODR/range/patch/image owner。失败必须丢弃整个artifact。中央预算同时限制manifest与各payload bytes、member/Cone/entity/node/edge/text总量、CBOR nesting/depth及object section/symbol/relocation/string-table工作量，known capability handler必须共享而不能另开无界解析器。unknown required field/variant、重复key/member、indefinite CBOR、缺失section、跨member range/patch、损坏hash或同identity不同payload均为结构化错误，不得panic、OOM或以FQN/symbol/文件名补猜；较弱view不能调用较强view的API。
 
+公开 binding route 与 dependency binding witness 的共有语义校验必须显式接收当前 artifact 已有的累计预算。依赖可达性、provider 目录、typed binding key 索引的收集与排序、直接依赖查询、provider 与 binding 查找、逐 hop 关系和完整 suffix 比较均在实际操作前计量；临时目录与索引先检查表大小，并按元素存储扣减分配和复制预算。路由长度同时受显式依赖闭包及语义深度限制，遍历计入节点、边与工作预算。公开重导出和外部引用 witness 复用相同的有预算后缀比较；预算耗尽保留准确字段路径并中止当前闭包，不能改用新预算、跳过比较或退化为只检查首 hop。ordinary 与 layout 的 Compile/Link 读取及 producer 的相应查询使用同一合同；不增加 wire 字段、来源资格或 CORE 例外，既有身份、直接依赖、terminal declaration 与 exact suffix 规则不变。
+
 ### 2.7 `scoop` umbrella 与 single-Cone `scoopc`
 
 本节是M23-3/M23-4/M23-11逐步落地、在M23-11切换为唯一生产入口的最终合同；第2.6节identity与container/member wire基础在M23-2冻结，第2.8节program-link在M23-9/M23-10分两步完成。本规范不为迁移期保留第二套稳定工具契约。

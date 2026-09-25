@@ -6,6 +6,7 @@ use scoop_wire::{WireError, WirePath};
 
 use crate::cross_cone_closure::route_validation::{
     CanonicalCrossConeRouteAuthority, CrossConeHirReferenceAuthorityError, RouteProviderView,
+    reserve_route_slots,
 };
 
 impl HirInterfaceValidationInput<'_> {
@@ -20,34 +21,25 @@ impl HirInterfaceValidationInput<'_> {
             .charge_work(dependencies.len() as u64 + direct.len() as u64 + 1, &path)
             .map_err(CrossConeHirReferenceSurfaceError::Resource)?;
         let mut providers = Vec::new();
-        providers
-            .try_reserve_exact(dependencies.len())
-            .map_err(|_| CrossConeHirReferenceSurfaceError::Allocation {
-                requested_slots: dependencies.len(),
-            })?;
+        reserve_route_slots(&mut providers, dependencies.len(), meter, &path)
+            .map_err(CrossConeHirReferenceSurfaceError::Resource)?;
         providers.extend(dependencies.iter().map(|provider| RouteProviderView {
             identity: provider.identity,
             bindings: provider.interface.public_bindings(),
         }));
-        let closure_node_count = dependencies.len().checked_add(1).ok_or(
-            CrossConeHirReferenceSurfaceError::Allocation {
-                requested_slots: usize::MAX,
-            },
-        )?;
         let mut authority = CanonicalCrossConeRouteAuthority::try_new(
             self.current,
             self.identities,
             self.interface,
             direct,
             &providers,
-            closure_node_count,
+            meter,
+            &path,
         )
-        .map_err(
-            |requested_slots| CrossConeHirReferenceSurfaceError::Allocation { requested_slots },
-        )?;
+        .map_err(CrossConeHirReferenceSurfaceError::Resource)?;
         self.interface
             .public_bindings()
-            .validate_route_closure(self.current, &authority)
+            .validate_route_closure(self.current, &authority, meter, &path.clone().field(9))
             .map_err(|error| CrossConeHirReferenceSurfaceError::Routes(Box::new(error)))?;
         self.interface
             .validate_external_reference_closure(&mut authority, meter, &path)
@@ -61,9 +53,6 @@ impl HirInterfaceValidationInput<'_> {
 
 #[derive(Debug)]
 pub enum CrossConeHirReferenceSurfaceError {
-    Allocation {
-        requested_slots: usize,
-    },
     Resource(WireError),
     CallSites(Box<CrossConeHirCallSiteOriginError>),
     TypeSites(Box<CrossConeHirTypeSiteError>),
@@ -76,12 +65,6 @@ pub enum CrossConeHirReferenceSurfaceError {
 impl std::fmt::Display for CrossConeHirReferenceSurfaceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Allocation { requested_slots } => {
-                write!(
-                    f,
-                    "cannot allocate {requested_slots} HIR reference provider slots"
-                )
-            }
             Self::Resource(error) => error.fmt(f),
             Self::CallSites(error) => error.fmt(f),
             Self::TypeSites(error) => error.fmt(f),

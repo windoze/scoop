@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+mod resources;
+
 use scoop_identity::{
     BindableEntity, BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate,
     ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExportBindingKey, PackagePath,
@@ -19,7 +21,12 @@ fn validates_a_complete_dependency_binding_chain() {
     assert!(
         fixture
             .witness
-            .validate_semantics(fixture.root, &fixture.authority)
+            .validate_semantics(
+                fixture.root,
+                &fixture.authority,
+                &mut route_meter(),
+                &scoop_wire::WirePath::root()
+            )
             .is_ok()
     );
 }
@@ -29,9 +36,12 @@ fn rejects_a_non_direct_start_and_an_overlong_route() {
     let mut fixture = chain();
     fixture.authority.direct.clear();
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
                 provider: fixture.direct,
@@ -42,9 +52,12 @@ fn rejects_a_non_direct_start_and_an_overlong_route() {
     let mut fixture = chain();
     fixture.authority.closure_nodes = 1;
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::RouteExceedsClosure {
                 hops: 2,
@@ -59,9 +72,12 @@ fn every_hop_must_have_the_expected_canonical_binding_key() {
     let mut fixture = chain();
     fixture.authority.keys.remove(&fixture.terminal_binding);
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::MissingHopBindingKey {
                 hop: 1,
@@ -75,7 +91,7 @@ fn every_hop_must_have_the_expected_canonical_binding_key() {
     assert!(matches!(
         fixture
             .witness
-            .validate_semantics(other_root, &fixture.authority),
+            .validate_semantics(other_root, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
         Err(DependencyBindingWitnessSemanticValidationError::HopTargetMismatch {
             hop: 0,
             binding,
@@ -92,7 +108,7 @@ fn every_hop_must_have_the_expected_canonical_binding_key() {
     assert!(matches!(
         fixture
             .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+            .validate_semantics(fixture.root, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
         Err(DependencyBindingWitnessSemanticValidationError::HopBindingExporterMismatch {
             hop: 0,
             binding,
@@ -109,9 +125,12 @@ fn every_hop_must_exist_in_its_provider_surface() {
     let mut fixture = chain();
     fixture.authority.surfaces.remove(&fixture.terminal);
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::MissingProviderSurface {
                 hop: 1,
@@ -126,9 +145,12 @@ fn every_hop_must_exist_in_its_provider_surface() {
         .surfaces
         .insert(fixture.terminal, surface(Vec::new()));
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::MissingProviderBinding {
                 hop: 1,
@@ -147,9 +169,12 @@ fn route_requires_reexport_intermediates_and_a_declared_terminal() {
         surface(vec![declared(fixture.direct_binding, fixture.target)]),
     );
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::IntermediateIsDeclared {
                 hop: 0,
@@ -170,9 +195,12 @@ fn route_requires_reexport_intermediates_and_a_declared_terminal() {
         )]),
     );
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::TerminalIsReexport {
                 hop: 1,
@@ -199,9 +227,12 @@ fn intermediate_reexport_must_publish_the_exact_remaining_suffix() {
     );
 
     assert_eq!(
-        fixture
-            .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+        fixture.witness.validate_semantics(
+            fixture.root,
+            &fixture.authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root()
+        ),
         Err(
             DependencyBindingWitnessSemanticValidationError::MissingRouteSuffix {
                 hop: 0,
@@ -226,7 +257,7 @@ fn terminal_declared_source_must_match_the_binding_root() {
     assert!(matches!(
         fixture
             .witness
-            .validate_semantics(fixture.root, &fixture.authority),
+            .validate_semantics(fixture.root, &fixture.authority, &mut route_meter(), &scoop_wire::WirePath::root()),
         Err(DependencyBindingWitnessSemanticValidationError::DeclaredTargetMismatch {
             hop: 1,
             binding,
@@ -301,16 +332,34 @@ impl PublicExportBindingClosureAuthority for TestAuthority {
         self.closure_nodes
     }
 
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
-        self.direct.contains(&provider)
+    fn is_direct_dependency(
+        &self,
+        provider: ConeIdentity,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<bool, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(self.direct.contains(&provider))
     }
 
-    fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
-        self.keys.get(&binding)
+    fn binding_key(
+        &self,
+        binding: PersistentExportBindingId,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(self.keys.get(&binding))
     }
 
-    fn public_bindings(&self, exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
-        self.surfaces.get(&exporter)
+    fn public_bindings(
+        &self,
+        exporter: ConeIdentity,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(self.surfaces.get(&exporter))
     }
 }
 
@@ -389,4 +438,8 @@ fn cone(name: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
+}
+
+fn route_meter() -> scoop_wire::BudgetMeter {
+    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

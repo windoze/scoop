@@ -86,17 +86,27 @@ impl CanonicalExternalHirReferencesV1 {
     pub fn validate_semantics<A, E>(
         &self,
         authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExternalHirReferenceSetSemanticValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
+        meter
+            .charge_work(1, path)
+            .map_err(ExternalHirReferenceSetSemanticValidationError::Resource)?;
+        meter
+            .check_table_entries(self.records.len() as u64, path)
+            .map_err(ExternalHirReferenceSetSemanticValidationError::Resource)?;
         for (index, record) in self.records.iter().enumerate() {
-            record.validate_semantics(authority).map_err(|error| {
-                ExternalHirReferenceSetSemanticValidationError::Record {
-                    index,
-                    error: Box::new(error),
-                }
-            })?;
+            record
+                .validate_semantics(authority, meter, &path.clone().index(index as u64))
+                .map_err(
+                    |error| ExternalHirReferenceSetSemanticValidationError::Record {
+                        index,
+                        error: Box::new(error),
+                    },
+                )?;
         }
         Ok(())
     }
@@ -265,6 +275,7 @@ impl<E: std::error::Error + 'static> std::error::Error
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExternalHirReferenceSetSemanticValidationError<E> {
+    Resource(WireError),
     Record {
         index: usize,
         error: Box<ExternalHirReferenceSemanticValidationError<E>>,
@@ -274,6 +285,7 @@ pub enum ExternalHirReferenceSetSemanticValidationError<E> {
 impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSetSemanticValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
             Self::Record { index, error } => write!(
                 formatter,
                 "invalid external HIR reference semantics {index}: {error}"
@@ -285,6 +297,12 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSetSemanticValidation
 impl<E: std::error::Error + 'static> std::error::Error
     for ExternalHirReferenceSetSemanticValidationError<E>
 {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Resource(error) => Some(error),
+            Self::Record { error, .. } => Some(error.as_ref()),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -152,10 +152,6 @@ impl ConstValidatedCrossConeHirFrontSections<'_> {
         self.0.hir_validation_parts()
     }
 
-    pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
-        &self.0.identities
-    }
-
     pub(crate) fn hir_semantic_parts(
         &mut self,
     ) -> (

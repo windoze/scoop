@@ -37,7 +37,13 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
             ]
         );
         assert!(record.witnesses().is_empty());
-        record.validate_semantics(&mut authority).unwrap();
+        record
+            .validate_semantics(
+                &mut authority,
+                &mut route_meter(),
+                &scoop_wire::WirePath::root(),
+            )
+            .unwrap();
 
         let forged = ExternalHirReferenceV1::try_new(
             cone("false-provider"),
@@ -49,7 +55,7 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
         )
         .unwrap();
         assert!(matches!(
-            forged.validate_semantics(&mut authority),
+            forged.validate_semantics(&mut authority, &mut route_meter(), &scoop_wire::WirePath::root()),
             Err(ExternalHirReferenceSemanticValidationError::OriginMismatch {
                 target: actual, expected, ..
             }) if actual == target && expected == provider
@@ -82,7 +88,7 @@ fn builtin_default_dependencies_still_require_an_actual_provider() {
     )
     .unwrap();
     assert!(matches!(
-        record.validate_semantics(&mut authority),
+        record.validate_semantics(&mut authority, &mut route_meter(), &scoop_wire::WirePath::root()),
         Err(ExternalHirReferenceSemanticValidationError::TargetOrigin { target: actual, .. })
             if actual == target
     ));
@@ -124,4 +130,8 @@ fn builtin_default_dependencies_do_not_grant_same_name_or_provider_exemptions() 
             Err(crate::ExternalHirReferenceBuildError::MissingWitness)
         );
     }
+}
+
+fn route_meter() -> scoop_wire::BudgetMeter {
+    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

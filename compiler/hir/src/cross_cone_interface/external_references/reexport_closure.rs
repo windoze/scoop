@@ -52,7 +52,8 @@ impl CanonicalExternalHirReferencesV1 {
             charge_node(meter, path)?;
             let binding_id = binding.binding();
             let target = authority
-                .binding_key(binding_id)
+                .binding_key(binding_id, meter, path)
+                .map_err(ExternalHirReexportClosureValidationError::Resource)?
                 .map(|key| ExternalHirTargetV1::from(key.target()))
                 .ok_or(
                     ExternalHirReexportClosureValidationError::MissingBindingKey {

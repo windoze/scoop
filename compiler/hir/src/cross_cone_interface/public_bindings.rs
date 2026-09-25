@@ -5,7 +5,9 @@ use scoop_identity::{
     DecodedPersistentId, ExportBindingKey, PersistentExportBindingId, PersistentIdResolver,
     PersistentKeyResolver,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{
+    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
+};
 
 use crate::{CanonicalReexportRoutesV1, DecodedCanonicalReexportRoutesV1};
 
@@ -95,6 +97,27 @@ impl CanonicalPublicExportBindingsV1 {
             .binary_search_by_key(&binding, PublicExportBindingRecordV1::binding)
             .ok()
             .map(|index| &self.records[index])
+    }
+
+    pub fn get_metered(
+        &self,
+        binding: PersistentExportBindingId,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Option<&PublicExportBindingRecordV1>, WireError> {
+        meter.check_table_entries(self.records.len() as u64, path)?;
+        let mut start = 0;
+        let mut end = self.records.len();
+        while start < end {
+            meter.charge_work(1, path)?;
+            let middle = start + (end - start) / 2;
+            match self.records[middle].binding().cmp(&binding) {
+                std::cmp::Ordering::Less => start = middle + 1,
+                std::cmp::Ordering::Greater => end = middle,
+                std::cmp::Ordering::Equal => return Ok(Some(&self.records[middle])),
+            }
+        }
+        Ok(None)
     }
 }
 

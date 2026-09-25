@@ -142,7 +142,7 @@ impl CrossConeHirInterfaceSectionV1 {
                 CrossConeHirInterfaceSemanticValidationError::Constants(Box::new(error))
             })?;
         self.public_bindings()
-            .validate_route_closure(current, authority)
+            .validate_route_closure(current, authority, meter, &path.clone().field(9))
             .map_err(|error| {
                 CrossConeHirInterfaceSemanticValidationError::Routes(Box::new(error))
             })?;

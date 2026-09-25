@@ -6,6 +6,7 @@ use std::fmt;
 use scoop_identity::{ConeIdentity, PersistentExportBindingId};
 use scoop_wire::{Encoder, WireEncode};
 
+mod lookup;
 mod wire;
 pub use wire::{
     DecodedCanonicalReexportRoutesV1, DecodedReexportRouteHopV1, DecodedReexportRouteV1,

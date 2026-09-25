@@ -1050,6 +1050,8 @@ envelope/profile/target/resource checks
 
 普通 callable source-interface 的读取阶段也必须验证每份默认正文的 definite assignment、局部变量可变性、循环控制与完整 binding plan/action 顺序。struct pattern 的字段序号从当前声明及显式依赖闭包中已验证的共有 nominal metadata 取得，并核对 typed field owner 和 generic arity；不能信任正文自报的字段顺序、按名称恢复字段或使用 core 专用来源入口。字段查询索引与递归正文遍历使用同一 artifact 的资源预算，失败不能进入后续 const、bridge 或 identity commit 阶段。此项与完整默认值的 provider、类型、effect、nested callable 和引用域校验共同组成完整入口，不代替其他检查。
 
+公开 binding route 与 dependency binding witness 的共有语义校验必须显式接收当前 artifact 已有的累计预算。依赖可达性、provider 目录、typed binding key 索引的收集与排序、直接依赖查询、provider 与 binding 查找、逐 hop 关系和完整 suffix 比较均在实际操作前计量；临时目录与索引先检查表大小，并按元素存储扣减分配和复制预算。路由长度同时受显式依赖闭包及语义深度限制，遍历计入节点、边与工作预算。公开重导出和外部引用 witness 复用相同的有预算后缀比较；预算耗尽保留准确字段路径并中止当前闭包，不能改用新预算、跳过比较或退化为只检查首 hop。ordinary 与 layout 的 Compile/Link 读取及 producer 的相应查询使用同一合同；不增加 wire 字段、来源资格或 CORE 例外，既有身份、直接依赖、terminal declaration 与 exact suffix 规则不变。
+
 错误前不发布partial world、arena、artifact或cache entry。MIR/LIR自身不报告新的源码visibility/overload错误；不完整selected集合属于compiler/artifact invariant。
 
 ### 11.2 semantic dependency与physical use分开

@@ -47,7 +47,7 @@ impl CanonicalExternalHirReferencesV1 {
         let mut meter = BudgetMeter::new(DecodeLimits::default());
         let mut accumulator = accumulator::ExternalReferenceAccumulator::new(authority);
 
-        surface::collect_reexports(input, &mut accumulator)?;
+        surface::collect_reexports(input, &mut accumulator, &mut meter)?;
         signatures::collect(input, &mut accumulator, &mut meter)?;
         dispatch::collect(input, &mut accumulator, &mut meter)?;
         surface::collect_aliases(input, &mut accumulator, &mut meter)?;

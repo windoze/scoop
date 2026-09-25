@@ -28,7 +28,7 @@ impl CrossConeHirInterfaceSectionV1 {
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         self.external_references()
-            .validate_semantics(authority)
+            .validate_semantics(authority, meter, &path.clone().field(10))
             .map_err(CrossConeHirExternalReferenceValidationError::Records)?;
         self.external_references()
             .validate_reexport_closure(

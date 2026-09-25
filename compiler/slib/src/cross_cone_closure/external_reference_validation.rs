@@ -5,14 +5,13 @@ use std::fmt;
 use scoop_hir::CrossConeHirExternalReferenceValidationError;
 use scoop_identity::ConeIdentity;
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::WirePath;
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     CrossConeProviderRole, PublicRouteValidatedCrossConeHirClosure,
     route_validation::{
         CanonicalCrossConeRouteAuthority, CrossConeHirReferenceAuthorityError, RouteAuthorityInputs,
     },
-    surface_validation::transitive_dependency_positions,
 };
 use crate::{
     ConstValidatedCrossConeHirClosure, ConstValidatedCrossConeHirFrontSections,
@@ -81,38 +80,39 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
             let (artifacts, dependency_positions) =
                 self.surfaces_mut().hir_semantic_validation_parts();
             for position in 0..artifacts.len() {
-                let reachable = transitive_dependency_positions(position, dependency_positions);
                 let (previous, current_and_later) = artifacts.split_at_mut(position);
                 let current = &mut current_and_later[0];
                 let identity = current.identity();
+                let (input, meter) = current.hir_reference_validation_parts();
+                let identities = input.identities;
+                let interface = input.interface;
+                let path = WirePath::root();
+                let resource =
+                    |source| CrossConeClosureExternalReferenceError::Resource { identity, source };
+                let reachable = crate::dependency_reachability::transitive_positions(
+                    position,
+                    dependency_positions,
+                    meter,
+                )
+                .map_err(resource)?;
                 let route_inputs = RouteAuthorityInputs::try_new(
                     previous,
                     &dependency_positions[position],
                     &reachable,
+                    meter,
+                    &path,
                 )
-                .map_err(|requested_slots| {
-                    CrossConeClosureExternalReferenceError::AuthorityAllocation {
-                        identity,
-                        requested_slots,
-                    }
-                })?;
-                let (input, meter) = current.hir_reference_validation_parts();
-                let identities = input.identities;
-                let interface = input.interface;
+                .map_err(resource)?;
                 let mut authority = CanonicalCrossConeRouteAuthority::try_new(
                     identity,
                     identities,
                     interface,
                     route_inputs.direct(),
                     route_inputs.providers(),
-                    route_inputs.closure_node_count(),
+                    meter,
+                    &path,
                 )
-                .map_err(|requested_slots| {
-                    CrossConeClosureExternalReferenceError::AuthorityAllocation {
-                        identity,
-                        requested_slots,
-                    }
-                })?;
+                .map_err(resource)?;
                 interface
                     .validate_external_reference_closure(&mut authority, meter, &WirePath::root())
                     .map_err(|source| CrossConeClosureExternalReferenceError::Artifact {
@@ -164,9 +164,9 @@ pub enum CrossConeClosureExternalReferenceError {
         identity: ConeIdentity,
         source: Box<CrossConeHirCallSiteOriginError>,
     },
-    AuthorityAllocation {
+    Resource {
         identity: ConeIdentity,
-        requested_slots: usize,
+        source: WireError,
     },
     Artifact {
         identity: ConeIdentity,
@@ -184,12 +184,9 @@ impl fmt::Display for CrossConeClosureExternalReferenceError {
             Self::CallSites { identity, source } => {
                 write!(formatter, "invalid HIR call sites for {identity}: {source}")
             }
-            Self::AuthorityAllocation {
-                identity,
-                requested_slots,
-            } => write!(
+            Self::Resource { identity, source } => write!(
                 formatter,
-                "cannot allocate {requested_slots} external-reference authority slots for {identity}"
+                "external-reference resources exhausted for {identity}: {source}"
             ),
             Self::Artifact { identity, source } => {
                 write!(
@@ -207,7 +204,7 @@ impl std::error::Error for CrossConeClosureExternalReferenceError {
             Self::TypeSites { source, .. } => Some(source.as_ref()),
             Self::CallSites { source, .. } => Some(source.as_ref()),
             Self::Artifact { source, .. } => Some(source.as_ref()),
-            Self::AuthorityAllocation { .. } => None,
+            Self::Resource { source, .. } => Some(source),
         }
     }
 }

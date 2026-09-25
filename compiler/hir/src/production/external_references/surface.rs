@@ -12,17 +12,23 @@ use crate::{
 pub(super) fn collect_reexports<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
     accumulator: &mut ExternalReferenceAccumulator<'_, A>,
+    meter: &mut BudgetMeter,
 ) -> Result<(), ExternalHirReferenceProductionError<E>>
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
     for (binding_index, binding) in input.public_bindings.records().iter().enumerate() {
+        let path = WirePath::root().field(9).index(binding_index as u64);
+        meter
+            .charge_work(1, &path)
+            .map_err(ExternalHirReferenceProductionError::Resource)?;
         let ExportBindingSourceV1::Reexport { routes } = binding.source() else {
             continue;
         };
         let target = accumulator
             .authority()
-            .binding_key(binding.binding())
+            .binding_key(binding.binding(), meter, &path)
+            .map_err(ExternalHirReferenceProductionError::Resource)?
             .map(|key| ExternalHirTargetV1::from(key.target()))
             .ok_or(ExternalHirReferenceProductionError::MissingBindingKey {
                 binding_index,

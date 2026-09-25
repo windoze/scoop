@@ -34,7 +34,8 @@ fn resolves_every_source_backed_external_target_to_its_canonical_public_root() {
         &fixture.interface,
         &[],
         &[],
-        1,
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
     )
     .unwrap();
 
@@ -62,7 +63,8 @@ fn rejects_a_generated_callable_without_a_lexical_source_root() {
         &fixture.interface,
         &[],
         &[],
-        1,
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
     )
     .unwrap();
 
@@ -390,4 +392,8 @@ fn cone(name: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
+}
+
+fn route_meter() -> scoop_wire::BudgetMeter {
+    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

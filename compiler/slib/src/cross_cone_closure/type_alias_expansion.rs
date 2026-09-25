@@ -9,14 +9,13 @@ use scoop_hir::{
 };
 use scoop_identity::{ConeIdentity, PersistentTypeAliasId};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::WirePath;
+use scoop_wire::{WireError, WirePath};
 
 use super::{
     CrossConeProviderRole, ExternalReferenceValidatedCrossConeHirClosure,
     route_validation::{
         CanonicalCrossConeRouteAuthority, CrossConeHirReferenceAuthorityError, RouteAuthorityInputs,
     },
-    surface_validation::transitive_dependency_positions,
 };
 use crate::ConstValidatedCrossConeHirFrontSections;
 
@@ -109,39 +108,38 @@ impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
             let (artifacts, dependency_positions) =
                 self.surfaces_mut().hir_semantic_validation_parts();
             for position in 0..artifacts.len() {
-                let reachable = transitive_dependency_positions(position, dependency_positions);
                 let (previous, current_and_later) = artifacts.split_at_mut(position);
                 let current = &mut current_and_later[0];
                 let identity = current.identity();
 
+                let (identities, interface, meter) = current.hir_semantic_parts();
+                let path = WirePath::root();
+                let resource =
+                    |source| CrossConeClosureTypeAliasExpansionError::Resource { identity, source };
+                let reachable = crate::dependency_reachability::transitive_positions(
+                    position,
+                    dependency_positions,
+                    meter,
+                )
+                .map_err(resource)?;
                 let route_inputs = RouteAuthorityInputs::try_new(
                     previous,
                     &dependency_positions[position],
                     &reachable,
+                    meter,
+                    &path,
                 )
-                .map_err(|requested_slots| {
-                    CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
-                        identity,
-                        requested_slots,
-                    }
-                })?;
-
-                let (identities, interface, meter) = current.hir_semantic_parts();
+                .map_err(resource)?;
                 let mut route_authority = CanonicalCrossConeRouteAuthority::try_new(
                     identity,
                     identities,
                     interface,
                     route_inputs.direct(),
                     route_inputs.providers(),
-                    route_inputs.closure_node_count(),
+                    meter,
+                    &path,
                 )
-                .map_err(|requested_slots| {
-                    CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
-                        identity,
-                        requested_slots,
-                    }
-                })?;
-                let path = WirePath::root();
+                .map_err(resource)?;
                 let authorized = validate_alias_authority(interface, &mut route_authority)
                     .map_err(|source| {
                         CrossConeClosureTypeAliasExpansionError::ArtifactAuthority {
@@ -392,6 +390,10 @@ impl std::error::Error for CrossConeHirAliasAuthorityValidationError {
 
 #[derive(Debug)]
 pub enum CrossConeClosureTypeAliasExpansionError {
+    Resource {
+        identity: ConeIdentity,
+        source: WireError,
+    },
     Allocation {
         requested_slots: usize,
     },
@@ -412,6 +414,10 @@ pub enum CrossConeClosureTypeAliasExpansionError {
 impl fmt::Display for CrossConeClosureTypeAliasExpansionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource { identity, source } => write!(
+                formatter,
+                "type-alias route resources exhausted for {identity}: {source}"
+            ),
             Self::Allocation { requested_slots } => write!(
                 formatter,
                 "cannot allocate {requested_slots} cross-Cone type-alias expansion slots"
@@ -442,6 +448,7 @@ impl fmt::Display for CrossConeClosureTypeAliasExpansionError {
 impl std::error::Error for CrossConeClosureTypeAliasExpansionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource { source, .. } => Some(source),
             Self::ArtifactAuthority { source, .. } => Some(source.as_ref()),
             Self::ArtifactExpansion { source, .. } => Some(source),
             Self::Allocation { .. } | Self::AuthorityAllocation { .. } => None,

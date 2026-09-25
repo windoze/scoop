@@ -1,5 +1,7 @@
 use std::fmt;
 
+use scoop_wire::{BudgetMeter, WireError, WirePath};
+
 use scoop_identity::{BindingTarget, ConeIdentity};
 
 use super::{ExternalHirReferenceV1, ExternalHirTargetV1};
@@ -28,10 +30,18 @@ impl ExternalHirReferenceV1 {
     pub fn validate_semantics<A, E>(
         &self,
         authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExternalHirReferenceSemanticValidationError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
+        meter
+            .charge_nodes(1, path)
+            .map_err(ExternalHirReferenceSemanticValidationError::Resource)?;
+        meter
+            .charge_work(1, path)
+            .map_err(ExternalHirReferenceSemanticValidationError::Resource)?;
         let current = authority.current_cone();
         if self.origin() == current {
             return Err(
@@ -60,6 +70,9 @@ impl ExternalHirReferenceV1 {
             );
         }
 
+        meter
+            .check_table_entries(self.witnesses().witnesses().len() as u64, path)
+            .map_err(ExternalHirReferenceSemanticValidationError::Resource)?;
         if !self.witnesses().is_empty() {
             let root = authority
                 .external_hir_target_binding_root(self.target())
@@ -71,7 +84,12 @@ impl ExternalHirReferenceV1 {
                 )?;
             for (index, witness) in self.witnesses().witnesses().iter().enumerate() {
                 witness
-                    .validate_semantics(root, authority)
+                    .validate_semantics(
+                        root,
+                        authority,
+                        meter,
+                        &path.clone().field(4).index(index as u64),
+                    )
                     .map_err(
                         |error| ExternalHirReferenceSemanticValidationError::Witness {
                             index,
@@ -86,6 +104,7 @@ impl ExternalHirReferenceV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExternalHirReferenceSemanticValidationError<E> {
+    Resource(WireError),
     CurrentConeTarget {
         target: ExternalHirTargetV1,
         current: ConeIdentity,
@@ -112,6 +131,7 @@ pub enum ExternalHirReferenceSemanticValidationError<E> {
 impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSemanticValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
             Self::CurrentConeTarget { target, current } => write!(
                 formatter,
                 "external HIR target {target:?} belongs to current Cone {current}"
@@ -145,6 +165,14 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSemanticValidationErr
 impl<E: std::error::Error + 'static> std::error::Error
     for ExternalHirReferenceSemanticValidationError<E>
 {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Resource(error) => Some(error),
+            Self::TargetOrigin { error, .. } | Self::BindingRoot { error, .. } => Some(error),
+            Self::Witness { error, .. } => Some(error),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]

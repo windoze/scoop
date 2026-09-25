@@ -4,20 +4,20 @@ use std::fmt;
 
 use scoop_identity::{
     BindingTarget, BindingTargetError, CallableTemplateOrigin, CallableTemplateOwner, ConeIdentity,
-    DefinitionOwnerAtom, ExportBindingKey, GeneratedCallableKey, NominalDeclarationOwner,
-    PersistentConstructorId, PersistentEnumVariantId, PersistentExportBindingId,
-    PersistentGeneratedCallableId, PersistentPropertyAccessorId, PropertyOwner,
-    SourceDeclarationKey,
+    DefinitionOwnerAtom, GeneratedCallableKey, NominalDeclarationOwner, PersistentConstructorId,
+    PersistentEnumVariantId, PersistentGeneratedCallableId, PersistentPropertyAccessorId,
+    PropertyOwner, SourceDeclarationKey,
 };
 
 use super::ImportedSemanticWorld;
 use crate::{
     CanonicalHirFoundation, CanonicalPublicExportBindingsV1, ExternalHirReferenceSemanticAuthority,
-    ExternalHirTargetV1, PublicExportBindingClosureAuthority,
+    ExternalHirTargetV1,
 };
 
 mod fields;
 mod keys;
+mod routes;
 
 /// Production-side view of the current HIR foundation and its validated
 /// imported semantic world.
@@ -271,37 +271,6 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
                 self.generated_callable_resolution(id, target)
             }
         }
-    }
-}
-
-impl PublicExportBindingClosureAuthority for CrossConeHirProductionAuthority<'_, '_> {
-    fn closure_node_count(&self) -> usize {
-        self.world.provider_count().saturating_add(1)
-    }
-
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
-        self.world.direct_provider(provider).is_some()
-    }
-
-    fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
-        self.current_foundation
-            .export_binding_key(binding)
-            .or_else(|| {
-                self.world.providers.iter().find_map(|provider| {
-                    provider
-                        .foundation()
-                        .semantic_world_export_binding_key(binding)
-                })
-            })
-    }
-
-    fn public_bindings(&self, exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
-        if exporter == self.world.current {
-            return Some(self.current_bindings);
-        }
-        self.world
-            .provider(exporter)
-            .map(|provider| provider.interface().public_bindings())
     }
 }
 

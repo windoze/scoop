@@ -276,16 +276,34 @@ impl PublicExportBindingClosureAuthority for Authority {
         self.surfaces.len()
     }
 
-    fn is_direct_dependency(&self, provider: ConeIdentity) -> bool {
-        provider == self.provider
+    fn is_direct_dependency(
+        &self,
+        provider: ConeIdentity,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<bool, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(provider == self.provider)
     }
 
-    fn binding_key(&self, binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
-        self.keys.get(&binding)
+    fn binding_key(
+        &self,
+        binding: PersistentExportBindingId,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(self.keys.get(&binding))
     }
 
-    fn public_bindings(&self, exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
-        self.surfaces.get(&exporter)
+    fn public_bindings(
+        &self,
+        exporter: ConeIdentity,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Option<&CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(self.surfaces.get(&exporter))
     }
 }
 

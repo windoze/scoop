@@ -38,7 +38,8 @@ fn authorizes_and_expands_a_foreign_alias_through_a_direct_witness() {
         &fixture.current_interface,
         &direct,
         &providers,
-        2,
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
     )
     .unwrap();
     let mut meter = BudgetMeter::new(DecodeLimits::default());
@@ -86,7 +87,8 @@ fn rejects_a_foreign_alias_witness_that_does_not_start_at_a_direct_provider() {
         &fixture.current_interface,
         &[],
         &providers,
-        2,
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
     )
     .unwrap();
     let mut meter = BudgetMeter::new(DecodeLimits::default());
@@ -134,9 +136,16 @@ fn rejects_a_same_cone_alias_target_absent_from_the_public_alias_table() {
         Vec::new(),
     );
     let identities = identity_graph([source, hidden], [source_binding]);
-    let mut authority =
-        CanonicalCrossConeRouteAuthority::try_new(current, &identities, &interface, &[], &[], 1)
-            .unwrap();
+    let mut authority = CanonicalCrossConeRouteAuthority::try_new(
+        current,
+        &identities,
+        &interface,
+        &[],
+        &[],
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
+    )
+    .unwrap();
     assert!(matches!(
         validate_alias_authority(&interface, &mut authority),
         Err(CrossConeHirAliasAuthorityValidationError::MissingCurrentPublicTarget {
@@ -339,4 +348,8 @@ fn cone(name: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
+}
+
+fn route_meter() -> scoop_wire::BudgetMeter {
+    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

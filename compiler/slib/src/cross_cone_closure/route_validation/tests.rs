@@ -15,6 +15,9 @@ use scoop_identity::{
 
 use super::*;
 
+mod resources;
+mod witness_index;
+
 #[test]
 fn adapter_validates_a_route_through_the_exact_provider_closure() {
     let fixture = route_fixture();
@@ -35,14 +38,20 @@ fn adapter_validates_a_route_through_the_exact_provider_closure() {
         &fixture.current_interface,
         &direct,
         &providers,
-        3,
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
     )
     .unwrap();
 
     fixture
         .current_interface
         .public_bindings()
-        .validate_route_closure(fixture.current, &authority)
+        .validate_route_closure(
+            fixture.current,
+            &authority,
+            &mut route_meter(),
+            &scoop_wire::WirePath::root(),
+        )
         .unwrap();
 }
 
@@ -60,7 +69,8 @@ fn adapter_does_not_treat_a_loaded_non_dependency_as_route_authority() {
         &fixture.current_interface,
         &direct,
         &providers,
-        2,
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
     )
     .unwrap();
 
@@ -68,7 +78,7 @@ fn adapter_does_not_treat_a_loaded_non_dependency_as_route_authority() {
         fixture
             .current_interface
             .public_bindings()
-            .validate_route_closure(fixture.current, &authority),
+            .validate_route_closure(fixture.current, &authority, &mut route_meter(), &scoop_wire::WirePath::root()),
         Err(PublicExportBindingClosureValidationError::MissingProviderSurface {
             hop: 1,
             provider,
@@ -96,7 +106,8 @@ fn adapter_uses_the_artifact_local_direct_dependency_set() {
         &fixture.current_interface,
         &[],
         &providers,
-        3,
+        &mut route_meter(),
+        &scoop_wire::WirePath::root(),
     )
     .unwrap();
 
@@ -104,7 +115,7 @@ fn adapter_uses_the_artifact_local_direct_dependency_set() {
         fixture
             .current_interface
             .public_bindings()
-            .validate_route_closure(fixture.current, &authority),
+            .validate_route_closure(fixture.current, &authority, &mut route_meter(), &scoop_wire::WirePath::root()),
         Err(PublicExportBindingClosureValidationError::ImmediateProviderNotDirect {
             provider,
             ..
@@ -230,4 +241,8 @@ fn cone(name: &str) -> ConeIdentity {
         .unwrap()
         .identity()
         .unwrap()
+}
+
+fn route_meter() -> scoop_wire::BudgetMeter {
+    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

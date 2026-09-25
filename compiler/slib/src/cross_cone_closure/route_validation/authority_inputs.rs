@@ -2,6 +2,7 @@
 
 use scoop_hir::CanonicalPublicExportBindingsV1;
 use scoop_identity::ConeIdentity;
+use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use crate::ConstValidatedCrossConeHirFrontSections;
 
@@ -14,7 +15,6 @@ pub(crate) struct RouteProviderView<'a> {
 pub(in crate::cross_cone_closure) struct RouteAuthorityInputs<'a> {
     direct: Vec<ConeIdentity>,
     providers: Vec<RouteProviderView<'a>>,
-    closure_node_count: usize,
 }
 
 impl<'a> RouteAuthorityInputs<'a> {
@@ -22,11 +22,12 @@ impl<'a> RouteAuthorityInputs<'a> {
         previous: &'a [ConstValidatedCrossConeHirFrontSections<'_>],
         direct_positions: &[usize],
         reachable_positions: &[usize],
-    ) -> Result<Self, usize> {
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Self, WireError> {
         let mut direct = Vec::new();
-        direct
-            .try_reserve_exact(direct_positions.len())
-            .map_err(|_| direct_positions.len())?;
+        reserve_route_slots(&mut direct, direct_positions.len(), meter, path)?;
+        meter.charge_work(direct_positions.len() as u64, path)?;
         direct.extend(
             direct_positions
                 .iter()
@@ -34,9 +35,8 @@ impl<'a> RouteAuthorityInputs<'a> {
         );
 
         let mut providers = Vec::new();
-        providers
-            .try_reserve_exact(reachable_positions.len())
-            .map_err(|_| reachable_positions.len())?;
+        reserve_route_slots(&mut providers, reachable_positions.len(), meter, path)?;
+        meter.charge_work(reachable_positions.len() as u64, path)?;
         providers.extend(
             reachable_positions
                 .iter()
@@ -45,13 +45,8 @@ impl<'a> RouteAuthorityInputs<'a> {
                     bindings: previous[*position].hir_interface().public_bindings(),
                 }),
         );
-        let closure_node_count = reachable_positions.len().checked_add(1).ok_or(usize::MAX)?;
 
-        Ok(Self {
-            direct,
-            providers,
-            closure_node_count,
-        })
+        Ok(Self { direct, providers })
     }
 
     pub(in crate::cross_cone_closure) fn direct(&self) -> &[ConeIdentity] {
@@ -61,8 +56,20 @@ impl<'a> RouteAuthorityInputs<'a> {
     pub(in crate::cross_cone_closure) fn providers(&self) -> &[RouteProviderView<'a>] {
         &self.providers
     }
+}
 
-    pub(in crate::cross_cone_closure) const fn closure_node_count(&self) -> usize {
-        self.closure_node_count
-    }
+/// Temporary route directories retain typed ids and borrowed canonical keys.
+/// Charge both logical collection slots and the actual copied element bytes.
+pub(crate) fn reserve_route_slots<T>(
+    values: &mut Vec<T>,
+    additional: usize,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<(), WireError> {
+    meter.check_table_entries(values.len().saturating_add(additional) as u64, path)?;
+    meter.charge_owned_bytes(
+        (additional as u64).saturating_mul(std::mem::size_of::<T>() as u64),
+        path,
+    )?;
+    meter.try_reserve_collection_slots(values, additional, path)
 }

@@ -147,19 +147,34 @@ impl hir::PublicExportBindingClosureAuthority for CurrentConeAuthority {
         1
     }
 
-    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
-        false
+    fn is_direct_dependency(
+        &self,
+        _provider: ConeIdentity,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<bool, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(false)
     }
 
-    fn binding_key(&self, _binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
-        None
+    fn binding_key(
+        &self,
+        _binding: PersistentExportBindingId,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Option<&ExportBindingKey>, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(None)
     }
 
     fn public_bindings(
         &self,
         _exporter: ConeIdentity,
-    ) -> Option<&hir::CanonicalPublicExportBindingsV1> {
-        None
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Option<&hir::CanonicalPublicExportBindingsV1>, scoop_wire::WireError> {
+        meter.charge_work(1, path)?;
+        Ok(None)
     }
 }
 
