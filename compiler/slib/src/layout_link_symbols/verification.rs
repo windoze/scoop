@@ -9,6 +9,8 @@ pub(crate) struct ReplayInputs<'a, 'contract> {
     pub selection: lir::ValidatedLirTargetSelection,
     pub profile: &'a lir::CBridgeToolchainProfileV1,
     pub manifest: &'a crate::BootstrapManifest,
+    pub code_strong: &'a lir::DecodedStrongProductionSectionV2,
+    pub hir_foundation: &'a scoop_hir::OdrFreeHirFoundation,
 }
 
 pub(crate) fn replay<'input, 'a, 'contract: 'a>(
@@ -78,12 +80,22 @@ pub(crate) fn replay<'input, 'a, 'contract: 'a>(
         .link_identity_closure_wire()
         .replay_symbol_projections(&defined, undefined.legacy(), meter)?;
     let finalized = finalization::replay(&objects, &undefined, &input, &costs, meter)?;
-    let finalized = coverage::replay(finalized, &ordinary, &shape, &input, meter)?;
+    let (finalized, contributions) = coverage::replay(finalized, &ordinary, &shape, &input, meter)?;
+    let code = code::replay(
+        &finalized,
+        &contributions,
+        &defined,
+        &native,
+        &undefined,
+        &input,
+        meter,
+    )?;
     Ok(ReplayedLayoutLinkSymbolUsesV1 {
         objects,
         defined,
         native,
         undefined,
         finalized,
+        code,
     })
 }

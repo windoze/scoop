@@ -1,6 +1,13 @@
 use super::*;
 
 impl<'input> PreparedCrossConeLayoutMirSections<'input> {
+    pub(crate) fn code_strong_input(
+        &mut self,
+    ) -> Result<scoop_lir::DecodedStrongProductionSectionV2, crate::SharedLirPhysicalError> {
+        crate::link_decode::layout_code_strong_input(&mut self.graph)
+            .map_err(|error| crate::LayoutLinkSymbolUseError::CodeInput(Box::new(error)).into())
+    }
+
     pub(crate) fn replay_link_object_contents(
         &mut self,
         strong: &scoop_lir::ReplayedStrongProductionSectionV2,

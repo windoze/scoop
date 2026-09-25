@@ -28,6 +28,8 @@ use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId};
 
 mod runtime;
 pub use runtime::RuntimeProductionProjectionError;
+mod code;
+pub use code::CodeProductionProjectionError;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DecodedArtifactDistributionClassV1 {

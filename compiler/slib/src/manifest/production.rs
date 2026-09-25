@@ -8,8 +8,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, EntryProductionPlanV1,
-    StrongProductionSection, StrongProductionSectionV1, StrongRegistrationIdentitySurfaceV1,
-    StrongRegistrationIdentityV1,
+    StrongProductionSectionV1, StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityV1,
 };
 use scoop_wire::{Encoder, WireEncode};
 
@@ -22,10 +21,16 @@ use crate::link_object::{
     VerifiedStrongRegistrationPatchSetV1,
 };
 
+mod projection;
+#[cfg(test)]
+use projection::distribution;
+pub(crate) use projection::{ProductionPlanInputs, verify_production_code_projection_common};
+
 mod wire;
 pub use wire::{
-    CBridgeCheckedSingleConeProductionManifestV1, DecodedSingleConeProductionManifestV1,
-    RuntimeProductionProjectionError, SingleConeProductionManifestValidationError,
+    CBridgeCheckedSingleConeProductionManifestV1, CodeProductionProjectionError,
+    DecodedSingleConeProductionManifestV1, RuntimeProductionProjectionError,
+    SingleConeProductionManifestValidationError,
 };
 
 #[cfg(test)]
@@ -342,7 +347,7 @@ fn verify_production_code_projection_v1(
         cone,
         dependency_identities,
         source_count,
-        &strong_production,
+        ProductionPlanInputs::from(&strong_production),
         &link_objects,
     )?;
     Ok(VerifiedSingleConeProductionCodeProjectionV1 {
@@ -350,273 +355,6 @@ fn verify_production_code_projection_v1(
         link_objects,
         projection,
     })
-}
-
-pub(super) fn verify_production_code_projection_common<D, C, I>(
-    cone: &ConeRecord,
-    dependency_identities: &[scoop_identity::ConeIdentity],
-    source_count: usize,
-    strong_production: &StrongProductionSection<D, C, I>,
-    link_objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
-) -> Result<SingleConeProductionCodeProjectionV1, ProductionCodeProjectionError>
-where
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
-{
-    let final_objects = link_objects.final_objects();
-    let runtime_image = final_objects.runtime_images().fingerprint();
-    let registrations = runtime_image.registrations();
-
-    if link_objects.producer() != cone.identity()
-        || strong_production.image_plan().cone().identity() != cone.identity()
-        || strong_production.image_plan().cone().coordinate() != cone.coordinate()
-    {
-        return Err(ProductionCodeProjectionError::ConeMismatch);
-    }
-    if strong_production.digest_finalization_plan()
-        != final_objects.entry().patch_sites().digest_plan()
-    {
-        return Err(ProductionCodeProjectionError::DigestPlanMismatch);
-    }
-    if strong_production.image_plan() != runtime_image.image().plan() {
-        return Err(ProductionCodeProjectionError::ImagePlanMismatch);
-    }
-    if strong_production.entry_plan() != final_objects.entry().plan() {
-        return Err(ProductionCodeProjectionError::EntryPlanMismatch);
-    }
-    if strong_production.generated_bridge_plan()
-        != final_objects
-            .entry()
-            .patch_sites()
-            .builtins()
-            .c_bridge_production()
-            .bridge_plan()
-    {
-        return Err(ProductionCodeProjectionError::GeneratedBridgePlanMismatch);
-    }
-    if !registration_identities_match(
-        strong_production.registration_production().identities(),
-        registrations,
-    ) {
-        return Err(ProductionCodeProjectionError::RegistrationIdentityMismatch);
-    }
-
-    if dependency_identities != strong_production.image_plan().dependencies() {
-        return Err(ProductionCodeProjectionError::DependencyMismatch);
-    }
-
-    let distribution = distribution(cone, dependency_identities, source_count)?;
-    let output = output(cone, final_objects)?;
-    let strong_registration_set =
-        CanonicalStrongRegistrationFingerprintSetV1::from_patch_set(registrations)
-            .map_err(ProductionCodeProjectionError::StrongRegistrations)?;
-    let projection = SingleConeProductionCodeProjectionV1 {
-        distribution,
-        output,
-        image_owner_member: runtime_image.image().member(),
-        runtime_registration_projection: strong_production
-            .registration_production()
-            .identities()
-            .clone(),
-        strong_registration_set,
-        runtime_image_fingerprint: runtime_image.fingerprint(),
-    };
-    Ok(projection)
-}
-
-fn distribution(
-    cone: &ConeRecord,
-    dependencies: &[scoop_identity::ConeIdentity],
-    source_count: usize,
-) -> Result<ArtifactDistributionClassV1, ProductionCodeProjectionError> {
-    match cone.source_form() {
-        ConeSourceForm::Manifest => Ok(ArtifactDistributionClassV1::DistributableCone),
-        ConeSourceForm::SingleFile
-            if cone.kind() == ConeKind::Executable
-                && source_count == 1
-                && dependencies == [scoop_identity::ConeIdentity::CORE] =>
-        {
-            Ok(ArtifactDistributionClassV1::LocalExecutableRoot)
-        }
-        ConeSourceForm::SingleFile => Err(ProductionCodeProjectionError::InvalidSingleFileRoot {
-            kind: cone.kind(),
-            source_count,
-            dependencies: dependencies.to_vec(),
-        }),
-    }
-}
-
-fn output<D, C, I>(
-    cone: &ConeRecord,
-    final_objects: &crate::link_object::VerifiedEntryPatchSetV1<D, C, I>,
-) -> Result<SingleConeProductionOutputV1, ProductionCodeProjectionError>
-where
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
-{
-    match (
-        cone.kind(),
-        final_objects.entry().plan(),
-        final_objects.entry().branch(),
-    ) {
-        (
-            ConeKind::Library,
-            EntryProductionPlanV1::Library,
-            VerifiedEntryProductionBranchV1::Library,
-        ) => Ok(SingleConeProductionOutputV1::Library),
-        (
-            ConeKind::Executable,
-            EntryProductionPlanV1::Executable(plan),
-            VerifiedEntryProductionBranchV1::Executable(entry),
-        ) => {
-            let gateway = final_objects
-                .runtime_images()
-                .fingerprint()
-                .registrations()
-                .callables()
-                .fingerprints()
-                .iter()
-                .find(|fingerprint| fingerprint.body() == plan.gateway())
-                .copied()
-                .ok_or(ProductionCodeProjectionError::MissingGatewayFingerprint(
-                    plan.gateway(),
-                ))?;
-            Ok(SingleConeProductionOutputV1::Executable(Box::new(
-                ExecutableRootProjectionV1 {
-                    main: plan.main(),
-                    source_signature_fingerprint: plan.source_signature_fingerprint(),
-                    gateway: plan.gateway(),
-                    gateway_definition_fingerprint: gateway.body_definition(),
-                    failure_root: plan.failure_root(),
-                    entry_owner_member: entry.member(),
-                },
-            )))
-        }
-        _ => Err(ProductionCodeProjectionError::OutputMismatch),
-    }
-}
-
-fn registration_identities_match<D, C, I>(
-    identities: &StrongRegistrationIdentitySurfaceV1,
-    registrations: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
-) -> bool
-where
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
-{
-    let static_storages = registrations
-        .static_storages()
-        .shapes()
-        .storage_definitions()
-        .registration_objects()
-        .registrations()
-        .plan()
-        .registrations();
-    let immortal_objects = registrations
-        .immortal_objects()
-        .object_definitions()
-        .registration_objects()
-        .registrations()
-        .plan()
-        .registrations();
-    let initializations = registrations
-        .initializations()
-        .definitions()
-        .registration_objects()
-        .registrations()
-        .plan()
-        .registrations();
-    let types = registrations
-        .types()
-        .dependencies()
-        .registration_objects()
-        .registrations()
-        .plan()
-        .registrations();
-    let safepoints = registrations
-        .safepoints()
-        .registrations()
-        .plan()
-        .registrations();
-    let callables = registrations
-        .callables()
-        .body_objects()
-        .registration_objects()
-        .registrations()
-        .plan()
-        .registrations();
-
-    table_matches(
-        identities.static_storages(),
-        static_storages.iter().map(|plan| {
-            (
-                plan.semantic().storage(),
-                plan.registration_definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
-    ) && table_matches(
-        identities.immortal_objects(),
-        immortal_objects.iter().map(|plan| {
-            (
-                plan.object(),
-                plan.registration_definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
-    ) && table_matches(
-        identities.initialization_units(),
-        initializations.iter().map(|plan| {
-            (
-                plan.semantic().unit(),
-                plan.registration_definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
-    ) && table_matches(
-        identities.type_registrations(),
-        types.iter().map(|plan| {
-            (
-                plan.exact_type(),
-                plan.definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
-    ) && table_matches(
-        identities.safepoints(),
-        safepoints.iter().map(|plan| {
-            (
-                plan.site(),
-                plan.definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
-    ) && table_matches(
-        identities.callables(),
-        callables.iter().map(|plan| {
-            (
-                plan.body(),
-                plan.definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
-    )
-}
-
-fn table_matches<I: scoop_identity::PersistentId>(
-    identities: &[StrongRegistrationIdentityV1<I>],
-    plans: impl IntoIterator<Item = (I, ObjectDefinitionPlanId, DigestNodeId)>,
-) -> bool {
-    identities
-        .iter()
-        .map(|identity| {
-            (
-                identity.semantic_id(),
-                identity.definition_plan(),
-                identity.fingerprint_node(),
-            )
-        })
-        .eq(plans)
 }
 
 fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {

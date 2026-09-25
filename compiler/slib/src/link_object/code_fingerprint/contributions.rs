@@ -68,7 +68,7 @@ impl CanonicalKnownLinkExtensionCodeContributionSetV1 {
     /// Builds the complete M23-6 Code contribution. The Link-only member,
     /// relocation, and coverage fields remain outside Code; both Compile-bound
     /// semantic import projections are included under their owning capability.
-    pub(in crate::link_object) fn from_cross_cone_layout_semantic_imports(
+    pub(crate) fn from_cross_cone_layout_semantic_imports(
         callable_imports: &CrossConeLinkSemanticImportSetV1,
         shape_imports: &CanonicalExternalShapeLinkImportsV1<'_>,
     ) -> Result<Self, scoop_wire::cbor::EncodeError> {

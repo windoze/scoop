@@ -6,6 +6,7 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 use crate::ReplayedLayoutLinkObjectContentsV1;
 use crate::link_object::*;
 
+mod code;
 mod coverage;
 mod errors;
 mod finalization;
@@ -15,8 +16,8 @@ mod verification;
 pub use errors::LayoutLinkSymbolUseError;
 pub(crate) use verification::{ReplayInputs, replay};
 
-/// Owned symbols, final objects and complete Link object projections. Code
-/// identity and the complete source relations remain necessary for an artifact.
+/// Owned symbols, final objects and a recomputed Code identity. Complete source
+/// relations remain necessary before this can become a qualified artifact.
 #[derive(Debug)]
 pub struct ReplayedLayoutLinkSymbolUsesV1<'input> {
     objects: ReplayedLayoutLinkObjectContentsV1<'input>,
@@ -24,9 +25,14 @@ pub struct ReplayedLayoutLinkSymbolUsesV1<'input> {
     native: lir::CanonicalNativeExternalRequirementSurfaceV1,
     undefined: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     finalized: VerifiedCodeLinkObjectMemberSetV2,
+    code: crate::CodeFingerprint,
 }
 
 impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
+    pub const fn code_fingerprint(&self) -> crate::CodeFingerprint {
+        self.code
+    }
+
     pub const fn provider(&self) -> scoop_identity::ConeIdentity {
         self.objects.provider()
     }

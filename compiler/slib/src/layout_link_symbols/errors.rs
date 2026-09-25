@@ -25,6 +25,11 @@ pub enum LayoutLinkSymbolUseError {
     FinalMembers(CodeLinkObjectMemberValidationError),
     FinalProjection(LinkFinalObjectProjectionError),
     OrdinaryCoverage(CrossConeLinkClosureBuildError),
+    CodeInput(Box<crate::SingleConeLinkSectionDecodeError>),
+    ProductionProjection(crate::ProductionCodeProjectionError),
+    CodeProjection(crate::CodeProductionProjectionError),
+    CodeFingerprint(LayoutCodeFingerprintError),
+    CodeFingerprintMismatch,
 }
 
 macro_rules! from_error {
@@ -67,6 +72,9 @@ from_error!(crate::RuntimeProductionProjectionError, RuntimeProjection);
 from_error!(CodeLinkObjectMemberValidationError, FinalMembers);
 from_error!(LinkFinalObjectProjectionError, FinalProjection);
 from_error!(CrossConeLinkClosureBuildError, OrdinaryCoverage);
+from_error!(crate::ProductionCodeProjectionError, ProductionProjection);
+from_error!(crate::CodeProductionProjectionError, CodeProjection);
+from_error!(LayoutCodeFingerprintError, CodeFingerprint);
 
 impl std::fmt::Display for LayoutLinkSymbolUseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

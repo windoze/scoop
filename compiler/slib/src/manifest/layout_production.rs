@@ -8,7 +8,8 @@ use scoop_wire::{Encoder, WireEncode};
 
 use super::{
     ConeRecord, DependencyRecord, ProductionCodeProjectionError,
-    SingleConeProductionCodeProjectionV1, production::verify_production_code_projection_common,
+    SingleConeProductionCodeProjectionV1,
+    production::{ProductionPlanInputs, verify_production_code_projection_common},
 };
 use crate::link_object::VerifiedCodeLinkObjectMemberSetV2;
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId, VerifiedCodeFingerprintV2};
@@ -54,7 +55,7 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
         cone,
         &dependency_identities,
         source_count,
-        &strong_production,
+        ProductionPlanInputs::from(&strong_production),
         &link_objects,
     )?;
     Ok(VerifiedSingleConeProductionCodeProjectionV2 {

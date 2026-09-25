@@ -8,7 +8,13 @@ pub(super) fn replay(
     shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
     input: &ReplayInputs<'_, '_>,
     meter: &mut BudgetMeter,
-) -> Result<VerifiedCodeLinkObjectMemberSetV2, LayoutLinkSymbolUseError> {
+) -> Result<
+    (
+        VerifiedCodeLinkObjectMemberSetV2,
+        CanonicalKnownLinkExtensionCodeContributionSetV1,
+    ),
+    LayoutLinkSymbolUseError,
+> {
     resources::final_directory(input.manifest.members(), meter)?;
     let finalized = verify_code_link_object_members_v2(finalized, input.manifest.members())?;
     input
@@ -27,5 +33,12 @@ pub(super) fn replay(
         .link
         .layout_link_closure_wire()
         .replay_object_coverage_against(shape.object_coverage(), meter)?;
-    Ok(finalized)
+    resources::code_contributions(ordinary.semantic_imports(), shape.semantic_imports(), meter)?;
+    let contributions =
+        CanonicalKnownLinkExtensionCodeContributionSetV1::from_cross_cone_layout_semantic_imports(
+            ordinary.semantic_imports(),
+            shape.semantic_imports(),
+        )
+        .map_err(LayoutCodeFingerprintError::LinkContributionEncoding)?;
+    Ok((finalized, contributions))
 }

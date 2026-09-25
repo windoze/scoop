@@ -16,6 +16,9 @@ generic 声明。测试从真实 core 源码产生 MIR/LIR layout 表与 Strong 
 - `*.artifact.snap` 记录实际组装产物及 Compile、Link 独立重放后的 provider/物理导入。
   Link 的四组专用载荷和原累计预算贯穿共有路径；修改 Link-only provider 并重建合法
   archive hash 的反例，必须在物理导入关联处拒绝，不能仅靠外层摘要或成功解码放行。
+- `*.code.snap` 锁定两个 provider 的实际 Code 指纹与完整重放结果。反例覆盖 distribution、
+  library/executable 分支、两个位置的 Code 值及 native contract/library 表；同时改错两个
+  Code 值并重建合法 archive hash 也必须拒绝。工作量和内存预算验证精确边界及少一个单位。
 - 反例覆盖缺少完整选择集、错误 consumer、缺少 ShapeSupport、裸描述符不能替代
   ShapeSupport、缺少 helper 物理导入、错误 helper 配对、预算耗尽，以及 runtime
   String 描述符不能单独授予源码类型测试能力。

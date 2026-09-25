@@ -21,6 +21,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 let objects = artifact
                     .prepared
                     .replay_link_object_contents(&artifact.strong, profile)?;
+                let code_strong = artifact.prepared.code_strong_input()?;
                 let parts = artifact.prepared.semantic_parts();
                 let link = parts
                     .link_sections
@@ -36,6 +37,8 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                         selection,
                         profile,
                         manifest: parts.manifest,
+                        code_strong: &code_strong,
+                        hir_foundation: parts.hir_foundation,
                     },
                     previous,
                     physical.iter().map(|artifact| &artifact.layout),

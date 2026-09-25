@@ -1068,6 +1068,8 @@ layout Link reader 在完整符号用途分区之后，复用生产端的六类 
 
 layout Link reader 在最终对象补丁重建之后，以同一份 V2 最终对象和原 manifest 的完整 member directory 重算全部 LinkObject fingerprint；Scoop 对象与 generated C bridge 均参与，member、稳定键、role、长度、内容 digest 与完整有序集合逐项一致。Link identity 的最终对象集合、image owner 六字段及 library/executable entry owner 分支必须从同一实际对象证明重建并逐字段比较，不能只接受相同 member 或 producer。普通调用与 layout/shape 两张 Link closure 的 object coverage 继续使用各自原有 hash domain，从完整最终对象集合和已校验的实际 relocation-use 集合重算；分类使用的 Strong relocation proof 必须与最终对象逐 member 内容及完整 binding 一致。原始三个 closure 的对象集合和两项 coverage digest 均须精确匹配，缺失、额外、重复、乱序、错误 fingerprint、owner 或分支均拒绝，reader 不补齐、不排序修复候选投影。所有查询、复制、排序、hash 与 wire 比较沿用原 artifact 的累计预算，失败不返回部分闭包；成功状态按所有权保留同一完整最终对象集合。Code fingerprint、其余 production 字段、完整源码操作资格和 Compile/Link 发布继续分别完成；不改变 wire、capability、runtime ABI 或增加 core 例外。
 
+layout Link reader 在完整最终对象与用途覆盖重放后，使用与 producer 相同的九字段 canonical Code 输入和 scoop-code-v1 hash domain，重算外层及 production manifest 的 Code fingerprint。object directory、两类 Link semantic import、generated C production、native library requirement、defined/undefined symbol、native contract 均来自同一已重放关系；Strong V2 contribution 只读取原 artifact 保留的不可变 payload，按原累计预算解码，不重开文件、不重置预算，也不将物理重放状态转换成可发布 Strong section。production Code projection 从真实 cone/source count/直接依赖、Strong plan 和最终 image/entry/registration 重建，再逐项核对原 manifest 的 distribution、完整 library/executable output、Code、native contract 和 native library 表；候选 manifest 不作为预期值来源。编码、hash、复制、查找及集合构造均计入同一预算；任一字段不符或预算不足时不返回部分结果。成功状态保留重算 Code 值供后续完整闭包关联，完整源码操作资格与 Compile/Link 发布仍须独立完成。本项不改变 wire、capability、runtime ABI 或既有 Code 格式，不增加 core 特例。
+
 错误前不发布partial world、arena、artifact或cache entry。MIR/LIR自身不报告新的源码visibility/overload错误；不完整selected集合属于compiler/artifact invariant。
 
 ### 11.2 semantic dependency与physical use分开

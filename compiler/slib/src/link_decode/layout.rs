@@ -20,9 +20,11 @@ use crate::{
 };
 
 mod accessors;
+mod code_input;
 mod decode;
 mod shared;
 
+pub(crate) use code_input::layout_code_strong_input;
 pub use decode::CrossConeLayoutLinkSectionDecodeError;
 pub use shared::DecodedCrossConeLayoutLinkOnlySections;
 pub(crate) use shared::DecodedLayoutView;
