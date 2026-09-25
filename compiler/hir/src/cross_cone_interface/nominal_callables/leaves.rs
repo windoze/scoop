@@ -21,12 +21,9 @@ impl NominalExactLeafClassifierV1 {
         path: &WirePath,
     ) -> Result<Self, Error> {
         let mut leaves = Vec::new();
-        append(
-            &mut leaves,
-            CoreBuiltinNominal::Unit.identity_record().id(),
-            meter,
-            path,
-        )?;
+        for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
+            append(&mut leaves, builtin.identity_record().id(), meter, path)?;
+        }
         for nominal in nominals {
             meter.charge_work(1, path).map_err(Error::Resource)?;
             if let SourceNominalId::Concrete(source) = nominal.declaration() {

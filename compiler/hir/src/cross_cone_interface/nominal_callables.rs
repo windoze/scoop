@@ -20,7 +20,7 @@ pub struct NominalExactLeafClassifierV1 {
 
 impl NominalExactLeafClassifierV1 {
     /// Returns the exact identity of a concrete nominal in the supplied
-    /// public surface, or the language builtin Unit. ABI and runtime shape
+    /// public surface, or the language builtins Unit and Any. ABI and runtime shape
     /// requirements are validated by the later MIR/LIR bridge checks.
     pub fn classify(&self, signature: &SignatureTypeKey) -> Option<PersistentExactTypeId> {
         let SignatureTypeKey::Nominal(source) = signature else {

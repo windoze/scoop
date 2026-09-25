@@ -13,3 +13,10 @@ public fun receiverDefault(value: Int = "provider-default".receiverAnswer()): In
 public var String.receiverScore: Int
     get() = 7
     set(value) {}
+
+public fun relayAny(value: Any): Any = value
+public fun Any.acceptAny(): Any = this
+public fun anyDefault(value: Any = "provider-default".acceptAny()): Any = value
+public var Any.anyValue: Any
+    get() = this
+    set(value) {}

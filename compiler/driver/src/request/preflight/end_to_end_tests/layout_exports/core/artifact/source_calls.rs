@@ -3,12 +3,15 @@
 use super::*;
 use scoop_slib as slib;
 
+mod any_signatures;
 mod candidates;
+mod changes;
 mod members;
 mod reader;
 mod receivers;
 mod wire;
 
+pub(super) use any_signatures::{check as check_any, check_link as check_any_link};
 pub(super) use receivers::check as check_receivers;
 
 pub(super) fn check(

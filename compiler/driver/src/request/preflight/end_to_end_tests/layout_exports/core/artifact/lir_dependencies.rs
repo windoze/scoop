@@ -24,6 +24,7 @@ pub(super) fn check(
             &core_bytes,
             &source,
             None,
+            None,
             |mir_input, _, lir_input, _, owners| {
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                     types: &[core_mir.types()],

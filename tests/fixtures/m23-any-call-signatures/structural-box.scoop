@@ -1,0 +1,3 @@
+import dependency.api.relayAny
+
+public fun rejected(): Any = relayAny((3, "tuple"))

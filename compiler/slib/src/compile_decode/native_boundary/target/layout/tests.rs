@@ -7,6 +7,8 @@ use scoop_identity::{
 
 use super::*;
 
+mod builtins;
+
 #[test]
 fn rejects_unit_as_a_c_object_even_without_consulting_a_witness() {
     let owner = scoop_identity::CoreBuiltinNominal::Unit

@@ -3,6 +3,7 @@
 use super::lir_dependencies::{assembly, reader};
 use super::*;
 
+mod odr;
 mod physical;
 mod registration_edges;
 mod rejections;
@@ -46,11 +47,14 @@ pub(super) fn check(
     .unwrap();
     let core = bootstrap_core(directory, target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
+    odr::check(directory, target);
     for (family, name, count) in [
         ("m23-property-initialization", "standalone", 1),
         ("m23-property-initialization", "combined", 4),
         ("m23-extension-call-receivers", "standalone", 1),
         ("m23-extension-call-receivers", "combined", 4),
+        ("m23-any-call-signatures", "standalone", 1),
+        ("m23-any-call-signatures", "combined", 4),
         ("m23-link-object-contents", "standalone", 1),
         ("m23-link-object-contents", "combined", 4),
         ("m23-link-symbol-uses", "standalone", 1),
@@ -64,6 +68,7 @@ pub(super) fn check(
             &bytes,
             &source,
             Some((core_mir, core_lir)),
+            Some(&provider),
             |input, _, lir_input, _, _| {
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                     types: &[core_mir.types()],
@@ -95,6 +100,7 @@ pub(super) fn check(
                 assert_eq!(mir.initialization_uses().records().len(), count);
                 rejections::check(input, core_input, &mir, core_mir, &projected);
                 let (selected, initialization) = physical::select(
+                    input.mir,
                     lir_input.lir,
                     &mir,
                     &provider,
@@ -181,6 +187,13 @@ pub(super) fn check(
                     );
                     if family == "m23-extension-call-receivers" {
                         super::source_calls::check_receivers(input, core_artifact, &artifact);
+                    } else if family == "m23-any-call-signatures" {
+                        super::source_calls::check_any(
+                            &fixtures.join(format!("{name}.rejections.snap")),
+                            input,
+                            core_artifact,
+                            &artifact,
+                        );
                     } else if family == "m23-link-object-contents" {
                         super::link_object_contents::check(
                             name,
@@ -188,7 +201,7 @@ pub(super) fn check(
                             &artifact,
                             &prepared.c_bridge_profile,
                         );
-                    } else {
+                    } else if family == "m23-link-symbol-uses" {
                         super::link_symbol_uses::check(
                             &fixtures.join(format!("{name}.symbols.snap")),
                             core_artifact,
@@ -197,7 +210,20 @@ pub(super) fn check(
                         );
                     }
                 }
+                let physical_count = if family == "m23-any-call-signatures" && name == "combined" {
+                    3
+                } else {
+                    1
+                };
+                assert_eq!(selected.physical_imports().records().len(), physical_count);
                 let mut dump = format!("mir-uses={count}\n");
+                if family == "m23-any-call-signatures" {
+                    dump.push_str(&super::source_calls::check_any_link(
+                        core_artifact,
+                        &artifact,
+                        &prepared.c_bridge_profile,
+                    ));
+                }
                 for (view, closure) in [
                     ("compile", reader::read(core_artifact, &artifact)),
                     ("link", reader::read_link(core_artifact, &artifact)),
@@ -206,7 +232,10 @@ pub(super) fn check(
                         .with_replayed_physical_imports(|physical| {
                             let current = physical.artifact(mir.provider()).unwrap();
                             assert_eq!(current.link_sections().is_some(), view == "link");
-                            assert_eq!(current.lir_physical_imports().records().len(), 1);
+                            assert_eq!(
+                                current.lir_physical_imports().records().len(),
+                                physical_count
+                            );
                             let units = current
                                 .lir_strong_production()
                                 .initialization_registrations();
@@ -222,7 +251,7 @@ pub(super) fn check(
                                 .collect::<Vec<_>>();
                             assert_eq!(edges.len(), if name == "standalone" { 1 } else { 3 });
                             dump.push_str(&format!(
-                                "{view}: physical=1 unit-edges={}\n",
+                                "{view}: physical={physical_count} unit-edges={}\n",
                                 edges.len()
                             ));
                             for (local, edge) in edges {

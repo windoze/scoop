@@ -35,6 +35,26 @@ fn only_known_nominal_leaves_are_classified() {
 }
 
 #[test]
+fn builtin_any_retains_its_exact_identity_without_a_nominal_sidecar() {
+    let (classifier, _, unit) = classifier();
+    let any = CoreBuiltinNominal::Any.identity_record().id();
+    let exact =
+        scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(any)).unwrap();
+    assert_ne!(exact, unit);
+    let signature = SignatureTypeKey::Nominal(any);
+    assert_eq!(classifier.classify(&signature), Some(exact));
+    let function = callable(
+        signature,
+        Effect::Ordinary,
+        CallableImplementationV1::Scoop,
+        GcEffect::Managed,
+    );
+    let classified = classifier.classify_callable(&function).unwrap().unwrap();
+    assert_eq!(classified.signature().result(), exact);
+    assert_eq!(classified.gc_effect(), GcEffect::Managed);
+}
+
+#[test]
 fn shared_nominal_surface_supplies_exact_leaves_without_a_core_sidecar() {
     use crate::{CanonicalNominalInterfacesV1, SourceNominalId};
 

@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) mod identity;
+pub(super) mod physical;
 use identity::identities;
 
 pub(super) fn with_production(
@@ -36,6 +37,7 @@ pub(super) fn with_inspection(
         core_bytes,
         source,
         None,
+        None,
         |mir, projection, lir, dependencies, _| {
             inspect(mir, projection);
             run(lir, dependencies);
@@ -52,6 +54,7 @@ pub(super) fn with_pair(
         &mir::CrossConeMirTypeBridgeSectionV1<'_>,
         &lir::CrossConeLayoutAbiSectionV1<'_>,
     )>,
+    layout_provider: Option<&lir::ShapeLinkProviderV1<'_>>,
     run: impl FnOnce(
         scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
         &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
@@ -136,14 +139,35 @@ pub(super) fn with_pair(
         &mut meter(),
     )
     .unwrap();
-    let lir = scoop_lir_lower::lower_with_diagnostics(
-        &mir.strong,
-        scoop_lir_lower::RuntimeStringDescriptor::External(string),
-        &selected,
-        target.lir_target(),
-        &diagnostics,
-        &mut meter(),
-    )
+    let dependency_layouts = match (provider_exports, layout_provider) {
+        (Some((_, layout)), Some(provider)) => physical::select(&mir.strong, layout, provider),
+        _ => lir::StrongProductionDependencySelectionV2::empty(
+            mir.strong.module().cone,
+            target.lir_target(),
+            &mut meter(),
+        )
+        .unwrap(),
+    };
+    let string = scoop_lir_lower::RuntimeStringDescriptor::External(string);
+    let lir = match layout_provider {
+        Some(_) => scoop_lir_lower::lower_with_layout_dependencies(
+            &mir.strong,
+            string,
+            &selected,
+            target.lir_target(),
+            &dependency_layouts,
+            &diagnostics,
+            &mut meter(),
+        ),
+        None => scoop_lir_lower::lower_with_diagnostics(
+            &mir.strong,
+            string,
+            &selected,
+            target.lir_target(),
+            &diagnostics,
+            &mut meter(),
+        ),
+    }
     .unwrap();
     let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), &front);
     let foundation = hir::OdrFreeHirFoundation::try_new(
@@ -211,7 +235,11 @@ pub(super) fn with_pair(
     assert!(
         uses.iter()
             .all(|usage| usage.provider() == ConeIdentity::CORE
-                && matches!(usage.target(), mir::MirTypeBridgeTargetV1::Type(_)))
+                && matches!(
+                    usage.target(),
+                    mir::MirTypeBridgeTargetV1::Type(_)
+                        | mir::MirTypeBridgeTargetV1::ShapeSupport(_)
+                ))
     );
     assert_eq!(
         mir::MirTypeBridgeSectionSourceAuthorityV1::local_initialization_units(&projected)
@@ -228,18 +256,12 @@ pub(super) fn with_pair(
         .map(|(_, provider)| provider.callables())
         .into_iter()
         .collect::<Vec<_>>();
-    let selected = lir::StrongProductionDependencySelectionV2::empty(
-        lir.module().cone,
-        target.lir_target(),
-        &mut meter(),
-    )
-    .unwrap();
     let registration = lir
         .build_production_section_v2(
             coordinate.clone(),
             &[scoop_identity::ConeIdentity::CORE],
             lir::EntryProductionSourceV1::Library,
-            &selected,
+            &dependency_layouts,
             &[],
             &mut meter(),
         )

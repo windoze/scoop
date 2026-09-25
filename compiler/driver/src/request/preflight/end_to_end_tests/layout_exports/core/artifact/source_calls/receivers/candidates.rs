@@ -22,8 +22,7 @@ pub(super) fn mutations(public: &hir::CrossConeHirInterfaceSectionV1) -> Vec<Can
                 continue;
             }
             assert_ne!(call.receiver(), wrong);
-            let mut calls = reference.call_sites().records().to_vec();
-            calls[call_index] = hir::HirDependencyCallSiteV1::try_new(
+            let replacement = hir::HirDependencyCallSiteV1::try_new(
                 call.position(),
                 call.origin().clone(),
                 call.arguments().to_vec(),
@@ -32,29 +31,8 @@ pub(super) fn mutations(public: &hir::CrossConeHirInterfaceSectionV1) -> Vec<Can
                 wrong,
             )
             .unwrap();
-            let mut references = public.external_references().records().to_vec();
-            references[reference_index] = hir::ExternalHirReferenceV1::try_new(
-                reference.origin(),
-                reference.target(),
-                reference.roles().clone(),
-                reference.witnesses().clone(),
-                hir::CanonicalHirDependencyCallSitesV1::try_new(calls).unwrap(),
-                reference.type_sites().clone(),
-            )
-            .unwrap();
             result.push(Candidate {
-                public: hir::CrossConeHirInterfaceSectionV1::new(
-                    public.public_bindings().clone(),
-                    public.nominal_interfaces().clone(),
-                    public.callable_interfaces().clone(),
-                    public.property_interfaces().clone(),
-                    public.type_aliases().clone(),
-                    public.source_interfaces().clone(),
-                    public.default_templates().clone(),
-                    public.constants().clone(),
-                    public.definition_sources().clone(),
-                    hir::CanonicalExternalHirReferencesV1::try_new(references).unwrap(),
-                ),
+                public: changes::call(public, reference_index, call_index, replacement),
                 position: call.position(),
                 receiver: wrong,
                 expected: call.arguments()[0],

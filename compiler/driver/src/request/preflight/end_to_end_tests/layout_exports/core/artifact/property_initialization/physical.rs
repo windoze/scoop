@@ -37,6 +37,7 @@ pub(super) fn check_provider(input: scoop_mir_lower::MirTypeBridgeExportInputV1<
 }
 
 pub(super) fn select<'a>(
+    input: &mir::SingleConeStrongMirInput,
     output: &lir::SingleConeStrongLirOutput,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     provider: &lir::ShapeLinkProviderV1<'a>,
@@ -47,23 +48,15 @@ pub(super) fn select<'a>(
     Vec<lir::StrongExternalInitializationUseV2>,
 ) {
     let uses = mir.initialization_uses().records();
-    let mut physical = uses
-        .iter()
-        .map(|usage| {
-            (
-                usage.provider(),
-                lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(
-                    usage.dependency_unit(),
-                ),
-            )
-        })
-        .collect::<Vec<_>>();
-    physical.sort_unstable();
-    physical.dedup();
-    let source = Source {
-        roots: vec![],
-        physical,
-    };
+    let mut source = Source::from_mir(input);
+    source.physical.extend(uses.iter().map(|usage| {
+        (
+            usage.provider(),
+            lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(usage.dependency_unit()),
+        )
+    }));
+    source.physical.sort_unstable();
+    source.physical.dedup();
     let support = InitializationSupport {
         uses,
         units: production
@@ -134,8 +127,10 @@ impl<'a> lir::ShapeLinkSupportLookupV1<'a> for InitializationSupport<'a, '_> {
         subject: lir::ExternalStrongShapeSubjectV1,
         meter: &mut BudgetMeter,
     ) -> Result<Option<lir::ShapeLinkSupportSourceV1<'a>>, lir::ShapeLinkError> {
-        let lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(id) = subject else {
-            return Err(lir::ShapeLinkError::SupportRelation(subject));
+        let id = match subject {
+            lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(id) => id,
+            lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_) => return Ok(None),
+            _ => return Err(lir::ShapeLinkError::SupportRelation(subject)),
         };
         meter.charge_work(
             (self.uses.len() + self.units.len()) as u64,

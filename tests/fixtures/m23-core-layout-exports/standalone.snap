@@ -8,7 +8,7 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=142 descriptors=71 dispatch=91 callables=47 shapes=19
+layouts=142 descriptors=71 dispatch=91 callables=46 shapes=19
 callable Boolean.equals: OrdinaryManaged receiver=true args=["Direct(1)", "Direct(1)"] result=Direct(1)
 callable Boolean.hash: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
 callable Boolean.toString: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
@@ -37,7 +37,6 @@ callable ULong.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result
 callable ctor.CoreLayoutEmpty.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SourceLocation.$c6: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)"] result=Indirect(40)
 callable init.Throwable.$c10: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
-callable keepCoreLayoutAny: OrdinaryManaged receiver=false args=["Direct(8)"] result=Direct(8)
 callable thunk<Boolean> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable thunk<Boolean> ToString.toString(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable thunk<Int16> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

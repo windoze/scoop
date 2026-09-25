@@ -376,6 +376,10 @@ layout reader 的 protected 声明全集从共有 nominal、callable、property 
 
 实际 extension 调用的原始 receiver 同样须独立重放类型可应用性，不能因适配后的首个逻辑参数已匹配声明而省略。expected receiver 从实际 provider 的共有 extension 声明取得，actual receiver 使用 call-site 保留的适配前 exact；按语言规范 3.1、3.2、8.1.1、8.6 核对 exact 相等、到 Any 的上行关系、真实 nominal class/interface 继承，以及同挂起性和元数下函数参数逆变、结果协变。tuple、原生 pointer 与 native function pointer 不按元素或签名生成隐式型变，整数也不因位宽或表示相似建立子类型关系；generic/source-only 物化继续受 M23-7 限制。每次调用分别验证，失败保留原调用位置、actual receiver 与 expected exact；构造及无 receiver 的 top-level 调用保持各自角色，extension 不生成 MemberCall。两端类型与其传递需求仍从共有来源完整收集，派生关系不能用同名、同布局或 provider 标签替代。producer 与 Compile/Link reader 复用同一检查和原累计预算；函数类型关系的重复子查询只在本次调用中复用，跨调用不跳过校验。此项不替代实际适配操作、装箱/函数 adapter、访问或机器 ABI 闭包，不新增 wire 字段或版本。
 
+不含泛型参数的普通 top-level 与 extension function/accessor 的 exact nominal 签名分类同时包含语言内建 Unit 和 Any；两者使用固定 canonical typed declaration identity，provider 沿该 declaration key 的真实 origin 取得，不要求补造普通 nominal 声明记录，也不能按名称、布局或当前 provider 代替身份。Any 在 receiver、参数、结果以及默认值实例化中始终保留自身 exact type，参数适配前的实际类型与普通上行转换仍分别保存和核对。已选择调用必须闭合共有 Signature/Representation 用途、实际 MIR implementation、完整 logical signature、LIR ManagedValue layout 与 canonical ABI，Compile/Link reader 按同一入口重放；相同物理 ref 表示不能替代 Any 与其他 nominal 的语义身份。此分类仅补齐已有共有表示的语言内建类型，不授予成员、构造、generic/ODR、结构签名或 native 调用资格，不新增 wire 字段或版本。
+
+共有 canonical Scoop ABI 正规化从已经注册的 exact key 识别语言内建 Any，按目标的 managed pointer 布局计算其大小、对齐、GC 属性和 direct 参数/结果形式，并保留完整 Any exact identity；Any 同样参与既有非空 managed-reference niche 判断。该固定语言表示不依赖 native-boundary witness 或普通 nominal arena，计算本身不产生 provider definition、成员或布局消费资格，实际可达依赖及 ManagedValue 布局仍须由共有产物闭包核对。缺失 exact key 继续拒绝；其他同名 nominal 仍查询自身声明。C ABI 中按值传递 Any 继续按既有 managed-reference 规则拒绝。
+
 ### 4.1 type semantics section
 
 ```text
