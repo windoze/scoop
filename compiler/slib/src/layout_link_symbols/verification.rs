@@ -78,6 +78,7 @@ pub(crate) fn replay<'input, 'a, 'contract: 'a>(
         .link_identity_closure_wire()
         .replay_symbol_projections(&defined, undefined.legacy(), meter)?;
     let finalized = finalization::replay(&objects, &undefined, &input, &costs, meter)?;
+    let finalized = coverage::replay(finalized, &ordinary, &shape, &input, meter)?;
     Ok(ReplayedLayoutLinkSymbolUsesV1 {
         objects,
         defined,

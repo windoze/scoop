@@ -1,0 +1,27 @@
+scoop=69 bridges=0 final_members=69
+scoop=34 bridges=2 final_members=36
+reject Members(Identity, Missing)
+reject Members(Identity, Extra)
+reject Members(Identity, Duplicate)
+reject Members(Identity, Order)
+reject Members(Identity, Fingerprint)
+reject Members(Ordinary, Missing)
+reject Members(Ordinary, Extra)
+reject Members(Ordinary, Duplicate)
+reject Members(Ordinary, Order)
+reject Members(Ordinary, Fingerprint)
+reject Members(Shape, Missing)
+reject Members(Shape, Extra)
+reject Members(Shape, Duplicate)
+reject Members(Shape, Order)
+reject Members(Shape, Fingerprint)
+reject Digest(Ordinary)
+reject Digest(Shape)
+reject ImageField(1)
+reject ImageField(2)
+reject ImageField(3)
+reject ImageField(4)
+reject ImageField(5)
+reject ImageField(6)
+reject EntryBranch
+reject dependency final fingerprint

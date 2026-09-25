@@ -4,6 +4,8 @@ use super::*;
 use scoop_wire::{WireEncode, WireErrorKind};
 
 mod classification;
+mod coverage;
+pub(super) use coverage::{final_directory, ordinary_coverage};
 mod dependency;
 mod native;
 

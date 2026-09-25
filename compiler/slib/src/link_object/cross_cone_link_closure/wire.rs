@@ -152,6 +152,18 @@ pub struct DecodedCrossConeLinkClosureSectionV1 {
 }
 
 impl DecodedCrossConeLinkClosureSectionV1 {
+    /// Compare the final object fingerprints and actual-use digest in place.
+    pub fn replay_object_coverage_against(
+        &self,
+        expected: &super::CrossConeObjectCoverageProofV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), CrossConeLinkClosureSectionValidationError> {
+        if !same_bytes(&self.object_coverage, expected, 3, meter)? {
+            return Err(CrossConeLinkClosureSectionValidationError::ProjectionMismatch);
+        }
+        Ok(())
+    }
+
     /// Replays the semantic and actual-use projections while retaining the
     /// original coverage fields for final object and Code verification.
     pub fn replay_requirements_against(

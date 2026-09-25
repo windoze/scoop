@@ -69,6 +69,18 @@ pub struct DecodedCrossConeLayoutLinkClosureSectionV1 {
 }
 
 impl DecodedCrossConeLayoutLinkClosureSectionV1 {
+    /// Compare the complete final coverage without copying candidate records.
+    pub fn replay_object_coverage_against(
+        &self,
+        expected: &super::ExternalShapeObjectCoverageV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), LayoutLinkClosureError> {
+        if !same_bytes(&self.object_coverage, expected, meter)? {
+            return Err(LayoutLinkClosureError::ObjectCoverageMismatch);
+        }
+        Ok(())
+    }
+
     /// Compares every actual shape use without promoting final object coverage.
     pub fn replay_requirements_against(
         &self,

@@ -11,12 +11,14 @@ use super::{
 };
 use crate::SlibMemberId;
 
+mod final_objects;
 mod wire;
 pub use wire::{
     DecodedLinkIdentityClosureSectionV1, DigestPatchInputCheckedLinkIdentityClosureSectionV1,
-    LinkDigestPatchInputValidationError, LinkIdentityClosureSectionValidationError,
-    LinkObjectMaterializationValidationError, LinkObjectProjectionValidationError,
-    LinkSymbolProjectionValidationError, MaterializationCheckedLinkIdentityClosureSectionV1,
+    LinkDigestPatchInputValidationError, LinkFinalObjectProjectionError,
+    LinkIdentityClosureSectionValidationError, LinkObjectMaterializationValidationError,
+    LinkObjectProjectionValidationError, LinkSymbolProjectionValidationError,
+    MaterializationCheckedLinkIdentityClosureSectionV1,
     ObjectProjectionCheckedLinkIdentityClosureSectionV1,
     SymbolProjectionCheckedLinkIdentityClosureSectionV1,
 };
@@ -392,23 +394,7 @@ impl LinkIdentityClosureSectionV1 {
     {
         let final_objects = objects.final_objects();
         let builtins = final_objects.entry().patch_sites().builtins();
-        let image = final_objects.runtime_images().fingerprint().image();
-        let primary = image.primary();
-        let entry_owner = match (final_objects.entry().branch(), final_objects.entry().plan()) {
-            (
-                VerifiedEntryProductionBranchV1::Library,
-                scoop_lir::EntryProductionPlanV1::Library,
-            ) => VerifiedEntryOwnerBranchV1::Library,
-            (
-                VerifiedEntryProductionBranchV1::Executable(entry),
-                scoop_lir::EntryProductionPlanV1::Executable(plan),
-            ) => VerifiedEntryOwnerBranchV1::Executable(VerifiedEntryOwnerProjectionV1 {
-                member: entry.member(),
-                definition: plan.root_descriptor_definition(),
-                checked_offset: entry.checked_offset(),
-            }),
-            _ => return Err(LinkIdentityClosureBuildError::EntryBranchMismatch),
-        };
+        let (image_owner, entry_owner) = final_objects::owners(objects)?;
         Ok(Self {
             materializations: materializations(builtins.member_plan()),
             definition_indexes: definition_indexes(builtins),
@@ -416,14 +402,7 @@ impl LinkIdentityClosureSectionV1 {
             defined_symbols: defined_symbols.clone(),
             undefined_symbols: undefined_symbols.clone(),
             verified_link_objects: objects.projection().clone(),
-            image_owner: VerifiedImageOwnerProjectionV1 {
-                member: image.member(),
-                definition: image.plan().definition_plan(),
-                primary_atom: primary.atom(),
-                primary_symbol_table_index: image.primary_symbol_table_index(),
-                checked_offset: primary.checked_offset(),
-                byte_size: primary.byte_size(),
-            },
+            image_owner,
             entry_owner,
         })
     }

@@ -102,6 +102,12 @@ fn from_projection(
         }
     }
     let digest = digest(objects, requirements, meter)?;
+    meter.charge_collection_slots(objects.members().len() as u64, &path)?;
+    meter.charge_owned_bytes(
+        (objects.members().len() as u64)
+            .saturating_mul(std::mem::size_of::<crate::VerifiedCodeLinkObjectMemberV1>() as u64),
+        &path,
+    )?;
     Ok(ExternalShapeObjectCoverageV1 {
         verified_link_objects: objects.clone(),
         relocation_use_set_digest: digest,

@@ -57,16 +57,20 @@ pub(super) fn mutate(bytes: &[u8], failure: Failure) -> Vec<u8> {
         }
         Failure::UnknownRuntime | Failure::WrongNativeSymbol => panic!("physical symbol mutation"),
     }
-    let mut replacement = encode(&ArrayHeader(owned.len() as u64)).unwrap();
-    for record in owned {
-        replacement.extend(record);
-    }
     let mut changed = bytes.to_vec();
-    changed.splice(range, replacement);
+    changed.splice(range, encode_array_records(&owned));
     changed
 }
 
-fn replace_field(bytes: &[u8], field: u64, replacement: &[u8]) -> Vec<u8> {
+pub(super) fn encode_array_records(records: &[Vec<u8>]) -> Vec<u8> {
+    let mut bytes = encode(&ArrayHeader(records.len() as u64)).unwrap();
+    for record in records {
+        bytes.extend_from_slice(record);
+    }
+    bytes
+}
+
+pub(super) fn replace_field(bytes: &[u8], field: u64, replacement: &[u8]) -> Vec<u8> {
     let mut changed = bytes.to_vec();
     changed.splice(field_range(bytes, field), replacement.iter().copied());
     changed

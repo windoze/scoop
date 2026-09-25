@@ -14,6 +14,8 @@ use scoop_wire::{
 mod digest_inputs;
 mod errors;
 pub use errors::*;
+mod final_objects;
+pub use final_objects::LinkFinalObjectProjectionError;
 mod materializations;
 mod object_projections;
 mod resources;

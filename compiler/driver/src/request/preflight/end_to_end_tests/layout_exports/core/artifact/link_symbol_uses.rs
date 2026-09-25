@@ -5,6 +5,7 @@ use super::*;
 use scoop_slib as slib;
 
 mod budget;
+mod coverage;
 mod mutations;
 mod partitions;
 mod rejection;
@@ -48,6 +49,7 @@ pub(super) fn check(
     let mut usage = None;
     let mut runtime_dump = String::new();
     let mut runtime_cases = Vec::new();
+    let mut coverage_dump = String::new();
     reader::read_link(core, artifact)
         .with_replayed_link_symbol_uses(profile, |closure| {
             assert_eq!(closure.dependency_first().len(), 2);
@@ -67,6 +69,7 @@ pub(super) fn check(
                     },
                     proof,
                 ));
+                coverage_dump.push_str(&coverage::inspect(proof));
                 let owners = partitions.cross_cone().dependency_owners();
                 if proof.provider() == current {
                     assert_eq!(owners.len(), 1);
@@ -103,6 +106,7 @@ pub(super) fn check(
     budget::check(core, artifact, profile, usage.unwrap());
     rejection::views(core, artifact, profile);
     runtime::check(path, core, artifact, profile, runtime_cases, runtime_dump);
+    coverage::check(path, core, artifact, profile, coverage_dump);
     dump.push_str("reject WorkBudget\nreject OwnedBudget\nreject CompileView\nreject MixedView\n");
     if std::env::var_os("SCOOP_UPDATE_LINK_SYMBOL_USES").is_some() {
         std::fs::write(path, &dump).unwrap();

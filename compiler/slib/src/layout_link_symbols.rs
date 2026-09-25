@@ -6,6 +6,7 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 use crate::ReplayedLayoutLinkObjectContentsV1;
 use crate::link_object::*;
 
+mod coverage;
 mod errors;
 mod finalization;
 mod requirements;
@@ -14,15 +15,15 @@ mod verification;
 pub use errors::LayoutLinkSymbolUseError;
 pub(crate) use verification::{ReplayInputs, replay};
 
-/// Owned symbol and finalized-object evidence. Final coverage, Code identity
-/// and the complete source relations remain necessary for a Link artifact.
+/// Owned symbols, final objects and complete Link object projections. Code
+/// identity and the complete source relations remain necessary for an artifact.
 #[derive(Debug)]
 pub struct ReplayedLayoutLinkSymbolUsesV1<'input> {
     objects: ReplayedLayoutLinkObjectContentsV1<'input>,
     defined: CanonicalDefinedLinkSymbolOwnerSetV1,
     native: lir::CanonicalNativeExternalRequirementSurfaceV1,
     undefined: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-    finalized: VerifiedEntryPatchSetV2,
+    finalized: VerifiedCodeLinkObjectMemberSetV2,
 }
 
 impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
@@ -49,6 +50,10 @@ impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
     }
 
     pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV2 {
+        self.finalized.final_objects()
+    }
+
+    pub const fn link_objects(&self) -> &VerifiedCodeLinkObjectMemberSetV2 {
         &self.finalized
     }
 }
