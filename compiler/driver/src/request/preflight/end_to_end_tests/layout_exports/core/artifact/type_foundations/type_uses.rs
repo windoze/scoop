@@ -22,6 +22,19 @@ pub(super) fn check(
         },
     ));
     reject(current, dependencies, local_as_external);
+    for record in current.section().inheritance().records() {
+        let mut extra = original.to_vec();
+        extra.push(SelectedExternalTypeUseV1::new(
+            current.provider(),
+            SelectedTypeUseV1::Inheritance {
+                derived: record.owner(),
+                edge: hir::SelectedDirectInheritanceEdgeV1::Interface {
+                    exact: record.owner(),
+                },
+            },
+        ));
+        reject(current, dependencies, extra);
+    }
     if let Some(first) = original.first() {
         let mut wrong_provider = original.to_vec();
         wrong_provider[0] = SelectedExternalTypeUseV1::new(current.provider(), first.usage());

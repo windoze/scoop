@@ -8,12 +8,13 @@ use scoop_wire::WirePath;
 use super::*;
 use crate::{
     CanonicalSelectedExternalTypeUsesV1, ExternalHirTargetV1, HirDependencyTypeSiteV1,
-    HirExpressionTypeRoleV1, NominalMaterializationRequirementV1, SelectedExternalTypeUseV1,
-    SelectedTypeUseV1, SourceNominalId,
+    HirExpressionTypeRoleV1, NominalMaterializationRequirementV1, SelectedDirectInheritanceEdgeV1,
+    SelectedExternalTypeUseV1, SelectedTypeUseV1, SourceNominalId,
 };
 
 mod declarations;
 mod graph;
+mod nominals;
 mod roots;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -21,6 +22,8 @@ enum Kind {
     Signature,
     Representation,
     TypeTest,
+    ClassBase(PersistentExactTypeId),
+    Interface(PersistentExactTypeId),
 }
 
 impl Kind {
@@ -29,6 +32,14 @@ impl Kind {
             Self::Signature => SelectedTypeUseV1::Signature { exact },
             Self::Representation => SelectedTypeUseV1::Representation { exact },
             Self::TypeTest => SelectedTypeUseV1::TypeTest { exact },
+            Self::ClassBase(derived) => SelectedTypeUseV1::Inheritance {
+                derived,
+                edge: SelectedDirectInheritanceEdgeV1::ClassBase { exact },
+            },
+            Self::Interface(derived) => SelectedTypeUseV1::Inheritance {
+                derived,
+                edge: SelectedDirectInheritanceEdgeV1::Interface { exact },
+            },
         }
     }
 
@@ -38,6 +49,7 @@ impl Kind {
             SelectedTypeUseV1::Signature { .. }
                 | SelectedTypeUseV1::Representation { .. }
                 | SelectedTypeUseV1::TypeTest { .. }
+                | SelectedTypeUseV1::Inheritance { .. }
         )
     }
 }
@@ -59,7 +71,8 @@ struct Graph<'a> {
 impl<'a> SharedTypeMetadataV1<'a> {
     /// Uses actual shared occurrences and declaration dependencies, never the
     /// candidate selected table. This is the type-requirement partition only;
-    /// source access and the six operation partitions remain separate checks.
+    /// current direct inheritance edges are included. Source access and the
+    /// five remaining operation partitions require their own actual uses.
     pub fn materialized_type_uses(
         self,
         dependencies: &[SharedTypeMetadataV1<'a>],
@@ -95,8 +108,8 @@ impl<'a> SharedTypeMetadataV1<'a> {
 }
 
 impl CheckedSharedTypeFoundationV1<'_> {
-    /// Precisely compares Signature/Representation/TypeTest requirements. This
-    /// does not construct a complete checked selected-use or artifact permit.
+    /// Precisely compares type requirements and current direct inheritance.
+    /// This does not construct a complete selected-use or artifact permit.
     pub fn validate_materialized_type_uses(
         self,
         dependencies: &[Self],
@@ -110,3 +123,6 @@ impl CheckedSharedTypeFoundationV1<'_> {
             .validate_materialized_type_uses(self.section.selected(), &metadata, meter)
     }
 }
+
+#[cfg(test)]
+mod tests;

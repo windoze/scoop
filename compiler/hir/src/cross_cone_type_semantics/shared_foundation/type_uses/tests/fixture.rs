@@ -1,0 +1,280 @@
+use super::*;
+
+pub(super) struct Artifact {
+    coordinate: ConeCoordinate,
+    nominals: Vec<(
+        CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
+        NominalInterfaceRecordV1,
+    )>,
+}
+
+pub(super) struct Loaded {
+    provider: ConeIdentity,
+    pub identities: ValidatedIdentityGraph,
+    foundation: OdrFreeHirFoundation,
+    public: CrossConeHirInterfaceSectionV1,
+}
+
+impl Artifact {
+    pub fn new(coordinate: ConeCoordinate) -> Self {
+        Self {
+            coordinate,
+            nominals: Vec::new(),
+        }
+    }
+
+    pub fn nominal(
+        &mut self,
+        name: &str,
+        kind: SourceNominalKind,
+        parents: &[PersistentTypeId],
+    ) -> PersistentTypeId {
+        let provider = self.coordinate.identity().unwrap();
+        let key = SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
+                provider,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new(name).unwrap(),
+            kind,
+            0,
+        );
+        let identity = CborIdentityRecord::from_key(key).unwrap();
+        let owner = identity.id();
+        let (kind, shape, modality) = match kind {
+            SourceNominalKind::Class => (
+                PublicNominalKindV1::Class,
+                NominalSourceShapeV1::Class(Default::default()),
+                NominalInheritanceModalityV1::Open,
+            ),
+            SourceNominalKind::Interface => (
+                PublicNominalKindV1::Interface,
+                NominalSourceShapeV1::Interface,
+                NominalInheritanceModalityV1::Interface,
+            ),
+            SourceNominalKind::Struct => (
+                PublicNominalKindV1::Struct,
+                NominalSourceShapeV1::Struct(
+                    StructSourceShapeV1::try_new(
+                        Vec::new(),
+                        NominalCLayoutPolicyV1::Ordinary,
+                        false,
+                    )
+                    .unwrap(),
+                ),
+                NominalInheritanceModalityV1::Final,
+            ),
+            _ => panic!("inheritance fixtures use classes, interfaces and structs"),
+        };
+        let parents = parents
+            .iter()
+            .map(|parent| SignatureTypeKey::Nominal(*parent))
+            .collect::<Vec<_>>();
+        let dispatch = if kind == PublicNominalKindV1::Interface {
+            NominalDispatchOrderV1::Interface {
+                parents: parents.clone(),
+                members: Vec::new(),
+            }
+        } else {
+            NominalDispatchOrderV1::empty(kind)
+        };
+        let details = NominalDeclarationDetailsV1::new(
+            modality,
+            DeclaredVisibilityV1::Public,
+            CanonicalPersistentIdsV1::empty(),
+            CanonicalNestedMemberRefsV1::try_new(Vec::new()).unwrap(),
+            Default::default(),
+            dispatch,
+            CanonicalNominalDispatchSelectionsV1::empty(),
+        );
+        let nominal = NominalInterfaceRecordV1::try_new(
+            SourceNominalId::Concrete(owner),
+            kind,
+            CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
+            CanonicalSignatureTypesV1::try_new(parents).unwrap(),
+            CanonicalPersistentIdsV1::empty(),
+            Default::default(),
+            CanonicalPersistentIdsV1::empty(),
+            shape,
+            details,
+        )
+        .unwrap();
+        self.nominals.push((identity, nominal));
+        owner
+    }
+
+    pub fn load(self, dependencies: &[&Loaded]) -> Loaded {
+        let provider = self.coordinate.identity().unwrap();
+        let file = SourceIdentity::new(
+            provider,
+            NormalizedSourcePath::new("fixture.scoop").unwrap(),
+        )
+        .unwrap();
+        let context = CborIdentityRecord::from_key(SourceContextKey::File {
+            source: file.clone(),
+        })
+        .unwrap();
+        let origin = scoop_identity::DefinitionOrigin::new(
+            file.clone(),
+            SourceSpan::new(0, 7).unwrap(),
+            context.key(),
+        )
+        .unwrap();
+        let mut canonical = CanonicalHirFoundation::empty();
+        let mut types = vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ];
+        types.extend(self.nominals.iter().map(|(identity, _)| identity.clone()));
+        canonical.set_types(types).unwrap();
+        canonical
+            .set_exact_types(
+                self.nominals
+                    .iter()
+                    .map(|(identity, _)| {
+                        CborIdentityRecord::from_key(ExactTypeKey::Nominal(identity.id())).unwrap()
+                    })
+                    .collect(),
+            )
+            .unwrap();
+        canonical
+            .set_sources(vec![
+                SourceRecord::from_utf8(file, "fixture", [0, 7]).unwrap(),
+            ])
+            .unwrap();
+        canonical.set_source_contexts(vec![context]).unwrap();
+        canonical
+            .set_definition_origins(
+                self.nominals
+                    .iter()
+                    .map(|(identity, _)| {
+                        DefinitionOriginRecord::new(
+                            DefinitionOriginSubject::Type(identity.id()),
+                            origin.clone(),
+                        )
+                    })
+                    .collect(),
+            )
+            .unwrap();
+        let decoded: DecodedHirFoundation = scoop_wire::decode_canonical(
+            &scoop_wire::encode(&canonical).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let mut pending = PendingIdentityValidation::new();
+        for provider in BTreeSet::from([provider, ConeIdentity::CORE]) {
+            pending.register_authority(provider).unwrap();
+        }
+        decoded.register_identities(&mut pending).unwrap();
+        for dependency in dependencies {
+            pending
+                .register_external_graph_authorities(&dependency.identities)
+                .unwrap();
+        }
+        decoded.resolve_identities(&mut pending).unwrap();
+        let mut identities = pending.finish().unwrap();
+        let foundation = OdrFreeHirFoundation::from_validated(
+            decoded
+                .validate_with_dependency_sources(&self.coordinate, &mut identities, &mut meter())
+                .unwrap(),
+        )
+        .unwrap();
+        let mut public = CrossConeHirInterfaceSectionV1::new(
+            Default::default(),
+            CanonicalNominalInterfacesV1::try_new(
+                self.nominals
+                    .into_iter()
+                    .map(|(_, nominal)| nominal)
+                    .collect(),
+            )
+            .unwrap(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            CanonicalCallableSourceInterfacesV1::try_new(Vec::new()).unwrap(),
+            CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
+        let decoded: DecodedCrossConeHirInterfaceSectionV1 = scoop_wire::decode_canonical(
+            &scoop_wire::encode(&public.index_for_wire().unwrap()).unwrap(),
+            DecodeLimits::default(),
+        )
+        .unwrap();
+        let public = decoded
+            .resolve_metered(&mut identities, &mut meter())
+            .unwrap();
+        Loaded {
+            provider,
+            identities,
+            foundation,
+            public,
+        }
+    }
+}
+
+impl Loaded {
+    pub fn provider(&self) -> ConeIdentity {
+        self.provider
+    }
+
+    pub fn metadata(&self) -> SharedTypeMetadataV1<'_> {
+        SharedTypeMetadataV1 {
+            provider: self.provider,
+            identities: &self.identities,
+            foundation: &self.foundation,
+            public: &self.public,
+        }
+    }
+
+    pub fn uses(
+        &self,
+        dependencies: &[&Loaded],
+    ) -> Result<CanonicalSelectedExternalTypeUsesV1, Error> {
+        self.metadata().materialized_type_uses(
+            &dependencies
+                .iter()
+                .map(|dependency| dependency.metadata())
+                .collect::<Vec<_>>(),
+            &mut meter(),
+        )
+    }
+
+    pub fn validate(
+        &self,
+        selected: &CanonicalSelectedExternalTypeUsesV1,
+        dependencies: &[&Loaded],
+        meter: &mut BudgetMeter,
+    ) -> Result<(), Error> {
+        self.metadata().validate_materialized_type_uses(
+            selected,
+            &dependencies
+                .iter()
+                .map(|dependency| dependency.metadata())
+                .collect::<Vec<_>>(),
+            meter,
+        )
+    }
+}
+
+pub(super) fn coordinate(name: &str) -> ConeCoordinate {
+    ConeCoordinate::new("type-use.tests", name, "1.0.0").unwrap()
+}
+
+pub(super) fn exact(owner: PersistentTypeId) -> PersistentExactTypeId {
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner)).unwrap()
+}
+
+pub(super) fn selected(
+    records: Vec<SelectedExternalTypeUseV1>,
+) -> CanonicalSelectedExternalTypeUsesV1 {
+    CanonicalSelectedExternalTypeUsesV1::try_new(records).unwrap()
+}
+
+pub(super) fn meter() -> BudgetMeter {
+    BudgetMeter::new(DecodeLimits::default())
+}

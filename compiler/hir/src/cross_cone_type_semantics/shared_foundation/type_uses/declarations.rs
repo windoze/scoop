@@ -17,8 +17,8 @@ impl Graph<'_> {
                     Requirement::EnumVariantField { field, .. } => {
                         self.signature(field.value_type(), Kind::Representation, 1, meter)?;
                     }
-                    Requirement::Inheritance { parent, .. } => {
-                        self.signature(parent, Kind::Representation, 1, meter)?;
+                    Requirement::Inheritance { owner, parent } => {
+                        self.inheritance(owner, parent, meter)?;
                     }
                     Requirement::Constructor { callable, .. }
                     | Requirement::Slot { callable, .. } => {
@@ -31,6 +31,38 @@ impl Graph<'_> {
             }
         }
         Ok(())
+    }
+
+    fn inheritance(
+        &mut self,
+        owner: PersistentTypeId,
+        parent: &SignatureTypeKey,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), Error> {
+        let path = WirePath::root().field(8);
+        meter.check_semantic_depth(1, &path)?;
+        meter.charge_nodes(1, &path)?;
+        meter.charge_work(1, &path)?;
+        let SignatureTypeKey::Nominal(parent) = parent else {
+            return Err(Error::NonConcreteSignature);
+        };
+        let (provider, derived) = self.resolve_nominal(owner, meter)?;
+        let kind = match self.nominal(*parent, meter)?.kind() {
+            crate::PublicNominalKindV1::Class => Kind::ClassBase(derived),
+            crate::PublicNominalKindV1::Interface => Kind::Interface(derived),
+            _ => return Err(Error::InheritanceEdges(derived)),
+        };
+        // A dependency's own parent contributes representation support, not
+        // a direct inheritance operation committed by the current Cone.
+        self.select(
+            *parent,
+            if provider == self.current.provider {
+                kind
+            } else {
+                Kind::Representation
+            },
+            meter,
+        )
     }
 
     fn signature(
