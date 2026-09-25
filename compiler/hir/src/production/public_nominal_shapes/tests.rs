@@ -8,6 +8,8 @@ use crate::{
     CanonicalReexportRoutesV1, PublicExportBindingRecordV1, ReexportRouteHopV1, ReexportRouteV1,
 };
 
+mod builtins;
+
 #[test]
 fn core_and_ordinary_shapes_use_the_same_local_public_binding_projection() {
     for current in [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE] {
@@ -77,7 +79,14 @@ fn core_and_ordinary_shapes_use_the_same_local_public_binding_projection() {
         ])
         .unwrap();
         let mut foundation = CanonicalHirFoundation::empty();
-        foundation.set_types(vec![concrete.clone()]).unwrap();
+        foundation
+            .set_types(
+                [concrete.clone()]
+                    .into_iter()
+                    .chain(LANGUAGE_BUILTINS.map(CoreBuiltinNominal::identity_record))
+                    .collect(),
+            )
+            .unwrap();
         foundation
             .set_export_bindings(vec![
                 concrete_binding,
@@ -90,23 +99,35 @@ fn core_and_ordinary_shapes_use_the_same_local_public_binding_projection() {
             PublicNominalShapeRequirementsV1::from_public_bindings(current, &public, &identities)
                 .unwrap();
         let decoded_projection =
-            PublicNominalShapeRequirementsV1::from_direct_surface(&direct, &foundation).unwrap();
+            PublicNominalShapeRequirementsV1::from_direct_surface(current, &direct, &foundation)
+                .unwrap();
         assert_eq!(projected, decoded_projection);
-        assert_eq!(projected.roots().len(), 1);
-        assert_eq!(projected.roots()[0].source(), concrete.id());
-        assert_eq!(
-            projected.roots()[0].exact(),
-            PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(concrete.id())).unwrap()
-        );
+        let mut expected = vec![concrete.clone()];
+        if current == ConeIdentity::CORE {
+            expected.extend(LANGUAGE_BUILTINS.map(CoreBuiltinNominal::identity_record));
+        }
+        expected.sort_by_key(|record| record.id());
+        assert_eq!(projected.roots().len(), expected.len());
+        for (root, record) in projected.roots().iter().zip(&expected) {
+            assert_eq!(root.source(), record.id());
+            assert_eq!(
+                root.exact(),
+                PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(record.id())).unwrap()
+            );
+        }
         assert_eq!(
             projected.source_declarations(&foundation).unwrap(),
-            vec![concrete.key().clone()]
+            expected
+                .iter()
+                .map(|record| record.key().clone())
+                .collect::<Vec<_>>()
         );
     }
 }
 
 #[test]
 fn missing_shared_bindings_and_local_nominals_are_rejected() {
+    let current = ConeIdentity::SINGLE_FILE;
     let source = nominal(ConeIdentity::SINGLE_FILE, "Record", 0);
     let binding = binding(
         ConeIdentity::SINGLE_FILE,
@@ -116,14 +137,14 @@ fn missing_shared_bindings_and_local_nominals_are_rejected() {
     let direct = CanonicalDirectPublicSurfaceV1::try_new(vec![binding.id()]).unwrap();
     let mut foundation = CanonicalHirFoundation::empty();
     assert_eq!(
-        PublicNominalShapeRequirementsV1::from_direct_surface(&direct, &foundation),
+        PublicNominalShapeRequirementsV1::from_direct_surface(current, &direct, &foundation),
         Err(PublicNominalShapeProjectionError::MissingBinding(
             binding.id()
         )),
     );
     foundation.set_export_bindings(vec![binding]).unwrap();
     assert_eq!(
-        PublicNominalShapeRequirementsV1::from_direct_surface(&direct, &foundation),
+        PublicNominalShapeRequirementsV1::from_direct_surface(current, &direct, &foundation),
         Err(PublicNominalShapeProjectionError::MissingSourceNominal(
             PersistentTypeId::from_source_declaration(&source).unwrap()
         )),
@@ -199,10 +220,19 @@ fn local_shape_projection_selects_only_the_current_exporter_in_aggregated_bindin
         let plan =
             PublicNominalShapeRequirementsV1::from_public_bindings(provider, &public, &identities)
                 .unwrap();
-        assert_eq!(plan.roots().len(), 1);
+        let mut expected = vec![
+            PersistentTypeId::from_source_declaration(&nominal(provider, "Record", 0)).unwrap(),
+        ];
+        if provider == ConeIdentity::CORE {
+            expected.extend(LANGUAGE_BUILTINS.map(|builtin| builtin.identity_record().id()));
+        }
+        expected.sort_unstable();
         assert_eq!(
-            plan.roots()[0].source(),
-            PersistentTypeId::from_source_declaration(&nominal(provider, "Record", 0)).unwrap()
+            plan.roots()
+                .iter()
+                .map(|root| root.source())
+                .collect::<Vec<_>>(),
+            expected
         );
     }
     let absent = crate::HirExportBindingIdentities::canonicalize(Vec::new()).unwrap();

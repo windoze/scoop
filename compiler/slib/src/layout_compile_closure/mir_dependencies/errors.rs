@@ -2,6 +2,10 @@ use super::*;
 
 #[derive(Debug)]
 pub enum SharedMirDependencyGraphError {
+    InputProvider {
+        source: ConeIdentity,
+        mir: ConeIdentity,
+    },
     Resource(scoop_wire::WireError),
     TypeOccurrences(Box<scoop_hir::HirDependencyTypeRelationError>),
     Mir(Box<mir::MirTypeBridgeSectionError<Infallible>>),

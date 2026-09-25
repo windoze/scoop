@@ -30,8 +30,14 @@ pub(crate) fn validate_strong_profile_production(
         production.mir,
     )
     .map_err(StrongProfileProductionError::Local)?;
-    validate_strong_profile_relations(graph.kind(), &local.hir, &local.mir, &foundations.hir)
-        .map_err(StrongProfileProductionError::Relation)?;
+    validate_strong_profile_relations(
+        graph.identity(),
+        graph.kind(),
+        &local.hir,
+        &local.mir,
+        &foundations.hir,
+    )
+    .map_err(StrongProfileProductionError::Relation)?;
     let lir = validate_strong_profile_lir_production(
         graph,
         identities,
@@ -70,6 +76,7 @@ pub(super) fn validate_strong_profile_local_production(
 }
 
 pub(crate) fn validate_strong_profile_relations(
+    provider: ConeIdentity,
     kind: ConeKind,
     hir: &CoreBootstrapInterfaceSectionV1,
     mir: &CoreBootstrapBridgeSectionV1,
@@ -77,6 +84,7 @@ pub(crate) fn validate_strong_profile_relations(
 ) -> Result<(), StrongProfileRelationError> {
     validate_output_relation(kind, hir.output_contract(), mir.entry_bridge())?;
     PublicNominalShapeRequirementsV1::from_direct_surface(
+        provider,
         hir.direct_public_surface(),
         foundation.as_canonical(),
     )
@@ -95,6 +103,7 @@ pub(crate) fn validate_strong_profile_lir_production(
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
 ) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
     let shape_sources = PublicNominalShapeRequirementsV1::from_direct_surface(
+        graph.identity(),
         front.hir_production.direct_public_surface(),
         front.hir_foundation.as_canonical(),
     )

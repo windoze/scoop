@@ -18,7 +18,9 @@ use super::{
 use crate::dependency_reachability::transitive_positions;
 
 mod errors;
+mod replay;
 pub use errors::{CrossConeLayoutMirDependenciesError, SharedMirDependencyGraphError};
+pub use replay::replay_shared_mir_dependency_graph;
 
 /// The recursive selected graph agrees with shared materialized type roots.
 /// Per-use HIR/access, initialization-use and final LIR/Link joins are still
@@ -80,24 +82,7 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                     parts.identities,
                     parts.meter,
                 )?;
-                let roots = parts
-                    .hir_interface
-                    .external_references()
-                    .materialized_type_dependencies(provider, parts.identities, parts.meter)
-                    .map_err(|source| {
-                        SharedMirDependencyGraphError::TypeOccurrences(Box::new(source))
-                    })?;
                 let path = WirePath::root();
-                let mut committed = Vec::new();
-                parts
-                    .meter
-                    .try_reserve_collection_slots(&mut committed, roots.len(), &path)?;
-                committed.extend(roots.into_iter().map(|(provider, exact)| {
-                    mir::MirTypeBridgeDependencyV1::new(
-                        provider,
-                        mir::MirTypeBridgeTargetV1::Type(exact),
-                    )
-                }));
                 let mut dependencies = Vec::new();
                 parts.meter.try_reserve_collection_slots(
                     &mut dependencies,
@@ -109,11 +94,16 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                         .iter()
                         .map(|&index| complete[index].mir.dependency_view(&complete[index].units)),
                 );
-                mir.replay_dependency_closure::<Infallible>(
+                replay_shared_mir_dependency_graph(
+                    scoop_hir::SharedTypeMetadataV1 {
+                        provider,
+                        identities: parts.identities,
+                        foundation: parts.hir_foundation,
+                        public: parts.hir_interface,
+                    },
+                    &mir,
                     &units,
                     &dependencies,
-                    &committed,
-                    parts.identities,
                     parts.meter,
                 )?;
                 parts

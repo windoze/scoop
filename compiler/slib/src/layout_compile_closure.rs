@@ -92,6 +92,7 @@ pub use lir_strong::{
 pub use mir_dependencies::{
     CrossConeLayoutMirDependenciesError, MirDependencyGraphReplayedCrossConeLayoutClosure,
     MirDependencyGraphReplayedCrossConeLayoutSections, SharedMirDependencyGraphError,
+    replay_shared_mir_dependency_graph,
 };
 pub use mir_dispatch::{
     SharedMirDispatchComponent, SharedMirDispatchValidationError, validate_shared_mir_dispatch,

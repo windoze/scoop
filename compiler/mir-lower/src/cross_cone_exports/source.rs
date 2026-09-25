@@ -53,6 +53,8 @@ pub enum MirTypeBridgeSourceProjectionError {
     MaterializedTypes(hir::MaterializedTypeClosureError),
     SharedTypeOccurrences(Box<hir::HirDependencyTypeRelationError>),
     TypeOccurrenceInventory,
+    ShapeOccurrenceInventory,
+    ExecutableExpressions(hir::concrete::ExecutableExpressionStructureError),
     Identity(scoop_identity::IdentityReferenceError),
 }
 impl From<WireError> for MirTypeBridgeSourceProjectionError {

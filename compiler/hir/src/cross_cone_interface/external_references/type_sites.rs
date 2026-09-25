@@ -15,6 +15,7 @@ mod nominals;
 mod position;
 mod relations;
 mod role;
+mod shapes;
 mod table;
 #[cfg(test)]
 mod tests;

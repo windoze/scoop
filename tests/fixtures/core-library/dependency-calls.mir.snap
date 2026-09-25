@@ -41,5 +41,5 @@
   fun init.LocalTools.$c7 @fn30(this: LocalTools) -> Unit
     bb0 entry
       return
-  coroutine_step cs13 CoroutineStep<LocalTools> result=LocalTools
-  coroutine_slot cl13 CoroutineSlot<LocalTools> value=LocalTools
+  coroutine_step cs14 CoroutineStep<LocalTools> result=LocalTools
+  coroutine_slot cl14 CoroutineSlot<LocalTools> value=LocalTools

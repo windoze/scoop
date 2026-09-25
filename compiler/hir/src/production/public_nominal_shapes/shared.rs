@@ -75,7 +75,9 @@ impl PublicNominalShapeRequirementsV1 {
             )
             .map_err(NominalMaterializationClosureError::Resource)
             .map_err(PublicNominalShapeProjectionError::Materialization)?;
-        self.roots.retain(|root| closure.contains(root.source));
+        let builtins = LANGUAGE_BUILTINS.map(|builtin| builtin.identity_record().id());
+        self.roots
+            .retain(|root| builtins.contains(&root.source) || closure.contains(root.source));
         Ok(self)
     }
 
@@ -96,13 +98,15 @@ impl PublicNominalShapeRequirementsV1 {
     }
 
     pub fn from_shared_surface(
+        producer: ConeIdentity,
         surface: &CanonicalDirectPublicSurfaceV1,
         foundation: &CanonicalHirFoundation,
         nominals: &CanonicalNominalInterfacesV1,
         callables: &CanonicalCallableInterfacesV1,
         meter: &mut BudgetMeter,
     ) -> Result<Self, PublicNominalShapeProjectionError> {
-        let requirements = Self::from_direct_surface(surface, foundation)?;
+        let requirements = Self::from_direct_surface(producer, surface, foundation)?;
+        let builtins = LANGUAGE_BUILTINS.map(|builtin| builtin.identity_record().id());
         for root in requirements.roots() {
             meter
                 .charge_work(
@@ -111,9 +115,10 @@ impl PublicNominalShapeRequirementsV1 {
                 )
                 .map_err(NominalMaterializationClosureError::Resource)
                 .map_err(PublicNominalShapeProjectionError::Materialization)?;
-            if nominals
-                .declaration(SourceNominalId::Concrete(root.source()))
-                .is_none()
+            if !builtins.contains(&root.source())
+                && nominals
+                    .declaration(SourceNominalId::Concrete(root.source()))
+                    .is_none()
             {
                 return Err(PublicNominalShapeProjectionError::Materialization(
                     NominalMaterializationClosureError::MissingNominal(root.source()),

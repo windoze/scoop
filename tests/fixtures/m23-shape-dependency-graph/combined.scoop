@@ -1,0 +1,14 @@
+public fun boxInteger(value: Int): Any = value
+public fun boxUnit(value: Unit): Any = value
+public fun testString(value: Any): Boolean = value is String
+
+public fun smartInteger(value: Any): Int {
+    if (value is Int) {
+        return value
+    }
+    return 0
+}
+
+public fun defaultInteger(value: Any = 7): Boolean = value is Int
+public fun expandedDefaults(): Boolean = defaultInteger() && defaultInteger()
+public fun <T> dormant(value: T): Any = value

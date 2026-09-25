@@ -1,6 +1,8 @@
 use super::*;
 use MirTypeBridgeSourceProjectionError as Error;
 
+mod shapes;
+
 pub(super) fn project(
     input: MirTypeBridgeExportInputV1<'_>,
     meter: &mut BudgetMeter,
@@ -51,6 +53,9 @@ pub(super) fn project(
             .map(|(provider, exact)| (provider, mir::MirTypeBridgeTargetV1::Type(exact))))
     {
         return Err(Error::TypeOccurrenceInventory);
+    }
+    for shape in shapes::project(input, meter)? {
+        push(&mut uses, shape, meter)?;
     }
     for root in input.mir.materialization().external_callable_roots() {
         meter.charge_work(input.ordinary.selected().len() as u64 + 1, &path)?;

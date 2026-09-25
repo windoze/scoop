@@ -10,6 +10,12 @@ pub enum HirExpressionTypeRoleV1 {
     BoxedValue,
 }
 
+impl HirExpressionTypeRoleV1 {
+    pub const fn requires_shape_support(self) -> bool {
+        matches!(self, Self::TypeTest | Self::BoxedValue)
+    }
+}
+
 impl WireEncode for HirExpressionTypeRoleV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.unsigned(match self {

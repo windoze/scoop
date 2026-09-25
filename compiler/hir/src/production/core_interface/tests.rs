@@ -103,16 +103,29 @@ fn shape_support_sources_are_derived_from_param_free_source_nominals() {
     let fixture = fixture();
     let foundation = OdrFreeHirFoundation::try_new(fixture.foundation).unwrap();
     let sources = PublicNominalShapeRequirementsV1::from_direct_surface(
+        ConeIdentity::CORE,
         &fixture.direct,
         foundation.as_canonical(),
     )
     .unwrap()
     .source_declarations(foundation.as_canonical())
     .unwrap();
-    assert_eq!(sources.len(), 1);
+    let mut expected = vec![
+        fixture.interface.string_capability().source_type(),
+        scoop_identity::CoreBuiltinNominal::Unit
+            .identity_record()
+            .id(),
+        scoop_identity::CoreBuiltinNominal::Any
+            .identity_record()
+            .id(),
+    ];
+    expected.sort_unstable();
     assert_eq!(
-        PersistentTypeId::from_source_declaration(&sources[0]).unwrap(),
-        fixture.interface.string_capability().source_type()
+        sources
+            .iter()
+            .map(|source| PersistentTypeId::from_source_declaration(source).unwrap())
+            .collect::<Vec<_>>(),
+        expected
     );
 }
 

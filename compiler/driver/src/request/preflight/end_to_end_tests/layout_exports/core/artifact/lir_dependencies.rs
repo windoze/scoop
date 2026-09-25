@@ -3,7 +3,7 @@
 use super::*;
 
 mod assembly;
-mod corruption;
+pub(super) mod corruption;
 mod reader;
 
 pub(super) fn check(

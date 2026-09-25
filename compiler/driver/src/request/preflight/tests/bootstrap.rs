@@ -164,6 +164,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     ));
 
     let expected_shape_roots = scoop_hir::PublicNominalShapeRequirementsV1::from_shared_surface(
+        scoop_identity::ConeIdentity::CORE,
         output.production_section().direct_public_surface(),
         output.foundation(),
         output.cross_cone_section().nominal_interfaces(),

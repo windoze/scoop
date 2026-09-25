@@ -23,6 +23,7 @@ pub(super) fn replay(
     let (type_definitions, initialization_definitions) =
         super::dependencies::definitions(provider, dependencies, &external, parts.meter)?;
     let roots = PublicNominalShapeRequirementsV1::from_shared_surface(
+        provider,
         parts.hir_core.direct_public_surface(),
         parts.hir_foundation.as_canonical(),
         parts.hir_interface.nominal_interfaces(),

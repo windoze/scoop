@@ -6,8 +6,8 @@ use std::{
 };
 
 use scoop_identity::{
-    BindableEntity, ConeIdentity, ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId,
-    PersistentTypeId, SourceDeclarationKey,
+    BindableEntity, ConeIdentity, CoreBuiltinNominal, ExactTypeKey, PersistentExactTypeId,
+    PersistentExportBindingId, PersistentTypeId, SourceDeclarationKey,
 };
 
 use crate::{
@@ -17,6 +17,9 @@ use crate::{
 
 mod materialization;
 mod shared;
+
+const LANGUAGE_BUILTINS: [CoreBuiltinNominal; 2] =
+    [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any];
 
 pub use materialization::{
     NominalMaterializationClosure, NominalMaterializationClosureError,
@@ -39,7 +42,8 @@ impl PublicNominalShapeRequirementV1 {
     }
 }
 
-/// Local, non-generic nominal roots. Aliases and reexports never add roots.
+/// Local, non-generic nominal roots, including owned language builtins.
+/// Aliases and reexports never add roots.
 /// This projection is not serialized as a second declaration inventory.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PublicNominalShapeRequirementsV1 {
@@ -69,10 +73,11 @@ impl PublicNominalShapeRequirementsV1 {
                 sources.insert(*source);
             }
         }
-        Self::from_sources(sources)
+        Self::from_sources(producer, sources)
     }
 
     pub fn from_direct_surface(
+        producer: ConeIdentity,
         surface: &CanonicalDirectPublicSurfaceV1,
         foundation: &CanonicalHirFoundation,
     ) -> Result<Self, PublicNominalShapeProjectionError> {
@@ -82,20 +87,31 @@ impl PublicNominalShapeRequirementsV1 {
                 .export_binding_key(*binding)
                 .ok_or(PublicNominalShapeProjectionError::MissingBinding(*binding))?;
             if let BindableEntity::Type(source) = key.target() {
-                if foundation.source_type_by_bytes(source.as_array()).is_none() {
-                    return Err(PublicNominalShapeProjectionError::MissingSourceNominal(
-                        source,
-                    ));
-                }
                 sources.insert(source);
             }
         }
-        Self::from_sources(sources)
+        let requirements = Self::from_sources(producer, sources)?;
+        for root in requirements.roots() {
+            if foundation
+                .source_type_by_bytes(root.source.as_array())
+                .is_none()
+            {
+                return Err(PublicNominalShapeProjectionError::MissingSourceNominal(
+                    root.source,
+                ));
+            }
+        }
+        Ok(requirements)
     }
 
     fn from_sources(
-        sources: BTreeSet<PersistentTypeId>,
+        producer: ConeIdentity,
+        mut sources: BTreeSet<PersistentTypeId>,
     ) -> Result<Self, PublicNominalShapeProjectionError> {
+        sources.extend(LANGUAGE_BUILTINS.into_iter().filter_map(|builtin| {
+            let record = builtin.identity_record();
+            (record.key().origin() == producer).then_some(record.id())
+        }));
         let roots = sources
             .into_iter()
             .map(|source| {

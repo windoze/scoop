@@ -56,6 +56,7 @@ fn source_only_shape_demands_replay_shared_declarations_before_and_after_concret
             let direct =
                 hir::CanonicalDirectPublicSurfaceV1::from_export_hir(hir.export.module()).unwrap();
             let decoded = hir::PublicNominalShapeRequirementsV1::from_shared_surface(
+                hir.export.cone,
                 &direct,
                 &foundation,
                 public.nominal_interfaces(),
@@ -150,6 +151,7 @@ fn source_only_shape_demands_reject_missing_public_declarations() {
             hir::CanonicalDirectPublicSurfaceV1::from_export_hir(hir.export.module()).unwrap();
         assert!(matches!(
             hir::PublicNominalShapeRequirementsV1::from_shared_surface(
+                hir.export.cone,
                 &direct,
                 &foundation,
                 &hir::CanonicalNominalInterfacesV1::try_new(Vec::new()).unwrap(),

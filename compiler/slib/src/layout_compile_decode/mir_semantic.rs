@@ -77,6 +77,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
             .validate_against_strong_foundation(provider, &mut identities, &foundations.mir)
             .map_err(CrossConeLayoutMirFrontValidationError::CoreProduction)?;
         validate_strong_profile_relations(
+            provider,
             graph.kind(),
             &hir_core_production,
             &mir_core,

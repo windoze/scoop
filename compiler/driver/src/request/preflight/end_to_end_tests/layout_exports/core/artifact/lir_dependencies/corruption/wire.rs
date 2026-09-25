@@ -1,7 +1,7 @@
 use super::*;
 use std::convert::Infallible;
 
-pub(super) fn resolve(
+pub(in super::super::super) fn resolve(
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     semantic: &[lir::LayoutAbiDependencyV1],
     identities: &ValidatedIdentityGraph,
@@ -28,7 +28,7 @@ pub(super) fn resolve(
         .resolve_dependencies(&mut identities, &mut meter())
 }
 
-pub(super) fn empty_exports(
+pub(in super::super::super) fn empty_exports(
     provider: ConeIdentity,
     target: lir::LirTargetProfile,
 ) -> lir::LayoutAbiExportConstituentsV1 {

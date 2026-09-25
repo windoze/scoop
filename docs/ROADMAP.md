@@ -222,6 +222,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 - 以新required MIR/LIR section首次实现并冻结通用、可跨Cone复用的`ValueStorageLayout`、Scoop typed ABI与scan/TypeDescriptor proof，包括zero-payload elision、C ABI零尺寸拒绝、boxing/address/static token、`Array`/`MutableArray<ZST>`、param-free inheritance/slot/dispatch与protected access bridge。每个定义Cone同时为可跨Cone引用的param-free source nominal预物化并导出`BoxedValue`、`CoroutineStep`与`CoroutineSlot`的有限`ExactOwnerRoot` shape-support closure，下游只引用external typed definition。M23-2 foundation中的layout/scan/dispatch只含identity key，`NativeBoundaryTypeDefinitionRecordV1`只服务extern/callback source witness；本阶段不得改写已冻结的exact identity、witness或extern/callback contract bytes。
 - 新增 `cross-cone-layout-strong/1` profile 及 HIR type/inheritance、MIR type bridge、LIR layout/ABI、Link-only layout-use closure 四条 section，strong-production/5 升级为 /6。退役独立 HIR source-authority 草案，将完整声明、表示、参数/default 和实际 selected use 合入共有 metadata；producer 与 bytes-only reader 共用 identity、访问、依赖、ABI/layout、预算及 object 校验。源码接口保留完整声明，机器接口按实际物化闭包执行 M23-7/10 gate，core 与普通 library 相同。旧capability语义不改，三层outer schema仍为1。旧core和M23-5 callable分区保持，新增general type/dispatch物理use形成第三个互斥分区。生产仍拒绝全部ODR；generic/structural表示矩阵使用内部typed/单image harness验证，其独立物化留M23-7。
+- 已补齐实际 Box/Unbox/is/as 的共有 HIR 形状根查询、MIR/LIR selected 递归重放，以及提供方 Unit/Any 的有限 helper 发布；独立、组合、缺项、额外依赖、错误 provider 与累计预算测试覆盖同一共有路径。跨 Cone 机器消费、逐次访问和初始化用途、最终 Compile/Link 闭包继续作为阶段完成门。
 - 完成compiler/layout/object级ZST与ABI矩阵；真实多Cone链接后的moving-GC留M23-9/M23-11总验收。
 
 ### M23-7 跨Cone generic、ODR与generic delegated extension

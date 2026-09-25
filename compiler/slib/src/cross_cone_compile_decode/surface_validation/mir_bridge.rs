@@ -119,6 +119,7 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
             .validate_against_strong_foundation(graph.identity(), &mut identities, &foundations.mir)
             .map_err(CrossConeMirFrontValidationError::CoreProduction)?;
         validate_strong_profile_relations(
+            graph.identity(),
             graph.kind(),
             &hir_core_production,
             &mir_core_production,

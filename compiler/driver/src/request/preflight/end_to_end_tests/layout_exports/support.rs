@@ -1,6 +1,6 @@
 use super::*;
 
-mod identity;
+pub(super) mod identity;
 use identity::identities;
 
 pub(super) fn with_production(

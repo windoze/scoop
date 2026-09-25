@@ -9,6 +9,7 @@ mod mir_objects;
 mod mir_source_callables;
 mod mir_types;
 mod mir_units;
+mod shape_dependencies;
 mod type_foundations;
 
 #[allow(clippy::too_many_arguments)]
@@ -86,5 +87,6 @@ pub(super) fn check(
     );
     if name == "base" {
         lir_dependencies::check(&artifact, mir_section, layout);
+        shape_dependencies::check(&artifact, mir_section, layout);
     }
 }

@@ -591,6 +591,7 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
         self,
     ) -> Result<ValidatedSingleConeCompileSemanticFront<'input>, StrongProfileRelationError> {
         validate_strong_profile_relations(
+            self.graph.identity(),
             self.graph.kind(),
             &self.hir_production,
             &self.mir_production,

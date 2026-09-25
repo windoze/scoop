@@ -11,6 +11,10 @@ pub struct MirTypeBridgeDependencyViewV1<'a> {
 }
 pub(super) type LocalView<'a> = MirTypeBridgeDependencyViewV1<'a>;
 impl<'a> LocalView<'a> {
+    pub const fn provider(self) -> ConeIdentity {
+        self.provider
+    }
+
     pub(super) fn record(
         self,
         target: MirTypeBridgeTargetV1,

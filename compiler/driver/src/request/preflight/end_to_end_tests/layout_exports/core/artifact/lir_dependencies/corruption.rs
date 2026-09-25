@@ -2,7 +2,7 @@ use super::*;
 use scoop_slib::SharedLirDependencyGraphError as Error;
 
 mod resources;
-mod wire;
+pub(in super::super) mod wire;
 
 pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,

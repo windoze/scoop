@@ -49,13 +49,16 @@ pub fn replay_shared_lir_dependency_graph(
     let roots = references
         .materialized_type_dependencies(source.provider, source.identities, meter)
         .map_err(|error| Error::TypeOccurrences(Box::new(error)))?;
+    let shapes = references
+        .materialized_shape_dependencies(source.provider, source.identities, meter)
+        .map_err(|error| Error::TypeOccurrences(Box::new(error)))?;
+    let count = roots.len().saturating_add(shapes.len());
     let mut committed = Vec::new();
     meter.charge_owned_bytes(
-        (roots.len() as u64)
-            .saturating_mul(std::mem::size_of::<lir::LayoutAbiDependencyV1>() as u64),
+        (count as u64).saturating_mul(std::mem::size_of::<lir::LayoutAbiDependencyV1>() as u64),
         &path,
     )?;
-    meter.try_reserve_collection_slots(&mut committed, roots.len(), &path)?;
+    meter.try_reserve_collection_slots(&mut committed, count, &path)?;
     for (provider, exact) in roots {
         meter.charge_work(1 + u64::from(by_provider.len().max(1).ilog2()), &path)?;
         let dependency = by_provider
@@ -71,6 +74,12 @@ pub fn replay_shared_lir_dependency_graph(
             lir::LayoutAbiSemanticTargetV1::Layout(value.identity().layout()),
         ));
     }
+    committed.extend(shapes.into_iter().map(|(provider, owner)| {
+        lir::LayoutAbiDependencyV1::new(
+            provider,
+            lir::LayoutAbiSemanticTargetV1::ShapeSupport(owner),
+        )
+    }));
     meter.charge_work(
         (committed.len() as u64).saturating_mul(1 + u64::from(committed.len().max(1).ilog2())),
         &path,

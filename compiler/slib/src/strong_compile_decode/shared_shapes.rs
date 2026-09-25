@@ -18,9 +18,16 @@ pub(crate) fn validate_shared_strong_profile_production(
         production.mir,
     )
     .map_err(StrongProfileProductionError::Local)?;
-    validate_strong_profile_relations(graph.kind(), &local.hir, &local.mir, &foundations.hir)
-        .map_err(StrongProfileProductionError::Relation)?;
+    validate_strong_profile_relations(
+        graph.identity(),
+        graph.kind(),
+        &local.hir,
+        &local.mir,
+        &foundations.hir,
+    )
+    .map_err(StrongProfileProductionError::Relation)?;
     let sources = PublicNominalShapeRequirementsV1::from_shared_surface(
+        graph.identity(),
         local.hir.direct_public_surface(),
         foundations.hir.as_canonical(),
         interface.nominal_interfaces(),

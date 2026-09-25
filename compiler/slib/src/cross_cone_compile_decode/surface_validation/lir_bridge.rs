@@ -242,6 +242,7 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
             .reconstruct_external_bridges(graph.identity(), &mut identities)
             .map_err(CrossConeLirFrontValidationError::ExternalBridges)?;
         let shape_sources = scoop_hir::PublicNominalShapeRequirementsV1::from_shared_surface(
+            graph.identity(),
             hir_core_production.direct_public_surface(),
             foundations.hir.as_canonical(),
             hir_interface.nominal_interfaces(),

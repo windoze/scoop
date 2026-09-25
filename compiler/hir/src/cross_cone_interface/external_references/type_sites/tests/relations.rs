@@ -10,6 +10,8 @@ use scoop_identity::{
 use super::*;
 type Error = HirDependencyTypeRelationError;
 
+mod shapes;
+
 struct Types {
     fixture: Fixture,
     graph: ValidatedIdentityGraph,

@@ -31,8 +31,8 @@
   block if.merge.6
     ret
   td td4 LocalTools @scoop$1$td$3eb168e79f89664ce64b02bfe679ad503422e832d214ae2a27b9072d2890abd0 type-id=10263454389031268026 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td40 CoroutineStep<LocalTools> @scoop$1$td$1b690b8a6f47194ec58dfb46787d24552cb7da17860c15336de358ddb1c8ce78 type-id=18007273985109092458 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td55 CoroutineSlot<LocalTools> @scoop$1$td$b3c442bae6dbf2f84adcc462d7824066b9cee424837e94ea32ef52d2a7f1fa49 type-id=10220696205521467096 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td42 CoroutineStep<LocalTools> @scoop$1$td$1b690b8a6f47194ec58dfb46787d24552cb7da17860c15336de358ddb1c8ce78 type-id=18007273985109092458 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td59 CoroutineSlot<LocalTools> @scoop$1$td$b3c442bae6dbf2f84adcc462d7824066b9cee424837e94ea32ef52d2a7f1fa49 type-id=10220696205521467096 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout CoroutineStep<LocalTools> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<LocalTools> size=8 align=8 enum-scan=refs[0]
   layout LocalTools value size=8 align=8 refs=[0]

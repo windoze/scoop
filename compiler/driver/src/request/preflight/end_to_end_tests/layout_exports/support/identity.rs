@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn identities(
+pub(in super::super) fn identities(
     hir: &hir::DependencyHirOutput,
     mir: &mir::SingleConeStrongMirInput,
     lir: Option<&lir::SingleConeStrongLirOutput>,
