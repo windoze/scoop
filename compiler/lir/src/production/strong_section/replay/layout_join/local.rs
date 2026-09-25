@@ -7,7 +7,7 @@ mod types;
 
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
-    section: &crate::CrossConeLayoutAbiSectionV1<'_>,
+    section: &crate::LayoutAbiExportConstituentsV1,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     meter.charge_work(9, &scoop_wire::WirePath::root())?;

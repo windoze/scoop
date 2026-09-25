@@ -6,6 +6,8 @@ use scoop_wire::{
 use super::wire::EncodeResult;
 use super::{DecodedExternalShapeLinkImportV1, ExternalShapeLinkImportV1, ShapeLinkError};
 
+mod replay;
+
 #[derive(Debug)]
 pub struct CanonicalExternalShapeLinkImportsV1<'a> {
     records: Vec<ExternalShapeLinkImportV1<'a>>,

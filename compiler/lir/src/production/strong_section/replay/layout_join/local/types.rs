@@ -3,7 +3,7 @@ use scoop_wire::WirePath;
 
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
-    section: &crate::CrossConeLayoutAbiSectionV1<'_>,
+    section: &crate::LayoutAbiExportConstituentsV1,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     validate_descriptors(production, section, meter)?;
@@ -12,7 +12,7 @@ pub(super) fn validate(
 
 fn validate_descriptors(
     production: &ReplayedStrongProductionSectionV2,
-    section: &crate::CrossConeLayoutAbiSectionV1<'_>,
+    section: &crate::LayoutAbiExportConstituentsV1,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let path = WirePath::root();
@@ -94,7 +94,7 @@ fn validate_descriptors(
 
 fn validate_dispatch(
     production: &ReplayedStrongProductionSectionV2,
-    section: &crate::CrossConeLayoutAbiSectionV1<'_>,
+    section: &crate::LayoutAbiExportConstituentsV1,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     meter.charge_work(

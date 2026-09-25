@@ -16,7 +16,7 @@ pub use wire::{
     CallablesResolvedCrossConeLayoutAbiSectionV1, DecodedCrossConeLayoutAbiSectionV1,
     DependencyResolvedCrossConeLayoutAbiSectionV1, DescriptorsResolvedCrossConeLayoutAbiSectionV1,
     DispatchResolvedCrossConeLayoutAbiSectionV1, ExportsResolvedCrossConeLayoutAbiSectionV1,
-    LayoutsResolvedCrossConeLayoutAbiSectionV1,
+    LayoutsResolvedCrossConeLayoutAbiSectionV1, PhysicalImportsReplayedLayoutAbiSectionV1,
 };
 
 /// Complete target-aware LIR semantic section. Its selected set retains both

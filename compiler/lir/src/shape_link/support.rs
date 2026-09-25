@@ -7,13 +7,10 @@ use crate::{
     StrongStaticStorageSemanticPlanV1,
 };
 
-pub(crate) mod sealed {
-    pub trait Sealed {}
-}
-
-/// Implemented by the complete section after its exported object/unit and
-/// terminal selection joins. A query does not itself grant an import.
-pub trait ShapeLinkSupportAuthorityV1<'a>: sealed::Sealed {
+/// A candidate relation lookup owned by the enclosing closure. Implementations
+/// must join actual object/unit exports and selection; this interface supplies
+/// no source, access, machine-selection or publication proof.
+pub trait ShapeLinkSupportLookupV1<'a> {
     fn support_source(
         &self,
         provider: ConeIdentity,
@@ -27,9 +24,7 @@ pub trait ShapeLinkSupportAuthorityV1<'a>: sealed::Sealed {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct NoShapeLinkSupportV1;
 
-impl sealed::Sealed for NoShapeLinkSupportV1 {}
-
-impl<'a> ShapeLinkSupportAuthorityV1<'a> for NoShapeLinkSupportV1 {
+impl<'a> ShapeLinkSupportLookupV1<'a> for NoShapeLinkSupportV1 {
     fn support_source(
         &self,
         _: ConeIdentity,

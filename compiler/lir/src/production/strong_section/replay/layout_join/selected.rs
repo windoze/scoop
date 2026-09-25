@@ -5,9 +5,12 @@ use crate::{
 };
 use scoop_wire::WirePath;
 
+mod view;
+pub(super) use view::Selection;
+
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
-    selected: &crate::SelectedDependencyLayoutAbiSetV1<'_>,
+    selected: Selection<'_, '_>,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     meter.charge_work(1, &WirePath::root())?;
@@ -59,24 +62,21 @@ pub(super) fn validate(
 
 fn descriptor(
     reference: crate::StrongTypeDescriptorRefV2,
-    selected: &crate::SelectedDependencyLayoutAbiSetV1<'_>,
+    selected: Selection<'_, '_>,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let crate::StrongTypeDescriptorRefV2::DependencyExternal { provider, exact } = reference else {
         return Ok(());
     };
     meter.charge_work(selected.len() as u64, &WirePath::root())?;
-    if selected
-        .reference(provider, Target::Descriptor(exact))
-        .is_none()
-    {
+    if !selected.contains(provider, Target::Descriptor(exact)) {
         return Err(StrongProductionLayoutJoinError::MissingSelectedDescriptor { provider, exact });
     }
     meter.charge_work(
-        selected.physical_imports().records().len() as u64,
+        selected.physical().records().len() as u64,
         &WirePath::root(),
     )?;
-    let found = selected.physical_imports().records().iter().any(|import| {
+    let found = selected.physical().records().iter().any(|import| {
         import.provider() == provider && import.subject() == Subject::TypeDescriptor(exact)
     });
     if !found {
@@ -87,7 +87,7 @@ fn descriptor(
 
 fn callable(
     reference: crate::StrongTypeDispatchCallableRefV2,
-    selected: &crate::SelectedDependencyLayoutAbiSetV1<'_>,
+    selected: Selection<'_, '_>,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let crate::StrongTypeDispatchCallableRefV2::DependencyExternal { provider, body } = reference
@@ -95,12 +95,12 @@ fn callable(
         return Ok(());
     };
     meter.charge_work(
-        selected.physical_imports().records().len() as u64,
+        selected.physical().records().len() as u64,
         &WirePath::root(),
     )?;
     let mut owner = None;
     let mut matches = 0_u32;
-    for import in selected.physical_imports().records() {
+    for import in selected.physical().records() {
         let Subject::Callable(candidate) = import.subject() else {
             continue;
         };
@@ -127,10 +127,7 @@ fn callable(
         }
     };
     meter.charge_work(selected.len() as u64, &WirePath::root())?;
-    if selected
-        .reference(provider, Target::Callable(owner))
-        .is_none()
-    {
+    if !selected.contains(provider, Target::Callable(owner)) {
         return Err(StrongProductionLayoutJoinError::MissingSelectedCallable { provider, body });
     }
     Ok(())
@@ -138,7 +135,7 @@ fn callable(
 
 fn initialization(
     reference: &crate::StrongInitializationDependencyRefV2,
-    selected: &crate::SelectedDependencyLayoutAbiSetV1<'_>,
+    selected: Selection<'_, '_>,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let StrongInitializationDependencyKindV2::DependencyExternalUnit { provider, unit_ref } =
@@ -148,10 +145,10 @@ fn initialization(
     };
     let unit = unit_ref.unit();
     meter.charge_work(
-        selected.physical_imports().records().len() as u64,
+        selected.physical().records().len() as u64,
         &WirePath::root(),
     )?;
-    let Some(import) = selected.physical_imports().records().iter().find(|import| {
+    let Some(import) = selected.physical().records().iter().find(|import| {
         import.provider() == provider && import.subject() == Subject::InitializationDescriptor(unit)
     }) else {
         return Err(

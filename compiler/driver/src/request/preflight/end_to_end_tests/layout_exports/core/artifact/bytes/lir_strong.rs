@@ -69,4 +69,14 @@ pub(super) fn check(
             .selected_relations()
             .is_empty()
     );
+    dependencies
+        .with_replayed_physical_imports(|physical| {
+            assert_eq!(physical.current(), ConeIdentity::CORE);
+            assert_eq!(physical.dependency_first().count(), 1);
+            let current = physical.artifact(ConeIdentity::CORE).unwrap();
+            assert_eq!(current.lir_exports(), layout.exports());
+            assert_eq!(current.initialization_units(), units);
+            assert!(current.lir_physical_imports().records().is_empty());
+        })
+        .unwrap_or_else(|error| panic!("{name} shared physical contract and Strong join: {error}"));
 }

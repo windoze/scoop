@@ -8,6 +8,9 @@ pub enum ShapeLinkError {
     Provider,
     Target,
     LocalImport,
+    Identity(scoop_identity::IdentityReferenceError),
+    Subject(crate::ExternalShapeSubjectResolutionError),
+    MissingProvider(ConeIdentity),
     MissingSubject(ExternalStrongShapeSubjectV1),
     LegacyPartition(ExternalStrongShapeSubjectV1),
     SupportRelation(ExternalStrongShapeSubjectV1),
@@ -41,6 +44,8 @@ macro_rules! from_error {
     };
 }
 from_error!(WireError, Resource);
+from_error!(scoop_identity::IdentityReferenceError, Identity);
+from_error!(crate::ExternalShapeSubjectResolutionError, Subject);
 from_error!(crate::StrongShapeDefinitionError, Definition);
 from_error!(crate::ExactLayoutWireError, Layout);
 from_error!(crate::ExactDescriptorWireError, Descriptor);

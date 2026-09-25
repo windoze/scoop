@@ -28,6 +28,7 @@ mod lir_dispatch;
 mod lir_initialization;
 mod lir_layouts;
 mod lir_ordinary;
+mod lir_physical;
 mod lir_shape_support;
 mod lir_strong;
 mod mir_dependencies;
@@ -74,6 +75,10 @@ pub use lir_ordinary::{
     CrossConeLayoutOrdinaryLirBridgeError, OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
     OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeDependenciesV1,
     SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
+};
+pub use lir_physical::{
+    CrossConeLayoutLirPhysicalError, PhysicalImportsReplayedCrossConeLayoutClosure,
+    PhysicalImportsReplayedCrossConeLayoutSections, SharedLirPhysicalError,
 };
 pub use lir_shape_support::{
     CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,

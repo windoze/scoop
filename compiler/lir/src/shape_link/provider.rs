@@ -2,20 +2,21 @@ use scoop_identity::ConeIdentity;
 use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{
-    ExternalShapeLinkImportV1, ShapeLinkContractV1, ShapeLinkError, ShapeLinkSupportAuthorityV1,
+    ExternalShapeLinkImportV1, ShapeLinkContractV1, ShapeLinkError, ShapeLinkSupportLookupV1,
 };
 use crate::*;
 
 mod production;
+use production::PhysicalProduction;
 pub use production::ShapeLinkProductionV1;
 pub(super) mod contracts;
 mod legacy;
 mod support;
 mod types;
 
-pub struct ShapeLinkProviderPartsV1<'a> {
+pub struct ShapeLinkProviderPartsV1<'a, P = ShapeLinkProductionV1<'a>> {
     pub foundation: &'a OdrFreeLirFoundation,
-    pub production: ShapeLinkProductionV1<'a>,
+    pub production: P,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layouts: &'a CanonicalExactLayoutExportsV1,
     pub callables: &'a CanonicalExactCallableAbiExportsV1,
@@ -26,12 +27,42 @@ pub struct ShapeLinkProviderPartsV1<'a> {
 /// Borrowed, same-provider inputs. Export and actual-use closure are checked
 /// by the containing section; this view validates the physical contract.
 pub struct ShapeLinkProviderV1<'a> {
-    parts: ShapeLinkProviderPartsV1<'a>,
+    parts: ShapeLinkProviderPartsV1<'a, PhysicalProduction<'a>>,
 }
 
 impl<'a> ShapeLinkProviderV1<'a> {
     pub fn try_new(
         parts: ShapeLinkProviderPartsV1<'a>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, ShapeLinkError> {
+        let production = PhysicalProduction::Complete(parts.production);
+        Self::validate(parts.with_production(production), meter)
+    }
+
+    /// A contract-only view. Its replayed production cannot be passed to the
+    /// complete Link terminal constructor, which accepts the separate enum.
+    pub fn from_replayed(
+        foundation: &'a OdrFreeLirFoundation,
+        ordinary: &'a CrossConeLirBridgeSectionV1,
+        view: ReplayedStrongLayoutExportsV2<'a>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, ShapeLinkError> {
+        Self::validate(
+            ShapeLinkProviderPartsV1 {
+                foundation,
+                ordinary,
+                production: PhysicalProduction::Replayed(view),
+                layouts: view.exports.layouts(),
+                callables: view.exports.callables(),
+                descriptors: view.exports.descriptors(),
+                dispatch: view.exports.dispatch(),
+            },
+            meter,
+        )
+    }
+
+    fn validate(
+        parts: ShapeLinkProviderPartsV1<'a, PhysicalProduction<'a>>,
         meter: &mut BudgetMeter,
     ) -> Result<Self, ShapeLinkError> {
         meter.charge_work(10, &WirePath::root())?;
@@ -64,7 +95,8 @@ impl<'a> ShapeLinkProviderV1<'a> {
         {
             return Err(ShapeLinkError::Target);
         }
-        if let ShapeLinkProductionV1::Reader(production) = parts.production
+        if let PhysicalProduction::Complete(ShapeLinkProductionV1::Reader(production)) =
+            parts.production
             && (parts.layouts != production.layouts()
                 || parts.callables != production.callables()
                 || parts.descriptors != production.descriptors()
@@ -79,6 +111,18 @@ impl<'a> ShapeLinkProviderV1<'a> {
         self.parts.foundation.producer()
     }
 
+    pub fn target_profile(&self) -> LirTargetProfile {
+        self.parts.layouts.target()
+    }
+
+    pub(crate) fn semantic_target(
+        &self,
+        subject: ExternalStrongShapeSubjectV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<Option<LayoutAbiSemanticTargetV1>, ShapeLinkError> {
+        super::import::semantic_target(subject, self.parts.layouts, meter)
+    }
+
     /// The complete local Strong definition surface used by import replay.
     /// Closure validators use this exact surface for the consumer-side
     /// foreign-definition exclusion; it is not reconstructed from symbols.
@@ -91,7 +135,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         subject: ExternalStrongShapeSubjectV1,
         consumer: ConeIdentity,
         consumer_definitions: &StrongObjectSymbolSurfaceV1,
-        support: &dyn ShapeLinkSupportAuthorityV1<'a>,
+        support: &dyn ShapeLinkSupportLookupV1<'a>,
         meter: &mut BudgetMeter,
     ) -> Result<ExternalShapeLinkImportV1<'a>, ShapeLinkError> {
         if consumer == self.provider() {
@@ -144,5 +188,19 @@ impl<'a> ShapeLinkProviderV1<'a> {
             meter,
         )?;
         Ok(import)
+    }
+}
+
+impl<'a, P> ShapeLinkProviderPartsV1<'a, P> {
+    fn with_production<Q>(self, production: Q) -> ShapeLinkProviderPartsV1<'a, Q> {
+        ShapeLinkProviderPartsV1 {
+            foundation: self.foundation,
+            production,
+            ordinary: self.ordinary,
+            layouts: self.layouts,
+            callables: self.callables,
+            descriptors: self.descriptors,
+            dispatch: self.dispatch,
+        }
     }
 }

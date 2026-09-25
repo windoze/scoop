@@ -1,0 +1,43 @@
+use super::*;
+
+#[derive(Debug)]
+pub enum SharedLirPhysicalError {
+    Resource(scoop_wire::WireError),
+    Layout(Box<lir::LayoutAbiSectionError<Infallible>>),
+    Contract(Box<lir::ShapeLinkError>),
+    Strong(Box<lir::StrongProductionLayoutJoinError>),
+}
+
+macro_rules! from_error {
+    ($source:ty, $variant:ident) => {
+        impl From<$source> for SharedLirPhysicalError {
+            fn from(value: $source) -> Self {
+                Self::$variant(Box::new(value))
+            }
+        }
+    };
+}
+from_error!(lir::LayoutAbiSectionError<Infallible>, Layout);
+from_error!(lir::ShapeLinkError, Contract);
+from_error!(lir::StrongProductionLayoutJoinError, Strong);
+impl From<scoop_wire::WireError> for SharedLirPhysicalError {
+    fn from(value: scoop_wire::WireError) -> Self {
+        Self::Resource(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct CrossConeLayoutLirPhysicalError {
+    pub provider: ConeIdentity,
+    pub source: Box<SharedLirPhysicalError>,
+}
+impl std::fmt::Display for CrossConeLayoutLirPhysicalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "invalid shared LIR physical imports for {:?}: {:?}",
+            self.provider, self.source
+        )
+    }
+}
+impl std::error::Error for CrossConeLayoutLirPhysicalError {}

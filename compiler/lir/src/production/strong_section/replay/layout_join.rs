@@ -10,6 +10,8 @@ use scoop_wire::{BudgetMeter, HashError, WireError};
 
 mod local;
 mod selected;
+mod shared;
+pub use shared::ReplayedStrongLayoutExportsV2;
 
 /// Strong V2 production authority bound to one complete layout/ABI section.
 ///
@@ -176,8 +178,12 @@ fn validate_layout_abi(
     layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
     meter: &mut BudgetMeter,
 ) -> Result<ValidatedStrongProductionSectionV2, StrongProductionLayoutJoinError> {
-    local::validate(&replayed, layout_abi, meter)?;
-    selected::validate(&replayed, layout_abi.selected(), meter)?;
+    local::validate(&replayed, layout_abi.exports(), meter)?;
+    selected::validate(
+        &replayed,
+        selected::Selection::Complete(layout_abi.selected()),
+        meter,
+    )?;
     Ok(ValidatedStrongProductionSectionV2 {
         replayed,
         layouts: layout_abi.layouts().clone(),

@@ -3,7 +3,7 @@ use scoop_wire::WirePath;
 
 pub(super) fn validate(
     production: &ReplayedStrongProductionSectionV2,
-    section: &crate::CrossConeLayoutAbiSectionV1<'_>,
+    section: &crate::LayoutAbiExportConstituentsV1,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     meter.charge_work(

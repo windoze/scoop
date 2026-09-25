@@ -1,8 +1,7 @@
 use super::*;
 
 struct Candidate<'a>(ShapeLinkSupportSourceV1<'a>);
-impl crate::shape_link::support::sealed::Sealed for Candidate<'_> {}
-impl<'a> ShapeLinkSupportAuthorityV1<'a> for Candidate<'a> {
+impl<'a> ShapeLinkSupportLookupV1<'a> for Candidate<'a> {
     fn support_source(
         &self,
         _: ConeIdentity,

@@ -107,4 +107,12 @@ pub(super) fn check(
         std::fs::write(&snapshot, &dump).unwrap();
     }
     assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
+    closure
+        .with_replayed_physical_imports(|physical| {
+            assert_eq!(physical.dependency_first().count(), 2);
+            let current = physical.artifact(layout.provider()).unwrap();
+            assert_eq!(current.lir_exports(), layout.exports());
+            assert!(current.lir_physical_imports().records().is_empty());
+        })
+        .unwrap();
 }

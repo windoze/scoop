@@ -155,9 +155,7 @@ fn validate_physical<E>(
             terminal.dispatch(),
             meter,
         )?;
-        let Some(target) = semantic_target(import.subject(), terminal)
-            .map_err(LayoutAbiSectionError::MissingPhysicalSubject)?
-        else {
+        let Some(target) = import.semantic_target(terminal.layouts(), meter)? else {
             continue;
         };
         let relation = LayoutAbiDependencyV1::new(import.provider(), target);
@@ -169,32 +167,4 @@ fn validate_physical<E>(
         }
     }
     Ok(())
-}
-
-fn semantic_target(
-    subject: crate::ExternalStrongShapeSubjectV1,
-    terminal: &CrossConeLayoutAbiSectionV1<'_>,
-) -> Result<Option<LayoutAbiSemanticTargetV1>, crate::ExternalStrongShapeSubjectV1> {
-    use crate::ExternalStrongShapeSubjectV1 as Subject;
-    Ok(match subject {
-        Subject::Callable(target) => Some(LayoutAbiSemanticTargetV1::Callable(target)),
-        Subject::Layout(layout) => Some(LayoutAbiSemanticTargetV1::Layout(layout)),
-        Subject::Scan(scan) => Some(
-            terminal
-                .layouts()
-                .records()
-                .iter()
-                .find(|record| record.scan() == scan)
-                .map(|record| LayoutAbiSemanticTargetV1::Layout(record.identity().layout()))
-                .ok_or(subject)?,
-        ),
-        Subject::TypeDescriptor(exact) | Subject::TypeRegistration(exact) => {
-            Some(LayoutAbiSemanticTargetV1::Descriptor(exact))
-        }
-        Subject::DispatchTable(table) => Some(LayoutAbiSemanticTargetV1::Dispatch(table)),
-        Subject::StaticStorage(_)
-        | Subject::StaticStorageRegistration(_)
-        | Subject::InitializationCell(_)
-        | Subject::InitializationDescriptor(_) => None,
-    })
 }

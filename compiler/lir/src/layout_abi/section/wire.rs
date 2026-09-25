@@ -2,7 +2,9 @@ use super::*;
 
 mod complete;
 mod descriptors;
+mod physical;
 mod resolved_dependencies;
+pub use physical::PhysicalImportsReplayedLayoutAbiSectionV1;
 mod shapes;
 mod stages;
 

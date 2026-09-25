@@ -9,14 +9,15 @@ use super::{TARGET, meter};
 use crate::*;
 
 pub(super) struct Provider {
+    pub(super) coordinate: ConeCoordinate,
     pub(super) identity: ConeIdentity,
     pub(super) exact: PersistentExactTypeId,
     pub(super) callable: StrongCallableDefinitionOwner,
     pub(super) callable_body: PersistentCallableBodyId,
     pub(super) initialization_unit: PersistentInitializationUnitId,
     pub(super) output: SingleConeStrongLirOutput,
-    section: ValidatedStrongProductionSectionV2,
-    ordinary: CrossConeLirBridgeSectionV1,
+    pub(super) section: ValidatedStrongProductionSectionV2,
+    pub(super) ordinary: CrossConeLirBridgeSectionV1,
     layouts: CanonicalExactLayoutExportsV1,
     descriptors: CanonicalExactDescriptorExportsV1,
     dispatch: CanonicalExactDispatchExportsV1,
@@ -50,7 +51,7 @@ impl Provider {
             StrongProductionDependencySelectionV2::empty(identity, TARGET, &mut meter()).unwrap();
         let section = output
             .build_production_section_v2(
-                coordinate,
+                coordinate.clone(),
                 &[],
                 EntryProductionSourceV1::Library,
                 &empty,
@@ -135,6 +136,7 @@ impl Provider {
             .validate_layout_abi(&layout_section, &mut meter())
             .unwrap();
         Self {
+            coordinate,
             identity,
             exact,
             callable,
@@ -193,9 +195,7 @@ pub(super) struct InitializationSupport<'a> {
     provider: &'a Provider,
 }
 
-impl crate::shape_link::support::sealed::Sealed for InitializationSupport<'_> {}
-
-impl<'a> ShapeLinkSupportAuthorityV1<'a> for InitializationSupport<'a> {
+impl<'a> ShapeLinkSupportLookupV1<'a> for InitializationSupport<'a> {
     fn support_source(
         &self,
         provider: ConeIdentity,

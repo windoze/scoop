@@ -250,8 +250,8 @@ pub use initialization::StrongInitializationAbiValidationError;
 
 mod replay;
 pub use replay::{
-    ReplayedStrongProductionSectionV2, StrongProductionLayoutJoinError,
-    ValidatedStrongProductionSectionV2,
+    ReplayedStrongLayoutExportsV2, ReplayedStrongProductionSectionV2,
+    StrongProductionLayoutJoinError, ValidatedStrongProductionSectionV2,
 };
 
 impl DecodedStrongProductionSectionV1 {

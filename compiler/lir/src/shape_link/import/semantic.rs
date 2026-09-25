@@ -7,8 +7,15 @@ use crate::{
 use scoop_identity::ScanRole;
 
 impl ExternalShapeLinkImportV1<'_> {
+    pub(crate) fn semantic_target(
+        &self,
+        layouts: &CanonicalExactLayoutExportsV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
+        semantic_target(self.subject(), layouts, meter)
+    }
     /// Rebinds the semantic contract to the terminal section's actual tables.
-    /// Storage and initialization retain their separately sealed support proof.
+    /// Storage and initialization retain the enclosing closure's support join.
     pub(crate) fn validate_semantic_against(
         &self,
         layouts: &CanonicalExactLayoutExportsV1,
@@ -105,4 +112,38 @@ impl ExternalShapeLinkImportV1<'_> {
         }
         Ok(())
     }
+}
+
+pub(in crate::shape_link) fn semantic_target(
+    subject: ExternalStrongShapeSubjectV1,
+    layouts: &CanonicalExactLayoutExportsV1,
+    meter: &mut BudgetMeter,
+) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
+    use crate::{ExternalStrongShapeSubjectV1 as Subject, LayoutAbiSemanticTargetV1 as Target};
+    meter.charge_work(1, &scoop_wire::WirePath::root())?;
+    Ok(match subject {
+        Subject::Callable(owner) => Some(Target::Callable(owner)),
+        Subject::Layout(id) => Some(Target::Layout(id)),
+        Subject::Scan(id) => {
+            meter.charge_work(
+                layouts.records().len() as u64,
+                &scoop_wire::WirePath::root(),
+            )?;
+            Some(Target::Layout(
+                layouts
+                    .records()
+                    .iter()
+                    .find(|record| record.scan() == id)
+                    .ok_or(ShapeLinkError::MissingSubject(subject))?
+                    .identity()
+                    .layout(),
+            ))
+        }
+        Subject::TypeDescriptor(id) | Subject::TypeRegistration(id) => Some(Target::Descriptor(id)),
+        Subject::DispatchTable(id) => Some(Target::Dispatch(id)),
+        Subject::StaticStorage(_)
+        | Subject::StaticStorageRegistration(_)
+        | Subject::InitializationCell(_)
+        | Subject::InitializationDescriptor(_) => None,
+    })
 }

@@ -6,7 +6,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         &self,
         subject: ExternalStrongShapeSubjectV1,
         physical: StrongShapeDefinitionRefV1,
-        support: &dyn ShapeLinkSupportAuthorityV1<'a>,
+        support: &dyn ShapeLinkSupportLookupV1<'a>,
         meter: &mut BudgetMeter,
     ) -> Result<ShapeLinkContractV1<'a>, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;

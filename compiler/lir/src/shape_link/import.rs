@@ -2,12 +2,11 @@ use scoop_identity::{ConeIdentity, ObjectDefinitionPlanId, PersistentSymbolReque
 use scoop_wire::{BudgetMeter, Encoder, WireEncode};
 
 use super::wire::{EncodeResult, field};
-use super::{
-    ShapeLinkContractV1, ShapeLinkError, ShapeLinkProviderV1, ShapeLinkSupportAuthorityV1,
-};
+use super::{ShapeLinkContractV1, ShapeLinkError, ShapeLinkProviderV1, ShapeLinkSupportLookupV1};
 use crate::{ExternalStrongShapeSubjectV1, StrongObjectSymbolSurfaceV1};
 
 mod semantic;
+pub(super) use semantic::semantic_target;
 
 /// A provider-bound semantic import. Actual relocation coverage and selection
 /// remain obligations of the containing Link/Compile closure.
@@ -26,7 +25,7 @@ impl<'a> ExternalShapeLinkImportV1<'a> {
         subject: ExternalStrongShapeSubjectV1,
         consumer: ConeIdentity,
         consumer_definitions: &StrongObjectSymbolSurfaceV1,
-        support: &dyn ShapeLinkSupportAuthorityV1<'a>,
+        support: &dyn ShapeLinkSupportLookupV1<'a>,
         meter: &mut BudgetMeter,
     ) -> Result<Self, ShapeLinkError> {
         provider.import(subject, consumer, consumer_definitions, support, meter)

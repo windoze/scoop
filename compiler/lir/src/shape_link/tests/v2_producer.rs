@@ -9,6 +9,7 @@ mod descriptors;
 mod fixture;
 mod initialization_fixture;
 mod lir_fixture;
+mod physical_replay;
 use fixture::{Provider, consumer_layout_section};
 use initialization_fixture::attach_eager_initialization;
 use lir_fixture::{consumer_module, pointer_result_signature};
@@ -228,6 +229,7 @@ fn exercise_dependency_production(provider: Provider) {
             &mut meter(),
         )
         .unwrap();
+    physical_replay::check_join(&provider, &replayed, &complete);
     let validated = replayed
         .validate_layout_abi(&complete, &mut meter())
         .unwrap();

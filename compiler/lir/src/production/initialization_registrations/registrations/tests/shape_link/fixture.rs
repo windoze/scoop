@@ -179,8 +179,7 @@ pub(super) struct Support<'a> {
     fixture: &'a ProviderFixture,
     allowed: bool,
 }
-impl crate::shape_link::support::sealed::Sealed for Support<'_> {}
-impl<'a> ShapeLinkSupportAuthorityV1<'a> for Support<'a> {
+impl<'a> ShapeLinkSupportLookupV1<'a> for Support<'a> {
     fn support_source(
         &self,
         provider: ConeIdentity,
