@@ -15,56 +15,68 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     .unwrap();
     let sources = discover_manifest_sources(&manifest).unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
-    let output = TrustedCoreBootstrapHirOutput::lower(&parsed).unwrap();
+    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+        parsed.cone(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let output = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
+        scoop_identity::RequestedConeKind::Library,
+        &parsed,
+        scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
     assert!(matches!(
-        output.output_kind(),
+        output.hir.output().output_kind(),
         scoop_hir::ConeOutputKind::Library
     ));
     assert_eq!(
-        output.production_section().output_contract(),
+        output.production_section.output_contract(),
         &scoop_hir::HirOutputContractV1::Library
     );
     assert!(
         output
-            .production_section()
+            .production_section
             .compiler_protocol_definitions()
             .is_some()
     );
     let mut expected_foundation = scoop_hir::CanonicalHirFoundation::from_modules(
-        &output.hir().export,
-        &output.hir().local,
-        &output.hir().native_boundary_types,
+        &output.hir.output().export,
+        &output.hir.output().local,
+        &output.hir.output().native_boundary_types,
     )
     .unwrap();
     expected_foundation
         .complete_cross_cone_interface_source_points(
-            output.hir().export.module(),
-            output.cross_cone_section(),
+            output.hir.output().export.module(),
+            &output.cross_cone_section,
         )
         .unwrap();
-    assert!(output.foundation() == &expected_foundation);
+    assert!(output.foundation == expected_foundation);
     assert!(
         !output
-            .cross_cone_section()
+            .cross_cone_section
             .nominal_interfaces()
             .records()
             .is_empty()
     );
     assert!(
         !output
-            .cross_cone_section()
+            .cross_cone_section
             .callable_interfaces()
             .records()
             .is_empty()
     );
-    let production_bytes = scoop_wire::encode(output.production_section()).unwrap();
+    let production_bytes = scoop_wire::encode(&output.production_section).unwrap();
     let decoded =
         scoop_wire::decode_canonical::<scoop_hir::DecodedCoreBootstrapInterfaceSectionV1>(
             &production_bytes,
         )
         .unwrap();
     let odr_free_foundation =
-        scoop_hir::OdrFreeHirFoundation::try_new(output.foundation().clone()).unwrap();
+        scoop_hir::OdrFreeHirFoundation::try_new(output.foundation.clone()).unwrap();
     assert_eq!(
         decoded
             .validate_against_strong_foundation(
@@ -72,11 +84,11 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
                 &odr_free_foundation,
             )
             .unwrap(),
-        output.production_section().clone()
+        output.production_section.clone()
     );
-    scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.hir().export).unwrap();
+    scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.hir.output().export).unwrap();
 
-    let Some(interface) = output.production_section().compiler_protocol_definitions() else {
+    let Some(interface) = output.production_section.compiler_protocol_definitions() else {
         panic!("the trusted bootstrap output has a core interface")
     };
     let cycle = interface
@@ -105,7 +117,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     assert!(matches!(
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::CORE,
-            output.production_section(),
+            &output.production_section,
             &empty_mir_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::MissingInitializationCycleThrower)
@@ -118,7 +130,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let minimal_foundation = scoop_mir::OdrFreeMirFoundation::try_new(minimal_foundation).unwrap();
     let minimal_production = scoop_mir_lower::lower_production_section(
         scoop_identity::ConeIdentity::CORE,
-        output.production_section(),
+        &output.production_section,
         &minimal_foundation,
     )
     .unwrap();
@@ -155,7 +167,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     assert!(matches!(
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::CORE,
-            output.production_section(),
+            &output.production_section,
             &mismatched_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::InitializationCycleSignatureMismatch)
@@ -163,21 +175,29 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
 
     let expected_shape_roots = scoop_hir::PublicNominalShapeRequirementsV1::from_shared_surface(
         scoop_identity::ConeIdentity::CORE,
-        output.production_section().direct_public_surface(),
-        output.foundation(),
-        output.cross_cone_section().nominal_interfaces(),
-        output.cross_cone_section().callable_interfaces(),
+        output.production_section.direct_public_surface(),
+        &output.foundation,
+        output.cross_cone_section.nominal_interfaces(),
+        output.cross_cone_section.callable_interfaces(),
     )
     .unwrap()
     .roots()
     .len();
-    let real_mir = output.lower_mir().unwrap();
-    assert_eq!(real_mir.mir().cone, scoop_identity::ConeIdentity::CORE);
-    let shape_plan = real_mir.hir().hir().local.materialization();
+    let real_mir = output
+        .machine_input()
+        .lower_selected_mir(scoop_mir::SelectedExternalMirSet::empty(
+            scoop_identity::ConeIdentity::CORE,
+        ))
+        .unwrap();
+    assert_eq!(
+        real_mir.strong.module().cone,
+        scoop_identity::ConeIdentity::CORE
+    );
+    let shape_plan = output.hir.output().local.materialization();
     assert_eq!(shape_plan.roots().len(), expected_shape_roots);
     for root in shape_plan.roots() {
         let exact = root.exact();
-        let mir = real_mir.mir();
+        let mir = real_mir.strong.module();
         assert!(
             mir.meta
                 .coroutine_steps
@@ -203,7 +223,8 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         );
     }
     let cycle = real_mir
-        .production_section()
+        .strong
+        .production()
         .strong_callable_bridges()
         .initialization_cycle()
         .unwrap();
@@ -213,12 +234,13 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
     assert!(expected_shape_roots > 0);
     assert_eq!(
-        real_mir.materialization_plan().callable_roots().len(),
-        real_mir.mir().top_level.len()
+        real_mir.strong.materialization().callable_roots().len(),
+        real_mir.strong.module().top_level.len()
     );
     assert_eq!(
         real_mir
-            .materialization_plan()
+            .strong
+            .materialization()
             .shape_support()
             .iter()
             .map(|root| root.declaration().clone())
@@ -231,29 +253,37 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
     assert!(
         !real_mir
-            .materialization_plan()
+            .strong
+            .materialization()
             .source_nominal_shapes()
             .is_empty()
     );
     assert_eq!(
         real_mir
-            .materialization_plan()
+            .strong
+            .materialization()
             .generated_nominal_shapes()
             .len(),
-        real_mir.mir().meta.generated_exact_types.len()
+        real_mir.strong.module().meta.generated_exact_types.len()
     );
     assert_eq!(
         real_mir
-            .production_section()
+            .strong
+            .production()
             .strong_callable_bridges()
             .bridges()
             .len(),
-        real_mir.mir().meta.callable_signatures.len()
+        real_mir.strong.module().meta.callable_signatures.len()
     );
     let expected_lir_shape_roots = shape_plan.roots().to_vec();
-    let real_lir = real_mir
-        .lower_lir(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
-        .unwrap();
+    let (real_lir, lir_public) = machine::lower_selected_lir(
+        &real_mir.strong,
+        &real_mir.public,
+        scoop_lir_lower::RuntimeStringDescriptor::Local,
+        &scoop_lir::SelectedExternalLirSet::empty(scoop_identity::ConeIdentity::CORE),
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
     let lir_shape_roots = real_lir.shape_support().roots();
     assert_eq!(lir_shape_roots.len(), expected_shape_roots);
     for (root, authority) in lir_shape_roots.iter().zip(&expected_lir_shape_roots) {
@@ -282,7 +312,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     assert_eq!(lir_counts.odr_members, 0);
     assert!(
         !real_lir
-            .lir()
+            .module()
             .meta
             .layouts
             .iter()
@@ -290,7 +320,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
     assert!(
         !real_lir
-            .lir()
+            .module()
             .meta
             .type_descriptors
             .iter()
@@ -301,7 +331,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
 
     let production = real_lir
-        .strong_lir_output()
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_core(),
             &[],
@@ -313,7 +342,9 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         production_shape_support.closures().len(),
         expected_shape_roots
     );
-    let strong = real_lir.seal_strong_profile().unwrap();
+    let strong = output
+        .seal_strong_profile(real_mir.strong, real_mir.public, real_lir, lir_public)
+        .unwrap();
     let hir_counts = strong.hir_foundation().as_canonical().counts();
     assert_eq!(hir_counts.callable_applications, 0);
     assert_eq!(hir_counts.odr_groups, 0);

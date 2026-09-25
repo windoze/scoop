@@ -15,7 +15,7 @@ use scoop_wire::{decode_canonical, encode};
 use super::super::{
     complete_core_file, fun_expr, int_lit, make_core_public, test_source_identity, ty_named,
 };
-use crate::{CoreBootstrapSources, lower_core_bootstrap};
+use crate::lower_core_bootstrap;
 
 pub(crate) struct TrustedCoreFixture {
     pub(crate) source_output: scoop_hir::Output,
@@ -134,8 +134,7 @@ pub(crate) fn trusted_core_from_source(
         "<core>",
         source_text,
     );
-    let input = CoreBootstrapSources::try_new(&parsed).unwrap();
-    let output = lower_core_bootstrap(&input).unwrap();
+    let output = lower_core_bootstrap(&parsed).unwrap();
     let interface = scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
     let strong_definition = strong_callable.map(|name| {
         let function = output

@@ -6,7 +6,19 @@ use scoop_wire::WirePath;
 #[test]
 fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
     let sources = sources::core_sources_with(&[]);
-    let hir = super::super::super::TrustedCoreBootstrapHirOutput::lower(&sources).unwrap();
+    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+        sources.cone(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let hir = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
+        scoop_identity::RequestedConeKind::Library,
+        &sources,
+        scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
     let input = hir.machine_input();
 
     let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(

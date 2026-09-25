@@ -18,8 +18,6 @@ use super::{
 };
 use crate::CrossConeStrongIrProductionV1;
 
-#[cfg(test)]
-mod bootstrap;
 mod current_hir;
 pub use current_hir::{CurrentConeHirStageError, CurrentConeStrongProfileError};
 mod dependencies;
@@ -30,8 +28,6 @@ mod machine;
 pub use machine::{CurrentConeLirStageError, CurrentConeMirStageError};
 mod production;
 mod validated;
-#[cfg(test)]
-use bootstrap::*;
 use dependencies::LoadedExplicitDependencyInputs;
 pub use dependencies::{
     ExplicitDependencyArtifactInput, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,

@@ -8,8 +8,8 @@ use scoop_slib::CrossConeLirSelectionProjectionError as Error;
 
 pub(super) fn check(
     closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
-    core: &Compile<'_>,
-    ordinary: &Compile<'_>,
+    core: &Compile<'_, '_>,
+    ordinary: &Compile<'_, '_>,
 ) {
     let source = core
         .production()

@@ -28,7 +28,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn lower_ext
 
 pub(super) fn lower_protocol_core() -> hir::Output {
     let parsed = crate::tests::m23_ordinary_core_only::support::parsed_core(complete_core_file());
-    lower_core_bootstrap(&CoreBootstrapSources::try_new(&parsed).unwrap()).unwrap()
+    lower_core_bootstrap(&parsed).unwrap()
 }
 pub(super) fn lower_sysroot() -> hir::Output {
     let root =
@@ -71,7 +71,7 @@ fn lower(mut files: Vec<(String, String, ast::SourceFile)>) -> hir::Output {
         ast::NonEmptyVec::new(diagnostics.remove(0), diagnostics),
     )
     .unwrap();
-    lower_core_bootstrap(&CoreBootstrapSources::try_new(&parsed).unwrap()).unwrap()
+    lower_core_bootstrap(&parsed).unwrap()
 }
 pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifact(
     output: &hir::Output,

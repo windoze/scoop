@@ -202,8 +202,7 @@ fn nominal_source_contracts_keep_private_and_internal_constructors() {
 #[test]
 fn nominal_source_contracts_exclude_real_core_constructor_adapters() {
     let parsed = super::super::m23_ordinary_core_only::support::parsed_core(complete_core_file());
-    let input = crate::CoreBootstrapSources::try_new(&parsed).unwrap();
-    let output = crate::lower_core_bootstrap(&input).unwrap();
+    let output = crate::lower_core_bootstrap(&parsed).unwrap();
     let export = output.export.module();
     let (adapter, constructor) = export
         .class_constructors

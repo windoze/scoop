@@ -27,8 +27,8 @@ pub use graph::*;
 mod prebuilt_summary;
 pub use prebuilt_summary::*;
 
-mod dual_artifact;
-pub use dual_artifact::*;
+mod artifact_snapshot;
+pub use artifact_snapshot::*;
 
 mod compile_decode;
 pub use compile_decode::*;

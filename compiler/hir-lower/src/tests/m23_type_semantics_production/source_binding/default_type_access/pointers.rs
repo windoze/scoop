@@ -5,8 +5,7 @@ use super::*;
 #[test]
 fn default_type_access_pointer_demands_use_real_bootstrap_default_templates() {
     let parsed = pointer_sources();
-    let input = CoreBootstrapSources::try_new(&parsed).unwrap();
-    let output = lower_core_bootstrap(&input).unwrap();
+    let output = lower_core_bootstrap(&parsed).unwrap();
     let canonical = hir::CanonicalHirFoundation::from_modules(
         &output.export,
         &output.local,

@@ -20,7 +20,19 @@ fn with_production<R>(
     ) -> R,
 ) -> R {
     let sources = sources::core_sources_with(&[("src/finite-types.scoop", source)]);
-    let hir = super::super::super::TrustedCoreBootstrapHirOutput::lower(&sources).unwrap();
+    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+        sources.cone(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let hir = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
+        scoop_identity::RequestedConeKind::Library,
+        &sources,
+        scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
     let input = hir.machine_input();
     let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(
         scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap(),

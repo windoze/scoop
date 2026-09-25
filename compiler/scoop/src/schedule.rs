@@ -3,9 +3,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+use crate::artifact::{CompileArtifactPurpose, LinkArtifactPurpose};
 use scoop_identity::ConeIdentity;
 use scoop_protocol::{RequestCorrelationId, StructuredDiagnosticV1};
-use scoop_slib::{CompileArtifactPurpose, ConeKind, LinkArtifactPurpose};
+use scoop_slib::ConeKind;
 
 use crate::{
     CompileCacheKeyError, ConeCompileCacheKeyV1, OrdinarySourceExecutionError,

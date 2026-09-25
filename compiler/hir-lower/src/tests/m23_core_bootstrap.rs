@@ -7,14 +7,13 @@ use scoop_ast::{
 use scoop_identity::{ConeIdentity, NormalizedSourcePath, SourceIdentity};
 
 use super::complete_core_file;
-use crate::{CoreBootstrapSourceError, CoreBootstrapSources, lower_core_bootstrap};
+use crate::lower_core_bootstrap;
 
 #[test]
 fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     let parsed = parsed_source(ConeIdentity::CORE);
-    let input = CoreBootstrapSources::try_new(&parsed).unwrap();
 
-    let output = lower_core_bootstrap(&input).unwrap();
+    let output = lower_core_bootstrap(&parsed).unwrap();
 
     assert_eq!(output.export.cone, ConeIdentity::CORE);
     assert_eq!(output.export.source_files.len(), 1);
@@ -41,20 +40,6 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     assert!(plan.roots().iter().any(|root| {
         root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::NotApplicable
     }));
-}
-
-#[test]
-fn core_bootstrap_input_rejects_a_non_core_parser_product() {
-    let ordinary = scoop_identity::ConeCoordinate::new("test", "ordinary", "0.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-    let parsed = parsed_source(ordinary);
-
-    assert!(matches!(
-        CoreBootstrapSources::try_new(&parsed),
-        Err(CoreBootstrapSourceError::NotCore(actual)) if actual == ordinary
-    ));
 }
 
 fn parsed_source(cone: ConeIdentity) -> CurrentConeParsedSources {

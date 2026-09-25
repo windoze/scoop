@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[test]
-fn core_can_have_the_only_empty_layout_profile_graph() {
+fn core_uses_the_shared_empty_layout_profile_graph() {
     let closure = DecodedCrossConeLayoutCompileClosure::new(
         ConeIdentity::CORE,
         scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
@@ -38,24 +38,22 @@ fn core_can_have_the_only_empty_layout_profile_graph() {
 }
 
 #[test]
-fn layout_profile_graph_requires_the_trusted_core_provider() {
+fn layout_profile_graph_uses_actual_declared_providers() {
     let bytes = layout_artifact(false, None);
     let artifact = open_graph(&bytes)
         .decode_cross_cone_layout_compile_sections()
         .unwrap();
     let identity = artifact.identity();
 
-    assert_eq!(
-        DecodedCrossConeLayoutCompileClosure::new(
-            cone_named("layout-current").identity(),
-            scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            vec![identity],
-            vec![artifact],
-        )
-        .validate_profile_graph()
-        .err(),
-        Some(CrossConeClosureGraphError::MissingTrustedCore)
-    );
+    let closure = DecodedCrossConeLayoutCompileClosure::new(
+        cone_named("layout-current").identity(),
+        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        vec![identity],
+        vec![artifact],
+    )
+    .validate_profile_graph()
+    .unwrap();
+    assert_eq!(closure.direct_providers(), &[identity]);
 }
 
 #[test]

@@ -92,6 +92,5 @@ fn lower_core_source(source: SourceFile) -> Result<hir::Output, Vec<Diagnostic>>
         ),
     )
     .unwrap();
-    let input = crate::CoreBootstrapSources::try_new(&parsed).unwrap();
-    crate::lower_core_bootstrap(&input)
+    crate::lower_core_bootstrap(&parsed)
 }

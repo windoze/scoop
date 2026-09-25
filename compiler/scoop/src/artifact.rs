@@ -12,10 +12,10 @@ use scoop_identity::{
 };
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_slib::{
-    ArtifactFingerprint, CompileArtifactPurpose, ConeKind, ConeSourceForm,
-    CrossConeArtifactClosureValidationError, CrossConeSemanticsStrongProfile, DependencyRecord,
-    LinkArtifactPurpose, ValidatedCompileArtifact, ValidatedCompletedCrossConeArtifactClosure,
-    ValidatedCrossConeStrongLinkArtifact, validate_completed_cross_cone_artifact_closure,
+    ArtifactFingerprint, ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError,
+    CrossConeSemanticsStrongProfile, DependencyRecord, ValidatedCompileArtifact,
+    ValidatedCompletedCrossConeArtifactClosure, ValidatedCrossConeStrongLinkArtifact,
+    validate_completed_cross_cone_artifact_closure,
 };
 
 pub use authority::{
@@ -28,6 +28,14 @@ pub use completion::{
 };
 pub(crate) use completion::{complete_compiled_candidate, complete_prebuilt_candidates};
 pub use error::{ArtifactClosureValidationError, ArtifactPlanField};
+
+/// Selects the declaration and type data consumed while compiling.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CompileArtifactPurpose;
+
+/// Selects the checked object and symbol data consumed while linking.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LinkArtifactPurpose;
 
 #[derive(Clone, Debug)]
 pub(crate) struct PlannedArtifactNode {

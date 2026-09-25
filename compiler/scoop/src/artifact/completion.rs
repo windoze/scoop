@@ -6,14 +6,12 @@ use std::sync::Arc;
 use scoop_identity::ConeIdentity;
 use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_protocol::StructuredDiagnosticV1;
-use scoop_slib::{
-    ArtifactFingerprint, CompileArtifactPurpose, DependencyRecord, LinkArtifactPurpose,
-    SemanticFingerprintRecord,
-};
+use scoop_slib::{ArtifactFingerprint, DependencyRecord, SemanticFingerprintRecord};
 
 use super::{
-    ArtifactClosurePlan, ArtifactClosureValidationError, CrossConeArtifactValidationError,
-    ValidatedArtifactClosure, ValidatedCrossConeArtifactHandle, ValidatedDualArtifactClosure,
+    ArtifactClosurePlan, ArtifactClosureValidationError, CompileArtifactPurpose,
+    CrossConeArtifactValidationError, LinkArtifactPurpose, ValidatedArtifactClosure,
+    ValidatedCrossConeArtifactHandle, ValidatedDualArtifactClosure,
 };
 use crate::{CacheCompletionError, PreparedArtifactCandidate};
 

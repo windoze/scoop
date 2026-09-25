@@ -3,8 +3,7 @@ use super::*;
 mod descriptors;
 mod protocols;
 mod selections;
-type Compile<'a> =
-    scoop_slib::ValidatedCompileArtifact<'a, scoop_slib::CrossConeSemanticsStrongProfile>;
+type Compile<'closure, 'input> = scoop_slib::DirectCrossConeSemanticProvider<'closure, 'input>;
 
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(crate::workspace_root().join(format!(
@@ -59,13 +58,17 @@ fn shared_protocol_and_lir_projection_uses_actual_providers() {
             let loaded = request().load_preflight().unwrap();
             let validated = loaded.validate().unwrap();
             let closure = &validated.dependencies().closure;
-            let core = closure.share_artifact(ConeIdentity::CORE).unwrap();
-            let ordinary = closure
-                .share_artifact(provider_coordinate.identity().unwrap())
+            let core = closure
+                .semantic()
+                .direct_provider(ConeIdentity::CORE)
                 .unwrap();
-            selections::check(closure.semantic(), core.compile(), ordinary.compile());
-            descriptors::check(closure.semantic(), core.compile(), ordinary.compile());
-            protocols::check(closure.semantic(), core.compile(), ordinary.compile());
+            let ordinary = closure
+                .semantic()
+                .direct_provider(provider_coordinate.identity().unwrap())
+                .unwrap();
+            selections::check(closure.semantic(), &core, &ordinary);
+            descriptors::check(closure.semantic(), &core, &ordinary);
+            protocols::check(closure.semantic(), &core, &ordinary);
         }
         for (kind, suffix) in [(StageDumpKind::Mir, "mir"), (StageDumpKind::Lir, "lir")] {
             let mut request = request();

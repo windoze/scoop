@@ -72,7 +72,7 @@ fn profile_graph_assigns_direct_and_support_roles_after_closure_validation() {
 }
 
 #[test]
-fn core_current_has_the_only_valid_empty_provider_closure() {
+fn core_current_uses_the_shared_empty_provider_closure() {
     let closure =
         DecodedCrossConeClosure::new(ConeIdentity::CORE, target(), Vec::new(), Vec::new())
             .validate_profile_graph()
@@ -128,7 +128,9 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         )
         .validate_profile_graph()
         .err(),
-        Some(CrossConeClosureGraphError::CoreHasDependencyProviders)
+        Some(CrossConeClosureGraphError::CurrentArtifactPresent {
+            current: ConeIdentity::CORE
+        })
     );
 }
 
@@ -236,21 +238,28 @@ fn protocol_definition_absence_is_not_inferred_from_the_core_coordinate() {
 }
 
 #[test]
-fn non_core_closure_requires_implicit_core_and_canonical_direct_set() {
+fn provider_graph_uses_declared_dependencies_and_canonical_direct_set() {
     let dependency_bytes = artifact(cone_named("dependency"), Vec::new());
     let dependency = decode(&dependency_bytes);
     let identity = dependency.identity();
-    assert_eq!(
-        DecodedCrossConeClosure::new(
-            cone_named("current").identity(),
-            target(),
-            vec![identity],
-            vec![dependency],
-        )
-        .validate_profile_graph()
-        .err(),
-        Some(CrossConeClosureGraphError::MissingTrustedCore)
-    );
+    let closure = DecodedCrossConeClosure::new(
+        cone_named("current").identity(),
+        target(),
+        vec![identity],
+        vec![dependency],
+    )
+    .validate_profile_graph()
+    .unwrap();
+    assert_eq!(closure.role(identity), Some(CrossConeProviderRole::Direct));
+    let core = DecodedCrossConeClosure::new(
+        ConeIdentity::CORE,
+        target(),
+        vec![identity],
+        vec![decode(&dependency_bytes)],
+    )
+    .validate_profile_graph()
+    .unwrap();
+    assert_eq!(core.role(identity), Some(CrossConeProviderRole::Direct));
 
     let core_bytes = artifact(core_cone(), Vec::new());
     assert!(matches!(

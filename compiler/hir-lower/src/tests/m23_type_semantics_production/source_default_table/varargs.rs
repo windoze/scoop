@@ -9,8 +9,7 @@ fn complete_default_sources_distinguish_vararg_default_and_empty_omission() {
     core.declarations
         .extend(scoop_parser::parse(source).unwrap().declarations);
     let parsed = super::super::super::m23_ordinary_core_only::support::parsed_core(core);
-    let input = crate::CoreBootstrapSources::try_new(&parsed).unwrap();
-    let output = crate::lower_core_bootstrap(&input).unwrap();
+    let output = crate::lower_core_bootstrap(&parsed).unwrap();
     let export = output.export.module();
     let production = Production::from_export_hir(&output.export).unwrap();
     let defaulted = declaration(export, function(export, "Variadic.defaulted"));

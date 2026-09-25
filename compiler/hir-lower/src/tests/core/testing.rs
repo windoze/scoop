@@ -28,9 +28,7 @@ pub(crate) fn lower_core_with_additional_declarations(
         ),
     )
     .expect("the core fixture has matching source metadata");
-    let input = crate::CoreBootstrapSources::try_new(&parsed)
-        .expect("the core fixture belongs to the core Cone");
-    crate::lower_core_bootstrap(&input)
+    crate::lower_core_bootstrap(&parsed)
         .expect("the complete core fixture must lower")
         .export
 }

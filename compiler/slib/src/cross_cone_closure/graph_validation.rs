@@ -84,14 +84,6 @@ pub(crate) fn validate_artifact_graph<T: CrossConeClosureArtifact>(
     current_artifact: Option<T>,
 ) -> Result<ValidatedCrossConeClosureGraph<T>, CrossConeClosureGraphError> {
     validate_direct_order(&direct)?;
-    if current == ConeIdentity::CORE && current_artifact.is_none() {
-        if !direct.is_empty() || !dependency_first.is_empty() {
-            return Err(CrossConeClosureGraphError::CoreHasDependencyProviders);
-        }
-    } else if current != ConeIdentity::CORE && direct.binary_search(&ConeIdentity::CORE).is_err() {
-        return Err(CrossConeClosureGraphError::MissingTrustedCore);
-    }
-
     let mut positions = BTreeMap::new();
     let mut versions = BTreeMap::<(String, String), ConeCoordinate>::new();
     for (position, artifact) in dependency_first.iter().enumerate() {

@@ -31,8 +31,13 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     )
     .unwrap();
     let parsed = sources::core_sources();
-    let hir =
-        super::super::TrustedCoreBootstrapHirOutput::lower_with_world(&parsed, &world).unwrap();
+    let hir = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
+        scoop_identity::RequestedConeKind::Library,
+        &parsed,
+        scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
     let input = hir.machine_input();
     assert_eq!(input.output.imported_dependencies().callable_count(), 1);
     sources::snapshot("hir", &scoop_hir::dump(&input.output.output().export));

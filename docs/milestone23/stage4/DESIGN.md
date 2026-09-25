@@ -719,7 +719,7 @@ Compile 使用导出声明、类型、成员、默认参数正文及实例化所
 5. 每条record的HIR/MIR/LIR fingerprint必须等于dependency handle；
 6. 同identity只能有一个artifact fingerprint；同`group:name`只能一个version；
 7. closure order是全图canonical order在可达集合上的稳定投影，并再次验证dependency-first；
-8. Compile/Link两种purpose分别构造，任一失败则dual closure整体失败。
+8. 同一完整产物结果提供 Compile/Link 所需数据，任一必要检查失败则不发布 closure。
 
 closure构造不再次解析locator，也不从artifact dependency table扩张图；若artifact宣称graph外额外edge，直接报告`UnexpectedArtifactDependency`。
 
@@ -728,15 +728,15 @@ closure构造不再次解析locator，也不从artifact dependency table扩张�
 ```text
 CompletedNode {
     cone: ConeIdentity,
-    origin: Prebuilt | CacheHit | Compiled | TrustedCore,
-    artifact: DualValidatedArtifactHandle,
+    origin: Prebuilt | CacheHit | Compiled,
+    artifact: ValidatedCrossConeArtifactHandle,
     compile_closure: ValidatedArtifactClosure<Compile>,
     link_closure: ValidatedArtifactClosure<Link>,
     materialized_child_path: PrivateArtifactPath,
 }
 ```
 
-node只有在两份closure都成功后才commit进scheduler completed map。这样即使当前child只直接消费Compile metadata，损坏Link object的dependency也不能成为上游或cache hit。
+node 只有在共有语义与实际 Link 对象检查均成功后才进入 scheduler completed map。这样即使当前child只直接消费Compile metadata，损坏Link object的dependency也不能成为上游或cache hit。
 
 `materialized_child_path`指向本次build private、digest-checked的`.slib` snapshot，不是用户prebuilt path或可替换cache path。路径只作transport。
 
@@ -762,7 +762,7 @@ M23-4 cache只保存single-Cone `.slib`和重放该次source编译warning所需�
 - Graph/Compile/Link内存proof；
 - trusted core intrinsic authority本身。
 
-每次lookup仍重建artifact双视图和closure proof。cache不使reader、target检查或stale edge检查可选。
+新读入的缓存快照完成一次共有语义和 Link 对象检查，随后复用完整结果；已有依赖不重新完整读取。target、实际依赖 fingerprint 与 stale edge 检查仍须满足。
 
 ### 8.2 `ConeCompileCacheKeyV1`
 

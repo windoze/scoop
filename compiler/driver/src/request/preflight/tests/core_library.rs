@@ -189,10 +189,11 @@ fn assert_core_views_share_the_dependency_closure(
     };
     let closure = &validated.dependencies().closure;
     let member = closure
-        .share_artifact(scoop_identity::ConeIdentity::CORE)
+        .semantic()
+        .direct_provider(scoop_identity::ConeIdentity::CORE)
         .unwrap();
-    metadata::assert_ordinary_interfaces(member.compile().production());
-    source_fields::assert_source_fields(member.compile().production());
+    metadata::assert_ordinary_interfaces(member.production());
+    source_fields::assert_source_fields(member.production());
     let world = closure.semantic().imported_semantic_world().unwrap();
     let core = world
         .direct_provider(scoop_identity::ConeIdentity::CORE)
@@ -210,9 +211,9 @@ fn assert_core_views_share_the_dependency_closure(
         );
     }
     let string = inputs.protocols().fundamental_types().string();
-    assert_eq!(string.provider(), member.compile().identity());
+    assert_eq!(string.provider(), member.identity());
     assert_eq!(
-        member.compile().hir().identity(string.persistent()),
+        member.hir().identity(string.persistent()),
         Some(string.identity())
     );
     let cycle = inputs
@@ -223,16 +224,14 @@ fn assert_core_views_share_the_dependency_closure(
     else {
         panic!("initialization service retains its source function identity")
     };
-    assert_eq!(cycle.provider(), member.compile().identity());
-    assert_eq!(
-        member.compile().hir().identity(function.persistent()),
-        Some(function)
-    );
+    assert_eq!(cycle.provider(), member.identity());
+    assert_eq!(member.hir().identity(function.persistent()), Some(function));
     assert_eq!(closure.artifact_count(), 1);
     assert!(!validated.dependencies().is_empty());
     assert!(
         closure
-            .share_artifact(scoop_identity::ConeIdentity::SINGLE_FILE)
+            .semantic()
+            .direct_provider(scoop_identity::ConeIdentity::SINGLE_FILE)
             .is_none()
     );
 }

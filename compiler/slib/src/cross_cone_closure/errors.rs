@@ -14,8 +14,6 @@ use super::CrossConeSourceProvenanceError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeClosureGraphError {
-    CoreHasDependencyProviders,
-    MissingTrustedCore,
     NonCanonicalDirectProviders {
         index: usize,
         previous: ConeIdentity,

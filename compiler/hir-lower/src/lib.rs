@@ -200,45 +200,6 @@ pub(crate) struct CurrentSourceDetails<'a> {
     pub source_text: &'a str,
 }
 
-/// Test fixture adapter for the shared current-Cone HIR entry.
-#[cfg(test)]
-pub(crate) struct CoreBootstrapSources<'a> {
-    sources: &'a ast::CurrentConeParsedSources,
-}
-
-#[cfg(test)]
-impl<'a> CoreBootstrapSources<'a> {
-    pub fn try_new(
-        sources: &'a ast::CurrentConeParsedSources,
-    ) -> Result<Self, CoreBootstrapSourceError> {
-        if sources.cone() != scoop_identity::ConeIdentity::CORE {
-            return Err(CoreBootstrapSourceError::NotCore(sources.cone()));
-        }
-        Ok(Self { sources })
-    }
-}
-
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CoreBootstrapSourceError {
-    NotCore(scoop_identity::ConeIdentity),
-}
-
-#[cfg(test)]
-impl std::fmt::Display for CoreBootstrapSourceError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotCore(cone) => write!(
-                formatter,
-                "trusted core bootstrap sources belong to Cone {cone}, expected the reserved core Cone"
-            ),
-        }
-    }
-}
-
-#[cfg(test)]
-impl std::error::Error for CoreBootstrapSourceError {}
-
 #[derive(Clone)]
 enum CoreLoweringAuthority {
     Defined,
@@ -389,20 +350,13 @@ pub(crate) fn lower_defined_for_test(
 /// Test fixture adapter using the same input and lowering as production.
 #[cfg(test)]
 pub(crate) fn lower_core_bootstrap(
-    input: &CoreBootstrapSources<'_>,
+    input: &ast::CurrentConeParsedSources,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let world = hir::ImportedSemanticWorld::from_validated_closure(
-        input.sources.cone(),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let sources = CurrentConeSources::try_new(
-        input.sources,
-        CoreProtocolInput::CurrentDeclarations,
-        &world,
-    )
-    .unwrap();
+    let world =
+        hir::ImportedSemanticWorld::from_validated_closure(input.cone(), Vec::new(), Vec::new())
+            .unwrap();
+    let sources =
+        CurrentConeSources::try_new(input, CoreProtocolInput::CurrentDeclarations, &world).unwrap();
     lower_current_cone(scoop_identity::RequestedConeKind::Library, &sources)
         .map(|output| output.into_parts().0)
 }

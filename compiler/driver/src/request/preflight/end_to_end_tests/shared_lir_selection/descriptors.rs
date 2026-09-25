@@ -4,8 +4,8 @@ use scoop_slib::CrossConeTypeDescriptorProjectionError as Error;
 
 pub(super) fn check(
     closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
-    core: &Compile<'_>,
-    ordinary: &Compile<'_>,
+    core: &Compile<'_, '_>,
+    ordinary: &Compile<'_, '_>,
 ) {
     let string = core
         .production()

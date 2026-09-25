@@ -4,8 +4,8 @@ use scoop_slib::{CrossConeInitializationSelectionError as Error, CrossConeProtoc
 
 pub(super) fn check(
     closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
-    core: &Compile<'_>,
-    ordinary: &Compile<'_>,
+    core: &Compile<'_, '_>,
+    ordinary: &Compile<'_, '_>,
 ) {
     let inputs = closure.import_compiler_protocols(core.identity()).unwrap();
     let cycle = inputs

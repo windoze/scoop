@@ -13,8 +13,20 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
         scoop_manifest::load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
     let sources = discover_manifest_sources(&manifest).unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
-    let hir = TrustedCoreBootstrapHirOutput::lower(&parsed).unwrap();
-    let plan = hir.hir().local.materialization();
+    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+        parsed.cone(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let hir = crate::request::preflight::current_hir::CurrentConeHirArtifacts::lower(
+        scoop_identity::RequestedConeKind::Library,
+        &parsed,
+        scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
+    let plan = hir.hir.output().local.materialization();
     let sources = plan
         .roots()
         .iter()
@@ -97,18 +109,18 @@ fn declaration(provider: ConeIdentity, parameters: u32) -> SourceDeclarationKey 
 }
 
 fn seal(
-    hir: &TrustedCoreBootstrapHirOutput,
+    hir: &crate::request::preflight::current_hir::CurrentConeHirArtifacts,
     sources: Vec<SourceDeclarationKey>,
     mutate: impl FnOnce(&mut scoop_mir::Module),
 ) -> Result<scoop_mir::SingleConeStrongMirInput, Error> {
-    let mut module = scoop_mir_lower::lower(&hir.hir().local).unwrap();
+    let mut module = scoop_mir_lower::lower(&hir.hir.output().local).unwrap();
     mutate(&mut module);
     let canonical =
         scoop_mir::CanonicalMirFoundation::from_module(&module).map_err(Error::Foundation)?;
     let foundation = scoop_mir::OdrFreeMirFoundation::try_new(canonical).unwrap();
     let production = scoop_mir_lower::lower_production_section(
         module.cone,
-        hir.production_section(),
+        &hir.production_section,
         &foundation,
     )
     .unwrap();

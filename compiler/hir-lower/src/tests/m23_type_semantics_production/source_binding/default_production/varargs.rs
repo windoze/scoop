@@ -10,8 +10,7 @@ fn type_default_production_preserves_vararg_default_and_empty_omission() {
     core.declarations
         .extend(scoop_parser::parse(source).unwrap().declarations);
     let parsed = crate::tests::m23_ordinary_core_only::support::parsed_core(core);
-    let input = crate::CoreBootstrapSources::try_new(&parsed).unwrap();
-    let output = crate::lower_core_bootstrap(&input).unwrap();
+    let output = crate::lower_core_bootstrap(&parsed).unwrap();
     let output = hir::DependencyHirOutput::try_new(
         output,
         hir::ImportedDependencySelectionPlan::empty(ConeIdentity::CORE).finish(),
