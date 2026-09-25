@@ -106,10 +106,6 @@ impl TupleStorageLayoutV1 {
                 access_alignment: placement.access_alignment(),
             });
         }
-        super::scans::charge_composition(
-            elements.iter().map(TupleElementStorageV1::storage),
-            meter,
-        )?;
         let scan = super::scans::field_scan(elements.iter().map(TupleElementStorageV1::storage))?;
         let storage = if whole.size() == 0 {
             ValueStorageLayoutV1::zero_sized(whole.alignment().get())

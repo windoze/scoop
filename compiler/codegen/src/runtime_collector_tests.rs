@@ -218,3 +218,18 @@ fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
         b"descriptor-driven representation tests passed\n"
     );
 }
+
+#[test]
+fn runtime_scan_graphs_reuse_shared_children_and_reject_cycles() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "value_scan_test",
+        "runtime/tests/value_scan_test.c",
+    );
+    assert!(
+        output.status.success(),
+        "reference scan graph test failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"reference scan graph tests passed\n");
+}

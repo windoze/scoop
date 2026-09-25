@@ -95,20 +95,6 @@ fn require_roles(
     }
 }
 
-fn charge_scan(
-    scan: &crate::CheckedRefScanV1,
-    meter: &mut BudgetMeter,
-) -> Result<(), ExactLayoutReplayError> {
-    let path = WirePath::root();
-    let usage = scan.usage();
-    meter.charge_work(usage.distinct_nodes, &path)?;
-    meter.charge_work(usage.distinct_words, &path)?;
-    meter.charge_nodes(usage.distinct_nodes, &path)?;
-    meter.charge_collection_slots(usage.distinct_words, &path)?;
-    meter.charge_owned_bytes(usage.canonical_bytes, &path)?;
-    Ok(())
-}
-
 fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, ExactLayoutReplayError> {
     let mut values = Vec::new();
     meter.try_reserve_collection_slots(&mut values, count, &WirePath::root())?;

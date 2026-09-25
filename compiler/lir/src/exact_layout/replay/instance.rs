@@ -52,10 +52,7 @@ impl ExactInstanceLayoutV1 {
         if payload.identity.target() != identity.target() {
             return Err(ExactLayoutReplayError::DependencyTarget);
         }
-        if let Some(storage) = payload.value.storage().nonzero() {
-            charge_scan(storage.scan(), meter)?;
-            charge_scan(storage.scan(), meter)?;
-        }
+
         let shape =
             TypeInstanceShapeV1::boxed_value(identity.target(), payload.value.storage().clone())?;
         finish_instance(
@@ -86,10 +83,7 @@ impl ExactInstanceLayoutV1 {
         if element.identity.target() != identity.target() {
             return Err(ExactLayoutReplayError::DependencyTarget);
         }
-        if let Some(storage) = element.value.storage().nonzero() {
-            charge_scan(storage.scan(), meter)?;
-            charge_scan(storage.scan(), meter)?;
-        }
+
         let storage = ArrayElementStorageV1::from_value(element.value.storage());
         let shape = TypeInstanceShapeV1::inline_array(identity.target(), storage.clone())?;
         finish_instance(

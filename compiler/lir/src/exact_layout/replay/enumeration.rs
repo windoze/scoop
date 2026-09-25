@@ -111,7 +111,7 @@ impl ExactValueLayoutV1 {
         let fields = placed
             .iter()
             .flat_map(|variant| variant.fields.iter().map(EnumVariantFieldLayoutV1::storage));
-        FieldStorageV1::charge_scan_composition(fields.clone(), meter)?;
+
         let scan = FieldStorageV1::combined_scan(fields)?;
         let storage = ValueStorageLayoutV1::inline(
             geometry.storage().size(),

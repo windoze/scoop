@@ -123,7 +123,6 @@ fn value_matches(
     };
     // Equality stops at the first different shape or sequence length. Its
     // work is bounded by the complete expected tree, including shared paths.
-    meter.charge_work(expected.usage().canonical_bytes, &WirePath::root())?;
     Ok(scan == expected.as_ref_scan())
 }
 

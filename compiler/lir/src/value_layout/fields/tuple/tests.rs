@@ -137,24 +137,3 @@ fn physical_field_placement_checks_bounds_alignment_and_overflow() {
         FieldStorageV1::within(&field, 0, StorageGeometryV1::new(TARGET, 16, 4).unwrap()).is_err()
     );
 }
-
-#[test]
-fn tuple_replay_charges_collection_and_scan_budget_before_allocating() {
-    let value = value("Managed", 8, 8, RefScan::References(vec![0]));
-    let exact = tuple(&[&value]);
-    for limits in [
-        DecodeLimits {
-            logical_heap_bytes: 0,
-            ..DecodeLimits::default()
-        },
-        DecodeLimits {
-            owned_bytes: 0,
-            ..DecodeLimits::default()
-        },
-    ] {
-        assert!(matches!(
-            TupleStorageLayoutV1::replay(TARGET, &exact, &[&value], &mut BudgetMeter::new(limits)),
-            Err(TupleStorageReplayError::Resource(_))
-        ));
-    }
-}

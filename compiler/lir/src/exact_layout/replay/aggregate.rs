@@ -47,9 +47,7 @@ pub(super) fn nominal_fields_for_owner<'a>(
         if field.value.identity.target() != identity.target() {
             return Err(ExactLayoutReplayError::DependencyTarget);
         }
-        if let Some(storage) = field.value.value.storage().nonzero() {
-            charge_scan(storage.scan(), meter)?;
-        }
+
         declared.push(DeclaredFieldStorageV1::new(
             field.field.id(),
             &field.value.value,

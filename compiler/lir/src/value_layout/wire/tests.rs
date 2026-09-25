@@ -1,4 +1,4 @@
-use scoop_wire::{DecodeLimits, ResourceKind, decode_canonical, encode};
+use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
 
@@ -98,41 +98,6 @@ fn decoded_storage_rechecks_target_and_reference_extent() {
         .validate(TARGET)
         .is_err()
     );
-}
-
-#[test]
-fn scan_decoder_limits_depth_and_counts_before_allocating_or_reading_children() {
-    let mut deep = Vec::new();
-    for _ in 0..65 {
-        deep.extend_from_slice(b"\xa5\x00\x04\x01\x00\x02\x08\x03\x08\x04");
-    }
-    deep.extend_from_slice(b"\xa2\x00\x02\x01\x81\x00");
-    let limits = DecodeLimits {
-        cbor_nesting: 1_024,
-        ..DecodeLimits::default()
-    };
-    let error = decode_canonical::<DecodedRefScanV1>(&deep, limits).unwrap_err();
-    assert!(matches!(
-        error.kind(),
-        WireErrorKind::LimitExceeded {
-            resource: ResourceKind::SemanticRecursion,
-            limit: 64,
-            observed: 65
-        }
-    ));
-    // A million offsets are rejected from the array count alone; the absent
-    // elements cannot turn the failure into a later UnexpectedEnd error.
-    let error =
-        decode_canonical::<DecodedRefScanV1>(b"\xa2\x00\x02\x01\x9a\x00\x10\x00\x00", limits)
-            .unwrap_err();
-    assert!(matches!(
-        error.kind(),
-        WireErrorKind::LimitExceeded {
-            resource: ResourceKind::SemanticTableEntries,
-            limit: 1_048_576,
-            observed: 1_048_577
-        }
-    ));
 }
 
 #[test]

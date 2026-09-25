@@ -5,15 +5,12 @@ use scoop_wire::{CanonicalHashStream, Digest256};
 
 use crate::RefScan;
 
-mod budget;
 mod normal;
 mod ranges;
 mod wire;
 
 pub(crate) use wire::encode_scan as encode_canonical_scan;
 pub use wire::{DecodedRefScanV1, MeteredScanValidationError};
-
-pub use budget::{ScanBudgetResourceV1, ScanBudgetUsageV1};
 
 /// The runtime `scoop-scan-v1` fingerprint, independent of Wire CBOR.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -25,33 +22,29 @@ impl CanonicalScanFingerprintV1 {
     }
 }
 
-/// A scan in runtime v1 normal form, with all five resource limits checked.
+/// A scan in runtime v1 normal form.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CheckedRefScanV1 {
     scan: RefScan,
     bytes: Vec<u8>,
     fingerprint: CanonicalScanFingerprintV1,
-    usage: ScanBudgetUsageV1,
 }
 
 impl CheckedRefScanV1 {
     /// Producer entry: flatten, merge, sort and deduplicate to a fixed point.
     pub fn normalize(scan: RefScan) -> Result<Self, RefScanValidationError> {
-        budget::measure(&scan)?;
         let scan = normal::normalize(scan)?;
         Self::from_canonical(scan)
     }
 
     /// Reader entry: reject noncanonical input without repairing it.
     pub fn from_canonical(scan: RefScan) -> Result<Self, RefScanValidationError> {
-        let usage = budget::measure(&scan)?;
         let bytes = normal::canonical_bytes(&scan)?;
         let fingerprint = fingerprint(&bytes);
         Ok(Self {
             scan,
             bytes,
             fingerprint,
-            usage,
         })
     }
 
@@ -69,10 +62,6 @@ impl CheckedRefScanV1 {
 
     pub const fn fingerprint(&self) -> CanonicalScanFingerprintV1 {
         self.fingerprint
-    }
-
-    pub const fn usage(&self) -> ScanBudgetUsageV1 {
-        self.usage
     }
 
     /// Checks static ranges relative to a storage base. Dynamic Array counts
@@ -103,34 +92,19 @@ fn fingerprint(bytes: &[u8]) -> CanonicalScanFingerprintV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RefScanValidationError {
+    Cycle,
     EmptyReferences,
     UnorderedReferences,
     NonCanonicalSequence,
     EmptyArrayElement,
     ZeroArrayStride,
     OffsetOverflow,
-    MisalignedReference {
-        offset: u64,
-    },
-    MisalignedStorage {
-        alignment: u64,
-    },
-    OutOfBounds {
-        offset: u64,
-        size: u64,
-        extent: u64,
-    },
+    MisalignedReference { offset: u64 },
+    MisalignedStorage { alignment: u64 },
+    OutOfBounds { offset: u64, size: u64, extent: u64 },
     OverlappingRanges,
     ArrayPrefixOverlap,
-    MisalignedArrayStride {
-        stride: u64,
-    },
-    Cycle,
-    BudgetExceeded {
-        resource: ScanBudgetResourceV1,
-        maximum: u64,
-        actual: u64,
-    },
+    MisalignedArrayStride { stride: u64 },
 }
 
 impl std::fmt::Display for RefScanValidationError {

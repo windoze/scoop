@@ -1,7 +1,7 @@
 use scoop_identity::{CborIdentityRecord, NominalDeclarationOwner};
 
 use super::*;
-use crate::{ClassBaseStorageV1, ClassStorageLayoutV1, FieldStorageKindV1};
+use crate::{ClassBaseStorageV1, ClassStorageLayoutV1};
 
 #[derive(Clone, Copy, Debug)]
 pub enum ClassLayoutBaseV1<'a> {
@@ -84,11 +84,6 @@ fn replay_class(
                 layout.complete_fields().len() as u64,
                 &WirePath::root(),
             )?;
-            for field in layout.complete_fields() {
-                if let FieldStorageKindV1::Stored { layout, .. } = field.storage().kind() {
-                    charge_scan(layout.storage().scan(), meter)?;
-                }
-            }
             ClassBaseStorageV1::Base(layout)
         }
     };
@@ -99,11 +94,6 @@ fn replay_class(
         base,
         &declared,
     )?;
-    for field in layout.complete_fields() {
-        if let FieldStorageKindV1::Stored { layout, .. } = field.storage().kind() {
-            charge_scan(layout.storage().scan(), meter)?;
-        }
-    }
     finish_instance(
         identity,
         layout.shape().clone(),

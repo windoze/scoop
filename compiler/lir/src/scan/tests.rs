@@ -140,24 +140,12 @@ fn range_validation_rejects_overflow_misalignment_and_overlapping_payloads() {
 }
 
 #[test]
-fn depth_boundary_is_checked_before_normalization_or_encoding() {
+fn nested_scans_are_not_rejected_by_an_expansion_quota() {
     let mut scan = RefScan::References(vec![0]);
-    for _ in 1..64 {
+    for _ in 0..80 {
         scan = array(0, 8, 16, scan);
     }
-    assert_eq!(
-        CheckedRefScanV1::from_canonical(scan.clone())
-            .unwrap()
-            .usage()
-            .depth,
-        64
-    );
-    let scan = array(0, 8, 16, scan);
-    assert!(matches!(
-        CheckedRefScanV1::normalize(scan),
-        Err(RefScanValidationError::BudgetExceeded {
-            resource: ScanBudgetResourceV1::Depth,
-            ..
-        })
-    ));
+    let checked = CheckedRefScanV1::from_canonical(scan).unwrap();
+    checked.validate_extent(16, 8).unwrap();
+    assert_eq!(checked.canonical_bytes().len(), 20 + 80 * 28);
 }
