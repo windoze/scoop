@@ -1,6 +1,30 @@
 use super::*;
 use std::collections::HashMap;
 
+pub(super) fn validate_exports<E>(
+    consumer: ConeIdentity,
+    target: crate::LirTargetProfile,
+    dependencies: &[&LayoutAbiExportConstituentsV1],
+    meter: &mut BudgetMeter,
+) -> Result<(), LayoutAbiSectionError<E>> {
+    let path = WirePath::root();
+    let mut providers = std::collections::HashSet::new();
+    meter.check_table_entries(dependencies.len() as u64, &path)?;
+    for dependency in dependencies {
+        meter.charge_work(1, &path)?;
+        let provider = dependency.provider();
+        if provider == consumer || providers.contains(&provider) {
+            return Err(LayoutAbiSectionError::DuplicateProvider(provider));
+        }
+        if dependency.target_profile() != target {
+            return Err(LayoutAbiSectionError::DependencyTarget { provider });
+        }
+        meter.try_reserve_set_slots(&mut providers, 1, &path)?;
+        providers.insert(provider);
+    }
+    Ok(())
+}
+
 pub(crate) fn complete<'a, E>(
     consumer: ConeIdentity,
     target: crate::LirTargetProfile,

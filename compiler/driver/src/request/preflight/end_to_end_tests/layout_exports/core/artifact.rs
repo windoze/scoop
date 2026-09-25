@@ -1,6 +1,7 @@
 use super::*;
 
 mod bytes;
+mod lir_dependencies;
 mod mir_constructors;
 mod mir_dispatch;
 mod mir_equality;
@@ -83,4 +84,7 @@ pub(super) fn check(
         input.mir.production().strong_callable_bridges(),
         input.ordinary,
     );
+    if name == "base" {
+        lir_dependencies::check(&artifact, mir_section, layout);
+    }
 }

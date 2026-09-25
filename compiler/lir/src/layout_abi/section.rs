@@ -14,8 +14,9 @@ pub use selection::{SelectedDependencyLayoutAbiRefV1, SelectedDependencyLayoutAb
 pub use source::LayoutAbiSectionSourceAuthorityV1;
 pub use wire::{
     CallablesResolvedCrossConeLayoutAbiSectionV1, DecodedCrossConeLayoutAbiSectionV1,
-    DescriptorsResolvedCrossConeLayoutAbiSectionV1, DispatchResolvedCrossConeLayoutAbiSectionV1,
-    ExportsResolvedCrossConeLayoutAbiSectionV1, LayoutsResolvedCrossConeLayoutAbiSectionV1,
+    DependencyResolvedCrossConeLayoutAbiSectionV1, DescriptorsResolvedCrossConeLayoutAbiSectionV1,
+    DispatchResolvedCrossConeLayoutAbiSectionV1, ExportsResolvedCrossConeLayoutAbiSectionV1,
+    LayoutsResolvedCrossConeLayoutAbiSectionV1,
 };
 
 /// Complete target-aware LIR semantic section. Its selected set retains both
@@ -43,6 +44,10 @@ impl<'a> CrossConeLayoutAbiSectionV1<'a> {
 
     pub fn target_profile(&self) -> crate::LirTargetProfile {
         self.exports.target_profile()
+    }
+
+    pub const fn exports(&self) -> &LayoutAbiExportConstituentsV1 {
+        &self.exports
     }
 
     pub const fn layouts(&self) -> &crate::CanonicalExactLayoutExportsV1 {

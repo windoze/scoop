@@ -45,25 +45,19 @@ pub(super) fn complete<'a, E>(
     source
         .validate_physical_imports(physical_imports.records(), meter)
         .map_err(LayoutAbiSectionError::Source)?;
-    validate_selection_input(exports.provider(), &selection, meter)?;
+    let candidate = match &selection {
+        SelectionInput::Producer => None,
+        SelectionInput::Reader(relations) => {
+            validate_selected_records(exports.provider(), relations, meter)?;
+            Some(relations.as_slice())
+        }
+    };
     let roots = source
         .committed_semantic_roots()
         .map_err(LayoutAbiSectionError::Source)?;
     let mut dependency_exports = reserve(dependencies.len(), meter)?;
     dependency_exports.extend(dependencies.iter().map(|section| &section.exports));
-    let relations = semantic_closure::close(
-        exports.provider(),
-        &exports,
-        &dependency_exports,
-        roots,
-        meter,
-    )?;
-    if let SelectionInput::Reader(expected) = selection {
-        meter.charge_work(expected.len() as u64, &WirePath::root())?;
-        if expected != relations {
-            return Err(LayoutAbiSectionError::SelectedClosure);
-        }
-    }
+    let relations = close_selection(&exports, &dependency_exports, roots, candidate, meter)?;
     let mut semantic = reserve(relations.len(), meter)?;
     for relation in relations {
         let terminal = dependencies
@@ -95,23 +89,42 @@ pub(super) fn complete<'a, E>(
     })
 }
 
-fn validate_selection_input<E>(
+pub(super) fn close_selection<E>(
+    exports: &LayoutAbiExportConstituentsV1,
+    dependencies: &[&LayoutAbiExportConstituentsV1],
+    committed: &[LayoutAbiDependencyV1],
+    candidate: Option<&[LayoutAbiDependencyV1]>,
+    meter: &mut BudgetMeter,
+) -> Result<Vec<LayoutAbiDependencyV1>, LayoutAbiSectionError<E>> {
+    let relations =
+        semantic_closure::close(exports.provider(), exports, dependencies, committed, meter)?;
+    if let Some(expected) = candidate {
+        meter.charge_work(
+            expected.len() as u64 + relations.len() as u64,
+            &WirePath::root(),
+        )?;
+        if expected != relations {
+            return Err(LayoutAbiSectionError::SelectedClosure);
+        }
+    }
+    Ok(relations)
+}
+
+pub(super) fn validate_selected_records<E>(
     consumer: ConeIdentity,
-    input: &SelectionInput,
+    relations: &[LayoutAbiDependencyV1],
     meter: &mut BudgetMeter,
 ) -> Result<(), LayoutAbiSectionError<E>> {
-    if let SelectionInput::Reader(relations) = input {
-        meter.check_table_entries(relations.len() as u64, &WirePath::root())?;
-        meter.charge_work(relations.len() as u64, &WirePath::root())?;
-        if let Some(index) = relations.windows(2).position(|pair| pair[0] >= pair[1]) {
-            return Err(LayoutAbiSectionError::NonCanonicalSelected { index: index + 1 });
-        }
-        if relations
-            .iter()
-            .any(|relation| relation.provider() == consumer)
-        {
-            return Err(LayoutAbiSectionError::SelectedCurrentProvider);
-        }
+    meter.check_table_entries(relations.len() as u64, &WirePath::root())?;
+    meter.charge_work(relations.len() as u64, &WirePath::root())?;
+    if let Some(index) = relations.windows(2).position(|pair| pair[0] >= pair[1]) {
+        return Err(LayoutAbiSectionError::NonCanonicalSelected { index: index + 1 });
+    }
+    if relations
+        .iter()
+        .any(|relation| relation.provider() == consumer)
+    {
+        return Err(LayoutAbiSectionError::SelectedCurrentProvider);
     }
     Ok(())
 }

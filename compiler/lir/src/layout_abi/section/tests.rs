@@ -4,6 +4,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 mod fixture;
 mod layout_replay;
+mod resolved_dependencies;
 use fixture::*;
 
 #[test]

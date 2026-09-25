@@ -17,6 +17,9 @@ impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
     pub const fn provider(&self) -> ConeIdentity {
         self.authority.provider()
     }
+    pub const fn exports(&self) -> &MirTypeBridgeExportConstituentsV1 {
+        &self.exports
+    }
     pub const fn types(&self) -> &CanonicalParamFreeMirTypeExportsV1 {
         self.exports.types()
     }

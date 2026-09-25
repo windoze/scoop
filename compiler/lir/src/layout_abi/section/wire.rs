@@ -2,9 +2,11 @@ use super::*;
 
 mod complete;
 mod descriptors;
+mod resolved_dependencies;
 mod shapes;
 mod stages;
 
+pub use resolved_dependencies::DependencyResolvedCrossConeLayoutAbiSectionV1;
 pub use shapes::ExportsResolvedCrossConeLayoutAbiSectionV1;
 
 pub type DecodedCrossConeLayoutAbiSectionV1 = UnselectedCrossConeLayoutAbiSectionV1<

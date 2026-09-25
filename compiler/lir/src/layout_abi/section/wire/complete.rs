@@ -41,19 +41,15 @@ impl ExportsResolvedCrossConeLayoutAbiSectionV1 {
         )? {
             return Err(LayoutAbiSectionError::ShapeSupport);
         }
-        let mut semantic = reserve(self.selected.semantic.len(), meter)?;
-        for relation in self.selected.semantic {
-            semantic.push(relation.resolve(identities, meter)?);
-        }
-        let physical_imports = self
-            .selected
+        let resolved = self.resolve_dependencies(identities, meter)?;
+        let physical_imports = resolved
             .physical
             .validate_against(&physical_imports, meter)?;
         build::complete(
-            self.exports,
+            resolved.exports,
             dependencies,
             physical_imports,
-            build::SelectionInput::Reader(semantic),
+            build::SelectionInput::Reader(resolved.semantic),
             source,
             meter,
         )

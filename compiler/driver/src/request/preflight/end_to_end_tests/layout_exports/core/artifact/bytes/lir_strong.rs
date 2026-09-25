@@ -55,4 +55,18 @@ pub(super) fn check(
             .selected_relations()
             .is_empty()
     );
+    let dependencies = dependencies
+        .replay_lir_dependency_graph()
+        .unwrap_or_else(|error| panic!("{name} shared LIR dependency graph: {error}"));
+    assert_eq!(dependencies.current(), ConeIdentity::CORE);
+    assert_eq!(dependencies.dependency_first().count(), 1);
+    let current = dependencies.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.lir_exports().layouts(), layout.layouts());
+    assert_eq!(current.initialization_units(), units);
+    assert!(
+        current
+            .lir_dependency_transport()
+            .selected_relations()
+            .is_empty()
+    );
 }

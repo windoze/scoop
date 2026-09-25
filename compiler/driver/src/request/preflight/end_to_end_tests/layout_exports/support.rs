@@ -1,5 +1,8 @@
 use super::*;
 
+mod identity;
+use identity::identities;
+
 pub(super) fn with_production(
     sysroot: &Path,
     target: &scoop_toolchain::ResolvedTargetProfile,
@@ -25,6 +28,31 @@ pub(super) fn with_inspection(
     run: impl FnOnce(
         scoop_lir_lower::LayoutAbiExportInputV1<'_>,
         scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
+    ),
+) {
+    with_pair(
+        sysroot,
+        target,
+        core_bytes,
+        source,
+        |mir, projection, lir, dependencies, _| {
+            inspect(mir, projection);
+            run(lir, dependencies);
+        },
+    );
+}
+
+pub(super) fn with_pair(
+    sysroot: &Path,
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    core_bytes: &[u8],
+    source: &str,
+    run: impl FnOnce(
+        scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
+        &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+        scoop_lir_lower::LayoutAbiExportInputV1<'_>,
+        scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
+        &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ),
 ) {
     let root = sysroot.join("layout-library");
@@ -181,7 +209,7 @@ pub(super) fn with_inspection(
             .len(),
         mir.strong.materialization().initialization_roots().len(),
     );
-    inspect(input, &projected);
+    let mir_input = input;
     let layouts = dependencies::layouts(&types, &core_lir, &graph, target.lir_target());
     let selected = lir::StrongProductionDependencySelectionV2::empty(
         lir.module().cone,
@@ -231,75 +259,11 @@ pub(super) fn with_inspection(
         },
         &core_lir,
     );
-    run(input, dependencies);
-}
-
-fn identities(
-    hir: &hir::DependencyHirOutput,
-    mir: &mir::SingleConeStrongMirInput,
-    lir: Option<&lir::SingleConeStrongLirOutput>,
-    core: &scoop_slib::DecodedCrossConeHirFrontSections<'_>,
-) -> (
-    ValidatedIdentityGraph,
-    lir::OdrFreeLirFoundation,
-    hir::OdrFreeHirFoundation,
-) {
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
-    core.hir_foundation_wire()
-        .register_identities(&mut pending)
-        .unwrap();
-    core.mir_foundation_wire()
-        .register_identities(&mut pending)
-        .unwrap();
-    core.lir_foundation_wire()
-        .register_identities(&mut pending)
-        .unwrap();
-    core.hir_foundation_wire()
-        .resolve_identities(&mut pending)
-        .unwrap();
-    core.mir_foundation_wire()
-        .resolve_identities(&mut pending)
-        .unwrap();
-    core.lir_foundation_wire()
-        .resolve_identities(&mut pending)
-        .unwrap();
-    let mut core_graph = pending.finish().unwrap();
-    let core_hir: hir::DecodedHirFoundation = decoded(core.hir_foundation_wire());
-    let core_hir = hir::OdrFreeHirFoundation::from_validated(
-        core_hir
-            .validate(core.coordinate(), &mut core_graph, &mut meter())
-            .unwrap(),
-    )
-    .unwrap();
-    let core_lir: lir::DecodedLirFoundation = decoded(core.lir_foundation_wire());
-    let core_lir = lir::OdrFreeLirFoundation::from_validated(
-        core_lir
-            .validate(ConeIdentity::CORE, &mut core_graph, &mut meter())
-            .unwrap(),
-    )
-    .unwrap();
-    let hir: hir::DecodedHirFoundation =
-        decoded(&hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap());
-    let provider = mir.module().cone;
-    let mir: mir::DecodedMirFoundation = decoded(mir.foundation().as_canonical());
-    let lir_foundation: Option<lir::DecodedLirFoundation> =
-        lir.map(|lir| decoded(lir.foundation().as_canonical()));
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(provider).unwrap();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
-    hir.register_identities(&mut pending).unwrap();
-    mir.register_identities(&mut pending).unwrap();
-    if let Some(foundation) = &lir_foundation {
-        foundation.register_identities(&mut pending).unwrap();
-    }
-    pending
-        .register_external_graph_authorities(&core_graph)
-        .unwrap();
-    hir.resolve_identities(&mut pending).unwrap();
-    mir.resolve_identities(&mut pending).unwrap();
-    if let Some(foundation) = &lir_foundation {
-        foundation.resolve_identities(&mut pending).unwrap();
-    }
-    (pending.finish().unwrap(), core_lir, core_hir)
+    let owners = request
+        .dependencies()
+        .closure
+        .dependency_symbol_owners()
+        .cloned()
+        .collect::<Vec<_>>();
+    run(mir_input, &projected, input, dependencies, &owners);
 }
