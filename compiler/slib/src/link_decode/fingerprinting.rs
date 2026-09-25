@@ -90,7 +90,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
     ) -> Result<LinkSymbolCheckedSingleConeLinkSections<'input>, StrongLinkSymbolRequirementError>
     {
         let Self {
-            graph,
+            mut graph,
             identities,
             foundations,
             production,
@@ -154,7 +154,11 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
             crate::finalize_undefined_symbol_requirements_v1(current_cone, external)
                 .map_err(StrongLinkSymbolRequirementError::UndefinedSymbols)?;
         let link_identity_closure = link_identity_closure
-            .validate_symbol_projections(&defined_symbols, &undefined_symbols)
+            .validate_symbol_projections(
+                &defined_symbols,
+                &undefined_symbols,
+                graph.envelope.meter_mut(),
+            )
             .map_err(StrongLinkSymbolRequirementError::ClosureProjection)?;
 
         Ok(LinkSymbolCheckedSingleConeLinkSections {

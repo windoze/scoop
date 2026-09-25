@@ -17,7 +17,11 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
         ) -> R,
     ) -> Result<R, CrossConeLayoutLirPhysicalError> {
         self.with_replayed_physical(
-            |prepared, strong| prepared.replay_link_object_contents(strong, profile),
+            |artifact, _, _, _| {
+                artifact
+                    .prepared
+                    .replay_link_object_contents(&artifact.strong, profile)
+            },
             |physical, objects| {
                 use_checked(LinkObjectsReplayedCrossConeLayoutClosure { physical, objects })
             },

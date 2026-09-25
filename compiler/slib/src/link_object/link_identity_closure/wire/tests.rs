@@ -5,6 +5,7 @@ use super::*;
 
 mod digest_inputs;
 mod materializations;
+mod symbol_projections;
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::fixture_named;
 use crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong;

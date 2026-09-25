@@ -60,6 +60,7 @@ pub enum LinkObjectProjectionValidationError {
 
 #[derive(Debug)]
 pub enum LinkSymbolProjectionValidationError {
+    Resource(WireError),
     DefinedSymbols(DefinedLinkSymbolOwnerValidationError),
     UndefinedSymbols(UndefinedSymbolRequirementValidationError),
 }
@@ -73,6 +74,7 @@ impl fmt::Display for LinkSymbolProjectionValidationError {
 impl std::error::Error for LinkSymbolProjectionValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::Resource(error) => error,
             Self::DefinedSymbols(error) => error,
             Self::UndefinedSymbols(error) => error,
         })

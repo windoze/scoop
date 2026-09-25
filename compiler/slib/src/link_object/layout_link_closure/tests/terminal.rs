@@ -7,6 +7,7 @@ use super::*;
 
 mod support;
 use support::*;
+mod foreign;
 
 #[test]
 fn terminal_closure_replays_real_v2_provider_and_final_strong_owner() {

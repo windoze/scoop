@@ -10,6 +10,8 @@ use scoop_identity::{
 use super::*;
 use crate::CanonicalLirFoundation;
 
+mod budget;
+
 #[test]
 fn groups_identical_contracts_and_resolves_their_library() {
     let requirement = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(

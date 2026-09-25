@@ -49,13 +49,41 @@ pub fn verify_external_shape_requirements_v1<'a>(
     selected: &'a SelectedDependencyLayoutAbiSetV1<'a>,
     meter: &mut BudgetMeter,
 ) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
-    if legacy.producer() != selected.consumer() {
+    verify_import_requirements(
+        legacy,
+        selected.consumer(),
+        selected.physical_imports(),
+        meter,
+    )
+}
+
+/// Reuses the same partition rules after the owned reader has independently
+/// replayed the complete physical imports. This does not grant source access.
+pub fn verify_replayed_external_shape_requirements_v1<'a>(
+    legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
+    layout: &'a scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1<'a>,
+    meter: &mut BudgetMeter,
+) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
+    verify_import_requirements(
+        legacy,
+        layout.exports().provider(),
+        layout.physical_imports(),
+        meter,
+    )
+}
+
+fn verify_import_requirements<'a>(
+    legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
+    consumer: ConeIdentity,
+    imports: &'a CanonicalExternalShapeLinkImportsV1<'a>,
+    meter: &mut BudgetMeter,
+) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
+    if legacy.producer() != consumer {
         return Err(LayoutLinkClosureError::ConsumerMismatch {
             objects: legacy.producer(),
-            selection: selected.consumer(),
+            selection: consumer,
         });
     }
-    let imports = selected.physical_imports();
     let symbols = ImportSymbolIndex::new(imports, legacy.target(), meter)?;
     symbols.reject_old_partitions(legacy, meter)?;
     let classified = classify(legacy.remaining_external_candidates(), &symbols, meter)?;

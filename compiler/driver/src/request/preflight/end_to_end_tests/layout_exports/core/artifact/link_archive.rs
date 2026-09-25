@@ -1,7 +1,25 @@
 //! Rehash one intentional Link mutation without changing shared semantics.
 
 use super::*;
+use object::read::macho::MachHeader as _;
+use object::{Endianness, macho};
 use scoop_slib as slib;
+
+pub(super) fn symbol_offset(bytes: &[u8], index: u32) -> usize {
+    let header = macho::MachHeader64::<Endianness>::parse(bytes, 0).unwrap();
+    let endian = header.endian().unwrap();
+    let mut commands = header.load_commands(endian, bytes, 0).unwrap();
+    while let Some(command) = commands.next().unwrap() {
+        if let Some(table) = command.symtab().unwrap() {
+            let symbols = table
+                .symbols::<macho::MachHeader64<Endianness>, _>(endian, bytes)
+                .unwrap();
+            let symbol = symbols.iter().nth(index as usize).unwrap();
+            return table.stroff.get(endian) as usize + symbol.n_strx.get(endian) as usize;
+        }
+    }
+    panic!("verified object has a symbol table");
+}
 
 pub(super) enum Rewrite {
     Keep,

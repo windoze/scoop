@@ -17,6 +17,7 @@ pub use errors::*;
 mod materializations;
 mod object_projections;
 mod resources;
+mod symbol_projections;
 
 use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
 use crate::SlibMemberId;
@@ -439,20 +440,13 @@ impl ObjectProjectionCheckedLinkIdentityClosureSectionV1 {
         self,
         defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
         undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
+        meter: &mut BudgetMeter,
     ) -> Result<
         SymbolProjectionCheckedLinkIdentityClosureSectionV1,
         LinkSymbolProjectionValidationError,
     > {
         self.decoded
-            .defined_symbols
-            .clone()
-            .validate_against(defined_symbols)
-            .map_err(LinkSymbolProjectionValidationError::DefinedSymbols)?;
-        self.decoded
-            .undefined_symbols
-            .clone()
-            .validate_against(undefined_symbols)
-            .map_err(LinkSymbolProjectionValidationError::UndefinedSymbols)?;
+            .replay_symbol_projections(defined_symbols, undefined_symbols, meter)?;
         Ok(SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
             decoded: self.decoded,
             member_plan: self.member_plan,

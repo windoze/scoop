@@ -1,0 +1,16 @@
+dependency: owners=2703 uses=349 ordinary=0 shape=0 native=10 categories=[159, 0, 0, 21, 169, 0, 0]
+current: owners=56 uses=10 ordinary=0 shape=4 native=0 categories=[2, 0, 0, 0, 4, 0, 0]
+reject DefinedMissing
+reject DefinedDuplicate
+reject DefinedMember
+reject LegacyMissing
+reject LegacyWidth
+reject ShapeMissing
+reject ShapeDuplicate
+reject ShapeIndex
+reject UnknownRuntime
+reject DependencyDefinedMember
+reject WorkBudget
+reject OwnedBudget
+reject CompileView
+reject MixedView

@@ -9,6 +9,7 @@ pub enum SharedLirPhysicalError {
     LinkImports(Box<crate::LayoutLinkClosureError>),
     LinkMaterializations(Box<crate::StrongLinkMaterializationError>),
     LinkObjectContents(Box<crate::LayoutLinkObjectContentsError>),
+    LinkSymbolUses(Box<crate::LayoutLinkSymbolUseError>),
 }
 
 macro_rules! from_error {
@@ -26,6 +27,7 @@ from_error!(lir::StrongProductionLayoutJoinError, Strong);
 from_error!(crate::LayoutLinkClosureError, LinkImports);
 from_error!(crate::StrongLinkMaterializationError, LinkMaterializations);
 from_error!(crate::LayoutLinkObjectContentsError, LinkObjectContents);
+from_error!(crate::LayoutLinkSymbolUseError, LinkSymbolUses);
 impl From<scoop_wire::WireError> for SharedLirPhysicalError {
     fn from(value: scoop_wire::WireError) -> Self {
         Self::Resource(value)

@@ -69,6 +69,16 @@ pub struct DecodedCrossConeLayoutLinkClosureSectionV1 {
 }
 
 impl DecodedCrossConeLayoutLinkClosureSectionV1 {
+    /// Compares every actual shape use without promoting final object coverage.
+    pub fn replay_requirements_against(
+        &self,
+        expected: &super::VerifiedExternalShapeRequirementClosureV1<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), LayoutLinkClosureError> {
+        self.validate_physical_imports_against(expected.semantic_imports(), meter)?;
+        validate_requirements(&self.requirements, expected.requirements(), meter)
+    }
+
     /// Checks the Compile projection without claiming relocation coverage.
     pub fn validate_semantic_imports_against(
         &self,

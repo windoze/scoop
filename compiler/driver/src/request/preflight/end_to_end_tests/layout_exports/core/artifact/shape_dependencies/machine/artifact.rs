@@ -74,4 +74,12 @@ pub(super) fn check(
         &artifact,
         layout,
     );
+    super::super::super::link_symbol_uses::check(
+        &destination
+            .fixtures
+            .join(format!("{}.symbols.snap", destination.name)),
+        provider.artifact,
+        &artifact,
+        provider.target.c_bridge_toolchain().profile(),
+    );
 }

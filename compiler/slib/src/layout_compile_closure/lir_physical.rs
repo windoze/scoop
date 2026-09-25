@@ -19,8 +19,10 @@ mod errors;
 mod objects;
 mod replay;
 mod support;
+mod symbols;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
 pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
+pub use symbols::LinkSymbolsReplayedCrossConeLayoutClosure;
 
 pub type PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked> =
     LirConstituentsValidatedCrossConeLayoutSections<
@@ -49,8 +51,10 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
         ) -> R,
     ) -> Result<R, CrossConeLayoutLirPhysicalError> {
         self.with_replayed_physical(
-            |prepared, strong| {
-                prepared.validate_link_materializations(strong)?;
+            |artifact, _, _, _| {
+                artifact
+                    .prepared
+                    .validate_link_materializations(&artifact.strong)?;
                 Ok(())
             },
             |physical, _| use_checked(physical),

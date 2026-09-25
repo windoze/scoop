@@ -7,6 +7,7 @@ mod object;
 use object::{ObjectCosts, inspect};
 use std::collections::BTreeMap;
 
+#[derive(Debug)]
 pub(super) struct ReplayCosts {
     members: BTreeMap<crate::SlibMemberId, ObjectCosts>,
 }

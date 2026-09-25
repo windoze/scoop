@@ -6,7 +6,10 @@ use scoop_identity::{
     ConeIdentity, DecodedCanonicalScoopAbiFunctionSignature, DecodedPersistentId,
     DecodedPersistentSymbolRequest, DecodedStrongCallableDefinitionOwner, ObjectDefinitionPlanId,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
+use scoop_wire::{
+    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode,
+    encode_canonical_temporary_with_meter,
+};
 
 use super::{
     CrossConeLinkClosureSectionV1, CrossConeLinkSemanticImportSetV1,
@@ -149,6 +152,32 @@ pub struct DecodedCrossConeLinkClosureSectionV1 {
 }
 
 impl DecodedCrossConeLinkClosureSectionV1 {
+    /// Replays the semantic and actual-use projections while retaining the
+    /// original coverage fields for final object and Code verification.
+    pub fn replay_requirements_against(
+        &self,
+        expected: &crate::VerifiedCrossConeStrongRequirementClosureV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), CrossConeLinkClosureSectionValidationError> {
+        if !same_bytes(
+            &self.semantic_imports,
+            expected.semantic_imports(),
+            1,
+            meter,
+        )? {
+            return Err(CrossConeLinkClosureSectionValidationError::SemanticProjectionMismatch);
+        }
+        if !same_bytes(
+            &WireArray(&self.requirements),
+            &WireArray(expected.requirements()),
+            2,
+            meter,
+        )? {
+            return Err(CrossConeLinkClosureSectionValidationError::ProjectionMismatch);
+        }
+        Ok(())
+    }
+
     /// Checks the Code projection before object validation has completed.
     pub fn validate_semantic_imports_against(
         &self,
@@ -210,8 +239,36 @@ fn encode_array<T: WireEncode>(
     Ok(())
 }
 
+struct WireArray<'a, T>(&'a [T]);
+
+impl<T: WireEncode> WireEncode for WireArray<'_, T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encode_array(encoder, self.0)
+    }
+}
+
+fn same_bytes(
+    actual: &impl WireEncode,
+    expected: &impl WireEncode,
+    field: u32,
+    meter: &mut BudgetMeter,
+) -> Result<bool, CrossConeLinkClosureSectionValidationError> {
+    let path = WirePath::root().field(field);
+    let actual = encode_canonical_temporary_with_meter(actual, meter, &path)?;
+    let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
+    meter.charge_work(actual.len().min(expected.len()) as u64, &path)?;
+    Ok(actual == expected)
+}
+
+impl From<WireError> for CrossConeLinkClosureSectionValidationError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
+}
+
 #[derive(Debug)]
 pub enum CrossConeLinkClosureSectionValidationError {
+    Resource(WireError),
     SemanticProjectionMismatch,
     ProjectionMismatch,
     Encoding(scoop_wire::cbor::EncodeError),
@@ -229,6 +286,7 @@ impl fmt::Display for CrossConeLinkClosureSectionValidationError {
 impl std::error::Error for CrossConeLinkClosureSectionValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(source) => Some(source),
             Self::Encoding(source) => Some(source),
             Self::SemanticProjectionMismatch | Self::ProjectionMismatch => None,
         }

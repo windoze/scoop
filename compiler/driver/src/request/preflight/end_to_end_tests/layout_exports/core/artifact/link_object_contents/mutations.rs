@@ -1,3 +1,4 @@
+use super::super::link_archive::symbol_offset;
 use super::*;
 use object::read::macho::{MachHeader as _, Segment as _};
 use object::{Endianness, Object as _, ObjectSection as _, macho};
@@ -82,22 +83,6 @@ pub(super) fn cases(
         }
     }
     cases
-}
-
-fn symbol_offset(bytes: &[u8], index: u32) -> usize {
-    let header = macho::MachHeader64::<Endianness>::parse(bytes, 0).unwrap();
-    let endian = header.endian().unwrap();
-    let mut commands = header.load_commands(endian, bytes, 0).unwrap();
-    while let Some(command) = commands.next().unwrap() {
-        if let Some(table) = command.symtab().unwrap() {
-            let symbols = table
-                .symbols::<macho::MachHeader64<Endianness>, _>(endian, bytes)
-                .unwrap();
-            let symbol = symbols.iter().nth(index as usize).unwrap();
-            return table.stroff.get(endian) as usize + symbol.n_strx.get(endian) as usize;
-        }
-    }
-    panic!("verified object has a symbol table");
 }
 
 fn relocation_offset(bytes: &[u8]) -> Option<usize> {

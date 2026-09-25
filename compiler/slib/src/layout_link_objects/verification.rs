@@ -71,9 +71,7 @@ pub(crate) fn replay<'input>(
             strong.safepoint_semantics(),
             &candidates,
         )?;
-        registrations::replay(
-            objects, generated, patches, stackmaps, strong, &costs, meter,
-        )
+        registrations::replay(objects, generated, patches, stackmaps, strong, costs, meter)
     };
     verify().map_err(crate::SharedLirPhysicalError::from)
 }

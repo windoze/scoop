@@ -6,7 +6,7 @@ pub(super) fn replay<'input>(
     patches: VerifiedScoopLirDigestPatchSiteSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     strong: &lir::ReplayedStrongProductionSectionV2,
-    costs: &resources::ReplayCosts,
+    costs: resources::ReplayCosts,
     meter: &mut BudgetMeter,
 ) -> Result<ReplayedLayoutLinkObjectContentsV1<'input>, LayoutLinkObjectContentsError> {
     let candidates = objects.candidates();
@@ -48,5 +48,6 @@ pub(super) fn replay<'input>(
         immortals,
         storages,
         initializations,
+        costs,
     })
 }

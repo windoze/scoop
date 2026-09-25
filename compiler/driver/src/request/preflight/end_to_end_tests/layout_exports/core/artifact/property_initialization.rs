@@ -51,6 +51,8 @@ pub(super) fn check(
         ("m23-property-initialization", "combined", 4),
         ("m23-link-object-contents", "standalone", 1),
         ("m23-link-object-contents", "combined", 4),
+        ("m23-link-symbol-uses", "standalone", 1),
+        ("m23-link-symbol-uses", "combined", 4),
     ] {
         let fixtures = crate::workspace_root().join("tests/fixtures").join(family);
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
@@ -170,17 +172,26 @@ pub(super) fn check(
                 );
                 super::source_calls::check(input, core_input, core_artifact, &artifact);
                 super::link_materializations::check(core_artifact, &artifact);
-                if family == "m23-link-object-contents" {
+                if family != "m23-property-initialization" {
                     snapshot(
                         &fixtures.join(format!("{name}.hir.snap")),
                         &hir::dump(&input.hir.output().export),
                     );
-                    super::link_object_contents::check(
-                        name,
-                        core_artifact,
-                        &artifact,
-                        &prepared.c_bridge_profile,
-                    );
+                    if family == "m23-link-object-contents" {
+                        super::link_object_contents::check(
+                            name,
+                            core_artifact,
+                            &artifact,
+                            &prepared.c_bridge_profile,
+                        );
+                    } else {
+                        super::link_symbol_uses::check(
+                            &fixtures.join(format!("{name}.symbols.snap")),
+                            core_artifact,
+                            &artifact,
+                            &prepared.c_bridge_profile,
+                        );
+                    }
                 }
                 let mut dump = format!("mir-uses={count}\n");
                 for (view, closure) in [

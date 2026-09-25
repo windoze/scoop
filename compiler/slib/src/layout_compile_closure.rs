@@ -78,8 +78,8 @@ pub use lir_ordinary::{
 };
 pub use lir_physical::{
     CrossConeLayoutLirPhysicalError, LinkObjectsReplayedCrossConeLayoutClosure,
-    PhysicalImportsReplayedCrossConeLayoutClosure, PhysicalImportsReplayedCrossConeLayoutSections,
-    SharedLirPhysicalError,
+    LinkSymbolsReplayedCrossConeLayoutClosure, PhysicalImportsReplayedCrossConeLayoutClosure,
+    PhysicalImportsReplayedCrossConeLayoutSections, SharedLirPhysicalError,
 };
 pub use lir_shape_support::{
     CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,

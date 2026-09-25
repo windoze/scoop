@@ -5,6 +5,7 @@ mod external_boxing;
 mod link_archive;
 mod link_materializations;
 mod link_object_contents;
+mod link_symbol_uses;
 mod lir_dependencies;
 mod machine_selection;
 mod mir_constructors;

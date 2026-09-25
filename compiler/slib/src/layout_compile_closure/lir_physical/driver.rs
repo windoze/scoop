@@ -1,12 +1,13 @@
 use super::*;
-use crate::layout_compile_decode::PreparedCrossConeLayoutMirSections;
 
 impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
     pub(super) fn with_replayed_physical<R, O>(
         self,
         mut replay_objects: impl FnMut(
-            &mut PreparedCrossConeLayoutMirSections<'input>,
-            &lir::ReplayedStrongProductionSectionV2,
+            &mut PhysicalImportsReplayedCrossConeLayoutSections<'input, '_>,
+            &[usize],
+            &[O],
+            &[&PhysicalImportsReplayedCrossConeLayoutSections<'input, '_>],
         ) -> Result<O, SharedLirPhysicalError>,
         use_checked: impl for<'checked> FnOnce(
             PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input>,
@@ -36,7 +37,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     reachable.len(),
                     &WirePath::root(),
                 )?;
-                dependencies.extend(reachable.into_iter().map(|index| complete[index]));
+                dependencies.extend(reachable.iter().map(|&index| complete[index]));
                 let layout = replay::physical(
                     layout,
                     &strong,
@@ -67,18 +68,16 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     std::mem::size_of::<O>() as u64,
                     &WirePath::root(),
                 )?;
-                let object = replay_objects(&mut prepared, &strong)?;
-                Ok((
-                    PhysicalImportsReplayedCrossConeLayoutSections {
-                        prepared,
-                        mir,
-                        units,
-                        strong,
-                        ordinary,
-                        layout,
-                    },
-                    object,
-                ))
+                let mut artifact = PhysicalImportsReplayedCrossConeLayoutSections {
+                    prepared,
+                    mir,
+                    units,
+                    strong,
+                    ordinary,
+                    layout,
+                };
+                let object = replay_objects(&mut artifact, &reachable, &objects, &complete)?;
+                Ok((artifact, object))
             };
             let (artifact, object) =
                 replay().map_err(|source| CrossConeLayoutLirPhysicalError {

@@ -13,7 +13,11 @@ use crate::CanonicalDefinedLinkSymbolOwnerSetV1;
 
 mod error;
 pub use error::*;
+mod foreign;
 mod owner;
+pub(crate) use foreign::reject_layout_foreign_strong_owners_v1;
+mod replay;
+pub use replay::verify_replayed_layout_strong_owners_v1;
 
 /// Complete per-artifact inputs already validated by the LIR and object
 /// readers. Construction binds the layout section to the same provider's
