@@ -1,0 +1,14 @@
+public fun boxPair(value: (UInt16, UInt)): Any = value
+public fun testPair(value: Any): Boolean = value is (UInt16, UInt)
+public fun castString(value: Any): String = value as String
+public fun boxUnit(value: Unit): Any = value
+
+public fun smartInteger(value: Any): Int {
+    if (value is Int) {
+        return value
+    }
+    return 0
+}
+
+public struct LocalValue() {}
+public fun boxLocal(value: LocalValue): Any = value

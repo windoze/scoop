@@ -166,8 +166,13 @@ resource_node!(DecodedDefaultExpressionKindV1, node, children, {
             children.push(checked_type)?;
             children.push(operand)?;
         }
-        Self::Cast { operand, optional } => {
+        Self::Cast {
+            operand,
+            checked_type,
+            optional,
+        } => {
             children.push(optional)?;
+            children.push(checked_type)?;
             children.push(operand)?;
         }
         Self::ArrayLiteral(field_0) => {

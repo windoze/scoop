@@ -192,8 +192,13 @@ impl Lowerer {
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
                 check_ty: self.instantiate_method_ty(*check_ty, &context.bindings),
             },
-            hir::ExprKind::Cast { operand, optional } => hir::ExprKind::Cast {
+            hir::ExprKind::Cast {
+                operand,
+                check_ty,
+                optional,
+            } => hir::ExprKind::Cast {
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
+                check_ty: self.instantiate_method_ty(*check_ty, &context.bindings),
                 optional: *optional,
             },
             hir::ExprKind::ArrayLiteral(elements) => {

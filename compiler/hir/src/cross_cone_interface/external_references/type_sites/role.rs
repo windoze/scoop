@@ -7,6 +7,7 @@ pub enum HirExpressionTypeRoleV1 {
     AlignOf,
     TypeTest,
     ArrayElement,
+    BoxedValue,
 }
 
 impl WireEncode for HirExpressionTypeRoleV1 {
@@ -17,6 +18,7 @@ impl WireEncode for HirExpressionTypeRoleV1 {
             Self::AlignOf => 3,
             Self::TypeTest => 4,
             Self::ArrayElement => 5,
+            Self::BoxedValue => 6,
         })
     }
 }
@@ -29,6 +31,7 @@ impl WireDecode for HirExpressionTypeRoleV1 {
             3 => Ok(Self::AlignOf),
             4 => Ok(Self::TypeTest),
             5 => Ok(Self::ArrayElement),
+            6 => Ok(Self::BoxedValue),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),

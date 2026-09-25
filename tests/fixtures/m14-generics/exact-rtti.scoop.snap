@@ -872,7 +872,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local7
-      Cast optional=false : Box<Int>
+      Cast Box<Int> optional=false : Box<Int>
         Local boxedInt : Any
     val local8
       FieldAccess class field value : Int

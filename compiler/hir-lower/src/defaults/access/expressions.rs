@@ -170,12 +170,14 @@ impl ReferenceCollector<'_> {
                 self.method_callee_use(*callee, origin);
                 self.expressions(args);
             }
-            hir::ExprKind::IsInstance { operand, check_ty } => {
+            hir::ExprKind::IsInstance { operand, check_ty }
+            | hir::ExprKind::Cast {
+                operand, check_ty, ..
+            } => {
                 self.expression(operand);
                 self.type_reference(*check_ty, origin);
             }
-            hir::ExprKind::Cast { operand, .. }
-            | hir::ExprKind::Unary { operand, .. }
+            hir::ExprKind::Unary { operand, .. }
             | hir::ExprKind::PrimitiveUnary { operand, .. }
             | hir::ExprKind::Unwrap { operand, .. } => self.expression(operand),
             hir::ExprKind::ArrayAssembly(assembly) => {

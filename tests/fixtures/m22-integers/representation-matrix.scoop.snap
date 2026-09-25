@@ -2136,7 +2136,7 @@ Module
           Local widths : Widths
     val local271
       Unbox : Int8
-        Cast optional=false : Int8
+        Cast Int8 optional=false : Int8
           Local boxedI8 : Any
     val local272
       Local $argument.0 : Int8
@@ -2144,7 +2144,7 @@ Module
       Local $parameter.value : Int8
     val local273
       Unbox : Int16
-        Cast optional=false : Int16
+        Cast Int16 optional=false : Int16
           Local boxedI16 : Any
     val local274
       Local $argument.0 : Int16
@@ -2152,7 +2152,7 @@ Module
       Local $parameter.value : Int16
     val local275
       Unbox : Int
-        Cast optional=false : Int
+        Cast Int optional=false : Int
           Local boxedI32 : Any
     val local276
       Local $argument.0 : Int
@@ -2160,7 +2160,7 @@ Module
       Local $parameter.value : Int
     val local277
       Unbox : Long
-        Cast optional=false : Long
+        Cast Long optional=false : Long
           Local boxedI64 : Any
     val local278
       Local $argument.0 : Long
@@ -2168,7 +2168,7 @@ Module
       Local $parameter.value : Long
     val local279
       Unbox : UInt8
-        Cast optional=false : UInt8
+        Cast UInt8 optional=false : UInt8
           Local boxedU8 : Any
     val local280
       Local $argument.0 : UInt8
@@ -2176,7 +2176,7 @@ Module
       Local $parameter.value : UInt8
     val local281
       Unbox : UInt16
-        Cast optional=false : UInt16
+        Cast UInt16 optional=false : UInt16
           Local boxedU16 : Any
     val local282
       Local $argument.0 : UInt16
@@ -2184,7 +2184,7 @@ Module
       Local $parameter.value : UInt16
     val local283
       Unbox : UInt
-        Cast optional=false : UInt
+        Cast UInt optional=false : UInt
           Local boxedU32 : Any
     val local284
       Local $argument.0 : UInt
@@ -2192,7 +2192,7 @@ Module
       Local $parameter.value : UInt
     val local285
       Unbox : ULong
-        Cast optional=false : ULong
+        Cast ULong optional=false : ULong
           Local boxedU64 : Any
     val local286
       Local $argument.0 : ULong

@@ -133,6 +133,7 @@ enum DecodedDefaultExpressionKindV1 {
     },
     Cast {
         operand: Box<DecodedDefaultExpressionV1>,
+        checked_type: DecodedSignatureTypeKey,
         optional: CanonicalBooleanV1,
     },
     ArrayLiteral(Vec<DecodedDefaultExpressionV1>),

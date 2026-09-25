@@ -31,6 +31,7 @@ fn expression_type_occurrences_preserve_typed_roots_origins_and_roles() {
         HirExpressionTypeRoleV1::AlignOf,
         HirExpressionTypeRoleV1::TypeTest,
         HirExpressionTypeRoleV1::ArrayElement,
+        HirExpressionTypeRoleV1::BoxedValue,
     ]
     .into_iter()
     .enumerate()
@@ -54,7 +55,7 @@ fn expression_type_occurrences_preserve_typed_roots_origins_and_roles() {
             original
         );
     }
-    assert!(decode_canonical::<HirExpressionTypeRoleV1>(&[6], DecodeLimits::default()).is_err());
+    assert!(decode_canonical::<HirExpressionTypeRoleV1>(&[7], DecodeLimits::default()).is_err());
 }
 
 #[test]

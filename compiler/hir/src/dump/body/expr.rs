@@ -515,8 +515,15 @@ pub(super) fn dump_expr(
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        ExprKind::Cast { operand, optional } => {
-            out.push_str(&format!("{pad}Cast optional={optional} : {ty}\n"));
+        ExprKind::Cast {
+            operand,
+            check_ty,
+            optional,
+        } => {
+            out.push_str(&format!(
+                "{pad}Cast {} optional={optional} : {ty}\n",
+                type_name(module, *check_ty)
+            ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::ArrayLiteral(elements) => {

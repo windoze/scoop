@@ -890,7 +890,7 @@ Module
         Box : Any
           IntegerLiteral 1 : Int
       val local16
-        Cast optional=false : String
+        Cast String optional=false : String
           Local a : Any
       val local17
         Local s : String

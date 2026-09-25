@@ -703,7 +703,11 @@ where
                 self.expect_result(expression, operation, &boolean, false)?;
                 self.push_expression(pending, operand, depth)
             }
-            crate::DefaultExpressionKindV1::Cast { operand, optional } => {
+            crate::DefaultExpressionKindV1::Cast {
+                operand,
+                checked_type,
+                optional,
+            } => {
                 let target = if optional.value() {
                     self.core_application(
                         expression.result_type(),
@@ -715,10 +719,15 @@ where
                 } else {
                     expression.result_type().clone()
                 };
+                self.expect_type(
+                    checked_type,
+                    &target,
+                    Self::site(operation, DefaultOperationValueRoleV1::CheckedType),
+                )?;
                 self.expect_relation(
                     DefaultOperationTypeRelationV1::RuntimeTypeCheck,
                     operand.result_type(),
-                    &target,
+                    checked_type,
                     Self::site(operation, DefaultOperationValueRoleV1::Target),
                 )?;
                 self.push_expression(pending, operand, depth)

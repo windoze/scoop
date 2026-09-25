@@ -38,6 +38,7 @@ fn is_instance_and_casts_lower_to_runtime_checks() {
                         hir::ExprKind::Unbox(Box::new(expr(
                             hir::ExprKind::Cast {
                                 operand: Box::new(local_ref(a, any)),
+                                check_ty: s_ty,
                                 optional: false,
                             },
                             s_ty,
@@ -50,6 +51,7 @@ fn is_instance_and_casts_lower_to_runtime_checks() {
                     expr(
                         hir::ExprKind::Cast {
                             operand: Box::new(local_ref(a, any)),
+                            check_ty: s_ty,
                             optional: true,
                         },
                         option_s,

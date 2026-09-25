@@ -150,7 +150,11 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
                 operand,
                 checked_type,
             } => encode_two(encoder, 36, operand.as_ref(), checked_type),
-            Self::Cast { operand, optional } => encode_two(encoder, 37, operand.as_ref(), optional),
+            Self::Cast {
+                operand,
+                checked_type,
+                optional,
+            } => encode_three(encoder, 37, operand.as_ref(), checked_type, optional),
             Self::ArrayLiteral(elements) => encode_one(encoder, 38, &WireSequence(elements)),
             Self::ArrayAssembly(assembly) => encode_one(encoder, 39, assembly),
             Self::Index {
@@ -376,10 +380,11 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
                 })
             }
             37 => {
-                expect_sum_length(decoder, fields, 3)?;
+                expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::Cast {
                     operand: decode_boxed_expression_field(decoder, 1)?,
-                    optional: decoder.field(2, CanonicalBooleanV1::decode)?,
+                    checked_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
+                    optional: decoder.field(3, CanonicalBooleanV1::decode)?,
                 })
             }
             38 => decode_expression_sequence(decoder, fields).map(Self::ArrayLiteral),

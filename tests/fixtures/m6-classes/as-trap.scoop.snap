@@ -825,7 +825,7 @@ Module
           Local $parameter.v : Int
     val local3
       Unbox : Int
-        Cast optional=false : Int
+        Cast Int optional=false : Int
           Local a : Any
     val local4
       Local i : Int

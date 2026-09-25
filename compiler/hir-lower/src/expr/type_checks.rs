@@ -96,6 +96,7 @@ impl Lowerer {
             return Some(hir::Expr {
                 kind: ExprKind::Cast {
                     operand: Box::new(operand),
+                    check_ty: target,
                     optional: true,
                 },
                 ty,
@@ -106,6 +107,7 @@ impl Lowerer {
         let cast = hir::Expr {
             kind: ExprKind::Cast {
                 operand: Box::new(operand),
+                check_ty: target,
                 optional: false,
             },
             ty: target,

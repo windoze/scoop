@@ -7,6 +7,7 @@ use hir::{
 };
 use scoop_wire::{decode_canonical, decode_canonical_with_meter, encode};
 mod budgets;
+mod casts;
 mod nested_occurrences;
 mod public_receivers;
 mod receivers;

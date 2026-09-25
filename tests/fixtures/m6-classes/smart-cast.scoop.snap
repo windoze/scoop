@@ -867,7 +867,7 @@ Module
     val local9
       Unary Not : Boolean
         MethodCall Option.equals <derived> : Boolean
-          Cast optional=true : Option<S>
+          Cast S optional=true : Option<S>
             Local a : Any
           VariantConstruct Option.None<S> : Option<S>
     val local10

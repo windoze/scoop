@@ -22,6 +22,7 @@ enum Kind {
     Signature,
     Representation,
     TypeTest,
+    ShapeSupport,
     ClassBase(PersistentExactTypeId),
     Interface(PersistentExactTypeId),
 }
@@ -32,6 +33,7 @@ impl Kind {
             Self::Signature => SelectedTypeUseV1::Signature { exact },
             Self::Representation => SelectedTypeUseV1::Representation { exact },
             Self::TypeTest => SelectedTypeUseV1::TypeTest { exact },
+            Self::ShapeSupport => SelectedTypeUseV1::ShapeSupport { exact },
             Self::ClassBase(derived) => SelectedTypeUseV1::Inheritance {
                 derived,
                 edge: SelectedDirectInheritanceEdgeV1::ClassBase { exact },
@@ -49,6 +51,7 @@ impl Kind {
             SelectedTypeUseV1::Signature { .. }
                 | SelectedTypeUseV1::Representation { .. }
                 | SelectedTypeUseV1::TypeTest { .. }
+                | SelectedTypeUseV1::ShapeSupport { .. }
                 | SelectedTypeUseV1::Inheritance { .. }
         )
     }
@@ -71,8 +74,9 @@ struct Graph<'a> {
 impl<'a> SharedTypeMetadataV1<'a> {
     /// Uses actual shared occurrences and declaration dependencies, never the
     /// candidate selected table. This is the type-requirement partition only;
-    /// current direct inheritance edges are included. Source access and the
-    /// five remaining operation partitions require their own actual uses.
+    /// current direct inheritance and actual box/type-check support are included.
+    /// Source access and the four remaining operation partitions require
+    /// their own actual uses.
     pub fn materialized_type_uses(
         self,
         dependencies: &[SharedTypeMetadataV1<'a>],
@@ -108,7 +112,7 @@ impl<'a> SharedTypeMetadataV1<'a> {
 }
 
 impl CheckedSharedTypeFoundationV1<'_> {
-    /// Precisely compares type requirements and current direct inheritance.
+    /// Precisely compares type, inheritance, and actual shape requirements.
     /// This does not construct a complete selected-use or artifact permit.
     pub fn validate_materialized_type_uses(
         self,

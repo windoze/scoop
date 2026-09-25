@@ -14,14 +14,16 @@ pub(super) fn check(
         records.remove(position);
         reject(current, dependencies, records);
     }
-    let mut local_as_external = original.to_vec();
-    local_as_external.push(SelectedExternalTypeUseV1::new(
-        current.provider(),
-        SelectedTypeUseV1::Representation {
-            exact: current.facts().records()[0].exact(),
-        },
-    ));
-    reject(current, dependencies, local_as_external);
+    if let Some(local) = current.facts().records().first() {
+        let mut local_as_external = original.to_vec();
+        local_as_external.push(SelectedExternalTypeUseV1::new(
+            current.provider(),
+            SelectedTypeUseV1::Representation {
+                exact: local.exact(),
+            },
+        ));
+        reject(current, dependencies, local_as_external);
+    }
     for record in current.section().inheritance().records() {
         let mut extra = original.to_vec();
         extra.push(SelectedExternalTypeUseV1::new(

@@ -224,8 +224,13 @@ impl BodyProjection<'_, '_, '_> {
                 operand: Box::new(self.expression(operand)?),
                 checked_type: self.type_key(*check_ty)?,
             },
-            ExprKind::Cast { operand, optional } => DefaultExpressionKindV1::Cast {
+            ExprKind::Cast {
+                operand,
+                check_ty,
+                optional,
+            } => DefaultExpressionKindV1::Cast {
                 operand: Box::new(self.expression(operand)?),
+                checked_type: self.type_key(*check_ty)?,
                 optional: CanonicalBooleanV1::from(*optional),
             },
             ExprKind::ArrayLiteral(elements) => {

@@ -266,8 +266,13 @@ impl DecodedDefaultExpressionKindV1 {
                 operand: resolve_child(operand, resolver, locals, 36, 1)?,
                 checked_type: resolve_type(checked_type, resolver, 36, 2)?,
             },
-            Self::Cast { operand, optional } => DefaultExpressionKindV1::Cast {
+            Self::Cast {
+                operand,
+                checked_type,
+                optional,
+            } => DefaultExpressionKindV1::Cast {
                 operand: resolve_child(operand, resolver, locals, 37, 1)?,
+                checked_type: resolve_type(checked_type, resolver, 37, 2)?,
                 optional,
             },
             Self::ArrayLiteral(elements) => DefaultExpressionKindV1::ArrayLiteral(

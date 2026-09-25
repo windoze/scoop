@@ -89,6 +89,7 @@ fn materialized_selections_are_produced_and_replayed_from_shared_hir_bytes() {
             assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
             if case == "combined" {
                 assert!(actual.contains("TypeTest String"));
+                assert!(actual.contains("ShapeSupport String"));
                 assert!(actual.contains("Signature Long"));
                 assert!(!actual.contains("ULong"));
             }
@@ -127,6 +128,7 @@ fn render(
                 SelectedTypeUseV1::Signature { .. } => "Signature",
                 SelectedTypeUseV1::Representation { .. } => "Representation",
                 SelectedTypeUseV1::TypeTest { .. } => "TypeTest",
+                SelectedTypeUseV1::ShapeSupport { .. } => "ShapeSupport",
                 other => panic!("unexpected operation use in the fixture: {other:?}"),
             };
             format!(

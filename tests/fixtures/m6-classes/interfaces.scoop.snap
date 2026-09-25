@@ -922,7 +922,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local20
-      Cast optional=true : Option<Describable>
+      Cast Describable optional=true : Option<Describable>
         Local a : Any
     val local21
       Local $argument.0 : Option<Describable>

@@ -1,11 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v16_requires_materialized_storage_type_occurrences_and_rejects_retired_majors()
-{
+fn source_interface_v17_requires_explicit_cast_targets_and_boxed_value_type_occurrences() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        16,
+        17,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
@@ -14,10 +13,10 @@ fn source_interface_v16_requires_materialized_storage_type_occurrences_and_rejec
 }
 
 #[test]
-fn type_semantics_v2_rejects_nested_source_shapes_without_declared_mutability() {
+fn type_semantics_v3_rejects_default_casts_without_explicit_checked_types() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        2,
+        3,
         &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG],
     );
 }

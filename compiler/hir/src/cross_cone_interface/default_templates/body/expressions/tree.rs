@@ -155,6 +155,7 @@ pub enum DefaultExpressionKindV1 {
     },
     Cast {
         operand: Box<DefaultExpressionV1>,
+        checked_type: SignatureTypeKey,
         optional: CanonicalBooleanV1,
     },
     ArrayLiteral(Vec<DefaultExpressionV1>),

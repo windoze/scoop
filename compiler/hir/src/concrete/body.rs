@@ -278,6 +278,7 @@ pub enum ExprKind {
     },
     Cast {
         operand: Box<Expr>,
+        check_ty: TypeId,
         optional: bool,
     },
     ArrayLiteral(Vec<Expr>),

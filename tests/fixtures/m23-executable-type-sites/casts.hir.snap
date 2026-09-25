@@ -1,0 +1,59 @@
+  fun prepOptionalInteger(value: Any): Option<Int>
+    return
+      Cast Int optional=true : Option<Int>
+        Local value : Any
+  fun prepWithCast<T>(value: Any, result: T0): T0
+    return
+      Local result : T0
+  fun prepUseCast(value: Any): Int
+    val local1
+      Local value : Any
+    val local2
+      Local $argument.0 : Any
+    val local3
+      Unbox : Int
+        Cast Int optional=false : Int
+          Local $parameter.value : Any
+    return
+      Call prepWithCast<Int> : Int
+        Local $parameter.value : Any
+        Local $parameter.result : Int
+  fun prepWithOptionalCast<T>(value: Any, result: Option<T0>): Option<T0>
+    return
+      Local result : Option<T0>
+  fun prepUseOptionalCast(value: Any): Option<Int>
+    val local1
+      Local value : Any
+    val local2
+      Local $argument.0 : Any
+    val local3
+      Cast Int optional=true : Option<Int>
+        Local $parameter.value : Any
+    return
+      Call prepWithOptionalCast<Int> : Option<Int>
+        Local $parameter.value : Any
+        Local $parameter.result : Option<Int>
+  fun main(): Unit
+    val local0
+      Box : Any
+        IntegerLiteral 42 : Int
+    val local1
+      Local value : Any
+    val local2
+      Local $argument.0 : Any
+    Call prepUseCast : Int
+      Local $parameter.value : Any
+    val local3
+      Local value : Any
+    val local4
+      Local $argument.0 : Any
+    Call prepUseOptionalCast : Option<Int>
+      Local $parameter.value : Any
+    val local5
+      Local value : Any
+    val local6
+      Local $argument.0 : Any
+    Call prepOptionalInteger : Option<Int>
+      Local $parameter.value : Any
+  instance prepWithCast<Int>
+  instance prepWithOptionalCast<Int>

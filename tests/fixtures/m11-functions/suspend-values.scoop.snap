@@ -1165,7 +1165,7 @@ Module
     val local1
       Local exact : Any
     val local2
-      Cast optional=false : suspend (Int) -> Any
+      Cast suspend (Int) -> Any optional=false : suspend (Int) -> Any
         Local erased : Any
     return
       Lambda lambda4 invoke=$lambda.4 captures=1 : suspend () -> Int
@@ -1304,7 +1304,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local29
-      Cast optional=false : suspend () -> Int
+      Cast suspend () -> Int optional=false : suspend () -> Int
         Local erased : Any
     val local30
       Local checked : suspend () -> Int

@@ -165,8 +165,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | DefaultExpressionKindV1::Unary { operand, .. }
             | DefaultExpressionKindV1::SomeWrap(operand)
             | DefaultExpressionKindV1::IsSome(operand)
-            | DefaultExpressionKindV1::Unwrap { operand, .. }
-            | DefaultExpressionKindV1::Cast { operand, .. } => {
+            | DefaultExpressionKindV1::Unwrap { operand, .. } => {
                 self.push_child(pending, depth, BodyNode::Expression(operand))
             }
             DefaultExpressionKindV1::PtrLoad { pointer, offset } => {
@@ -255,6 +254,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             DefaultExpressionKindV1::IsInstance {
                 operand,
                 checked_type,
+            }
+            | DefaultExpressionKindV1::Cast {
+                operand,
+                checked_type,
+                ..
             } => {
                 self.push_type(
                     pending,

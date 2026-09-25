@@ -1,0 +1,2 @@
+public fun <T> withCast(value: Any, result: T = value as T): T = result
+public fun useCast(value: Any): Int = withCast<Int>(value)

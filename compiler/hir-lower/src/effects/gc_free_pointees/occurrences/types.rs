@@ -402,11 +402,13 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
-        ExprKind::IsInstance { operand, check_ty } => {
+        ExprKind::IsInstance { operand, check_ty }
+        | ExprKind::Cast {
+            operand, check_ty, ..
+        } => {
             out.push(*check_ty);
             collect_expr_types(lowerer, operand, out);
         }
-        ExprKind::Cast { operand, .. } => collect_expr_types(lowerer, operand, out),
         ExprKind::Call { callee, args } => {
             collect_callable_types(lowerer, *callee, out);
             for argument in args {

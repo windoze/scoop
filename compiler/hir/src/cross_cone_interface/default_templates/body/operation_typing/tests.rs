@@ -1511,3 +1511,5 @@ impl std::error::Error for AuthorityError {}
 
 #[path = "integer_tests.rs"]
 mod integers;
+
+mod casts;

@@ -362,10 +362,11 @@ pub enum ExprKind {
         check_ty: TypeId,
     },
     /// `as` (trap on failure; M8: `ClassCastException`) or `as?`
-    /// (`optional` — result `Option<T>`). The target type is
-    /// `Expr::ty` (or its payload for `as?`).
+    /// (`optional` — result `Option<T>`). The checked target remains
+    /// explicit even when the result wraps that type in `Option`.
     Cast {
         operand: Box<Expr>,
+        check_ty: TypeId,
         optional: bool,
     },
     /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.

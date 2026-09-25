@@ -1054,22 +1054,22 @@ Module
     val local17
       Local exactValue : Any
     val local18
-      Cast optional=false : (Int) -> Any
+      Cast (Int) -> Any optional=false : (Int) -> Any
         Local erased : Any
     val local19
-      Cast optional=false : (Any) -> Int
+      Cast (Any) -> Int optional=false : (Any) -> Int
         Local erased : Any
     val local20
       Unwrap trap=true : (Int) -> Any
-        Cast optional=true : Option<(Int) -> Any>
+        Cast (Int) -> Any optional=true : Option<(Int) -> Any>
           Local erased : Any
     val local21
-      Cast optional=true : Option<(Any) -> String>
+      Cast (Any) -> String optional=true : Option<(Any) -> String>
         Local erased : Any
     val local22
       Local nestedExact : Any
     val local23
-      Cast optional=false : ((Any) -> Int) -> (Int) -> Any
+      Cast ((Any) -> Int) -> (Int) -> Any optional=false : ((Any) -> Int) -> (Int) -> Any
         Local nestedErased : Any
     val local24
       CallableCall function_type16 : (Int) -> Any
@@ -1078,7 +1078,7 @@ Module
     val local25
       Local boxedExact : Any
     val local26
-      Cast optional=false : (Int) -> Describable
+      Cast (Int) -> Describable optional=false : (Int) -> Describable
         Local boxedErased : Any
     Call gcCollect : Unit
     val local27

@@ -871,7 +871,7 @@ Module
       Local $parameter.value : Boolean
     val local7
       Unbox : S
-        Cast optional=false : S
+        Cast S optional=false : S
           Local a : Any
     val local8
       FieldAccess field 0 : Int
@@ -881,7 +881,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local10
-      Cast optional=true : Option<Int>
+      Cast Int optional=true : Option<Int>
         Local a : Any
     val local11
       MethodCall Option.equals <derived> : Boolean

@@ -141,6 +141,7 @@ fn checked_function_cast_keeps_its_complete_dynamic_adapter_identity() {
                 expr(
                     hir::ExprKind::Cast {
                         operand: Box::new(local_ref(erased, any)),
+                        check_ty: target.1,
                         optional: false,
                     },
                     target.1,
@@ -278,6 +279,7 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
         expr(
             hir::ExprKind::Cast {
                 operand: Box::new(local_ref(erased, any)),
+                check_ty: target_type.1,
                 optional: false,
             },
             target_type.1,

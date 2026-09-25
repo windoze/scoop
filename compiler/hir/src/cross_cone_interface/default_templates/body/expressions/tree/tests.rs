@@ -172,6 +172,7 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
         },
         DefaultExpressionKindV1::Cast {
             operand: Box::new(unit(&fixture)),
+            checked_type: value_type.clone(),
             optional: CanonicalBooleanV1::True,
         },
         DefaultExpressionKindV1::ArrayLiteral(vec![unit(&fixture)]),
@@ -442,4 +443,40 @@ fn expression_tag(bytes: &[u8]) -> u64 {
         0x18 => u64::from(bytes[5]),
         _ => u64::MAX,
     }
+}
+
+#[test]
+fn cast_wire_requires_a_checked_type_before_the_optional_flag() {
+    let fixture = Fixture::new();
+    let cast = expression(
+        DefaultExpressionKindV1::Cast {
+            operand: Box::new(unit(&fixture)),
+            checked_type: fixture.value_type(),
+            optional: CanonicalBooleanV1::True,
+        },
+        &fixture,
+    );
+    let bytes = encode(&cast.index_locals(&mut fixture.locals()).unwrap()).unwrap();
+    let decoded: DecodedDefaultExpressionV1 =
+        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    assert_eq!(
+        decoded.resolve(&mut fixture.resolver(), &mut fixture.locals()),
+        Ok(cast)
+    );
+    // The outer expression starts with its kind. The retired Cast product
+    // declares only the tag, operand and optional flag, so it is rejected
+    // before any missing target could be inferred from the result type.
+    let mut retired = bytes;
+    assert_eq!(&retired[..6], &[0xa3, 1, 0xa4, 0, 0x18, 37]);
+    retired[2] = 0xa3;
+    let error = decode_canonical::<DecodedDefaultExpressionV1>(&retired, DecodeLimits::default())
+        .unwrap_err();
+    assert_eq!(error.path(), &scoop_wire::WirePath::root().field(1));
+    assert!(matches!(
+        error.kind(),
+        WireErrorKind::InvalidLength {
+            expected: 4,
+            actual: 3
+        }
+    ));
 }

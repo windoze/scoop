@@ -100,26 +100,11 @@ impl BodyLowerer<'_> {
     pub(super) fn lower_cast(
         &mut self,
         operand: &hir::Expr,
+        target_hir: hir::TypeId,
         optional: bool,
         expr_ty: hir::TypeId,
         span: Span,
     ) -> smir::Expr {
-        let target_hir = if optional {
-            let hir::TypeKind::Enum(option) = self.module.types[expr_ty].kind else {
-                unreachable!("an `as?` result is an Option<T>")
-            };
-            let option = self
-                .module
-                .option_core(option)
-                .expect("an `as?` result is core's Option<T>");
-            let payload = option.some_payload();
-            self.module.enums[option.enumeration()].variants
-                [payload.variant().variant().into_raw() as usize]
-                .fields[payload.local_index() as usize]
-                .ty
-        } else {
-            expr_ty
-        };
         let target = self.lower_type(target_hir);
         self.register_check(&target, target_hir);
         let operand_ty = self.lower_type(operand.ty);

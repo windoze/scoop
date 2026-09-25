@@ -127,7 +127,11 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
                 operand,
                 checked_type,
             } => encode_two(encoder, 36, operand.as_ref(), *checked_type),
-            Self::Cast { operand, optional } => encode_two(encoder, 37, operand.as_ref(), optional),
+            Self::Cast {
+                operand,
+                checked_type,
+                optional,
+            } => encode_three(encoder, 37, operand.as_ref(), *checked_type, optional),
             Self::ArrayLiteral(elements) => encode_sequence_variant(encoder, 38, elements),
             Self::ArrayAssembly(assembly) => encode_one(encoder, 39, assembly),
             Self::Index {

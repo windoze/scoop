@@ -632,8 +632,12 @@ impl BodyLowerer<'_> {
                     check_ty: Box::new(check_ty),
                 }
             }
-            hir::ExprKind::Cast { operand, optional } => {
-                return self.lower_cast(operand, *optional, expr.ty, expr.span);
+            hir::ExprKind::Cast {
+                operand,
+                check_ty,
+                optional,
+            } => {
+                return self.lower_cast(operand, *check_ty, *optional, expr.ty, expr.span);
             }
             hir::ExprKind::Call { callee, args } => {
                 return self.lower_call(*callee, args, expr.ty);

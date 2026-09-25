@@ -121,6 +121,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     },
     Cast {
         operand: Box<IndexedDefaultExpressionV1<'a>>,
+        checked_type: &'a SignatureTypeKey,
         optional: CanonicalBooleanV1,
     },
     ArrayLiteral(Vec<IndexedDefaultExpressionV1<'a>>),
@@ -418,12 +419,15 @@ impl DefaultExpressionV1 {
                 operand: index_child(operand, resolver, 36, 1)?,
                 checked_type,
             },
-            DefaultExpressionKindV1::Cast { operand, optional } => {
-                IndexedDefaultExpressionKindV1::Cast {
-                    operand: index_child(operand, resolver, 37, 1)?,
-                    optional: *optional,
-                }
-            }
+            DefaultExpressionKindV1::Cast {
+                operand,
+                checked_type,
+                optional,
+            } => IndexedDefaultExpressionKindV1::Cast {
+                operand: index_child(operand, resolver, 37, 1)?,
+                checked_type,
+                optional: *optional,
+            },
             DefaultExpressionKindV1::ArrayLiteral(elements) => {
                 IndexedDefaultExpressionKindV1::ArrayLiteral(index_sequence(
                     elements, resolver, 38, 1,

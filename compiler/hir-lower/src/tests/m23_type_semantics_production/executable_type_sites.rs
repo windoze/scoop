@@ -2,6 +2,8 @@ use super::*;
 use hir::HirExpressionTypeRoleV1;
 use source_dispatch::with_hir_source;
 
+mod shape_operations;
+
 fn fixture() -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
