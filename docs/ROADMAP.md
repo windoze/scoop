@@ -227,6 +227,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 已将 MIR 有限 helper 按 source exact 的实际 provider 分为本地定义与依赖引用，并接入完整 layout 选择的 LIR 消费入口。真实源码的 Int 装箱/拆箱、Unit 零尺寸装箱、String 类型测试和 default 组合已通过 MIR/LIR golden、LLVM 与对象发射验证；缺失选择、错误 provider/物理导入、裸描述符与预算反例同路径拒绝。普通 CLI 的 layout profile、访问/初始化用途及 Compile/Link 双 view 发布继续闭合。
 - layout 来源投影已复用 MIR IR 接口的实际 Type/ShapeSupport 用途，并先核对完整 MIR source/export 关系；真实装箱和类型测试源码生成的完整 layout section 通过共有字节依赖重放与 Strong V2 registration/object 验证，与独立语义图保持相同 golden。来源记录漂移和累计预算反例同入口拒绝；CLI profile 和最终双 view 发布继续推进。
 - 真实源码装箱产物已接入 `.slib` 组装与共有 Compile reader 的物理导入重放；独立 Int 及 Unit ZST、拆箱、类型测试、default、String 字面量组合保持完整 provider/definition 和双 view canonical bytes。layout 产物的 callable/immortal 指纹使用完整引用分区，修复旧 legacy 投影丢失实际 helper 重定位的问题；截断分区反例仍拒绝。最终 CLI 与完整双 view 消费条件继续独立验收。
+- 实际普通 `as` 的 source-only 异常构造已在 MIR 前通过共有声明物化查询诊断；独立与 default 组合锁定表达式位置，未展开默认值、未物化泛型及静态上行转换继续通过，direct/support 精确身份与累计预算反例均已覆盖。参数自由外来异常的完整机器构造及最终发布条件继续验收。
 - 完成compiler/layout/object级ZST与ABI矩阵；真实多Cone链接后的moving-GC留M23-9/M23-11总验收。
 
 ### M23-7 跨Cone generic、ODR与generic delegated extension

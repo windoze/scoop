@@ -15,6 +15,17 @@ fn runtime_constructor_calls_preserve_every_actual_cast_and_default_occurrence()
             with_fixture(case, exception, |output, core| {
                 let interface = public_projection::public_interface_with_core(output, core);
                 let module = output.output().local.module();
+                assert!(
+                    core.world(module.cone)
+                        .has_materializable_nominal_source(
+                            ConeIdentity::CORE,
+                            core.interface
+                                .compiler_protocols()
+                                .class_cast_exception_type(),
+                            &mut meter(),
+                        )
+                        .unwrap()
+                );
                 let mut positions = Vec::new();
                 module
                     .visit_executable_expressions(&mut meter(), |occurrence, _| {
@@ -140,6 +151,46 @@ fn runtime_cast_construction_cannot_bypass_generic_representation_dependencies()
                 .interface
                 .compiler_protocols()
                 .class_cast_exception_type();
+            let world = core.world(output.output().local.module().cone);
+            let mut usage = meter();
+            assert!(
+                !world
+                    .has_materializable_nominal_source(ConeIdentity::CORE, expected, &mut usage)
+                    .unwrap()
+            );
+            let mut exhausted = BudgetMeter::new(DecodeLimits {
+                validation_work_units: 0,
+                ..DecodeLimits::default()
+            });
+            assert!(matches!(
+                world.has_materializable_nominal_source(
+                    ConeIdentity::CORE,
+                    expected,
+                    &mut exhausted
+                ),
+                Err(hir::NominalMaterializationClosureError::Resource(_))
+            ));
+            let mut cumulative = BudgetMeter::new(DecodeLimits {
+                validation_work_units: usage.usage().validation_work_units,
+                ..DecodeLimits::default()
+            });
+            assert!(
+                !world
+                    .has_materializable_nominal_source(
+                        ConeIdentity::CORE,
+                        expected,
+                        &mut cumulative
+                    )
+                    .unwrap()
+            );
+            assert!(matches!(
+                world.has_materializable_nominal_source(
+                    ConeIdentity::CORE,
+                    expected,
+                    &mut cumulative
+                ),
+                Err(hir::NominalMaterializationClosureError::Resource(_))
+            ));
             with_metadata(output, &public, core, |metadata, dependency| {
                 assert!(matches!(
                     metadata.materialized_type_uses(&[dependency], &mut meter()),

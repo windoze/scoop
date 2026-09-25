@@ -27,6 +27,7 @@ mod image_dependencies;
 mod layout_exports;
 mod nominal_signatures;
 mod publication;
+mod runtime_layout_gates;
 mod setter_domains;
 mod shape_materialization;
 mod shared_lir_selection;

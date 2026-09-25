@@ -15,6 +15,7 @@ mod entities;
 mod error;
 mod namespace;
 mod native_boundary;
+mod nominal_materialization;
 mod nominal_signatures;
 mod production_authority;
 mod provider;

@@ -147,6 +147,28 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
             == scoop_identity::BindableEntity::Type(id))
     );
 
+    for fixture in [&core, &direct, &support] {
+        let crate::SourceNominalId::Concrete(source) = fixture.outer.unwrap() else {
+            unreachable!("these fixtures contain concrete declarations")
+        };
+        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+        assert!(
+            world
+                .has_materializable_nominal_source(fixture.identity(), source, &mut meter)
+                .unwrap()
+        );
+        let other = if fixture.identity() == core.identity() {
+            direct.identity()
+        } else {
+            core.identity()
+        };
+        for wrong in [current, other] {
+            assert!(matches!(
+                world.has_materializable_nominal_source(wrong, source, &mut meter),
+                Err(crate::NominalMaterializationClosureError::MissingNominal(actual)) if actual == source
+            ));
+        }
+    }
     let selected = world.dependency_selection_plan().unwrap().finish();
     drop(world);
     for (fixture, expected_routes) in [(&core, 1), (&direct, 1), (&support, 0)] {
