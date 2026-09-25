@@ -14,13 +14,21 @@ pub struct LayoutAbiSourceProjectionV1 {
 }
 
 impl LayoutAbiSourceProjectionV1 {
-    pub fn from_input(
+    pub fn from_input<E: std::fmt::Debug + Send + Sync + 'static>(
         input: LayoutAbiExportInputV1<'_>,
         dependencies: LayoutAbiExportDependenciesV1<'_>,
+        mir_source: &impl mir::MirTypeBridgeSectionSourceAuthorityV1<E>,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
+        input
+            .bridge
+            .validate_sources(input.mir.module().cone, input.identities, mir_source, meter)
+            .map_err(|error| Error::MirSource(Box::new(error)))?;
+        let committed = mir_source.committed_external_uses().map_err(|error| {
+            Error::MirSource(Box::new(mir::MirTypeBridgeSourceJoinError::Source(error)))
+        })?;
         let expected = lower_layout_abi_exports(input, dependencies, meter)?;
-        let uses = uses::project(input, dependencies, &expected, meter)?;
+        let uses = uses::project(input, dependencies, &expected, committed, meter)?;
         let physical = physical::project(input, meter)?;
         Ok(Self {
             expected,
@@ -124,6 +132,7 @@ pub enum LayoutAbiSourceInventoryV1 {
 
 #[derive(Debug)]
 pub enum LayoutAbiSourceProjectionError {
+    MirSource(Box<dyn std::error::Error + Send + Sync>),
     Production(LayoutAbiExportLoweringError),
     Resource(WireError),
     Encoding(scoop_wire::cbor::EncodeError),
@@ -133,6 +142,7 @@ pub enum LayoutAbiSourceProjectionError {
         expected: ConeIdentity,
         actual: ConeIdentity,
     },
+    LocalDependency(mir::MirTypeBridgeTargetV1),
     PhysicalInventory,
     PhysicalDefinition {
         provider: ConeIdentity,
@@ -159,4 +169,18 @@ impl std::fmt::Display for Error {
         write!(f, "cannot project the layout/ABI section source: {self:?}")
     }
 }
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::MirSource(error) => Some(error.as_ref()),
+            Self::Production(error) => Some(error),
+            Self::Resource(error) => Some(error),
+            Self::Encoding(error) => Some(error),
+            Self::Inventory(_)
+            | Self::TypeProvider { .. }
+            | Self::LocalDependency(_)
+            | Self::PhysicalInventory
+            | Self::PhysicalDefinition { .. } => None,
+        }
+    }
+}

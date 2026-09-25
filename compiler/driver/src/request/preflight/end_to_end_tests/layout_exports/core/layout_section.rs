@@ -7,9 +7,21 @@ pub(super) fn check(
     input: scoop_lir_lower::LayoutAbiExportInputV1<'_>,
     exports: lir::LayoutAbiExportConstituentsV1,
 ) -> lir::CrossConeLayoutAbiSectionV1<'static> {
+    let mir_source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
+        mir_input,
+        scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
+            types: &[],
+            callables: &[],
+            dispatch: &[],
+        },
+        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
+        &mut meter(),
+    )
+    .unwrap();
     let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
         input,
         scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
+        &mir_source,
         &mut meter(),
     )
     .unwrap();

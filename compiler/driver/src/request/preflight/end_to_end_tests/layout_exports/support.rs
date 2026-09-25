@@ -239,7 +239,7 @@ pub(super) fn with_pair(
         layouts: &[&layouts],
         callables: &[],
     };
-    source_contracts::check(input, dependencies);
+    source_contracts::check(input, dependencies, &projected);
     shared_ordinary::check_dependency_uses(
         hir::SharedTypeMetadataV1 {
             provider: input.mir.module().cone,

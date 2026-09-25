@@ -8,7 +8,11 @@ generic 声明。测试从真实 core 源码产生 MIR/LIR layout 表与 Strong 
 - `*.mir.snap` 和 `*.lir.snap` 锁定共有 metadata reader 重放的语义依赖图。
 - `*.machine.mir.snap` 和 `*.machine.lir.snap` 锁定实际函数、装箱、拆箱和类型测试。
 - driver harness 验证 MIR helper 的 source/provider 归属，消费方不产生这些 helper
-  的本地 layout、描述符、dispatch adjust 或 registration，并检查 LLVM 和对象发射。
+  的本地 layout、描述符、dispatch adjust 或 registration，并检查 LLVM 和 Strong V2 对象发射。
+- 完整 layout 来源投影直接复用 MIR 来源接口；实际 Type/ShapeSupport 用途经完整 section
+  和字节解码后的共有 reader 重放，必须与 `*.lir.snap` 的独立语义依赖图一致。
+- layout 的五组本地 exports、物理导入和 Strong V2 registration 完成同一 source/export
+  校验，来源记录漂移和累计预算反例由同一入口拒绝。
 - 反例覆盖缺少完整选择集、错误 consumer、缺少 ShapeSupport、裸描述符不能替代
   ShapeSupport、缺少 helper 物理导入、错误 helper 配对、预算耗尽，以及 runtime
   String 描述符不能单独授予源码类型测试能力。

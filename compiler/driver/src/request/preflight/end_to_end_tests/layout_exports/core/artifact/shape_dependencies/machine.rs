@@ -4,7 +4,14 @@ use super::super::machine_selection::Source;
 use super::*;
 use scoop_identity::{ExactTypeDiagnosticCatalog, PersistentExactTypeId, PersistentTypeId};
 
+mod publication;
 mod rejections;
+
+#[derive(Clone, Copy)]
+pub(super) struct PublicationInput<'a> {
+    pub bridge: &'a mir::MirTypeBridgeExportConstituentsV1,
+    pub source: &'a scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+}
 
 #[derive(Clone, Copy)]
 pub(super) struct Provider<'a, 'p> {
@@ -21,6 +28,7 @@ pub(super) fn check(
     callables: &lir::SelectedExternalLirSet,
     shapes: &[(ConeIdentity, PersistentTypeId)],
     provider: Provider<'_, '_>,
+    publication_input: PublicationInput<'_>,
 ) {
     let plan = input.mir.materialization();
     assert!(plan.source_nominal_shapes().is_empty());
@@ -131,7 +139,16 @@ pub(super) fn check(
         &fixtures.join(format!("{name}.machine.lir.snap")),
         &lir::dump(output.module()),
     );
-    emit(name, &output, &coordinate, provider);
+    let (production, relations) = publication::check(
+        input,
+        &output,
+        &selected,
+        provider,
+        publication_input,
+        &coordinates,
+    );
+    snapshot(&fixtures.join(format!("{name}.lir.snap")), &relations);
+    emit(name, &output, &coordinate, provider, production);
 }
 
 fn emit(
@@ -139,6 +156,7 @@ fn emit(
     output: &lir::SingleConeStrongLirOutput,
     coordinate: &ConeCoordinate,
     provider: Provider<'_, '_>,
+    production: lir::ValidatedStrongProductionSectionV2,
 ) {
     let profile = scoop_codegen::ValidatedBackendProfile::from_selection(
         provider.target.lir_target_selection(),
@@ -173,14 +191,7 @@ fn emit(
         }
     }
     let directory = tempfile::tempdir().unwrap();
-    let objects = scoop_codegen::emit_object_set(
-        output,
-        coordinate,
-        &dependencies,
-        lir::EntryProductionSourceV1::Library,
-        directory.path(),
-        profile,
-    )
-    .unwrap();
+    let objects =
+        scoop_codegen::emit_object_set_v2(output, production, directory.path(), profile).unwrap();
     assert_eq!(objects.members().len(), output.module().functions.len() + 1);
 }

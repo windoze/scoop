@@ -72,6 +72,7 @@ pub(super) fn check(
                 let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
                     input,
                     dependencies,
+                    &source,
                     &mut meter(),
                 )
                 .unwrap();

@@ -112,6 +112,10 @@ pub(super) fn check(
                             .unwrap()
                             .exact(),
                     },
+                    machine::PublicationInput {
+                        bridge: section.exports(),
+                        source: &projection,
+                    },
                 );
             },
         );
