@@ -19,12 +19,44 @@ pub(in super::super) fn read<'a>(
     core: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
     artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
 ) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
-    let closure = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
-        open(artifact).identity(),
+    read_sections(open(core), open(artifact))
+}
+
+pub(in super::super) fn open_link(
+    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+) -> scoop_slib::DecodedCrossConeLayoutLinkSections<'_> {
+    DecodedSlibEnvelope::open(
+        artifact.as_bytes(),
+        DecodeLimits::default(),
         artifact.target_selection(),
-        vec![open(core).identity()],
-        vec![open(core)],
-        open(artifact),
+    )
+    .unwrap()
+    .validate_graph()
+    .unwrap()
+    .decode_cross_cone_layout_link_sections()
+    .unwrap()
+}
+
+pub(in super::super) fn read_link<'a>(
+    core: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+    read_sections(
+        open_link(core).into_shared_sections().unwrap(),
+        open_link(artifact).into_shared_sections().unwrap(),
+    )
+}
+
+pub(in super::super) fn read_sections<'a>(
+    core: scoop_slib::DecodedCrossConeLayoutCompileSections<'a>,
+    artifact: scoop_slib::DecodedCrossConeLayoutCompileSections<'a>,
+) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
+    let closure = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
+        artifact.identity(),
+        artifact.target_selection(),
+        vec![core.identity()],
+        vec![core],
+        artifact,
     )
     .validate_profile_graph()
     .unwrap()
@@ -120,6 +152,20 @@ pub(super) fn check(
             let current = physical.artifact(layout.provider()).unwrap();
             assert_eq!(current.lir_exports(), layout.exports());
             assert!(current.lir_physical_imports().records().is_empty());
+            assert!(current.link_sections().is_none());
+        })
+        .unwrap();
+    read_link(core, artifact)
+        .with_replayed_physical_imports(|physical| {
+            assert_eq!(physical.dependency_first().count(), 2);
+            for current in physical.dependency_first() {
+                assert!(current.link_sections().is_some());
+                assert!(current.lir_physical_imports().records().is_empty());
+            }
+            assert_eq!(
+                physical.artifact(layout.provider()).unwrap().lir_exports(),
+                layout.exports()
+            );
         })
         .unwrap();
 }

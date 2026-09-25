@@ -614,6 +614,7 @@ dependencies = [
  "clap",
  "insta",
  "la-arena",
+ "object",
  "scoop-ast",
  "scoop-codegen",
  "scoop-hir",

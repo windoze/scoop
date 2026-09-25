@@ -173,6 +173,7 @@ where
         mir_ordinary,
         lir_foundation,
         meter,
+        link_sections,
     } = artifact.semantic_parts();
     let hir = validate_hir_provider(
         position,
@@ -256,6 +257,7 @@ where
         });
     checked_mir.push(mir);
     lir_validations.push(PreparedCrossConeLayoutLirValidation {
+        link_sections,
         coordinate,
         identities,
         foundation: lir_foundation,

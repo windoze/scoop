@@ -77,6 +77,13 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     parts.meter,
                 )?;
                 strong.validate_replayed_layout_selection(&layout, parts.meter)?;
+                if let Some(link) = parts.link_sections {
+                    link.layout_link_closure_wire()
+                        .validate_physical_imports_against(
+                            layout.physical_imports(),
+                            parts.meter,
+                        )?;
+                }
                 parts.meter.charge_owned_bytes(
                     std::mem::size_of::<PhysicalImportsReplayedCrossConeLayoutSections<'_, '_>>()
                         as u64,

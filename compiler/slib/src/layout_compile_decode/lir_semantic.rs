@@ -22,4 +22,5 @@ pub(crate) struct PreparedCrossConeLayoutLirValidation<'a> {
     pub(crate) foundation: &'a OdrFreeLirFoundation,
     pub(crate) meter: &'a mut BudgetMeter,
     pub(crate) candidates: DecodedCrossConeLayoutLirCandidates,
+    pub(crate) link_sections: Option<&'a crate::DecodedCrossConeLayoutLinkOnlySections>,
 }

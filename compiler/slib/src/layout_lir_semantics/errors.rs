@@ -63,6 +63,10 @@ pub enum CrossConeLayoutLirSemanticClosureError<HE, ME, LE> {
         provider: ConeIdentity,
         source: Box<StrongProductionLayoutJoinError>,
     },
+    LinkImports {
+        provider: ConeIdentity,
+        source: Box<crate::LayoutLinkClosureError>,
+    },
 }
 
 impl<HE: fmt::Display, ME: fmt::Display + fmt::Debug, LE: fmt::Display + fmt::Debug> fmt::Display
@@ -140,6 +144,10 @@ impl<HE: fmt::Display, ME: fmt::Display + fmt::Debug, LE: fmt::Display + fmt::De
                 formatter,
                 "invalid Strong V2 layout/ABI join for {provider}: {source}"
             ),
+            Self::LinkImports { provider, source } => write!(
+                formatter,
+                "invalid Link physical imports for {provider}: {source}"
+            ),
         }
     }
 }
@@ -160,6 +168,7 @@ where
             Self::StrongReplay { source, .. } => Some(source.as_ref()),
             Self::LayoutAbi { source, .. } => Some(source.as_ref()),
             Self::StrongLayoutJoin { source, .. } => Some(source.as_ref()),
+            Self::LinkImports { source, .. } => Some(source.as_ref()),
             Self::AuthorityCount { .. }
             | Self::AuthorityProvider { .. }
             | Self::Allocation { .. }

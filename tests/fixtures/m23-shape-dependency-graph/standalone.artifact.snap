@@ -6,3 +6,6 @@ direct=1
 selected=33
 physical=1
 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d TypeDescriptor(PersistentExactTypeId([229, 105, 65, 65, 243, 168, 245, 92, 162, 175, 104, 227, 46, 123, 225, 26, 71, 34, 53, 160, 90, 192, 33, 24, 98, 233, 154, 129, 11, 77, 60, 97])) ObjectDefinitionPlanId([192, 202, 167, 31, 168, 214, 219, 79, 84, 228, 65, 64, 44, 180, 101, 220, 188, 78, 76, 184, 81, 42, 205, 204, 217, 205, 110, 133, 1, 165, 248, 194])
+link-providers=2
+link-physical=1
+link-only-sections=8

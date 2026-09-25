@@ -25,6 +25,7 @@ pub(super) struct PreparedLayoutLirFront<'a> {
     pub(super) abi_expectations: Vec<AbiExpectation>,
     pub(super) strong: DecodedStrongProductionSectionV2,
     pub(super) layout: DecodedCrossConeLayoutAbiSectionV1,
+    pub(super) link_sections: Option<&'a crate::DecodedCrossConeLayoutLinkOnlySections>,
 }
 
 pub(super) fn validate<'a, HE, ME, LE>(
@@ -77,6 +78,7 @@ pub(super) fn validate<'a, HE, ME, LE>(
             abi_expectations,
             strong: candidates.strong,
             layout: candidates.layout,
+            link_sections: validation.link_sections,
         });
     }
     validate_terminal_selections(&fronts, positions, dependency_positions)?;

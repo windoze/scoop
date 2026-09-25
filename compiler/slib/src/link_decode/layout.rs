@@ -21,8 +21,11 @@ use crate::{
 
 mod accessors;
 mod decode;
+mod shared;
 
 pub use decode::CrossConeLayoutLinkSectionDecodeError;
+pub use shared::DecodedCrossConeLayoutLinkOnlySections;
+pub(crate) use shared::DecodedLayoutView;
 
 /// Canonically decoded payloads from one exact
 /// `cross-cone-layout-strong/1` Link view.

@@ -1,4 +1,4 @@
-//! Exact Compile-view section decoding for the M23-6 layout profile.
+//! Shared semantic section decoding for the M23-6 Compile and Link views.
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
@@ -16,6 +16,7 @@ use scoop_mir::{
     DecodedCrossConeMirTypeBridgeSectionV1, DecodedMirFoundation,
 };
 
+use crate::link_decode::DecodedLayoutView;
 use crate::{ValidatedGraphArtifact, strong_compile_decode::OdrFreeStrongFoundationSet};
 
 mod accessors;
@@ -33,26 +34,27 @@ pub use mir_semantic::CrossConeLayoutMirFrontValidationError;
 pub(crate) use mir_semantic::{PreparedCrossConeLayoutMirSections, PreparedLayoutMirSemanticParts};
 
 /// Canonically decoded payloads from one exact
-/// `cross-cone-layout-strong/1` Compile view.
+/// `cross-cone-layout-strong/1` Compile or Link view.
 ///
 /// These wire values have passed profile inventory and semantic-fingerprint
 /// checks. They still carry no identity, source, selection, layout, or
 /// production authority; later typed transitions must validate those joins.
 #[derive(Debug)]
 pub struct DecodedCrossConeLayoutCompileSections<'input> {
-    graph: ValidatedGraphArtifact<'input>,
-    hir_foundation: DecodedHirFoundation,
-    hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
-    hir_interface: DecodedCrossConeHirInterfaceSectionV1,
-    hir_type_semantics: DecodedCrossConeTypeSemanticsSectionV1,
-    mir_foundation: DecodedMirFoundation,
-    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
-    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
-    mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
-    lir_foundation: DecodedLirFoundation,
-    lir_strong_production: DecodedStrongProductionSectionV2,
-    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
-    lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
+    pub(crate) graph: ValidatedGraphArtifact<'input>,
+    pub(crate) view: DecodedLayoutView,
+    pub(crate) hir_foundation: DecodedHirFoundation,
+    pub(crate) hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
+    pub(crate) hir_interface: DecodedCrossConeHirInterfaceSectionV1,
+    pub(crate) hir_type_semantics: DecodedCrossConeTypeSemanticsSectionV1,
+    pub(crate) mir_foundation: DecodedMirFoundation,
+    pub(crate) mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    pub(crate) mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
+    pub(crate) mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
+    pub(crate) lir_foundation: DecodedLirFoundation,
+    pub(crate) lir_strong_production: DecodedStrongProductionSectionV2,
+    pub(crate) lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+    pub(crate) lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }
 
 /// M23-6 Compile payloads whose complete HIR-to-LIR foundation identity
@@ -60,6 +62,7 @@ pub struct DecodedCrossConeLayoutCompileSections<'input> {
 /// reference remain unvalidated.
 pub struct IdentityCheckedCrossConeLayoutCompileSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
+    view: DecodedLayoutView,
     identities: ValidatedIdentityGraph,
     hir_foundation: DecodedHirFoundation,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
@@ -80,6 +83,7 @@ pub struct IdentityCheckedCrossConeLayoutCompileSections<'input> {
 /// decoded references without lookup, selection, or machine-use authority.
 pub struct FoundationValidatedCrossConeLayoutCompileSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
+    view: DecodedLayoutView,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
@@ -98,6 +102,7 @@ pub struct FoundationValidatedCrossConeLayoutCompileSections<'input> {
 /// dependency semantics remain separate obligations.
 pub struct ResolvedCrossConeLayoutHirSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
+    view: DecodedLayoutView,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
@@ -116,6 +121,7 @@ pub struct ResolvedCrossConeLayoutHirSections<'input> {
 /// and type-semantics tables still require their complete semantic authorities.
 pub struct HirProductionValidatedCrossConeLayoutSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
+    view: DecodedLayoutView,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     hir_core_production: CoreBootstrapInterfaceSectionV1,

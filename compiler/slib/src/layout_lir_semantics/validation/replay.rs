@@ -184,6 +184,16 @@ where
             source: Box::new(source),
         })?;
     super::abi::validate(&front.abi_expectations, &layout, &transitive, front.meter)?;
+    if let Some(link) = front.link_sections {
+        link.layout_link_closure_wire()
+            .validate_semantic_imports_against(layout.selected(), front.meter)
+            .map_err(
+                |source| CrossConeLayoutLirSemanticClosureError::LinkImports {
+                    provider: front.provider,
+                    source: Box::new(source),
+                },
+            )?;
+    }
     let strong = replayed
         .validate_layout_abi(&layout, front.meter)
         .map_err(

@@ -23,6 +23,7 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
     {
         let Self {
             mut graph,
+            view,
             hir_foundation,
             hir_core_production,
             hir_interface,
@@ -45,6 +46,7 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
         )?;
         Ok(IdentityCheckedCrossConeLayoutCompileSections {
             graph,
+            view,
             identities,
             hir_foundation,
             hir_core_production,
@@ -73,6 +75,7 @@ impl<'input> IdentityCheckedCrossConeLayoutCompileSections<'input> {
     > {
         let Self {
             mut graph,
+            view,
             mut identities,
             hir_foundation,
             hir_core_production,
@@ -96,6 +99,7 @@ impl<'input> IdentityCheckedCrossConeLayoutCompileSections<'input> {
         )?;
         Ok(FoundationValidatedCrossConeLayoutCompileSections {
             graph,
+            view,
             identities,
             foundations,
             hir_core_production,

@@ -1,6 +1,8 @@
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
 use scoop_wire::encode;
 
+mod shared;
+
 use super::*;
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView,

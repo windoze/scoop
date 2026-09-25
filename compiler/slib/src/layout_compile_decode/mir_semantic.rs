@@ -25,6 +25,7 @@ use crate::{
 
 pub(crate) struct PreparedCrossConeLayoutMirSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
+    view: crate::link_decode::DecodedLayoutView,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     hir_core: CoreBootstrapInterfaceSectionV1,
@@ -45,6 +46,7 @@ pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
     pub(crate) mir_ordinary: &'a CrossConeMirBridgeSectionV1,
     pub(crate) lir_foundation: &'a OdrFreeLirFoundation,
     pub(crate) meter: &'a mut BudgetMeter,
+    pub(crate) link_sections: Option<&'a crate::DecodedCrossConeLayoutLinkOnlySections>,
 }
 
 impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
@@ -60,6 +62,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
     > {
         let Self {
             mut graph,
+            view,
             mut identities,
             foundations,
             hir_core_production,
@@ -102,6 +105,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
         Ok((
             PreparedCrossConeLayoutMirSections {
                 graph,
+                view,
                 identities,
                 foundations,
                 hir_core: hir_core_production,
@@ -121,6 +125,14 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
 }
 
 impl PreparedCrossConeLayoutMirSections<'_> {
+    pub(crate) fn link_sections(&self) -> Option<&crate::DecodedCrossConeLayoutLinkOnlySections> {
+        self.view.link()
+    }
+
+    pub(crate) fn decode_usage(&self) -> scoop_wire::DecodeUsage {
+        self.graph.decode_usage()
+    }
+
     pub(crate) fn shared_metadata(&self) -> scoop_hir::SharedTypeMetadataV1<'_> {
         scoop_hir::SharedTypeMetadataV1 {
             provider: self.graph.identity(),
@@ -158,6 +170,7 @@ impl PreparedCrossConeLayoutMirSections<'_> {
             mir_ordinary: &self.mir_ordinary,
             lir_foundation: &self.foundations.lir,
             meter: self.graph.envelope.meter_mut(),
+            link_sections: self.view.link(),
         }
     }
 }

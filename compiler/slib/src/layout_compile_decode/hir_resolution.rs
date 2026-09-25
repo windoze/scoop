@@ -22,6 +22,7 @@ impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
     ) -> Result<ResolvedCrossConeLayoutHirSections<'input>, CrossConeLayoutHirResolutionError> {
         let Self {
             mut graph,
+            view,
             mut identities,
             foundations,
             hir_core_production,
@@ -46,6 +47,7 @@ impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
             .map_err(|error| CrossConeLayoutHirResolutionError::TypeSemantics(Box::new(error)))?;
         Ok(ResolvedCrossConeLayoutHirSections {
             graph,
+            view,
             identities,
             foundations,
             hir_core_production,
@@ -72,6 +74,7 @@ impl<'input> ResolvedCrossConeLayoutHirSections<'input> {
     > {
         let Self {
             graph,
+            view,
             identities,
             foundations,
             hir_core_production,
@@ -88,6 +91,7 @@ impl<'input> ResolvedCrossConeLayoutHirSections<'input> {
             .validate_against_strong_foundation(graph.identity(), &foundations.hir)?;
         Ok(HirProductionValidatedCrossConeLayoutSections {
             graph,
+            view,
             identities,
             foundations,
             hir_core_production,

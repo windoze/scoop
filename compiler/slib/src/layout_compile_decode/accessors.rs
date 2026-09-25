@@ -9,6 +9,10 @@ use crate::{
 };
 
 impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
+    pub fn link_sections(&self) -> Option<&crate::DecodedCrossConeLayoutLinkOnlySections> {
+        self.view.link()
+    }
+
     pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
         self.graph.coordinate()
     }

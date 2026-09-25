@@ -104,6 +104,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
 
         Ok(DecodedCrossConeLayoutCompileSections {
             graph: self,
+            view: crate::link_decode::DecodedLayoutView::Compile,
             hir_foundation,
             hir_core_production,
             hir_interface,

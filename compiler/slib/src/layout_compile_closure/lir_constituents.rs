@@ -40,6 +40,12 @@ pub struct LirConstituentsValidatedCrossConeLayoutClosure<
 }
 
 impl<L, O, S, M> LirConstituentsValidatedCrossConeLayoutSections<'_, L, O, S, M> {
+    pub fn link_sections(&self) -> Option<&crate::DecodedCrossConeLayoutLinkOnlySections> {
+        self.prepared.link_sections()
+    }
+    pub fn decode_usage(&self) -> scoop_wire::DecodeUsage {
+        self.prepared.decode_usage()
+    }
     pub fn identity(&self) -> ConeIdentity {
         self.prepared.provider()
     }

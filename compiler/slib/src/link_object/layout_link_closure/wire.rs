@@ -75,7 +75,17 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
         selected: &SelectedDependencyLayoutAbiSetV1<'_>,
         meter: &mut BudgetMeter,
     ) -> Result<(), LayoutLinkClosureError> {
-        if !same_bytes(&self.semantic_imports, selected.physical_imports(), meter)? {
+        self.validate_physical_imports_against(selected.physical_imports(), meter)
+    }
+
+    /// Checks terminal contracts replayed from the same artifact's shared
+    /// sections. Actual relocation and object coverage remain separate checks.
+    pub fn validate_physical_imports_against(
+        &self,
+        imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), LayoutLinkClosureError> {
+        if !same_bytes(&self.semantic_imports, imports, meter)? {
             return Err(LayoutLinkClosureError::SemanticImports(
                 scoop_lir::ShapeLinkError::Contract,
             ));

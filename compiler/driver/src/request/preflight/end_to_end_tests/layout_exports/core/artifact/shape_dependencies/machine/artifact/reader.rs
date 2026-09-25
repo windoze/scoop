@@ -1,8 +1,12 @@
 //! Replay nonempty helper imports from the assembled consumer's bytes.
 
 pub(super) use super::super::super::super::lir_dependencies::reader::open;
-use super::super::super::super::lir_dependencies::reader::read;
+use super::super::super::super::lir_dependencies::reader::{
+    open_link, read, read_link, read_sections,
+};
 use super::*;
+
+mod link;
 
 pub(super) fn check(
     name: &str,
@@ -99,5 +103,6 @@ pub(super) fn check(
             }
         })
         .unwrap_or_else(|error| panic!("{name} shared physical replay: {error}"));
+    dump.push_str(&link::check(provider, artifact, layout, &link));
     snapshot(&fixtures.join(format!("{name}.artifact.snap")), &dump);
 }

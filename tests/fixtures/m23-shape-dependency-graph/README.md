@@ -13,6 +13,9 @@ generic 声明。测试从真实 core 源码产生 MIR/LIR layout 表与 Strong 
   和字节解码后的共有 reader 重放，必须与 `*.lir.snap` 的独立语义依赖图一致。
 - layout 的五组本地 exports、物理导入和 Strong V2 registration 完成同一 source/export
   校验，来源记录漂移和累计预算反例由同一入口拒绝。
+- `*.artifact.snap` 记录实际组装产物及 Compile、Link 独立重放后的 provider/物理导入。
+  Link 的四组专用载荷和原累计预算贯穿共有路径；修改 Link-only provider 并重建合法
+  archive hash 的反例，必须在物理导入关联处拒绝，不能仅靠外层摘要或成功解码放行。
 - 反例覆盖缺少完整选择集、错误 consumer、缺少 ShapeSupport、裸描述符不能替代
   ShapeSupport、缺少 helper 物理导入、错误 helper 配对、预算耗尽，以及 runtime
   String 描述符不能单独授予源码类型测试能力。
