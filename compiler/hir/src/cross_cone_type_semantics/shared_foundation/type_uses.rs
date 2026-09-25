@@ -26,6 +26,10 @@ enum Kind {
     ShapeSupport,
     Construct(scoop_identity::PersistentConstructorId),
     VariantConstruct(scoop_identity::PersistentEnumVariantId),
+    MemberCall {
+        receiver: PersistentExactTypeId,
+        declaration: crate::InheritanceCallableDeclarationV1,
+    },
     ClassBase(PersistentExactTypeId),
     Interface(PersistentExactTypeId),
 }
@@ -44,6 +48,13 @@ impl Kind {
             Self::VariantConstruct(declaration) => SelectedTypeUseV1::Construct {
                 exact,
                 declaration: crate::SelectedTypeConstructionV1::EnumVariant(declaration),
+            },
+            Self::MemberCall {
+                receiver,
+                declaration,
+            } => SelectedTypeUseV1::MemberCall {
+                receiver,
+                declaration,
             },
             Self::ClassBase(derived) => SelectedTypeUseV1::Inheritance {
                 derived,
@@ -65,6 +76,7 @@ impl Kind {
                 | SelectedTypeUseV1::ShapeSupport { .. }
                 | SelectedTypeUseV1::Inheritance { .. }
                 | SelectedTypeUseV1::Construct { .. }
+                | SelectedTypeUseV1::MemberCall { .. }
         )
     }
 }
@@ -86,9 +98,9 @@ struct Graph<'a> {
 impl<'a> SharedTypeMetadataV1<'a> {
     /// Uses actual shared occurrences and declaration dependencies, never the
     /// candidate selected table. This is the type-requirement partition only;
-    /// actual call signatures, explicit and runtime construction, inheritance,
-    /// and shape operations are included. Other source operations and access
-    /// relations remain independent checks.
+    /// actual call signatures, member calls, explicit and runtime construction,
+    /// inheritance, and shape operations are included. Other source operations
+    /// and access relations remain independent checks.
     pub fn materialized_type_uses(
         self,
         dependencies: &[SharedTypeMetadataV1<'a>],
@@ -124,7 +136,7 @@ impl<'a> SharedTypeMetadataV1<'a> {
 }
 
 impl CheckedSharedTypeFoundationV1<'_> {
-    /// Precisely compares type, inheritance, shape, and construction requirements.
+    /// Precisely compares type, inheritance, shape, construction and member calls.
     /// This does not construct a complete selected-use or artifact permit.
     pub fn validate_materialized_type_uses(
         self,

@@ -50,7 +50,18 @@ impl Artifact {
                 NominalSourceShapeV1::Enum(EnumSourceShapeV1::try_new(Vec::new()).unwrap()),
                 NominalInheritanceModalityV1::Final,
             ),
-            _ => panic!("the fixture requires a class, interface, struct or enum"),
+            SourceNominalKind::Object => (
+                PublicNominalKindV1::Object,
+                NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+                    scoop_identity::PersistentObjectValueId::from_source_object(identity.key())
+                        .unwrap(),
+                    Default::default(),
+                )),
+                NominalInheritanceModalityV1::Final,
+            ),
+            SourceNominalKind::AnnotationClass => {
+                panic!("call fixtures require runtime nominal declarations")
+            }
         };
         let parents = parents
             .iter()

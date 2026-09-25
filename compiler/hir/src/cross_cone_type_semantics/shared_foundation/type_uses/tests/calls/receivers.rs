@@ -11,21 +11,13 @@ fn shared_call_receiver_demands_its_original_static_type_before_argument_adaptat
     let dependencies = dependencies(&core, &provider);
     let mut consumer = Artifact::new(coordinate_for_consumer()).load(&dependencies);
     consumer.calls(&provider, &[member, member]);
-    consumer.change_last_call(|site| {
-        assert_eq!(site.arguments()[0], exact(base));
-        crate::HirDependencyCallSiteV1::try_new(
-            site.position(),
-            site.origin().clone(),
-            site.arguments().to_vec(),
-            site.result(),
-            site.witness_indices().to_vec(),
-            crate::SourceCallReceiver::Receiver {
-                static_type: exact(derived),
-            },
-        )
-        .unwrap()
-    });
-    let expected = selected(signature_uses(provider.provider(), &[base, derived]));
+    consumer.change_last_receiver(exact(derived));
+    let mut uses = signature_uses(provider.provider(), &[base, derived]);
+    uses.extend([
+        member_call(provider.provider(), base, member),
+        member_call(provider.provider(), derived, member),
+    ]);
+    let expected = selected(uses);
     let actual = consumer.uses(&dependencies).unwrap();
     assert_eq!(actual, expected);
     consumer

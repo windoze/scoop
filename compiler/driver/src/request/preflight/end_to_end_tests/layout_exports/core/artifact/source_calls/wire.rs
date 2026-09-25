@@ -7,6 +7,30 @@ pub(super) fn replace_public(
     mut public: hir::CrossConeHirInterfaceSectionV1,
 ) -> Vec<u8> {
     let replacement = encode(&public.index_for_wire().unwrap()).unwrap();
+    replace_hir_section(
+        artifact,
+        &slib::hir_cross_cone_interface_capability(),
+        replacement,
+    )
+}
+
+pub(super) fn replace_types(
+    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    types: &hir::CrossConeTypeSemanticsSectionV1,
+) -> Vec<u8> {
+    let replacement = encode(&types.index_for_wire(&mut meter()).unwrap()).unwrap();
+    replace_hir_section(
+        artifact,
+        &slib::hir_cross_cone_type_semantics_capability(),
+        replacement,
+    )
+}
+
+fn replace_hir_section(
+    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+    capability: &scoop_identity::CapabilityId,
+    replacement: Vec<u8>,
+) -> Vec<u8> {
     let bytes = artifact.as_bytes();
     let archive = object::read::archive::ArchiveFile::parse(bytes).unwrap();
     let mut entries = archive.members();
@@ -35,13 +59,12 @@ pub(super) fn replace_public(
                 .sections()
                 .iter()
                 .map(|section| {
-                    let payload =
-                        if section.capability() == &slib::hir_cross_cone_interface_capability() {
-                            replaced += 1;
-                            replacement.clone()
-                        } else {
-                            section.payload().to_vec()
-                        };
+                    let payload = if section.capability() == capability {
+                        replaced += 1;
+                        replacement.clone()
+                    } else {
+                        section.payload().to_vec()
+                    };
                     slib::MetadataSection::new(
                         slib::MetadataLocation::Hir,
                         section.capability().clone(),
@@ -81,7 +104,7 @@ pub(super) fn replace_public(
     assert!(entries.next().is_none());
     assert_eq!(replaced, 1);
     let manifest = slib::BootstrapManifest::new(
-        slib::ProducerRecord::new("source-call-signature-negative").unwrap(),
+        slib::ProducerRecord::new("source-call-negative").unwrap(),
         manifest.compatibility().clone(),
         manifest.cone().clone(),
         manifest.direct_dependencies().to_vec(),

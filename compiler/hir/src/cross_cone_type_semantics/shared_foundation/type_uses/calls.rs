@@ -1,5 +1,6 @@
 use super::*;
 
+mod members;
 mod receivers;
 mod signatures;
 
@@ -37,6 +38,7 @@ impl Graph<'_> {
                         self.source_receiver(call.receiver(), meter)?;
                         self.call_signature(source, meter, &path)?;
                         self.source_construction(source, meter)?;
+                        self.source_member(source, metadata, call, meter, &path)?;
                     }
                     crate::HirDependencyCallReasonV1::CastFailure { .. } => {
                         let (constructor, owner) = call

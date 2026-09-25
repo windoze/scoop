@@ -4,6 +4,7 @@ use super::*;
 use scoop_slib as slib;
 
 mod candidates;
+mod members;
 mod wire;
 
 pub(super) fn check(
@@ -12,6 +13,7 @@ pub(super) fn check(
     provider_artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
 ) {
+    members::check(input, provider_artifact, artifact);
     let foundation = hir::OdrFreeHirFoundation::try_new(
         hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap(),
     )

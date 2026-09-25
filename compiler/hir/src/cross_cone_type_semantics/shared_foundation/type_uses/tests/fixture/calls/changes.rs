@@ -1,6 +1,20 @@
 use super::*;
 
 impl Loaded {
+    pub fn change_last_receiver(&mut self, static_type: PersistentExactTypeId) {
+        self.change_last_call(|site| {
+            HirDependencyCallSiteV1::try_new(
+                site.position(),
+                site.origin().clone(),
+                site.arguments().to_vec(),
+                site.result(),
+                site.witness_indices().to_vec(),
+                crate::SourceCallReceiver::Receiver { static_type },
+            )
+            .unwrap()
+        });
+    }
+
     pub fn change_last_argument(&mut self, exact: PersistentExactTypeId) {
         self.change_last_call(|site| {
             let mut arguments = site.arguments().to_vec();

@@ -2,10 +2,16 @@ use super::*;
 use fixture::CallForm;
 
 mod constructors;
+mod members;
 mod negative;
 mod receivers;
 mod resources;
 mod signatures;
+mod snapshot;
+mod support;
+
+use snapshot::snapshot;
+use support::*;
 
 #[test]
 fn shared_call_signatures_derive_demand_for_core_and_ordinary_providers() {
@@ -24,10 +30,9 @@ fn shared_call_signatures_derive_demand_for_core_and_ordinary_providers() {
         let mut consumer = Artifact::new(coordinate_for_consumer()).load(&dependencies);
         consumer.calls(&provider, &[member]);
         let actual = consumer.uses(&dependencies).unwrap();
-        assert_eq!(
-            actual,
-            selected(signature_uses(provider.provider(), &[owner]))
-        );
+        let mut expected = signature_uses(provider.provider(), &[owner]);
+        expected.push(member_call(provider.provider(), owner, member));
+        assert_eq!(actual, selected(expected));
         consumer
             .validate(&actual, &dependencies, &mut meter())
             .unwrap();
@@ -52,6 +57,11 @@ fn shared_call_signatures_preserve_unit_arguments_and_close_owner_ancestry_once(
     let actual = consumer.uses(&dependencies).unwrap();
     let mut expected = signature_uses(provider.provider(), &[owner, value]);
     expected.push(representation(provider.provider(), base));
+    expected.extend([
+        member_call(provider.provider(), owner, getter),
+        member_call(provider.provider(), owner, setter),
+        member_call(provider.provider(), value, method),
+    ]);
     assert_eq!(actual, selected(expected));
     consumer
         .validate(&actual, &dependencies, &mut meter())
@@ -103,80 +113,4 @@ fn shared_call_signatures_follow_actual_top_level_and_extension_calls() {
         consumer.uses(&dependencies).unwrap(),
         selected(signature_uses(provider.provider(), &[]))
     );
-}
-
-fn dependencies<'a>(core: &'a Loaded, provider: &'a Loaded) -> Vec<&'a Loaded> {
-    if core.provider() == provider.provider() {
-        vec![provider]
-    } else {
-        vec![core, provider]
-    }
-}
-
-fn nominal_owner(owner: PersistentTypeId) -> PublicDeclarationOwnerV1 {
-    PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner))
-}
-
-fn representation(provider: ConeIdentity, owner: PersistentTypeId) -> SelectedExternalTypeUseV1 {
-    SelectedExternalTypeUseV1::new(
-        provider,
-        SelectedTypeUseV1::Representation {
-            exact: exact(owner),
-        },
-    )
-}
-
-fn signature(provider: ConeIdentity, owner: PersistentTypeId) -> SelectedExternalTypeUseV1 {
-    SelectedExternalTypeUseV1::new(
-        provider,
-        SelectedTypeUseV1::Signature {
-            exact: exact(owner),
-        },
-    )
-}
-
-fn signature_uses(
-    provider: ConeIdentity,
-    owners: &[PersistentTypeId],
-) -> Vec<SelectedExternalTypeUseV1> {
-    let unit = CoreBuiltinNominal::Unit.identity_record().id();
-    let mut uses = vec![
-        representation(ConeIdentity::CORE, unit),
-        signature(ConeIdentity::CORE, unit),
-    ];
-    for owner in owners {
-        uses.push(representation(provider, *owner));
-        uses.push(signature(provider, *owner));
-    }
-    uses
-}
-
-fn snapshot(name: &str, selected: &CanonicalSelectedExternalTypeUsesV1) {
-    let text = selected
-        .records()
-        .iter()
-        .map(|record| {
-            let usage = match record.usage() {
-                SelectedTypeUseV1::Representation { exact } => format!("Representation {exact}"),
-                SelectedTypeUseV1::Signature { exact } => format!("Signature {exact}"),
-                SelectedTypeUseV1::Construct { exact, declaration } => match declaration {
-                    SelectedTypeConstructionV1::Constructor(id) => {
-                        format!("Construct {exact} Constructor {id}")
-                    }
-                    SelectedTypeConstructionV1::EnumVariant(id) => {
-                        format!("Construct {exact} EnumVariant {id}")
-                    }
-                },
-                _ => panic!("the fixture selects signatures, representations and construction"),
-            };
-            format!("{} {usage}\n", record.provider())
-        })
-        .collect::<String>();
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-        "../../tests/fixtures/m23-shared-type-uses/{name}.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_SHARED_TYPE_USES").is_some() {
-        std::fs::write(&path, &text).unwrap();
-    }
-    assert_eq!(text, std::fs::read_to_string(path).unwrap());
 }

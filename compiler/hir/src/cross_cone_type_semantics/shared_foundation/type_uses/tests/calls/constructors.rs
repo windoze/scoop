@@ -158,6 +158,9 @@ fn shared_source_construction_combines_zero_argument_variants_members_and_foreig
         construction(provider.provider(), owner, constructor),
         construction(provider.provider(), enumeration, empty),
         construction(provider.provider(), enumeration, payload),
+        member_call(provider.provider(), owner, method),
+        member_call(provider.provider(), owner, getter),
+        member_call(provider.provider(), owner, setter),
     ]);
     assert_eq!(actual, selected(expected));
     consumer

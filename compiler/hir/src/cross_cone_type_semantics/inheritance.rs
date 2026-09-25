@@ -4,6 +4,7 @@ use scoop_identity::{PersistentExactTypeId, SourceDeclarationKey};
 
 use crate::{DeclarationAccessSourceV1, SourceNominalId};
 
+mod ancestry;
 mod edges;
 mod graph;
 mod interface;
@@ -11,6 +12,7 @@ mod objects;
 mod queries;
 mod source;
 
+pub(crate) use ancestry::is_nominal_ancestor;
 pub use edges::*;
 pub use graph::{InheritanceGraphError, NominalInheritanceSemanticAuthority};
 #[cfg(test)]
@@ -34,8 +36,8 @@ pub struct CheckedInheritanceNodeV1<'a> {
     edges: &'a NominalInheritanceEdgesV1,
     source: SourceNominalId,
 }
-impl CheckedInheritanceNodeV1<'_> {
-    pub const fn edges(&self) -> &NominalInheritanceEdgesV1 {
+impl<'a> CheckedInheritanceNodeV1<'a> {
+    pub const fn edges(&self) -> &'a NominalInheritanceEdgesV1 {
         self.edges
     }
     pub const fn source(&self) -> SourceNominalId {

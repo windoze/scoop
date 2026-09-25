@@ -54,6 +54,17 @@ impl Artifact {
         types.extend(self.nominals.iter().map(|(identity, _)| identity.clone()));
         canonical.set_types(types).unwrap();
         canonical
+            .set_object_values(
+                self.nominals
+                    .iter()
+                    .filter(|(_, nominal)| nominal.kind() == PublicNominalKindV1::Object)
+                    .map(|(identity, _)| {
+                        CborIdentityRecord::from_key(identity.key().clone()).unwrap()
+                    })
+                    .collect(),
+            )
+            .unwrap();
+        canonical
             .set_exact_types(
                 self.nominals
                     .iter()
