@@ -16,6 +16,7 @@ use crate::{
     },
 };
 
+mod complete;
 mod declarations;
 mod foundations;
 mod hir;
@@ -36,6 +37,7 @@ mod mir_dispatch;
 mod mir_source_callables;
 mod mir_types;
 mod type_foundations;
+pub use complete::CrossConeLayoutSemanticClosureError;
 pub use declarations::{
     CrossConeHirDeclarationValidationError, CrossConeLayoutHirDeclarationError,
     HirDeclarationsValidatedCrossConeLayoutClosure,
@@ -76,6 +78,7 @@ pub use lir_ordinary::{
     OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeDependenciesV1,
     SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
 };
+pub(crate) use lir_physical::LayoutPublicationParts;
 pub use lir_physical::{
     CrossConeLayoutLirPhysicalError, LinkObjectsReplayedCrossConeLayoutClosure,
     LinkSymbolsReplayedCrossConeLayoutClosure, PhysicalImportsReplayedCrossConeLayoutClosure,

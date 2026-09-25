@@ -11,7 +11,13 @@ pub(super) fn replay(
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     input: &ReplayInputs<'_, '_>,
     meter: &mut BudgetMeter,
-) -> Result<crate::CodeFingerprint, LayoutLinkSymbolUseError> {
+) -> Result<
+    (
+        crate::CodeFingerprint,
+        crate::SingleConeProductionCodeProjectionV1,
+    ),
+    LayoutLinkSymbolUseError,
+> {
     resources::production_projection(input, objects, meter)?;
     let manifest = input.manifest;
     let mut dependencies = Vec::new();
@@ -65,5 +71,5 @@ pub(super) fn replay(
             native.library_requirements(),
             meter,
         )?;
-    Ok(fingerprint)
+    Ok((fingerprint, production))
 }

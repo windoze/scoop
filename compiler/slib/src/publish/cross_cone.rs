@@ -1,7 +1,6 @@
-//! Publication proof and atomic persistence for the cross-Cone strong profile.
+//! Publication proofs and atomic persistence for cross-Cone strong profiles.
 
 use std::fmt;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::{
@@ -19,9 +18,12 @@ use crate::{
     validate_completed_cross_cone_artifact_closure,
 };
 
-/// Immutable summary proving that one exact final archive passed the M23-5
-/// Compile and Link views, including their byte-exact dependency-import
-/// projection equality.
+mod atomic;
+mod layout;
+pub use layout::*;
+
+/// Immutable summary proving that one exact final archive passed both views
+/// of its strong profile, including complete dependency-import equality.
 #[derive(Debug)]
 pub struct PublishableCrossConeArtifact {
     artifact_fingerprint: ArtifactFingerprint,
@@ -240,77 +242,21 @@ pub fn publish_cross_cone_artifact(
     target: ValidatedLirTargetSelection,
     c_bridge_profile: &scoop_lir::CBridgeToolchainProfileV1,
 ) -> Result<PublishedCrossConeArtifact, CrossConeArtifactPublishError> {
-    let parent = destination
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .ok_or_else(|| CrossConeArtifactPublishError::MissingParent {
-            destination: destination.to_path_buf(),
-        })?;
-    let mut temporary = tempfile::Builder::new()
-        .prefix(".scoop-publish-")
-        .suffix(".slib.tmp")
-        .tempfile_in(parent)
-        .map_err(|source| {
-            CrossConeArtifactPublishError::io(
-                CrossConePublishIoOperation::CreateTemporary,
-                parent.to_path_buf(),
-                source,
-            )
-        })?;
-    temporary.write_all(final_bytes).map_err(|source| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::WriteTemporary,
-            temporary.path().to_path_buf(),
-            source,
+    atomic::publish(final_bytes, destination, |round_trip_bytes| {
+        let mut session = SemanticIdentitySession::new();
+        let validation = validate_completed_cross_cone_artifact_closure(
+            current,
+            target,
+            direct,
+            dependency_first,
+            round_trip_bytes,
+            limits,
+            c_bridge_profile,
+            &mut session,
         )
-    })?;
-    temporary.flush().map_err(|source| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::FlushTemporary,
-            temporary.path().to_path_buf(),
-            source,
-        )
-    })?;
-    temporary.as_file().sync_all().map_err(|source| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::SyncTemporary,
-            temporary.path().to_path_buf(),
-            source,
-        )
-    })?;
-
-    let temporary = temporary.into_temp_path();
-    let round_trip_bytes = std::fs::read(&temporary).map_err(|source| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::ReadTemporary,
-            temporary.to_path_buf(),
-            source,
-        )
-    })?;
-    let mut session = SemanticIdentitySession::new();
-    let validation = validate_completed_cross_cone_artifact_closure(
-        current,
-        target,
-        direct,
-        dependency_first,
-        &round_trip_bytes,
-        limits,
-        c_bridge_profile,
-        &mut session,
-    )
-    .map_err(|source| CrossConeArtifactPublishError::Validation(Box::new(source)))?
-    .into_current_publication();
-    temporary.persist(destination).map_err(|error| {
-        CrossConeArtifactPublishError::io(
-            CrossConePublishIoOperation::RenameTemporary,
-            destination.to_path_buf(),
-            error.error,
-        )
-    })?;
-
-    Ok(PublishedCrossConeArtifact {
-        path: destination.to_path_buf(),
-        validation,
+        .map_err(|source| CrossConeArtifactPublishError::Validation(Box::new(source)))?
+        .into_current_publication();
+        Ok(validation)
     })
 }
 
@@ -364,6 +310,7 @@ pub enum CrossConeArtifactPublishError {
         source: std::io::Error,
     },
     Validation(Box<CrossConeArtifactClosureValidationError>),
+    LayoutValidation(Box<CrossConeLayoutArtifactValidationError>),
 }
 
 impl CrossConeArtifactPublishError {
@@ -390,6 +337,7 @@ impl fmt::Display for CrossConeArtifactPublishError {
                 source,
             } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
             Self::Validation(source) => source.fmt(formatter),
+            Self::LayoutValidation(source) => source.fmt(formatter),
         }
     }
 }
@@ -399,6 +347,7 @@ impl std::error::Error for CrossConeArtifactPublishError {
         match self {
             Self::Io { source, .. } => Some(source),
             Self::Validation(source) => Some(source.as_ref()),
+            Self::LayoutValidation(source) => Some(source.as_ref()),
             Self::MissingParent { .. } => None,
         }
     }

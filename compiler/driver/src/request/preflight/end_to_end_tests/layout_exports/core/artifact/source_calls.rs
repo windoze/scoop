@@ -14,6 +14,17 @@ mod wire;
 pub(super) use any_signatures::{check as check_any, check_link as check_any_link};
 pub(super) use receivers::check as check_receivers;
 
+pub(super) fn publication_mutation(
+    public: &hir::CrossConeHirInterfaceSectionV1,
+    artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
+) -> (Vec<u8>, hir::concrete::ExecutableExpressionPosition) {
+    let candidate = candidates::mutations(public).remove(0);
+    (
+        wire::replace_public(artifact, candidate.public),
+        candidate.position,
+    )
+}
+
 pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     provider: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,

@@ -16,6 +16,7 @@ mod mir_source_callables;
 mod mir_types;
 mod mir_units;
 mod property_initialization;
+mod publication;
 mod shape_dependencies;
 mod source_calls;
 mod type_foundations;

@@ -26,11 +26,16 @@ pub struct ReplayedLayoutLinkSymbolUsesV1<'input> {
     undefined: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     finalized: VerifiedCodeLinkObjectMemberSetV2,
     code: crate::CodeFingerprint,
+    production: crate::SingleConeProductionCodeProjectionV1,
 }
 
 impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
     pub const fn code_fingerprint(&self) -> crate::CodeFingerprint {
         self.code
+    }
+
+    pub const fn production_projection(&self) -> &crate::SingleConeProductionCodeProjectionV1 {
+        &self.production
     }
 
     pub const fn provider(&self) -> scoop_identity::ConeIdentity {

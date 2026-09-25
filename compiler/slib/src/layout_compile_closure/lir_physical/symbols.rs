@@ -15,6 +15,20 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
             LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'input>,
         ) -> R,
     ) -> Result<R, CrossConeLayoutLirPhysicalError> {
+        self.with_replayed_link_symbol_uses_and(profile, |_, _| Ok(()), use_checked)
+    }
+
+    pub(crate) fn with_replayed_link_symbol_uses_and<R>(
+        self,
+        profile: &lir::CBridgeToolchainProfileV1,
+        mut project: impl FnMut(
+            &mut PhysicalImportsReplayedCrossConeLayoutSections<'input, '_>,
+            &ReplayedLayoutLinkSymbolUsesV1<'input>,
+        ) -> Result<(), SharedLirPhysicalError>,
+        use_checked: impl for<'checked> FnOnce(
+            LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'input>,
+        ) -> R,
+    ) -> Result<R, CrossConeLayoutLirPhysicalError> {
         let selection = self.target;
         self.with_replayed_physical(
             |artifact, reachable, previous, physical| {
@@ -26,7 +40,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 let link = parts
                     .link_sections
                     .ok_or(crate::LayoutLinkObjectContentsError::CompileView)?;
-                Ok(layout_link_symbols::replay(
+                let symbols = layout_link_symbols::replay(
                     objects,
                     layout_link_symbols::ReplayInputs {
                         link,
@@ -44,7 +58,9 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     physical.iter().map(|artifact| &artifact.layout),
                     reachable,
                     parts.meter,
-                )?)
+                )?;
+                project(artifact, &symbols)?;
+                Ok(symbols)
             },
             |physical, symbols| {
                 use_checked(LinkSymbolsReplayedCrossConeLayoutClosure { physical, symbols })

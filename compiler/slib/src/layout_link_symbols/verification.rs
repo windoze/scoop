@@ -81,7 +81,7 @@ pub(crate) fn replay<'input, 'a, 'contract: 'a>(
         .replay_symbol_projections(&defined, undefined.legacy(), meter)?;
     let finalized = finalization::replay(&objects, &undefined, &input, &costs, meter)?;
     let (finalized, contributions) = coverage::replay(finalized, &ordinary, &shape, &input, meter)?;
-    let code = code::replay(
+    let (code, production) = code::replay(
         &finalized,
         &contributions,
         &defined,
@@ -97,5 +97,6 @@ pub(crate) fn replay<'input, 'a, 'contract: 'a>(
         undefined,
         finalized,
         code,
+        production,
     })
 }

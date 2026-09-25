@@ -17,11 +17,13 @@ use crate::dependency_reachability::transitive_positions;
 mod driver;
 mod errors;
 mod objects;
+mod publication;
 mod replay;
 mod support;
 mod symbols;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
 pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
+pub(crate) use publication::LayoutPublicationParts;
 pub use symbols::LinkSymbolsReplayedCrossConeLayoutClosure;
 
 pub type PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked> =
@@ -33,8 +35,7 @@ pub type PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked> =
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
 
-/// Read-only physical joins. Source/access, object-use coverage and Compile/Link
-/// agreement must still succeed before complete machine consumption.
+/// Read-only physical joins; Link consumption additionally checks object uses.
 pub struct PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input> {
     current: ConeIdentity,
     target: lir::ValidatedLirTargetSelection,
@@ -54,10 +55,10 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
             |artifact, _, _, _| {
                 artifact
                     .prepared
-                    .validate_link_materializations(&artifact.strong)?;
-                Ok(())
+                    .validate_link_materializations(&artifact.strong)
+                    .map_err(SharedLirPhysicalError::from)
             },
-            |physical, _| use_checked(physical),
+            |physical, _: Vec<()>| use_checked(physical),
         )
     }
 }

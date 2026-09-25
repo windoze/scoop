@@ -20,6 +20,7 @@ pub(super) fn check(
 ) {
     physical::check_provider(core_input);
     let prepared = super::shape_dependencies::provider::objects(producer, core_lir, target);
+    super::publication::check_provider(core_artifact, &prepared.c_bridge_profile);
     let owners = [
         scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
             prepared.patch_sites.builtins().strong_relocations(),
@@ -188,6 +189,13 @@ pub(super) fn check(
                     if family == "m23-extension-call-receivers" {
                         super::source_calls::check_receivers(input, core_artifact, &artifact);
                     } else if family == "m23-any-call-signatures" {
+                        super::publication::check(
+                            name,
+                            input.public,
+                            core_artifact,
+                            &artifact,
+                            &prepared.c_bridge_profile,
+                        );
                         super::source_calls::check_any(
                             &fixtures.join(format!("{name}.rejections.snap")),
                             input,
