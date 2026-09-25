@@ -65,7 +65,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         let undefined = objects::complete_requirements(&prepared, &native, &shape)?;
         let current = self.ordinary.cone.identity();
         let finalized = prepared.finalize(
-            undefined.legacy(),
+            &undefined,
             &self.ordinary.cone,
             &self.ordinary.direct_dependencies,
             self.ordinary

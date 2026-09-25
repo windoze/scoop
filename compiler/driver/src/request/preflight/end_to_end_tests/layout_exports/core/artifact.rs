@@ -49,22 +49,6 @@ pub(super) fn check(
         objects.production(),
     );
     external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
-    if name == "base" {
-        let provider = lir::ShapeLinkProviderV1::try_new(
-            lir::ShapeLinkProviderPartsV1 {
-                foundation: lir.foundation(),
-                production: lir::ShapeLinkProductionV1::Reader(objects.production()),
-                ordinary: &ordinary,
-                layouts: layout.layouts(),
-                callables: layout.callables(),
-                descriptors: layout.descriptors(),
-                dispatch: layout.dispatch(),
-            },
-            &mut meter(),
-        )
-        .unwrap();
-        shape_dependencies::check(provider, mir_section, layout);
-    }
     let generated =
         scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();
@@ -105,6 +89,7 @@ pub(super) fn check(
         input.ordinary,
     );
     if name == "base" {
+        shape_dependencies::check(lir, &ordinary, mir_section, layout, &artifact, target);
         lir_dependencies::check(&artifact, mir_section, layout);
     }
 }

@@ -10,7 +10,7 @@ pub(crate) struct FinalizedLayoutObjects {
 impl PreparedLayoutObjects {
     pub(crate) fn finalize(
         self,
-        undefined: &CanonicalUndefinedSymbolRequirementSetV1,
+        undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
         cone: &ConeRecord,
         dependencies: &[DependencyRecord],
         source_count: usize,

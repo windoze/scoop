@@ -24,7 +24,12 @@ Module
         IsInstance String
           Type Any
           Local value
-  fun smartInteger @fn3(value: Any) -> Int
+  fun literalString @fn3() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun smartInteger @fn4(value: Any) -> Int
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -44,21 +49,21 @@ Module
       return
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-  fun defaultInteger @fn4(value: Any) -> Boolean
+  fun defaultInteger @fn5(value: Any) -> Boolean
     bb0 entry
       return
         Type Boolean
         IsInstance Int
           Type Any
           Local value
-  fun expandedDefaults @fn5() -> Boolean
+  fun expandedDefaults @fn6() -> Boolean
     bb0 entry
       val $parameter.value: Any
         Type Any
         Box
           Type Int
           IntegerLiteral Int value=7 bits=0x00000007
-      call $call.1: Boolean = @fn4 direct
+      call $call.1: Boolean = @fn5 direct
         Type Any
         Local $parameter.value
       branch bb1 bb2
@@ -70,7 +75,7 @@ Module
         Box
           Type Int
           IntegerLiteral Int value=7 bits=0x00000007
-      call $shortCircuit.0: Boolean = @fn4 direct
+      call $shortCircuit.0: Boolean = @fn5 direct
         Type Any
         Local $parameter.value
       goto bb3
@@ -83,4 +88,5 @@ Module
       return
         Type Boolean
         Local $shortCircuit.0
+  str @str0 "shape"
   output library

@@ -3,14 +3,18 @@
 use super::*;
 use lir::LayoutAbiSectionSourceAuthorityV1;
 
-pub(super) fn check(
+pub(super) fn check<'a, 'p>(
     source_input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     output: &lir::SingleConeStrongLirOutput,
-    selected: &lir::StrongProductionDependencySelectionV2<'_>,
-    provider: Provider<'_, '_>,
-    source: PublicationInput<'_>,
+    selected: &lir::StrongProductionDependencySelectionV2<'a>,
+    provider: Provider<'a, 'p>,
+    source: PublicationInput<'_, '_>,
     coordinates: &[ConeCoordinate],
-) -> (lir::ValidatedStrongProductionSectionV2, String) {
+) -> (
+    lir::ValidatedStrongProductionSectionV2,
+    lir::CrossConeLayoutAbiSectionV1<'a>,
+    String,
+) {
     let registration = output
         .build_production_section_v2(
             coordinates[1].clone(),
@@ -24,7 +28,7 @@ pub(super) fn check(
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {
         mir: source_input.mir,
         lir: output,
-        bridge: source.bridge,
+        bridge: source.bridge.exports(),
         registration: &registration,
         identities: source_input.identities,
         coordinates,
@@ -117,5 +121,5 @@ pub(super) fn check(
         .iter()
         .map(|relation| format!("{} {:?}\n", relation.provider(), relation.target()))
         .collect();
-    (production, dump)
+    (production, section, dump)
 }

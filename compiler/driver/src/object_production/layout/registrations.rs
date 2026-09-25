@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn finalize(
     input: &PreparedLayoutObjects,
-    undefined: &CanonicalUndefinedSymbolRequirementSetV1,
+    undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
 ) -> Result<slib::VerifiedStrongRegistrationPatchSetV2, BuiltinObjectProductionError> {
     let candidates = input.candidates();
     let production = &input.production;
@@ -26,7 +26,7 @@ pub(super) fn finalize(
     let callables =
         compute_strong_callable_registration_object_fingerprints_v1(callables, &candidates)
             .map_err(BuiltinObjectProductionError::CallableRegistrationObjectFingerprints)?;
-    let callables = compute_strong_callable_body_object_fingerprints_v1(
+    let callables = slib::compute_layout_strong_callable_body_object_fingerprints_v1(
         callables,
         input.stackmaps.clone(),
         undefined.clone(),
@@ -58,7 +58,7 @@ pub(super) fn finalize(
     let immortals =
         compute_strong_immortal_object_registration_object_fingerprints_v1(immortals, &candidates)
             .map_err(BuiltinObjectProductionError::ImmortalObjectRegistrationObjectFingerprints)?;
-    let immortals = compute_strong_immortal_object_definition_fingerprints_v1(
+    let immortals = slib::compute_layout_strong_immortal_object_definition_fingerprints_v1(
         immortals,
         undefined.clone(),
         &candidates,

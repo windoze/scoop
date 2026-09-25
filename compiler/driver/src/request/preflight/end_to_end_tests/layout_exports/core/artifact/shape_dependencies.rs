@@ -7,15 +7,43 @@ mod lir_reader;
 mod lower;
 mod machine;
 mod mir_reader;
+mod provider;
 
 pub(super) fn check(
-    provider: lir::ShapeLinkProviderV1<'_>,
+    producer: &lir::SingleConeStrongLirOutput,
+    ordinary: &lir::CrossConeLirBridgeSectionV1,
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core_lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
+    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    target: &scoop_toolchain::ResolvedTargetProfile,
 ) {
-    let target = resolved_target().expect("shape dependency fixtures require the host target");
+    let prepared = provider::objects(producer, core_lir, target);
+    let published = super::lir_dependencies::reader::open(artifact);
+    assert_eq!(
+        encode(prepared.foundation.as_canonical()).unwrap(),
+        encode(published.lir_foundation_wire()).unwrap(),
+    );
+    let owners = [
+        scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
+            prepared.patch_sites.builtins().strong_relocations(),
+        )
+        .unwrap(),
+    ];
+    let provider = lir::ShapeLinkProviderV1::try_new(
+        lir::ShapeLinkProviderPartsV1 {
+            foundation: &prepared.foundation,
+            production: lir::ShapeLinkProductionV1::Reader(&prepared.production),
+            ordinary,
+            layouts: core_lir.layouts(),
+            callables: core_lir.callables(),
+            descriptors: core_lir.descriptors(),
+            dispatch: core_lir.dispatch(),
+        },
+        &mut meter(),
+    )
+    .unwrap();
     let sysroot = tempfile::tempdir().unwrap();
-    let installed = bootstrap_core(sysroot.path(), &target);
+    let installed = bootstrap_core(sysroot.path(), target);
     let bytes = std::fs::read(installed.artifact().path()).unwrap();
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-shape-dependency-graph");
     for (name, names) in [
@@ -25,7 +53,7 @@ pub(super) fn check(
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
         lower::with_mir(
             sysroot.path(),
-            &target,
+            target,
             &bytes,
             &source,
             |input, callables| {
@@ -100,7 +128,9 @@ pub(super) fn check(
                     machine::Provider {
                         view: &provider,
                         layout: core_lir,
-                        target: &target,
+                        target,
+                        artifact,
+                        owners: &owners,
                         string: core_lir
                             .shape_support()
                             .records()
@@ -113,7 +143,7 @@ pub(super) fn check(
                             .exact(),
                     },
                     machine::PublicationInput {
-                        bridge: section.exports(),
+                        bridge: &section,
                         source: &projection,
                     },
                 );
@@ -121,6 +151,10 @@ pub(super) fn check(
         );
     }
     assert_eq!(core_lir.target_profile(), target.lir_target());
+    assert_eq!(
+        encode(&prepared.production.into_section()).unwrap(),
+        encode(published.lir_strong_production_wire()).unwrap(),
+    );
 }
 
 fn source_named(

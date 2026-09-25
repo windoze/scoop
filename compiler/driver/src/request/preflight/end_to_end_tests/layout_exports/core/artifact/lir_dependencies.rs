@@ -4,7 +4,7 @@ use super::*;
 
 mod assembly;
 pub(super) mod corruption;
-mod reader;
+pub(super) mod reader;
 
 pub(super) fn check(
     core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,

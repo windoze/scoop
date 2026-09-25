@@ -206,6 +206,9 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
     assert!(requirements.matches_strong_closure(&strong));
 
     let shape_requirement = partitions.external_shape()[0].use_site();
+    let truncated = VerifiedObjectDefinitionRequirementSetV1::from(partitions.legacy().clone());
+    assert!(!truncated.matches_strong_closure(&strong));
+    assert!(truncated.requirement_for(shape_requirement).is_none());
     let requirement = requirements.requirement_for(shape_requirement).unwrap();
     assert_eq!(
         requirement,

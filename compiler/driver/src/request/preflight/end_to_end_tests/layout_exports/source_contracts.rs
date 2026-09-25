@@ -103,14 +103,13 @@ fn reject_source_drift(
     let scoop_lir_lower::LayoutAbiSourceProjectionError::MirSource(error) = error else {
         panic!("expected source drift rejection, found {error}")
     };
-    assert!(
-        matches!(
-            error.downcast_ref::<mir::MirTypeBridgeSourceJoinError<
-                scoop_mir_lower::MirTypeBridgeSourceProjectionError,
-            >>(),
-            Some(mir::MirTypeBridgeSourceJoinError::Inventory(
-                mir::MirTypeBridgeSourceInventoryV1::Types
-            ))
-        )
-    );
+    let source = error.downcast_ref::<mir::MirTypeBridgeSourceJoinError<
+        scoop_mir_lower::MirTypeBridgeSourceProjectionError,
+    >>();
+    assert!(matches!(
+        source,
+        Some(mir::MirTypeBridgeSourceJoinError::Inventory(
+            mir::MirTypeBridgeSourceInventoryV1::Types
+        ))
+    ));
 }

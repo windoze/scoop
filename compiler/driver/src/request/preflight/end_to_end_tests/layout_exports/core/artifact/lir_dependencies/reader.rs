@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn open(
+pub(in super::super) fn open(
     artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
 ) -> scoop_slib::DecodedCrossConeLayoutCompileSections<'_> {
     DecodedSlibEnvelope::open(
@@ -15,15 +15,12 @@ pub(super) fn open(
     .unwrap()
 }
 
-pub(super) fn check(
-    name: &str,
-    fixtures: &Path,
-    core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
-) {
+pub(in super::super) fn read<'a>(
+    core: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+) -> scoop_slib::LirDependencyGraphReplayedCrossConeLayoutClosure<'a> {
     let closure = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
-        layout.provider(),
+        open(artifact).identity(),
         artifact.target_selection(),
         vec![open(core).identity()],
         vec![open(core)],
@@ -41,7 +38,7 @@ pub(super) fn check(
     .unwrap()
     .validate_hir_declarations()
     .unwrap();
-    let closure = closure
+    closure
         .validate_mir_types()
         .unwrap()
         .validate_source_callables()
@@ -65,7 +62,17 @@ pub(super) fn check(
         .replay_mir_dependency_graph()
         .unwrap()
         .replay_lir_dependency_graph()
-        .unwrap();
+        .unwrap()
+}
+
+pub(super) fn check(
+    name: &str,
+    fixtures: &Path,
+    core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
+) {
+    let closure = read(core, artifact);
     assert_eq!(closure.dependency_first().count(), 2);
     assert_eq!(closure.dependency_count(layout.provider()), Some(1));
     let current = closure.artifact(layout.provider()).unwrap();

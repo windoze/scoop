@@ -1,6 +1,7 @@
 public fun boxInteger(value: Int): Any = value
 public fun boxUnit(value: Unit): Any = value
 public fun testString(value: Any): Boolean = value is String
+public fun literalString(): String = "shape"
 
 public fun smartInteger(value: Any): Int {
     if (value is Int) {

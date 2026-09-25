@@ -4,12 +4,13 @@ use super::super::machine_selection::Source;
 use super::*;
 use scoop_identity::{ExactTypeDiagnosticCatalog, PersistentExactTypeId, PersistentTypeId};
 
+mod artifact;
 mod publication;
 mod rejections;
 
 #[derive(Clone, Copy)]
-pub(super) struct PublicationInput<'a> {
-    pub bridge: &'a mir::MirTypeBridgeExportConstituentsV1,
+pub(super) struct PublicationInput<'a, 'p> {
+    pub bridge: &'a mir::CrossConeMirTypeBridgeSectionV1<'p>,
     pub source: &'a scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
 }
 
@@ -19,6 +20,8 @@ pub(super) struct Provider<'a, 'p> {
     pub layout: &'a lir::CrossConeLayoutAbiSectionV1<'p>,
     pub target: &'a scoop_toolchain::ResolvedTargetProfile,
     pub string: PersistentExactTypeId,
+    pub artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    pub owners: &'a [scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
 }
 
 pub(super) fn check(
@@ -28,7 +31,7 @@ pub(super) fn check(
     callables: &lir::SelectedExternalLirSet,
     shapes: &[(ConeIdentity, PersistentTypeId)],
     provider: Provider<'_, '_>,
-    publication_input: PublicationInput<'_>,
+    publication_input: PublicationInput<'_, '_>,
 ) {
     let plan = input.mir.materialization();
     assert!(plan.source_nominal_shapes().is_empty());
@@ -139,7 +142,7 @@ pub(super) fn check(
         &fixtures.join(format!("{name}.machine.lir.snap")),
         &lir::dump(output.module()),
     );
-    let (production, relations) = publication::check(
+    let (production, section, relations) = publication::check(
         input,
         &output,
         &selected,
@@ -148,7 +151,37 @@ pub(super) fn check(
         &coordinates,
     );
     snapshot(&fixtures.join(format!("{name}.lir.snap")), &relations);
-    emit(name, &output, &coordinate, provider, production);
+    if name == "combined" {
+        assert!(
+            !production
+                .immortal_registrations()
+                .registrations()
+                .is_empty()
+        );
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let emitted = emit(
+        name,
+        &output,
+        &coordinate,
+        provider,
+        production,
+        directory.path(),
+    );
+    artifact::check(
+        input,
+        &output,
+        publication_input,
+        &section,
+        emitted,
+        provider,
+        artifact::Destination {
+            directory: directory.path(),
+            coordinate: &coordinate,
+            fixtures,
+            name,
+        },
+    );
 }
 
 fn emit(
@@ -157,7 +190,8 @@ fn emit(
     coordinate: &ConeCoordinate,
     provider: Provider<'_, '_>,
     production: lir::ValidatedStrongProductionSectionV2,
-) {
+    directory: &Path,
+) -> scoop_codegen::EmittedStrongObjectSetV2 {
     let profile = scoop_codegen::ValidatedBackendProfile::from_selection(
         provider.target.lir_target_selection(),
     )
@@ -184,14 +218,16 @@ fn emit(
     }
     for (_, descriptor) in output.module().meta.external_type_descriptors.iter() {
         let symbol = descriptor.expected_symbol().symbol();
-        for declaration in ir.lines().filter(|line| {
-            line.starts_with('@') && line.contains(symbol.as_str()) && line.contains(" = ")
-        }) {
+        let prefixes = [format!("@\"{symbol}\" = "), format!("@{symbol} = ")];
+        for declaration in ir
+            .lines()
+            .filter(|line| prefixes.iter().any(|prefix| line.starts_with(prefix)))
+        {
             assert!(declaration.contains("external"), "{declaration}");
         }
     }
-    let directory = tempfile::tempdir().unwrap();
     let objects =
-        scoop_codegen::emit_object_set_v2(output, production, directory.path(), profile).unwrap();
+        scoop_codegen::emit_object_set_v2(output, production, directory, profile).unwrap();
     assert_eq!(objects.members().len(), output.module().functions.len() + 1);
+    objects
 }
