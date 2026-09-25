@@ -364,24 +364,6 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
     ) {
         (&mut self.dependency_first, &self.dependency_positions)
     }
-
-    pub(crate) fn into_mir_semantic_validation_parts(
-        self,
-    ) -> (
-        ConeIdentity,
-        ValidatedLirTargetSelection,
-        Vec<ConeIdentity>,
-        Vec<HirProductionValidatedCrossConeLayoutSections<'input>>,
-        Vec<Vec<usize>>,
-    ) {
-        (
-            self.current,
-            self.target,
-            self.direct,
-            self.dependency_first,
-            self.dependency_positions,
-        )
-    }
 }
 
 #[cfg(test)]

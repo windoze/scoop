@@ -27,9 +27,7 @@ mod mir_semantic;
 mod transitions;
 pub use decode::CrossConeLayoutCompileSectionDecodeError;
 pub use hir_resolution::CrossConeLayoutHirResolutionError;
-pub(crate) use lir_semantic::{
-    DecodedCrossConeLayoutLirCandidates, PreparedCrossConeLayoutLirValidation,
-};
+pub(crate) use lir_semantic::DecodedCrossConeLayoutLirCandidates;
 pub use mir_semantic::CrossConeLayoutMirFrontValidationError;
 pub(crate) use mir_semantic::{PreparedCrossConeLayoutMirSections, PreparedLayoutMirSemanticParts};
 

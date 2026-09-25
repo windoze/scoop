@@ -61,15 +61,6 @@ pub use layout_link_objects::{LayoutLinkObjectContentsError, ReplayedLayoutLinkO
 mod layout_link_symbols;
 pub use layout_link_symbols::{LayoutLinkSymbolUseError, ReplayedLayoutLinkSymbolUsesV1};
 
-mod layout_hir_semantics;
-pub use layout_hir_semantics::*;
-
-mod layout_mir_semantics;
-pub use layout_mir_semantics::*;
-
-mod layout_lir_semantics;
-pub use layout_lir_semantics::*;
-
 mod cross_cone_closure;
 pub use cross_cone_closure::*;
 
