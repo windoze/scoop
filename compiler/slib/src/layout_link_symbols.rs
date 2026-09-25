@@ -7,20 +7,22 @@ use crate::ReplayedLayoutLinkObjectContentsV1;
 use crate::link_object::*;
 
 mod errors;
+mod finalization;
 mod requirements;
 mod resources;
 mod verification;
 pub use errors::LayoutLinkSymbolUseError;
 pub(crate) use verification::{ReplayInputs, replay};
 
-/// Owned object and symbol evidence. Final coverage, dependency fingerprints
-/// and Code identity remain necessary before this can become a Link artifact.
+/// Owned symbol and finalized-object evidence. Final coverage, Code identity
+/// and the complete source relations remain necessary for a Link artifact.
 #[derive(Debug)]
 pub struct ReplayedLayoutLinkSymbolUsesV1<'input> {
     objects: ReplayedLayoutLinkObjectContentsV1<'input>,
     defined: CanonicalDefinedLinkSymbolOwnerSetV1,
     native: lir::CanonicalNativeExternalRequirementSurfaceV1,
     undefined: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
+    finalized: VerifiedEntryPatchSetV2,
 }
 
 impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
@@ -44,5 +46,9 @@ impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
         &self,
     ) -> &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
         &self.undefined
+    }
+
+    pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV2 {
+        &self.finalized
     }
 }

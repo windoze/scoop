@@ -17,6 +17,11 @@ pub enum LayoutLinkSymbolUseError {
     Undefined(UndefinedSymbolRequirementFinalizationError),
     OrdinaryProjection(CrossConeLinkClosureSectionValidationError),
     SymbolProjection(LinkSymbolProjectionValidationError),
+    RegistrationLeaves(crate::StrongLinkRegistrationLeafFingerprintError),
+    RegistrationDependencies(crate::StrongLinkRegistrationDependencyFingerprintError),
+    FinalObjects(crate::StrongLinkObjectFinalizationError),
+    RuntimeProjection(crate::RuntimeProductionProjectionError),
+    RuntimeFingerprintMismatch,
 }
 
 macro_rules! from_error {
@@ -46,6 +51,16 @@ from_error!(
     OrdinaryProjection
 );
 from_error!(LinkSymbolProjectionValidationError, SymbolProjection);
+from_error!(
+    crate::StrongLinkRegistrationLeafFingerprintError,
+    RegistrationLeaves
+);
+from_error!(
+    crate::StrongLinkRegistrationDependencyFingerprintError,
+    RegistrationDependencies
+);
+from_error!(crate::StrongLinkObjectFinalizationError, FinalObjects);
+from_error!(crate::RuntimeProductionProjectionError, RuntimeProjection);
 
 impl std::fmt::Display for LayoutLinkSymbolUseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

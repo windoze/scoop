@@ -1,0 +1,14 @@
+objects=69 registrations=[141, 68, 73, 7, 6, 2]
+objects=8 registrations=[20, 7, 0, 1, 2, 1]
+reject field 3
+reject field 4
+reject field 5
+reject field 6
+reject RegistrationDefinition patch
+reject Layout patch
+reject Scan patch
+reject CallableBodyDefinition patch
+reject GatewayDefinition patch
+reject NormalizedStackmap patch
+reject RuntimeImage patch
+reject changed body runtime fingerprint

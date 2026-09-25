@@ -5,6 +5,9 @@ use object::read::macho::MachHeader as _;
 use object::{Endianness, macho};
 use scoop_slib as slib;
 
+mod manifest;
+pub(super) use manifest::rewrite_production;
+
 pub(super) fn symbol_offset(bytes: &[u8], index: u32) -> usize {
     let header = macho::MachHeader64::<Endianness>::parse(bytes, 0).unwrap();
     let endian = header.endian().unwrap();

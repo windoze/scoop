@@ -8,6 +8,7 @@ mod budget;
 mod mutations;
 mod partitions;
 mod rejection;
+mod runtime;
 mod wire;
 
 #[derive(Clone, Copy, Debug)]
@@ -45,6 +46,8 @@ pub(super) fn check(
     let mut dump = String::new();
     let mut cases = Vec::new();
     let mut usage = None;
+    let mut runtime_dump = String::new();
+    let mut runtime_cases = Vec::new();
     reader::read_link(core, artifact)
         .with_replayed_link_symbol_uses(profile, |closure| {
             assert_eq!(closure.dependency_first().len(), 2);
@@ -56,6 +59,14 @@ pub(super) fn check(
                 );
                 let partitions = proof.undefined_partitions();
                 let (uses, categories) = partitions::check(proof);
+                runtime_dump.push_str(&runtime::inspect(
+                    if proof.provider() == current {
+                        artifact
+                    } else {
+                        core
+                    },
+                    proof,
+                ));
                 let owners = partitions.cross_cone().dependency_owners();
                 if proof.provider() == current {
                     assert_eq!(owners.len(), 1);
@@ -69,6 +80,7 @@ pub(super) fn check(
                     );
                     usage = Some(physical.decode_usage());
                     cases = mutations::cases(proof);
+                    runtime_cases = runtime::cases(proof);
                 } else {
                     assert!(owners.is_empty());
                 }
@@ -90,6 +102,7 @@ pub(super) fn check(
     dump.push_str("reject DependencyDefinedMember\n");
     budget::check(core, artifact, profile, usage.unwrap());
     rejection::views(core, artifact, profile);
+    runtime::check(path, core, artifact, profile, runtime_cases, runtime_dump);
     dump.push_str("reject WorkBudget\nreject OwnedBudget\nreject CompileView\nreject MixedView\n");
     if std::env::var_os("SCOOP_UPDATE_LINK_SYMBOL_USES").is_some() {
         std::fs::write(path, &dump).unwrap();

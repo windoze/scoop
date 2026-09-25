@@ -174,6 +174,7 @@ where
         lir_foundation,
         meter,
         link_sections,
+        manifest: _,
     } = artifact.semantic_parts();
     let hir = validate_hir_provider(
         position,

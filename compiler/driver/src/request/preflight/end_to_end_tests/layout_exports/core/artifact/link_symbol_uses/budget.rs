@@ -48,7 +48,7 @@ pub(super) fn check(
                 panic!("expected symbol-use budget error: {error:?}")
             };
             assert!(matches!(*error,
-                slib::LayoutLinkSymbolUseError::SymbolProjection(slib::LinkSymbolProjectionValidationError::Resource(error))
+                slib::LayoutLinkSymbolUseError::RuntimeProjection(slib::RuntimeProductionProjectionError::Resource(error))
                     if matches!(error.kind(), WireErrorKind::LimitExceeded { resource: actual, .. } if *actual == resource)));
         }
     }

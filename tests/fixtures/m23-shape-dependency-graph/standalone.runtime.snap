@@ -1,0 +1,11 @@
+objects=55 registrations=[103, 54, 73, 7, 0, 0]
+objects=3 registrations=[3, 2, 0, 0, 0, 0]
+reject field 3
+reject field 4
+reject field 5
+reject field 6
+reject RegistrationDefinition patch
+reject CallableBodyDefinition patch
+reject NormalizedStackmap patch
+reject RuntimeImage patch
+reject changed body runtime fingerprint

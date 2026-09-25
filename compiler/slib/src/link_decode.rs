@@ -189,10 +189,14 @@ pub fn validate_self_describing_single_cone_strong_link_artifact<'input>(
         .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
 }
 
-fn verify_reconstructed_scoop_objects(
+pub(crate) fn verify_reconstructed_scoop_objects<D, C, I>(
     normalized: &VerifiedNormalizedProvisionalScoopLirObjectSetV1,
-    reconstructed: &VerifiedEntryPatchSetV1,
-) -> Result<(), ReconstructedScoopObjectError> {
+    reconstructed: &VerifiedEntryPatchSetV1<D, C, I>,
+) -> Result<(), ReconstructedScoopObjectError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     if normalized.objects().len() != reconstructed.objects().len() {
         return Err(ReconstructedScoopObjectError::ObjectCount {
             expected: normalized.objects().len(),

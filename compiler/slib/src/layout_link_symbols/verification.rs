@@ -8,6 +8,7 @@ pub(crate) struct ReplayInputs<'a, 'contract> {
     pub layout: &'a lir::PhysicalImportsReplayedLayoutAbiSectionV1<'contract>,
     pub selection: lir::ValidatedLirTargetSelection,
     pub profile: &'a lir::CBridgeToolchainProfileV1,
+    pub manifest: &'a crate::BootstrapManifest,
 }
 
 pub(crate) fn replay<'input, 'a, 'contract: 'a>(
@@ -76,10 +77,12 @@ pub(crate) fn replay<'input, 'a, 'contract: 'a>(
         .link
         .link_identity_closure_wire()
         .replay_symbol_projections(&defined, undefined.legacy(), meter)?;
+    let finalized = finalization::replay(&objects, &undefined, &input, &costs, meter)?;
     Ok(ReplayedLayoutLinkSymbolUsesV1 {
         objects,
         defined,
         native,
         undefined,
+        finalized,
     })
 }

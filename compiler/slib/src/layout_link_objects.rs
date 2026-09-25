@@ -28,6 +28,23 @@ pub struct ReplayedLayoutLinkObjectContentsV1<'input> {
 }
 
 impl<'input> ReplayedLayoutLinkObjectContentsV1<'input> {
+    pub(crate) fn charge_registration_fingerprints(
+        &self,
+        strong: &lir::ReplayedStrongProductionSectionV2,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), scoop_wire::WireError> {
+        self.costs.registration_fingerprints(self, strong, meter)
+    }
+
+    pub(crate) fn charge_final_object_reconstruction(
+        &self,
+        strong: &lir::ReplayedStrongProductionSectionV2,
+        compatibility: &crate::CompatibilityRecord,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), scoop_wire::WireError> {
+        self.costs.final_objects(self, strong, compatibility, meter)
+    }
+
     pub(crate) fn charge_strong_closure_copy(
         &self,
         meter: &mut BudgetMeter,

@@ -48,6 +48,7 @@ pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
     pub(crate) mir_ordinary: &'a CrossConeMirBridgeSectionV1,
     pub(crate) lir_foundation: &'a OdrFreeLirFoundation,
     pub(crate) meter: &'a mut BudgetMeter,
+    pub(crate) manifest: &'a crate::BootstrapManifest,
     pub(crate) link_sections: Option<&'a crate::DecodedCrossConeLayoutLinkOnlySections>,
 }
 
@@ -161,6 +162,7 @@ impl PreparedCrossConeLayoutMirSections<'_> {
     }
 
     pub(crate) fn semantic_parts(&mut self) -> PreparedLayoutMirSemanticParts<'_> {
+        let (manifest, meter) = self.graph.envelope.manifest_and_meter();
         PreparedLayoutMirSemanticParts {
             identities: &mut self.identities,
             hir_foundation: &self.foundations.hir,
@@ -171,7 +173,8 @@ impl PreparedCrossConeLayoutMirSections<'_> {
             mir_core: &self.mir_core,
             mir_ordinary: &self.mir_ordinary,
             lir_foundation: &self.foundations.lir,
-            meter: self.graph.envelope.meter_mut(),
+            meter,
+            manifest,
             link_sections: self.view.link(),
         }
     }

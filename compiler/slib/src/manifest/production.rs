@@ -25,7 +25,7 @@ use crate::link_object::{
 mod wire;
 pub use wire::{
     CBridgeCheckedSingleConeProductionManifestV1, DecodedSingleConeProductionManifestV1,
-    SingleConeProductionManifestValidationError,
+    RuntimeProductionProjectionError, SingleConeProductionManifestValidationError,
 };
 
 #[cfg(test)]

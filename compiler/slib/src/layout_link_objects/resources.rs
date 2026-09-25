@@ -3,6 +3,7 @@
 use super::*;
 use scoop_wire::{WireEncode, WireError, WireErrorKind, WirePath};
 
+mod finalization;
 mod object;
 use object::{ObjectCosts, inspect};
 use std::collections::BTreeMap;

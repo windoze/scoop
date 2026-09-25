@@ -26,6 +26,9 @@ use crate::link_object::{
 };
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId};
 
+mod runtime;
+pub use runtime::RuntimeProductionProjectionError;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DecodedArtifactDistributionClassV1 {
     DistributableCone,

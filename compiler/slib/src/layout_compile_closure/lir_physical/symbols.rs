@@ -35,6 +35,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                         layout: &artifact.layout,
                         selection,
                         profile,
+                        manifest: parts.manifest,
                     },
                     previous,
                     physical.iter().map(|artifact| &artifact.layout),
