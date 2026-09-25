@@ -10,7 +10,31 @@ use crate::{
     SelectedDependencyLayoutAbiSetV1, ShapeLinkContractV1, StrongProductionDependencySelectionV2,
 };
 
+mod boxing;
+
 impl SelectedDependencyLayoutAbiSetV1<'_> {
+    /// Refines an imported helper from the complete source shape and physical
+    /// descriptor contract selected for this consumer.
+    pub fn materialize_boxed_value_descriptor(
+        &self,
+        provider: ConeIdentity,
+        source: scoop_identity::PersistentTypeId,
+        external: &la_arena::Arena<ExternalTypeDescriptor>,
+        descriptor: crate::ExternalTypeDescriptorId,
+        storage_type: crate::LirType,
+        meter: &mut BudgetMeter,
+    ) -> Result<crate::BoxedValueDescriptor, LayoutExternalMaterializationError> {
+        boxing::materialize(
+            self,
+            provider,
+            source,
+            external,
+            descriptor,
+            storage_type,
+            meter,
+        )
+    }
+
     /// Materializes one external TypeDescriptor only when both the semantic
     /// terminal record and its physical import are present in this selection.
     pub fn materialize_type_descriptor(
@@ -37,6 +61,26 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
 }
 
 impl StrongProductionDependencySelectionV2<'_> {
+    pub fn materialize_boxed_value_descriptor(
+        &self,
+        provider: ConeIdentity,
+        source: scoop_identity::PersistentTypeId,
+        external: &la_arena::Arena<ExternalTypeDescriptor>,
+        descriptor: crate::ExternalTypeDescriptorId,
+        storage_type: crate::LirType,
+        meter: &mut BudgetMeter,
+    ) -> Result<crate::BoxedValueDescriptor, LayoutExternalMaterializationError> {
+        boxing::materialize(
+            self,
+            provider,
+            source,
+            external,
+            descriptor,
+            storage_type,
+            meter,
+        )
+    }
+
     pub fn materialize_type_descriptor(
         &self,
         provider: ConeIdentity,
@@ -252,6 +296,12 @@ pub enum LayoutExternalMaterializationError {
     },
     DescriptorKind(PersistentExactTypeId),
     DescriptorContract(PersistentExactTypeId),
+    MissingShapeSupport {
+        provider: ConeIdentity,
+        source: scoop_identity::PersistentTypeId,
+    },
+    UnavailableBoxedValue(scoop_identity::PersistentTypeId),
+    BoxDescriptor(crate::BoxDescriptorError),
     MissingCallable {
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,

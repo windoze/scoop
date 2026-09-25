@@ -64,15 +64,9 @@ impl TypeDescriptorRefs {
                 .boxed
                 .iter()
                 .find_map(|(payload, descriptor)| {
-                    (payload == ty).then(|| {
-                        lir::TypeDescriptorRef::Local(match descriptor {
-                            lir::BoxedValueDescriptor::ZeroSized(descriptor) => {
-                                descriptor.descriptor()
-                            }
-                            lir::BoxedValueDescriptor::NonZero(descriptor) => {
-                                descriptor.descriptor()
-                            }
-                        })
+                    (payload == ty).then(|| match descriptor {
+                        lir::BoxedValueDescriptor::ZeroSized(descriptor) => descriptor.descriptor(),
+                        lir::BoxedValueDescriptor::NonZero(descriptor) => descriptor.descriptor(),
                     })
                 })
                 .unwrap_or_else(|| panic!("MIR did not supply a boxed descriptor for {ty:?}")),

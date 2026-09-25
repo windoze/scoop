@@ -32,3 +32,4 @@ tempfile.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+la-arena.workspace = true

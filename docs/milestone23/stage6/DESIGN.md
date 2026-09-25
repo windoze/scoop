@@ -64,6 +64,8 @@ HIR selected 目标以封闭分支区分语言内建类型与普通源码 nomina
 
 MIR callable inventory 复用共有 nominal 表示与继承闭包检查 owner、receiver、参数和结果；依赖 source-only nominal 的未物化声明保留完整源码接口，不要求不存在的机器正文，可物化声明缺失及实际使用的能力门保持错误。
 
+装箱和拆箱的 refined operand 使用已有 TypeDescriptorRef 区分本地定义和外来引用，ZST 与非零 payload 继续保持封闭分支。本地引用从同一 LIR descriptor 定义校验；外来引用只能从完整 layout/ABI selection 中该 source nominal 的 ShapeSupport、BoxedValue helper、descriptor 和物理 import 合同构造，须核对完整 provider、payload exact、helper exact、目标布局与所绑定 external arena 条目。不能把外来 helper 转成当前 Cone 的本地定义，也不能从一个裸 external descriptor 或相同物理布局取得装箱资格。operand 保留既有 typed external definition 引用，使 codegen 能拒绝 arena 条目的 provider、exact、symbol 或 definition 被替换；payload 的大小、对齐、GC scan、实际 local 与 ZST 无 payload 规则继续校验。LLVM 通过共有 typed descriptor 引用解析发射外部符号，并继续使用既有 box/unbox runtime ABI。该内部 operand 变更不新增 wire 身份或来源表；完整 artifact、实际用途和最终 Link 覆盖仍按本阶段完成门校验。
+
 有限 shape-support 的装箱也从值类型的实际 typed 声明读取全部接口，并生成同一套 adjust thunk/itable；不能把 Integer/Boolean 的 intrinsic 表示当作没有接口。String 的 intrinsic 表示保持其源码 class 的 vtable/itable 要求，使用相同的 owner kind、receiver、slot 与 target 校验。LIR shape-support 的 source-kind 检查允许 struct 对应普通字段表示、intrinsic scalar 或固定 Unit value；具体 intrinsic family 仍由完整 HIR/MIR/layout join 核对，不能从 CORE 来源推断。
 
 完整 core 源码及新增值类型、接口、类和初始化声明的闭合子集必须通过同一 MIR/LIR export 组装路径；不得用测试手工补入基础类型表代替实际 producer 输出。此修正不改变语言行为、runtime ABI 或 wire 结构。

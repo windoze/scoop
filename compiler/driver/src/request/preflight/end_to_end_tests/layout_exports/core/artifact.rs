@@ -1,6 +1,7 @@
 use super::*;
 
 mod bytes;
+mod external_boxing;
 mod lir_dependencies;
 mod mir_constructors;
 mod mir_dispatch;
@@ -46,6 +47,7 @@ pub(super) fn check(
         layout,
         objects.production(),
     );
+    external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
     let generated =
         scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();

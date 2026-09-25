@@ -10,11 +10,14 @@ pub(super) fn dump_boxing(function: &Function, instruction: &Instruction, buf: &
         } => {
             let payload = match payload {
                 BoxPayload::ZeroSized(descriptor) => {
-                    format!("box_zst td{}", descriptor.descriptor().into_raw())
+                    format!(
+                        "box_zst {}",
+                        type_descriptor_ref_name(descriptor.descriptor())
+                    )
                 }
                 BoxPayload::NonZero(place) => format!(
-                    "box_value td{}, local{} scan={}",
-                    place.descriptor().descriptor().into_raw(),
+                    "box_value {}, local{} scan={}",
+                    type_descriptor_ref_name(place.descriptor().descriptor()),
                     place.local().into_raw(),
                     place.descriptor().value().scan().dump()
                 ),
@@ -30,14 +33,14 @@ pub(super) fn dump_boxing(function: &Function, instruction: &Instruction, buf: &
         Instruction::UnboxValue { object, result } => {
             let result = match result {
                 UnboxResult::ZeroSized { descriptor, out } => format!(
-                    "unbox_zst td{}, {} -> t{}",
-                    descriptor.descriptor().into_raw(),
+                    "unbox_zst {}, {} -> t{}",
+                    type_descriptor_ref_name(descriptor.descriptor()),
                     value_name(*object),
                     out.into_raw()
                 ),
                 UnboxResult::NonZero(place) => format!(
-                    "unbox_value td{}, {} -> local{}",
-                    place.descriptor().descriptor().into_raw(),
+                    "unbox_value {}, {} -> local{}",
+                    type_descriptor_ref_name(place.descriptor().descriptor()),
                     value_name(*object),
                     place.local().into_raw()
                 ),

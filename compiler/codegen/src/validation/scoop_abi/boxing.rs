@@ -47,13 +47,13 @@ impl AbiMetadataValidator<'_> {
     ) -> Result<(), CodegenError> {
         let value = descriptor.value();
         self.validate_zst(value.representation(), owner)?;
-        let rebuilt = BoxedValueDescriptor::from_local(
-            &self.module.meta.type_descriptors,
-            descriptor.descriptor(),
-            value.exact(),
-            value.representation().storage_type().clone(),
-        );
-        if rebuilt != Ok(BoxedValueDescriptor::ZeroSized(descriptor.clone())) {
+        if BoxedValueDescriptor::ZeroSized(descriptor.clone())
+            .validate_reference(
+                &self.module.meta.type_descriptors,
+                &self.module.meta.external_type_descriptors,
+            )
+            .is_err()
+        {
             return Err(CodegenError(format!(
                 "box/unbox @{owner} has an inconsistent BoxedValue descriptor"
             )));
@@ -68,13 +68,12 @@ impl AbiMetadataValidator<'_> {
     ) -> Result<(), CodegenError> {
         let descriptor = place.descriptor();
         self.validate_value(descriptor.value(), function.symbol())?;
-        let rebuilt = BoxedValueDescriptor::from_local(
-            &self.module.meta.type_descriptors,
-            descriptor.descriptor(),
-            descriptor.payload_exact(),
-            descriptor.value().storage_type().clone(),
-        );
-        if rebuilt != Ok(BoxedValueDescriptor::NonZero(descriptor.clone()))
+        if BoxedValueDescriptor::NonZero(descriptor.clone())
+            .validate_reference(
+                &self.module.meta.type_descriptors,
+                &self.module.meta.external_type_descriptors,
+            )
+            .is_err()
             || descriptor
                 .clone()
                 .bind_place(&function.locals, place.local())

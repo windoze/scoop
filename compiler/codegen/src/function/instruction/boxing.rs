@@ -15,8 +15,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             } => {
                 let safepoint = self.safepoint_id(*safepoint);
                 let live = self.materialize_statepoint_live(live, safepoint)?;
-                let descriptor =
-                    self.type_tds[arena_index(payload.descriptor())].as_pointer_value();
+                let descriptor = self
+                    .value(Value::TypeDescriptor(payload.descriptor()))?
+                    .into_pointer_value();
                 let (runtime, frame, args) = match payload {
                     BoxPayload::ZeroSized(_) => (
                         scoop_lir::ManagedRuntimeFunction::BoxZst,
@@ -64,7 +65,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::UnboxValue { object, result } => {
                 let object = self.value(*object)?;
-                let descriptor = self.type_tds[arena_index(result.descriptor())].as_pointer_value();
+                let descriptor = self
+                    .value(Value::TypeDescriptor(result.descriptor()))?
+                    .into_pointer_value();
                 match result {
                     UnboxResult::ZeroSized {
                         descriptor: value,

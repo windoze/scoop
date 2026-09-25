@@ -2,16 +2,23 @@
 
 use super::*;
 
+mod reference;
+mod refinement;
+pub(crate) use reference::BoxedDescriptorReference;
+
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoxedZstDescriptor {
-    descriptor: TypeDescriptorId,
+    descriptor: BoxedDescriptorReference,
     descriptor_exact: scoop_identity::PersistentExactTypeId,
     value: LogicalZstValue,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoxedNonZeroDescriptor {
-    descriptor: TypeDescriptorId,
+    descriptor: BoxedDescriptorReference,
     descriptor_exact: scoop_identity::PersistentExactTypeId,
     payload_exact: scoop_identity::PersistentExactTypeId,
     value: AbiValue,
@@ -33,68 +40,9 @@ pub enum BoxDescriptorError {
     StorageMismatch,
 }
 
-impl BoxedValueDescriptor {
-    pub fn from_local(
-        descriptors: &Arena<TypeDescriptor>,
-        descriptor: TypeDescriptorId,
-        payload_exact: scoop_identity::PersistentExactTypeId,
-        storage_type: LirType,
-    ) -> Result<Self, BoxDescriptorError> {
-        if descriptor.into_raw().into_u32() as usize >= descriptors.len() {
-            return Err(BoxDescriptorError::InvalidDescriptor);
-        }
-        let definition = &descriptors[descriptor];
-        let shape = &definition.instance_shape;
-        if shape.instance_kind() != TypeInstanceKindV1::BoxedValue {
-            return Err(BoxDescriptorError::NotBoxedValue);
-        }
-        let descriptor_exact = definition.identity.exact_type();
-        let nominal = scoop_identity::PersistentTypeId::from_generated_key(
-            &scoop_identity::GeneratedNominalKey::BoxedValue {
-                payload: payload_exact,
-            },
-        )
-        .map_err(|_| BoxDescriptorError::PayloadIdentityMismatch)?;
-        let expected = scoop_identity::PersistentExactTypeId::from_key(
-            &scoop_identity::ExactTypeKey::Nominal(nominal),
-        )
-        .map_err(|_| BoxDescriptorError::PayloadIdentityMismatch)?;
-        if descriptor_exact != expected {
-            return Err(BoxDescriptorError::PayloadIdentityMismatch);
-        }
-
-        match shape.inline_storage_kind() {
-            InlineStorageKindV1::ZeroSized => {
-                let layout = AbiZeroSizedLayout::new(shape.inline_alignment())
-                    .map_err(|_| BoxDescriptorError::InvalidValueLayout)?;
-                let representation = AbiZst::new(storage_type, layout)
-                    .map_err(|_| BoxDescriptorError::InvalidValueLayout)?;
-                Ok(Self::ZeroSized(BoxedZstDescriptor {
-                    descriptor,
-                    descriptor_exact,
-                    value: LogicalZstValue::new(payload_exact, representation),
-                }))
-            }
-            InlineStorageKindV1::Inline => {
-                let layout = AbiNonZeroLayout::new(shape.inline_size(), shape.inline_alignment())
-                    .map_err(|_| BoxDescriptorError::InvalidValueLayout)?;
-                let value = AbiValue::new(storage_type, layout, shape.inline_scan().clone())
-                    .map_err(|_| BoxDescriptorError::InvalidValueLayout)?;
-                Ok(Self::NonZero(BoxedNonZeroDescriptor {
-                    descriptor,
-                    descriptor_exact,
-                    payload_exact,
-                    value,
-                }))
-            }
-            InlineStorageKindV1::None => Err(BoxDescriptorError::NotBoxedValue),
-        }
-    }
-}
-
 impl BoxedZstDescriptor {
-    pub const fn descriptor(&self) -> TypeDescriptorId {
-        self.descriptor
+    pub const fn descriptor(&self) -> TypeDescriptorRef {
+        self.descriptor.reference()
     }
 
     pub const fn descriptor_exact(&self) -> scoop_identity::PersistentExactTypeId {
@@ -107,8 +55,8 @@ impl BoxedZstDescriptor {
 }
 
 impl BoxedNonZeroDescriptor {
-    pub const fn descriptor(&self) -> TypeDescriptorId {
-        self.descriptor
+    pub const fn descriptor(&self) -> TypeDescriptorRef {
+        self.descriptor.reference()
     }
 
     pub const fn descriptor_exact(&self) -> scoop_identity::PersistentExactTypeId {
@@ -181,7 +129,7 @@ pub enum BoxPayload {
 }
 
 impl BoxPayload {
-    pub fn descriptor(&self) -> TypeDescriptorId {
+    pub fn descriptor(&self) -> TypeDescriptorRef {
         match self {
             Self::ZeroSized(descriptor) => descriptor.descriptor(),
             Self::NonZero(place) => place.descriptor().descriptor(),
@@ -206,7 +154,7 @@ pub enum UnboxResult {
 }
 
 impl UnboxResult {
-    pub fn descriptor(&self) -> TypeDescriptorId {
+    pub fn descriptor(&self) -> TypeDescriptorRef {
         match self {
             Self::ZeroSized { descriptor, .. } => descriptor.descriptor(),
             Self::NonZero(place) => place.descriptor().descriptor(),

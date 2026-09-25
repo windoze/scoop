@@ -12,7 +12,7 @@ pub use model::*;
 
 mod constituents;
 pub use constituents::ExactDescriptorSourceInputV1;
-mod resources;
+pub(crate) mod resources;
 
 mod replay;
 pub(crate) use replay::{validate_inline_scan, validate_registration_plan};

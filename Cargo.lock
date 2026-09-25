@@ -613,6 +613,7 @@ version = "0.0.0"
 dependencies = [
  "clap",
  "insta",
+ "la-arena",
  "scoop-ast",
  "scoop-codegen",
  "scoop-hir",

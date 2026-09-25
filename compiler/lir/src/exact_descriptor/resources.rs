@@ -6,7 +6,7 @@ pub(super) fn shape(value: &TypeInstanceShapeV1, meter: &mut BudgetMeter) -> Res
     scan(value.inline_scan(), meter, 1)
 }
 
-pub(super) fn scan(value: &RefScan, meter: &mut BudgetMeter, depth: u64) -> Result<(), WireError> {
+pub(crate) fn scan(value: &RefScan, meter: &mut BudgetMeter, depth: u64) -> Result<(), WireError> {
     let path = WirePath::root();
     meter.check_semantic_depth(depth, &path)?;
     meter.charge_work(1, &path)?;
