@@ -41,10 +41,9 @@ fn materialized_selections_require_actual_unique_dependency_providers() {
     source_dispatch::with_hir_source(STANDALONE, |output, _| {
         let public = public_interface(output);
         production::with_metadata(output, &public, |metadata, dependencies| {
-            assert!(matches!(
-                metadata.materialized_type_uses(&[]),
-                Err(SharedTypeMetadataError::TypeUseRelations(_))
-            ));
+            assert!(
+                matches!(metadata.materialized_type_uses(&[]), Err(SharedTypeMetadataError::MissingProvider(provider)) if dependencies.iter().any(|dependency| dependency.provider == provider))
+            );
             assert!(
                 matches!(metadata.materialized_type_uses(&[metadata]), Err(SharedTypeMetadataError::CurrentProviderDependency(provider)) if provider == metadata.provider)
             );
