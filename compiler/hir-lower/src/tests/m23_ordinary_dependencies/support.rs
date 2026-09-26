@@ -158,25 +158,6 @@ pub(crate) fn alias_expansions(
     aliases: &scoop_hir::CanonicalTypeAliasInterfacesV1,
 ) -> scoop_hir::CanonicalTypeAliasExpansionsV1 {
     aliases
-        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
+        .expand_alias_closure(&[], &WirePath::root())
         .unwrap()
-}
-
-struct EmptyAliasAuthority;
-
-impl scoop_hir::TypeAliasClosureAuthority for EmptyAliasAuthority {
-    fn external_type_alias(
-        &self,
-        _alias: scoop_identity::PersistentTypeAliasId,
-    ) -> Option<&scoop_hir::TypeAliasInterfaceRecordV1> {
-        None
-    }
-
-    fn is_type_alias_edge_authorized(
-        &self,
-        _source: scoop_identity::PersistentTypeAliasId,
-        _target: scoop_identity::PersistentTypeAliasId,
-    ) -> bool {
-        false
-    }
 }

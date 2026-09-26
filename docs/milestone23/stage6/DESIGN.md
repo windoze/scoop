@@ -198,6 +198,8 @@ producer 从同一次 sealed Export/LocalConcrete HIR 及真实 winner-commit �
 
 layout profile 的共有 HIR 声明读取直接消费同一 artifact 的 identity、foundation、production 与 public/source metadata。它与既有 ordinary reader 共用 definition source、nominal、property、callable、alias、参数/default、const、public route 和 external reference 校验；每个 provider 只使用其显式依赖闭包中已验证的声明，完成这些共有检查只证明声明与引用闭合，新 type semantics、MIR/LIR 和最终 object 的关联仍须分别完成，不能将解码成功或生产侧对象代替这些检查。
 
+非泛型 typealias 的声明、目标实体归属、public 可见性和外部引用在共有 HIR 声明边界检查。别名展开随后只处理实际 typed alias 目标、缺失目标及循环，不保存或查询逐边授权表，不重建依赖的 import/re-export 路径。已完成依赖的展开结果直接参与当前 Cone 的查询，共享最终 SignatureTypeKey；不能为同一别名链重复重走全部依赖。M23-6 完整 reader 保留展开结果供前端名称解析使用，生产与读取都不依赖测试专用来源工厂。
+
 共有校验必须保留以下信息与约束：
 
 - identity、definition origin 和 source context 只使用同一 artifact 与依赖闭包中的完整 typed 记录。local declaration 的 key origin、词法 owner、definition subject 和 provider 一致；external 引用按实际 provider 唯一解析。SourceNominal、ExactType、Function、GenericFunction、Constructor、Property、Accessor、DispatchSlot 与不同生成实体不得混用；不得从 FQN、符号、同布局或“唯一匹配项”补身份。

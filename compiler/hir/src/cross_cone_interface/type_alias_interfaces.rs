@@ -4,8 +4,7 @@ mod table;
 mod target;
 
 pub use expansion::{
-    CanonicalTypeAliasExpansionsV1, TypeAliasClosureAuthority, TypeAliasExpansionError,
-    TypeAliasExpansionV1,
+    CanonicalTypeAliasExpansionsV1, TypeAliasExpansionError, TypeAliasExpansionV1,
 };
 pub use record::{
     DecodedTypeAliasInterfaceRecordV1, TypeAliasDeclarationSourceV1,

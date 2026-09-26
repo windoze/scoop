@@ -25,6 +25,9 @@ impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn hir_type_semantics(&self) -> &scoop_hir::CrossConeTypeSemanticsSectionV1 {
         &self.semantic.hir_types
     }
+    pub fn type_alias_expansions(&self) -> &scoop_hir::CanonicalTypeAliasExpansionsV1 {
+        &self.semantic.hir_aliases
+    }
     pub fn mir_foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
         &self.semantic.foundations.mir
     }

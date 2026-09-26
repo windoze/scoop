@@ -46,6 +46,11 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
 }
 
 #[test]
+fn actual_layout_artifacts_retain_alias_chains_and_combined_member_signatures() {
+    check_core_layout_exports(&["shared-aliases-standalone", "shared-aliases-combined"]);
+}
+
+#[test]
 fn shared_mir_types_replay_standalone_and_combined_source_policies() {
     check_core_layout_exports(&["shared-mir-standalone", "shared-mir-combined"]);
 }

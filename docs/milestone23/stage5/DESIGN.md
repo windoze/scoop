@@ -1582,13 +1582,13 @@ consumer内联value并使用当前usage evaluation origin；String等需要本�
 
 alias在M23-5仍只允许top-level、non-generic声明，因此record的`access`必须是`DirectOnly`；`PublicSlot`、nested/local identity、非`ConeWide` declaration scope或target中的`Binder`一律拒绝。`alias`必须解析为当前artifact foundation中的canonical `TypeAlias` source declaration，`definition_origin`必须逐字段等于同foundation `DefinitionOriginSubject::TypeAlias(alias)`的记录；仅凭raw digest或来自另一Cone的origin不能构造记录。
 
-源码target若最外层直接命中另一个typealias，producer保留为`TypeAliasTargetV1::Alias`；其余target先递归展开内部alias，再写成alias-free的`Signature`。这样`typealias A = B`链保留每条alias edge，而`Container<B>`之类复合target没有第二套递归type wire，内部`B`按透明语义写入其最终target。`Alias`可以指向当前artifact的public alias，或经direct dependency public binding/完整re-export route授权的foreign public alias；不能按FQN、名称或support artifact枚举取得。`Signature`使用空binder scope完成全部nominal kind/application arity验证。
+源码target若最外层直接命中另一个typealias，producer保留为`TypeAliasTargetV1::Alias`；其余target先递归展开内部alias，再写成alias-free的`Signature`。这样`typealias A = B`链保留每条alias edge，而`Container<B>`之类复合target没有第二套递归type wire，内部`B`按透明语义写入其最终target。`Alias`可以指向当前artifact的public alias，或通过direct dependency public binding/完整re-export route解析的foreign public alias；不能按FQN、名称或support artifact枚举取得。`Signature`使用空binder scope完成全部nominal kind/application arity验证。
 
-closure-wide expander以`PersistentTypeAliasId`作memo key，沿`Alias` edge展开；authority只可返回已经完成单record语义验证的alias interface，并对每条`(source alias, target alias)`分别证明：同Cone target确实位于该Cone public alias table，或foreign target具有从source Cone出发的direct public binding/完整re-export route。不能用“target record存在”替代可达性证明，也不能从FQN、名称或support artifact枚举取得target。展开器按当前alias table的canonical顺序启动root，成功输出同顺序的`alias -> final SignatureTypeKey` typed map；transitive foreign alias只进入共享memo而不凭遍历副作用加入当前table输出。
+声明边界按 typed alias target 核对当前 public alias table，或该 Cone 已解析的 foreign public reference；外部引用与 import/re-export 可达性使用共有检查。展开器只查询实际 alias 目标与已完成依赖的展开结果，不保存逐边授权表，不重建公开路径。它以 `PersistentTypeAliasId` 作 memo key，按当前 alias table 的 canonical 顺序启动 root，输出同顺序的 `alias -> final SignatureTypeKey` typed map；依赖结果共享最终目标，不进入当前 table 输出，也不再次遍历依赖链。
 
 展开入口保留调用方的`WirePath`。root输出vector、memo map、active-position map、DFS stack与cycle chain按实际容量分配并处理失败。遍历使用显式stack与当前路径环检测；已memo节点直接复用其final target，不按入边数量深拷贝完整type tree，也不按节点、边、深度或复制量计费。
 
-发现active target时，cycle错误保存从该target首次进入active stack的位置起、直到当前source、再追加一次该target的完整typed id链；例如`A -> B -> C -> A`必须报告`[A, B, C, A]`，不能只报告首节点或截断前缀。错误保存typed ids并按需格式化；查找每条edge时检查实际声明、可见性与依赖可达性，再通过active path识别环。长度与索引使用checked算术，分配失败携带传入path；失败不提交alias expansion cache，不增加访问授权或诊断费用机制。
+发现active target时，cycle错误保存从该target首次进入active stack的位置起、直到当前source、再追加一次该target的完整typed id链；例如`A -> B -> C -> A`必须报告`[A, B, C, A]`，不能只报告首节点或截断前缀。错误保存typed ids并按需格式化；实际声明、可见性与依赖可达性已在声明边界检查，展开时通过 active path 识别本地环。长度与索引使用checked算术，分配失败携带传入path；失败不提交alias expansion cache，不增加访问授权或诊断费用机制。
 
 由于正常resolved dependency graph无环，跨Cone环也属于artifact损坏而不是允许的递归类型；同artifact自环/多节点环同样拒绝。使用点`as` alias和import local name不是typealias identity，不进入该图。展开完成后所有type equality、overload signature和persistent application都使用最终`SignatureTypeKey`；diagnostic可保留alias spelling作decorator。alias table按`alias` raw id严格递增并拒绝重复；reader不得排序修复。
 

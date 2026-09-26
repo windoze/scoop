@@ -136,19 +136,3 @@ impl Provider {
         )
     }
 }
-
-impl scoop_hir::TypeAliasClosureAuthority for Provider {
-    fn external_type_alias(
-        &self,
-        _: scoop_identity::PersistentTypeAliasId,
-    ) -> Option<&scoop_hir::TypeAliasInterfaceRecordV1> {
-        None
-    }
-    fn is_type_alias_edge_authorized(
-        &self,
-        _: scoop_identity::PersistentTypeAliasId,
-        _: scoop_identity::PersistentTypeAliasId,
-    ) -> bool {
-        false
-    }
-}

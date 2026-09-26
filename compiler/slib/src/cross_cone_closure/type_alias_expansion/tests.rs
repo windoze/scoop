@@ -22,10 +22,12 @@ use scoop_identity::{
 use scoop_wire::WirePath;
 
 use super::*;
-use crate::cross_cone_closure::route_validation::RouteProviderView;
+use crate::cross_cone_closure::route_validation::{
+    CanonicalCrossConeRouteAuthority, RouteProviderView,
+};
 
 #[test]
-fn authorizes_and_expands_a_foreign_alias_through_a_direct_witness() {
+fn expands_a_foreign_alias_after_checking_its_direct_import() {
     let fixture = foreign_alias_fixture();
     let providers = [RouteProviderView {
         identity: fixture.provider,
@@ -47,24 +49,21 @@ fn authorizes_and_expands_a_foreign_alias_through_a_direct_witness() {
         .current_interface
         .validate_external_reference_closure(&mut route_authority, &path)
         .unwrap();
-    let authorized =
-        validate_alias_authority(&fixture.current_interface, &mut route_authority).unwrap();
-    assert_eq!(
-        authorized,
-        vec![(fixture.current_alias, fixture.foreign_alias)]
-    );
-
-    let external_authorized = [];
-    let alias_providers = [AliasProviderView {
-        interface: &fixture.provider_interface,
-        authorized: &external_authorized,
-    }];
-    let authority =
-        CanonicalTypeAliasClosureAuthority::try_new(&authorized, &alias_providers).unwrap();
+    validate_alias_targets(
+        fixture.current,
+        &fixture.current_interface,
+        &fixture.identities,
+    )
+    .unwrap();
+    let external = fixture
+        .provider_interface
+        .type_aliases()
+        .expand_alias_closure(&[], &path)
+        .unwrap();
     let expansions = fixture
         .current_interface
         .type_aliases()
-        .expand_alias_closure(&authority, &path.field(5))
+        .expand_alias_closure(&[&external], &path.field(5))
         .unwrap();
 
     assert_eq!(
@@ -133,18 +132,9 @@ fn rejects_a_same_cone_alias_target_absent_from_the_public_alias_table() {
         Vec::new(),
     );
     let identities = identity_graph([source, hidden], [source_binding]);
-    let mut authority = CanonicalCrossConeRouteAuthority::try_new(
-        current,
-        &identities,
-        &interface,
-        &[],
-        &[],
-        &scoop_wire::WirePath::root(),
-    )
-    .unwrap();
     assert!(matches!(
-        validate_alias_authority(&interface, &mut authority),
-        Err(CrossConeHirAliasAuthorityValidationError::MissingCurrentPublicTarget {
+        validate_alias_targets(current, &interface, &identities),
+        Err(CrossConeHirAliasReferenceError::MissingCurrentPublicTarget {
             source: actual_source,
             target,
         }) if actual_source == source_id(current, "Source") && target == hidden_id

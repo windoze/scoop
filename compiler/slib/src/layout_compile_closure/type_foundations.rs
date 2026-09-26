@@ -16,7 +16,7 @@ impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
     pub fn validate_type_foundations(
         &mut self,
     ) -> Result<Vec<CheckedSharedTypeFoundationV1<'_>>, CrossConeLayoutTypeFoundationError> {
-        let (artifacts, dependencies) = self.0.hir_semantic_validation_parts();
+        let (artifacts, dependencies) = self.declarations.hir_semantic_validation_parts();
         let mut checked: Vec<CheckedSharedTypeFoundationV1<'_>> = Vec::new();
         for (position, artifact) in artifacts.iter_mut().enumerate() {
             let provider = artifact.identity();

@@ -34,6 +34,7 @@ pub(crate) struct PreparedCrossConeLayoutMirSections<'input> {
     hir_core: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     hir_types: CrossConeTypeSemanticsSectionV1,
+    hir_aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
     mir_core: CoreBootstrapBridgeSectionV1,
     mir_ordinary: CrossConeMirBridgeSectionV1,
 }
@@ -56,6 +57,7 @@ pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
 impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
     pub(crate) fn prepare_mir_semantics(
         self,
+        hir_aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
     ) -> Result<
         (
             PreparedCrossConeLayoutMirSections<'input>,
@@ -109,6 +111,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
                 hir_core: hir_core_production,
                 hir_interface,
                 hir_types: hir_type_semantics,
+                hir_aliases,
                 mir_core,
                 mir_ordinary,
             },

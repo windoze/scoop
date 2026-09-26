@@ -2,9 +2,8 @@ use scoop_identity::{
     BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity,
     DeclarationScope, DefinitionOwnerAtom, DefinitionOwnerChain, EnumVariantIdentityKey,
     ExportBindingKey, PackagePath, PendingIdentityValidation, PersistentEnumVariantId,
-    PersistentExportBindingId, PersistentObjectValueId, PersistentTypeAliasId, PersistentTypeId,
-    SemanticIdentitySession, SemanticOriginFingerprint, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind,
+    PersistentExportBindingId, PersistentObjectValueId, PersistentTypeId, SemanticIdentitySession,
+    SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 use scoop_wire::{WirePath, decode_canonical, encode};
 
@@ -19,8 +18,7 @@ use crate::{
     DecodedHirFoundation, EnumSourceShapeV1, EnumSourceVariantStyleV1, EnumSourceVariantV1,
     ExportBindingSourceV1, ImportedHirFoundation, NominalInterfaceRecordV1, NominalSourceShapeV1,
     ObjectSourceShapeV1, OdrFreeHirFoundation, PublicExportBindingRecordV1, PublicNominalKindV1,
-    ReexportRouteHopV1, ReexportRouteV1, SourceNominalId, TypeAliasClosureAuthority,
-    TypeAliasInterfaceRecordV1,
+    ReexportRouteHopV1, ReexportRouteV1, SourceNominalId,
 };
 
 mod callable;
@@ -371,27 +369,8 @@ fn interface(
 pub(super) fn empty_alias_expansions() -> CanonicalTypeAliasExpansionsV1 {
     CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
         .unwrap()
-        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
+        .expand_alias_closure(&[], &WirePath::root())
         .unwrap()
-}
-
-struct EmptyAliasAuthority;
-
-impl TypeAliasClosureAuthority for EmptyAliasAuthority {
-    fn external_type_alias(
-        &self,
-        _alias: PersistentTypeAliasId,
-    ) -> Option<&TypeAliasInterfaceRecordV1> {
-        None
-    }
-
-    fn is_type_alias_edge_authorized(
-        &self,
-        _source: PersistentTypeAliasId,
-        _target: PersistentTypeAliasId,
-    ) -> bool {
-        false
-    }
 }
 
 pub(super) fn certificate(

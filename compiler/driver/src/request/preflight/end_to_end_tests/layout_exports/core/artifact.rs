@@ -1,5 +1,6 @@
 use super::*;
 
+mod aliases;
 mod bytes;
 mod external_boxing;
 mod link_archive;
@@ -94,6 +95,9 @@ pub(super) fn check(
         input.mir.production().strong_callable_bridges(),
         input.ordinary,
     );
+    if name.starts_with("shared-aliases-") {
+        aliases::check(&artifact, target);
+    }
     if name == "base" {
         shape_dependencies::check(mir_section, layout, &artifact, target);
         lir_dependencies::check(&artifact, mir_section, layout);

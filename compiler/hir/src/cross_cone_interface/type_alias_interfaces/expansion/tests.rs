@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use scoop_identity::{
     CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOrigin, DefinitionOwnerChain,
     NormalizedSourcePath, PackagePath, PersistentTypeAliasId, PersistentTypeId, SignatureTypeKey,
@@ -13,173 +11,83 @@ use crate::{ExportDefinitionSourceV1, PublicLookupAccessV1};
 
 #[test]
 fn expands_local_and_external_chains_with_shared_memoized_targets() {
-    let fixture = GraphFixture::chain();
-
-    let expansions = fixture
-        .table
-        .expand_alias_closure(&fixture.authority, &WirePath::root().field(5))
-        .unwrap();
-
-    assert_eq!(expansions.entries().len(), 2);
-    assert!(!expansions.is_empty());
-    let first = expansions.get(fixture.first).unwrap();
-    let second = expansions.get(fixture.second).unwrap();
-    assert_eq!(first.alias(), fixture.first);
-    assert_eq!(first.target(), &SignatureTypeKey::Nominal(fixture.nominal));
+    let first = alias("First");
+    let second = alias("Second");
+    let bridge = alias("Bridge");
+    let third = alias("Third");
+    let target = nominal("Target");
+    let path = WirePath::root();
+    let provider = CanonicalTypeAliasInterfacesV1::try_new(vec![alias_record(
+        third,
+        TypeAliasTargetV1::Signature(SignatureTypeKey::Nominal(target)),
+    )])
+    .unwrap()
+    .expand_alias_closure(&[], &path)
+    .unwrap();
+    let intermediate = CanonicalTypeAliasInterfacesV1::try_new(vec![alias_record(
+        bridge,
+        TypeAliasTargetV1::Alias(third),
+    )])
+    .unwrap()
+    .expand_alias_closure(&[&provider], &path)
+    .unwrap();
+    let consumer = CanonicalTypeAliasInterfacesV1::try_new(vec![
+        alias_record(first, TypeAliasTargetV1::Alias(bridge)),
+        alias_record(second, TypeAliasTargetV1::Alias(first)),
+    ])
+    .unwrap()
+    .expand_alias_closure(&[&intermediate], &path)
+    .unwrap();
+    assert_eq!(consumer.entries().len(), 2);
+    assert!(!consumer.is_empty());
+    let first = consumer.get(first).unwrap();
+    let second = consumer.get(second).unwrap();
+    assert_eq!(first.target(), &SignatureTypeKey::Nominal(target));
     assert!(std::ptr::eq(first.target(), second.target()));
+    assert!(std::ptr::eq(
+        first.target(),
+        provider.get(third).unwrap().target()
+    ));
 }
 
 #[test]
-fn rejects_missing_targets_after_authorization() {
-    let mut fixture = GraphFixture::chain();
-    fixture.authority.records.remove(&fixture.third);
-
+fn rejects_a_missing_alias_target() {
+    let missing = alias("Missing");
+    let table = CanonicalTypeAliasInterfacesV1::try_new(vec![alias_record(
+        alias("Root"),
+        TypeAliasTargetV1::Alias(missing),
+    )])
+    .unwrap();
     assert_eq!(
-        fixture
-            .table
-            .expand_alias_closure(&fixture.authority, &WirePath::root().field(5),),
-        Err(TypeAliasExpansionError::MissingInterface {
-            alias: fixture.third,
-        })
-    );
-}
-
-#[test]
-fn rejects_unauthorized_edges_before_target_lookup() {
-    let mut fixture = GraphFixture::chain();
-    fixture.authority.records.remove(&fixture.third);
-    fixture
-        .authority
-        .authorized
-        .remove(&(fixture.bridge, fixture.third));
-
-    assert_eq!(
-        fixture
-            .table
-            .expand_alias_closure(&fixture.authority, &WirePath::root().field(5),),
-        Err(TypeAliasExpansionError::UnauthorizedTarget {
-            source: fixture.bridge,
-            target: fixture.third,
-        })
+        table.expand_alias_closure(&[], &WirePath::root()),
+        Err(TypeAliasExpansionError::MissingInterface { alias: missing })
     );
 }
 
 #[test]
 fn reports_the_complete_cycle_with_repeated_terminal_node() {
-    let fixture = GraphFixture::cycle();
-
-    assert_eq!(
-        fixture
-            .table
-            .expand_alias_closure(&fixture.authority, &WirePath::root().field(5),),
-        Err(TypeAliasExpansionError::Cycle {
-            chain: vec![fixture.first, fixture.bridge, fixture.third, fixture.first,],
-        })
-    );
-}
-
-struct GraphFixture {
-    first: PersistentTypeAliasId,
-    second: PersistentTypeAliasId,
-    bridge: PersistentTypeAliasId,
-    third: PersistentTypeAliasId,
-    nominal: PersistentTypeId,
-    table: CanonicalTypeAliasInterfacesV1,
-    authority: TestAuthority,
-}
-
-impl GraphFixture {
-    fn chain() -> Self {
-        let first = alias("First");
-        let second = alias("Second");
-        let bridge = alias("Bridge");
-        let third = alias("Third");
-        let nominal = nominal("Target");
-        let table = CanonicalTypeAliasInterfacesV1::try_new(vec![
-            alias_record(first, TypeAliasTargetV1::Alias(bridge)),
-            alias_record(second, TypeAliasTargetV1::Alias(bridge)),
-        ])
-        .unwrap();
-        let authority = TestAuthority {
-            records: BTreeMap::from([
-                (
-                    bridge,
-                    alias_record(bridge, TypeAliasTargetV1::Alias(third)),
-                ),
-                (
-                    third,
-                    alias_record(
-                        third,
-                        TypeAliasTargetV1::Signature(SignatureTypeKey::Nominal(nominal)),
-                    ),
-                ),
-            ]),
-            authorized: BTreeSet::from([(first, bridge), (second, bridge), (bridge, third)]),
-        };
-        Self {
-            first,
-            second,
-            bridge,
-            third,
-            nominal,
-            table,
-            authority,
-        }
-    }
-
-    fn cycle() -> Self {
-        let first = alias("CycleA");
-        let second = alias("UnusedRoot");
-        let bridge = alias("CycleB");
-        let third = alias("CycleC");
-        let nominal = nominal("UnusedTarget");
-        let table = CanonicalTypeAliasInterfacesV1::try_new(vec![alias_record(
-            first,
-            TypeAliasTargetV1::Alias(bridge),
-        )])
-        .unwrap();
-        let authority = TestAuthority {
-            records: BTreeMap::from([
-                (
-                    bridge,
-                    alias_record(bridge, TypeAliasTargetV1::Alias(third)),
-                ),
-                (third, alias_record(third, TypeAliasTargetV1::Alias(first))),
-            ]),
-            authorized: BTreeSet::from([(first, bridge), (bridge, third), (third, first)]),
-        };
-        Self {
-            first,
-            second,
-            bridge,
-            third,
-            nominal,
-            table,
-            authority,
-        }
-    }
-}
-
-#[derive(Default)]
-struct TestAuthority {
-    records: BTreeMap<PersistentTypeAliasId, TypeAliasInterfaceRecordV1>,
-    authorized: BTreeSet<(PersistentTypeAliasId, PersistentTypeAliasId)>,
-}
-
-impl TypeAliasClosureAuthority for TestAuthority {
-    fn external_type_alias(
-        &self,
-        alias: PersistentTypeAliasId,
-    ) -> Option<&TypeAliasInterfaceRecordV1> {
-        self.records.get(&alias)
-    }
-
-    fn is_type_alias_edge_authorized(
-        &self,
-        source: PersistentTypeAliasId,
-        target: PersistentTypeAliasId,
-    ) -> bool {
-        self.authorized.contains(&(source, target))
+    let a = alias("CycleA");
+    let b = alias("CycleB");
+    let c = alias("CycleC");
+    let table = CanonicalTypeAliasInterfacesV1::try_new(vec![
+        alias_record(a, TypeAliasTargetV1::Alias(b)),
+        alias_record(b, TypeAliasTargetV1::Alias(c)),
+        alias_record(c, TypeAliasTargetV1::Alias(a)),
+    ])
+    .unwrap();
+    let Err(TypeAliasExpansionError::Cycle { chain }) =
+        table.expand_alias_closure(&[], &WirePath::root())
+    else {
+        panic!("cyclic aliases must be rejected");
+    };
+    assert_eq!(chain.len(), 4);
+    assert_eq!(chain.first(), chain.last());
+    assert_eq!(chain[0], table.records()[0].alias());
+    for (current, next) in chain.iter().zip(&chain[1..]) {
+        assert_eq!(
+            table.get(*current).unwrap().target(),
+            &TypeAliasTargetV1::Alias(*next)
+        );
     }
 }
 

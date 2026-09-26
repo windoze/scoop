@@ -1,25 +1,17 @@
-//! Closure-wide non-generic type-alias authorization and expansion.
+//! Dependency-first type-alias expansion from checked declaration references.
 
-use std::fmt;
-
+use super::{CrossConeProviderRole, ExternalReferenceValidatedCrossConeHirClosure};
+use crate::ConstValidatedCrossConeHirFrontSections;
 use scoop_hir::{
-    CanonicalTypeAliasExpansionsV1, CrossConeHirInterfaceSectionV1,
-    ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1, TypeAliasClosureAuthority,
-    TypeAliasExpansionError, TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
+    CanonicalTypeAliasExpansionsV1, CrossConeHirInterfaceSectionV1, ExternalHirTargetV1,
+    TypeAliasExpansionError, TypeAliasTargetV1,
 };
-use scoop_identity::{ConeIdentity, PersistentTypeAliasId};
+use scoop_identity::{
+    ConeIdentity, PersistentTypeAliasId, SourceDeclarationKey, ValidatedIdentityGraph,
+};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::{WireError, WirePath};
-
-use super::{
-    CrossConeProviderRole, ExternalReferenceValidatedCrossConeHirClosure,
-    route_validation::{
-        CanonicalCrossConeRouteAuthority, CrossConeHirReferenceAuthorityError, RouteAuthorityInputs,
-    },
-};
-use crate::ConstValidatedCrossConeHirFrontSections;
-
-type AuthorizedAliasEdge = (PersistentTypeAliasId, PersistentTypeAliasId);
+use std::fmt;
 
 /// An externally closed HIR graph whose public non-generic aliases have been
 /// expanded to final signature types without exposing transitive providers as
@@ -84,104 +76,44 @@ impl<'input> TypeAliasExpandedCrossConeHirClosure<'input> {
 }
 
 impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
-    /// Derives authorized alias edges from the already validated external
-    /// reference closure, then expands alias chains dependency-first.
     pub fn validate_and_expand_type_aliases(
         mut self,
     ) -> Result<TypeAliasExpandedCrossConeHirClosure<'input>, CrossConeClosureTypeAliasExpansionError>
     {
-        let artifact_count = self.dependency_first().len();
         let mut expansions = Vec::new();
-        expansions.try_reserve_exact(artifact_count).map_err(|_| {
-            CrossConeClosureTypeAliasExpansionError::Allocation {
-                requested_slots: artifact_count,
-            }
-        })?;
-        let mut authorized_by_artifact = Vec::<Vec<AuthorizedAliasEdge>>::new();
-        authorized_by_artifact
-            .try_reserve_exact(artifact_count)
-            .map_err(|_| CrossConeClosureTypeAliasExpansionError::Allocation {
-                requested_slots: artifact_count,
+        let (artifacts, dependency_positions) = self.surfaces_mut().hir_semantic_validation_parts();
+        for (position, artifact) in artifacts.iter_mut().enumerate() {
+            let identity = artifact.identity();
+            let (identities, interface) = artifact.hir_semantic_parts();
+            validate_alias_targets(identity, interface, identities).map_err(|source| {
+                CrossConeClosureTypeAliasExpansionError::ArtifactReferences { identity, source }
             })?;
-
-        {
-            let (artifacts, dependency_positions) =
-                self.surfaces_mut().hir_semantic_validation_parts();
-            for position in 0..artifacts.len() {
-                let (previous, current_and_later) = artifacts.split_at_mut(position);
-                let current = &mut current_and_later[0];
-                let identity = current.identity();
-
-                let (identities, interface) = current.hir_semantic_parts();
-                let path = WirePath::root();
-                let resource =
-                    |source| CrossConeClosureTypeAliasExpansionError::Resource { identity, source };
-                let reachable = crate::dependency_reachability::transitive_positions(
-                    position,
-                    dependency_positions,
-                )
-                .map_err(resource)?;
-                let route_inputs = RouteAuthorityInputs::try_new(
-                    previous,
-                    &dependency_positions[position],
-                    &reachable,
-                    &path,
-                )
-                .map_err(resource)?;
-                let mut route_authority = CanonicalCrossConeRouteAuthority::try_new(
-                    identity,
-                    identities,
-                    interface,
-                    route_inputs.direct(),
-                    route_inputs.providers(),
-                    &path,
-                )
-                .map_err(resource)?;
-                let authorized = validate_alias_authority(interface, &mut route_authority)
-                    .map_err(|source| {
-                        CrossConeClosureTypeAliasExpansionError::ArtifactAuthority {
-                            identity,
-                            source: Box::new(source),
-                        }
-                    })?;
-                drop(route_authority);
-                drop(route_inputs);
-
-                let mut alias_providers = Vec::new();
-                alias_providers
-                    .try_reserve_exact(reachable.len())
-                    .map_err(
-                        |_| CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
-                            identity,
-                            requested_slots: reachable.len(),
-                        },
-                    )?;
-                alias_providers.extend(reachable.iter().map(|dependency| AliasProviderView {
-                    interface: previous[*dependency].hir_interface(),
-                    authorized: &authorized_by_artifact[*dependency],
-                }));
-                let alias_authority =
-                    CanonicalTypeAliasClosureAuthority::try_new(&authorized, &alias_providers)
-                        .map_err(|requested_slots| {
-                            CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
-                                identity,
-                                requested_slots,
-                            }
-                        })?;
-                let expanded = interface
-                    .type_aliases()
-                    .expand_alias_closure(&alias_authority, &path.field(5))
-                    .map_err(|source| {
-                        CrossConeClosureTypeAliasExpansionError::ArtifactExpansion {
-                            identity,
-                            source,
-                        }
-                    })?;
-                authorized_by_artifact.push(authorized);
-                expansions.push(expanded);
-            }
+            let reachable = crate::dependency_reachability::transitive_positions(
+                position,
+                dependency_positions,
+            )
+            .map_err(|source| CrossConeClosureTypeAliasExpansionError::Resource {
+                identity,
+                source,
+            })?;
+            let dependencies = reachable
+                .iter()
+                .map(|position| &expansions[*position])
+                .collect::<Vec<_>>();
+            let expanded = interface
+                .type_aliases()
+                .expand_alias_closure(&dependencies, &WirePath::root().field(5))
+                .map_err(
+                    |source| CrossConeClosureTypeAliasExpansionError::ArtifactExpansion {
+                        identity,
+                        source,
+                    },
+                )?;
+            scoop_wire::allocation::try_reserve(&mut expansions, 1, &WirePath::root()).map_err(
+                |source| CrossConeClosureTypeAliasExpansionError::Resource { identity, source },
+            )?;
+            expansions.push(expanded);
         }
-
         Ok(TypeAliasExpandedCrossConeHirClosure {
             references: self,
             expansions,
@@ -189,150 +121,41 @@ impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
     }
 }
 
-fn validate_alias_authority(
+pub(crate) fn validate_alias_targets(
+    current: ConeIdentity,
     interface: &CrossConeHirInterfaceSectionV1,
-    authority: &mut CanonicalCrossConeRouteAuthority<'_>,
-) -> Result<Vec<AuthorizedAliasEdge>, CrossConeHirAliasAuthorityValidationError> {
-    let aliases = interface.type_aliases();
-    let mut authorized = Vec::new();
-    authorized
-        .try_reserve_exact(aliases.records().len())
-        .map_err(|_| CrossConeHirAliasAuthorityValidationError::Allocation {
-            requested_slots: aliases.records().len(),
-        })?;
-    let current = authority.current_cone();
-    for record in aliases.records() {
+    identities: &ValidatedIdentityGraph,
+) -> Result<(), CrossConeHirAliasReferenceError> {
+    use CrossConeHirAliasReferenceError as Error;
+    for record in interface.type_aliases().records() {
         let TypeAliasTargetV1::Alias(target) = record.target() else {
             continue;
         };
         let source = record.alias();
         let target = *target;
-        let origin = authority
-            .external_hir_target_origin(ExternalHirTargetV1::TypeAlias(target))
-            .map_err(
-                |error| CrossConeHirAliasAuthorityValidationError::TargetOrigin {
-                    source,
-                    target,
-                    error,
-                },
-            )?;
-        if origin == current {
-            if aliases.get(target).is_none() {
-                return Err(
-                    CrossConeHirAliasAuthorityValidationError::MissingCurrentPublicTarget {
-                        source,
-                        target,
-                    },
-                );
+        let declaration = identities
+            .canonical_key::<_, SourceDeclarationKey>(target)
+            .map_err(|_| Error::MissingDeclaration { source, target })?;
+        if declaration.origin() == current {
+            if interface.type_aliases().get(target).is_none() {
+                return Err(Error::MissingCurrentPublicTarget { source, target });
             }
         } else if interface
             .external_references()
             .get(ExternalHirTargetV1::TypeAlias(target))
             .is_none()
         {
-            return Err(
-                CrossConeHirAliasAuthorityValidationError::MissingForeignReference {
-                    source,
-                    target,
-                },
-            );
+            return Err(Error::MissingForeignReference { source, target });
         }
-        authorized.push((source, target));
     }
-    Ok(authorized)
-}
-
-#[derive(Clone, Copy)]
-struct AliasProviderView<'a> {
-    interface: &'a CrossConeHirInterfaceSectionV1,
-    authorized: &'a [AuthorizedAliasEdge],
-}
-
-struct CanonicalTypeAliasClosureAuthority<'a> {
-    records: Vec<(PersistentTypeAliasId, &'a TypeAliasInterfaceRecordV1)>,
-    authorized: Vec<AuthorizedAliasEdge>,
-}
-
-impl<'a> CanonicalTypeAliasClosureAuthority<'a> {
-    fn try_new(
-        current_authorized: &[AuthorizedAliasEdge],
-        providers: &[AliasProviderView<'a>],
-    ) -> Result<Self, usize> {
-        let record_count = providers.iter().try_fold(0_usize, |count, provider| {
-            count.checked_add(provider.interface.type_aliases().records().len())
-        });
-        let Some(record_count) = record_count else {
-            return Err(usize::MAX);
-        };
-        let mut records = Vec::new();
-        records
-            .try_reserve_exact(record_count)
-            .map_err(|_| record_count)?;
-        for provider in providers {
-            records.extend(
-                provider
-                    .interface
-                    .type_aliases()
-                    .records()
-                    .iter()
-                    .map(|record| (record.alias(), record)),
-            );
-        }
-        records.sort_unstable_by_key(|(alias, _)| *alias);
-        records.dedup_by_key(|(alias, _)| *alias);
-
-        let authorized_count = providers
-            .iter()
-            .try_fold(current_authorized.len(), |count, provider| {
-                count.checked_add(provider.authorized.len())
-            });
-        let Some(authorized_count) = authorized_count else {
-            return Err(usize::MAX);
-        };
-        let mut authorized = Vec::new();
-        authorized
-            .try_reserve_exact(authorized_count)
-            .map_err(|_| authorized_count)?;
-        authorized.extend_from_slice(current_authorized);
-        for provider in providers {
-            authorized.extend_from_slice(provider.authorized);
-        }
-        authorized.sort_unstable();
-        authorized.dedup();
-
-        Ok(Self {
-            records,
-            authorized,
-        })
-    }
-}
-
-impl TypeAliasClosureAuthority for CanonicalTypeAliasClosureAuthority<'_> {
-    fn external_type_alias(
-        &self,
-        alias: PersistentTypeAliasId,
-    ) -> Option<&TypeAliasInterfaceRecordV1> {
-        self.records
-            .binary_search_by_key(&alias, |(candidate, _)| *candidate)
-            .ok()
-            .map(|position| self.records[position].1)
-    }
-
-    fn is_type_alias_edge_authorized(
-        &self,
-        source: PersistentTypeAliasId,
-        target: PersistentTypeAliasId,
-    ) -> bool {
-        self.authorized.binary_search(&(source, target)).is_ok()
-    }
+    Ok(())
 }
 
 #[derive(Debug)]
-pub enum CrossConeHirAliasAuthorityValidationError {
-    TargetOrigin {
+pub enum CrossConeHirAliasReferenceError {
+    MissingDeclaration {
         source: PersistentTypeAliasId,
         target: PersistentTypeAliasId,
-        error: CrossConeHirReferenceAuthorityError,
     },
     MissingCurrentPublicTarget {
         source: PersistentTypeAliasId,
@@ -342,48 +165,26 @@ pub enum CrossConeHirAliasAuthorityValidationError {
         source: PersistentTypeAliasId,
         target: PersistentTypeAliasId,
     },
-    Allocation {
-        requested_slots: usize,
-    },
 }
-
-impl fmt::Display for CrossConeHirAliasAuthorityValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for CrossConeHirAliasReferenceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TargetOrigin {
-                source,
-                target,
-                error,
-            } => write!(
-                formatter,
-                "type alias {source} target {target} has no canonical origin: {error}"
+            Self::MissingDeclaration { source, target } => write!(
+                f,
+                "type alias {source} has no declaration for target {target}"
             ),
             Self::MissingCurrentPublicTarget { source, target } => write!(
-                formatter,
+                f,
                 "type alias {source} targets current non-public alias {target}"
             ),
             Self::MissingForeignReference { source, target } => write!(
-                formatter,
+                f,
                 "type alias {source} targets foreign alias {target} without an external reference"
             ),
-            Self::Allocation { requested_slots } => write!(
-                formatter,
-                "cannot allocate {requested_slots} authorized type-alias edges"
-            ),
         }
     }
 }
-
-impl std::error::Error for CrossConeHirAliasAuthorityValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::TargetOrigin { error, .. } => Some(error),
-            Self::MissingCurrentPublicTarget { .. }
-            | Self::MissingForeignReference { .. }
-            | Self::Allocation { .. } => None,
-        }
-    }
-}
+impl std::error::Error for CrossConeHirAliasReferenceError {}
 
 #[derive(Debug)]
 pub enum CrossConeClosureTypeAliasExpansionError {
@@ -391,67 +192,38 @@ pub enum CrossConeClosureTypeAliasExpansionError {
         identity: ConeIdentity,
         source: WireError,
     },
-    Allocation {
-        requested_slots: usize,
-    },
-    AuthorityAllocation {
+    ArtifactReferences {
         identity: ConeIdentity,
-        requested_slots: usize,
-    },
-    ArtifactAuthority {
-        identity: ConeIdentity,
-        source: Box<CrossConeHirAliasAuthorityValidationError>,
+        source: CrossConeHirAliasReferenceError,
     },
     ArtifactExpansion {
         identity: ConeIdentity,
         source: TypeAliasExpansionError,
     },
 }
-
 impl fmt::Display for CrossConeClosureTypeAliasExpansionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resource { identity, source } => write!(
-                formatter,
-                "type-alias route resources exhausted for {identity}: {source}"
-            ),
-            Self::Allocation { requested_slots } => write!(
-                formatter,
-                "cannot allocate {requested_slots} cross-Cone type-alias expansion slots"
-            ),
-            Self::AuthorityAllocation {
-                identity,
-                requested_slots,
-            } => write!(
-                formatter,
-                "cannot allocate {requested_slots} type-alias authority slots for {identity}"
-            ),
-            Self::ArtifactAuthority { identity, source } => {
-                write!(
-                    formatter,
-                    "invalid type-alias authority for {identity}: {source}"
-                )
+            Self::Resource { identity, source } => {
+                write!(f, "cannot read type aliases for {identity}: {source}")
+            }
+            Self::ArtifactReferences { identity, source } => {
+                write!(f, "invalid type-alias reference for {identity}: {source}")
             }
             Self::ArtifactExpansion { identity, source } => {
-                write!(
-                    formatter,
-                    "cannot expand type aliases for {identity}: {source}"
-                )
+                write!(f, "cannot expand type aliases for {identity}: {source}")
             }
         }
     }
 }
-
 impl std::error::Error for CrossConeClosureTypeAliasExpansionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Resource { source, .. } => Some(source),
-            Self::ArtifactAuthority { source, .. } => Some(source.as_ref()),
+            Self::ArtifactReferences { source, .. } => Some(source),
             Self::ArtifactExpansion { source, .. } => Some(source),
-            Self::Allocation { .. } | Self::AuthorityAllocation { .. } => None,
         }
     }
 }
-
 #[cfg(test)]
 mod tests;

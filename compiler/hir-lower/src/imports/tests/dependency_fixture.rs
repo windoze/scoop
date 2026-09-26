@@ -1,7 +1,7 @@
 use scoop_hir as hir;
 use scoop_identity::{
-    ConeCoordinate, ConeIdentity, PendingIdentityValidation, PersistentTypeAliasId,
-    SemanticIdentitySession, SemanticOriginFingerprint,
+    ConeCoordinate, ConeIdentity, PendingIdentityValidation, SemanticIdentitySession,
+    SemanticOriginFingerprint,
 };
 use scoop_wire::{WirePath, decode_canonical, encode};
 
@@ -208,27 +208,8 @@ fn import_foundation(
 fn empty_alias_expansions() -> hir::CanonicalTypeAliasExpansionsV1 {
     hir::CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
         .unwrap()
-        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
+        .expand_alias_closure(&[], &WirePath::root())
         .unwrap()
-}
-
-struct EmptyAliasAuthority;
-
-impl hir::TypeAliasClosureAuthority for EmptyAliasAuthority {
-    fn external_type_alias(
-        &self,
-        _alias: PersistentTypeAliasId,
-    ) -> Option<&hir::TypeAliasInterfaceRecordV1> {
-        None
-    }
-
-    fn is_type_alias_edge_authorized(
-        &self,
-        _source: PersistentTypeAliasId,
-        _target: PersistentTypeAliasId,
-    ) -> bool {
-        false
-    }
 }
 
 fn certificate(coordinate: &ConeCoordinate, fingerprint: u8) -> hir::ImportedProviderCertificate {

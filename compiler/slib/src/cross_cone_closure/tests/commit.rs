@@ -1,12 +1,8 @@
 use std::collections::BTreeMap;
 
-use scoop_hir::{
-    CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1, TypeAliasClosureAuthority,
-    TypeAliasInterfaceRecordV1,
-};
+use scoop_hir::{CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1};
 use scoop_identity::{
-    ConeIdentity, CoreBuiltinNominal, PersistentTypeAliasId, SemanticIdentitySession,
-    SemanticOriginFingerprint,
+    ConeIdentity, CoreBuiltinNominal, SemanticIdentitySession, SemanticOriginFingerprint,
 };
 use scoop_wire::WirePath;
 
@@ -274,25 +270,6 @@ fn closure_from_fronts<'input>(
 fn empty_alias_expansions() -> CanonicalTypeAliasExpansionsV1 {
     CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
         .unwrap()
-        .expand_alias_closure(&EmptyAliasAuthority, &WirePath::root())
+        .expand_alias_closure(&[], &WirePath::root())
         .unwrap()
-}
-
-struct EmptyAliasAuthority;
-
-impl TypeAliasClosureAuthority for EmptyAliasAuthority {
-    fn external_type_alias(
-        &self,
-        _alias: PersistentTypeAliasId,
-    ) -> Option<&TypeAliasInterfaceRecordV1> {
-        None
-    }
-
-    fn is_type_alias_edge_authorized(
-        &self,
-        _source: PersistentTypeAliasId,
-        _target: PersistentTypeAliasId,
-    ) -> bool {
-        false
-    }
 }

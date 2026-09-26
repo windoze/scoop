@@ -59,12 +59,14 @@ impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
             dependency_first,
             positions,
             dependency_positions,
-        } = self.0;
+        } = self.declarations;
         let mut resolved: Vec<MirTypesValidatedCrossConeLayoutSections<'input>> = Vec::new();
-        for (position, artifact) in dependency_first.into_iter().enumerate() {
+        for (position, (artifact, aliases)) in
+            dependency_first.into_iter().zip(self.aliases).enumerate()
+        {
             let provider = artifact.identity();
             let resolve = || -> Result<_, Error> {
-                let (mut prepared, mir, lir) = artifact.prepare_mir_semantics()?;
+                let (mut prepared, mir, lir) = artifact.prepare_mir_semantics(aliases)?;
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions)?;
                 let mir = mir.resolve_types::<Infallible>(

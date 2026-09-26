@@ -18,6 +18,8 @@ pub struct CrossConeLayoutHirDeclarationError {
 #[derive(Debug)]
 pub enum CrossConeHirDeclarationValidationError {
     Resource(WireError),
+    AliasReferences(crate::CrossConeHirAliasReferenceError),
+    AliasExpansion(scoop_hir::TypeAliasExpansionError),
     Internal(Box<CrossConeHirInternalClosureValidationError>),
     DefinitionSources(CrossConeHirDefinitionSourceSurfaceError),
     Nominals(CrossConeHirNominalSurfaceError),
@@ -49,6 +51,8 @@ impl std::fmt::Display for CrossConeHirDeclarationValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Resource(error) => error.fmt(f),
+            Self::AliasReferences(error) => error.fmt(f),
+            Self::AliasExpansion(error) => error.fmt(f),
             Self::Internal(error) => error.fmt(f),
             Self::DefinitionSources(error) => error.fmt(f),
             Self::Nominals(error) => error.fmt(f),

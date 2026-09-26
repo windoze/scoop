@@ -18,34 +18,35 @@ pub use errors::{CrossConeHirDeclarationValidationError, CrossConeLayoutHirDecla
 
 /// Actual artifact metadata whose shared declarations and references passed
 /// ordinary HIR checks. Type semantics and machine relations remain pending.
-pub struct HirDeclarationsValidatedCrossConeLayoutClosure<'input>(
-    pub(super) HirProductionValidatedCrossConeLayoutClosure<'input>,
-);
+pub struct HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
+    pub(super) declarations: HirProductionValidatedCrossConeLayoutClosure<'input>,
+    pub(super) aliases: Vec<scoop_hir::CanonicalTypeAliasExpansionsV1>,
+}
 
 impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
     pub const fn current(&self) -> ConeIdentity {
-        self.0.current()
+        self.declarations.current()
     }
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
-        self.0.target_selection()
+        self.declarations.target_selection()
     }
 
     pub fn direct_providers(&self) -> &[ConeIdentity] {
-        self.0.direct_providers()
+        self.declarations.direct_providers()
     }
 
     pub fn dependency_first(
         &self,
     ) -> impl ExactSizeIterator<Item = &HirProductionValidatedCrossConeLayoutSections<'_>> {
-        self.0.dependency_first()
+        self.declarations.dependency_first()
     }
 
     pub fn artifact(
         &self,
         provider: ConeIdentity,
     ) -> Option<&HirProductionValidatedCrossConeLayoutSections<'_>> {
-        self.0.artifact(provider)
+        self.declarations.artifact(provider)
     }
 }
 
@@ -58,6 +59,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
         CrossConeLayoutHirDeclarationError,
     > {
         let (artifacts, dependencies) = self.hir_semantic_validation_parts();
+        let mut aliases = Vec::new();
         for position in 0..artifacts.len() {
             let (previous, remaining) = artifacts.split_at_mut(position);
             let artifact = &mut remaining[0];
@@ -68,8 +70,31 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
                     source: Box::new(source),
                 }
             })?;
+            let mut expand = || -> Result<_, Error> {
+                let (identities, _, _, interface, _) = artifact.hir_semantic_parts();
+                crate::cross_cone_closure::validate_alias_targets(provider, interface, identities)
+                    .map_err(Error::AliasReferences)?;
+                let reachable =
+                    transitive_positions(position, dependencies).map_err(Error::Resource)?;
+                let dependencies = reachable
+                    .iter()
+                    .map(|position| &aliases[*position])
+                    .collect::<Vec<_>>();
+                interface
+                    .type_aliases()
+                    .expand_alias_closure(&dependencies, &WirePath::root().field(5))
+                    .map_err(Error::AliasExpansion)
+            };
+            let expanded = expand().map_err(|source| CrossConeLayoutHirDeclarationError {
+                provider,
+                source: Box::new(source),
+            })?;
+            aliases.push(expanded);
         }
-        Ok(HirDeclarationsValidatedCrossConeLayoutClosure(self))
+        Ok(HirDeclarationsValidatedCrossConeLayoutClosure {
+            declarations: self,
+            aliases,
+        })
     }
 }
 

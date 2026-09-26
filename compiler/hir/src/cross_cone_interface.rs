@@ -371,8 +371,8 @@ pub use section::{
 pub use type_alias_interfaces::{
     CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,
     DecodedCanonicalTypeAliasInterfacesV1, DecodedTypeAliasInterfaceRecordV1,
-    DecodedTypeAliasTargetV1, TypeAliasClosureAuthority, TypeAliasDeclarationSourceV1,
-    TypeAliasExpansionError, TypeAliasExpansionV1, TypeAliasInterfaceRecordBuildError,
+    DecodedTypeAliasTargetV1, TypeAliasDeclarationSourceV1, TypeAliasExpansionError,
+    TypeAliasExpansionV1, TypeAliasInterfaceRecordBuildError,
     TypeAliasInterfaceRecordResolutionError, TypeAliasInterfaceRecordResolver,
     TypeAliasInterfaceRecordV1, TypeAliasInterfaceSemanticAuthority,
     TypeAliasInterfaceSemanticValidationError, TypeAliasInterfaceSetBuildError,

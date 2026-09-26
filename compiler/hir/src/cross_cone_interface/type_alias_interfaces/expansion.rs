@@ -7,21 +7,6 @@ use scoop_wire::{WireError, WireErrorKind, WirePath};
 
 use super::{CanonicalTypeAliasInterfacesV1, TypeAliasInterfaceRecordV1, TypeAliasTargetV1};
 
-/// Supplies validated transitive alias records and edge-specific public
-/// reachability proofs for the complete dependency closure.
-pub trait TypeAliasClosureAuthority {
-    fn external_type_alias(
-        &self,
-        alias: PersistentTypeAliasId,
-    ) -> Option<&TypeAliasInterfaceRecordV1>;
-
-    fn is_type_alias_edge_authorized(
-        &self,
-        source: PersistentTypeAliasId,
-        target: PersistentTypeAliasId,
-    ) -> bool;
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypeAliasExpansionV1 {
     alias: PersistentTypeAliasId,
@@ -61,20 +46,17 @@ impl CanonicalTypeAliasExpansionsV1 {
 }
 
 impl CanonicalTypeAliasInterfacesV1 {
-    pub fn expand_alias_closure<A>(
+    pub fn expand_alias_closure(
         &self,
-        authority: &A,
+        dependencies: &[&CanonicalTypeAliasExpansionsV1],
 
         path: &WirePath,
-    ) -> Result<CanonicalTypeAliasExpansionsV1, TypeAliasExpansionError>
-    where
-        A: TypeAliasClosureAuthority,
-    {
+    ) -> Result<CanonicalTypeAliasExpansionsV1, TypeAliasExpansionError> {
         let mut entries = Vec::new();
         scoop_wire::allocation::try_reserve(&mut entries, self.records().len(), path)
             .map_err(TypeAliasExpansionError::Resource)?;
 
-        let mut expander = TypeAliasExpander::new(self, authority, path);
+        let mut expander = TypeAliasExpander::new(self, dependencies, path);
         for record in self.records() {
             let target = expander.expand(record.alias())?;
             entries.push(TypeAliasExpansionV1 {
@@ -86,9 +68,9 @@ impl CanonicalTypeAliasInterfacesV1 {
     }
 }
 
-struct TypeAliasExpander<'table, 'authority, 'path, A> {
+struct TypeAliasExpander<'table, 'dependencies, 'path> {
     local: &'table CanonicalTypeAliasInterfacesV1,
-    authority: &'authority A,
+    dependencies: &'dependencies [&'dependencies CanonicalTypeAliasExpansionsV1],
 
     path: &'path WirePath,
     memo: HashMap<PersistentTypeAliasId, Arc<SignatureTypeKey>>,
@@ -96,19 +78,16 @@ struct TypeAliasExpander<'table, 'authority, 'path, A> {
     stack: Vec<PersistentTypeAliasId>,
 }
 
-impl<'table, 'authority, 'path, A> TypeAliasExpander<'table, 'authority, 'path, A>
-where
-    A: TypeAliasClosureAuthority,
-{
+impl<'table, 'dependencies, 'path> TypeAliasExpander<'table, 'dependencies, 'path> {
     fn new(
         local: &'table CanonicalTypeAliasInterfacesV1,
-        authority: &'authority A,
+        dependencies: &'dependencies [&'dependencies CanonicalTypeAliasExpansionsV1],
 
         path: &'path WirePath,
     ) -> Self {
         Self {
             local,
-            authority,
+            dependencies,
 
             path,
             memo: HashMap::new(),
@@ -127,10 +106,12 @@ where
                 break Arc::clone(target);
             }
 
+            if let Some(expansion) = self.dependencies.iter().find_map(|table| table.get(alias)) {
+                break Arc::clone(&expansion.target);
+            }
             let target = self
                 .local
                 .get(alias)
-                .or_else(|| self.authority.external_type_alias(alias))
                 .map(TypeAliasInterfaceRecordV1::target)
                 .cloned()
                 .ok_or(TypeAliasExpansionError::MissingInterface { alias })?;
@@ -140,12 +121,6 @@ where
             match target {
                 TypeAliasTargetV1::Signature(target) => break Arc::new(target),
                 TypeAliasTargetV1::Alias(next) => {
-                    if !self.authority.is_type_alias_edge_authorized(alias, next) {
-                        return Err(TypeAliasExpansionError::UnauthorizedTarget {
-                            source: alias,
-                            target: next,
-                        });
-                    }
                     if let Some(start) = self.active_positions.get(&next).copied() {
                         return Err(self.cycle_error(start, next)?);
                     }
@@ -201,16 +176,8 @@ fn integer_out_of_range(path: &WirePath) -> WireError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TypeAliasExpansionError {
-    MissingInterface {
-        alias: PersistentTypeAliasId,
-    },
-    UnauthorizedTarget {
-        source: PersistentTypeAliasId,
-        target: PersistentTypeAliasId,
-    },
-    Cycle {
-        chain: Vec<PersistentTypeAliasId>,
-    },
+    MissingInterface { alias: PersistentTypeAliasId },
+    Cycle { chain: Vec<PersistentTypeAliasId> },
     Resource(WireError),
 }
 
@@ -220,10 +187,6 @@ impl fmt::Display for TypeAliasExpansionError {
             Self::MissingInterface { alias } => {
                 write!(formatter, "missing type-alias interface {alias}")
             }
-            Self::UnauthorizedTarget { source, target } => write!(
-                formatter,
-                "type alias {source} is not authorized to reference type alias {target}"
-            ),
             Self::Cycle { chain } => {
                 formatter.write_str("type-alias cycle: ")?;
                 for (index, alias) in chain.iter().enumerate() {
