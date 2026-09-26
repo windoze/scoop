@@ -87,4 +87,59 @@ Module
       FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
         FieldAccess dependency field e455bae1b6cb089412338e6835adbfe9ac0747431f07dee9b5447bd240a828a6 : Wide
           Local value : Nested
+  fun fromField(value: Wide): Long <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local $dependency.argument.0 : Wide
+    val local3
+      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
+        Local $dependency.parameter.value : Wide
+    return
+      ImportedDependencyCall #4 : Long
+        Local $dependency.parameter.value : Wide
+        Local $dependency.parameter.selected : Long
+  fun fromMember(value: Wide): Long <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local $dependency.argument.0 : Wide
+    val local3
+      Local $dependency.parameter.value : Wide
+    val local4
+      IntegerLiteral 7 : Long
+    val local5
+      Local $dependency.default.local.2 : Long
+    val local6
+      ImportedDependencyCall #2 : Long
+        Local $dependency.default.local.1 : Wide
+        Local $dependency.default.local.3 : Long
+    return
+      ImportedDependencyCall #5 : Long
+        Local $dependency.parameter.value : Wide
+        Local $dependency.parameter.selected : Long
+  fun fromProperty(value: Wide): Long <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local $dependency.argument.0 : Wide
+    val local3
+      ImportedDependencyCall #3 : Long
+        Local $dependency.parameter.value : Wide
+    return
+      ImportedDependencyCall #6 : Long
+        Local $dependency.parameter.value : Wide
+        Local $dependency.parameter.selected : Long
+  fun fromMarker(value: Nested): Token <no-gc cdecl>
+    val local1
+      Local value : Nested
+    val local2
+      Local $dependency.argument.0 : Nested
+    val local3
+      FieldAccess dependency field bc90c80ba77f9b4a98c9d5ca9eb3e157147a45d1ccd98b263e7917accfc8d504 : Token
+        Local $dependency.parameter.value : Nested
+    return
+      ImportedDependencyCall #7 : Token
+        Local $dependency.parameter.value : Nested
+        Local $dependency.parameter.marker : Token
   output library

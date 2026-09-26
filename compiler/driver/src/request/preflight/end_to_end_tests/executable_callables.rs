@@ -151,12 +151,19 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
                     .all(|site| site.origin().evaluation().source().cone() == identity)
             );
             for site in &sites {
-                let expected_routes = if site.origin().definition().source().cone() == identity {
-                    1
+                if site.origin().definition().source().cone() == identity {
+                    assert!(matches!(
+                        site.reason(),
+                        scoop_hir::HirDependencyCallReasonV1::SourceBinding(_)
+                    ));
+                    assert_eq!(site.witness_indices().len(), 1);
                 } else {
-                    2
-                };
-                assert_eq!(site.witness_indices().len(), expected_routes);
+                    assert!(matches!(
+                        site.reason(),
+                        scoop_hir::HirDependencyCallReasonV1::SourceDeclaration
+                    ));
+                    assert!(site.witness_indices().is_empty());
+                }
             }
             assert!(
                 sites.iter().any(|site| site.arguments().len() == 2

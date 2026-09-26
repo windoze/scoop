@@ -134,6 +134,47 @@ impl Lowerer {
                     })?;
                 self.imported_default_call_kind(callee, args, receiver, context)?
             }
+            Kind::FieldAccess {
+                receiver,
+                field:
+                    hir::DefaultFieldRefV1::Struct {
+                        declaration,
+                        owner_type,
+                    },
+            } => {
+                let owner = self
+                    .imported_default_core_type(owner_type)
+                    .map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?;
+                hir::ExprKind::FieldAccess {
+                    receiver: Box::new(
+                        self.materialize_imported_default_expression(receiver, context)?,
+                    ),
+                    field: hir::FieldRef::ImportedStruct {
+                        owner,
+                        field: *declaration,
+                    },
+                }
+            }
+            Kind::MethodCall {
+                receiver,
+                callee: hir::DefaultMethodCalleeV1::Callable(callee),
+                arguments,
+            } => {
+                let receiver = self.materialize_imported_default_expression(receiver, context)?;
+                let receiver_type = receiver.ty;
+                let mut args = vec![receiver];
+                args.extend(self.materialize_imported_default_expressions(arguments, context)?);
+                self.imported_default_call_kind(
+                    callee,
+                    args,
+                    hir::SourceCallReceiver::Receiver {
+                        static_type: receiver_type,
+                    },
+                    context,
+                )?
+            }
             Kind::PrimitiveBinary { kind, lhs, rhs } => hir::ExprKind::PrimitiveBinary {
                 kind: (*kind).into(),
                 lhs: Box::new(self.materialize_imported_default_expression(lhs, context)?),
@@ -269,14 +310,14 @@ impl Lowerer {
             context.prepared.callables.get(callee).ok_or_else(|| {
                 ImportedDefaultMaterializationError::MissingCallable(callee.clone())
             })?;
-        let (callee, binding) = self
-            .select_imported_dependency_callable_use(candidate.clone())
+        let callee = self
+            .select_imported_callable_declaration_use(candidate.clone())
             .map_err(|error| {
                 ImportedDefaultMaterializationError::DependencySelection(error.to_string())
             })?;
         Ok(hir::ExprKind::ImportedDependencyCall {
             callee,
-            binding: Some(binding),
+            binding: None,
             args,
             receiver,
         })
@@ -288,7 +329,7 @@ impl Lowerer {
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::DefinitionOrigin, ImportedDefaultMaterializationError> {
         let imported = context.owner.definition_source(source).ok_or_else(|| {
-            ImportedDefinitionOriginError::MissingAuthenticatedSource {
+            ImportedDefinitionOriginError::MissingSource {
                 context: source.origin().context(),
             }
         })?;

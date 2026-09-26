@@ -57,9 +57,9 @@ pub enum ImportedMemberLookup<'a> {
     PropertyGetter(&'a str),
 }
 
-/// A member of an exact source nominal, without a fabricated import binding.
+/// A callable referenced by its actual declaration, including member and default uses.
 #[derive(Clone, Debug)]
-pub struct ImportedMemberCallableCandidate {
+pub struct ImportedCallableDeclaration {
     name: CanonicalIdentifier,
     interface: CallableInterfaceRecordV1,
     capability: Option<ParamFreeNominalCallableV1>,
@@ -68,7 +68,7 @@ pub struct ImportedMemberCallableCandidate {
     definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
 
-impl ImportedMemberCallableCandidate {
+impl ImportedCallableDeclaration {
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -78,7 +78,7 @@ impl ImportedMemberCallableCandidate {
     }
 }
 
-impl ImportedCallableSource for ImportedMemberCallableCandidate {
+impl ImportedCallableSource for ImportedCallableDeclaration {
     fn interface(&self) -> &CallableInterfaceRecordV1 {
         &self.interface
     }
@@ -100,11 +100,55 @@ impl ImportedCallableSource for ImportedMemberCallableCandidate {
 }
 
 impl ImportedDependencySelectionPlan {
+    pub(super) fn callable_declaration(
+        &self,
+        declaration: scoop_identity::CallableTemplateOrigin,
+    ) -> Result<ImportedCallableDeclaration, ImportedDependencyCandidateError> {
+        let entry = self.catalog.callables.get(&declaration).ok_or(
+            ImportedDependencyCandidateError::MissingCallable(declaration),
+        )?;
+        let name = match &entry.name {
+            CallableCatalogName::Function(name) => name,
+            CallableCatalogName::Accessor => {
+                &self
+                    .catalog
+                    .properties
+                    .values()
+                    .find(|property| {
+                        let accessor = property.interface.capability();
+                        declaration
+                            == scoop_identity::CallableTemplateOrigin::Accessor(accessor.getter())
+                            || accessor.setter().is_some_and(|setter| {
+                                declaration
+                                    == scoop_identity::CallableTemplateOrigin::Accessor(setter)
+                            })
+                    })
+                    .ok_or(ImportedDependencyCandidateError::MissingCallableSource(
+                        declaration,
+                    ))?
+                    .name
+            }
+            CallableCatalogName::Constructor | CallableCatalogName::VariantConstructor => {
+                return Err(ImportedDependencyCandidateError::MissingCallableSource(
+                    declaration,
+                ));
+            }
+        };
+        Ok(ImportedCallableDeclaration {
+            name: name.clone(),
+            interface: entry.interface.clone(),
+            capability: entry.capability.clone(),
+            source: entry.source.clone(),
+            defaults: entry.default_templates.clone(),
+            definition_sources: Arc::clone(&entry.definition_sources),
+        })
+    }
+
     pub fn member_callable_candidates(
         &self,
         owner: SourceNominalId,
         lookup: ImportedMemberLookup<'_>,
-    ) -> Result<Vec<ImportedMemberCallableCandidate>, ImportedDependencyCandidateError> {
+    ) -> Result<Vec<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
         let mut candidates = Vec::new();
         let property = match lookup {
             ImportedMemberLookup::PropertyGetter(name) => {
@@ -150,7 +194,7 @@ impl ImportedDependencySelectionPlan {
                     entry.interface.declaration(),
                 ));
             }
-            candidates.push(ImportedMemberCallableCandidate {
+            candidates.push(ImportedCallableDeclaration {
                 name: name.clone(),
                 interface: entry.interface.clone(),
                 capability: entry.capability.clone(),

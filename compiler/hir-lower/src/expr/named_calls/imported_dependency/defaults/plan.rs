@@ -16,8 +16,7 @@ pub(in super::super) struct ImportedDefaultPlan {
 #[derive(Clone)]
 pub(in super::super) struct PreparedImportedDefault {
     pub(super) template: hir::ExportDefaultTemplateV1,
-    pub(super) callables:
-        BTreeMap<hir::DefaultCallableRefV1, hir::ImportedDependencyCallableCandidate>,
+    pub(super) callables: BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
 }
 
 impl ImportedDefaultPlan {
@@ -64,7 +63,6 @@ impl Lowerer {
 pub(in super::super) enum ImportedDefaultPlanError {
     MissingTemplate(hir::ExportDefaultTemplateKeyV1),
     UnknownLocal(LocalValueSelector),
-    MissingCallableReference(hir::DefaultCallableRefV1),
     InvalidControlFlow(&'static str),
     Callable {
         callee: hir::DefaultCallableRefV1,
@@ -91,10 +89,6 @@ impl fmt::Display for ImportedDefaultPlanError {
                     "dependency default reads unmapped local {local:?}"
                 )
             }
-            Self::MissingCallableReference(callee) => write!(
-                formatter,
-                "dependency default call {callee:?} lacks its validated reference proof"
-            ),
             Self::InvalidControlFlow(operation) => {
                 write!(
                     formatter,

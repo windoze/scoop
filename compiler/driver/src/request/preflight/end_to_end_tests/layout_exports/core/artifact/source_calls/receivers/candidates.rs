@@ -22,12 +22,12 @@ pub(super) fn mutations(public: &hir::CrossConeHirInterfaceSectionV1) -> Vec<Can
                 continue;
             }
             assert_ne!(call.receiver(), wrong);
-            let replacement = hir::HirDependencyCallSiteV1::try_new(
+            let replacement = hir::HirDependencyCallSiteV1::try_new_with_reason(
                 call.position(),
                 call.origin().clone(),
                 call.arguments().to_vec(),
                 call.result(),
-                call.witness_indices().to_vec(),
+                call.reason().clone(),
                 wrong,
             )
             .unwrap();

@@ -11,6 +11,10 @@ declare void @f11(ptr byval(%Nested) align 8)
 declare i64 @f12(ptr byval(%Nested) align 8)
 declare i64 @f13(ptr byval(%Wide) align 8)
 declare i64 @f14(ptr byval(%Wide) align 8)
+declare i64 @f15(ptr byval(%Wide) align 8)
+declare i64 @f16(ptr byval(%Wide) align 8)
+declare i64 @f17(ptr byval(%Wide) align 8)
+declare void @f18(ptr byval(%Nested) align 8)
 
 define i32 @main() {
 entry:
@@ -23,6 +27,10 @@ entry:
   %nested = call i64 @f12(ptr byval(%Nested) align 8 @input)
   %fieldSum = call i64 @f13(ptr byval(%Wide) align 8 %value)
   %computedTotal = call i64 @f14(ptr byval(%Wide) align 8 %value)
+  %fromField = call i64 @f15(ptr byval(%Wide) align 8 %value)
+  %fromMember = call i64 @f16(ptr byval(%Wide) align 8 %value)
+  %fromProperty = call i64 @f17(ptr byval(%Wide) align 8 %value)
+  call void @f18(ptr byval(%Nested) align 8 @input)
   %p1 = getelementptr %Wide, ptr %value, i32 0, i32 1
   %p2 = getelementptr %Wide, ptr %value, i32 0, i32 2
   %v0 = load i64, ptr %value, align 8
@@ -36,13 +44,19 @@ entry:
   %ok5 = icmp eq i64 %nested, 17
   %ok6 = icmp eq i64 %fieldSum, 48
   %ok7 = icmp eq i64 %computedTotal, 48
+  %ok8 = icmp eq i64 %fromField, 17
+  %ok9 = icmp eq i64 %fromMember, 48
+  %ok10 = icmp eq i64 %fromProperty, 41
   %pair0 = and i1 %ok0, %ok1
   %pair1 = and i1 %ok2, %ok3
   %old = and i1 %pair0, %pair1
   %fields = and i1 %ok4, %ok5
   %sums = and i1 %ok6, %ok7
   %properties = and i1 %fields, %sums
-  %all = and i1 %old, %properties
+  %defaults0 = and i1 %ok8, %ok9
+  %defaults = and i1 %defaults0, %ok10
+  %previous = and i1 %old, %properties
+  %all = and i1 %previous, %defaults
   %failed = xor i1 %all, true
   %status = zext i1 %failed to i32
   ret i32 %status

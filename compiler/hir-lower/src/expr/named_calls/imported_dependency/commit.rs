@@ -179,7 +179,7 @@ impl Lowerer {
                 .select_imported_dependency_callable_use(*candidate)
                 .map(|(callee, binding)| (callee, Some(binding))),
             ImportedCallableCandidate::Member(candidate) => self
-                .select_imported_member_callable_use(*candidate)
+                .select_imported_callable_declaration_use(*candidate)
                 .map(|callee| (callee, None)),
         };
         let (callee, binding) = match selected {

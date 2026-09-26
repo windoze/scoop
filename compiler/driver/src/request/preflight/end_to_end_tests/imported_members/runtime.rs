@@ -102,7 +102,15 @@ pub(super) fn check(
         }
     }
     for (index, names) in [
-        (1, vec![]),
+        (
+            1,
+            vec![
+                "defaultField",
+                "defaultMember",
+                "defaultProperty",
+                "defaultMarker",
+            ],
+        ),
         (
             2,
             vec![
@@ -111,6 +119,10 @@ pub(super) fn check(
                 "nestedFirst",
                 "fieldSum",
                 "computedTotal",
+                "fromField",
+                "fromMember",
+                "fromProperty",
+                "fromMarker",
             ],
         ),
     ] {
@@ -147,7 +159,7 @@ pub(super) fn check(
             std::fs::write(&path, object.bytes()).unwrap();
             objects.push(path);
         }
-        for name in names {
+        for name in names.into_iter().filter(|_| index == 2) {
             let export = sections.lir_cross_cone_bridge().exports().iter().find(|export| {
                 let StrongCallableDefinitionOwner::Function(id) = export.target() else { return false; };
                 let key = sections.identity_graph().canonical_key::<_, SourceDeclarationKey>(id).unwrap();

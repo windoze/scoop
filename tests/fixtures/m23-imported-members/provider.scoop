@@ -20,3 +20,8 @@ public struct Managed(val text: String, val token: Token) {
 }
 
 public struct Nested(val value: Wide, val marker: Token)
+
+@NoGC public fun defaultField(value: Wide, selected: Long = value.first): Long = selected
+@NoGC public fun defaultMember(value: Wide, selected: Long = value.total(7)): Long = selected
+@NoGC public fun defaultProperty(value: Wide, selected: Long = value.calculated): Long = selected
+@NoGC public fun defaultMarker(value: Nested, marker: Token = value.marker): Token = marker

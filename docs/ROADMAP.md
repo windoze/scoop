@@ -2,7 +2,7 @@
 
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
 
-M23-6 的实际跨 Cone 验收包含 struct 类型、普通 final 成员、字段与计算属性读取、默认参数、命名参数、operator、ZST 和含引用值。独立与组合 fixture 通过真实源码编译发布，再由下游仅凭产物消费；三个 Cone 的实际对象必须完成适用的链接和运行。共有 callable 查询支持 dispatch 引用普通成员，不能用历史 metadata 分区或来源资格限制合法使用。其余 M23-6 能力与清理仍按 [阶段设计](milestone23/stage6/DESIGN.md) 完成后验收，不以这部分通过代替整个里程碑。
+M23-6 的实际跨 Cone 验收包含 struct 类型、普通 final 成员、字段与计算属性读取、默认参数（含定义处字段引用）、命名参数、operator、ZST 和含引用值。独立与组合 fixture 通过真实源码编译发布，再由下游仅凭产物消费；三个 Cone 的实际对象必须完成适用的链接和运行。共有 callable 查询支持 dispatch 引用普通成员，不能用历史 metadata 分区或来源资格限制合法使用。其余 M23-6 能力与清理仍按 [阶段设计](milestone23/stage6/DESIGN.md) 完成后验收，不以这部分通过代替整个里程碑。
 
 M23-6 的框架清理以生产调用链为依据：移除未被共有 reader 使用的 HIR foundation/declaration transcript、来源绑定层及专用证明测试，保留实际声明查询、默认参数实例化和正常产物错误回归。真实源码发布与下游消费继续作为验收依据。
 

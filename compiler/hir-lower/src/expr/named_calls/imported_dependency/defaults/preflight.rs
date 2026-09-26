@@ -57,10 +57,7 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expression: &hir::DefaultExpressionV1,
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<
-            hir::DefaultCallableRefV1,
-            hir::ImportedDependencyCallableCandidate,
-        >,
+        callables: &mut BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
     ) -> Result<(), ImportedDefaultPlanError> {
         self.imported_default_core_type(expression.result_type())?;
         use hir::DefaultExpressionKindV1 as Kind;
@@ -89,7 +86,7 @@ impl Lowerer {
                 receiver
                     .as_ref()
                     .try_map(|ty| self.imported_default_core_type(ty))?;
-                self.prepare_imported_default_call(template, callee, callables)?;
+                self.prepare_imported_default_call(callee, callables)?;
                 self.preflight_imported_default_expressions(
                     owner, template, arguments, locals, callables,
                 )
@@ -125,6 +122,28 @@ impl Lowerer {
             },
             Kind::IntegerConversion { operand, .. } => self
                 .preflight_imported_default_expression(owner, template, operand, locals, callables),
+            Kind::FieldAccess {
+                receiver,
+                field: hir::DefaultFieldRefV1::Struct { owner_type, .. },
+            } => {
+                self.imported_default_core_type(owner_type)?;
+                self.preflight_imported_default_expression(
+                    owner, template, receiver, locals, callables,
+                )
+            }
+            Kind::MethodCall {
+                receiver,
+                callee: hir::DefaultMethodCalleeV1::Callable(callee),
+                arguments,
+            } => {
+                self.prepare_imported_default_call(callee, callables)?;
+                self.preflight_imported_default_expression(
+                    owner, template, receiver, locals, callables,
+                )?;
+                self.preflight_imported_default_expressions(
+                    owner, template, arguments, locals, callables,
+                )
+            }
             Kind::MethodCall { .. } | Kind::DirectSuperMethodCall { .. } => {
                 Err(ImportedDefaultPlanError::Requires {
                     requirement: ImportedCapabilityRequirement::Dispatch,
@@ -191,10 +210,7 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expressions: &[hir::DefaultExpressionV1],
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<
-            hir::DefaultCallableRefV1,
-            hir::ImportedDependencyCallableCandidate,
-        >,
+        callables: &mut BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
     ) -> Result<(), ImportedDefaultPlanError> {
         for expression in expressions {
             self.preflight_imported_default_expression(
@@ -206,21 +222,11 @@ impl Lowerer {
 
     fn prepare_imported_default_call(
         &self,
-        template: &hir::ExportDefaultTemplateV1,
         callee: &hir::DefaultCallableRefV1,
-        callables: &mut BTreeMap<
-            hir::DefaultCallableRefV1,
-            hir::ImportedDependencyCallableCandidate,
-        >,
+        callables: &mut BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
     ) -> Result<(), ImportedDefaultPlanError> {
         if callables.contains_key(callee) {
             return Ok(());
-        }
-        if callee.owner().is_present() {
-            return Err(ImportedDefaultPlanError::Requires {
-                requirement: ImportedCapabilityRequirement::Dispatch,
-                operation: "dependency default member call",
-            });
         }
         if !callee.type_arguments().is_empty()
             || matches!(
@@ -233,18 +239,6 @@ impl Lowerer {
                 operation: "dependency default generic call",
             });
         }
-        let target = hir::ExportDefaultCallableTargetV1::Callable(callee.clone());
-        if !template
-            .references()
-            .callables()
-            .iter()
-            .any(|reference| reference.target() == &target)
-        {
-            return Err(ImportedDefaultPlanError::MissingCallableReference(
-                callee.clone(),
-            ));
-        }
-
         let candidate = self
             .dependencies
             .as_ref()

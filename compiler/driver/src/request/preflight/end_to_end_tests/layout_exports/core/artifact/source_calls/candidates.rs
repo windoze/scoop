@@ -57,12 +57,12 @@ pub(super) fn mutations(public: &hir::CrossConeHirInterfaceSectionV1) -> Vec<Can
             } else {
                 unit
             };
-            let replacement = hir::HirDependencyCallSiteV1::try_new(
+            let replacement = hir::HirDependencyCallSiteV1::try_new_with_reason(
                 call.position(),
                 call.origin().clone(),
                 arguments,
                 result,
-                call.witness_indices().to_vec(),
+                call.reason().clone(),
                 call.receiver(),
             )
             .unwrap();

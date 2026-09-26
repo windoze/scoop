@@ -10,7 +10,7 @@
 
 MIR 的普通直接 callable 与需要独立 lowering 表示的 callable 按 typed implementation 共用借用查询，dispatch 和 boxing 直接读取实际记录。每个定义只保存一份导出；删除禁止跨历史分区引用的资格限制和专用身份名单，保留重复定义、类型、签名、effect 与 provider 一致性检查。
 
-跨 Cone struct 字段读取按接收者的实际声明解析名称，并在 HIR 保留 typed field identity 与完整接收者类型。字段在具体化时映射到同一声明的字段位置，后续布局和 ABI 继续使用共有依赖表示；不得用同名或同布局替代身份。计算属性通过其真实 getter 声明进入共有 callable 路径，保留可见性、GC effect 和返回类型；固定表示字段不为读取额外生成函数。该消费改动不新增 wire tag、profile 或 runtime ABI。
+跨 Cone struct 字段读取按接收者的实际声明解析名称，并在 HIR 保留 typed field identity 与完整接收者类型。字段在具体化时映射到同一声明的字段位置，后续布局和 ABI 继续使用共有依赖表示；不得用同名或同布局替代身份。计算属性通过其真实 getter 声明进入共有 callable 路径，保留可见性、GC effect 和返回类型；固定表示字段不为读取额外生成函数。该消费改动不新增 wire tag、profile 或 runtime ABI。依赖默认值中的字段和 callable 使用定义时保存的 typed 声明与完整类型，实例化不重新要求公开 namespace 导入路径，也不再次证明模板引用集合。读取边界核对源码上下文及位置后，实例化复用同一不可变记录，保留定义位置与调用处求值位置。
 
 旧 `TypeFoundationSourceAuthorityV1`、`TypeDeclarationSourceAuthorityV1` 及仅供它们使用的 `Bound*` 绑定链退役。生产 reader 和前端继续使用现有共有声明表、typed identity 查询与完整 IR；移除这些 transcript 的独立编码器、逆向重建入口、无生产用途的重复来源表及专用测试与快照。`source_authority` 中确有生产调用的默认参数数据、可见性数据和身份查询按实际职责保留，不以新工厂或资格状态机替代被删除的代码。
 

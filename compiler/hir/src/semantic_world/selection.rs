@@ -65,7 +65,6 @@ impl ImportedDependencySelectionPlan {
                 properties: BTreeMap::new(),
                 constants: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
-                direct_callable_bindings: BTreeMap::new(),
             }),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),
@@ -115,14 +114,11 @@ impl ImportedDependencySelectionPlan {
         })
     }
 
-    /// Resolves a callable referenced by a validated dependency default
-    /// template through the direct dependency surface. The template reference
-    /// identifies the definition-side target; this lookup retains the
-    /// consumer-side import path in the selected set.
+    /// Resolves a definition-side reference without repeating namespace lookup.
     pub fn default_callable_candidate(
         &self,
         declaration: DefaultCallableDeclarationV1,
-    ) -> Result<ImportedDependencyCallableCandidate, ImportedDependencyCandidateError> {
+    ) -> Result<ImportedCallableDeclaration, ImportedDependencyCandidateError> {
         let declaration = match declaration {
             DefaultCallableDeclarationV1::Function(id) => CallableTemplateOrigin::Function(id),
             DefaultCallableDeclarationV1::GenericFunction(id) => {
@@ -135,12 +131,7 @@ impl ImportedDependencySelectionPlan {
                 return Err(ImportedDependencyCandidateError::GeneratedDefaultCallable);
             }
         };
-        let binding = self
-            .catalog
-            .direct_callable_bindings
-            .get(&declaration)
-            .ok_or(ImportedDependencyCandidateError::MissingDefaultCallableBinding(declaration))?;
-        self.callable_candidate_for_declaration(declaration, binding)
+        self.callable_declaration(declaration)
     }
 
     pub fn constant_candidate(
@@ -215,9 +206,9 @@ impl ImportedDependencySelectionPlan {
         self.select_callable_declaration(candidate.interface.declaration())
     }
 
-    pub fn select_member_callable(
+    pub fn select_declared_callable(
         &mut self,
-        candidate: ImportedMemberCallableCandidate,
+        candidate: ImportedCallableDeclaration,
     ) -> Result<ImportedDependencyCallableRef, ImportedDependencySelectionError> {
         use crate::ImportedCallableSource;
         self.select_callable_declaration(candidate.interface().declaration())

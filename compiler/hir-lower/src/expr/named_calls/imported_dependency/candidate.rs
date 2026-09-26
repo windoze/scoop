@@ -4,7 +4,7 @@ use scoop_hir as hir;
 #[derive(Clone)]
 pub(super) enum ImportedCallableCandidate {
     Binding(Box<hir::ImportedDependencyCallableCandidate>),
-    Member(Box<hir::ImportedMemberCallableCandidate>),
+    Member(Box<hir::ImportedCallableDeclaration>),
 }
 
 #[derive(Clone, Copy)]

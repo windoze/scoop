@@ -62,8 +62,6 @@ pub(super) struct DependencyCatalog {
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
     pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
-    pub(super) direct_callable_bindings:
-        BTreeMap<CallableTemplateOrigin, DirectImportedTargetBinding>,
 }
 
 impl ImportedSemanticWorld<'_> {
@@ -191,7 +189,6 @@ impl ImportedSemanticWorld<'_> {
                 properties,
                 constants,
                 type_aliases,
-                direct_callable_bindings,
             }),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),

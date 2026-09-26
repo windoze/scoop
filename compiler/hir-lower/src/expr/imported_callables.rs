@@ -32,15 +32,15 @@ impl Lowerer {
         ))
     }
 
-    pub(crate) fn select_imported_member_callable_use(
+    pub(crate) fn select_imported_callable_declaration_use(
         &mut self,
-        candidate: hir::ImportedMemberCallableCandidate,
+        candidate: hir::ImportedCallableDeclaration,
     ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
         let reference = self
             .dependencies
             .as_mut()
             .expect("ordinary lowering carries a dependency selection plan")
-            .select_member_callable(candidate)?;
+            .select_declared_callable(candidate)?;
         Ok(self.intern_imported_dependency_callable_use(reference))
     }
 

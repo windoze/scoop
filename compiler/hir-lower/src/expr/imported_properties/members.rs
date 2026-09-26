@@ -56,7 +56,7 @@ impl Lowerer {
             self.require_unsafe_operation(span, "reading an unsafe dependency property");
         }
         let callee = self
-            .select_imported_member_callable_use(candidate)
+            .select_imported_callable_declaration_use(candidate)
             .map_err(|error| {
                 self.error(span, format!("invalid dependency property getter: {error}"));
             })?;

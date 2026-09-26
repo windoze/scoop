@@ -4,6 +4,10 @@ import dependency.members.Token
 import dependency.members.Wide
 import dependency.members.Managed
 import dependency.members.Nested
+import dependency.members.defaultField
+import dependency.members.defaultMember
+import dependency.members.defaultProperty
+import dependency.members.defaultMarker
 
 public typealias Payload = Wide
 public struct Container(val marker: Token, val payload: Payload)
@@ -25,3 +29,8 @@ public val Wide.first: Long
     @NoGC get() = 999
 
 @NoGC public fun first(value: Wide): Long = value.first
+
+@NoGC public fun fromField(value: Wide): Long = defaultField(value.copyWide())
+@NoGC public fun fromMember(value: Wide): Long = defaultMember(value = value.copyWide())
+@NoGC public fun fromProperty(value: Wide): Long = defaultProperty(value.copyWide())
+@NoGC public fun fromMarker(value: Nested): Token = defaultMarker(value)

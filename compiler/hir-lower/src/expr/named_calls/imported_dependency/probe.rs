@@ -94,7 +94,7 @@ impl Lowerer {
 
     pub(in crate::expr) fn probe_imported_member_callable(
         &self,
-        candidate: hir::ImportedMemberCallableCandidate,
+        candidate: hir::ImportedCallableDeclaration,
         receiver: ImportedMemberReceiver,
         name: &ast::Ident,
         call: ImportedProbeCall<'_>,

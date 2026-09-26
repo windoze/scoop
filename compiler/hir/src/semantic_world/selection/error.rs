@@ -154,7 +154,6 @@ pub enum ImportedDependencyCandidateError {
         alias: scoop_identity::PersistentTypeAliasId,
         expected: ConeIdentity,
     },
-    MissingDefaultCallableBinding(CallableTemplateOrigin),
     GeneratedDefaultCallable,
 }
 
@@ -218,10 +217,6 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::TypeAliasTerminalProviderMismatch { alias, expected } => write!(
                 formatter,
                 "imported type alias {alias:?} does not terminate at provider {expected}"
-            ),
-            Self::MissingDefaultCallableBinding(declaration) => write!(
-                formatter,
-                "dependency default callable {declaration:?} has no direct public route"
             ),
             Self::GeneratedDefaultCallable => formatter.write_str(
                 "dependency default references a generated callable without a public route",

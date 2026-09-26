@@ -60,7 +60,7 @@ impl Lowerer {
             None => {
                 self.report_imported_constant_origin_error(
                     usage_span,
-                    MissingAuthenticatedSource {
+                    MissingSource {
                         context: source.origin().context(),
                     },
                 );
