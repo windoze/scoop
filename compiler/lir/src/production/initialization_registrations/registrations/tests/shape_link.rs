@@ -144,7 +144,7 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
         TARGET,
         &dependencies,
         vec![import],
-        &LayoutSource,
+        &[],
     )
     .unwrap();
     let definition = StrongInitializationUnitDefinitionRefV2::from_registrations(
@@ -163,28 +163,12 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
     assert_eq!(use_record.dependency_unit(), unit);
 }
 
-struct LayoutSource;
-
-impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
-    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&[])
-    }
-
-    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
-        Ok(())
-    }
-}
-
 fn layout_section<'a>(
     exports: LayoutAbiExportConstituentsV1,
     dependencies: &[&'a LayoutAbiExportConstituentsV1],
     imports: Vec<ExternalShapeLinkImportV1>,
 ) -> CrossConeLayoutAbiSectionV1<'a> {
-    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &LayoutSource).unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &[]).unwrap()
 }
 
 fn layout_exports(

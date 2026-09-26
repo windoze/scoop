@@ -90,7 +90,7 @@ pub(super) fn check(
         provider.target.lir_target(),
         &[provider.layout],
         source.imports(provider.view, consumer, &definitions),
-        &source,
+        &source.roots,
     )
     .unwrap();
     let string = scoop_lir_lower::RuntimeStringDescriptor::External(

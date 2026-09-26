@@ -1,21 +1,5 @@
 use super::*;
 
-struct Source;
-
-impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&[])
-    }
-
-    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
-        if imports.is_empty() { Ok(()) } else { Err(()) }
-    }
-}
-
 #[test]
 fn shape_link_artifact_reader_uses_the_replayed_strong_v2_semantic_plans() {
     let fixture = ProviderFixture::new(true);
@@ -93,5 +77,5 @@ fn layout_abi(fixture: &ProviderFixture) -> CrossConeLayoutAbiSectionV1<'static>
         shape_support,
     )
     .unwrap();
-    CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &Source).unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()
 }

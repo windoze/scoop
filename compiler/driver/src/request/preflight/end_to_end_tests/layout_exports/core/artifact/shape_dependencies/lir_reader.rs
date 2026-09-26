@@ -4,8 +4,6 @@ use super::super::lir_dependencies::corruption::wire;
 use super::*;
 use scoop_slib::SharedLirDependencyGraphError as Error;
 
-mod source;
-
 pub(super) fn check(
     name: &str,
     fixtures: &Path,
@@ -49,15 +47,11 @@ pub(super) fn check(
     }));
     roots.sort_unstable();
     roots.dedup();
-    let source = source::GraphFixture {
-        exports: &exports,
-        roots: &roots,
-    };
     let section = lir::CrossConeLayoutAbiSectionV1::try_new(
         exports.clone(),
         &[core.exports()],
         vec![],
-        &source,
+        &roots,
     )
     .unwrap();
     let expected = section.selected().semantic_relations().collect::<Vec<_>>();

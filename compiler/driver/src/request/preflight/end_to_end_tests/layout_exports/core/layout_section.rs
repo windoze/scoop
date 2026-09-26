@@ -1,6 +1,4 @@
 use super::*;
-use lir::LayoutAbiSectionSourceAuthorityV1;
-use scoop_lir_lower::{LayoutAbiSourceInventoryV1, LayoutAbiSourceProjectionError as Error};
 
 pub(super) fn check(
     mir_input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
@@ -16,140 +14,15 @@ pub(super) fn check(
         },
     )
     .unwrap();
-    let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
+    let roots = scoop_lir_lower::lower_layout_abi_dependencies(
         input,
         scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
-        &mir_source,
+        &exports,
+        mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&mir_source).unwrap(),
+        &[],
     )
     .unwrap();
-    let missing = lir::LayoutAbiExportConstituentsV1::try_new(
-        lir::CanonicalExactLayoutExportsV1::try_new(
-            input.lir.module().meta.target_profile,
-            input.lir.foundation(),
-            vec![],
-        )
-        .unwrap(),
-        exports.descriptors().clone(),
-        exports.dispatch().clone(),
-        exports.callables().clone(),
-        exports.shape_support().clone(),
-    )
-    .unwrap();
-    assert!(matches!(
-        source.validate_local_exports(&missing),
-        Err(Error::Inventory(LayoutAbiSourceInventoryV1::Layouts))
-    ));
-
-    let section =
-        lir::CrossConeLayoutAbiSectionV1::try_new(exports.clone(), &[], vec![], &source).unwrap();
-    let bytes = encode(&section).unwrap();
-    let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&section);
-    assert_eq!(encode(&wire).unwrap(), bytes);
-    let mut identities = identity_graph(mir_input.hir, mir_input.mir, Some(input.lir));
-    let replayed = wire
-        .validate(&exports, &[], vec![], &source, &mut identities)
-        .unwrap();
-    assert_eq!(encode(&replayed).unwrap(), bytes);
-    let missing_callables = lir::LayoutAbiExportConstituentsV1::try_new(
-        exports.layouts().clone(),
-        exports.descriptors().clone(),
-        exports.dispatch().clone(),
-        lir::CanonicalExactCallableAbiExportsV1::try_new(
-            input.lir.module().meta.target_profile,
-            input.lir.foundation(),
-            vec![],
-        )
-        .unwrap(),
-        exports.shape_support().clone(),
-    )
-    .unwrap();
-    let missing_dispatch = lir::LayoutAbiExportConstituentsV1::try_new(
-        exports.layouts().clone(),
-        exports.descriptors().clone(),
-        lir::CanonicalExactDispatchExportsV1::try_new(
-            input.lir.module().meta.target_profile,
-            input.lir.foundation(),
-            vec![],
-        )
-        .unwrap(),
-        exports.callables().clone(),
-        exports.shape_support().clone(),
-    )
-    .unwrap();
-    let missing_descriptors = lir::LayoutAbiExportConstituentsV1::try_new(
-        exports.layouts().clone(),
-        lir::CanonicalExactDescriptorExportsV1::try_new(
-            input.lir.module().meta.target_profile,
-            input.lir.foundation(),
-            vec![],
-        )
-        .unwrap(),
-        exports.dispatch().clone(),
-        exports.callables().clone(),
-        exports.shape_support().clone(),
-    )
-    .unwrap();
-    let missing_shapes = lir::LayoutAbiExportConstituentsV1::try_new(
-        exports.layouts().clone(),
-        exports.descriptors().clone(),
-        exports.dispatch().clone(),
-        exports.callables().clone(),
-        lir::CanonicalParamFreeShapeSupportExportsV1::from_sources(
-            &[],
-            exports.layouts(),
-            exports.descriptors(),
-            input.lir.foundation(),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    for (index, altered) in [
-        &missing,
-        &missing_callables,
-        &missing_dispatch,
-        &missing_descriptors,
-        &missing_shapes,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&section);
-        let checked = wire
-            .validate_layouts(exports.layouts())
-            .unwrap()
-            .validate_callables(exports.callables())
-            .unwrap()
-            .validate_dispatch(exports.dispatch())
-            .unwrap()
-            .validate_descriptors(exports.descriptors())
-            .unwrap()
-            .validate_shape_support::<std::convert::Infallible>(exports.shape_support())
-            .unwrap();
-        let error = checked
-            .validate(altered, &[], vec![], &source, &mut identities)
-            .err()
-            .expect("a checked constituent cannot be replaced before final validation");
-        match index {
-            0 => assert!(matches!(
-                error,
-                lir::LayoutAbiSectionError::LayoutReplayChanged
-            )),
-            1 => assert!(matches!(
-                error,
-                lir::LayoutAbiSectionError::CallableReplayChanged
-            )),
-            2 => assert!(matches!(
-                error,
-                lir::LayoutAbiSectionError::DispatchReplayChanged
-            )),
-            3 => assert!(matches!(
-                error,
-                lir::LayoutAbiSectionError::DescriptorReplayChanged
-            )),
-            4 => assert!(matches!(error, lir::LayoutAbiSectionError::ShapeSupport)),
-            _ => unreachable!(),
-        }
-    }
+    let section = lir::CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &roots).unwrap();
     assert!(section.selected().is_empty());
     assert!(section.selected().physical_imports().records().is_empty());
     section

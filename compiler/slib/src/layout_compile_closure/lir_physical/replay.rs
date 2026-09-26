@@ -28,7 +28,7 @@ pub(super) fn physical(
         consumer: mir,
         dependencies,
     };
-    Ok(layout.replay_physical_imports::<Infallible>(
+    Ok(layout.replay_physical_imports(
         strong.canonical_definitions(),
         &providers,
         &support,

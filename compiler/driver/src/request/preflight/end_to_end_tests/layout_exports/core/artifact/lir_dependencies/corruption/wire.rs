@@ -1,14 +1,10 @@
 use super::*;
-use std::convert::Infallible;
 
 pub(in super::super::super) fn resolve(
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     semantic: &[lir::LayoutAbiDependencyV1],
     identities: &ValidatedIdentityGraph,
-) -> Result<
-    lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
-    lir::LayoutAbiSectionError<Infallible>,
-> {
+) -> Result<lir::DependencyResolvedCrossConeLayoutAbiSectionV1, lir::LayoutAbiSectionError> {
     let mut pending = PendingIdentityValidation::new();
     pending
         .register_external_graph_authorities(identities)
@@ -23,7 +19,7 @@ pub(in super::super::super) fn resolve(
         .unwrap()
         .validate_descriptors(layout.descriptors())
         .unwrap()
-        .validate_shape_support::<Infallible>(layout.shape_support())
+        .validate_shape_support(layout.shape_support())
         .unwrap()
         .resolve_dependencies(&mut identities)
 }

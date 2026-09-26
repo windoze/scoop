@@ -3,26 +3,6 @@ use scoop_identity::*;
 
 pub(super) const TARGET: crate::LirTargetProfile = crate::LirTargetProfile::DARWIN_AARCH64;
 
-#[derive(Default)]
-pub(super) struct Source(pub Vec<LayoutAbiDependencyV1>);
-
-impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(&self, _exports: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&self.0)
-    }
-
-    fn validate_physical_imports(
-        &self,
-        imports: &[crate::ExternalShapeLinkImportV1],
-    ) -> Result<(), ()> {
-        if imports.is_empty() { Ok(()) } else { Err(()) }
-    }
-}
-
 pub(super) fn cone(name: &str) -> ConeIdentity {
     ConeCoordinate::new("test", name, "1.0.0")
         .unwrap()
@@ -78,8 +58,8 @@ pub(super) fn exports(
 pub(super) fn section<'a>(
     exports: LayoutAbiExportConstituentsV1,
     dependencies: &[&'a LayoutAbiExportConstituentsV1],
-    source: &Source,
-) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<()>> {
+    source: &[LayoutAbiDependencyV1],
+) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError> {
     CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, Vec::new(), source)
 }
 

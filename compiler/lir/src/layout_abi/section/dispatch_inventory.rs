@@ -4,9 +4,9 @@ use super::*;
 use crate::{ExactDispatchRoleV1, ExactDispatchTableError};
 use scoop_identity::{PersistentDispatchTableId, PersistentExactTypeId};
 
-pub(super) fn validate<E>(
+pub(super) fn validate(
     exports: &LayoutAbiExportConstituentsV1,
-) -> Result<(), LayoutAbiSectionError<E>> {
+) -> Result<(), LayoutAbiSectionError> {
     let dispatch = exports.dispatch();
     let mut expected = 0_usize;
     for descriptor in exports.descriptors().records() {
@@ -42,12 +42,12 @@ pub(super) fn validate<E>(
     Ok(())
 }
 
-fn check<E>(
+fn check(
     dispatch: &crate::CanonicalExactDispatchExportsV1,
     table: PersistentDispatchTableId,
     owner: PersistentExactTypeId,
     role: ExactDispatchRoleV1,
-) -> Result<(), LayoutAbiSectionError<E>> {
+) -> Result<(), LayoutAbiSectionError> {
     let record = dispatch
         .get(table)
         .ok_or(ExactDispatchTableError::Missing(table))?;

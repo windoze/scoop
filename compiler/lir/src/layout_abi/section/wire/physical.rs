@@ -11,13 +11,13 @@ pub struct PhysicalImportsReplayedLayoutAbiSectionV1 {
 }
 
 impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
-    pub fn replay_physical_imports<'a, E>(
+    pub fn replay_physical_imports<'a>(
         self,
         definitions: &crate::StrongObjectSymbolSurfaceV1,
         dependencies: &[ShapeLinkProviderV1<'a>],
         support: &dyn ShapeLinkSupportLookupV1<'a>,
         identities: &mut ValidatedIdentityGraph,
-    ) -> Result<PhysicalImportsReplayedLayoutAbiSectionV1, LayoutAbiSectionError<E>> {
+    ) -> Result<PhysicalImportsReplayedLayoutAbiSectionV1, LayoutAbiSectionError> {
         let path = WirePath::root();
         let mut providers = std::collections::HashSet::new();
 

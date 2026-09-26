@@ -157,9 +157,8 @@ pub use exact_callable_abi::{ExactCallableAbiLoweringError, lower_exact_callable
 
 mod layout_exports;
 pub use layout_exports::{
-    LayoutAbiExportDependenciesV1, LayoutAbiExportInputV1, LayoutAbiExportLoweringError,
-    LayoutAbiSourceInventoryV1, LayoutAbiSourceProjectionError, LayoutAbiSourceProjectionV1,
-    lower_layout_abi_exports,
+    LayoutAbiDependencyLoweringError, LayoutAbiExportDependenciesV1, LayoutAbiExportInputV1,
+    LayoutAbiExportLoweringError, lower_layout_abi_dependencies, lower_layout_abi_exports,
 };
 
 mod runtime_string;

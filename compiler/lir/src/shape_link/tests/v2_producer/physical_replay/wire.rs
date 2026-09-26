@@ -24,9 +24,9 @@ pub(super) fn resolve(
         .unwrap()
         .validate_descriptors(exports.descriptors())
         .unwrap()
-        .validate_shape_support::<Infallible>(exports.shape_support())
+        .validate_shape_support(exports.shape_support())
         .unwrap()
-        .resolve_dependencies::<Infallible>(identities)
+        .resolve_dependencies(identities)
         .unwrap()
 }
 

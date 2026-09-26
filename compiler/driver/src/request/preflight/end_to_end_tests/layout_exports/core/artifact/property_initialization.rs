@@ -126,19 +126,23 @@ pub(super) fn check(
                     layouts: &[provider_exports.layouts()],
                     callables: &[provider_exports.callables()],
                 };
+                let exports =
+                    scoop_lir_lower::lower_layout_abi_exports(input_lir, dependencies).unwrap();
                 registration_edges::check(
                     input_lir,
                     dependencies,
                     &projected,
+                    &exports,
                     &selected,
                     &initialization,
                 );
-                let exports =
-                    scoop_lir_lower::lower_layout_abi_exports(input_lir, dependencies).unwrap();
-                let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
+                let source = scoop_lir_lower::lower_layout_abi_dependencies(
                     input_lir,
                     dependencies,
-                    &projected,
+                    &exports,
+                    mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&projected)
+                        .unwrap(),
+                    selected.physical_imports().records(),
                 )
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(

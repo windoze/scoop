@@ -74,7 +74,7 @@ pub(super) fn check(
         selected.target_profile(),
         &[layout.exports()],
         descriptor_imports,
-        &descriptor_only,
+        &descriptor_only.roots,
     )
     .unwrap();
     assert!(
@@ -114,7 +114,7 @@ pub(super) fn check(
         selected.target_profile(),
         &[layout.exports()],
         retained_imports,
-        &missing_import,
+        &missing_import.roots,
     )
     .unwrap();
     assert!(matches!(incomplete.materialize_boxed_value_descriptor(
@@ -142,7 +142,7 @@ pub(super) fn reference_shape(
         layout.target_profile(),
         &[layout.exports()],
         Vec::new(),
-        &source,
+        &source.roots,
     )
     .unwrap();
     assert!(matches!(selected.materialize_boxed_value_descriptor(

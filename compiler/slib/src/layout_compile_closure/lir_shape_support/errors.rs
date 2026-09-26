@@ -1,14 +1,13 @@
 use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 use scoop_wire::WireError;
-use std::convert::Infallible;
 
 #[derive(Debug)]
 pub enum SharedLirShapeSupportValidationError {
     MirProvider,
     Identity(scoop_identity::IdentityReferenceError),
     Replay(lir::ParamFreeShapeSupportTableError),
-    Section(lir::LayoutAbiSectionError<Infallible>),
+    Section(lir::LayoutAbiSectionError),
     Resource(WireError),
 }
 macro_rules! from_error {
@@ -22,7 +21,7 @@ macro_rules! from_error {
 }
 from_error!(scoop_identity::IdentityReferenceError, Identity);
 from_error!(lir::ParamFreeShapeSupportTableError, Replay);
-from_error!(lir::LayoutAbiSectionError<Infallible>, Section);
+from_error!(lir::LayoutAbiSectionError, Section);
 from_error!(WireError, Resource);
 
 impl std::fmt::Display for SharedLirShapeSupportValidationError {

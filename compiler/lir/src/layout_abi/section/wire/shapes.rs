@@ -13,10 +13,10 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
         &self.descriptors
     }
 
-    pub fn validate_shape_support<E>(
+    pub fn validate_shape_support(
         self,
         expected: &crate::CanonicalParamFreeShapeSupportExportsV1,
-    ) -> Result<ExportsResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError<E>> {
+    ) -> Result<ExportsResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
         if self.layouts.provider() != expected.provider() {
             return Err(LayoutAbiExportConstituentsError::Provider.into());
         }
@@ -35,23 +35,6 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
             exports,
             selected: self.selected,
         })
-    }
-
-    pub fn validate<'a, E>(
-        self,
-        expected: &LayoutAbiExportConstituentsV1,
-        dependencies: &[&'a LayoutAbiExportConstituentsV1],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
-        source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
-        if self.layouts.provider() != expected.provider()
-            || self.layouts.target() != expected.target_profile()
-        {
-            return Err(LayoutAbiSectionError::LayoutReplayChanged);
-        }
-        self.validate_shape_support(expected.shape_support())?
-            .validate(expected, dependencies, physical_imports, source, identities)
     }
 }
 

@@ -60,40 +60,23 @@ fn exercise_dependency_production(provider: Provider) {
     .unwrap();
     let terminal = provider.layout_section();
     let dependencies = [terminal.exports()];
-    let source = ProductionSelectionSource::new(
-        vec![
-            LayoutAbiDependencyV1::new(
-                provider.identity,
-                LayoutAbiSemanticTargetV1::Descriptor(provider.exact),
-            ),
-            LayoutAbiDependencyV1::new(
-                provider.identity,
-                LayoutAbiSemanticTargetV1::Callable(provider.callable),
-            ),
-        ],
-        vec![
-            (
-                provider.identity,
-                ExternalStrongShapeSubjectV1::TypeDescriptor(provider.exact),
-            ),
-            (
-                provider.identity,
-                ExternalStrongShapeSubjectV1::Callable(provider.callable),
-            ),
-            (
-                provider.identity,
-                ExternalStrongShapeSubjectV1::InitializationDescriptor(
-                    provider.initialization_unit,
-                ),
-            ),
-        ],
-    );
+    let mut roots = vec![
+        LayoutAbiDependencyV1::new(
+            provider.identity,
+            LayoutAbiSemanticTargetV1::Descriptor(provider.exact),
+        ),
+        LayoutAbiDependencyV1::new(
+            provider.identity,
+            LayoutAbiSemanticTargetV1::Callable(provider.callable),
+        ),
+    ];
+    roots.sort_unstable();
     let selected = StrongProductionDependencySelectionV2::try_new(
         consumer.cone,
         TARGET,
         &dependencies,
         vec![descriptor_import, callable_import, initialization_import],
-        &source,
+        &roots,
     )
     .unwrap();
 
@@ -240,22 +223,17 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
     .unwrap();
     let terminal = provider.layout_section();
     let dependencies = [terminal.exports()];
-    let source = ProductionSelectionSource::new(
-        vec![LayoutAbiDependencyV1::new(
-            provider.identity,
-            LayoutAbiSemanticTargetV1::Descriptor(provider.exact),
-        )],
-        vec![(
-            provider.identity,
-            ExternalStrongShapeSubjectV1::TypeDescriptor(provider.exact),
-        )],
-    );
+    let mut roots = vec![LayoutAbiDependencyV1::new(
+        provider.identity,
+        LayoutAbiSemanticTargetV1::Descriptor(provider.exact),
+    )];
+    roots.sort_unstable();
     let selected = StrongProductionDependencySelectionV2::try_new(
         consumer.cone,
         TARGET,
         &dependencies,
         vec![descriptor_import],
-        &source,
+        &roots,
     )
     .unwrap();
 
@@ -272,38 +250,4 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
             target,
         }) if found == provider.identity && target == provider.callable
     ));
-}
-
-struct ProductionSelectionSource {
-    roots: Vec<LayoutAbiDependencyV1>,
-    imports: Vec<(ConeIdentity, ExternalStrongShapeSubjectV1)>,
-}
-
-impl ProductionSelectionSource {
-    fn new(
-        mut roots: Vec<LayoutAbiDependencyV1>,
-        mut imports: Vec<(ConeIdentity, ExternalStrongShapeSubjectV1)>,
-    ) -> Self {
-        roots.sort_unstable();
-        imports.sort_unstable();
-        Self { roots, imports }
-    }
-}
-
-impl LayoutAbiSectionSourceAuthorityV1<()> for ProductionSelectionSource {
-    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&self.roots)
-    }
-
-    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
-        let actual = imports
-            .iter()
-            .map(|record| (record.provider(), record.subject()))
-            .collect::<Vec<_>>();
-        (actual == self.imports).then_some(()).ok_or(())
-    }
 }

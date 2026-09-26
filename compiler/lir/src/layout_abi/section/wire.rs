@@ -1,6 +1,5 @@
 use super::*;
 
-mod complete;
 mod descriptors;
 mod physical;
 mod resolved_dependencies;

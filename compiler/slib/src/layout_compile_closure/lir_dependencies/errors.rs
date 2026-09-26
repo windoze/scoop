@@ -15,7 +15,7 @@ pub enum SharedLirDependencyGraphError {
     Resource(scoop_wire::WireError),
     TypeOccurrences(Box<scoop_hir::HirDependencyTypeRelationError>),
     InitializationEdges(Box<mir::MirObjectBridgeError>),
-    Lir(Box<lir::LayoutAbiSectionError<Infallible>>),
+    Lir(Box<lir::LayoutAbiSectionError>),
 }
 
 impl From<scoop_wire::WireError> for SharedLirDependencyGraphError {
@@ -24,8 +24,8 @@ impl From<scoop_wire::WireError> for SharedLirDependencyGraphError {
     }
 }
 
-impl From<lir::LayoutAbiSectionError<Infallible>> for SharedLirDependencyGraphError {
-    fn from(value: lir::LayoutAbiSectionError<Infallible>) -> Self {
+impl From<lir::LayoutAbiSectionError> for SharedLirDependencyGraphError {
+    fn from(value: lir::LayoutAbiSectionError) -> Self {
         Self::Lir(Box::new(value))
     }
 }

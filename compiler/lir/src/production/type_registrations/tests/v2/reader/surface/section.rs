@@ -177,25 +177,6 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
     assert_eq!(joined.type_registrations(), &expected);
 }
 
-struct EmptyLayoutSource;
-
-impl crate::LayoutAbiSectionSourceAuthorityV1<()> for EmptyLayoutSource {
-    fn validate_local_exports(&self, _: &crate::LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn committed_semantic_roots(&self) -> Result<&[crate::LayoutAbiDependencyV1], ()> {
-        Ok(&[])
-    }
-
-    fn validate_physical_imports(
-        &self,
-        imports: &[crate::ExternalShapeLinkImportV1],
-    ) -> Result<(), ()> {
-        imports.is_empty().then_some(()).ok_or(())
-    }
-}
-
 fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
     let foundation = crate::OdrFreeLirFoundation::try_new(
         ConeIdentity::SINGLE_FILE,
@@ -238,6 +219,5 @@ fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
         .unwrap(),
     )
     .unwrap();
-    crate::CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &EmptyLayoutSource)
-        .unwrap()
+    crate::CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()
 }

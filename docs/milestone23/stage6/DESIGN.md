@@ -765,7 +765,7 @@ source exact 在 LocalConcrete → MIR 转置时保留实际 nominal provider，
 
 LIR producer 从同一次 sealed MIR/LIR、完整 MIR export 组成表及实际 Strong V2 registration 组装五张 export 表。布局和 descriptor 覆盖 MIR source/support/helper 导出闭包中的实际物理定义；callable 的 lowered signature 按 exact type 查询唯一的本地或依赖 ManagedValue layout，receiver、重复参数与 Unit result 均保留。dispatch 将实际 LIR table 的物理 callable 与 MIR 的声明序 schema 逐项 join；BoxedValue 沿 typed payload 关系使用源码 value schema，CoroutineStep/CoroutineSlot 的无成员关系只允许实际空表，不从任意空候选表补默认实现。依赖只借用，五表使用同一 target、provider ；完整 section 的 source/selected-use 和最终产物验证继续执行，不以 export 组装代替发布闭包。
 
-完整 LIR section 的实际 source 适配器从同次 sealed MIR/LIR 与 Strong V2 registration 重新投影五张预期 export 表，按实际跨阶段 source-exact 引用取得外来 ManagedValue layout；lookup 必须唯一且属于该 exact 的实际 provider。额外 descriptor 与新 callable 用途取实际 LIR external arena，初始化 descriptor 用途取同次 registration 中已验证的外部单元依赖。物理 import 必须精确覆盖这些实际用途，并逐项匹配 provider、typed subject、symbol 与 definition；完整 section 继续核对 terminal contract。既有 String 角色和旧 callable 分区按明确的 LIR 引用及 origin 区分，不能按 CORE 身份分支；它们继续经过共有旧 bridge 校验，不重复加入物理 import。不新增 wire 或独立来源授权。
+LIR section 直接接收同次 MIR→LIR 已生产的完整五张导出表和 typed 依赖使用。lir-lower 按实际 MIR 使用、LIR external arena 与 Strong V2 初始化记录计算语义根，并核对物理引用的 provider、subject、symbol 和 definition；不重做 MIR source/export 全量验证，也不重新生成五张预期表。IR section 只负责导出关系与依赖引用闭合，不接收来源工厂或资格回调。reader 逐项检查新读入的组成表后保留这些表，随后解析 selected 和物理引用；不能再次传入另一套预期表，重编码并比较先前已经完成的同一检查。
 
 当前 provider 拥有的语言内建 Unit/Any 必须在 LocalConcrete HIR sealing 前显式保留，并在 HIR → MIR 转置时作为必需类型根沿共有 source-exact 路径处理；不能依赖额外源码引用才获得完整导出。该必需集合依据内建 typed declaration 的真实 origin 判定，外来 consumer 仍只为实际使用引入依赖引用。验收包括不添加类型使用的原始 core 源码基线，完整 MIR/LIR section、Strong V2 registration 和 LLVM 对象发射均须闭合。
 

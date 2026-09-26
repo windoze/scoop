@@ -11,7 +11,7 @@ use fixture::*;
 fn empty_section_roundtrips_as_one_complete_six_field_product() {
     let exports = empty_exports(cone("empty"));
     let expected = exports.clone();
-    let source = Source::default();
+    let source = [];
     let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &source).unwrap();
     assert!(section.selected().is_empty());
 
@@ -20,9 +20,20 @@ fn empty_section_roundtrips_as_one_complete_six_field_product() {
     let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
     let mut identities = PendingIdentityValidation::new().finish().unwrap();
     let replayed = decoded
-        .validate(&expected, &[], Vec::new(), &source, &mut identities)
+        .validate_layouts(expected.layouts())
+        .unwrap()
+        .validate_callables(expected.callables())
+        .unwrap()
+        .validate_dispatch(expected.dispatch())
+        .unwrap()
+        .validate_descriptors(expected.descriptors())
+        .unwrap()
+        .validate_shape_support(expected.shape_support())
+        .unwrap()
+        .resolve_dependencies(&mut identities)
         .unwrap();
-    assert_eq!(encode(&replayed).unwrap(), bytes);
+    assert_eq!(replayed.exports(), &expected);
+    assert!(replayed.selected_relations().is_empty());
 }
 
 #[test]
@@ -34,7 +45,7 @@ fn nested_layout_use_selects_the_unique_terminal_record() {
     let terminal = section(
         exports(&remote_foundation, vec![remote_value.into()]),
         &[],
-        &Source::default(),
+        &[],
     )
     .unwrap();
 
@@ -48,7 +59,7 @@ fn nested_layout_use_selects_the_unique_terminal_record() {
     let selected = section(
         exports(&local_foundation, vec![local_value.into()]),
         &dependencies,
-        &Source::default(),
+        &[],
     )
     .unwrap();
     let target = LayoutAbiSemanticTargetV1::Layout(remote_layout);
@@ -66,7 +77,7 @@ fn nested_layout_use_selects_the_unique_terminal_record() {
     let other = section(
         empty_exports(cone("other-consumer")),
         &dependencies,
-        &Source(vec![LayoutAbiDependencyV1::new(remote, target)]),
+        &[LayoutAbiDependencyV1::new(remote, target)],
     )
     .unwrap();
     assert!(other.selected().relation(reference).is_none());
@@ -81,11 +92,11 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
     let terminal = section(
         exports(&remote_foundation, vec![remote_value.into()]),
         &[],
-        &Source::default(),
+        &[],
     )
     .unwrap();
     let target = LayoutAbiSemanticTargetV1::Layout(remote_layout);
-    let roots = Source(vec![LayoutAbiDependencyV1::new(remote, target)]);
+    let roots = vec![LayoutAbiDependencyV1::new(remote, target)];
     let expected = empty_exports(consumer);
     let dependencies = [terminal.exports()];
     let section = section(expected.clone(), &dependencies, &roots).unwrap();
@@ -96,25 +107,24 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
     pending.register_authority(remote_layout).unwrap();
     let mut identities = pending.finish().unwrap();
     let replayed = decoded
-        .validate(
-            &expected,
-            &dependencies,
-            Vec::new(),
-            &roots,
-            &mut identities,
-        )
+        .validate_layouts(expected.layouts())
+        .unwrap()
+        .validate_callables(expected.callables())
+        .unwrap()
+        .validate_dispatch(expected.dispatch())
+        .unwrap()
+        .validate_descriptors(expected.descriptors())
+        .unwrap()
+        .validate_shape_support(expected.shape_support())
+        .unwrap()
+        .resolve_dependencies(&mut identities)
         .unwrap();
-    assert_eq!(encode(&replayed).unwrap(), bytes);
-
-    let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
+    replayed
+        .replay_dependency_closure(&dependencies, &roots)
+        .unwrap();
+    assert_eq!(replayed.selected_relations(), roots);
     assert!(matches!(
-        decoded.validate(
-            &expected,
-            &dependencies,
-            Vec::new(),
-            &Source::default(),
-            &mut identities,
-        ),
+        replayed.replay_dependency_closure(&dependencies, &[]),
         Err(LayoutAbiSectionError::SelectedClosure)
     ));
 }
@@ -127,7 +137,7 @@ fn closure_rejects_a_forged_embedded_layout_constituent() {
     let terminal = section(
         exports(&remote_foundation, vec![remote_value.clone().into()]),
         &[],
-        &Source::default(),
+        &[],
     )
     .unwrap();
     let forged = scalar_with_identity(remote, remote_value.identity().exact_record().clone());
@@ -136,7 +146,7 @@ fn closure_rejects_a_forged_embedded_layout_constituent() {
     let result = section(
         exports(&boxed_foundation, vec![boxed.into()]),
         &dependencies,
-        &Source::default(),
+        &[],
     );
     assert!(matches!(
         result,
@@ -151,16 +161,11 @@ fn source_roots_must_be_canonical_and_external() {
     let provider = cone("root-provider");
     let (value, foundation) = empty_struct(provider, "Root");
     let target = LayoutAbiSemanticTargetV1::Layout(value.identity().layout());
-    let terminal = section(
-        exports(&foundation, vec![value.into()]),
-        &[],
-        &Source::default(),
-    )
-    .unwrap();
+    let terminal = section(exports(&foundation, vec![value.into()]), &[], &[]).unwrap();
     let consumer = cone("root-consumer");
     let relation = LayoutAbiDependencyV1::new(provider, target);
     let dependencies = [terminal.exports()];
-    let duplicate = Source(vec![relation, relation]);
+    let duplicate = vec![relation, relation];
     assert!(matches!(
         section(empty_exports(consumer), &dependencies, &duplicate),
         Err(LayoutAbiSectionError::Semantic(
@@ -175,7 +180,7 @@ fn source_roots_must_be_canonical_and_external() {
         section(
             empty_exports(consumer),
             &dependencies,
-            &Source(vec![LayoutAbiDependencyV1::new(consumer, local_target)]),
+            &[LayoutAbiDependencyV1::new(consumer, local_target)],
         ),
         Err(LayoutAbiSectionError::Semantic(
             LayoutAbiSemanticClosureError::CurrentProvider(_)

@@ -1,7 +1,6 @@
 //! Complete source and machine records share the same selected shape closure.
 
 use super::*;
-use lir::LayoutAbiSectionSourceAuthorityV1;
 
 pub(super) fn check<'a, 'p>(
     source_input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
@@ -37,13 +36,25 @@ pub(super) fn check<'a, 'p>(
         callables: &[provider.layout.callables()],
     };
     let exports = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
-    let projection = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
+    let imports = selected
+        .physical_imports()
+        .records()
+        .iter()
+        .filter(|import| {
+            import.subject() != lir::ExternalStrongShapeSubjectV1::TypeDescriptor(provider.string)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let committed =
+        mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(source.source).unwrap();
+    let roots = scoop_lir_lower::lower_layout_abi_dependencies(
         input,
         dependencies,
-        source.source,
+        &exports,
+        committed,
+        &imports,
     )
     .unwrap();
-    let roots = projection.committed_semantic_roots().unwrap();
     let actual_shapes = roots
         .iter()
         .filter_map(|root| match root.target() {
@@ -59,25 +70,18 @@ pub(super) fn check<'a, 'p>(
     assert_eq!(actual_shapes, expected_shapes);
     assert!(!actual_shapes.is_empty());
     assert!(matches!(
-        projection.validate_physical_imports(&[]),
-        Err(scoop_lir_lower::LayoutAbiSourceProjectionError::PhysicalInventory)
+        scoop_lir_lower::lower_layout_abi_dependencies(
+            input,
+            dependencies,
+            &exports,
+            committed,
+            &[]
+        ),
+        Err(scoop_lir_lower::LayoutAbiDependencyLoweringError::PhysicalInventory)
     ));
-    let imports = selected
-        .physical_imports()
-        .records()
-        .iter()
-        .filter(|import| {
-            import.subject() != lir::ExternalStrongShapeSubjectV1::TypeDescriptor(provider.string)
-        })
-        .cloned()
-        .collect();
-    let section = lir::CrossConeLayoutAbiSectionV1::try_new(
-        exports,
-        &[provider.layout],
-        imports,
-        &projection,
-    )
-    .unwrap();
+    let section =
+        lir::CrossConeLayoutAbiSectionV1::try_new(exports, &[provider.layout], imports, &roots)
+            .unwrap();
     let relations = section.selected().semantic_relations().collect::<Vec<_>>();
     let decoded = super::super::super::lir_dependencies::corruption::wire::resolve(
         &section,

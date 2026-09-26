@@ -4,7 +4,7 @@ use scoop_wire::WireError;
 use super::TARGET;
 use super::initialization_fixture::attach_eager_initialization;
 use super::lir_fixture::{
-    DiagnosticGraph, LayoutSource, exact, exact_layouts, function, nominal, provider_module,
+    DiagnosticGraph, exact, exact_layouts, function, nominal, provider_module,
 };
 use crate::*;
 
@@ -233,7 +233,7 @@ fn provider_layout_section(
         shape_support,
     )
     .unwrap();
-    CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &LayoutSource).unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()
 }
 
 pub(super) fn consumer_layout_section<'a>(
@@ -333,5 +333,5 @@ pub(super) fn consumer_layout_section<'a>(
         shape_support,
     )
     .unwrap();
-    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &LayoutSource).unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &[]).unwrap()
 }

@@ -44,8 +44,7 @@ impl Fixture {
     pub(super) fn resolve(
         &self,
         semantic: &[LayoutAbiDependencyV1],
-    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError<Infallible>>
-    {
+    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
         self.resolve_with(&self.local, semantic)
     }
 
@@ -53,8 +52,7 @@ impl Fixture {
         &self,
         local: &LayoutAbiExportConstituentsV1,
         semantic: &[LayoutAbiDependencyV1],
-    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError<Infallible>>
-    {
+    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
         let wire = Selection {
             exports: local,
             semantic,
@@ -70,7 +68,7 @@ impl Fixture {
             .unwrap()
             .validate_descriptors(local.descriptors())
             .unwrap()
-            .validate_shape_support::<Infallible>(local.shape_support())
+            .validate_shape_support(local.shape_support())
             .unwrap();
         assert_eq!(encode(&exports).unwrap(), bytes);
         let mut pending = PendingIdentityValidation::new();

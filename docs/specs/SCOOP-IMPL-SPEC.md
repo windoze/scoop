@@ -38,7 +38,7 @@ HIR selected 目标以封闭分支区分语言内建类型与普通源码 nomina
 
 MIR callable inventory 复用共有 nominal 表示与继承闭包检查 owner、receiver、参数和结果；依赖 source-only nominal 的未物化声明保留完整源码接口，不要求不存在的机器正文，可物化声明缺失及实际使用的能力门保持错误。
 
-layout/ABI producer 的来源投影复用 MIR IR crate 中既有的 MirTypeBridgeSectionSourceAuthorityV1 接口；先核对同一 provider 的完整 MIR source/export 关系，再读取实际 committed external uses。Type 根通过实际依赖表投影为 ManagedValue layout，ShapeSupport 根保留完整 provider 与源码 nominal，不能从 LIR 描述符、机器 arena 或待验证的 selected 数组反推源码用途。LIR 描述符与 callable 记录只补充已有机器引用及物理定义绑定，普通 callable 和初始化用途继续通过各自的共有验证闭合；既有 runtime String 表示与用途分工保持，专用外层继续按 2.12 迁移。来源 provider、记录或根不一致在发布前拒绝。真实源码函数的完整 layout section、Strong V2 registration/object 与 bytes-only 依赖重放必须保留同一 ShapeSupport 选择；实际 `.slib` 组装使用提供方已验证的对象定义，消费方装箱 helper 的非空物理引用须与同一产物的共享 reader 重放结果精确一致，不能借用另一份 profile 或相同 typed identity 的未核对定义。独立装箱与结合 Unit ZST、类型测试、拆箱和 default 展开的源码均须覆盖，Compile/Link 记录保持相同 canonical bytes。layout profile 的 callable body 与 immortal object 指纹必须接收同一次终结的完整 ordinary/layout/runtime 引用分区，复用既有 layout 指纹入口；不得投影成 legacy 子集后继续规范化对象重定位，完整 use-site 覆盖和 typed provider/target 校验保持。wire、persistent identity 和 runtime ABI 不变，最终 CLI 与 Compile/Link 发布条件继续独立验收。
+LIR section 直接接收同次 MIR→LIR 已生产的完整五张导出表和 typed 依赖使用。lir-lower 按实际 MIR 使用、LIR external arena 与 Strong V2 初始化记录计算语义根，并核对物理引用的 provider、subject、symbol 和 definition；不重做 MIR source/export 全量验证，也不重新生成五张预期表。IR section 只负责导出关系与依赖引用闭合，不接收来源工厂或资格回调。reader 逐项检查新读入的组成表后保留这些表，随后解析 selected 和物理引用；不能再次传入另一套预期表，重编码并比较先前已经完成的同一检查。
 
 MIR 生产与读取共用已有的 `MirTypeBridgeDependencyViewV1`：它借用真实 provider 的完整导出表、初始化单元和普通 callable 定义。driver 从已解析依赖图提供可达 provider 的目录；section 不再保存 producer section 组成的递归依赖图，也不要求读出的依赖重新构造为 producer section。选择入口保留 provider 唯一性与实际 typed 引用闭包检查，manifest 依赖环检测复用共有图边界。读取结果可直接用于后续 MIR 类型、callable、dispatch、初始化和布局生产。
 

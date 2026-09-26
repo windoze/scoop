@@ -34,26 +34,4 @@ impl DispatchResolvedCrossConeLayoutAbiSectionV1 {
             selected: self.selected,
         })
     }
-
-    pub fn validate<'a, E>(
-        self,
-        expected: &LayoutAbiExportConstituentsV1,
-        dependencies: &[&'a LayoutAbiExportConstituentsV1],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
-        source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
-        if self.layouts.provider() != expected.provider()
-            || self.layouts.target() != expected.target_profile()
-        {
-            return Err(LayoutAbiSectionError::LayoutReplayChanged);
-        }
-        self.validate_descriptors(expected.descriptors())?.validate(
-            expected,
-            dependencies,
-            physical_imports,
-            source,
-            identities,
-        )
-    }
 }

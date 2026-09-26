@@ -16,9 +16,7 @@ mod lookup;
 mod source;
 use LayoutAbiExportLoweringError as Error;
 pub use error::LayoutAbiExportLoweringError;
-pub use source::{
-    LayoutAbiSourceInventoryV1, LayoutAbiSourceProjectionError, LayoutAbiSourceProjectionV1,
-};
+pub use source::{LayoutAbiDependencyLoweringError, lower_layout_abi_dependencies};
 
 #[derive(Clone, Copy)]
 pub struct LayoutAbiExportInputV1<'a> {

@@ -264,16 +264,19 @@ pub(super) fn with_pair(
         source_contracts::check(input, dependencies, &projected);
     } else {
         // The baseline has no selected descriptors or external registration edges.
-        let error = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
+        let error = scoop_lir_lower::lower_layout_abi_dependencies(
             input,
             dependencies,
-            &projected,
+            &scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap(),
+            mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&projected)
+                .unwrap(),
+            &[],
         )
         .err()
         .unwrap();
         assert!(matches!(
             error,
-            scoop_lir_lower::LayoutAbiSourceProjectionError::InitializationEdges(error)
+            scoop_lir_lower::LayoutAbiDependencyLoweringError::InitializationEdges(error)
                 if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
         ));
     }

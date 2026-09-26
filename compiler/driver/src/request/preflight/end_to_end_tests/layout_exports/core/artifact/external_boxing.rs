@@ -55,14 +55,14 @@ pub(super) fn check(
         module.meta.target_profile,
         &[layout.exports()],
         imports.clone(),
-        &source,
+        &source.roots,
     )
     .unwrap();
     let complete = lir::CrossConeLayoutAbiSectionV1::try_new(
         selection::empty_exports(&foundation, module.meta.target_profile),
         &[layout.exports()],
         imports,
-        &source,
+        &source.roots,
     )
     .unwrap();
     module.meta.external_type_descriptors = Arena::new();

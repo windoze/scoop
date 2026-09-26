@@ -98,8 +98,7 @@ impl Provider {
         )
         .unwrap();
         let exports = exports(&foundation, vec![value.into()]);
-        let source = Source::local(&exports);
-        let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &source).unwrap();
+        let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &[]).unwrap();
         let external = StrongExternalLirBridgeSurfaceV1::try_new(provider, Vec::new()).unwrap();
         let digests = image.digest_finalization_plan().clone();
         let old = StrongProductionSectionV1::new(
@@ -171,17 +170,15 @@ impl Provider {
             OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
         let exports = exports(&foundation, vec![]);
         let import = self.import(consumer);
-        let mut source = Source::local(&exports);
-        source.roots.push(LayoutAbiDependencyV1::new(
+        let roots = [LayoutAbiDependencyV1::new(
             self.foundation.producer(),
             LayoutAbiSemanticTargetV1::Layout(self.layout),
-        ));
-        source.imports.push(encode(&import).unwrap());
+        )];
         CrossConeLayoutAbiSectionV1::try_new(
             exports,
             &[self.section.exports()],
             vec![import],
-            &source,
+            &roots,
         )
         .unwrap()
     }
@@ -193,8 +190,7 @@ pub(in crate::link_object) fn empty_section(
     let foundation =
         OdrFreeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
     let exports = exports(&foundation, vec![]);
-    let source = Source::local(&exports);
-    CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &source).unwrap()
+    CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &[]).unwrap()
 }
 
 pub(in crate::link_object::layout_link_closure) fn exports(
@@ -216,38 +212,4 @@ pub(in crate::link_object::layout_link_closure) fn exports(
     .unwrap();
     LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, support)
         .unwrap()
-}
-
-/// The fixture records its actual source layout and committed import request
-/// before section construction; the section still performs every graph join.
-struct Source {
-    roots: Vec<LayoutAbiDependencyV1>,
-    exports: LayoutAbiExportConstituentsV1,
-    imports: Vec<Vec<u8>>,
-}
-impl Source {
-    fn local(exports: &LayoutAbiExportConstituentsV1) -> Self {
-        Self {
-            roots: vec![],
-            exports: exports.clone(),
-            imports: vec![],
-        }
-    }
-}
-impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(&self, exports: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        (*exports == self.exports).then_some(()).ok_or(())
-    }
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&self.roots)
-    }
-    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
-        (imports.len() == self.imports.len()
-            && imports
-                .iter()
-                .zip(&self.imports)
-                .all(|(actual, expected)| encode(actual).unwrap() == *expected))
-        .then_some(())
-        .ok_or(())
-    }
 }

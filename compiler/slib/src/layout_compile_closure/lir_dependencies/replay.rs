@@ -73,6 +73,6 @@ pub fn replay_shared_lir_dependency_graph(
 
     committed.sort_unstable();
     committed.dedup();
-    layout.replay_dependency_closure::<Infallible>(dependencies, &committed)?;
+    layout.replay_dependency_closure(dependencies, &committed)?;
     Ok(())
 }

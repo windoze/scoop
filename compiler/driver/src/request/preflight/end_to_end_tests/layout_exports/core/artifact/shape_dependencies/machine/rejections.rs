@@ -30,7 +30,7 @@ pub(super) fn check(
             provider.target.lir_target(),
             &[],
             vec![],
-            &absent,
+            &absent.roots,
         )
         .unwrap();
         let error = lower(&empty).err().unwrap();
@@ -76,7 +76,7 @@ pub(super) fn check(
         provider.target.lir_target(),
         &[provider.layout],
         imports,
-        &missing,
+        &missing.roots,
     )
     .unwrap();
     assert!(matches!(lower(&incomplete), Err(Error::DependencyLayout(
@@ -104,7 +104,7 @@ pub(super) fn check(
         provider.target.lir_target(),
         &[provider.layout],
         selected.physical_imports().records().to_vec(),
-        &descriptor_only,
+        &descriptor_only.roots,
     )
     .unwrap();
     assert!(matches!(
@@ -140,7 +140,7 @@ pub(super) fn check(
             provider.target.lir_target(),
             &[provider.layout],
             selected.physical_imports().records().to_vec(),
-            &runtime_only,
+            &runtime_only.roots,
         )
         .unwrap();
         assert!(matches!(lower(&unqualified), Err(Error::Capability(error))

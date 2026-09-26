@@ -5,13 +5,11 @@ pub(super) mod dependencies;
 mod dispatch_inventory;
 mod error;
 mod selection;
-mod source;
 mod wire;
 
 pub use error::LayoutAbiSectionError;
 use selection::SelectedLayoutAbiEntryV1;
 pub use selection::{SelectedDependencyLayoutAbiRefV1, SelectedDependencyLayoutAbiSetV1};
-pub use source::LayoutAbiSectionSourceAuthorityV1;
 pub use wire::{
     CallablesResolvedCrossConeLayoutAbiSectionV1, DecodedCrossConeLayoutAbiSectionV1,
     DependencyResolvedCrossConeLayoutAbiSectionV1, DescriptorsResolvedCrossConeLayoutAbiSectionV1,
@@ -27,13 +25,13 @@ pub struct CrossConeLayoutAbiSectionV1<'a> {
 }
 
 impl<'a> CrossConeLayoutAbiSectionV1<'a> {
-    pub fn try_new<E>(
+    pub fn try_new(
         exports: LayoutAbiExportConstituentsV1,
         dependencies: &[&'a LayoutAbiExportConstituentsV1],
         physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
-        source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-    ) -> Result<Self, LayoutAbiSectionError<E>> {
-        build::producer(exports, dependencies, physical_imports, source)
+        roots: &[LayoutAbiDependencyV1],
+    ) -> Result<Self, LayoutAbiSectionError> {
+        build::producer(exports, dependencies, physical_imports, roots)
     }
 
     pub fn provider(&self) -> ConeIdentity {
@@ -73,7 +71,7 @@ impl<'a> CrossConeLayoutAbiSectionV1<'a> {
     }
 }
 
-fn reserve<T, E>(count: usize) -> Result<Vec<T>, LayoutAbiSectionError<E>> {
+fn reserve<T>(count: usize) -> Result<Vec<T>, LayoutAbiSectionError> {
     let mut values = Vec::new();
     scoop_wire::allocation::try_reserve(&mut values, count, &WirePath::root())?;
     Ok(values)

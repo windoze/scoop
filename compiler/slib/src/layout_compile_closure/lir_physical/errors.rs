@@ -3,7 +3,7 @@ use super::*;
 #[derive(Debug)]
 pub enum SharedLirPhysicalError {
     Resource(scoop_wire::WireError),
-    Layout(Box<lir::LayoutAbiSectionError<Infallible>>),
+    Layout(Box<lir::LayoutAbiSectionError>),
     Contract(Box<lir::ShapeLinkError>),
     Strong(Box<lir::StrongProductionLayoutJoinError>),
     LinkImports(Box<crate::LayoutLinkClosureError>),
@@ -21,7 +21,7 @@ macro_rules! from_error {
         }
     };
 }
-from_error!(lir::LayoutAbiSectionError<Infallible>, Layout);
+from_error!(lir::LayoutAbiSectionError, Layout);
 from_error!(lir::ShapeLinkError, Contract);
 from_error!(lir::StrongProductionLayoutJoinError, Strong);
 from_error!(crate::LayoutLinkClosureError, LinkImports);

@@ -4,6 +4,7 @@ pub(super) fn check(
     input: scoop_lir_lower::LayoutAbiExportInputV1<'_>,
     dependencies: scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
     source: &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+    exports: &lir::LayoutAbiExportConstituentsV1,
     selected: &lir::StrongProductionDependencySelectionV2<'_>,
     uses: &[lir::StrongExternalInitializationUseV2],
 ) {
@@ -46,19 +47,21 @@ pub(super) fn check(
                 &candidate,
             )
             .unwrap();
-        let error = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
+        let error = scoop_lir_lower::lower_layout_abi_dependencies(
             scoop_lir_lower::LayoutAbiExportInputV1 {
                 registration: &registration,
                 ..input
             },
             dependencies,
-            source,
+            exports,
+            mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(source).unwrap(),
+            selected.physical_imports().records(),
         )
         .err()
         .unwrap();
         assert!(matches!(
             error,
-            scoop_lir_lower::LayoutAbiSourceProjectionError::InitializationEdges(error)
+            scoop_lir_lower::LayoutAbiDependencyLoweringError::InitializationEdges(error)
                 if matches!(*error, mir::MirObjectBridgeError::InitializationDependencyInventory)
         ));
         let error = scoop_slib::replay_shared_lir_initialization_dependencies(

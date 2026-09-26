@@ -352,19 +352,3 @@ impl ExactTypeDiagnosticGraph for DiagnosticGraph {
         (id == self.coordinate.identity().unwrap()).then_some(&self.coordinate)
     }
 }
-
-pub(super) struct LayoutSource;
-
-impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
-    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&[])
-    }
-
-    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
-        Ok(())
-    }
-}

@@ -187,29 +187,8 @@ pub(super) fn changed_layout_section(provider: &Provider) -> CrossConeLayoutAbiS
     )
     .unwrap();
     let exports = exports(&provider.foundation, vec![value.into()]);
-    struct Source(LayoutAbiExportConstituentsV1);
-    use scoop_lir::{
-        ExternalShapeLinkImportV1, LayoutAbiDependencyV1, LayoutAbiExportConstituentsV1,
-        LayoutAbiSectionSourceAuthorityV1,
-    };
-    impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-        fn validate_local_exports(
-            &self,
-            exports: &LayoutAbiExportConstituentsV1,
-        ) -> Result<(), ()> {
-            (&self.0 == exports).then_some(()).ok_or(())
-        }
-        fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-            Ok(&[])
-        }
-        fn validate_physical_imports(
-            &self,
-            imports: &[ExternalShapeLinkImportV1],
-        ) -> Result<(), ()> {
-            imports.is_empty().then_some(()).ok_or(())
-        }
-    }
-    CrossConeLayoutAbiSectionV1::try_new(exports.clone(), &[], vec![], &Source(exports)).unwrap()
+
+    CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &[]).unwrap()
 }
 
 pub(super) fn owner_set_for_callable(

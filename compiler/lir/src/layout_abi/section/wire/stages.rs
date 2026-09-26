@@ -14,23 +14,6 @@ impl DecodedCrossConeLayoutAbiSectionV1 {
             selected: self.selected,
         })
     }
-
-    pub fn validate<'a, E>(
-        self,
-        expected: &LayoutAbiExportConstituentsV1,
-        dependencies: &[&'a LayoutAbiExportConstituentsV1],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
-        source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
-        self.validate_layouts(expected.layouts())?.validate(
-            expected,
-            dependencies,
-            physical_imports,
-            source,
-            identities,
-        )
-    }
 }
 
 impl<C, D, T> UnselectedCrossConeLayoutAbiSectionV1<crate::CanonicalExactLayoutExportsV1, C, D, T> {
@@ -59,28 +42,6 @@ impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
             shape_support: self.shape_support,
             selected: self.selected,
         })
-    }
-
-    pub fn validate<'a, E>(
-        self,
-        expected: &LayoutAbiExportConstituentsV1,
-        dependencies: &[&'a LayoutAbiExportConstituentsV1],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
-        source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
-        if self.layouts.provider() != expected.provider()
-            || self.layouts.target() != expected.target_profile()
-        {
-            return Err(LayoutAbiSectionError::LayoutReplayChanged);
-        }
-        self.validate_callables(expected.callables())?.validate(
-            expected,
-            dependencies,
-            physical_imports,
-            source,
-            identities,
-        )
     }
 }
 
@@ -116,27 +77,5 @@ impl CallablesResolvedCrossConeLayoutAbiSectionV1 {
             shape_support: self.shape_support,
             selected: self.selected,
         })
-    }
-
-    pub fn validate<'a, E>(
-        self,
-        expected: &LayoutAbiExportConstituentsV1,
-        dependencies: &[&'a LayoutAbiExportConstituentsV1],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
-        source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
-        if self.layouts.provider() != expected.provider()
-            || self.layouts.target() != expected.target_profile()
-        {
-            return Err(LayoutAbiSectionError::LayoutReplayChanged);
-        }
-        self.validate_dispatch(expected.dispatch())?.validate(
-            expected,
-            dependencies,
-            physical_imports,
-            source,
-            identities,
-        )
     }
 }

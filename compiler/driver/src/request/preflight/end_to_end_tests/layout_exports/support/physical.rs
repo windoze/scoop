@@ -1,8 +1,7 @@
 use scoop_identity::{ConeIdentity, PersistentExactTypeId};
 use scoop_lir::*;
 
-/// Test source uses taken from real producer shape records. It authorizes
-/// only the LIR harness; it does not stand in for a Compile source reader.
+/// Typed uses taken from actual source materializations.
 pub(in super::super) struct Source {
     pub(in super::super) roots: Vec<LayoutAbiDependencyV1>,
     pub(in super::super) physical: Vec<(ConeIdentity, ExternalStrongShapeSubjectV1)>,
@@ -115,31 +114,7 @@ pub(super) fn select<'a>(
         layout.target_profile(),
         &[layout],
         source.imports(provider, input.module().cone, &definitions),
-        &source,
+        &source.roots,
     )
     .unwrap()
-}
-
-impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
-    fn validate_local_exports(&self, exports: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        (exports.layouts().records().is_empty()
-            && exports.descriptors().records().is_empty()
-            && exports.dispatch().records().is_empty()
-            && exports.callables().records().is_empty()
-            && exports.shape_support().records().is_empty())
-        .then_some(())
-        .ok_or(())
-    }
-
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&self.roots)
-    }
-
-    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
-        let actual = imports
-            .iter()
-            .map(|import| (import.provider(), import.subject()))
-            .collect::<Vec<_>>();
-        (actual == self.physical).then_some(()).ok_or(())
-    }
 }

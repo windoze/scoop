@@ -2,7 +2,7 @@ use scoop_identity::ConeIdentity;
 
 use super::{
     LayoutAbiDependencyV1, LayoutAbiExportConstituentsV1, LayoutAbiSectionError,
-    LayoutAbiSectionSourceAuthorityV1, LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1,
+    LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1,
 };
 use crate::{CanonicalExternalShapeLinkImportsV1, ExternalShapeLinkImportV1};
 
@@ -24,7 +24,7 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
     pub fn empty(
         consumer: ConeIdentity,
         target: crate::LirTargetProfile,
-    ) -> Result<Self, LayoutAbiSectionError<()>> {
+    ) -> Result<Self, LayoutAbiSectionError> {
         Ok(Self {
             consumer,
             target,
@@ -34,21 +34,15 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
         })
     }
 
-    pub fn try_new<E>(
+    pub fn try_new(
         consumer: ConeIdentity,
         target: crate::LirTargetProfile,
         dependencies: &[&'a LayoutAbiExportConstituentsV1],
         physical_imports: Vec<ExternalShapeLinkImportV1>,
-        source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-    ) -> Result<Self, LayoutAbiSectionError<E>> {
+        roots: &[LayoutAbiDependencyV1],
+    ) -> Result<Self, LayoutAbiSectionError> {
         let dependencies = super::section::dependencies::complete(consumer, target, dependencies)?;
         let physical = CanonicalExternalShapeLinkImportsV1::from_checked(physical_imports)?;
-        source
-            .validate_physical_imports(physical.records())
-            .map_err(LayoutAbiSectionError::Source)?;
-        let roots = source
-            .committed_semantic_roots()
-            .map_err(LayoutAbiSectionError::Source)?;
         let semantic = super::semantic_closure::close_external(consumer, &dependencies, roots)?;
 
         for import in physical.records() {

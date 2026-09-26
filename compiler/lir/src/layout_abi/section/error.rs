@@ -1,8 +1,7 @@
 use super::*;
 
 #[derive(Debug)]
-pub enum LayoutAbiSectionError<E> {
-    Source(E),
+pub enum LayoutAbiSectionError {
     DuplicateProvider(ConeIdentity),
     DependencyTarget { provider: ConeIdentity },
     SelectedClosure,
@@ -16,14 +15,10 @@ pub enum LayoutAbiSectionError<E> {
     Exports(LayoutAbiExportConstituentsError),
     Semantic(LayoutAbiSemanticClosureError),
     Layout(crate::ExactLayoutTableError),
-    LayoutReplayChanged,
     Descriptor(crate::ExactDescriptorTableError),
-    DescriptorReplayChanged,
     Dispatch(crate::ExactDispatchTableError),
-    DispatchReplayChanged,
     DescriptorDispatch(scoop_identity::PersistentDispatchTableId),
     Callable(crate::ExactCallableAbiTableError),
-    CallableReplayChanged,
     ShapeSupport,
     ShapeSupportTable(crate::ParamFreeShapeSupportTableError),
     Physical(crate::ShapeLinkError),
@@ -35,7 +30,7 @@ pub enum LayoutAbiSectionError<E> {
 
 macro_rules! from_error {
     ($source:ty, $variant:ident) => {
-        impl<E> From<$source> for LayoutAbiSectionError<E> {
+        impl From<$source> for LayoutAbiSectionError {
             fn from(error: $source) -> Self {
                 Self::$variant(error)
             }
@@ -56,10 +51,10 @@ from_error!(IdentityReferenceError, Identity);
 from_error!(scoop_wire::cbor::EncodeError, Encoding);
 from_error!(WireError, Resource);
 
-impl<E: std::fmt::Debug> std::fmt::Display for LayoutAbiSectionError<E> {
+impl std::fmt::Display for LayoutAbiSectionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "invalid complete layout/ABI section: {self:?}")
     }
 }
 
-impl<E: std::fmt::Debug> std::error::Error for LayoutAbiSectionError<E> {}
+impl std::error::Error for LayoutAbiSectionError {}

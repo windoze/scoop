@@ -8,7 +8,7 @@ fn descriptor_exports_require_exact_dispatch_coverage() {
             exports(&fixture, descriptor, dispatch),
             &[],
             Vec::new(),
-            &NoDependencies,
+            &[],
         );
         match (descriptor, dispatch) {
             (true, true) | (false, false) => {
@@ -84,18 +84,4 @@ fn exports(fixture: &Fixture, descriptor: bool, dispatch: bool) -> LayoutAbiExpo
     .unwrap();
     LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shapes)
         .unwrap()
-}
-
-struct NoDependencies;
-
-impl LayoutAbiSectionSourceAuthorityV1<()> for NoDependencies {
-    fn validate_local_exports(&self, _: &LayoutAbiExportConstituentsV1) -> Result<(), ()> {
-        Ok(())
-    }
-    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
-        Ok(&[])
-    }
-    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
-        imports.is_empty().then_some(()).ok_or(())
-    }
 }

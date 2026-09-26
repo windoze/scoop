@@ -11,10 +11,10 @@ pub struct DependencyResolvedCrossConeLayoutAbiSectionV1 {
 }
 
 impl ExportsResolvedCrossConeLayoutAbiSectionV1 {
-    pub fn resolve_dependencies<E>(
+    pub fn resolve_dependencies(
         self,
         identities: &mut ValidatedIdentityGraph,
-    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError<E>> {
+    ) -> Result<DependencyResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
         dispatch_inventory::validate(&self.exports)?;
         let mut semantic = reserve(self.selected.semantic.len())?;
         for relation in self.selected.semantic {
@@ -40,11 +40,11 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
 
     /// Uses all exports of exactly the caller's reachable dependency graph.
     /// Committed roots must come from the containing artifact's source replay.
-    pub fn replay_dependency_closure<E>(
+    pub fn replay_dependency_closure(
         &self,
         dependencies: &[&LayoutAbiExportConstituentsV1],
         committed: &[LayoutAbiDependencyV1],
-    ) -> Result<(), LayoutAbiSectionError<E>> {
+    ) -> Result<(), LayoutAbiSectionError> {
         dependencies::validate_exports(
             self.exports.provider(),
             self.exports.target_profile(),

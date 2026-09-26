@@ -60,10 +60,13 @@ pub(super) fn check(
                 };
                 let exports =
                     scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
-                let source = scoop_lir_lower::LayoutAbiSourceProjectionV1::from_input(
+                let source = scoop_lir_lower::lower_layout_abi_dependencies(
                     input,
                     dependencies,
-                    &source,
+                    &exports,
+                    mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&source)
+                        .unwrap(),
+                    &[],
                 )
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(

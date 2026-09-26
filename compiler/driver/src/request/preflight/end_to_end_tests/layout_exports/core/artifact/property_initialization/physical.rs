@@ -87,7 +87,7 @@ pub(super) fn select<'a>(
         output.module().meta.target_profile,
         &[layout],
         imports,
-        &source,
+        &source.roots,
     )
     .unwrap();
     let definitions = production

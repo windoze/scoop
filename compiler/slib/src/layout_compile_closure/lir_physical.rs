@@ -4,7 +4,7 @@ use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 use scoop_mir as mir;
 use scoop_wire::WirePath;
-use std::{collections::BTreeMap, convert::Infallible};
+use std::collections::BTreeMap;
 
 use super::{
     LirDependencyGraphReplayedCrossConeLayoutClosure,

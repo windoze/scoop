@@ -1,54 +1,26 @@
 use super::*;
 
-pub(super) enum SelectionInput {
-    Producer,
-    Reader(Vec<LayoutAbiDependencyV1>),
-}
-
-pub(super) fn producer<'a, E>(
+pub(super) fn producer<'a>(
     exports: LayoutAbiExportConstituentsV1,
     dependencies: &[&'a LayoutAbiExportConstituentsV1],
     physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
-    source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
+    roots: &[LayoutAbiDependencyV1],
+) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError> {
     let dependencies =
         dependencies::complete(exports.provider(), exports.target_profile(), dependencies)?;
     let physical_imports =
         crate::CanonicalExternalShapeLinkImportsV1::from_checked(physical_imports)?;
-    complete(
-        exports,
-        dependencies,
-        physical_imports,
-        SelectionInput::Producer,
-        source,
-    )
+    complete(exports, dependencies, physical_imports, roots)
 }
 
-pub(super) fn complete<'a, E>(
+pub(super) fn complete<'a>(
     exports: LayoutAbiExportConstituentsV1,
     dependencies: Vec<&'a LayoutAbiExportConstituentsV1>,
     physical_imports: crate::CanonicalExternalShapeLinkImportsV1,
-    selection: SelectionInput,
-    source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
-) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
-    source
-        .validate_local_exports(&exports)
-        .map_err(LayoutAbiSectionError::Source)?;
+    roots: &[LayoutAbiDependencyV1],
+) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError> {
     dispatch_inventory::validate(&exports)?;
-    source
-        .validate_physical_imports(physical_imports.records())
-        .map_err(LayoutAbiSectionError::Source)?;
-    let candidate = match &selection {
-        SelectionInput::Producer => None,
-        SelectionInput::Reader(relations) => {
-            validate_selected_records(exports.provider(), relations)?;
-            Some(relations.as_slice())
-        }
-    };
-    let roots = source
-        .committed_semantic_roots()
-        .map_err(LayoutAbiSectionError::Source)?;
-    let relations = close_selection(&exports, &dependencies, roots, candidate)?;
+    let relations = close_selection(&exports, &dependencies, roots, None)?;
     let mut semantic = reserve(relations.len())?;
     for relation in relations {
         let terminal = dependencies
@@ -75,12 +47,12 @@ pub(super) fn complete<'a, E>(
     Ok(CrossConeLayoutAbiSectionV1 { exports, selected })
 }
 
-pub(super) fn close_selection<E>(
+pub(super) fn close_selection(
     exports: &LayoutAbiExportConstituentsV1,
     dependencies: &[&LayoutAbiExportConstituentsV1],
     committed: &[LayoutAbiDependencyV1],
     candidate: Option<&[LayoutAbiDependencyV1]>,
-) -> Result<Vec<LayoutAbiDependencyV1>, LayoutAbiSectionError<E>> {
+) -> Result<Vec<LayoutAbiDependencyV1>, LayoutAbiSectionError> {
     let relations = semantic_closure::close(exports.provider(), exports, dependencies, committed)?;
     if let Some(expected) = candidate {
         if expected != relations {
@@ -90,10 +62,10 @@ pub(super) fn close_selection<E>(
     Ok(relations)
 }
 
-pub(super) fn validate_selected_records<E>(
+pub(super) fn validate_selected_records(
     consumer: ConeIdentity,
     relations: &[LayoutAbiDependencyV1],
-) -> Result<(), LayoutAbiSectionError<E>> {
+) -> Result<(), LayoutAbiSectionError> {
     if let Some(index) = relations.windows(2).position(|pair| pair[0] >= pair[1]) {
         return Err(LayoutAbiSectionError::NonCanonicalSelected { index: index + 1 });
     }
@@ -106,12 +78,12 @@ pub(super) fn validate_selected_records<E>(
     Ok(())
 }
 
-fn validate_physical<E>(
+fn validate_physical(
     consumer: ConeIdentity,
     dependencies: &[&LayoutAbiExportConstituentsV1],
     semantic: &[SelectedLayoutAbiEntryV1<'_>],
     physical: &crate::CanonicalExternalShapeLinkImportsV1,
-) -> Result<(), LayoutAbiSectionError<E>> {
+) -> Result<(), LayoutAbiSectionError> {
     for import in physical.records() {
         if import.provider() == consumer {
             return Err(LayoutAbiSectionError::SelectedCurrentProvider);

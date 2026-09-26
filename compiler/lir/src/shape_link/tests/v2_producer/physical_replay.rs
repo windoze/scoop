@@ -1,7 +1,6 @@
 use super::*;
 use scoop_identity::{PendingIdentityValidation, ValidatedIdentityGraph};
 use scoop_wire::WireEncode;
-use std::convert::Infallible;
 
 mod fixtures;
 mod negative;
@@ -24,13 +23,12 @@ pub(super) fn check_join(
         .collect::<Vec<_>>();
     let replay = |rows: &[&dyn WireEncode], semantic: &[LayoutAbiDependencyV1]| {
         let mut identities = graph(provider, semantic);
-        wire::resolve(layout.exports(), semantic, rows, &mut identities)
-            .replay_physical_imports::<Infallible>(
-                consumer.canonical_definitions(),
-                &dependencies,
-                &provider.initialization_support(),
-                &mut identities,
-            )
+        wire::resolve(layout.exports(), semantic, rows, &mut identities).replay_physical_imports(
+            consumer.canonical_definitions(),
+            &dependencies,
+            &provider.initialization_support(),
+            &mut identities,
+        )
     };
     let checked = replay(&rows, &semantic).unwrap();
     consumer.validate_layout_selection(&checked).unwrap();

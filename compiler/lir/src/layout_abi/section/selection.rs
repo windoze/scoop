@@ -24,12 +24,12 @@ pub struct SelectedDependencyLayoutAbiSetV1<'a> {
 }
 
 impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
-    pub(super) fn from_closed<E>(
+    pub(super) fn from_closed(
         consumer: ConeIdentity,
         target: crate::LirTargetProfile,
         semantic: Vec<SelectedLayoutAbiEntryV1<'a>>,
         physical: crate::CanonicalExternalShapeLinkImportsV1,
-    ) -> Result<Self, LayoutAbiSectionError<E>> {
+    ) -> Result<Self, LayoutAbiSectionError> {
         if u32::try_from(semantic.len()).is_err() {
             return Err(LayoutAbiSectionError::Semantic(
                 LayoutAbiSemanticClosureError::ArithmeticOverflow,

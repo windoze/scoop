@@ -1,7 +1,5 @@
 //! Shared materialized HIR type roots close the LIR semantic dependency graph.
 
-use std::convert::Infallible;
-
 use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 use scoop_mir as mir;
@@ -78,7 +76,7 @@ impl<'input> MirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     strong.initialization_registrations(),
                 )?;
                 let reachable = transitive_positions(position, &dependency_positions)?;
-                let layout = layout.resolve_dependencies::<Infallible>(parts.identities)?;
+                let layout = layout.resolve_dependencies(parts.identities)?;
                 let path = WirePath::root();
                 let mut dependencies = Vec::new();
                 scoop_wire::allocation::try_reserve(&mut dependencies, reachable.len(), &path)?;
