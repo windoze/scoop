@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::LoadedConeManifest;
-use scoop_slib::{ConeKind, ConeSourceForm, PrebuiltManifestSummaryV1};
+use scoop_slib::{ArtifactManifestSummaryV1, ConeKind, ConeSourceForm};
 
 use super::{
     DependencyValidationResult, ExplicitDependencyArtifactInput, ExplicitDependencyRole,
@@ -13,12 +13,12 @@ use super::{
 pub(super) struct ValidatedDependencyNode<'input> {
     pub(super) input: ExplicitDependencyArtifactInput,
     pub(super) bytes: &'input [u8],
-    pub(super) summary: Cow<'input, PrebuiltManifestSummaryV1>,
+    pub(super) summary: Cow<'input, ArtifactManifestSummaryV1>,
 }
 
 pub(super) fn validate_artifact_shape(
     input: &ExplicitDependencyArtifactInput,
-    summary: &PrebuiltManifestSummaryV1,
+    summary: &ArtifactManifestSummaryV1,
     current_identity: ConeIdentity,
 ) -> DependencyValidationResult<()> {
     let cone = summary.cone();
@@ -126,7 +126,7 @@ pub(super) fn validate_dependency_records(
 
 fn dependency_matches_summary(
     dependency: &scoop_slib::DependencyRecord,
-    summary: &PrebuiltManifestSummaryV1,
+    summary: &ArtifactManifestSummaryV1,
 ) -> bool {
     let semantic = summary.semantic_fingerprints();
     dependency.coordinate() == summary.cone().coordinate()

@@ -392,13 +392,8 @@ fn real_process_builds_and_reuses_a_source_dependency() {
     );
     let root_node = first.completed(root_identity).unwrap();
     let artifact = root_node.closure().artifact(root_identity).unwrap();
-    assert_eq!(artifact.compile().identity(), root_identity);
-    assert_eq!(artifact.link().identity(), root_identity);
-    assert!(std::ptr::eq(
-        artifact.compile(),
-        root_node.artifact().compile()
-    ));
-    assert!(std::ptr::eq(artifact.link(), root_node.artifact().link()));
+    assert_eq!(artifact.summary().cone().identity(), root_identity);
+    assert!(std::ptr::eq(artifact, root_node.artifact()));
     assert!(matches!(
         first.into_outcome(),
         BuildGraphOutcome::Library { .. }

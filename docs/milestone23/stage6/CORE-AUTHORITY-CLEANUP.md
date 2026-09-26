@@ -56,7 +56,7 @@ M23-6 的正式 `scoopc` 发布与 `scoop` 依赖消费统一使用 `CrossConeLa
 
 当前源码的类型查询与 LIR 诊断目录直接接收 canonical HIR/MIR 实体记录及已读依赖图；不经自身 wire 编解码重建来源。实体层次、实际 provider 和 canonical key 仍完整保留，合并只检查实际 typed identity 冲突。
 
-已完成产物拥有完整 manifest、typed IR 和对象信息；构建、缓存与消费路径共享这一结果，访问 Compile/Link 数据直接借用，不重新解码或重放闭包。依赖顺序、边和产物只保存一份，不以用途凭证包装两套重复状态。
+构建管理与编译器消费是两个明确边界。`scoop` 的发现、完成节点和缓存只保留不可变归档快照及普通 manifest 摘要；检查容器、成员范围与 hash、版本/profile、Cone/target、依赖 fingerprint、缓存键和子进程结果，不解码 HIR/MIR/LIR 或重建 Link 对象。已读 prebuilt 快照复用同一摘要，不能在每完成一个节点时重放该节点及全部依赖。`scoopc` 或实际 Link 消费者在读取外部产物时完成 typed 引用、ABI、对象与 relocation 检查，Compile/Link 共享这份完整结果；同次编译的输出直接发布。摘要不能替代 IR 或对象，也不承担来源或操作资格。此职责调整不改变 wire、runtime C ABI 或 String 表示。
 
 layout reader 的外部形状合同保留选中记录的完整 typed 数据，读取结果直接拥有 section 和 Link 信息，不依赖临时 arena 或高阶回调。依赖查询期间的正常借用保留；不能用借用生命周期或只读回调额外限制已经完整的编译数据。
 

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use scoop_identity::ConeCoordinate;
 use scoop_manifest::{SingleFileInputError, SourceDiscoveryError};
-use scoop_slib::PrebuiltManifestSummaryError;
+use scoop_slib::ArtifactManifestSummaryError;
 
 use super::super::staging::StagingError;
 use crate::{PairedCompilerError, SnapshotFileError};
@@ -24,7 +24,7 @@ pub enum PrepareBuildGraphError {
 
     ArtifactSummary {
         path: PathBuf,
-        source: PrebuiltManifestSummaryError,
+        source: ArtifactManifestSummaryError,
     },
     ArtifactSummaryChanged(PathBuf),
     PrebuiltProjectionChanged(ConeCoordinate),

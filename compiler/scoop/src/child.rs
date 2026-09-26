@@ -11,7 +11,7 @@ use scoop_protocol::{
 };
 use scoop_slib::FingerprintAvailability;
 
-use crate::{PairedCompilerError, ResolvedPairedScoopc, ValidatedCrossConeArtifactHandle};
+use crate::{BuildArtifact, PairedCompilerError, ResolvedPairedScoopc};
 
 const COMPILER_FAILURE_EXIT_CODE: i32 = 1;
 
@@ -172,15 +172,15 @@ impl std::error::Error for ChildSuccessArtifactMismatch {}
 
 pub(crate) fn validate_child_success_artifact(
     success: &ScoopcSuccessV1,
-    artifact: &ValidatedCrossConeArtifactHandle,
+    artifact: &BuildArtifact,
 ) -> Result<(), ChildSuccessArtifactMismatch> {
-    let publication = artifact.publication();
-    let semantic = publication.compile_summary().semantic_fingerprints();
+    let summary = artifact.summary();
+    let semantic = summary.semantic_fingerprints();
     validate_child_success_fields(
         success,
         ExpectedChildSuccessArtifact {
-            artifact_fingerprint: *publication.artifact_fingerprint().as_array(),
-            cone_identity: *publication.identity().as_array(),
+            artifact_fingerprint: *summary.artifact_fingerprint().as_array(),
+            cone_identity: *summary.cone().identity().as_array(),
             hir_fingerprint: *semantic.hir().as_array(),
             mir_fingerprint: *semantic.mir().as_array(),
             lir_fingerprint: *semantic.lir().as_array(),

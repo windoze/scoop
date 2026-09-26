@@ -69,13 +69,13 @@ fn edited_core_rebuilds_through_the_common_cache_without_writing_sysroot_artifac
                 .completed(identity)
                 .unwrap()
                 .artifact()
-                .publication()
+                .summary()
                 .artifact_fingerprint(),
             second
                 .completed(identity)
                 .unwrap()
                 .artifact()
-                .publication()
+                .summary()
                 .artifact_fingerprint(),
         );
     }

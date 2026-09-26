@@ -86,30 +86,6 @@ impl ValidatedCompletedCrossConeArtifactClosure {
     pub fn current_link(&self) -> &ValidatedCrossConeStrongLinkArtifact {
         &self.closure.links[self.current_position]
     }
-
-    pub fn current_publication(&self) -> &CrossConeArtifactSummary {
-        &self.closure.publications[self.current_position]
-    }
-
-    pub fn into_current_parts(
-        mut self,
-    ) -> (
-        ValidatedCompileArtifact<crate::CrossConeLayoutStrongProfile>,
-        ValidatedCrossConeStrongLinkArtifact,
-        CrossConeArtifactSummary,
-    ) {
-        let compile = self
-            .closure
-            .semantic
-            .into_artifact_at(self.current_position);
-        let link = self.closure.links.swap_remove(self.current_position);
-        let publication = self.closure.publications.swap_remove(self.current_position);
-        (compile, link, publication)
-    }
-
-    pub fn into_current_publication(mut self) -> CrossConeArtifactSummary {
-        self.closure.publications.swap_remove(self.current_position)
-    }
 }
 
 impl ValidatedCrossConeArtifactClosure {
@@ -137,18 +113,6 @@ impl ValidatedCrossConeArtifactClosure {
         self.positions
             .get(&identity)
             .map(|position| &self.links[*position])
-    }
-
-    pub fn current_publication(&self) -> Option<&CrossConeArtifactSummary> {
-        self.publication(self.semantic.current())
-    }
-
-    pub fn into_current_publication(mut self) -> Option<CrossConeArtifactSummary> {
-        let current = self.semantic.current();
-        self.positions
-            .get(&current)
-            .copied()
-            .map(|position| self.publications.swap_remove(position))
     }
 }
 
@@ -246,7 +210,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(closure.artifact_count(), 0);
-        assert!(closure.current_publication().is_none());
         assert_eq!(closure.semantic().current(), ConeIdentity::CORE);
     }
 }

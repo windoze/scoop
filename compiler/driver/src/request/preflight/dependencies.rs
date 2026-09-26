@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_slib::{
-    ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError, PrebuiltManifestSummaryError,
+    ArtifactManifestSummaryError, ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError,
 };
 use scoop_wire::HashError;
 
@@ -131,7 +131,7 @@ impl std::error::Error for ExplicitDependencyLoadError {
 struct LoadedExplicitDependencyArtifact {
     input: ExplicitDependencyArtifactInput,
     bytes: Vec<u8>,
-    summary: std::cell::OnceCell<scoop_slib::PrebuiltManifestSummaryV1>,
+    summary: std::cell::OnceCell<scoop_slib::ArtifactManifestSummaryV1>,
 }
 
 #[derive(Debug)]
@@ -145,7 +145,7 @@ type DependencyValidationResult<T> = Result<T, Box<ExplicitDependencyValidationE
 pub enum ExplicitDependencyValidationError {
     Summary {
         input: ExplicitDependencyArtifactInput,
-        source: Box<PrebuiltManifestSummaryError>,
+        source: Box<ArtifactManifestSummaryError>,
     },
     Closure(Box<CrossConeArtifactClosureValidationError>),
     CompilerProtocols(scoop_slib::CrossConeProtocolImportError),

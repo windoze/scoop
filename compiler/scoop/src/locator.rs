@@ -9,8 +9,8 @@ use scoop_manifest::{
     ManifestRootLocator, load_cone_manifest,
 };
 use scoop_slib::{
-    ArtifactFingerprint, ConeKind, ConeSourceForm, PrebuiltManifestSummaryError,
-    PrebuiltManifestSummaryV1, probe_prebuilt_manifest_summary,
+    ArtifactFingerprint, ArtifactManifestSummaryError, ArtifactManifestSummaryV1, ConeKind,
+    ConeSourceForm, read_artifact_manifest_summary,
 };
 
 use crate::ArtifactSearchRoot;
@@ -39,7 +39,7 @@ impl ManifestSourceProjection {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PrebuiltArtifactCandidate {
     resolved_path: PathBuf,
-    summary: Box<PrebuiltManifestSummaryV1>,
+    summary: Box<ArtifactManifestSummaryV1>,
 }
 
 impl PrebuiltArtifactCandidate {
@@ -47,11 +47,11 @@ impl PrebuiltArtifactCandidate {
         &self.resolved_path
     }
 
-    pub(crate) const fn summary(&self) -> &PrebuiltManifestSummaryV1 {
+    pub(crate) const fn summary(&self) -> &ArtifactManifestSummaryV1 {
         &self.summary
     }
 
-    pub(crate) fn into_parts(self) -> (PathBuf, PrebuiltManifestSummaryV1) {
+    pub(crate) fn into_parts(self) -> (PathBuf, ArtifactManifestSummaryV1) {
         (self.resolved_path, *self.summary)
     }
 }
@@ -349,7 +349,7 @@ fn probe_artifact_candidate(
             resolved_path,
         ));
     }
-    let summary = probe_prebuilt_manifest_summary(&bytes, target).map_err(|source| {
+    let summary = read_artifact_manifest_summary(&bytes, target).map_err(|source| {
         DependencyLocatorError::Summary {
             path: resolved_path.clone(),
             source,
@@ -366,7 +366,7 @@ fn probe_artifact_candidate(
 fn validate_artifact_shape(
     expected: &ConeCoordinate,
     path: &Path,
-    summary: &PrebuiltManifestSummaryV1,
+    summary: &ArtifactManifestSummaryV1,
 ) -> Result<(), DependencyLocatorError> {
     if summary.cone().coordinate() != expected {
         return Err(DependencyLocatorError::CoordinateMismatch {
@@ -440,7 +440,7 @@ pub enum DependencyLocatorError {
     Allocation(PathBuf),
     Summary {
         path: PathBuf,
-        source: PrebuiltManifestSummaryError,
+        source: ArtifactManifestSummaryError,
     },
 
     CoordinateMismatch {

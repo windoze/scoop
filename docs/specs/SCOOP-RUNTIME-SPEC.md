@@ -8,6 +8,8 @@ String TypeDescriptor、初始化循环异常服务及其 registration 由编译
 
 String 的外部 TypeDescriptor 与 type-registration relocation 使用普通 provider/exact 引用。删除编译器的独立 String bridge 不改变对象头、字符串数据布局、kind 常量或 C 调用约定。
 
+归档调度与缓存属于构建管理职责，不能在父进程中再次执行完整对象与 runtime metadata 验证。编译器消费和实际 Link 对象边界继续检查类型、ABI、对象范围、scan、registration 与 relocation；runtime 按这些完整数据执行动态对象范围和 GC 契约检查，构建摘要不作为 runtime 资格凭证。
+
 版本：0.6（草案）
 
 配套文档：`SCOOP-SPEC.md`（语言规范）。本文引用其章节号。

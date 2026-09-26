@@ -5,13 +5,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use scoop_identity::ConeIdentity;
-use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_protocol::StructuredDiagnosticV1;
-use scoop_slib::{ArtifactFingerprint, DependencyRecord};
+use scoop_slib::{ArtifactFingerprint, ArtifactManifestSummaryError, DependencyRecord};
 
 use super::{
-    ArtifactClosurePlan, ArtifactClosureValidationError, CrossConeArtifactValidationError,
-    ValidatedArtifactClosure, ValidatedCrossConeArtifactHandle,
+    ArtifactClosurePlan, ArtifactClosureValidationError, BuildArtifact, ValidatedArtifactClosure,
 };
 use crate::{CacheCompletionError, PreparedArtifactCandidate};
 
@@ -42,7 +40,7 @@ impl PrivateArtifactPath {
 pub struct CompletedNode {
     cone: ConeIdentity,
     origin: CompletedNodeOrigin,
-    artifact: Rc<ValidatedCrossConeArtifactHandle>,
+    artifact: Rc<BuildArtifact>,
     closure: Rc<ValidatedArtifactClosure>,
     materialized_child_path: PrivateArtifactPath,
     warnings: Vec<StructuredDiagnosticV1>,
@@ -57,7 +55,7 @@ impl CompletedNode {
         self.origin
     }
 
-    pub fn artifact(&self) -> &ValidatedCrossConeArtifactHandle {
+    pub fn artifact(&self) -> &BuildArtifact {
         &self.artifact
     }
 
@@ -73,7 +71,7 @@ impl CompletedNode {
         &self.warnings
     }
 
-    pub(crate) fn shared_artifact(&self) -> Rc<ValidatedCrossConeArtifactHandle> {
+    pub(crate) fn shared_artifact(&self) -> Rc<BuildArtifact> {
         Rc::clone(&self.artifact)
     }
 
@@ -83,7 +81,7 @@ impl CompletedNode {
 
     pub(crate) fn from_cache_hit(
         cone: ConeIdentity,
-        artifact: Rc<ValidatedCrossConeArtifactHandle>,
+        artifact: Rc<BuildArtifact>,
         closures: ValidatedArtifactClosure,
         materialized_child_path: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
@@ -100,7 +98,7 @@ impl CompletedNode {
 
     fn from_compiled(
         cone: ConeIdentity,
-        artifact: Rc<ValidatedCrossConeArtifactHandle>,
+        artifact: Rc<BuildArtifact>,
         closures: ValidatedArtifactClosure,
         materialized_child_path: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
@@ -120,7 +118,7 @@ impl CompletedNode {
 pub enum CompiledCompletionError {
     CurrentNodeAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
-    Artifact(Box<CrossConeArtifactValidationError>),
+    Artifact(Box<ArtifactManifestSummaryError>),
     Plan(Box<ArtifactClosureValidationError>),
     Warnings(Box<CacheCompletionError>),
 }
@@ -137,7 +135,7 @@ impl fmt::Display for CompiledCompletionError {
             Self::Artifact(source) => {
                 write!(
                     formatter,
-                    "compiled artifact failed dual-view validation: {source}"
+                    "compiled artifact failed archive validation: {source}"
                 )
             }
             Self::Plan(source) => {
@@ -164,7 +162,6 @@ impl std::error::Error for CompiledCompletionError {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn complete_compiled_candidate(
     plan: &ArtifactClosurePlan,
     identity: ConeIdentity,
@@ -172,8 +169,6 @@ pub(crate) fn complete_compiled_candidate(
     materialized_path: PathBuf,
     completed: &[&CompletedNode],
     warnings: Vec<StructuredDiagnosticV1>,
-
-    c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<CompletedNode, CompiledCompletionError> {
     let mut artifacts = BTreeMap::new();
     for node in completed {
@@ -189,8 +184,7 @@ pub(crate) fn complete_compiled_candidate(
             return Err(CompiledCompletionError::DuplicateCompletedNode(node.cone));
         }
     }
-    let artifact = plan
-        .validate_completed_artifact(identity, snapshot, &artifacts, c_bridge_profile)
+    let artifact = BuildArtifact::read(snapshot, plan.target_selection())
         .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Rc::clone(&artifact));
     let closures = plan
@@ -213,10 +207,6 @@ pub enum PrebuiltCompletionError {
     EmptyCandidateSet(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
     CurrentNodeAlreadyCompleted(ConeIdentity),
-    CandidateArtifact {
-        path: PathBuf,
-        source: Box<CrossConeArtifactValidationError>,
-    },
     CandidatePlan {
         path: PathBuf,
         source: Box<ArtifactClosureValidationError>,
@@ -253,11 +243,6 @@ impl fmt::Display for PrebuiltCompletionError {
                 formatter,
                 "prebuilt Cone {identity} was supplied as its own completed dependency"
             ),
-            Self::CandidateArtifact { path, source } => write!(
-                formatter,
-                "prebuilt candidate {} failed dual-view validation: {source}",
-                path.display()
-            ),
             Self::CandidatePlan { path, source } => write!(
                 formatter,
                 "prebuilt candidate {} does not match the resolved graph: {source}",
@@ -275,7 +260,7 @@ impl fmt::Display for PrebuiltCompletionError {
             ),
             Self::CandidateDisagreement { first, second } => write!(
                 formatter,
-                "prebuilt candidates {} and {} disagree after full validation",
+                "prebuilt candidates {} and {} have different artifact fingerprints",
                 first.display(),
                 second.display()
             ),
@@ -286,7 +271,6 @@ impl fmt::Display for PrebuiltCompletionError {
 impl std::error::Error for PrebuiltCompletionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CandidateArtifact { source, .. } => Some(source),
             Self::CandidatePlan { source, .. } => Some(source),
             _ => None,
         }
@@ -296,19 +280,16 @@ impl std::error::Error for PrebuiltCompletionError {
 struct ValidatedCandidate {
     source_locator: PathBuf,
     materialized_path: PathBuf,
-    artifact: Rc<ValidatedCrossConeArtifactHandle>,
+    artifact: Rc<BuildArtifact>,
     closures: ValidatedArtifactClosure,
     agreement: ArtifactFingerprint,
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn complete_prebuilt_candidates(
     plan: &ArtifactClosurePlan,
     identity: ConeIdentity,
     candidates: Vec<PreparedArtifactCandidate>,
     completed: &[&CompletedNode],
-
-    c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<CompletedNode, PrebuiltCompletionError> {
     let mut artifacts = BTreeMap::new();
     for node in completed {
@@ -327,17 +308,10 @@ pub(crate) fn complete_prebuilt_candidates(
 
     let mut validated = Vec::with_capacity(candidates.len());
     for candidate in candidates {
-        let artifact = plan
-            .validate_completed_artifact(
-                identity,
-                Arc::clone(candidate.snapshot()),
-                &artifacts,
-                c_bridge_profile,
-            )
-            .map_err(|source| PrebuiltCompletionError::CandidateArtifact {
-                path: candidate.source_locator().to_path_buf(),
-                source: Box::new(source),
-            })?;
+        let artifact = Rc::new(BuildArtifact {
+            snapshot: Arc::clone(candidate.snapshot()),
+            summary: candidate.summary().clone(),
+        });
         artifacts.insert(identity, Rc::clone(&artifact));
         let closures = plan
             .validate(identity, &artifacts)
@@ -359,11 +333,11 @@ pub(crate) fn complete_prebuilt_candidates(
                     source: Box::new(source),
                 },
             })?;
-        let publication = artifact.publication();
+        let summary = artifact.summary();
         validated.push(ValidatedCandidate {
             source_locator: candidate.source_locator().to_path_buf(),
             materialized_path: candidate.materialized_path().to_path_buf(),
-            agreement: publication.artifact_fingerprint(),
+            agreement: summary.artifact_fingerprint(),
             artifact,
             closures,
         });

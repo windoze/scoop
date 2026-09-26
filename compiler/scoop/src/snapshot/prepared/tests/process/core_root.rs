@@ -107,14 +107,14 @@ fn assert_artifact_only_cli_consumer(
         String::from_utf8_lossy(&result.stderr)
     );
     let bytes = std::fs::read(output).unwrap();
-    let summary = probe_prebuilt_manifest_summary(
+    let summary = read_artifact_manifest_summary(
         &bytes,
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
     assert_eq!(
         summary.direct_dependencies(),
-        &[core.artifact().publication().dependency_record()]
+        &[core.artifact().summary().dependency_record()]
     );
     assert!(!layout.source_root().exists());
 }

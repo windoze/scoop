@@ -59,8 +59,8 @@ impl PreparedBuildGraph {
                     dependency,
                     source: Box::new(source),
                 })?;
-            let publication = completed.artifact().publication();
-            let semantic = publication.compile_summary().semantic_fingerprints();
+            let summary = completed.artifact().summary();
+            let semantic = summary.semantic_fingerprints();
             let single_file_core_code =
                 if identity == ConeIdentity::SINGLE_FILE && dependency == ConeIdentity::CORE {
                     match semantic.code() {
@@ -74,14 +74,8 @@ impl PreparedBuildGraph {
                 } else {
                     OptionalCoreCodeFingerprintV1::None
                 };
-            let dependency_cone = ConeRecord::new(
-                publication.coordinate().clone(),
-                publication.kind(),
-                publication.source_form(),
-            )
-            .map_err(CompileCacheKeyError::ConeRecord)?;
             dependencies.push(CompileDependencyInputV1::new(
-                dependency_cone,
+                summary.cone().clone(),
                 semantic.hir(),
                 semantic.mir(),
                 semantic.lir(),

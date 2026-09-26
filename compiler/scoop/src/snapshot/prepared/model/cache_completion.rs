@@ -4,8 +4,7 @@ use super::{PreparedBuildGraph, PreparedGraphNode};
 use crate::{CacheCompletionError, CompletedNode, RawCompileCacheEntryV1, validate_cache_entry};
 
 impl PreparedBuildGraph {
-    /// Promotes a raw cache pair only after the exact current graph, receipt,
-    /// dual artifact views, and both purpose closures agree.
+    /// Checks the cached archive and record against the current build graph.
     pub(crate) fn complete_cache_hit(
         &mut self,
         identity: ConeIdentity,
@@ -24,7 +23,6 @@ impl PreparedBuildGraph {
             .map_err(|source| CacheCompletionError::CacheKey(Box::new(source)))?;
         let plan = self.artifact_closure_plan();
 
-        let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
         let validated = validate_cache_entry(
             &plan,
             identity,
@@ -33,7 +31,6 @@ impl PreparedBuildGraph {
             completed,
             self.compiler.fingerprint(),
             self.target_selection,
-            &c_bridge_profile,
         )?;
         let snapshot = validated.artifact().snapshot();
         let materialized = self

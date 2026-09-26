@@ -1,8 +1,7 @@
-//! Bounded graph-discovery projection for a prebuilt `.slib`.
+//! Archive and manifest data used by dependency discovery, builds, and caches.
 //!
-//! A summary proves only the canonical archive envelope, bootstrap manifest,
-//! member directory, and graph-node shape. It deliberately exposes no member
-//! bytes and cannot be promoted into a Compile or Link artifact view.
+//! Reading a summary checks the container, member hashes, compatibility, and
+//! dependency records. Compiler consumers read typed IR and objects separately.
 
 use std::fmt;
 
@@ -16,7 +15,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PrebuiltManifestSummaryV1 {
+pub struct ArtifactManifestSummaryV1 {
     cone: ConeRecord,
     direct_dependencies: Vec<DependencyRecord>,
     compatibility: CompatibilityRecord,
@@ -29,13 +28,23 @@ pub struct PrebuiltManifestSummaryV1 {
     archive_length: u64,
 }
 
-impl PrebuiltManifestSummaryV1 {
+impl ArtifactManifestSummaryV1 {
     pub const fn cone(&self) -> &ConeRecord {
         &self.cone
     }
 
     pub fn direct_dependencies(&self) -> &[DependencyRecord] {
         &self.direct_dependencies
+    }
+
+    pub fn dependency_record(&self) -> DependencyRecord {
+        DependencyRecord::from_validated(
+            self.cone.coordinate().clone(),
+            self.cone.identity(),
+            self.semantic_fingerprints.hir(),
+            self.semantic_fingerprints.mir(),
+            self.semantic_fingerprints.lir(),
+        )
     }
 
     pub const fn compatibility(&self) -> &CompatibilityRecord {
@@ -83,15 +92,15 @@ impl PrebuiltManifestSummaryV1 {
     }
 }
 
-pub fn probe_prebuilt_manifest_summary(
+pub fn read_artifact_manifest_summary(
     bytes: &[u8],
 
     target_selection: ValidatedLirTargetSelection,
-) -> Result<PrebuiltManifestSummaryV1, PrebuiltManifestSummaryError> {
+) -> Result<ArtifactManifestSummaryV1, ArtifactManifestSummaryError> {
     let graph = crate::DecodedSlibEnvelope::open(bytes, target_selection)
-        .map_err(PrebuiltManifestSummaryError::Envelope)?
+        .map_err(ArtifactManifestSummaryError::Envelope)?
         .validate_graph()
-        .map_err(PrebuiltManifestSummaryError::Graph)?;
+        .map_err(ArtifactManifestSummaryError::Graph)?;
     let manifest = graph.envelope.manifest();
     let member_count = length(manifest.members().len())?;
     let manifest_length = length(graph.envelope.manifest_length())?;
@@ -112,8 +121,8 @@ fn summary_from_manifest(
     member_count: u64,
     manifest_length: u64,
     archive_length: u64,
-) -> PrebuiltManifestSummaryV1 {
-    PrebuiltManifestSummaryV1 {
+) -> ArtifactManifestSummaryV1 {
+    ArtifactManifestSummaryV1 {
         cone: manifest.cone().clone(),
         direct_dependencies: manifest.direct_dependencies().to_vec(),
         compatibility: manifest.compatibility().clone(),
@@ -127,18 +136,18 @@ fn summary_from_manifest(
     }
 }
 
-fn length(value: usize) -> Result<u64, PrebuiltManifestSummaryError> {
-    u64::try_from(value).map_err(|_| PrebuiltManifestSummaryError::LengthOverflow)
+fn length(value: usize) -> Result<u64, ArtifactManifestSummaryError> {
+    u64::try_from(value).map_err(|_| ArtifactManifestSummaryError::LengthOverflow)
 }
 
 #[derive(Debug)]
-pub enum PrebuiltManifestSummaryError {
+pub enum ArtifactManifestSummaryError {
     Envelope(SlibReadError),
     Graph(GraphValidationError),
     LengthOverflow,
 }
 
-impl fmt::Display for PrebuiltManifestSummaryError {
+impl fmt::Display for ArtifactManifestSummaryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Envelope(error) => error.fmt(formatter),
@@ -148,7 +157,7 @@ impl fmt::Display for PrebuiltManifestSummaryError {
     }
 }
 
-impl std::error::Error for PrebuiltManifestSummaryError {
+impl std::error::Error for ArtifactManifestSummaryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Envelope(error) => Some(error),
@@ -163,9 +172,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn summary_exposes_only_graph_discovery_fields() {
+    fn summary_retains_archive_and_manifest_fields() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
-        let summary = probe_prebuilt_manifest_summary(
+        let summary = read_artifact_manifest_summary(
             &bytes,
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         )
@@ -191,7 +200,7 @@ mod tests {
     #[test]
     fn summary_does_not_claim_link_semantic_validation() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
-        let summary = probe_prebuilt_manifest_summary(
+        let summary = read_artifact_manifest_summary(
             &bytes,
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         )
@@ -204,11 +213,11 @@ mod tests {
         let mut bytes = crate::link_decode::complete_strong_artifact_for_test(false);
         let last = bytes.last_mut().expect("test artifact is nonempty");
         *last ^= 0x01;
-        let error = probe_prebuilt_manifest_summary(
+        let error = read_artifact_manifest_summary(
             &bytes,
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         )
         .unwrap_err();
-        assert!(matches!(error, PrebuiltManifestSummaryError::Envelope(_)));
+        assert!(matches!(error, ArtifactManifestSummaryError::Envelope(_)));
     }
 }

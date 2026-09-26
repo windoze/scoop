@@ -131,14 +131,14 @@ kind = "executable" # 或 "library"
 
 ### 1.4 resolved DAG与缓存输入
 
-`scoop`先把root operand解析为`BuildRootInput::ManifestCone | SingleFile`。前者只读解析全部source manifest与prebuilt `.slib`的bounded manifest summary；后者构造第1.3节固定的synthetic source node，并与trusted core组成恰好两个节点的graph，不运行locator发现。随后统一建立以`ConeIdentity`为key的`ResolvedBuildGraph`。manifest summary或synthetic root projection只是locator/调度输入，不是`ValidatedGraphArtifact`，不能授予metadata或link API，也不能据此把artifact标成可复用、可发布或可交给下游：
+`scoop`先把root operand解析为`BuildRootInput::ManifestCone | SingleFile`。前者只读解析全部source manifest与prebuilt `.slib`的 manifest 摘要；后者构造第1.3节固定的synthetic source node，并与默认 core 组成两个节点的graph，不运行locator发现。随后统一建立以`ConeIdentity`为key的`ResolvedBuildGraph`。摘要与不可变归档用于查找、调度和缓存一致性检查；实际编译器消费者另行读取完整 IR 与对象：
 
 1. 仅对非core Cone注入trusted `scoop:scoop.core:0.1.0` direct edge；core bootstrap root不依赖自身；
 2. 验证coordinate/content唯一、dependency kind、exact version与target/schema兼容；
 3. 以typed DFS/SCC检测cycle并打印完整coordinate edge path；
 4. 验证同一`group:name`没有多个version；
 5. 得到唯一canonical topological order：初始及每轮ready set精确定义为“全部direct dependency都已输出”的剩余Cone，从中按coordinate byte order取最小者；因此dependency总在dependent之前，不依赖edge在实现中的存储方向；
-6. 才按该顺序处理每个节点：prebuilt/cache候选必须先完整读取全部payload并构造具有完整 Compile/Link 数据的检查结果，之后才可复用；source节点在其全部上游artifact已经完成同一双view门禁后，以一次独立`scoopc build`调用生成且只生成当前Cone的`.slib`，父进程对输出再次执行同一门禁后才将节点标为完成。任一调用都不得收到尚未完成的source Cone，也不得通过进程内IR绕过`.slib`边界。
+6. 按该顺序处理每个节点：prebuilt/cache候选核对归档、manifest、依赖 fingerprint 与当前构建计划；source cache miss 在全部上游就绪后，以一次独立`scoopc build`调用生成当前Cone的`.slib`。父进程核对输出归档及 child 报告，不重放当前产物与全部依赖的 Compile/Link 语义。子进程从实际 direct/support 归档读取完整 typed IR、ABI 与对象；不得收到尚未完成的source Cone，也不得通过父进程IR绕过`.slib`边界。
 
 一个`.slib`的dependency table记录其编译时每个direct dependency的`ConeIdentity`与三层semantic fingerprint。`scoop`在调度前据此决定source节点的cache命中或重编译；只有prebuilt artifact时报告stale dependency。`scoopc`收到的上游`.slib`集合若缺失、含不可到达的额外artifact或fingerprint不匹配，只报告single-Cone输入错误，不自行解析locator或重编译上游，因而旧typed id不可能被接到新metadata。
 
@@ -1657,7 +1657,7 @@ program-link:
 ```
 
 - `.slib`容器读取只在slib crate；完整dependency graph/cache只在`scoop`，当前Cone stage调度只在`scoopc`，最终closure/link只在program-link组件。stage implementation crate不打开archive、manifest或上游source；
-- 完整 `ValidatedArtifactClosure` 只保存一份产物、依赖顺序和边。每个产物拥有完整 Compile/Link 数据，消费者按实际需要借用；没有用途凭证或两套平行闭包。`ResolvedBuildGraph` 的源码记录与 prebuilt summary 只用于调度，不能代替 IR 和对象。相同字节快照的共有语义只检查一次，Link 增加实际对象检查；缓存和已完成节点保留这一结果，后续 accessor 不重开字节。Diagnostics 作为附加信息，不授予来源或操作资格；
+- 构建用 `ValidatedArtifactClosure` 保存一份产物快照、普通摘要、依赖顺序和边，供调度和缓存使用。实际编译器的共有 reader 返回完整 Compile/Link 数据，消费者直接借用已检查结果；Link 增加实际对象检查。两者按职责保留所需数据，不设置用途凭证、重复语义重放或平行闭包。Diagnostics 作为附加信息，不授予来源或操作资格；
 - imported meta类型定义在对应IR/meta crate。`scoopc`按`CrossConeUseSet`从完整reader结果投影出`SelectedImportedMir`/`SelectedImportedLir`；mir-lower只依赖HIR输入/MIR输出类型，lir-lower只依赖MIR输入/LIR输出类型；
 - codegen仍只接收本Cone完整LIR，上游target是typed external ref；
 - fingerprint finalization消费3.4已经验证的typed DAG。LIR metadata提供canonical ordinary source signature、exact type/target layout、`RefScan`和`CanonicalLirDefinition`；finalizer分别以`scoop-source-signature-v1`、`scoop-layout-v1`、`scoop-scan-v1`与`scoop-lir-definition-v1`计算四类semantic leaf，object verifier同时证明实际descriptor/scan bytes与这些语义值一致。全部`ProvisionalLinkObjectMembers`中由`MemberMaterializationIndex`绑定的graph-managed patch site（包括semantic leaf落槽）初始为零，其他字段不得被finalizer改写；
@@ -1717,9 +1717,9 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop>
 
 直接生成的single-file `.slib`可交给`scoop link --root-slib`，但linker必须验证它是闭包中唯一root，从普通 core artifact locator 取得依赖，默认 sysroot 只作查找位置，并要求其 identity、root dependency edge 记录的 HIR/MIR/LIR semantic fingerprint 及 ABI 全部匹配；本次core的code/artifact fingerprint另行进入link plan，不要求等于编译root时某个未被dependency table记录的byte-exact artifact。single-file `.slib`继续禁止出现在`--dependency-slib`或manifest locator位置。这样低层`scoopc build <file.scoop>`有完整后续路径，又不会把reserved identity变成可发布library identity或破坏object-only更新只需relink的规则。
 
-`scoop build`拥有完整构建生命周期：先按1.4解析并验证整个DAG，确保cycle、multiversion或ambiguous artifact在启动第一个compiler子进程前失败；随后按canonical dependency-first顺序处理节点。single-file graph仅有trusted core与synthetic root，但也执行同一artifact/view/cache门禁，不得简化为把core source拼回当前AST。prebuilt与cache候选不调用`scoopc`，但只有完整envelope/hash验证及共有语义与 Link 对象检查均成功后才算命中并可复用；unknown LinkObject capability、损坏object或只通过Graph view的候选都不是成功节点。每个source cache miss恰好启动一次独立`scoopc`进程，并只把已经通过同一双view门禁、成功发布的direct/support `.slib`传入。`scoop`必须调用同一toolchain安装中、ABI/schema身份匹配的配套`scoopc`，不能从任意`PATH`挑选另一个版本；子进程请求/诊断使用版本化结构化协议，输出artifact由父进程重新构造Compile与Link view并核对计划。`scoop`不得把两个source Cone的AST/IR放进同一进程，或以调用`scoopc`内部pipeline library的方式绕过artifact边界。M23先串行执行；未来并行ready set也不能让完成时序改变诊断、目录、program graph或runtime初始化顺序。
+`scoop build`拥有完整构建生命周期：先按1.4解析并验证整个DAG，确保cycle、multiversion或ambiguous artifact在启动第一个compiler子进程前失败；随后按canonical dependency-first顺序处理节点。single-file graph使用默认 core与synthetic root，执行相同的归档与缓存检查，不把core source拼回当前AST。prebuilt与cache候选只核对不可变归档、manifest、依赖和缓存记录；实际消费时，`scoopc` 的共有 reader 拒绝缺失 section、不兼容 capability、损坏 typed IR、ABI 或对象。每个source cache miss恰好启动一次独立`scoopc`进程，并传入已完成的direct/support `.slib`。`scoop`使用同一toolchain安装中、ABI/schema匹配的配套`scoopc`；子进程请求与诊断使用版本化结构化协议，父进程核对产物摘要与计划及 child 结果，不重新构造 Compile/Link view。`scoop`不得将不同source Cone的AST/IR合并或调用内部pipeline绕过artifact边界。M23先串行执行；完成时序不改变诊断、目录、程序图或初始化顺序。
 
-每次`scoopc`成功后，`scoop`重新读取完整输出，复用共有语义结果构造 Compile 与 Link view，并核对计划中的coordinate、dependency fingerprint、target与cache key，再原子发布cache entry。子进程失败时不再启动其dependent，也不运行link；已经完成的独立artifact可留在content-addressed cache。`scoopc`以结构化诊断通道报告typed error/warning，`scoop`只排序、标注Cone并汇总，不解析或改写面向人的stderr文本。library root只有在同一双view门禁通过后才以其`.slib`结束；executable root也先完整生成并验证同类`.slib`，再把保留的Link closure交给同一个program-link stage。
+每次`scoopc`成功后，`scoop`读取输出归档并核对 envelope/hash、coordinate、依赖 fingerprint、target/profile、缓存键及结构化 child 结果，再原子发布 cache entry。子进程失败后不启动其 dependent 或运行 Link；已完成的独立产物可保留在缓存。编译器报告 typed error/warning，父进程只排序、标注 Cone 并汇总。library root返回完成的`.slib`；executable root产生相同完整产物，实际 program-link 在后续里程碑读取它和依赖对象。父进程不保存仅供测试观察的 Compile/Link 句柄，也不在每个节点完成时重放依赖闭包。
 
 对executable root，`scoop`还负责取得runtime输入：它从同一个`ResolvedTargetProfile`投影出`lir_target + c_bridge_toolchain + runtime_build`，选择受信任runtime source set并调用`compiler/runtime-build`。该组件按这三项固定的target/storage ABI、C compiler identity/flags与source/build rules独立构建，逐object验证并按3.7的精确七字段preimage计算`RuntimeArtifactFingerprint`，最终只返回不可伪造的`ValidatedRuntimeArtifact`。M23不接受外部prebuilt runtime bundle或raw `.a`，也不缓存这层结果。program-link从不打开runtime源码、不调用C compiler；显式`scoop link`同样先走这一步，而`scoopc`完全不参与。
 

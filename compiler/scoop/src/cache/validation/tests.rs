@@ -8,7 +8,7 @@ use scoop_protocol::{
 };
 use scoop_slib::{
     ConeKind, ConeSourceForm, IdentityFoundationArtifact, IdentityFoundationArtifactInput,
-    ProducerRecord, probe_prebuilt_manifest_summary,
+    ProducerRecord, read_artifact_manifest_summary,
 };
 use scoop_wire::sha256;
 
@@ -40,7 +40,7 @@ fn compiler(seed: &[u8]) -> PairedCompilerFingerprintV1 {
 fn binding<'a>(
     key: ConeCompileCacheKeyV1,
     artifact: ArtifactFingerprint,
-    cone: ConeRecord,
+    cone: &'a ConeRecord,
     dependencies: &'a [DependencyRecord],
     compiler: PairedCompilerFingerprintV1,
     profile: &'a ArtifactCapabilityProfileId,
@@ -57,7 +57,7 @@ fn binding<'a>(
 }
 
 #[test]
-fn receipt_binding_checks_every_independent_authority_dimension() {
+fn receipt_binding_checks_cache_metadata() {
     let first = foundation("cache-binding-first");
     let second = foundation("cache-binding-second");
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));
@@ -81,7 +81,7 @@ fn receipt_binding_checks_every_independent_authority_dimension() {
             &binding(
                 key,
                 first.artifact_fingerprint(),
-                current_cone.clone(),
+                &current_cone,
                 &[],
                 current_compiler,
                 &profile,
@@ -96,7 +96,7 @@ fn receipt_binding_checks_every_independent_authority_dimension() {
             &binding(
                 key,
                 second.artifact_fingerprint(),
-                current_cone.clone(),
+                &current_cone,
                 &[],
                 current_compiler,
                 &profile,
@@ -110,7 +110,7 @@ fn receipt_binding_checks_every_independent_authority_dimension() {
             &binding(
                 key,
                 first.artifact_fingerprint(),
-                cone(ConeCoordinate::new("test", "other", "1.0.0").unwrap()),
+                &cone(ConeCoordinate::new("test", "other", "1.0.0").unwrap()),
                 &[],
                 current_compiler,
                 &profile,
@@ -124,7 +124,7 @@ fn receipt_binding_checks_every_independent_authority_dimension() {
             &binding(
                 key,
                 first.artifact_fingerprint(),
-                current_cone.clone(),
+                &current_cone,
                 &[],
                 compiler(b"other-compiler"),
                 &profile,
@@ -139,7 +139,7 @@ fn receipt_binding_checks_every_independent_authority_dimension() {
             &binding(
                 key,
                 first.artifact_fingerprint(),
-                current_cone,
+                &current_cone,
                 &[],
                 current_compiler,
                 &identity_profile,
@@ -152,7 +152,7 @@ fn receipt_binding_checks_every_independent_authority_dimension() {
 #[test]
 fn receipt_binding_rejects_dependency_and_key_drift() {
     let artifact = foundation("cache-binding-dependency");
-    let summary = probe_prebuilt_manifest_summary(
+    let summary = read_artifact_manifest_summary(
         artifact.as_bytes(),
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
@@ -198,7 +198,7 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
             &binding(
                 key,
                 artifact.artifact_fingerprint(),
-                cone.clone(),
+                &cone,
                 &actual_dependencies,
                 compiler,
                 &profile
@@ -212,7 +212,7 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
             &binding(
                 key,
                 artifact.artifact_fingerprint(),
-                cone.clone(),
+                &cone,
                 &[other_dependency.clone(), other_dependency],
                 compiler,
                 &profile
@@ -227,7 +227,7 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
             &binding(
                 key,
                 artifact.artifact_fingerprint(),
-                cone.clone(),
+                &cone,
                 &[],
                 compiler,
                 &profile,
@@ -241,7 +241,7 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
             &binding(
                 ConeCompileCacheKeyV1::from_digest(sha256(b"other-key")),
                 artifact.artifact_fingerprint(),
-                cone,
+                &cone,
                 receipt.direct_dependencies(),
                 compiler,
                 &profile,

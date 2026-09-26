@@ -12,7 +12,7 @@
 - `docs/specs/SCOOP-IMPL-SPEC.md` 第 2.6～2.7、2.11 节；
 - `docs/specs/SCOOP-RUNTIME-SPEC.md` 第 2.8 节中关于 canonical Cone order 的契约；
 - `docs/milestone23/DESIGN.md` 第 0、1、4.5～4.6、5.3～5.5、8～10 章；
-- `docs/milestone23/stage2/DESIGN.md` 与 `docs/milestone23/stage3/DESIGN.md` 已冻结的 identity、container、reader、single-Cone request、child protocol、strong artifact 与双视图发布契约。
+- `docs/milestone23/stage2/DESIGN.md` 与 `docs/milestone23/stage3/DESIGN.md` 已冻结的 identity、container、reader、single-Cone request、child protocol、strong artifact 与产物发布格式。
 
 本文只定义 M23-4。语言名称语义、runtime 与最终链接仍以上述规范和 M23 总设计为准；本文负责把“如何从一个 root 精确解析整张 Cone 图，并只通过 `.slib` 边界确定性地调度 `scoopc`”闭合成可实现、可验证的构建系统。M23-4 不修改源码可见性：普通 dependency 即使已经被定位、验证和传给 child，也要继续在 M23-3 的 HIR 能力门稳定失败，直到 M23-5 原子开放跨 Cone 名称语义。
 
@@ -28,8 +28,8 @@ M23-4 第一次建立多 Cone 的**构建图**，但不建立多 Cone 的**语�
 6. source node使用由semantic manifest、排序后的source content digest、实际direct dependency三层Merkle fingerprint、compiler/schema/ABI和当前single-Cone会消费的target/toolchain projection计算的内容寻址cache key。locator、绝对路径、mtime、inode、诊断展示路径和child request id不进入key；
 7. source输入在任何child启动前完成全图discovery与immutable snapshot。所有Cone（包括core）的child读取私有snapshot，不重新遍历原始源码目录；
 8. 每个source cache miss恰好启动一次独立child。child只收到已经completed的direct/support artifact路径、独立trusted core slot和私有output path；父进程不调用`scoopc` lib，不传AST/IR，不让child解析locator或递归构建；
-9. M23-4串行执行canonical order。child失败立即停止，不启动任何dependent，也不进入program-link；已成功、已双视图验证并原子发布的content-addressed cache entry可以保留；
-10. library root成功结果是已验证root `.slib`及Compile/Link两份closure authority；executable root也只返回同类root artifact和closure。本阶段不构建runtime、program descriptor、native provider或binary，不执行程序，也不宣称正式`scoop build/run/link` CLI已经完成；
+9. M23-4串行执行canonical order。child失败立即停止，不启动任何dependent，也不进入program-link；已成功并核对归档和构建记录、原子发布的cache entry可以保留；
+10. library root成功结果是root `.slib`的不可变快照、普通manifest摘要及实际依赖集合；executable root返回同类产物。M23-6 已删除仅供重复检查的 Compile/Link 完成凭证。本阶段不构建runtime、program descriptor、native provider或binary，不执行程序，也不宣称正式`scoop build/run/link` CLI已经完成；
 11. `compiler/scoop`以recording runner、fake artifact gate和真实M23-3 core-only节点分别验证graph算法与进程边界。含普通dependency的真实source图可以完整规划和调度上游，但当前node最终仍由`SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE`结束，不生成残缺artifact；
 12. cache、prebuilt 与 child output 在实际读取边界检查格式、依赖、target/toolchain 与符号信息，同一不可变结果供后续消费复用；本地 cache receipt 只记录缓存 key、产物内容及 warning，不承担授权或防伪职责。
 
@@ -110,12 +110,12 @@ production runner在M23-4可以真正成功的source node仍须满足M23-3的cor
 
 - 解析全部locator和manifest/prebuilt summary；
 - 验证整张DAG、single-version、kind和target/schema/ABI；
-- 对prebuilt及已完成上游建立双视图proof；
+- 对prebuilt和已完成上游核对归档、manifest与实际依赖fingerprint；
 - 计算canonical order、direct/support closure和child request；
 - 通过recording runner验证完整调度；
 - 通过production runner确认真实`scoopc`在当前node以M23-3稳定能力诊断失败。
 
-它不能在production runner下伪造“多Cone成功”。任何fake/recording authority只能由`cfg(test)`或crate-private test harness构造，不进入stable library API，不生成可被production reader接受的绕过proof。
+调度测试可以记录子进程请求和失败传播；编译成功、缓存复用与跨 Cone 消费的验收使用真实源码生成的完整产物，不为测试建立独立来源工厂或资格通道。
 
 ## 2. crate与依赖方向
 
@@ -203,7 +203,7 @@ ResolvedTargetProfile {
 `scoop-slib`新增：
 
 - `PrebuiltManifestSummaryV1`的bounded probe；
-- immutable artifact snapshot上的双视图验证入口；
+- 不可变artifact snapshot及共有manifest摘要读取入口；
 - 完整产物数据及其依赖闭包 API。
 
 `.slib` container、member、IR capability与strong profile schema不变。summary probe不是新的ArtifactPurpose，也不能调用Compile/Link API。
@@ -275,8 +275,8 @@ BuildGraphRequest
 - `LoadedBuildRoot`只证明root operand和trusted sysroot/toolchain locator shape；
 - `DiscoveredBuildGraph`可以含尚未全局核对的summary/claim，不能启动child；
 - `ResolvedBuildGraph`已通过coordinate/content唯一、kind、version、cycle与canonical order验证，但source/prebuilt bytes尚未全部形成execution snapshot；
-- `PreparedBuildGraph`已完成全图source/artifact snapshot、summary复核、core默认依赖计划与cache namespace解析；这些实际构建输入用于启动compiler child。prebuilt完整双视图和stale-edge验证仍在其全部dependency completed后执行；
-- `ExecutedBuildGraph`中的每个节点都是completed dual-view artifact，且root closure已构造；
+- `PreparedBuildGraph`已完成全图source/artifact snapshot、summary复核、core默认依赖计划与cache namespace解析；这些实际构建输入用于启动compiler child。prebuilt复用同一snapshot的摘要，在全部dependency completed后核对stale edge；
+- `ExecutedBuildGraph`中的每个节点保存完成产物的不可变归档、manifest摘要及实际依赖集合；
 - `BuildGraphOutcome`只暴露root artifact、Compile closure、Link closure、warnings和本次cache/child观测摘要，不暴露可变scheduler state。
 
 任一步失败都消费并丢弃前一状态，不存在从`DiscoveredBuildGraph`直接调用scheduler、从summary构造completed node或从child response跳过artifact gate的公开方法。
@@ -356,7 +356,7 @@ source symlink alias若canonicalize到同一real root可以合并；用户原始
 5. manifest dependency位置禁止executable与single-file artifact；core source/artifact使用普通依赖locator；
 6. claim内容为`ArtifactClaim { coordinate, artifact_fingerprint, resolved_locator }`。
 
-同一coordinate的多个artifact claim只有claimed完整`ArtifactFingerprint`相等才可继续；不同fingerprint立即报告ambiguous/conflicting artifact。相等仍不是可复用proof：第6章preflight会对**每个**实际候选形成immutable snapshot并完整双视图验证，防止两个损坏文件只伪造了相同summary。
+同一coordinate的多个artifact claim只有claimed完整`ArtifactFingerprint`相等才可继续；不同fingerprint立即报告ambiguous/conflicting artifact。第6章preflight为每个实际候选保留immutable snapshot并检查容器、成员hash和manifest；后续完成与缓存复用该摘要，不再重读全部语义与对象。
 
 ### 4.4 search-root locator
 
@@ -494,7 +494,7 @@ core artifact是否fresh属于第6/8章的prepared/cache状态，不改变graph 
 - 除root外所有node必须为library；
 - executable dependency在summary阶段即可拒绝，不能等待child或native linker；
 - library root的图中不存在executable node；executable root的图中恰有root一个executable；
-- source manifest声明kind与后续child artifact kind必须一致；prebuilt summary kind与full双视图kind必须一致。
+- source manifest声明kind与后续child artifact kind必须一致；prebuilt summary kind与实际snapshot的manifest一致。
 
 ### 5.4 single-version与identity/content唯一
 
@@ -942,7 +942,7 @@ CacheTargetSelectionV1 = map(2) {
 
 dependency records和warnings分别按其canonical key严格排序且唯一。warning key是`map(2) { 1: code, 2: origin }`的canonical Wire CBOR bytes；同key而payload不同是receipt corruption，不按读取顺序任选。receipt只接受`Warning` severity，warning及note origin只允许`None`或`SemanticSourceSpan`；`HostPathSpan`和带host locator的`ArtifactPath`必须由父进程先转换为semantic origin，否则该warning不可写入cache。
 
-receipt使用canonical Wire CBOR、bounded decode，并从不含fingerprint字段的独立body重算上述digest；不是把自身slot归零。它不是`.slib` member，不改变artifact bytes。receipt只能由父进程在child output已经双视图验证、plan match成功后生成。warning origin只保存semantic source path/wire path，cache hit时用当前snapshot display map装饰；不保存临时snapshot path。
+receipt使用canonical Wire CBOR、bounded decode，并从不含fingerprint字段的独立body重算上述digest；不是把自身slot归零。它不是`.slib` member，不改变artifact bytes。receipt在父进程核对child output归档、manifest、response和当前构建计划后生成。warning origin只保存semantic source path/wire path，cache hit时用当前snapshot display map装饰；不保存临时snapshot path。
 
 ### 8.4 lookup
 
@@ -952,9 +952,9 @@ receipt使用canonical Wire CBOR、bounded decode，并从不含fingerprint字�
 2. 若entry目录不存在，返回miss；
 3. bounded读取receipt并要求key逐byte相等；
 4. snapshot `artifact.slib`；
-5. 完整双视图验证；
+5. 检查归档与manifest摘要；
 6. 比较receipt、artifact、resolved node、target、profile和当前dependency records；receipt的dependency列表按coordinate排序，artifact的列表遵守slib自己的顺序，两者先按同一coordinate顺序比较完整record，不能把表示顺序差异误报为内容不一致；
-7. 保留一个含完整 Compile/Link 数据的依赖闭包；
+7. 保留不可变归档、普通摘要和一份实际依赖集合；
 8. 成功才返回cache hit并重放warnings。
 
 exact key位置存在但receipt/artifact损坏、缺文件、wrong type、symlink、fingerprint不符或plan不符时返回`CacheEntryCorrupt`，不静默当miss并覆盖证据。M23-4不自动删除；用户或未来cache maintenance可显式清理。旧schema位于不同namespace，按miss处理。
@@ -1058,7 +1058,7 @@ orchestrator：
 - 不启动N的dependent或program-link；
 - 可以保留N之前已独立完成并发布的upstream cache entry。
 
-recording runner可以为调度算法返回测试artifact，但test authority不能流入production cache。M23-5删除child能力拒绝后，scheduler、cache、direct/support和artifact gate不变。
+recording runner用于核对子进程调度；成功产物和cache验收使用真实编译结果。M23-6 的完成路径只核对归档、manifest、response及依赖，完整 typed IR 与对象由实际consumer读取。
 
 ### 9.6 warning
 
@@ -1154,16 +1154,16 @@ parent不从child stderr、artifact symbol、package name或path补任何字段�
 
 ## 11. child output验证与cache commit
 
-### 11.1 response不是authority
+### 11.1 response与产物一致性
 
 Success response中的identity/fingerprint只作快速cross-check。parent必须：
 
 1. 确认private output存在且为regular file；
 2. 建立immutable artifact snapshot；
-3. 完整运行Compile/Link双视图；
+3. 读取归档并核对成员hash、manifest和profile；
 4. 用actual artifact结果核对response全部fingerprint；
 5. 再核对resolved graph、source plan、dependency plan和cache key；
-6. 保留一个含完整 Compile/Link 数据的依赖闭包；
+6. 保留不可变归档、普通摘要和一份实际依赖集合；
 7. 最后才生成receipt并发布cache。
 
 response匹配但artifact无效仍失败；artifact有效但response字段不符也失败。不能“相信更完整的一方”继续。
@@ -1180,10 +1180,10 @@ actual artifact必须满足：
 - artifact profile是当前阶段允许的strong profile；
 - direct dependency集合精确等于graph direct edge加core；
 - 每条dependency三层fingerprint等于Completed dependency；
-- code/runtime-image fingerprint为profile要求的Available并通过Link proof；
+- 保留manifest的code/runtime-image fingerprint并与child response及cache记录核对；实际对象与fingerprint一致性由编译器/Link消费边界检查；
 - single-file distribution class仍是local executable root，不可作为dependency；
-- root/dependency entry分支与kind一致；
-- artifact output没有引用graph外Cone或未完成artifact。
+- root/dependency的manifest kind与图角色一致；
+- manifest依赖不得指向图外Cone或未完成artifact；typed IR中的声明引用由实际reader检查。
 
 `planned cache key`不直接写进`.slib`。parent通过重新从当前source snapshot、dependency handles和toolchain重算同一key，并把它与receipt/cache destination绑定；actual artifact semantic fields若不匹配上述矩阵，key绑定失败。
 
@@ -1191,7 +1191,7 @@ actual artifact必须满足：
 
 ordinary child读取private snapshot，原用户tree变化不影响本次artifact；diagnostic display仍可指出原路径并附“build used snapshot”语义，不重新读取内容计算line。构建结束不要求用户tree仍相同；下一次build会得到新source digest与cache key。
 
-paired compiler在spawn后重hash；若变化，即使artifact双视图有效也不发布cache，因为key中的compiler fingerprint可能没有描述实际执行bytes。trusted core按6.3额外重验source key。
+paired compiler在spawn后重hash；若变化，即使artifact归档有效也不发布cache，因为key中的compiler fingerprint可能没有描述实际执行bytes。trusted core按6.3额外重验source key。
 
 ### 11.4 commit顺序
 
@@ -1200,12 +1200,10 @@ paired compiler在spawn后重hash；若变化，即使artifact双视图有效也
 ```text
 child response validate
   -> output snapshot
-  -> Compile view
-  -> Link view
+  -> archive and manifest checks
   -> response cross-check
   -> graph/dependency/target match
-  -> Compile closure
-  -> Link closure
+  -> shared artifact snapshots and dependency records
   -> private cache entry validate
   -> atomic cache publish
   -> Completed map commit
@@ -1385,8 +1383,8 @@ sealed recording runner记录`ScoopcInvocation`并返回test-only completed arti
 - core-only manifest executable同上；
 - single-file同上且graph精确两个node；
 - source root依赖另一个core-only library：先成功编译/cache上游，再在root得到M23-3非core能力诊断，root无cache entry；
-- prebuilt/cache Link object损坏在该node完成前失败，且不启动任何dependent child；
-- child成功后parent再次双视图验证；
+- prebuilt/cache归档或成员hash损坏在完成前失败；容器有效但typed IR/对象不一致时，实际consumer reader拒绝消费；
+- child成功后parent核对归档、manifest、response与构建计划；
 - 第二次build零child且artifact/warning一致；
 - source/core/toolchain/dependency fingerprint分别变化时只使正确节点及dependent miss；
 - 全部临时/缓存路径变化不改变`.slib` bytes。
@@ -1397,7 +1395,7 @@ sealed recording runner记录`ScoopcInvocation`并返回test-only completed arti
 - Cargo metadata测试断言`scoop`不依赖`scoopc` lib和任何parser/lower/codegen implementation；
 - `scoopc`不依赖`scoop`；
 - locator/cache模块不能导入HIR/MIR/LIR implementation arena；
-- production API无法构造fake runner/fake artifact authority；
+- 完成节点不持有仅供测试读取的Compile/Link凭证或视图；
 - 全workspace format、clippy、test通过。
 
 ## 14. 实现顺序
@@ -1442,4 +1440,4 @@ M23-4只有同时满足以下条件才完成：
 - chain/diamond/cycle/multiversion/ambiguous/stale/cache invalidation/child failure/TOCTOU/实际范围错误/确定性矩阵完整；
 - `cargo fmt --all`、`cargo clippy --workspace`和完整`cargo test`通过。
 
-到达该完成门后，M23-5只需要在`scoopc`中把已经验证的direct/support Compile closure接入`SemanticWorld`并删除非core能力拒绝；它不需要修改locator、DAG、cache、child transport、snapshot或双视图完成条件。M23-9以后也可以直接消费保留的Link closure，而不重新读取source manifest或cache receipt。
+M23-5 将direct/support产物消费接入`SemanticWorld`。M23-6 进一步按生产职责删除父进程的完整语义/对象重放：构建管理保留归档与摘要，`scoopc` 读取完整IR和对象。M23-9 的实际program-link按自己的输入边界读取这些产物，不依赖父进程保存第二份Link结果，也不读取source manifest或cache receipt。

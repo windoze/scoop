@@ -5,28 +5,29 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use scoop_identity::{ArtifactCapabilityProfileId, ConeIdentity};
-use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
+use scoop_lir::ValidatedLirTargetSelection;
 use scoop_protocol::{DiagnosticOriginV1, ProtocolConeIdentity, StructuredDiagnosticV1};
 use scoop_slib::{
-    ArtifactFingerprint, ArtifactSnapshot, ConeRecord, ConeRecordError, DependencyRecord,
+    ArtifactFingerprint, ArtifactManifestSummaryError, ArtifactSnapshot, ConeRecord,
+    DependencyRecord,
 };
 
 use super::{CacheReceiptBodyV1, ConeCompileCacheKeyV1, RawCompileCacheEntryV1};
 use crate::artifact::{
-    ArtifactClosurePlan, ArtifactClosureValidationError, CompletedNode,
-    CrossConeArtifactValidationError, ValidatedArtifactClosure, ValidatedCrossConeArtifactHandle,
+    ArtifactClosurePlan, ArtifactClosureValidationError, BuildArtifact, CompletedNode,
+    ValidatedArtifactClosure,
 };
 use crate::{CompileCacheKeyError, PairedCompilerFingerprintV1, StagingError};
 
 pub(crate) struct ValidatedCacheHitV1 {
     identity: ConeIdentity,
-    artifact: Rc<ValidatedCrossConeArtifactHandle>,
+    artifact: Rc<BuildArtifact>,
     closures: ValidatedArtifactClosure,
     warnings: Vec<StructuredDiagnosticV1>,
 }
 
 impl ValidatedCacheHitV1 {
-    pub(crate) const fn artifact(&self) -> &Rc<ValidatedCrossConeArtifactHandle> {
+    pub(crate) const fn artifact(&self) -> &Rc<BuildArtifact> {
         &self.artifact
     }
 
@@ -44,14 +45,13 @@ impl ValidatedCacheHitV1 {
 struct ActualCacheBinding<'actual> {
     key: ConeCompileCacheKeyV1,
     artifact: ArtifactFingerprint,
-    cone: ConeRecord,
+    cone: &'actual ConeRecord,
     target: ValidatedLirTargetSelection,
     direct_dependencies: &'actual [DependencyRecord],
     compiler: PairedCompilerFingerprintV1,
     profile: &'actual ArtifactCapabilityProfileId,
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn validate_cache_entry(
     plan: &ArtifactClosurePlan,
     identity: ConeIdentity,
@@ -61,7 +61,6 @@ pub(crate) fn validate_cache_entry(
     compiler: PairedCompilerFingerprintV1,
 
     target: ValidatedLirTargetSelection,
-    c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedCacheHitV1, CacheCompletionError> {
     if entry.key() != expected_key {
         return Err(CacheCompletionError::EntryKeyMismatch {
@@ -69,22 +68,6 @@ pub(crate) fn validate_cache_entry(
             actual: entry.key(),
         });
     }
-    if entry.receipt().body().cache_key() != expected_key {
-        return Err(CacheCompletionError::ReceiptBinding(
-            CacheReceiptBindingError::CacheKey,
-        ));
-    }
-    if entry.receipt().body().compiler() != compiler {
-        return Err(CacheCompletionError::ReceiptBinding(
-            CacheReceiptBindingError::Compiler,
-        ));
-    }
-    if entry.receipt().body().target_selection().selection() != target {
-        return Err(CacheCompletionError::ReceiptBinding(
-            CacheReceiptBindingError::Target,
-        ));
-    }
-
     let mut artifacts = BTreeMap::new();
     for node in completed {
         if node.cone() == identity {
@@ -100,31 +83,24 @@ pub(crate) fn validate_cache_entry(
     let artifact_snapshot = Arc::new(ArtifactSnapshot::from_shared(
         entry.artifact().shared_bytes(),
     ));
-    let artifact = plan
-        .validate_completed_artifact(identity, artifact_snapshot, &artifacts, c_bridge_profile)
+    let artifact = BuildArtifact::read(artifact_snapshot, target)
         .map_err(|source| CacheCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Rc::clone(&artifact));
     let closures = plan
         .validate(identity, &artifacts)
         .map_err(|source| CacheCompletionError::Plan(Box::new(source)))?;
 
-    let publication = artifact.publication();
-    let cone = ConeRecord::new(
-        publication.coordinate().clone(),
-        publication.kind(),
-        publication.source_form(),
-    )
-    .map_err(CacheCompletionError::ConeRecord)?;
+    let summary = artifact.summary();
     validate_receipt_binding(
         entry.receipt().body(),
         &ActualCacheBinding {
             key: expected_key,
-            artifact: publication.artifact_fingerprint(),
-            cone,
-            target: publication.target_selection(),
-            direct_dependencies: publication.direct_dependencies(),
+            artifact: summary.artifact_fingerprint(),
+            cone: summary.cone(),
+            target: summary.target_selection(),
+            direct_dependencies: summary.direct_dependencies(),
             compiler,
-            profile: publication.profile(),
+            profile: summary.profile(),
         },
     )
     .map_err(CacheCompletionError::ReceiptBinding)?;
@@ -189,7 +165,7 @@ fn validate_receipt_binding(
     if !receipt.artifact_fingerprint().matches(actual.artifact) {
         return Err(CacheReceiptBindingError::ArtifactFingerprint);
     }
-    if receipt.cone() != &actual.cone {
+    if receipt.cone() != actual.cone {
         return Err(CacheReceiptBindingError::Cone);
     }
     if receipt.target_selection().selection() != actual.target {
@@ -249,9 +225,8 @@ pub enum CacheCompletionError {
     },
     CurrentNodeAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
-    Artifact(Box<CrossConeArtifactValidationError>),
+    Artifact(Box<ArtifactManifestSummaryError>),
     Plan(Box<ArtifactClosureValidationError>),
-    ConeRecord(ConeRecordError),
     ReceiptBinding(CacheReceiptBindingError),
     WarningOriginOutsideClosure {
         code: String,
@@ -290,7 +265,7 @@ impl fmt::Display for CacheCompletionError {
             Self::Artifact(source) => {
                 write!(
                     formatter,
-                    "cached artifact failed dual-view validation: {source}"
+                    "cached artifact failed archive validation: {source}"
                 )
             }
             Self::Plan(source) => {
@@ -299,7 +274,6 @@ impl fmt::Display for CacheCompletionError {
                     "cached artifact does not match the resolved graph: {source}"
                 )
             }
-            Self::ConeRecord(source) => write!(formatter, "invalid cached Cone record: {source}"),
             Self::ReceiptBinding(source) => source.fmt(formatter),
             Self::WarningOriginOutsideClosure { code, cone } => write!(
                 formatter,
@@ -333,7 +307,6 @@ impl std::error::Error for CacheCompletionError {
 
             Self::Artifact(source) => Some(source),
             Self::Plan(source) => Some(source),
-            Self::ConeRecord(source) => Some(source),
             Self::ReceiptBinding(source) => Some(source),
             Self::Staging(source) => Some(source),
             _ => None,

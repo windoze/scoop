@@ -211,13 +211,6 @@ impl ValidatedCrossConeSemanticClosure {
             .map(|position| &self.dependency_first[*position])
     }
 
-    pub(super) fn into_artifact_at(
-        mut self,
-        position: usize,
-    ) -> ValidatedCompileArtifact<CrossConeLayoutStrongProfile> {
-        self.dependency_first.swap_remove(position)
-    }
-
     pub(super) fn artifact_at(
         &self,
         position: usize,

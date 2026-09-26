@@ -206,7 +206,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage4/DESIGN.md`。
 
-- `compiler/scoop` orchestration library解析exact locator和静态无环、同`group:name`单版本的DAG，拥有cache与dependency-first子进程调度；prebuilt/cache/source节点都经Compile/Link双view门禁。
+- `compiler/scoop` orchestration library解析exact locator和静态无环、同`group:name`单版本的DAG，拥有cache与dependency-first子进程调度。M23-6 将原 Compile/Link 双重完成门禁收缩为父进程的归档/摘要一致性检查，完整 typed IR 与对象由实际编译器消费者读取。
 - 以recording artifacts和core-only真实节点完成chain/diamond/cycle、ambiguous locator、stale dependency、cache失效与child失败传播；本阶段不提前开放跨Cone源码名称。
 
 ### M23-5 多Cone名称语义 ✅（2026-09-19 完成）
@@ -230,6 +230,8 @@ String descriptor 使用完整 MIR 中实际声明的 source exact identity，�
 - 共有默认值和受限声明只保存一份 typed 协议与正文；退役 type-semantics field 5～7 及嵌套源码 payload 的 field 3，capability /5 要求旧产物重建。
 - 正式 `scoopc` 发布与 `scoop` 依赖消费接入共有 `CrossConeLayoutStrong` reader；语义会话直接接收完整类型、ABI 与真实对象，移除旧 M23-5 的重复提交和 Link 消费路径，旧依赖重建。
 - 正式发布直接保存同次编译完成的归档和普通摘要，回读核对 bytes；删除旧 M23-5 writer 与双版本发布包装，外部产物继续通过共有 reader 检查。
+
+- 构建完成节点、prebuilt 与 cache 复用普通 manifest 摘要和不可变归档；父进程不重新读取完整语义/对象或全部依赖。编译器消费边界保留完整类型、ABI、格式与 Link 检查，缓存失效和 child 结果核对继续执行。
 - 真实源码生成完整 `.slib`，由本阶段跨 Cone Compile/Link 路径消费，并完成适用链接与运行；覆盖 core 修改、扩展、重建、下游使用，以及类型、成员、dispatch、ABI、ZST 的独立与组合场景。手工 metadata 和证明反例不能替代验收。
 - 原有可复用实现与测试继续核对；只有实际功能、上述清理和必要验收全部完成且按功能提交，才完成 M23-6。当前仍在实施。ODR、multi-image startup、artifact-only program-link 按 M23-7/8/9 的原阶段安排，不提前承接。
 

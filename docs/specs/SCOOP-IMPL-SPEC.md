@@ -845,7 +845,7 @@ core 可在任意普通源码目录修改、扩展和重建。manifest、构建�
 
 产物读取按明确边界完成检查并保留结果：envelope 验证长度、目录、版本和内容 hash；共有 HIR/MIR/LIR 解码验证格式、typed 引用与跨层关系；Link 在该结果上追加对象范围、符号、relocation、registration 和 Code/runtime fingerprint 检查。同一字节快照及其依赖不分别执行两轮完整 Compile、Link 语义重放。发布复用同次编译的完整 IR、已检查依赖与最终对象，写入后只核对实际写入内容，再原子替换目标。外部新输入仍须经过对应读取边界；结果改变时重新检查受影响部分。
 
-完整 Compile/Link 读取结果拥有所需 manifest、typed IR 和对象信息，生命周期不依附原始解码借用。构建图、缓存命中和已完成节点共享这些完整结果；查询视图直接借用已保存数据，不为一次 accessor 再创建 session、重开原始字节或重放依赖闭包。一个依赖集合只保留一份顺序、边和产物表，Compile/Link 从同一集合读取各自数据，不设置用途凭证或复制两套状态。
+构建管理与编译器消费是两个明确边界。`scoop` 的发现、完成节点和缓存只保留不可变归档快照及普通 manifest 摘要；检查容器、成员范围与 hash、版本/profile、Cone/target、依赖 fingerprint、缓存键和子进程结果，不解码 HIR/MIR/LIR 或重建 Link 对象。已读 prebuilt 快照复用同一摘要，不能在每完成一个节点时重放该节点及全部依赖。`scoopc` 或实际 Link 消费者在读取外部产物时完成 typed 引用、ABI、对象与 relocation 检查，Compile/Link 共享这份完整结果；同次编译的输出直接发布。摘要不能替代 IR 或对象，也不承担来源或操作资格。此职责调整不改变 wire、runtime C ABI 或 String 表示。
 
 layout reader 按依赖顺序返回实际 section 和 Link 对象结果，外部形状合同保存选中 provider 的完整 typed 数据。临时查询可以借用依赖记录，但返回结果不依赖内部 arena 或高阶回调的生命周期；后续编译直接保留并查询这些结果，不重开产物来恢复同一合同。wire 仍保存相同的 provider、typed subject、definition、symbol 与语义字段，读取边界核对它们与实际依赖相符。
 

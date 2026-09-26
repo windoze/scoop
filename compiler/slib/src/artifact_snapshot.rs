@@ -6,7 +6,7 @@ use std::sync::Arc;
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::{Digest256, sha256};
 
-use crate::{PrebuiltManifestSummaryError, probe_prebuilt_manifest_summary};
+use crate::{ArtifactManifestSummaryError, read_artifact_manifest_summary};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactSnapshot {
@@ -37,12 +37,12 @@ impl ArtifactSnapshot {
         &self.bytes
     }
 
-    pub fn probe_prebuilt_summary(
+    pub fn manifest_summary(
         &self,
 
         target: ValidatedLirTargetSelection,
-    ) -> Result<crate::PrebuiltManifestSummaryV1, PrebuiltManifestSummaryError> {
-        probe_prebuilt_manifest_summary(self.as_bytes(), target)
+    ) -> Result<crate::ArtifactManifestSummaryV1, ArtifactManifestSummaryError> {
+        read_artifact_manifest_summary(self.as_bytes(), target)
     }
 
     pub fn write_to(&self, writer: &mut impl Write) -> io::Result<()> {
@@ -59,7 +59,7 @@ mod tests {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
         let snapshot = ArtifactSnapshot::from_bytes(bytes.clone());
         let summary = snapshot
-            .probe_prebuilt_summary(ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1)
+            .manifest_summary(ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
         let mut materialized = Vec::new();
         snapshot.write_to(&mut materialized).unwrap();

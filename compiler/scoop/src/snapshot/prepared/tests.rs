@@ -16,7 +16,7 @@ use scoop_protocol::{
 };
 use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord, probe_prebuilt_manifest_summary,
+    IdentityFoundationArtifactInput, ProducerRecord, read_artifact_manifest_summary,
 };
 
 use super::*;
@@ -67,9 +67,9 @@ impl SingleConeCompilerRunner for RecordingFailureRunner {
     }
 }
 
-struct InvalidArtifactSuccessRunner;
+struct IncompatibleProfileSuccessRunner;
 
-impl SingleConeCompilerRunner for InvalidArtifactSuccessRunner {
+impl SingleConeCompilerRunner for IncompatibleProfileSuccessRunner {
     fn invoke(
         &mut self,
         _tool: &ResolvedPairedScoopc,
@@ -208,7 +208,7 @@ fn foundation_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
         &lir,
     ))
     .unwrap();
-    let fingerprints = probe_prebuilt_manifest_summary(seed.as_bytes(), selection)
+    let fingerprints = read_artifact_manifest_summary(seed.as_bytes(), selection)
         .unwrap()
         .semantic_fingerprints();
     let core = DependencyRecord::new(

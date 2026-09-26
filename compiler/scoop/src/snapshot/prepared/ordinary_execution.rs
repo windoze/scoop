@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use scoop_identity::ConeIdentity;
 use scoop_protocol::{RequestCorrelationId, ScoopcResponseEnvelopeV1, StructuredDiagnosticV1};
-use scoop_slib::{ArtifactSnapshot, ConeRecord, ConeRecordError};
+use scoop_slib::ArtifactSnapshot;
 use scoop_wire::HashError;
 
 use super::model::{PreparedBuildGraph, PreparedGraphNode};
@@ -18,7 +18,7 @@ use crate::{
 impl PreparedBuildGraph {
     /// Resolves one ordinary source node through the content-addressed cache
     /// or exactly one paired compiler child while the exclusive key lock is
-    /// held across the miss, validation, and atomic publication.
+    /// held across the miss, validation, and atomic summary.
     pub(crate) fn execute_ordinary_source(
         &mut self,
         identity: ConeIdentity,
@@ -86,7 +86,6 @@ impl PreparedBuildGraph {
             .map_err(OrdinarySourceExecutionError::OutputSnapshot)?;
         let snapshot = Arc::new(ArtifactSnapshot::from_shared(output.shared_bytes()));
         let plan = self.artifact_closure_plan();
-        let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
         let mut completed_node = complete_compiled_candidate(
             &plan,
             identity,
@@ -94,28 +93,21 @@ impl PreparedBuildGraph {
             invocation.output_path().to_path_buf(),
             completed,
             success.warnings().to_vec(),
-            &c_bridge_profile,
         )
         .map_err(OrdinarySourceExecutionError::Completion)?;
         validate_child_success_artifact(&success, completed_node.artifact())
             .map_err(OrdinarySourceExecutionError::ChildResult)?;
 
-        let publication = completed_node.artifact().publication();
-        let cone = ConeRecord::new(
-            publication.coordinate().clone(),
-            publication.kind(),
-            publication.source_form(),
-        )
-        .map_err(OrdinarySourceExecutionError::ConeRecord)?;
+        let summary = completed_node.artifact().summary();
         let receipt = CacheReceiptV1::new(
             CacheReceiptBodyV1::new(
                 key,
-                publication.artifact_fingerprint(),
-                cone,
-                publication.target_selection(),
-                publication.direct_dependencies().to_vec(),
+                summary.artifact_fingerprint(),
+                summary.cone().clone(),
+                summary.target_selection(),
+                summary.direct_dependencies().to_vec(),
                 self.compiler.fingerprint(),
-                publication.profile().clone(),
+                summary.profile().clone(),
                 success.warnings().to_vec(),
             )
             .map_err(OrdinarySourceExecutionError::ReceiptValidation)?,
@@ -144,7 +136,6 @@ pub enum OrdinarySourceExecutionError {
     OutputSnapshot(SnapshotFileError),
     Completion(CompiledCompletionError),
     ChildResult(ChildSuccessArtifactMismatch),
-    ConeRecord(ConeRecordError),
     ReceiptValidation(CacheReceiptValidationError),
     ReceiptHash(HashError),
 }
@@ -174,7 +165,6 @@ impl fmt::Display for OrdinarySourceExecutionError {
             }
             Self::Completion(source) => source.fmt(formatter),
             Self::ChildResult(source) => source.fmt(formatter),
-            Self::ConeRecord(source) => write!(formatter, "invalid compiled Cone: {source}"),
             Self::ReceiptValidation(source) => {
                 write!(formatter, "cannot construct cache receipt: {source}")
             }
@@ -198,7 +188,6 @@ impl std::error::Error for OrdinarySourceExecutionError {
             Self::OutputSnapshot(source) => Some(source),
             Self::Completion(source) => Some(source),
             Self::ChildResult(source) => Some(source),
-            Self::ConeRecord(source) => Some(source),
             Self::ReceiptValidation(source) => Some(source),
             Self::ReceiptHash(source) => Some(source),
             Self::NotOrdinarySource(_) | Self::ChildFailure(_) => None,

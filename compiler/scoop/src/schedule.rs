@@ -84,7 +84,7 @@ impl ExecutedBuildGraph {
             .iter()
             .flat_map(|identity| self.completed[identity].warnings().iter().cloned())
             .collect();
-        match root.artifact().publication().kind() {
+        match root.artifact().summary().cone().kind() {
             ConeKind::Library => BuildGraphOutcome::Library {
                 root,
                 warnings,

@@ -8,7 +8,7 @@ use scoop_identity::{
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ConeManifestSemantic, DiscoveredSource, SourceDisplayLocator};
 use scoop_slib::{
-    ArtifactFingerprint, ArtifactSnapshot, ConeKind, ConeSourceForm, PrebuiltManifestSummaryV1,
+    ArtifactFingerprint, ArtifactManifestSummaryV1, ArtifactSnapshot, ConeKind, ConeSourceForm,
 };
 use scoop_wire::Digest256;
 
@@ -136,7 +136,7 @@ pub struct PreparedArtifactCandidate {
     pub(super) source_locator: PathBuf,
     pub(super) materialized_path: PathBuf,
     pub(super) snapshot: Arc<ArtifactSnapshot>,
-    pub(super) summary: PrebuiltManifestSummaryV1,
+    pub(super) summary: ArtifactManifestSummaryV1,
 }
 
 impl PreparedArtifactCandidate {
@@ -152,7 +152,7 @@ impl PreparedArtifactCandidate {
         &self.snapshot
     }
 
-    pub const fn summary(&self) -> &PrebuiltManifestSummaryV1 {
+    pub const fn summary(&self) -> &ArtifactManifestSummaryV1 {
         &self.summary
     }
 }
@@ -346,8 +346,7 @@ impl PreparedBuildGraph {
         self.context.diagnostics
     }
 
-    /// Freezes the exact graph shape used by the dual-view artifact completion
-    /// gate. The returned plan contains no artifact authority.
+    /// Captures the exact graph shape used to match completed artifacts.
     pub fn artifact_closure_plan(&self) -> ArtifactClosurePlan {
         let nodes = self
             .nodes
@@ -392,9 +391,7 @@ impl PreparedBuildGraph {
         )
     }
 
-    /// Fully validates every immutable candidate for one prebuilt node after
-    /// its transitive dependencies have completed. The scheduler may commit
-    /// the returned node only after this method succeeds.
+    /// Matches prebuilt manifest data against the completed dependencies.
     pub(crate) fn complete_prebuilt_node(
         &mut self,
         identity: ConeIdentity,
@@ -408,8 +405,7 @@ impl PreparedBuildGraph {
         };
         let plan = self.artifact_closure_plan();
 
-        let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
-        complete_prebuilt_candidates(&plan, identity, candidates, completed, &c_bridge_profile)
+        complete_prebuilt_candidates(&plan, identity, candidates, completed)
     }
 }
 

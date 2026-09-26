@@ -24,8 +24,8 @@ pub use envelope::*;
 mod graph;
 pub use graph::*;
 
-mod prebuilt_summary;
-pub use prebuilt_summary::*;
+mod manifest_summary;
+pub use manifest_summary::*;
 
 mod artifact_snapshot;
 pub use artifact_snapshot::*;

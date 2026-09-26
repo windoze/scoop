@@ -8,9 +8,9 @@ use scoop_lir::{
 use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::ScoopcProtocolCapabilityV1;
 use scoop_slib::{
-    ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityAbiDescriptor,
-    IdentityFoundationArtifact, IdentityFoundationArtifactInput, PrebuiltManifestSummaryV1,
-    ProducerRecord, probe_prebuilt_manifest_summary,
+    ArtifactManifestSummaryV1, ConeKind, ConeRecord, ConeSourceForm, DependencyRecord,
+    IdentityAbiDescriptor, IdentityFoundationArtifact, IdentityFoundationArtifactInput,
+    ProducerRecord, read_artifact_manifest_summary,
 };
 use scoop_wire::{encode, sha256};
 
@@ -78,7 +78,7 @@ fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolch
     .fingerprint()
 }
 
-fn dependency_summaries() -> (PrebuiltManifestSummaryV1, PrebuiltManifestSummaryV1) {
+fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummaryV1) {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let hir = CanonicalHirFoundation::empty();
     let mir = CanonicalMirFoundation::empty();
@@ -98,7 +98,7 @@ fn dependency_summaries() -> (PrebuiltManifestSummaryV1, PrebuiltManifestSummary
         &lir,
     ))
     .unwrap();
-    let core = probe_prebuilt_manifest_summary(core.as_bytes(), selection).unwrap();
+    let core = read_artifact_manifest_summary(core.as_bytes(), selection).unwrap();
     let core_semantic = core.semantic_fingerprints();
     let core_dependency = DependencyRecord::new(
         core.cone().coordinate().clone(),
@@ -125,7 +125,7 @@ fn dependency_summaries() -> (PrebuiltManifestSummaryV1, PrebuiltManifestSummary
         .with_direct_dependencies(vec![core_dependency]),
     )
     .unwrap();
-    let dependency = probe_prebuilt_manifest_summary(dependency.as_bytes(), selection).unwrap();
+    let dependency = read_artifact_manifest_summary(dependency.as_bytes(), selection).unwrap();
     (core, dependency)
 }
 

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_slib::{PrebuiltManifestSummaryV1, probe_prebuilt_manifest_summary};
+use scoop_slib::{ArtifactManifestSummaryV1, read_artifact_manifest_summary};
 
 use super::*;
 
@@ -10,12 +10,12 @@ impl LoadedExplicitDependencyArtifact {
         &self,
 
         target: ValidatedLirTargetSelection,
-    ) -> DependencyValidationResult<Cow<'_, PrebuiltManifestSummaryV1>> {
+    ) -> DependencyValidationResult<Cow<'_, ArtifactManifestSummaryV1>> {
         let summary = match self.summary.get() {
             Some(summary) if summary.target_selection() == target => Cow::Borrowed(summary),
             previous => {
                 let decoded =
-                    probe_prebuilt_manifest_summary(&self.bytes, target).map_err(|source| {
+                    read_artifact_manifest_summary(&self.bytes, target).map_err(|source| {
                         Box::new(ExplicitDependencyValidationError::Summary {
                             input: self.input.clone(),
                             source: Box::new(source),

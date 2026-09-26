@@ -65,13 +65,13 @@ fn explicit_core_source_rebuilds_and_can_be_replaced_by_its_prebuilt_artifact() 
                 .completed(identity)
                 .unwrap()
                 .artifact()
-                .publication()
+                .summary()
                 .artifact_fingerprint(),
             changed
                 .completed(identity)
                 .unwrap()
                 .artifact()
-                .publication()
+                .summary()
                 .artifact_fingerprint()
         );
     }

@@ -1,7 +1,7 @@
 //! Complete artifacts and dependency edges for an exact resolved graph.
 
-mod authority;
 mod completion;
+mod data;
 mod error;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -11,12 +11,12 @@ use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_slib::{ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord};
 
-pub use authority::{CrossConeArtifactValidationError, ValidatedCrossConeArtifactHandle};
 pub use completion::{
     CompiledCompletionError, CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError,
     PrivateArtifactPath,
 };
 pub(crate) use completion::{complete_compiled_candidate, complete_prebuilt_candidates};
+pub use data::BuildArtifact;
 pub use error::{ArtifactClosureValidationError, ArtifactPlanField};
 
 #[derive(Clone, Debug)]
@@ -114,7 +114,7 @@ impl ArtifactClosurePlan {
     pub fn validate(
         &self,
         root: ConeIdentity,
-        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Rc<BuildArtifact>>,
     ) -> Result<ValidatedArtifactClosure, ArtifactClosureValidationError> {
         if !self.nodes.contains_key(&root) {
             return Err(ArtifactClosureValidationError::UnknownRoot(root));
@@ -170,13 +170,13 @@ impl ArtifactClosurePlan {
     fn validate_node(
         &self,
         identity: ConeIdentity,
-        artifact: &ValidatedCrossConeArtifactHandle,
-        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
+        artifact: &BuildArtifact,
+        artifacts: &BTreeMap<ConeIdentity, Rc<BuildArtifact>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         self.validate_artifact_shape(identity, artifact)?;
         self.validate_dependencies(
             identity,
-            artifact.publication().direct_dependencies(),
+            artifact.summary().direct_dependencies(),
             artifacts,
         )
     }
@@ -184,35 +184,35 @@ impl ArtifactClosurePlan {
     pub(crate) fn validate_artifact_shape(
         &self,
         identity: ConeIdentity,
-        artifact: &ValidatedCrossConeArtifactHandle,
+        artifact: &BuildArtifact,
     ) -> Result<(), ArtifactClosureValidationError> {
         let plan = &self.nodes[&identity];
-        let actual = artifact.publication();
-        if actual.identity() != identity {
+        let actual = artifact.summary();
+        if actual.cone().identity() != identity {
             return Err(ArtifactClosureValidationError::IdentityMismatch {
                 planned: identity,
-                actual: actual.identity(),
+                actual: actual.cone().identity(),
             });
         }
-        if actual.coordinate() != &plan.coordinate {
+        if actual.cone().coordinate() != &plan.coordinate {
             return Err(ArtifactClosureValidationError::CoordinateMismatch {
                 identity,
                 expected: Box::new(plan.coordinate.clone()),
-                actual: Box::new(actual.coordinate().clone()),
+                actual: Box::new(actual.cone().coordinate().clone()),
             });
         }
-        if actual.kind() != plan.kind {
+        if actual.cone().kind() != plan.kind {
             return Err(ArtifactClosureValidationError::KindMismatch {
                 identity,
                 expected: plan.kind,
-                actual: actual.kind(),
+                actual: actual.cone().kind(),
             });
         }
-        if actual.source_form() != plan.source_form {
+        if actual.cone().source_form() != plan.source_form {
             return Err(ArtifactClosureValidationError::SourceFormMismatch {
                 identity,
                 expected: plan.source_form,
-                actual: actual.source_form(),
+                actual: actual.cone().source_form(),
             });
         }
         if actual.target_selection() != self.target {
@@ -248,7 +248,7 @@ impl ArtifactClosurePlan {
         &self,
         dependent: ConeIdentity,
         records: &[DependencyRecord],
-        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Rc<BuildArtifact>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         let expected = &self.direct[&dependent];
         let expected_by_identity: BTreeMap<_, _> = expected
@@ -306,7 +306,7 @@ impl ArtifactClosurePlan {
             let completed = artifacts.get(&edge.dependency).ok_or(
                 ArtifactClosureValidationError::MissingArtifact(edge.dependency),
             )?;
-            let completed_record = completed.publication().dependency_record();
+            let completed_record = completed.summary().dependency_record();
             if record != &completed_record {
                 return Err(ArtifactClosureValidationError::StaleDependency {
                     dependent,
@@ -322,11 +322,11 @@ impl ArtifactClosurePlan {
     fn validate_versions(
         &self,
         reachable: &BTreeSet<ConeIdentity>,
-        artifacts: &BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Rc<BuildArtifact>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         let mut versions = BTreeMap::<(String, String), String>::new();
         for identity in reachable {
-            let coordinate = artifacts[identity].publication().coordinate();
+            let coordinate = artifacts[identity].summary().cone().coordinate();
             let key = (coordinate.group().to_owned(), coordinate.name().to_owned());
             if let Some(first) = versions.get(&key)
                 && first != coordinate.version()
@@ -405,7 +405,7 @@ impl ValidatedDependencyEdge {
 pub struct ValidatedArtifactClosure {
     root: ConeIdentity,
     order: Vec<ConeIdentity>,
-    artifacts: BTreeMap<ConeIdentity, Rc<ValidatedCrossConeArtifactHandle>>,
+    artifacts: BTreeMap<ConeIdentity, Rc<BuildArtifact>>,
     edges: BTreeSet<ValidatedDependencyEdge>,
 }
 
@@ -418,13 +418,11 @@ impl ValidatedArtifactClosure {
         &self.order
     }
 
-    pub fn artifact(&self, identity: ConeIdentity) -> Option<&ValidatedCrossConeArtifactHandle> {
+    pub fn artifact(&self, identity: ConeIdentity) -> Option<&BuildArtifact> {
         self.artifacts.get(&identity).map(Rc::as_ref)
     }
 
-    pub fn artifacts(
-        &self,
-    ) -> impl ExactSizeIterator<Item = (ConeIdentity, &ValidatedCrossConeArtifactHandle)> {
+    pub fn artifacts(&self) -> impl ExactSizeIterator<Item = (ConeIdentity, &BuildArtifact)> {
         self.order
             .iter()
             .map(|identity| (*identity, self.artifacts[identity].as_ref()))

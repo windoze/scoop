@@ -252,7 +252,7 @@ fn prepare_artifact_candidate(
 
     let snapshot = Arc::new(ArtifactSnapshot::from_shared(input.shared_bytes()));
     let summary = snapshot
-        .probe_prebuilt_summary(context.target.lir_target_selection())
+        .manifest_summary(context.target.lir_target_selection())
         .map_err(|source| PrepareBuildGraphError::ArtifactSummary {
             path: source_locator.clone(),
             source,

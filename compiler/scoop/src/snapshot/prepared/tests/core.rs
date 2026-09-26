@@ -55,7 +55,7 @@ fn serial_scheduler_stops_before_dependent_after_core_failure() {
 }
 
 #[test]
-fn core_invalid_output_never_publishes_a_cache_entry() {
+fn core_incompatible_profile_never_publishes_a_cache_entry() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -70,12 +70,12 @@ fn core_invalid_output_never_publishes_a_cache_entry() {
         prepared.execute_ordinary_source(
             ConeIdentity::CORE,
             &[],
-            &mut InvalidArtifactSuccessRunner,
+            &mut IncompatibleProfileSuccessRunner,
             RequestCorrelationId::from_array([33; 16]),
         ),
         Err(OrdinarySourceExecutionError::Completion(
-            CompiledCompletionError::Artifact(_)
-        ))
+            CompiledCompletionError::Plan(source)
+        )) if matches!(source.as_ref(), crate::ArtifactClosureValidationError::ProfileMismatch { .. })
     ));
     assert!(!store.entry_path(key).exists());
 }

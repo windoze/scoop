@@ -384,10 +384,7 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
             ),
-            Self::Completion(_)
-            | Self::ConeRecord(_)
-            | Self::ReceiptValidation(_)
-            | Self::ReceiptHash(_) => classified(
+            Self::Completion(_) | Self::ReceiptValidation(_) | Self::ReceiptHash(_) => classified(
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_OUTPUT_PLAN_MISMATCH,
             ),
@@ -414,7 +411,6 @@ impl ClassifyBuildFailure for PrebuiltCompletionError {
             | Self::EmptyCandidateSet(_)
             | Self::DuplicateCompletedNode(_)
             | Self::CurrentNodeAlreadyCompleted(_)
-            | Self::CandidateArtifact { .. }
             | Self::CandidatePlan { .. } => classified(
                 BuildFailurePhase::PrebuiltArtifact,
                 BuildDiagnosticCode::PREBUILT_VIEW_INVALID,
