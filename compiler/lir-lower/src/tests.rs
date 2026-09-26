@@ -152,6 +152,13 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
     {
         module.output = mir::MirOutput::Library;
     }
+    if matches!(module.output, mir::MirOutput::Executable { .. })
+        || !module.initialization_units.is_empty()
+    {
+        let mut types = module.meta.source_exact_types.iter().cloned().collect();
+        test_exact_type(&module.function_types, &mir::Type::Any, &mut types);
+        module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(types).unwrap();
+    }
     let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
     let strong_callable_bridges =
         mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
@@ -217,12 +224,7 @@ fn try_lower(
     module: mir::Module,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let input = seal_strong_input(module);
-    super::lower(
-        &input,
-        &test_external_descriptors(&input),
-        &lir::SelectedExternalLirSet::empty(input.module().cone),
-        lir::LirTargetProfile::DARWIN_AARCH64,
-    )
+    lower_test_input(&input)
 }
 
 fn test_external_descriptors(
@@ -251,13 +253,7 @@ fn lower(module: mir::Module) -> lir::Module {
 fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
     let input = seal_strong_input(module);
     let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
-    let output = super::lower(
-        &input,
-        &test_external_descriptors(&input),
-        &lir::SelectedExternalLirSet::empty(input.module().cone),
-        lir::LirTargetProfile::DARWIN_AARCH64,
-    )
-    .unwrap();
+    let output = lower_test_input(&input).unwrap();
     output
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_single_file(),
@@ -604,13 +600,7 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
     let class_exact = exact(&mir::Type::Class(class));
     let interface_exact = exact(&mir::Type::Interface(interface));
     let c_struct_exact = exact(&mir::Type::Struct(c_struct));
-    let output = super::lower(
-        &input,
-        &test_external_descriptors(&input),
-        &lir::SelectedExternalLirSet::empty(input.module().cone),
-        lir::LirTargetProfile::DARWIN_AARCH64,
-    )
-    .unwrap();
+    let output = lower_test_input(&input).unwrap();
 
     assert_eq!(output.module().meta.exact_types, expected);
     assert_eq!(

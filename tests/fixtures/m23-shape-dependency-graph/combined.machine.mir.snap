@@ -1,6 +1,8 @@
 Module
   class box<Int> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
+  interface ToString
+  interface Hash
   generated_exact_type get0 location=class1 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
   generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   fun boxInteger @fn0(value: Int) -> Any

@@ -165,7 +165,7 @@ fn replay(
         foundation,
         EntryProductionSourceV1::Library,
         &[],
-        &StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
+        &StrongTypeReferenceDefinitionsV2::new(producer, &[], &[]).unwrap(),
         &StrongInitializationDefinitionCatalogV2::new(producer, &[]).unwrap(),
     )
     .unwrap()

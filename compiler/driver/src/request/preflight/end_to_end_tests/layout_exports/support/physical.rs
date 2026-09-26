@@ -8,53 +8,19 @@ pub(in super::super) struct Source {
 }
 
 impl Source {
-    pub(in super::super) fn from_mir(input: &scoop_mir::SingleConeStrongMirInput) -> Self {
+    pub(in super::super) fn from_mir(
+        input: &scoop_mir::SingleConeStrongMirInput,
+        layout: &LayoutAbiExportConstituentsV1,
+    ) -> Self {
         let mut roots = Vec::new();
         let mut physical = Vec::new();
-        for shape in input
-            .materialization()
-            .dependency_generated_nominal_shapes()
-        {
-            roots.push(LayoutAbiDependencyV1::new(
-                shape.provider(),
-                LayoutAbiSemanticTargetV1::ShapeSupport(shape.source()),
-            ));
-            physical.push((
-                shape.provider(),
-                ExternalStrongShapeSubjectV1::TypeDescriptor(shape.exact()),
-            ));
-        }
-        for source in input.module().meta.source_exact_types.iter() {
-            if !matches!(
-                source.ty(),
-                scoop_mir::Type::String | scoop_mir::Type::Class(_) | scoop_mir::Type::Interface(_)
-            ) {
-                continue;
-            }
-            let scoop_mir::SourceExactTypeOwner::Cone(provider) = source.owner() else {
-                continue;
-            };
-            if provider == input.module().cone {
-                continue;
-            }
-            let exact = source.identity_record().id();
-            roots.push(LayoutAbiDependencyV1::new(
-                provider,
-                LayoutAbiSemanticTargetV1::Descriptor(exact),
-            ));
-            physical.push((
-                provider,
-                ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
-            ));
-            if source.ty() == &scoop_mir::Type::String
-                && !input.materialization().strings().is_empty()
-            {
-                physical.push((
-                    provider,
-                    ExternalStrongShapeSubjectV1::TypeRegistration(exact),
-                ));
-            }
-        }
+        crate::request::preflight::production::collect_mir_references(
+            input,
+            &[layout],
+            &mut roots,
+            &mut physical,
+        )
+        .unwrap();
         roots.sort_unstable();
         roots.dedup();
         physical.sort_unstable();
@@ -119,7 +85,7 @@ pub(super) fn select<'a>(
     layout: &'a LayoutAbiExportConstituentsV1,
     provider: &ShapeLinkProviderV1<'a>,
 ) -> StrongProductionDependencySelectionV2<'a> {
-    let source = Source::from_mir(input);
+    let source = Source::from_mir(input, layout);
     assert!(
         source
             .physical

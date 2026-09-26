@@ -23,7 +23,7 @@ pub(super) fn replayed_provider(provider: &Provider) -> StrongProductionSectionV
             provider.output.foundation(),
             EntryProductionSourceV1::Library,
             &[],
-            &StrongTypeReferenceDefinitionsV2::new(provider.identity, &[]).unwrap(),
+            &StrongTypeReferenceDefinitionsV2::new(provider.identity, &[], &[]).unwrap(),
             &StrongInitializationDefinitionCatalogV2::new(provider.identity, &[]).unwrap(),
         )
         .unwrap()

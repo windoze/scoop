@@ -4,7 +4,9 @@ use super::*;
 pub struct DecodedStrongStaticStorageSemanticProjectionV1 {
     pub(in crate::production::registration_production) storage:
         DecodedPersistentId<PersistentStaticStorageId>,
-    storage_symbol: DecodedPersistentSymbolRequest,
+    pub(super) storage_symbol: DecodedPersistentSymbolRequest,
+    pub(in crate::production::registration_production) layout_provider:
+        DecodedPersistentId<scoop_identity::ConeIdentity>,
     pub(in crate::production::registration_production) layout:
         DecodedPersistentId<PersistentLayoutId>,
     pub(in crate::production::registration_production) scan: DecodedPersistentId<PersistentScanId>,
@@ -30,6 +32,7 @@ impl DecodedStrongStaticStorageSemanticProjectionV1 {
             required_alignment: decoder.field(9, Decoder::unsigned)?,
             initial_state: decoder
                 .field(10, DecodedStrongStaticStorageInitialStatePlanV1::decode)?,
+            layout_provider: decoder.field(32, DecodedPersistentId::decode)?,
         })
     }
     pub(super) fn encode_fields(
@@ -50,14 +53,15 @@ impl DecodedStrongStaticStorageSemanticProjectionV1 {
 }
 impl WireDecode for DecodedStrongStaticStorageSemanticProjectionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(11)?;
         Self::decode_fields(decoder)
     }
 }
 impl WireEncode for DecodedStrongStaticStorageSemanticProjectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
-        self.encode_fields(encoder)
+        encoder.map(11)?;
+        self.encode_fields(encoder)?;
+        encode_field(encoder, 32, &self.layout_provider)
     }
 }
 

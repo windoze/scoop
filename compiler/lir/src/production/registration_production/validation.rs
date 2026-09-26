@@ -101,7 +101,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             None,
         )?;
         let static_semantics =
-            validate_static_storages(self.static_storages, target, foundation, &identities)?;
+            validate_static_storages(self.static_storages, target, foundation, &identities, None)?;
         let initialization_semantics = validate_initialization_units(
             self.initialization_units,
             target,

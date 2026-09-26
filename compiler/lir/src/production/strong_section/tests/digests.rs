@@ -50,7 +50,7 @@ pub(super) fn check(section: &StrongProductionSectionV2, foundation: &OdrFreeLir
             foundation,
             EntryProductionSourceV1::Library,
             &[],
-            &crate::StrongTypeReferenceDefinitionsV2::new(foundation.producer(), &[]).unwrap(),
+            &crate::StrongTypeReferenceDefinitionsV2::new(foundation.producer(), &[], &[]).unwrap(),
             &crate::StrongInitializationDefinitionCatalogV2::new(foundation.producer(), &[])
                 .unwrap(),
         )

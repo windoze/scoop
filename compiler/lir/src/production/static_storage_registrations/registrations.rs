@@ -20,7 +20,7 @@ use crate::{
 };
 
 /// Every typed identity and digest writer required to emit one static-storage
-/// registration and its owned storage, layout, and scan definitions.
+/// registration, owned storage, and actual layout/scan definitions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongStaticStorageRegistrationPlanV1 {
     semantic: StrongStaticStorageSemanticPlanV1,
@@ -137,7 +137,7 @@ impl StrongStaticStorageRegistrationPlanV1 {
     }
 }
 
-/// Proof that the complete final-LIR static-storage set has exactly one
+/// The complete final-LIR static-storage set has exactly one
 /// strong registration plan per storage.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongStaticStorageRegistrationPlanSetV1 {
@@ -227,7 +227,7 @@ fn build_registration(
     if !foundation.contains_static_storage(storage) {
         return Err(StrongStaticStorageRegistrationPlanBuildError::MissingStorage(storage));
     }
-    if !foundation.contains_layout(semantic.layout()) {
+    if semantic.value_layout().local().is_some() && !foundation.contains_layout(semantic.layout()) {
         return Err(
             StrongStaticStorageRegistrationPlanBuildError::MissingLayout {
                 storage,
@@ -235,7 +235,7 @@ fn build_registration(
             },
         );
     }
-    if !foundation.contains_scan(semantic.scan()) {
+    if semantic.value_layout().local().is_some() && !foundation.contains_scan(semantic.scan()) {
         return Err(StrongStaticStorageRegistrationPlanBuildError::MissingScan {
             storage,
             scan: semantic.scan(),
@@ -281,25 +281,57 @@ fn build_registration(
     let registration_symbol =
         require_symbol_key(foundation, PersistentSymbolKey::RootRegistration(storage))?;
 
-    let layout_definition = require_definition(
-        foundation,
-        StrongDefinitionEntity::layout(semantic.layout()),
-        StrongDefinitionRole::Layout,
-    )?;
-    let layout_primary_atom = require_primary_atom(foundation, layout_definition.id())?;
-    let layout_symbol =
-        require_symbol_key(foundation, PersistentSymbolKey::Layout(semantic.layout()))?;
+    let (
+        layout_definition_plan,
+        layout_primary_atom,
+        layout_symbol,
+        scan_definition_plan,
+        scan_primary_atom,
+        scan_symbol,
+    ) = match semantic.value_layout() {
+        crate::StaticStorageLayout::External(value) => {
+            let layout = value.identity().physical_definition();
+            let scan = value.scan_definition();
+            (
+                layout.definition(),
+                layout.primary(),
+                layout.symbol(),
+                scan.definition(),
+                scan.primary(),
+                scan.symbol(),
+            )
+        }
+        crate::StaticStorageLayout::Local(_) => {
+            let layout_definition = require_definition(
+                foundation,
+                StrongDefinitionEntity::layout(semantic.layout()),
+                StrongDefinitionRole::Layout,
+            )?;
+            let layout_primary_atom = require_primary_atom(foundation, layout_definition.id())?;
+            let layout_symbol =
+                require_symbol_key(foundation, PersistentSymbolKey::Layout(semantic.layout()))?;
 
-    let scan_definition = require_definition(
-        foundation,
-        StrongDefinitionEntity::scan(semantic.scan()),
-        StrongDefinitionRole::ScanProgram,
-    )?;
-    let scan_primary_atom = require_primary_atom(foundation, scan_definition.id())?;
-    let scan_symbol = require_symbol_key(
-        foundation,
-        PersistentSymbolKey::ScanProgram(semantic.scan()),
-    )?;
+            let scan_definition = require_definition(
+                foundation,
+                StrongDefinitionEntity::scan(semantic.scan()),
+                StrongDefinitionRole::ScanProgram,
+            )?;
+            let scan_primary_atom = require_primary_atom(foundation, scan_definition.id())?;
+            let scan_symbol = require_symbol_key(
+                foundation,
+                PersistentSymbolKey::ScanProgram(semantic.scan()),
+            )?;
+
+            (
+                layout_definition.id(),
+                layout_primary_atom,
+                layout_symbol,
+                scan_definition.id(),
+                scan_primary_atom,
+                scan_symbol,
+            )
+        }
+    };
 
     let registration_object = require_leaf_object_node(
         digests,
@@ -383,10 +415,10 @@ fn build_registration(
         initial_artifacts,
         immortal_registration_symbols,
         layout_symbol,
-        layout_definition_plan: layout_definition.id(),
+        layout_definition_plan,
         layout_primary_atom,
         scan_symbol,
-        scan_definition_plan: scan_definition.id(),
+        scan_definition_plan,
         scan_primary_atom,
         registration_object_node: registration_object.id(),
         storage_definition_node: storage_object.id(),

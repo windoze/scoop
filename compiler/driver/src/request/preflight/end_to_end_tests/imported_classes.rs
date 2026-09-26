@@ -131,6 +131,28 @@ fn integer_division_compiles_and_runs_through_actual_artifacts() {
 }
 
 #[test]
+fn initialization_compiles_and_runs_through_rebuilt_core_and_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "initialization-singleton",
+            "initialization-cycle",
+            "initialization-combined",
+        ],
+        &["initialization-internal-service"],
+    );
+}
+
+#[test]
+fn caught_references_escape_handlers_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &["exception-return", "exception-stored-dispatch"],
+        &[],
+    );
+}
+
+#[test]
 fn runtime_arithmetic_failures_use_the_providers_default_constructor_adapter() {
     check_class_cases("default", &["arithmetic-zero", "arithmetic-direct"], &[]);
 }
@@ -182,7 +204,17 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         replacement.trim(),
     );
     assert_ne!(changed_exception, changed_arithmetic);
-    std::fs::write(throwable, changed_arithmetic).unwrap();
+    let changed_services = if cases.iter().any(|case| case.starts_with("initialization-")) {
+        let changed = changed_arithmetic.replace(
+            "internal fun __scoopThrowInitializationCycle(message: String) {\n    throw IllegalStateException(Some(message))\n}",
+            source("core-initialization").trim(),
+        );
+        assert_ne!(changed_arithmetic, changed);
+        changed
+    } else {
+        changed_arithmetic
+    };
+    std::fs::write(throwable, changed_services).unwrap();
     let changed = core_source.join("src/stage3_test.scoop");
     std::fs::write(
         &changed,

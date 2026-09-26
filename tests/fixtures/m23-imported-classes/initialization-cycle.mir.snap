@@ -1,0 +1,649 @@
+Module
+  global0 $singleton$Attempts: Attempts managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Left: Left managed initial=zeroed-for-runtime-unit
+  global2 $singleton$Right: Right managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  init0 object-private:main.scoop:Attempts singleton lazy global0 initializer=@fn2 ensure=@fn3 failure=3 deps=[]
+  init1 object-private:main.scoop:Left singleton lazy global1 initializer=@fn5 ensure=@fn6 failure=4 deps=[]
+  init2 object-private:main.scoop:Right singleton lazy global2 initializer=@fn7 ensure=@fn8 failure=5 deps=[]
+  class Attempts vtable=0 itables=0
+  class Left vtable=0 itables=0
+  class Right vtable=0 itables=0
+  class RebuiltFailure vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun readLeft @fn0() -> Long
+    bb0 entry
+      call @fn6 direct
+      return
+        Type Long
+        FieldAccess 0
+          Type Left
+          GlobalRead $singleton$Left
+  fun readRight @fn1() -> Long
+    bb0 entry
+      call @fn8 direct
+      return
+        Type Long
+        FieldAccess 0
+          Type Right
+          GlobalRead $singleton$Right
+  fun $init$body$0 @fn2() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Attempts
+        ClassAlloc Attempts
+      call @fn11 direct
+        Type Attempts
+        Local $new.1
+      global_assign $singleton$Attempts
+        Type Attempts
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn3() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn2 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:main.scoop:Attempts
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun initializeLeft @fn4() -> Long
+    bb0 entry
+      call @fn3 direct
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Attempts
+          GlobalRead $singleton$Attempts
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+      field_set 0
+        Type Attempts
+        GlobalRead $singleton$Attempts
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $call.1: Long = @fn1 direct
+      return
+        Type Long
+        Local $call.1
+  fun $init$body$1 @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Left
+        ClassAlloc Left
+      call @fn12 direct
+        Type Left
+        Local $new.1
+      global_assign $singleton$Left
+        Type Left
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:main.scoop:Left
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:main.scoop:Left
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:main.scoop:Left
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:main.scoop:Left
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:main.scoop:Left
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$2 @fn7() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Right
+        ClassAlloc Right
+      call @fn13 direct
+        Type Right
+        Local $new.1
+      global_assign $singleton$Right
+        Type Right
+        Local $new.1
+      return
+  fun $init$ensure$2 @fn8() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object-private:main.scoop:Right
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn7 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object-private:main.scoop:Right
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object-private:main.scoop:Right
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object-private:main.scoop:Right
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 object-private:main.scoop:Right
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun failure @fn9() -> RebuiltFailure
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance RebuiltFailure
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+        Type RebuiltFailure
+        Local $result.0
+    bb8 try.body.8 unwind bb1
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.code: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type RebuiltFailure
+        ClassAlloc RebuiltFailure
+      call external0 direct
+        Type RebuiltFailure
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.code
+      assign $result.0
+        Type RebuiltFailure
+        Local $new.1
+      goto bb7
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: RebuiltFailure
+        Type RebuiltFailure
+        Retype RebuiltFailure
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      assign $result.0
+        Type RebuiltFailure
+        Local error
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun primary @fn10() -> Counter
+    bb0 entry
+      call first: RebuiltFailure = @fn9 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val allocated: Counter
+        Type Counter
+        Local $new.1
+      call second: RebuiltFailure = @fn9 direct
+      call $dependency.receiver: Long = external2 direct
+        Type RebuiltFailure
+        Local first
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call $dependency.receiver: Long = external2 direct
+        Type RebuiltFailure
+        Local second
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.1
+    bb4 if.then.4
+      call @fn3 direct
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Attempts
+          GlobalRead $singleton$Attempts
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.2
+    bb7 if.then.7
+      val $dependency.receiver: Counter
+        Type Counter
+        Local allocated
+      call $dependency.receiver: Long = external3 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=14 bits=0x000000000000000e
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.3
+    bb10 if.then.10
+      call $dependency.argument.0: Long = external2 direct
+        Type RebuiltFailure
+        Local second
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.4
+        Type Counter
+        Local $new.2
+      goto bb12
+    bb11 if.else.11
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.4
+        Type Counter
+        Local $new.3
+      goto bb12
+    bb12 if.merge.12
+      return
+        Type Counter
+        Local $result.4
+  fun init.Attempts.$c0 @fn11(this: Attempts) -> Unit
+    bb0 entry
+      field_set 0
+        Type Attempts
+        Local this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+  fun init.Left.$c1 @fn12(this: Left) -> Unit
+    bb0 entry
+      call $call.1: Long = @fn4 direct
+      field_set 0
+        Type Left
+        Local this
+        Type Long
+        Local $call.1
+      return
+  fun init.Right.$c2 @fn13(this: Right) -> Unit
+    bb0 entry
+      call $call.1: Long = @fn0 direct
+      field_set 0
+        Type Right
+        Local this
+        Type Long
+        Local $call.1
+      return
+  output library

@@ -54,7 +54,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 LirTargetProfile::DARWIN_AARCH64,
                 &fixture.foundation,
                 &fixture.digests,
-                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
+                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[], &[]).unwrap(),
                 &Catalog::new(producer, &[definition(&provider)]).unwrap(),
             )
             .unwrap();
@@ -91,7 +91,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 &fixture.foundation,
                 crate::EntryProductionSourceV1::Library,
                 &[],
-                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
+                &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[], &[]).unwrap(),
                 &Catalog::new(producer, &[definition(&provider)]).unwrap(),
             )
             .unwrap();

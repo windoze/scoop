@@ -77,12 +77,12 @@ fn complete_surface_replays_legacy_and_dependency_type_registrations() {
 fn complete_surface_rejects_missing_or_wrong_consumer_definitions() {
     let fixture = foreign_fixture();
     let bytes = encode(&surface(&fixture, true)).unwrap();
-    let empty = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap();
+    let empty = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[], &[]).unwrap();
     assert!(matches!(
         replay(&fixture, &bytes, &empty),
         Err(Error::TypeReference(_))
     ));
-    let wrong = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[]).unwrap();
+    let wrong = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[], &[]).unwrap();
     assert!(matches!(
         replay(&fixture, &bytes, &wrong),
         Err(Error::ProducerMismatch)

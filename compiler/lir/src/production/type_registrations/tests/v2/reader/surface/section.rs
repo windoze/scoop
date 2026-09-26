@@ -93,7 +93,7 @@ fn eight_field_section_rejects_missing_foreign_definitions_and_changed_definitio
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
-    let empty = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap();
+    let empty = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[], &[]).unwrap();
     assert!(matches!(
         replay_section(&fixture, &bytes, &empty),
         Err(SectionError::Registrations(Error::TypeReference(_)))

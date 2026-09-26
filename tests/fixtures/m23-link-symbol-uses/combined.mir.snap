@@ -29,7 +29,7 @@ Module
         Local value
   fun outside @fn1() -> Int
     bb0 entry
-      call $call.1: Int = external1 direct
+      call $call.1: Int = external0 direct
       return
         Type Int
         Local $call.1
@@ -75,7 +75,7 @@ Module
           Local $dependency.parameter.other
   fun $init$body$0 @fn5() -> Unit
     bb0 entry
-      call $parameter.value: Int = external1 direct
+      call $parameter.value: Int = external0 direct
       call $call.1: Int = @fn0 direct
         Type Int
         Local $parameter.value
@@ -134,24 +134,24 @@ Module
         InitializationUnitAddress init0 top-level:localDefault
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:localDefault
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -175,7 +175,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:localDefault
-      call external0 direct
+      call external6 direct
         Type String
         Local $init.message
       unreachable
@@ -253,24 +253,24 @@ Module
         InitializationUnitAddress init1 top-level:localExplicit
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 top-level:localExplicit
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -294,7 +294,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 top-level:localExplicit
-      call external0 direct
+      call external6 direct
         Type String
         Local $init.message
       unreachable
@@ -312,13 +312,13 @@ Module
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      call $call.1: Int = external1 direct
+      call $call.1: Int = external0 direct
       assign $result.0
         Type Int
         Local $call.1
       goto bb3
     bb2 if.else.2
-      call $call.2: Int = external1 direct
+      call $call.2: Int = external0 direct
       assign $result.0
         Type Int
         Local $call.2
@@ -379,24 +379,24 @@ Module
         InitializationUnitAddress init2 top-level:localTwice
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 top-level:localTwice
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -420,7 +420,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 top-level:localTwice
-      call external0 direct
+      call external6 direct
         Type String
         Local $init.message
       unreachable
@@ -438,16 +438,16 @@ Module
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      call external2 direct
+      call external1 direct
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-      call $call.1: Int = external1 direct
+      call $call.1: Int = external0 direct
       assign $result.1
         Type Int
         Local $call.1
       goto bb3
     bb2 if.else.2
-      call $call.2: Int = external1 direct
+      call $call.2: Int = external0 direct
       assign $result.1
         Type Int
         Local $call.2
@@ -508,24 +508,24 @@ Module
         InitializationUnitAddress init3 top-level:localWrite
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 top-level:localWrite
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -549,7 +549,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 top-level:localWrite
-      call external0 direct
+      call external6 direct
         Type String
         Local $init.message
       unreachable
@@ -563,7 +563,7 @@ Module
         GlobalRead localWrite
   fun $init$body$4 @fn17() -> Unit
     bb0 entry
-      call $call.1: Int = external3 direct
+      call $call.1: Int = external2 direct
       global_assign localComputed
         Type Int
         Local $call.1
@@ -619,24 +619,24 @@ Module
         InitializationUnitAddress init4 top-level:localComputed
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 top-level:localComputed
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -660,7 +660,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 top-level:localComputed
-      call external0 direct
+      call external6 direct
         Type String
         Local $init.message
       unreachable
@@ -674,7 +674,7 @@ Module
         GlobalRead localComputed
   fun $init$body$5 @fn20() -> Unit
     bb0 entry
-      call $call.1: Int = external4 direct
+      call $call.1: Int = external3 direct
       global_assign localImage
         Type Int
         Local $call.1
@@ -730,24 +730,24 @@ Module
         InitializationUnitAddress init5 top-level:localImage
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 top-level:localImage
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -771,7 +771,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 top-level:localImage
-      call external0 direct
+      call external6 direct
         Type String
         Local $init.message
       unreachable
@@ -789,16 +789,16 @@ Module
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      call external5 direct
+      call external4 direct
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
-      call $call.1: Int = external6 direct
+      call $call.1: Int = external5 direct
       assign $result.2
         Type Int
         Local $call.1
       goto bb3
     bb2 if.else.2
-      call $call.2: Int = external6 direct
+      call $call.2: Int = external5 direct
       assign $result.2
         Type Int
         Local $call.2
@@ -859,24 +859,24 @@ Module
         InitializationUnitAddress init6 top-level:localImageWrite
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 top-level:localImageWrite
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -900,7 +900,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 top-level:localImageWrite
-      call external0 direct
+      call external6 direct
         Type String
         Local $init.message
       unreachable

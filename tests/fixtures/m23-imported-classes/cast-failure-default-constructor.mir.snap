@@ -77,11 +77,14 @@ Module
           Type Any
           Local $cast.1
     bb11 try.catch.11
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val error: ClassCastException
         Type ClassCastException
         Retype ClassCastException
           Type Any
-          CaughtException
+          Local $catch.3
       goto bb13
     bb12 try.next.12
       rethrow unwind bb5
@@ -92,21 +95,21 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      assign $new.3
+      assign $new.4
         Type Counter
         ClassAlloc Counter
       call external1 direct
         Type Counter
-        Local $new.3
+        Local $new.4
         Type Long
         Local $dependency.parameter.value
-      val $return.4: Counter
+      val $return.5: Counter
         Type Counter
-        Local $new.3
+        Local $new.4
       end_catch
       goto bb14
     bb14 scope.14
       return
         Type Counter
-        Local $return.4
+        Local $return.5
   output library

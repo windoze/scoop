@@ -568,7 +568,8 @@ fn storage_global(
                 LirTargetProfile::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
-            .unwrap(),
+            .unwrap()
+            .into(),
             ty,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,

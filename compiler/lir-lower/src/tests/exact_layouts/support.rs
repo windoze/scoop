@@ -56,13 +56,7 @@ impl Fixture {
         }
         let graph = pending.finish().unwrap();
         let input = seal_strong_input(module);
-        let output = crate::lower(
-            &input,
-            &test_external_descriptors(&input),
-            &lir::SelectedExternalLirSet::empty(input.module().cone),
-            lir::LirTargetProfile::DARWIN_AARCH64,
-        )
-        .unwrap();
+        let output = lower_test_input(&input).unwrap();
         let types = representations
             .into_iter()
             .map(|(exact, nominal, representation, facts, base)| {

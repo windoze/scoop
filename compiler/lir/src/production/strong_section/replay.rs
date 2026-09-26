@@ -25,7 +25,7 @@ impl DecodedStrongProductionSectionV2 {
         let actual = encode_canonical_temporary(&self, &path)?;
         let digests = self
             .digest_finalization_plan
-            .resolve_foundation(foundation)
+            .resolve_foundation(foundation, type_definitions)
             .map_err(|source| {
                 StrongProductionSectionValidationError::DigestReplay(Box::new(source))
             })?;

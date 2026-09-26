@@ -130,11 +130,14 @@ Module
         Local $parameter.divisor
       goto bb7
     bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val failure: ArithmeticException
         Type ArithmeticException
         Retype ArithmeticException
           Type Any
-          CaughtException
+          Local $catch.2
       goto bb11
     bb10 try.next.10
       rethrow unwind bb5
@@ -204,17 +207,17 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      assign $new.3
+      assign $new.5
         Type Counter
         ClassAlloc Counter
       call external0 direct
         Type Counter
-        Local $new.3
+        Local $new.5
         Type Long
         Local $dependency.parameter.value
       return
         Type Counter
-        Local $new.3
+        Local $new.5
     bb20 try.body.20 unwind bb13
       val value: UInt
         Type UInt
@@ -242,15 +245,15 @@ Module
           Type UInt
           IntegerLiteral UInt value=0 bits=0x00000000
     bb21 if.then.21 unwind bb13
-      assign $new.2
+      assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
       call external1 direct
         Type ArithmeticException
-        Local $new.2
+        Local $new.3
       throw unwind bb13
         Type ArithmeticException
-        Local $new.2
+        Local $new.3
     bb22 if.merge.22 unwind bb13
       val remainder: UInt
         Type UInt
@@ -300,11 +303,14 @@ Module
           Local $dependency.parameter.other
       goto bb19
     bb24 try.catch.24
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val failure: ArithmeticException
         Type ArithmeticException
         Retype ArithmeticException
           Type Any
-          CaughtException
+          Local $catch.4
       goto bb26
     bb25 try.next.25 unwind bb17
       val $dependency.receiver: Long

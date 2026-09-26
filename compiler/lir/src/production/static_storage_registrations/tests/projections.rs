@@ -48,7 +48,7 @@ fn token_projection_retains_logical_extent_scan_and_initial_state_distinction() 
     assert_eq!(encoded.initial_state().initial_template(), &[0]);
     for plan in [&zeroed, &encoded] {
         let bytes = encode(&plan.semantic_projection()).unwrap();
-        assert_eq!(bytes[0], 0xaa);
+        assert_eq!(bytes[0], 0xab);
         assert_eq!(encode(&decoded(plan)).unwrap(), bytes);
         decoded(plan).validate_against(plan).unwrap();
     }
@@ -90,8 +90,8 @@ fn storage_projection_replays_immortal_initializers_and_rejects_wrong_extent() {
     let changed = StrongStaticStorageSemanticPlanV1::from_artifact(
         expected.storage(),
         expected.symbol(),
-        expected.layout(),
-        expected.scan(),
+        expected.value_layout().clone(),
+        expected.layout_provider(),
         expected.scan_program().clone(),
         expected.scan_kind(),
         expected.byte_size(),

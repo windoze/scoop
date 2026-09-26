@@ -3,9 +3,11 @@
 use super::*;
 mod errors;
 mod layout;
+mod layout_references;
 mod protocols;
 pub use errors::{CurrentConeProductionError, CurrentConeProductionFailure};
 pub use layout::LayoutProductionError;
+pub(super) use layout_references::collect_mir_references;
 
 impl ParsedSingleConeBuildRequest<'_, '_> {
     pub fn build_and_publish(

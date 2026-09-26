@@ -380,8 +380,13 @@ fn runtime_global_atoms<'ctx, D, C, I>(
                 emitted.descriptor(),
             ),
             GlobalAtomMaterializationV1::new(plan.storage_primary_atom(), emitted.storage_value()),
-            GlobalAtomMaterializationV1::new(plan.scan_primary_atom(), emitted.scan_program()),
         ]);
+        if plan.semantic().value_layout().local().is_some() {
+            atoms.push(GlobalAtomMaterializationV1::new(
+                plan.scan_primary_atom(),
+                emitted.scan_program(),
+            ));
+        }
         if let EmittedStaticStorageInitialStateV1::EncodedStaticValue {
             template_atom,
             template,

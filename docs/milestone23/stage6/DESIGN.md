@@ -1,5 +1,9 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式升级为 /11、/12，旧 /9、/10 产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
+
+普通 catch 的绑定必须可以像其他引用值一样离开 handler：匹配 native payload 后，在绑定变量前物化一次 managed 异常对象，后续返回、存储和捕获使用该对象；native unwind record 仍按既有 cleanup 规则释放。初始化 catch 复用这次物化，不再次复制。每次 throw 仍创建独立 native payload，runtime C ABI 不变。
+
 引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/27`，旧产物与缓存重建，不改变 runtime C ABI。
 
 默认值中的参数自由 class 构造与 struct 构造共用实际 constructor 引用、参数实例化和调用选择；引用上行转换保留在正文中，实例化后继续使用相同的 typed 操作。
@@ -64,7 +68,7 @@ String descriptor 使用完整 MIR 中实际声明的 source exact identity，�
 
 初始化单元直接携带所需的本地或外来 callable。共有 MIR 依赖选择从这些单元收集实际 provider 与函数引用，driver 不再另走一次初始化服务选择；MIR 不保存 Local/ImportedUnused/Imported 的配对状态，也不逐单元再核对一份全局来源记录。MIR/LIR selected 表不复制初始化角色、不限制只有一个该角色，也不提供服务专用添加入口。声明发布需要的语言角色继续保留，实际 target、签名、GC effect、ABI 与依赖关系由共有记录及消费边界检查。该进程内简化不改变 wire、runtime C ABI 或初始化与失败缓存语义。
 
-Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 ABI field 11 和外部服务表 field 12，section 只保留 field 2～9 的八字段 product。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 registration reader 完成结构与引用检查后直接返回完整 registration production 数据，不保留仅用于限制编码或导出资格的中间凭证包装。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
+Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 ABI field 11 和外部服务表 field 12，section 只保留 field 2～9 的八字段 product。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 registration reader 完成结构与引用检查后直接返回完整 registration production 数据，不保留仅用于限制编码或导出资格的中间凭证包装。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
 
 LIR descriptor 依赖是明确的 typed IR 引用。reader 验证可达 provider、exact type 的实际 descriptor 导出、递归依赖闭合及物理定义，不要求 descriptor 先出现在 HIR 的 value-layout 或 shape-support 物化根中，也不从协议表重新证明其来源。显式 descriptor relation 与从源码类型使用得到的 layout/shape 根共同闭合；遗漏必要依赖、错误 provider/类型与不一致物理合同仍拒绝。
 
@@ -72,7 +76,7 @@ LIR descriptor 依赖是明确的 typed IR 引用。reader 验证可达 provider
 
 M23-6 把已有的本地类型表示变成可独立验证、可跨 Cone 消费的接口。成功解析到外部 nominal 之后，consumer 必须取得定义方的完整语义、layout、ABI、scan、TypeDescriptor 与 dispatch 信息，才能产生 machine use。
 
-1. 新增 `cross-cone-layout-strong/2` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure 四条 section，并将强定义语义升级为 `strong-production/10`，以表达普通依赖的 TD/dispatch 引用；仍拒绝全部 ODR production。完整声明与实际使用信息按 3.1.1 合入共有 metadata，不新增独立来源授权 section。
+1. 新增 `cross-cone-layout-strong/2` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure 四条 section，并将强定义语义升级为 `strong-production/12`，以表达普通依赖的 TD/dispatch 引用；仍拒绝全部 ODR production。完整声明与实际使用信息按 3.1.1 合入共有 metadata，不新增独立来源授权 section。
 2. persistent identity 与 extern/callback contract bytes 保持；native-boundary witness 按当前 intrinsic family 与 typed C 投影合同显式升代，旧字段和版本退役。一般 layout 服务只能由新 required section 构造，不从 native witness 推出通用 layout、scan 或 dispatch。
 3. HIR 输出每个 concrete type 完备的 `gc_free`、value `ZstStatus` 与继承/slot 语义；MIR 输出表示无关的类型、构造器、成员、slot 与生成 helper 关系；LIR 独占 target layout、Scoop ABI 与递归 scan 的生产权。
 4. 外部实体保持定义 Cone 的 Strong ownership。consumer 可以检查和在本地类型中内联外部 value 的表示，但不能重新定义其 body、layout constant、scan、TD、dispatch table、registration 或初始化 storage。
@@ -226,7 +230,7 @@ MIR 类型与 LIR layout/ABI 选择保存经过依赖闭包检查的完整记录
 org.scoop-lang.slib-profile/cross-cone-layout-strong/2
 ```
 
-其 required inventory 从 M23-5 `cross-cone-semantics-strong/2` 出发，移除 `org.scoop-lang.lir/strong-production/9`，替换为 `/10`，再加入下表前四项；`code_requirement`、`runtime_requirement`、publication、extra-section policy 和实际 Link 数据要求沿用共有规则；旧 decode-cost model 字段 3 退役，`odr = RejectAll`。
+其 required inventory 从 M23-5 `cross-cone-semantics-strong/2` 出发，移除 `org.scoop-lang.lir/strong-production/11`，替换为 `/10`，再加入下表前四项；`code_requirement`、`runtime_requirement`、publication、extra-section policy 和实际 Link 数据要求沿用共有规则；旧 decode-cost model 字段 3 退役，`odr = RejectAll`。
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
@@ -234,11 +238,11 @@ org.scoop-lang.slib-profile/cross-cone-layout-strong/2
 | `org.scoop-lang.mir/cross-cone-type-bridge/1` | MIR | Compile | Mir |
 | `org.scoop-lang.lir/cross-cone-layout-abi/3` | LIR | Compile | Lir |
 | `org.scoop-lang.lir/cross-cone-layout-link-closure/2` | LIR | Link | Code + LinkValidationOnly |
-| `org.scoop-lang.lir/strong-production/10` | LIR | Compile、Link | Lir + Code + RuntimeImage |
+| `org.scoop-lang.lir/strong-production/12` | LIR | Compile、Link | Lir + Code + RuntimeImage |
 
-`cross-cone-type-semantics/7` 承载 type facts、完整表示与继承接口，复用 `cross-cone-interface/27` 的普通声明、参数和默认值 metadata。HIR type、MIR type bridge、LIR layout/ABI 三条 Compile section 的完整 canonical inner bytes 分别进入对应 layer contribution；Link-only section 仅以 semantic physical-import projection 进入 Code，member/range/patch 信息只作 LinkValidationOnly。strong-production/10 沿用强定义 section 自身的三个 sink。
+`cross-cone-type-semantics/7` 承载 type facts、完整表示与继承接口，复用 `cross-cone-interface/27` 的普通声明、参数和默认值 metadata。HIR type、MIR type bridge、LIR layout/ABI 三条 Compile section 的完整 canonical inner bytes 分别进入对应 layer contribution；Link-only section 仅以 semantic physical-import projection 进入 Code，member/range/patch 信息只作 LinkValidationOnly。strong-production/12 沿用强定义 section 自身的三个 sink。
 
-所有 source Cone、core、single-file 与 cache 产物最终使用新 profile、四条新增 section 及 strong-production/10；空集合显式编码。compiler compatibility 与 cache key 共用新 profile fingerprint，旧 completed dependency 必须重建，不做内存升级。section major 与 outer schema 是不同版本维度；本阶段仍使用 M23 outer schema 1 和既有 runtime ABI。
+所有 source Cone、core、single-file 与 cache 产物最终使用新 profile、四条新增 section 及 strong-production/12；空集合显式编码。compiler compatibility 与 cache key 共用新 profile fingerprint，旧 completed dependency 必须重建，不做内存升级。section major 与 outer schema 是不同版本维度；本阶段仍使用 M23 outer schema 1 和既有 runtime ABI。
 
 #### 3.1.1 共有 metadata 与实际使用闭包
 
@@ -317,11 +321,11 @@ layout profile 的 HIR 类型基础读取从共有 nominal/callable 声明重算
 - M23-5 已开放 callable 子集的语义继续保留；其有效 nominal 分类与 MIR/LIR 关系验证复用共有实现。core 专用发布与 Link 分区按补充设计删除，不能为保留旧分区而拒绝合法的共有 provider 查询。
 - 新 callable bridge 只承载上述旧集合以外、现在可证明的 target；MIR与LIR的所有外部callable在各自stage共用一个实体、typed id和arena，MIR输出与sealer复用引用及重复implementation校验，LIR同一body不得重复；旧、新metadata分区从实体的明确选择角色投影。完整类型证明可以被两类 bridge 共用。callable 的有效既有 bridge 与通用 bridge 按明确 subject 能力分工，初始化服务迁入共有选择，不再优先进入 core 专用协议 bridge；shape的layout、scan、TD与registration不因出现在production形状计划中而被整组排除，按共有shape-link校验实际provider与definition；新开放的 core member/constructor/shape use 若不属于旧 bridge 的固定集合，也走新 bridge，不能借此扩大旧集合。
 - 所有外部TD在LIR中统一为`ExternalTypeDescriptor`及一个arena，必需保留实际provider、exact、symbol和definition；Local/External引用只表达本地定义与外部引用。String 角色由 well-known typed 引用保存，其 wire、选择与验证使用共有 descriptor 路径；其他外部TD（包括core普通类型）必须通过通用layout selection，V1缺少对应layout selection时明确拒绝，V2保留实际provider并重放完整semantic/physical selection。codegen统一发射和校验外部描述符，foundation与layout投影共用实体，不维护第二套core TD。通用ExactDispatch从callable ABI实际provider推导Local/DependencyExternal引用，core普通dispatch不降为旧协议CoreExternal。
-- `strong-production/9`与`strong-production/10`共有的字段8改为直接shape-support计划数组，旧Core/NotCore tagged sum拒绝读取，已有产物必须重建。新profile只生产/要求V2；有效的 identity、definition plan、digest DAG 与 image plan 继续共用；专用协议 bridge 字段和包装按补充设计删除并同步 inventory/fingerprint，不能以旧 top-level 字段数冻结阻止迁移。V2 的 TD/dispatch 外部引用统一显式保存实际 provider；runtime registration/image的C ABI不改变。
+- `strong-production/11`与`strong-production/12`共有的字段8改为直接shape-support计划数组，旧Core/NotCore tagged sum拒绝读取，已有产物必须重建。新profile只生产/要求V2；有效的 identity、definition plan、digest DAG 与 image plan 继续共用；专用协议 bridge 字段和包装按补充设计删除并同步 inventory/fingerprint，不能以旧 top-level 字段数冻结阻止迁移。V2 的 TD/dispatch 外部引用统一显式保存实际 provider；runtime registration/image的C ABI不改变。
 
 本阶段不为清理来源资格改变 container/outer schema 或 `persistent-v1` mangler，不重用退役 tag。删除专用包装、字段或 variant 时同步对应 capability/profile inventory 与 fingerprint；不兼容产物拒绝并要求重建。旧 core 专用通道不因历史冻结条款继续生产。
 
-`strong-production/10`中的三个版本化constituent固定为：
+`strong-production/12`中的三个版本化constituent固定为：
 
 ```text
 StrongTypeDescriptorRefV2 =
@@ -643,7 +647,7 @@ Strong MIR sealer必须逐项将每个local initialization unit的ensure/initial
 
 属性初始化用途从实际已物化的 accessor 调用重放。共享 HIR 的原调用位置定位当前 generated Initializer root，提供方的原 property 声明与 source initialization-unit key 决定访问是否带直接 ensure；没有运行期 unit 的 image property、computed property、const 不虚构依赖。公开 managed 顶层属性的默认 getter/setter 必须生成实际 Body，并以既有 typed accessor identity 进入普通 callable 导出；静态映像后备也遵循此规则，但不为它生成运行期 unit 或 ensure。非公开直接存储与 const 保持原形式，setter 仍使用其自身的访问合同。独立 lambda/匿名函数的词法身份从真实父 accessor/initializer 的签名取得 binder 上下文，不能查询子闭包的 source signature 或用空 binder 兜底。普通 callable 的内部 ensure、独立 lambda/匿名函数正文与未展开 default 不加入调用者的初始化图；已展开 default 中直接执行的属性访问使用调用者的实际 root。默认模板中的 accessor 引用直接保留所属 property、accessor 的 typed ID 和定义作用域，按共有声明目录解析；定义时实际发生的名称查找路径可以保留，不要求消费方重新取得路径，也不另建 direct callable binding 表。实际调用及初始化边来自展开后的 typed 正文。生产端保留所选 accessor 的同一 typed unit 关系，再从 sealed HIR 正文逐次收集并规范去重；共有 Compile/Link reader 独立从已有 call-site、property 与 foundation 数据重算，与 MIR initialization-use 全集精确比较。缺失、额外、错 provider、错 accessor/unit、把普通函数或未物化 unit 冒充初始化 root 均拒绝，不能由候选 MIR 用途或 selected 表补根。读取只借用同一依赖闭包的原 metadata，不新增 wire、来源授权表或 foreign body 分析。ObjectValue 与显式 InitializationSupport 继续要求各自实际 typed 使用，不能因存在合法 canonical key 被接受。LIR 的完整 external initialization registration 边必须与已验证 MIR 用途按（local unit、provider、dependency unit）去重后的集合精确相等；getter/setter 等不同 cause 可合为同一条边，登记边本身的重复、缺失、额外或 provider 漂移均拒绝。再验证完整 unit definition、descriptor 和物理导入。依赖的初始化 startup gateway 保留其独立 CallableBodyKeyKind 与 unit registration 关系；目录核对同一 eager unit 的完整 gateway body/entry，不能将其冒充普通 Strong callable 或因 provider 含有 gateway 而拒绝整个依赖。ODR callable 仍由本阶段 gate 拒绝。
 
-当前initializer中的显式external ensure通过`SelectedExternalInitializationUseV1 { local_unit, provider, dependency_unit, cause }`记录；cause是`ObjectValue(object_value_id) | PropertyAccessor(accessor_id) | InitializationSupport(unit_id)`，必须由已提交的typed ensure语义产生。LIR selected set保留同一edge，strong-production/10按3.2验证foreign unit，不要求它出现在本地unit arena。这里只记录现有语义的真实ensure dependency，不读取foreign body做跨Cone调用图推断；普通external callable内部自己的ensure继续由provider负责。image/runtime使用canonical unit id解析这些edge，相关真实descriptor/cell relocation按11.2验证。
+当前initializer中的显式external ensure通过`SelectedExternalInitializationUseV1 { local_unit, provider, dependency_unit, cause }`记录；cause是`ObjectValue(object_value_id) | PropertyAccessor(accessor_id) | InitializationSupport(unit_id)`，必须由已提交的typed ensure语义产生。LIR selected set保留同一edge，strong-production/12按3.2验证foreign unit，不要求它出现在本地unit arena。这里只记录现有语义的真实ensure dependency，不读取foreign body做跨Cone调用图推断；普通external callable内部自己的ensure继续由provider负责。image/runtime使用canonical unit id解析这些edge，相关真实descriptor/cell relocation按11.2验证。
 
 initialization-use product的field1～4按上述顺序保存；cause是tag1/2/3、field1分别为object-value/accessor/unit id的closed sum。canonical表按local-unit、provider、dependency-unit、cause的typed key顺序保存，拒绝重复。local-unit必须属于当前consumer，provider必须是dependency-unit的真实定义Cone且不是consumer。ObjectValue cause必须对应同一Object/Companion unit；PropertyAccessor cause必须对应同一top-level/extension property unit，或同一object/companion owner的成员property；InitializationSupport必须等于该dependency-unit。param-free表拒绝generic delegated application unit。该constituent验证identity及关系，完整section仍必须把每条use与已提交的typed ensure语义/真实MIR调用逐项join，不能由canonical key匹配推断foreign body依赖。
 
@@ -702,7 +706,7 @@ producer 根据已提交 MIR→LIR typed selection 构造 semantic 闭包；read
 
 LIR section 不再保存一份 producer section 组成的递归依赖图。driver 从已解析构建图提供真实可达 provider 的完整导出表集合；选择入口检查 provider 唯一性、target 和所需 typed 目标，布局关系闭包只遍历实际引用。manifest 的依赖环检测仍由共有图边界负责，不在每次选择中重走相同的 section 图或累计遍历深度。Strong V2 的预先选择与最终 section 使用相同目录，读取结果可直接参与 downstream lowering、registration 和发布。
 
-`physical_imports` 是 11.2 定义的 canonical semantic-import projection，按 `(provider, subject canonical bytes)` 严格递增且唯一。它收集实际 machine use、strong-production/10 引用以及对象和初始化支持，再关联对应 provider 的完整语义记录、Strong definition 与既有分区。语义使用可以没有物理 import；物理 import 必须具有完整的实际 typed target、表示及定义信息，不能只凭 symbol 或布局相同建立关系。该数组与 Link section field 1 及 Code contribution 使用同一规范编码，不增设 support authority 或来源凭证。
+`physical_imports` 是 11.2 定义的 canonical semantic-import projection，按 `(provider, subject canonical bytes)` 严格递增且唯一。它收集实际 machine use、strong-production/12 引用以及对象和初始化支持，再关联对应 provider 的完整语义记录、Strong definition 与既有分区。语义使用可以没有物理 import；物理 import 必须具有完整的实际 typed target、表示及定义信息，不能只凭 symbol 或布局相同建立关系。该数组与 Link section field 1 及 Code contribution 使用同一规范编码，不增设 support authority 或来源凭证。
 
 layout 表以 `PersistentLayoutId` 为主键，同一 exact 可以有不同 representation role 的多项。`TargetProfileWireId`、`RepresentationRole` 原样复用 foundation 的 `LayoutKey`：ManagedValue/CValue/NativeFunctionPointer 必须匹配 Value body，ManagedObject 必须匹配 Instance body；scan key 的 layout/role 同样重放。target 必须等于同 artifact 已验证 LIR projection，不能仅比较可读名称。`StrongShapeDefinitionV1` 复用 M23-3 的 semantic-id/definition-plan/symbol product。每项 layout/scan/descriptor引用 foundation中的既有 key；definition必须在 provider strong production中有唯一primary atom。
 
@@ -1068,9 +1072,9 @@ ExternalShapeLinkImportV1 {
 
 `ShapeLinkContractV1`精确分为七个variant：`CallableAbi { canonical_signature, calling_convention, protocol }`、`Layout { record }`、`Scan { layout, role, canonical_scan }`、`Type { descriptor_projection }`、`Dispatch { table_projection }`、`StaticStorage { storage_projection }`、`Initialization { unit_projection }`，tag按此顺序为1～7。subject1～5分别只能匹配contract1～5；subject6复用Type、7/8复用StaticStorage、9/10复用Initialization。
 
-Layout/Type/Dispatch分别复用6.1/7.1的canonical semantic record，去掉definition/registration的后置digest槽；Scan保存完整scan tree而非仅digest；storage/unit projection逐字段复用strong-production/10对应semantic plan，不包含member/range或后置object/registration digest。它们不是任意bytes，reader按subject取得provider同一plan并逐字段比较。required definition由subject和owner重算，provider必须真实Strong定义它，consumer defined-symbol set必须不包含它。
+Layout/Type/Dispatch分别复用6.1/7.1的canonical semantic record，去掉definition/registration的后置digest槽；Scan保存完整scan tree而非仅digest；storage/unit projection逐字段复用strong-production/12对应semantic plan，不包含member/range或后置object/registration digest。它们不是任意bytes，reader按subject取得provider同一plan并逐字段比较。required definition由subject和owner重算，provider必须真实Strong定义它，consumer defined-symbol set必须不包含它。
 
-新projection保留原字段编号：Layout恰为exact-layout record的fields1～6，Type恰为exact-descriptor的fields1～8，Dispatch恰为exact-dispatch的fields1～4；三者分别排除field7、fields9～10与field5的definition/registration后置槽。StaticStorage恰为strong-production static record的fields1～10（storage、symbol、layout、scan id、完整scan、scan kind、logical size、allocation extent、alignment、initial state）；Initialization恰为unit record的fields1～8（unit、diagnostic path、schedule、storage、failure root、initializer、ensure、ordered dependencies）。这些语义字段均不含后置digest，已有initial-state、schedule及V2 dependency的wire保持不变；typed dependency 关系仍在 provider 同一 strong-production/10 计划中保存，并通过真实 unit 声明解析。每个projection复用完整record的同一字段编码和逐字段重放，只改变新product的字段数，不改变旧完整record bytes。
+新projection保留原字段编号：Layout恰为exact-layout record的fields1～6，Type恰为exact-descriptor的fields1～8，Dispatch恰为exact-dispatch的fields1～4；三者分别排除field7、fields9～10与field5的definition/registration后置槽。StaticStorage恰为strong-production static record的fields1～10与32（storage、symbol、layout、scan id、完整scan、scan kind、logical size、allocation extent、alignment、initial state，以及实际layout provider）；Initialization恰为unit record的fields1～8（unit、diagnostic path、schedule、storage、failure root、initializer、ensure、ordered dependencies）。这些语义字段均不含后置digest，已有initial-state、schedule及V2 dependency的wire保持不变；typed dependency 关系仍在 provider 同一 strong-production/12 计划中保存，并通过真实 unit 声明解析。每个projection复用完整record的对应字段编码。static-storage的完整record与projection同步新增field32，旧格式产物重建。
 
 七种contract的新wire均使用field0保存tag：CallableAbi为`{0:1,1:canonical_signature,2:calling_convention,3:protocol}`，Scan为`{0:3,1:layout,2:role,3:canonical_scan}`，其余五种为`{0:tag,1:对应typed projection}`。import的五字段依次为provider、subject、expected symbol、required definition、contract；canonical数组按provider与subject的组合canonical bytes严格递增，不合并重复项。provider查询先复用subject的唯一Strong definition/primary/symbol规则，再与同provider的实际Strong production及完整semantic records核对。storage/unit查询协议只返回候选semantic plan：共有reader封闭持有具体查询实现，直接关联同一MIR导出、selected object/unit与Strong计划，不接受调用方来源工厂；import重放再将候选与provider实际unit及其storage/failure root逐字段join。该查询没有独立来源资格，逐次源用途及完整object使用覆盖仍由包含它的最终section负责证明，候选本身不授予机器import或selected资格。读取边界按实际 provider 的 ABI/layout/scan/TD/dispatch 记录建立并核对 contract，完成后结果保存选中合同的完整 typed 数据；后续查询复用该结果，不再将相同不可变记录重新绑定或检查整表。
 
@@ -1132,6 +1136,8 @@ target表示上限由LIR报告明确target/layout错误；内部array count、si
 
 每条编译错误规则都有独立negative fixture并断言span/message，不以单一“大型失败程序”覆盖全部规则。既有普通 callable fixture 与新增 nominal/member fixture 一同覆盖共有查询，包含 direct member 同时参与 dispatch 的组合；不得以历史分区限制合法调用。
 
+初始化运行验收使用实际编译的 core、provider、consumer 和下游产物，在隐藏上游源码后消费。修改并重建 core 的初始化循环函数，检查单例引用复用、传入的 String 循环信息、异常失败缓存和重复读取（按既有 throw 的 payload 复制规则，断言初始化次数与异常内容，不要求多次 catch 的指针相等）；组合场景包含外来值装箱、interface/default 调用及 ZST 字段。单 image 运行 harness 从实际 registration 记录取得静态 storage 与 scan 符号并登记 GC 根，使用产物中的真实初始化 descriptor 与 ensure 调用，在普通和移动 GC 模式运行。该验收不新增多 image 启动或 artifact-only program-link 能力。
+
 ### 13.2 表示、GC与address测试
 
 - Unit、空struct、全ZSTtuple/struct为0/正alignment；不同exact ZST有不同identity/TD。内部typed case覆盖alignment>1及超过target上限。
@@ -1149,7 +1155,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 
 ### 13.3 wire、object、cache与健壮性
 
-- 四条新增 capability、strong-production/10 和新 profile fixed vectors；覆盖 empty/nonempty、unknown required、错 purpose 与旧 profile 拒绝。M23-2 foundation/extern/callback 及 persistent identity vectors 保持；按清理设计退役 HIR 协议定义和 strong production 的旧格式，并更新对应 vectors。共有 metadata 覆盖缺失、额外、重复、错 origin、错 access/receiver、错实际 use、错 provider 与跨表不一致，并通过仅 artifact bytes 的 prebuilt/cache 路径重放。V2 ordinary parent、itable key、dispatch target 的正反例经过真实 strong production wire round-trip；内部 constituent 测试不能代替完整 profile。
+- 四条新增 capability、strong-production/12 和新 profile fixed vectors；覆盖 empty/nonempty、unknown required、错 purpose 与旧 profile 拒绝。M23-2 foundation/extern/callback 及 persistent identity vectors 保持；按清理设计退役 HIR 协议定义和 strong production 的旧格式，并更新对应 vectors。共有 metadata 覆盖缺失、额外、重复、错 origin、错 access/receiver、错实际 use、错 provider 与跨表不一致，并通过仅 artifact bytes 的 prebuilt/cache 路径重放。V2 ordinary parent、itable key、dispatch target 的正反例经过真实 strong production wire round-trip；内部 constituent 测试不能代替完整 profile。
 - 每个record去掉/增加/错tag/错kind/错owner/乱序/重复逐项拒绝；reader独立重放字段layout、scan、ABI和source-root obligation。
 - scan/type-name 共享 DAG 正常处理；cycle、实际范围越界和长度溢出拒绝。合法递归 ref class 成功，by-value 环失败。删除仅验证预算与重复证明的测试。
 - 别名/re-export spelling改变不改变exact TD name/ABI；改变base prefix、ZST exact identity、slot contract或scan offset改变对应fingerprint。
@@ -1185,5 +1191,5 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 - 每个合法source subject在定义Cone拥有完整有限shape-support；consumer只引用external typed definition，全部ODR生产继续拒绝。
 - ZST logical semantics、typed ABI、place/static token、box/array/Ptr/C边界及scan/TD矩阵全部锁定；codegen/runtime不再从size0或空LLVM struct猜语义。
 - nonzero box、indirect aggregate和跨Conefield的managed provenance/root/relocation完整；不存在握手后才登记root或从旧ref副本复制的路径。
-- 新required section/profile、strong-production/10的完整foreign TD/dispatch引用、fingerprint/cache迁移和共有 Link requirement 与完整 object coverage 落地；既有 identity、extern/callback 契约保持，退出的专用 capability/字段按补充设计显式迁移。
+- 新required section/profile、strong-production/12的完整foreign TD/dispatch引用、fingerprint/cache迁移和共有 Link requirement 与完整 object coverage 落地；既有 identity、extern/callback 契约保持，退出的专用 capability/字段按补充设计显式迁移。
 - 独立、组合、negative、各stage golden与corruption/determinism回归通过；文档明确M23-7/8/9/10/11交接，真实多Conemoving-GC不被提前宣称完成。

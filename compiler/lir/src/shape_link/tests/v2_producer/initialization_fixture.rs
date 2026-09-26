@@ -108,7 +108,8 @@ fn storage_global(identity: StaticStorageIdentity, exact: PersistentExactTypeId)
         init: GlobalInit::Storage {
             identity,
             layout: LayoutIdentity::managed_value(exact, TARGET, MaterializationRoot::cone_owned())
-                .unwrap(),
+                .unwrap()
+                .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,

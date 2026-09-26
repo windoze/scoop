@@ -86,7 +86,7 @@ fn initialization_display_name_survives_lir_lowering() {
     let failure_global = source.globals.alloc(mir::Global {
         name: "$init.failure".to_string(),
         storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(persistent_unit),
-        ty: mir::Type::String,
+        ty: mir::Type::Any,
         mutable: true,
         storage: mir::GlobalStorage::Managed {
             initial_state: mir::MirStaticInitialState::ZeroedForRuntimeUnit,
@@ -138,12 +138,16 @@ fn initialization_display_name_survives_lir_lowering() {
         .unwrap()
     );
     assert_eq!(
-        storage_layout.layout_record().key().representation(),
+        storage_layout.layout_key().representation(),
         scoop_identity::RepresentationRole::ManagedValue
     );
+    let lir::StaticStorageLayout::External(unit_layout) = storage_layout else {
+        panic!("Unit storage keeps its dependency layout");
+    };
+    assert_eq!(unit_layout.value().storage().byte_size(), 0);
     assert_eq!(
-        storage_layout.scan_record().key().layout(),
-        storage_layout.layout_record().id()
+        unit_layout.identity().physical_definition().provider(),
+        ConeIdentity::CORE
     );
     let lir::GlobalInit::Storage {
         identity: failure_identity,
@@ -162,12 +166,16 @@ fn initialization_display_name_survives_lir_lowering() {
         .unwrap()
     );
     assert_eq!(
-        failure_layout.layout_record().key().representation(),
+        failure_layout.layout_key().representation(),
         scoop_identity::RepresentationRole::ManagedValue
     );
+    let lir::StaticStorageLayout::External(any_layout) = failure_layout else {
+        panic!("the failure root keeps its dependency layout");
+    };
+    assert_eq!(any_layout.value().storage().byte_size(), 8);
     assert_eq!(
-        failure_layout.scan_record().key().layout(),
-        failure_layout.layout_record().id()
+        any_layout.identity().physical_definition().provider(),
+        ConeIdentity::CORE
     );
     let gateway_body =
         lir::CallableBodyIdentity::for_initialization_startup_gateway(expected_unit_identity.id())

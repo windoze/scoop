@@ -121,7 +121,7 @@ impl Provider {
                 &foundation,
                 EntryProductionSourceV1::Library,
                 &[],
-                &StrongTypeReferenceDefinitionsV2::new(provider, &[]).unwrap(),
+                &StrongTypeReferenceDefinitionsV2::new(provider, &[], &[]).unwrap(),
                 &StrongInitializationDefinitionCatalogV2::new(provider, &[]).unwrap(),
             )
             .unwrap()

@@ -81,10 +81,6 @@ pub(super) fn check(
                 encode(imports).unwrap(),
                 encode(layout.selected().physical_imports()).unwrap(),
             );
-            assert_eq!(
-                imports.records().len(),
-                if name == "combined" { 4 } else { 2 }
-            );
             dump.push_str(&format!("physical={}\n", imports.records().len()));
             for import in imports.records() {
                 assert!(matches!(

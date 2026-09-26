@@ -11,20 +11,17 @@ impl DecodedStrongDigestFinalizationPlanV1 {
     pub fn resolve_foundation(
         self,
         foundation: &crate::OdrFreeLirFoundation,
+        dependencies: &crate::StrongTypeReferenceDefinitionsV2,
     ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestPlanReplayError> {
-        let mut edges = 0_u64;
-        let mut patches = 0_u64;
-        for node in &self.nodes {
-            edges = edges.saturating_add(node.direct_inputs.len() as u64);
-            patches = patches.saturating_add(node.patch_intents.len() as u64);
-        }
-
-        self.validate_resolved(&mut Foundation(foundation), foundation)
+        self.validate_resolved(&mut Foundation(foundation, dependencies), foundation)
             .map_err(StrongDigestPlanReplayError::Validation)
     }
 }
 
-struct Foundation<'a>(&'a crate::OdrFreeLirFoundation);
+struct Foundation<'a>(
+    &'a crate::OdrFreeLirFoundation,
+    &'a crate::StrongTypeReferenceDefinitionsV2,
+);
 macro_rules! resolve_record {
     ($id:ty, $records:ident) => {
         impl PersistentIdResolver<$id> for Foundation<'_> {
@@ -44,8 +41,54 @@ macro_rules! resolve_record {
     };
 }
 resolve_record!(PersistentCallableBodyId, callable_bodies);
-resolve_record!(PersistentLayoutId, layouts);
-resolve_record!(PersistentScanId, scans);
+impl PersistentIdResolver<PersistentLayoutId> for Foundation<'_> {
+    type Error = IdentityReferenceError;
+    fn resolve(
+        &mut self,
+        decoded: DecodedPersistentId<PersistentLayoutId>,
+    ) -> Result<PersistentLayoutId, Self::Error> {
+        self.0
+            .layouts()
+            .iter()
+            .map(|record| record.id())
+            .chain(
+                self.1
+                    .layouts()
+                    .iter()
+                    .flat_map(|table| table.records())
+                    .map(|record| record.identity().layout()),
+            )
+            .find(|id| id.as_array() == decoded.as_array())
+            .ok_or(IdentityReferenceError::Missing {
+                kind: "PersistentLayoutId",
+                id: *decoded.as_array(),
+            })
+    }
+}
+impl PersistentIdResolver<PersistentScanId> for Foundation<'_> {
+    type Error = IdentityReferenceError;
+    fn resolve(
+        &mut self,
+        decoded: DecodedPersistentId<PersistentScanId>,
+    ) -> Result<PersistentScanId, Self::Error> {
+        self.0
+            .scans()
+            .iter()
+            .map(|record| record.id())
+            .chain(
+                self.1
+                    .layouts()
+                    .iter()
+                    .flat_map(|table| table.records())
+                    .map(|record| record.scan()),
+            )
+            .find(|id| id.as_array() == decoded.as_array())
+            .ok_or(IdentityReferenceError::Missing {
+                kind: "PersistentScanId",
+                id: *decoded.as_array(),
+            })
+    }
+}
 resolve_record!(ObjectDefinitionAtomId, definition_atoms);
 resolve_record!(PersistentSafepointSiteId, safepoint_sites);
 resolve_record!(ObjectDefinitionPlanId, definition_plans);

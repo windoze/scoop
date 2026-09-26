@@ -100,6 +100,7 @@ pub(super) fn check<'a, 'p>(
         },
         &decoded,
         &[provider.layout],
+        registration.static_storage_registrations().registrations(),
     )
     .unwrap();
     let production = registration.validate_layout_abi(&section).unwrap();

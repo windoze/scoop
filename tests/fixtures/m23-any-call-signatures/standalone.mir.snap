@@ -4,14 +4,14 @@ Module
   init0 top-level:localValue eager global0 initializer=@fn1 ensure=@fn2 failure=1 deps=[]
   fun outside @fn0(value: Any) -> Any
     bb0 entry
-      call initial: Int = external1 direct
+      call initial: Int = external0 direct
       val $dependency.argument.0: Any
         Type Any
         Local value
       val $dependency.parameter.value: Any
         Type Any
         Local $dependency.argument.0
-      call $call.1: Any = external2 direct
+      call $call.1: Any = external1 direct
         Type Any
         Local $dependency.parameter.value
       return
@@ -19,7 +19,7 @@ Module
         Local $call.1
   fun $init$body$0 @fn1() -> Unit
     bb0 entry
-      call $call.1: Int = external1 direct
+      call $call.1: Int = external0 direct
       global_assign localValue
         Type Int
         Local $call.1
@@ -75,24 +75,24 @@ Module
         InitializationUnitAddress init0 top-level:localValue
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:localValue
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -116,7 +116,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:localValue
-      call external0 direct
+      call external2 direct
         Type String
         Local $init.message
       unreachable

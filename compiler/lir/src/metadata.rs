@@ -3,7 +3,9 @@ use std::num::NonZeroU64;
 use super::*;
 
 mod arrays;
+mod static_storage;
 pub use arrays::ArrayLayoutV1;
+pub use static_storage::StaticStorageLayout;
 
 #[derive(Debug)]
 pub struct StructDef {
@@ -631,7 +633,7 @@ pub struct LayoutIdentity {
 }
 
 impl LayoutIdentity {
-    fn new(
+    pub(crate) fn new(
         exact_type: scoop_identity::PersistentExactTypeId,
         target_profile: LirTargetProfile,
         representation: scoop_identity::RepresentationRole,
@@ -1398,7 +1400,7 @@ pub enum GlobalInit {
         /// Canonical value layout and scan identities for this storage.
         /// Registration production consumes these identities directly and
         /// never reconstructs them from the lowered type or arena position.
-        layout: LayoutIdentity,
+        layout: StaticStorageLayout,
         ty: LirType,
         initial_state: LirStaticInitialState,
         thread_local: bool,

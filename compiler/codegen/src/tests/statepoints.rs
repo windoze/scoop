@@ -47,7 +47,8 @@ fn low_level_codegen_does_not_emit_legacy_image_tables() {
             layout: layout_identity(
                 "managedGlobal",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),
@@ -83,7 +84,8 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
             layout: layout_identity(
                 "managedTls",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),

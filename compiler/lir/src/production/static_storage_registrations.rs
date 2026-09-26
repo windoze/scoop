@@ -11,7 +11,7 @@ pub use scoop_identity::{PersistentScanId, PersistentStaticStorageId};
 
 use crate::{
     BackendScalarKind, EnumRepr, GlobalInit, LirConstantImage, LirStaticInitialState,
-    LirTargetProfile, LirType, PointerKind, RefScan,
+    LirTargetProfile, LirType, PointerKind, RefScan, StaticStorageLayout,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -96,8 +96,8 @@ impl StrongStaticStorageInitialStatePlanV1 {
 pub struct StrongStaticStorageSemanticPlanV1 {
     storage: PersistentStaticStorageId,
     symbol: PersistentSymbolRequest,
-    layout: PersistentLayoutId,
-    scan: PersistentScanId,
+    layout: StaticStorageLayout,
+    layout_provider: ConeIdentity,
     scan_program: RefScan,
     scan_kind: StaticStorageScanKindV1,
     byte_size: u64,
@@ -111,8 +111,8 @@ impl StrongStaticStorageSemanticPlanV1 {
     pub(crate) fn from_artifact(
         storage: PersistentStaticStorageId,
         symbol: PersistentSymbolRequest,
-        layout: PersistentLayoutId,
-        scan: PersistentScanId,
+        layout: StaticStorageLayout,
+        layout_provider: ConeIdentity,
         scan_program: RefScan,
         scan_kind: StaticStorageScanKindV1,
         byte_size: u64,
@@ -124,7 +124,7 @@ impl StrongStaticStorageSemanticPlanV1 {
             storage,
             symbol,
             layout,
-            scan,
+            layout_provider,
             scan_program,
             scan_kind,
             byte_size,
@@ -142,12 +142,20 @@ impl StrongStaticStorageSemanticPlanV1 {
         self.symbol
     }
 
-    pub const fn layout(&self) -> PersistentLayoutId {
-        self.layout
+    pub fn layout(&self) -> PersistentLayoutId {
+        self.layout.layout()
     }
 
-    pub const fn scan(&self) -> PersistentScanId {
-        self.scan
+    pub fn scan(&self) -> PersistentScanId {
+        self.layout.scan()
+    }
+
+    pub const fn layout_provider(&self) -> ConeIdentity {
+        self.layout_provider
+    }
+
+    pub const fn value_layout(&self) -> &StaticStorageLayout {
+        &self.layout
     }
 
     pub const fn scan_program(&self) -> &RefScan {
@@ -238,7 +246,7 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     actual: identity.symbol_request().linkage(),
                 });
             }
-            let layout_key = layout.layout_record().key();
+            let layout_key = layout.layout_key();
             if layout_key.target_profile() != &target.wire_id() {
                 return Err(StrongStaticStorageSemanticPlanBuildError::LayoutTarget { storage });
             }
@@ -250,9 +258,9 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     },
                 );
             }
-            let scan_key = layout.scan_record().key();
-            if scan_key.layout() != layout.layout_record().id()
-                || scan_key.role() != ScanRole::InlineValue
+            if let StaticStorageLayout::Local(identity) = layout
+                && (identity.scan_record().key().layout() != layout.layout()
+                    || identity.scan_record().key().role() != ScanRole::InlineValue)
             {
                 return Err(StrongStaticStorageSemanticPlanBuildError::ScanIdentity { storage });
             }
@@ -270,6 +278,11 @@ impl StrongStaticStorageSemanticPlanSetV1 {
                     actual: global.scan.clone(),
                     expected: expected_scan,
                 });
+            }
+            if !layout.matches_value(byte_size, required_alignment, &global.scan) {
+                return Err(
+                    StrongStaticStorageSemanticPlanBuildError::DependencyLayout { storage },
+                );
             }
             validate_static_scan(storage, target, byte_size, &global.scan)?;
             let scan_kind = if global.scan.contains_reference() {
@@ -333,8 +346,8 @@ impl StrongStaticStorageSemanticPlanSetV1 {
             let plan = StrongStaticStorageSemanticPlanV1 {
                 storage,
                 symbol: identity.symbol_request(),
-                layout: layout.layout_record().id(),
-                scan: layout.scan_record().id(),
+                layout: layout.clone(),
+                layout_provider: layout.provider(producer),
                 scan_program: global.scan.clone(),
                 scan_kind,
                 byte_size,
@@ -781,6 +794,9 @@ pub enum StrongStaticStorageSemanticPlanBuildError {
     Linkage {
         storage: PersistentStaticStorageId,
         actual: LinkageClass,
+    },
+    DependencyLayout {
+        storage: PersistentStaticStorageId,
     },
     LayoutTarget {
         storage: PersistentStaticStorageId,

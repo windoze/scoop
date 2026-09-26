@@ -10,24 +10,28 @@ pub(super) struct GlobalLoweringInputs<'a> {
     pub(super) context: &'a LoweringContext,
     pub(super) identity_roots: &'a IdentityRoots<'a>,
     pub(super) module: &'a mir::Module,
+    pub(super) selected_layout: Option<&'a lir::StrongProductionDependencySelectionV2<'a>>,
     pub(super) structs: &'a lir::StructDefs,
     pub(super) enums: &'a lir::EnumDefs,
     pub(super) string_globals: &'a HashMap<mir::StringConstId, lir::GlobalId>,
     pub(super) native_externals: &'a lir::NativeExternalMetadata,
 }
 
+pub(super) struct LoweredGlobals {
+    pub(super) storage: HashMap<mir::GlobalId, StorageGlobal>,
+    pub(super) native: Arena<lir::NativeGlobal>,
+    pub(super) bridges: lir::NativeGlobalBridges,
+}
+
 pub(super) fn lower_globals(
     inputs: GlobalLoweringInputs<'_>,
     globals: &mut Arena<lir::Global>,
-) -> StorageResult<(
-    HashMap<mir::GlobalId, StorageGlobal>,
-    Arena<lir::NativeGlobal>,
-    lir::NativeGlobalBridges,
-)> {
+) -> Result<LoweredGlobals, StrongLirLoweringError> {
     let GlobalLoweringInputs {
         context,
         identity_roots,
         module,
+        selected_layout,
         structs,
         enums,
         string_globals,
@@ -50,12 +54,13 @@ pub(super) fn lower_globals(
                             enums,
                             global,
                         )?,
-                        layout: static_storage_layout_identity(
+                        layout: static_storage_layout(
                             context,
-                            identity_roots,
+                            identity_roots.for_static_storage(global.storage_owner),
                             module,
-                            global,
-                        ),
+                            &global.ty,
+                            selected_layout,
+                        )?,
                         ty: lir_type(&global.ty),
                         initial_state: lower_static_initial_state(
                             initial_state,
@@ -82,12 +87,13 @@ pub(super) fn lower_globals(
                             enums,
                             global,
                         )?,
-                        layout: static_storage_layout_identity(
+                        layout: static_storage_layout(
                             context,
-                            identity_roots,
+                            identity_roots.for_static_storage(global.storage_owner),
                             module,
-                            global,
-                        ),
+                            &global.ty,
+                            selected_layout,
+                        )?,
                         ty: lir_type(&global.ty),
                         initial_state: lower_static_initial_state(
                             initial_state,
@@ -149,7 +155,11 @@ pub(super) fn lower_globals(
         };
         map.insert(id, storage);
     }
-    Ok((map, native, bridges))
+    Ok(LoweredGlobals {
+        storage: map,
+        native,
+        bridges,
+    })
 }
 
 fn static_storage_identity(
@@ -185,35 +195,64 @@ fn static_storage_identity(
     Ok(identity.expect("validated static storage owner must derive a persistent identity"))
 }
 
-fn static_storage_layout_identity(
+pub(super) fn static_storage_layout(
     context: &LoweringContext,
-    identity_roots: &IdentityRoots<'_>,
+    root: lir::MaterializationRoot,
     module: &mir::Module,
-    global: &mir::Global,
-) -> lir::LayoutIdentity {
-    let exact_type = exact_type_record(module, &global.ty).id();
+    ty: &mir::Type,
+    selected: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
+) -> Result<lir::StaticStorageLayout, StrongLirLoweringError> {
+    use scoop_identity::RepresentationRole;
+    let exact = exact_type_record(module, ty).id();
     let target = context.target_profile();
-    let root = identity_roots.for_static_storage(global.storage_owner);
-    let identity = match &global.ty {
-        mir::Type::Struct(id) => {
-            let mir::StructRepresentation::Declared { c_layout, .. } =
-                &module.structs[*id].representation
-            else {
-                return lir::LayoutIdentity::managed_value(exact_type, target, root)
-                    .expect("validated storage type must derive a layout identity");
-            };
-            if c_layout.is_some() {
-                lir::LayoutIdentity::c_value(exact_type, target, root)
-            } else {
-                lir::LayoutIdentity::managed_value(exact_type, target, root)
-            }
+    let role = match ty {
+        mir::Type::Struct(id)
+            if matches!(
+                &module.structs[*id].representation,
+                mir::StructRepresentation::Declared {
+                    c_layout: Some(_),
+                    ..
+                }
+            ) =>
+        {
+            RepresentationRole::CValue
         }
-        mir::Type::FunPtr(_) => {
-            lir::LayoutIdentity::native_function_pointer(exact_type, target, root)
-        }
-        _ => lir::LayoutIdentity::managed_value(exact_type, target, root),
+        mir::Type::FunPtr(_) => RepresentationRole::NativeFunctionPointer,
+        _ => RepresentationRole::ManagedValue,
     };
-    identity.expect("validated storage type must derive a layout identity")
+    if let Some(source) = module.meta.source_exact_types.get(ty)
+        && let mir::SourceExactTypeOwner::Cone(provider) = source.owner()
+        && provider != module.cone
+    {
+        let selected = selected
+            .ok_or(StrongLirLoweringError::MissingDependencyLayoutSelection { provider, exact })?;
+        let layout = scoop_identity::PersistentLayoutId::from_key(&scoop_identity::LayoutKey::new(
+            exact,
+            target.wire_id(),
+            role,
+        ))
+        .expect("a typed value layout key is encodable");
+        let value = match selected
+            .semantic_record(provider, lir::LayoutAbiSemanticTargetV1::Layout(layout))
+        {
+            Some(lir::LayoutAbiSemanticRecordV1::Layout(record)) => record.value_handle(),
+            _ => None,
+        }
+        .ok_or(StrongLirLoweringError::MissingDependencyValueLayout { provider, layout })?;
+        return Ok(lir::StaticStorageLayout::External(value));
+    }
+    let identity = match role {
+        RepresentationRole::CValue => lir::LayoutIdentity::c_value(exact, target, root),
+        RepresentationRole::NativeFunctionPointer => {
+            lir::LayoutIdentity::native_function_pointer(exact, target, root)
+        }
+        RepresentationRole::ManagedValue => lir::LayoutIdentity::managed_value(exact, target, root),
+        RepresentationRole::ManagedObject => {
+            unreachable!("static storage always has a value representation")
+        }
+    }
+    .expect("a typed storage value derives a layout identity");
+    Ok(identity.into())
 }
 
 pub(super) fn lower_static_initial_state(

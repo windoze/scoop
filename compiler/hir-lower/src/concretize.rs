@@ -378,6 +378,7 @@ impl<'a> Concretizer<'a> {
 
     fn run_with_entry(self, entry: export::FunctionId) -> (concrete::Module, concrete::FunctionId) {
         self.run_with(|concretizer| {
+            concretizer.intern_type(concrete::TypeKind::Any, false);
             concretizer.function_by_key[&FunctionKey::Free {
                 source: entry,
                 arguments: Vec::new(),
@@ -385,7 +386,10 @@ impl<'a> Concretizer<'a> {
         })
     }
 
-    fn run_with<Extra>(mut self, finish: impl FnOnce(&Self) -> Extra) -> (concrete::Module, Extra) {
+    fn run_with<Extra>(
+        mut self,
+        finish: impl FnOnce(&mut Self) -> Extra,
+    ) -> (concrete::Module, Extra) {
         let unit = self.lower_type(self.source.unit, &[]);
         match self.core {
             export::CoreProtocols::Defined(protocols) => {
@@ -480,14 +484,15 @@ impl<'a> Concretizer<'a> {
             }
         };
         self.finish_initialization_units();
-        if self.source.cone
-            == scoop_identity::CoreBuiltinNominal::Any
-                .declaration_key()
-                .origin()
+        if !self.initialization_units.is_empty()
+            || self.source.cone
+                == scoop_identity::CoreBuiltinNominal::Any
+                    .declaration_key()
+                    .origin()
         {
             self.intern_type(concrete::TypeKind::Any, false);
         }
-        let extra = finish(&self);
+        let extra = finish(&mut self);
         let core_types = match &core_protocols {
             concrete::ConcreteCoreProtocols::Defined(protocols) => {
                 concrete::ConcreteCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)

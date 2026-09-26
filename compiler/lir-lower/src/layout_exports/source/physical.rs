@@ -66,6 +66,25 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
         }
     }
 
+    for (_, global) in module.globals.iter() {
+        if let lir::GlobalInit::Storage {
+            layout: lir::StaticStorageLayout::External(value),
+            ..
+        } = &global.init
+        {
+            let scan = value.scan_definition();
+            push(
+                &mut imports,
+                RequiredImport {
+                    provider: scan.provider(),
+                    subject: scan.subject(),
+                    symbol: scan.symbol(),
+                    definition: scan.definition(),
+                },
+            )?;
+        }
+    }
+
     for (_, callable) in module.meta.external_callables.iter() {
         if callable.origin() == lir::ExternalCallableOrigin::LayoutV1 {
             push(

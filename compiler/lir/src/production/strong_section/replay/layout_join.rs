@@ -49,6 +49,10 @@ pub enum StrongProductionLayoutJoinError {
     MissingCallableProduction(StrongCallableDefinitionOwner),
     CallableProduction(StrongCallableDefinitionOwner),
     ShapeSupportProduction(PersistentTypeId),
+    StaticStorageLayout {
+        provider: ConeIdentity,
+        layout: PersistentLayoutId,
+    },
     MissingSelectedDescriptor {
         provider: ConeIdentity,
         exact: PersistentExactTypeId,

@@ -93,7 +93,7 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
         &self.physical
     }
 
-    pub(crate) fn semantic_record(
+    pub fn semantic_record(
         &self,
         provider: ConeIdentity,
         target: super::LayoutAbiSemanticTargetV1,

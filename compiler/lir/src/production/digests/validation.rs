@@ -181,8 +181,9 @@ fn validate_owner(
 ) -> Result<(), DigestPlanError> {
     let known = match node.key().owner_and_role() {
         DigestOwnerAndRoleKey::SourceSignature(id) => foundation.contains_callable_body(id),
-        DigestOwnerAndRoleKey::Layout(id) => foundation.contains_layout(id),
-        DigestOwnerAndRoleKey::Scan(id) => foundation.contains_scan(id),
+        // Layout and scan ids are resolved typed references. Their definitions
+        // may belong to a dependency; only physical patch targets must be local.
+        DigestOwnerAndRoleKey::Layout(_) | DigestOwnerAndRoleKey::Scan(_) => true,
         DigestOwnerAndRoleKey::LirDefinition(id)
         | DigestOwnerAndRoleKey::ObjectSupport(id)
         | DigestOwnerAndRoleKey::ObjectDefinition(id) => foundation

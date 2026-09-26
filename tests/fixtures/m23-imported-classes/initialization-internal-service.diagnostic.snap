@@ -1,0 +1,3 @@
+span=71..102
+expression=__scoopThrowInitializationCycle
+unknown function `__scoopThrowInitializationCycle`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

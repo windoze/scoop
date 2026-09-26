@@ -38,7 +38,8 @@ pub(super) fn catalog(
         .into_iter()
         .map(physical_definition)
         .collect::<Vec<_>>();
-    crate::StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &definitions).unwrap()
+    crate::StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &definitions, &[])
+        .unwrap()
 }
 
 fn physical_definition(subject: Subject) -> StrongShapeDefinitionRefV1 {

@@ -18,7 +18,8 @@ fn strong_codegen_rejects_odr_storage_instead_of_emitting_weak_definitions() {
                 layout: layout_identity(
                     "storageGlobal",
                     scoop_identity::RepresentationRole::ManagedValue,
-                ),
+                )
+                .into(),
                 ty: LirType::I64,
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
@@ -53,7 +54,8 @@ fn zero_sized_storage_uses_one_addressable_byte() {
             layout: layout_identity(
                 "zeroSizedStorage",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: LirType::Aggregate(Vec::new()),
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -83,7 +85,8 @@ fn encoded_storage_is_forced_out_of_the_common_section() {
             layout: layout_identity(
                 "encodedZeroStorage",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
@@ -113,7 +116,8 @@ fn unsealed_initialization_units_have_no_codegen_path() {
             layout: layout_identity(
                 "initStorage",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -127,7 +131,8 @@ fn unsealed_initialization_units_have_no_codegen_path() {
             layout: layout_identity(
                 "initFailure",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -174,7 +179,8 @@ fn initialization_values_follow_typed_unit_ids_in_lir_arena_order() {
             layout: layout_identity(
                 "mappingStorage",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: LirType::I64,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -188,7 +194,8 @@ fn initialization_values_follow_typed_unit_ids_in_lir_arena_order() {
             layout: layout_identity(
                 "mappingFailure",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,
@@ -236,7 +243,8 @@ fn storage_global_rejects_machine_scalar_type() {
             layout: layout_identity(
                 "machineGlobal",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: LirType::MachineScalar(MachineScalarKind::InitializationOutcome),
             initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,

@@ -1,8 +1,10 @@
 use super::*;
 
 mod builder;
+mod lowering;
 
 pub(super) use builder::{Builder, test_exact_type};
+pub(super) use lowering::lower_test_input;
 
 pub(super) const INT: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
 pub(super) const LONG: mir::Type = mir::Type::Integer(mir::IntegerKind::SIGNED_64);

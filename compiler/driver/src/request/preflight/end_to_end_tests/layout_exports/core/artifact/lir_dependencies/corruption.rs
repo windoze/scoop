@@ -22,7 +22,7 @@ pub(super) fn check(
     let resolve = |candidate: &[_]| wire::resolve(layout, candidate, input.identities);
     let replay = |candidate: &lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
                   dependencies: &[_]| {
-        scoop_slib::replay_shared_lir_dependency_graph(metadata, candidate, dependencies)
+        scoop_slib::replay_shared_lir_dependency_graph(metadata, candidate, dependencies, &[])
     };
     let resolved = resolve(&expected).unwrap();
     replay(&resolved, &[core.exports()]).unwrap();
@@ -96,7 +96,8 @@ pub(super) fn check(
         scoop_slib::replay_shared_lir_dependency_graph(
             wrong_provider,
             &resolved,
-            &[core.exports()]
+            &[core.exports()],
+            &[]
         ),
         Err(Error::InputProvider { .. })
     ));
@@ -129,6 +130,6 @@ fn missing_occurrences(
         ..metadata
     };
     assert!(
-        matches!(scoop_slib::replay_shared_lir_dependency_graph(metadata, layout, &[core]), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
+        matches!(scoop_slib::replay_shared_lir_dependency_graph(metadata, layout, &[core], &[]), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
     );
 }

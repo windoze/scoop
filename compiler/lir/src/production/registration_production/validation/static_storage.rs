@@ -7,6 +7,7 @@ pub(super) fn validate_static_storages(
     target: LirTargetProfile,
     foundation: &OdrFreeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
+    dependencies: Option<&crate::StrongTypeReferenceDefinitionsV2>,
 ) -> Result<StrongStaticStorageSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     require_length(
         RegistrationProductionTableV1::StaticStorage,
@@ -27,20 +28,82 @@ pub(super) fn validate_static_storages(
             index,
             "storage",
         )?;
-        let layout = resolve_known(
-            decoded.layout,
-            foundation.layouts().iter().map(|record| record.id()),
-            RegistrationProductionTableV1::StaticStorage,
-            index,
-            "layout",
-        )?;
-        let layout_record = foundation
-            .layouts()
-            .iter()
-            .find(|record| record.id() == layout)
-            .expect("the layout was resolved from this table");
-        if layout_record.key().target_profile() != &target.wire_id()
-            || layout_record.key().representation() == RepresentationRole::ManagedObject
+        let layout = if decoded.layout_provider.as_array() == foundation.producer().as_array() {
+            let layout = resolve_known(
+                decoded.layout,
+                foundation.layouts().iter().map(|record| record.id()),
+                RegistrationProductionTableV1::StaticStorage,
+                index,
+                "layout",
+            )?;
+            let record = foundation
+                .layouts()
+                .iter()
+                .find(|record| record.id() == layout)
+                .expect("the layout was resolved from this table");
+            let key = record.key();
+            let scan = resolve_known(
+                decoded.scan,
+                foundation.scans().iter().map(|record| record.id()),
+                RegistrationProductionTableV1::StaticStorage,
+                index,
+                "scan",
+            )?;
+            let scan_record = foundation
+                .scans()
+                .iter()
+                .find(|record| record.id() == scan)
+                .expect("the scan was resolved from this table");
+            if scan_record.key().layout() != layout
+                || scan_record.key().role() != ScanRole::InlineValue
+            {
+                return Err(semantic_error(
+                    RegistrationProductionTableV1::StaticStorage,
+                    index,
+                    "scan_relation",
+                ));
+            }
+            crate::LayoutIdentity::new(
+                key.exact_type(),
+                target,
+                key.representation(),
+                ScanRole::InlineValue,
+                crate::MaterializationRoot::cone_owned(),
+            )
+            .map(crate::StaticStorageLayout::from)
+            .map_err(|_| {
+                semantic_error(
+                    RegistrationProductionTableV1::StaticStorage,
+                    index,
+                    "layout_relation",
+                )
+            })?
+        } else {
+            let value = dependencies
+                .and_then(|dependencies| {
+                    dependencies.resolve_value_layout(decoded.layout_provider, decoded.layout)
+                })
+                .ok_or_else(|| {
+                    semantic_error(
+                        RegistrationProductionTableV1::StaticStorage,
+                        index,
+                        "dependency_layout",
+                    )
+                })?;
+            if value.scan().as_array() != decoded.scan.as_array()
+                || foundation.contains_layout(value.identity().layout())
+            {
+                return Err(semantic_error(
+                    RegistrationProductionTableV1::StaticStorage,
+                    index,
+                    "scan_relation",
+                ));
+            }
+            crate::StaticStorageLayout::External(value)
+        };
+        if layout.layout_key().target_profile() != &target.wire_id()
+            || layout.layout_key().representation() == RepresentationRole::ManagedObject
+            || layout.layout().as_array() != decoded.layout.as_array()
         {
             return Err(semantic_error(
                 RegistrationProductionTableV1::StaticStorage,
@@ -48,26 +111,7 @@ pub(super) fn validate_static_storages(
                 "layout_relation",
             ));
         }
-        let scan = resolve_known(
-            decoded.scan,
-            foundation.scans().iter().map(|record| record.id()),
-            RegistrationProductionTableV1::StaticStorage,
-            index,
-            "scan",
-        )?;
-        let scan_record = foundation
-            .scans()
-            .iter()
-            .find(|record| record.id() == scan)
-            .expect("the scan was resolved from this table");
-        if scan_record.key().layout() != layout || scan_record.key().role() != ScanRole::InlineValue
-        {
-            return Err(semantic_error(
-                RegistrationProductionTableV1::StaticStorage,
-                index,
-                "scan_relation",
-            ));
-        }
+        let layout_provider = layout.provider(foundation.producer());
         if decoded.required_alignment == 0 || !decoded.required_alignment.is_power_of_two() {
             return Err(semantic_error(
                 RegistrationProductionTableV1::StaticStorage,
@@ -89,6 +133,13 @@ pub(super) fn validate_static_storages(
             target,
             index,
         )?;
+        if !layout.matches_value(decoded.byte_size, decoded.required_alignment, &scan_program) {
+            return Err(semantic_error(
+                RegistrationProductionTableV1::StaticStorage,
+                index,
+                "dependency_value",
+            ));
+        }
         let scan_kind = match decoded.scan_kind {
             0 if scan_program == RefScan::None => StaticStorageScanKindV1::None,
             1 if scan_program.contains_reference() => StaticStorageScanKindV1::Recursive,
@@ -122,7 +173,7 @@ pub(super) fn validate_static_storages(
             storage,
             symbol,
             layout,
-            scan,
+            layout_provider,
             scan_program,
             scan_kind,
             decoded.byte_size,

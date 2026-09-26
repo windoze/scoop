@@ -37,11 +37,6 @@ impl Lowerer {
             ty: throwable_carrier.clone(),
             mutable: false,
         });
-        let materialized = locals.alloc(mir::Local {
-            name: "$init.materialized".to_string(),
-            ty: throwable_carrier.clone(),
-            mutable: false,
-        });
         let failure = locals.alloc(mir::Local {
             name: "$init.failure".to_string(),
             ty: throwable_carrier.clone(),
@@ -89,22 +84,11 @@ impl Lowerer {
                     ty: Box::new(throwable_carrier.clone()),
                     body: vec![
                         statement(
-                            smir::StatementKind::ValDecl {
-                                local: materialized,
-                                init: runtime_call(
-                                    mir::RuntimeFn::MaterializeException,
-                                    vec![smir::Expr::local(caught, throwable_carrier.clone())],
-                                    throwable_carrier.clone(),
-                                ),
-                            },
-                            span,
-                        ),
-                        statement(
                             smir::StatementKind::Expr(runtime_call(
                                 mir::RuntimeFn::InitializationFail,
                                 vec![
                                     unit_address(unit),
-                                    smir::Expr::local(materialized, throwable_carrier.clone()),
+                                    smir::Expr::local(caught, throwable_carrier.clone()),
                                 ],
                                 mir::Type::Unit,
                             )),
@@ -112,7 +96,7 @@ impl Lowerer {
                         ),
                         statement(
                             smir::StatementKind::Throw(smir::Expr::local(
-                                materialized,
+                                caught,
                                 throwable_carrier.clone(),
                             )),
                             span,

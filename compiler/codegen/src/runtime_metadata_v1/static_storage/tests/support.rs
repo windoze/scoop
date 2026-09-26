@@ -86,7 +86,9 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                 .globals
                 .iter()
                 .filter_map(|(_, global)| match &global.init {
-                    GlobalInit::Storage { layout, .. } => Some(layout.layout_record().clone()),
+                    GlobalInit::Storage { layout, .. } => {
+                        Some(layout.local().unwrap().layout_record().clone())
+                    }
                     GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => None,
                 })
                 .collect(),
@@ -98,7 +100,9 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                 .globals
                 .iter()
                 .filter_map(|(_, global)| match &global.init {
-                    GlobalInit::Storage { layout, .. } => Some(layout.scan_record().clone()),
+                    GlobalInit::Storage { layout, .. } => {
+                        Some(layout.local().unwrap().scan_record().clone())
+                    }
                     GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => None,
                 })
                 .collect(),
@@ -479,7 +483,8 @@ fn storage_global(
                 LirTargetProfile::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
-            .unwrap(),
+            .unwrap()
+            .into(),
             ty,
             initial_state,
             thread_local: false,

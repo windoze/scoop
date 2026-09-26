@@ -12,40 +12,41 @@ Module
     local %9 $new.1: ptr<managed>
     local %10 $new.2: ptr<managed>
     local %11 $call.3: ptr<managed>
-    local %12 $new.4: ptr<managed>
-    local %13 $return.5: ptr<managed>
-    local %14 $sc.1: exception_record
-    local %15 $sc.2: ptr<raw>
-    local %16 $sc.3: ptr<managed>
+    local %12 $catch.4: ptr<managed>
+    local %13 $new.5: ptr<managed>
+    local %14 $return.6: ptr<managed>
+    local %15 $sc.1: exception_record
+    local %16 $sc.2: ptr<raw>
+    local %17 $sc.3: ptr<managed>
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[]
     br @try.body.8
   block try.unwind.1
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
-    store t0 -> local14
-    store t1 -> local15
+    store t0 -> local15
+    store t1 -> local16
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local15 : ptr<managed>
-    store t2 -> local16
-    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local16, external-td1)
+    t2 = begin_catch local16 : ptr<managed>
+    store t2 -> local17
+    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local17, external-td1)
     cbr t3 then @try.catch.11 else @try.next.12
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
-    store t4 -> local14
-    store t5 -> local15
+    store t4 -> local15
+    store t5 -> local16
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
-    resume local14
+    resume local15
   block try.exit_pad.5
     (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
-    store t6 -> local14
-    store t7 -> local15
+    store t6 -> local15
+    store t7 -> local16
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
-    resume local14
+    resume local15
   block try.body.8
     store integer<Long>(0x0000000000000000) -> local0
     store local0 -> local1
@@ -63,7 +64,9 @@ Module
     invoke managed-direct-target2 sp<managed-invoke:1> roots=[local3:argument, local4:argument] t14 = sig=direct4 (ptr<managed>, ptr<managed>) -> ptr<managed> external-fn1(local3, local4) normal @invoke.normal.4 unwind @try.unwind.1
     br @invoke.normal.4
   block try.catch.11
-    store local16 -> local5
+    call managed-direct-target3 sp<managed-call:2> live=[local17:ptr<managed>@0] t15 = sig=direct5 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local17)
+    store t15 -> local12
+    store local12 -> local5
     br @scope.13
   block try.next.12
     invoke no-gc-void-target1 sig=void3 () runtime @scoop_rt_rethrow() normal @rethrow.normal.5 unwind @try.exit_pad.5
@@ -71,12 +74,12 @@ Module
   block scope.13
     store integer<Long>(0x0000000000000015) -> local6
     store local6 -> local7
-    call managed-direct-target3 sp<managed-call:2> live=[] t15 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
-    store t15 -> local12
-    invoke managed-void-target2 sp<managed-invoke:3> roots=[local12:normal] sig=void4 (ptr<managed>, i64) external-fn2(local12, local7) normal @invoke.normal.6 unwind @try.handler_pad.3
+    call managed-direct-target4 sp<managed-call:3> live=[] t16 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    store t16 -> local13
+    invoke managed-void-target2 sp<managed-invoke:3> roots=[local13:normal] sig=void4 (ptr<managed>, i64) external-fn2(local13, local7) normal @invoke.normal.6 unwind @try.handler_pad.3
     br @invoke.normal.6
   block scope.14
-    ret local13
+    ret local14
   block invoke.normal.1
     t9 = aggregate () : {}
     store local9 -> local2
@@ -97,8 +100,8 @@ Module
   block rethrow.normal.5
     unreachable
   block invoke.normal.6
-    t16 = aggregate () : {}
-    store local12 -> local13
+    t17 = aggregate () : {}
+    store local13 -> local14
     end_catch
     br @scope.14
   output library

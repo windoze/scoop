@@ -37,17 +37,17 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      assign $new.3
+      assign $new.4
         Type Counter
         ClassAlloc Counter
       call external3 direct
         Type Counter
-        Local $new.3
+        Local $new.4
         Type Long
         Local $dependency.parameter.value
       return
         Type Counter
-        Local $new.3
+        Local $new.4
     bb8 try.body.8 unwind bb1
       val $dependency.argument.0: Long
         Type Long
@@ -76,21 +76,24 @@ Module
         Local $dependency.parameter.value
       goto bb7
     bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val error: RebuiltFailure
         Type RebuiltFailure
         Retype RebuiltFailure
           Type Any
-          CaughtException
+          Local $catch.2
       goto bb11
     bb10 try.next.10
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
-      call $call.2: Long = external2 direct
+      call $call.3: Long = external2 direct
         Type RebuiltFailure
         Local error
       assign code
         Type Long
-        Local $call.2
+        Local $call.3
       end_catch
       goto bb12
     bb12 scope.12

@@ -8,20 +8,20 @@ use crate::{ExternalStrongShapeSubjectV1, StrongShapeDefinitionRefV1};
 
 mod resolve;
 
-/// A catalog of complete dependency TD/callable definitions. This does not
-/// grant export, ABI, inheritance, or selected-closure authority. The artifact
-/// reader must join these same definitions to its committed layout/ABI uses.
+/// Complete dependency definitions and value layouts used by typed references.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongTypeReferenceDefinitionsV2 {
     consumer: ConeIdentity,
     descriptors: Vec<StrongShapeDefinitionRefV1>,
     callables: Vec<StrongShapeDefinitionRefV1>,
+    layouts: Vec<crate::CanonicalExactLayoutExportsV1>,
 }
 
 impl StrongTypeReferenceDefinitionsV2 {
     pub fn new(
         consumer: ConeIdentity,
         definitions: &[StrongShapeDefinitionRefV1],
+        layouts: &[&crate::CanonicalExactLayoutExportsV1],
     ) -> Result<Self, StrongTypeReferenceResolutionErrorV2> {
         let path = WirePath::root();
 
@@ -75,7 +75,26 @@ impl StrongTypeReferenceDefinitionsV2 {
             consumer,
             descriptors,
             callables,
+            layouts: layouts.iter().map(|table| (*table).clone()).collect(),
         })
+    }
+
+    pub(crate) fn resolve_value_layout(
+        &self,
+        provider: DecodedPersistentId<ConeIdentity>,
+        layout: DecodedPersistentId<scoop_identity::PersistentLayoutId>,
+    ) -> Option<std::sync::Arc<crate::ExactValueLayoutV1>> {
+        self.layouts
+            .iter()
+            .find(|table| table.provider().as_array() == provider.as_array())?
+            .records()
+            .iter()
+            .find(|record| record.identity().layout().as_array() == layout.as_array())?
+            .value_handle()
+    }
+
+    pub(crate) fn layouts(&self) -> &[crate::CanonicalExactLayoutExportsV1] {
+        &self.layouts
     }
 
     pub const fn consumer(&self) -> ConeIdentity {

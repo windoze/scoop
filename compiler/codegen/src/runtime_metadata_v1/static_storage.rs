@@ -317,7 +317,9 @@ fn emit_scan_program<'ctx>(
     });
     global.set_constant(true);
     global.set_alignment(8);
-    global.set_initializer(&value);
+    if plan.semantic().value_layout().local().is_some() {
+        global.set_initializer(&value);
+    }
     Ok(global)
 }
 

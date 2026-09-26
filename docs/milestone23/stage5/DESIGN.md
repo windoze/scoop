@@ -250,7 +250,7 @@ required_lir = [
   org.scoop-lang.lir/cross-cone-param-free-bridge/1,
   org.scoop-lang.lir/identity-foundation/1,
   org.scoop-lang.lir/link-identity-closure/3,
-  org.scoop-lang.lir/strong-production/9,
+  org.scoop-lang.lir/strong-production/11,
 ]
 
 code_requirement    = MustBeAvailable

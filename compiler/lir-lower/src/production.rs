@@ -1,5 +1,4 @@
 use la_arena::Arena;
-use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, PersistentExactTypeId};
 
 use super::{function::LoweredFunction, safepoints::PendingSafepointSites};
 
@@ -20,13 +19,9 @@ pub(super) fn lower_root_artifacts(
     producer: scoop_identity::ConeIdentity,
     source: &scoop_identity::ExecutableSourceEntryIdentity,
     main: scoop_lir::LocalFunctionRef,
-    target: scoop_lir::LirTargetProfile,
+    layout: scoop_lir::StaticStorageLayout,
     globals: &mut Arena<scoop_lir::Global>,
 ) -> LoweredFunction {
-    let any = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-        CoreBuiltinNominal::Any.identity_record().id(),
-    ))
-    .expect("the trusted core Any exact type has a canonical identity");
     let failure_root = globals.alloc(scoop_lir::Global {
         address_kind: scoop_lir::PointerKind::Raw,
         scan: scoop_lir::RefScan::References(vec![0]),
@@ -37,12 +32,7 @@ pub(super) fn lower_root_artifacts(
                 scoop_lir::MaterializationRoot::cone_owned(),
             )
             .expect("a validated root entry derives one failure-storage identity"),
-            layout: scoop_lir::LayoutIdentity::managed_value(
-                any,
-                target,
-                scoop_lir::MaterializationRoot::cone_owned(),
-            )
-            .expect("the root failure storage has one managed-pointer layout identity"),
+            layout,
             ty: scoop_lir::MANAGED_PTR,
             initial_state: scoop_lir::LirStaticInitialState::ZeroedForRuntimeUnit,
             thread_local: false,

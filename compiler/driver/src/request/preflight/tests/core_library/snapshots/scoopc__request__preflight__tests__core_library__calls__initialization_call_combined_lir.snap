@@ -23,9 +23,9 @@ Module
   fun @scoop$1$cb$0758fa399ab12cdb281d3bad8d70c1f82654243504d627e504e621460fc9d6f4() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
-    local %2 $init.materialized: ptr<managed>
-    local %3 $init.failure: ptr<managed>
-    local %4 $init.message: ptr<managed>
+    local %2 $init.failure: ptr<managed>
+    local %3 $init.message: ptr<managed>
+    local %4 $catch.1: ptr<managed>
     local %5 $sc.1: exception_record
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
@@ -65,14 +65,14 @@ Module
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
-    store local7 -> local1
+    call managed-direct-target1 sp<managed-call:4> live=[local7:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local7)
+    store t12 -> local4
+    store local4 -> local1
     br @scope.13
   block scope.13
-    call managed-direct-target1 sp<managed-call:4> live=[local1:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
-    store t12 -> local2
-    call managed-void-target2 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void2 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init1, local2)
+    call managed-void-target2 sp<managed-call:5> live=[local1:ptr<managed>@0] sig=void2 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init1, local1)
     t13 = aggregate () : {}
-    invoke no-gc-void-target0 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.2 unwind @try.handler_pad.6
+    invoke no-gc-void-target0 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local1) normal @throw.normal.2 unwind @try.handler_pad.6
     br @throw.normal.2
   block if.then.14
     br @if.merge.16
@@ -83,13 +83,13 @@ Module
     br @if.merge.3
   block if.then.17
     call managed-direct-target2 sp<managed-call:3> live=[] t15 = sig=direct2 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init1)
-    store t15 -> local3
-    throw local3
+    store t15 -> local2
+    throw local2
     unreachable
   block if.else.18
     call managed-direct-target3 sp<managed-call:1> live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init1)
-    store t16 -> local4
-    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn0(local4)
+    store t16 -> local3
+    call managed-void-target3 sp<managed-call:2> live=[local3:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn2(local3)
     t17 = aggregate () : {}
     unreachable
   block invoke.normal.1
@@ -117,7 +117,7 @@ Module
     t2 = heap_load t1 +16 : i32
     store t2 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:3> live=[] t3 = sig=direct0 (i32) -> i32 external-fn2(local1)
+    call managed-direct-target0 sp<managed-call:3> live=[] t3 = sig=direct0 (i32) -> i32 external-fn1(local1)
     store t3 -> local5
     store local5 -> local4
     br @if.merge.3
@@ -125,7 +125,7 @@ Module
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 () -> i32 local-fn6()
     store t4 -> local2
     store local2 -> local3
-    call managed-direct-target2 sp<managed-call:1> live=[] t5 = sig=direct2 (i32) -> i32 external-fn1(local3)
+    call managed-direct-target2 sp<managed-call:1> live=[] t5 = sig=direct2 (i32) -> i32 external-fn0(local3)
     store t5 -> local6
     store local6 -> local4
     br @if.merge.3
@@ -150,16 +150,16 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000028) -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 external-fn2(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 external-fn1(local1)
     store t0 -> local2
     global_store global0, local2
     ret
   fun @scoop$1$cb$eaa491826e5c6768a9769de4d16aa0750bb6f1e213b983e191afc98c761802f1() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
-    local %2 $init.materialized: ptr<managed>
-    local %3 $init.failure: ptr<managed>
-    local %4 $init.message: ptr<managed>
+    local %2 $init.failure: ptr<managed>
+    local %3 $init.message: ptr<managed>
+    local %4 $catch.1: ptr<managed>
     local %5 $sc.1: exception_record
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
@@ -199,14 +199,14 @@ Module
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
-    store local7 -> local1
+    call managed-direct-target1 sp<managed-call:4> live=[local7:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local7)
+    store t12 -> local4
+    store local4 -> local1
     br @scope.13
   block scope.13
-    call managed-direct-target1 sp<managed-call:4> live=[local1:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
-    store t12 -> local2
-    call managed-void-target2 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void2 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init0, local2)
+    call managed-void-target2 sp<managed-call:5> live=[local1:ptr<managed>@0] sig=void2 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init0, local1)
     t13 = aggregate () : {}
-    invoke no-gc-void-target0 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.2 unwind @try.handler_pad.6
+    invoke no-gc-void-target0 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local1) normal @throw.normal.2 unwind @try.handler_pad.6
     br @throw.normal.2
   block if.then.14
     br @if.merge.16
@@ -217,13 +217,13 @@ Module
     br @if.merge.3
   block if.then.17
     call managed-direct-target2 sp<managed-call:3> live=[] t15 = sig=direct2 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init0)
-    store t15 -> local3
-    throw local3
+    store t15 -> local2
+    throw local2
     unreachable
   block if.else.18
     call managed-direct-target3 sp<managed-call:1> live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init0)
-    store t16 -> local4
-    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn0(local4)
+    store t16 -> local3
+    call managed-void-target3 sp<managed-call:2> live=[local3:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn2(local3)
     t17 = aggregate () : {}
     unreachable
   block invoke.normal.1
@@ -246,7 +246,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store integer<Int>(0x00000007) -> local0
-    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (i32) -> i32 external-fn1(local0)
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (i32) -> i32 external-fn0(local0)
     store t0 -> local1
     heap_store param0 +16 local1
     ret

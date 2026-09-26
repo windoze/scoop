@@ -169,8 +169,12 @@ fn exercise_dependency_production(provider: Provider) {
             output.foundation(),
             EntryProductionSourceV1::Library,
             &[],
-            &StrongTypeReferenceDefinitionsV2::new(output.foundation().producer(), &definitions)
-                .unwrap(),
+            &StrongTypeReferenceDefinitionsV2::new(
+                output.foundation().producer(),
+                &definitions,
+                &[],
+            )
+            .unwrap(),
             &StrongInitializationDefinitionCatalogV2::new(
                 output.foundation().producer(),
                 &[initialization_definition],

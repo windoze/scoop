@@ -92,6 +92,12 @@ impl ExactValueLayoutV1 {
     pub const fn representation(&self) -> &ExactRepresentationLayoutV1 {
         &self.representation
     }
+    pub const fn scan(&self) -> PersistentScanId {
+        self.scan.id
+    }
+    pub const fn scan_definition(&self) -> StrongShapeDefinitionRefV1 {
+        self.scan.physical
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

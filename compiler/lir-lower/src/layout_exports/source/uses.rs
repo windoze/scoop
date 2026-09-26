@@ -54,6 +54,22 @@ pub(super) fn project(
         )?;
     }
 
+    for (_, global) in module.globals.iter() {
+        if let lir::GlobalInit::Storage {
+            layout: lir::StaticStorageLayout::External(value),
+            ..
+        } = &global.init
+        {
+            push(
+                &mut uses,
+                lir::LayoutAbiDependencyV1::new(
+                    value.identity().physical_definition().provider(),
+                    lir::LayoutAbiSemanticTargetV1::Layout(value.identity().layout()),
+                ),
+            )?;
+        }
+    }
+
     for (_, callable) in module.meta.external_callables.iter() {
         if callable.origin() == lir::ExternalCallableOrigin::LayoutV1 {
             push(

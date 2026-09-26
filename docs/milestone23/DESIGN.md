@@ -1,5 +1,9 @@
 # M23 系列设计：多 Cone、导入系统与 `.slib`
 
+静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式升级为 /11、/12，旧 /9、/10 产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
+
+普通 catch 的绑定必须可以像其他引用值一样离开 handler：匹配 native payload 后，在绑定变量前物化一次 managed 异常对象，后续返回、存储和捕获使用该对象；native unwind record 仍按既有 cleanup 规则释放。初始化 catch 复用这次物化，不再次复制。每次 throw 仍创建独立 native payload，runtime C ABI 不变。
+
 运行时类型转换的失败构造使用前端解析的实际异常类型与 constructor 引用，并沿共有的类型、callable、ABI 和 Link 路径消费。删除由 Cast 反向投影的独立 CastFailure call-site、RuntimeOperationDependency role，以及 reader 对同一目标再按 compiler protocol 进行资格判断的通道；普通源码调用的位置、参数、结果与 typed 引用检查保留。共有 HIR 格式更新为 `hir/cross-cone-interface/27`，原 call-site reason tag 2 与 external-reference role tag 9 退役，不复用；旧产物、profile fingerprint 与缓存重建。该调整不改变转换失败抛出 ClassCastException 的语言行为、runtime C ABI 或 String 表示。
 
 引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/27`，旧产物与缓存重建，不改变 runtime C ABI。
@@ -62,7 +66,7 @@ String descriptor 使用完整 MIR 中实际声明的 source exact identity，�
 
 初始化循环异常服务是前端已解析的实际 typed 函数声明。声明以原可见性进入共有 callable 支持记录，实际 MIR body、LIR canonical ABI、导出与依赖选择均使用普通 callable 表；internal 服务不加入 public lookup。`InitializationCycle` 只表达 lowering 选择失败分支目标的语义角色，不产生来源资格、第二份 ABI 或独立 Link owner/requirement。lowering 生成的调用可以没有源码 lookup 记录；已有源码调用仍核对实际目标、provider、参数、结果与物化根，所有生成调用仍核对完整 typed 依赖和 ABI。
 
-Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 ABI field 11 和外部服务表 field 12，section 只保留 field 2～9 的八字段 product。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
+Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 ABI field 11 和外部服务表 field 12，section 只保留 field 2～9 的八字段 product。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
 
 2026-09-22：M23-6 明确增加旧 core 专用资格清理完成门，见 [补充设计](stage6/CORE-AUTHORITY-CLEANUP.md)。必须统一 ABI 重放、native-boundary 输入、protocol 引用、String/初始化 bridge 与 Link requirement closure；既有 layout/ABI/dispatch/ZST 和实际消费目标继续执行。历史阶段的专用通道及冻结描述不构成保留理由。
 
@@ -2583,7 +2587,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 当前目标同时包含 [core 专用资格清理](stage6/CORE-AUTHORITY-CLEANUP.md)：删除 core ABI 重放豁免、native-boundary 专用可信输入、protocol 额外来源资格、String/初始化专用 bridge 和 core 独立 Link requirement closure。各项须有共有路径的实际生产/消费、正负例与 wire/cache 迁移，不能以旧分区冻结或仅完成类型组成表宣称完成。
 
-详细设计见 `docs/milestone23/stage6/DESIGN.md`。新增 `cross-cone-layout-strong/2`，以四条 required section 承载 HIR type/inheritance、MIR type bridge、LIR layout/ABI 及 Link-only layout-use closure，strong-production/9 升级为 /10 以完整表达普通依赖的 TD/dispatch 引用。独立 HIR source-authority 草案退役；完整声明、表示、参数/default 与实际使用信息由共有 metadata 持有，生产与 bytes-only reader 共用 typed identity、访问、依赖、跨阶段语义、ABI/layout 和 object 校验。源码接口可保留尚需后续能力的声明；机器接口只发布完整物化闭包通过 M23-7/10 gate 的根，实际使用不支持的能力仍拒绝。三层 outer schema 仍为1；旧 core 专用资格、bridge 和 Link 分区按补充设计退出，同步 capability/profile inventory 与 fingerprint，不复用退役 tag。有效 callable 与 general physical use 由共有 requirement 验证保证互斥且联合完整。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
+详细设计见 `docs/milestone23/stage6/DESIGN.md`。新增 `cross-cone-layout-strong/2`，以四条 required section 承载 HIR type/inheritance、MIR type bridge、LIR layout/ABI 及 Link-only layout-use closure，strong-production/11 升级为 /10 以完整表达普通依赖的 TD/dispatch 引用。独立 HIR source-authority 草案退役；完整声明、表示、参数/default 与实际使用信息由共有 metadata 持有，生产与 bytes-only reader 共用 typed identity、访问、依赖、跨阶段语义、ABI/layout 和 object 校验。源码接口可保留尚需后续能力的声明；机器接口只发布完整物化闭包通过 M23-7/10 gate 的根，实际使用不支持的能力仍拒绝。三层 outer schema 仍为1；旧 core 专用资格、bridge 和 Link 分区按补充设计退出，同步 capability/profile inventory 与 fingerprint，不复用退役 tag。有效 callable 与 general physical use 由共有 requirement 验证保证互斥且联合完整。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
 
 依赖 M23-5。实现第 3.6 节的 `ValueStorageLayout`、Scoop ABI payload elision、C ABI 拒绝规则、boxing、address/static token 与 `Array`/`MutableArray<ZST>`，并完成参数自由的跨 Cone layout、scan、TypeDescriptor、继承与 dispatch 消费。protected 访问由前端根据实际声明和 receiver 检查；reader 保留真实类型、引用、ABI、布局与对象格式检查，不要求额外访问证明或 native 来源资格。各阶段直接使用已取得的完整 typed IR；普通格式与 fingerprint 规则表达版本变化，不冻结已退役的证明或成本策略。M23-7 的泛型与 ODR 能力仍在其原阶段实现。
 

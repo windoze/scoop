@@ -194,7 +194,7 @@ pub struct DecodedStrongStaticStorageRegistrationPlanV1 {
 
 impl WireEncode for DecodedStrongStaticStorageRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(31)?;
+        encoder.map(32)?;
         self.semantic.encode_fields(encoder)?;
         encode_field(encoder, 11, &self.registration_symbol)?;
         encode_field(encoder, 12, &self.registration_definition_plan)?;
@@ -216,39 +216,85 @@ impl WireEncode for DecodedStrongStaticStorageRegistrationPlanV1 {
         encode_field(encoder, 28, &self.registration_fingerprint_node)?;
         encode_field(encoder, 29, &self.registration_definition_patch)?;
         encode_field(encoder, 30, &self.layout_fingerprint_patch)?;
-        encode_field(encoder, 31, &self.scan_fingerprint_patch)
+        encode_field(encoder, 31, &self.scan_fingerprint_patch)?;
+        encode_field(encoder, 32, &self.semantic.layout_provider)
     }
 }
 
 impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(31)?;
+        decoder.expect_map(32)?;
+        let storage = decoder.field(1, DecodedPersistentId::decode)?;
+        let storage_symbol = decoder.field(2, DecodedPersistentSymbolRequest::decode)?;
+        let layout = decoder.field(3, DecodedPersistentId::decode)?;
+        let scan = decoder.field(4, DecodedPersistentId::decode)?;
+        let scan_program = decoder.field(5, DecodedRefScan::decode)?;
+        let scan_kind = decoder.field(6, Decoder::u32)?;
+        let byte_size = decoder.field(7, Decoder::unsigned)?;
+        let allocation_extent = decoder.field(8, Decoder::unsigned)?;
+        let required_alignment = decoder.field(9, Decoder::unsigned)?;
+        let initial_state =
+            decoder.field(10, DecodedStrongStaticStorageInitialStatePlanV1::decode)?;
+        let registration_symbol = decoder.field(11, DecodedPersistentSymbolRequest::decode)?;
+        let registration_definition_plan = decoder.field(12, DecodedPersistentId::decode)?;
+        let registration_primary_atom = decoder.field(13, DecodedPersistentId::decode)?;
+        let storage_definition_plan = decoder.field(14, DecodedPersistentId::decode)?;
+        let storage_primary_atom = decoder.field(15, DecodedPersistentId::decode)?;
+        let initial_artifacts =
+            decoder.field(16, DecodedStrongStaticStorageInitialArtifactPlanV1::decode)?;
+        let immortal_registration_symbols = decoder.field(17, |decoder| {
+            decoder.decode_array(|decoder, _| DecodedPersistentSymbolRequest::decode(decoder))
+        })?;
+        let layout_symbol = decoder.field(18, DecodedPersistentSymbolRequest::decode)?;
+        let layout_definition_plan = decoder.field(19, DecodedPersistentId::decode)?;
+        let layout_primary_atom = decoder.field(20, DecodedPersistentId::decode)?;
+        let scan_symbol = decoder.field(21, DecodedPersistentSymbolRequest::decode)?;
+        let scan_definition_plan = decoder.field(22, DecodedPersistentId::decode)?;
+        let scan_primary_atom = decoder.field(23, DecodedPersistentId::decode)?;
+        let registration_object_node = decoder.field(24, DecodedPersistentId::decode)?;
+        let storage_definition_node = decoder.field(25, DecodedPersistentId::decode)?;
+        let layout_fingerprint_node = decoder.field(26, DecodedPersistentId::decode)?;
+        let scan_fingerprint_node = decoder.field(27, DecodedPersistentId::decode)?;
+        let registration_fingerprint_node = decoder.field(28, DecodedPersistentId::decode)?;
+        let registration_definition_patch = decoder.field(29, DecodedPersistentId::decode)?;
+        let layout_fingerprint_patch = decoder.field(30, DecodedPersistentId::decode)?;
+        let scan_fingerprint_patch = decoder.field(31, DecodedPersistentId::decode)?;
+        let layout_provider = decoder.field(32, DecodedPersistentId::decode)?;
         Ok(Self {
-            semantic: DecodedStrongStaticStorageSemanticProjectionV1::decode_fields(decoder)?,
-            registration_symbol: decoder.field(11, DecodedPersistentSymbolRequest::decode)?,
-            registration_definition_plan: decoder.field(12, DecodedPersistentId::decode)?,
-            registration_primary_atom: decoder.field(13, DecodedPersistentId::decode)?,
-            storage_definition_plan: decoder.field(14, DecodedPersistentId::decode)?,
-            storage_primary_atom: decoder.field(15, DecodedPersistentId::decode)?,
-            initial_artifacts: decoder
-                .field(16, DecodedStrongStaticStorageInitialArtifactPlanV1::decode)?,
-            immortal_registration_symbols: decoder.field(17, |decoder| {
-                decoder.decode_array(|decoder, _| DecodedPersistentSymbolRequest::decode(decoder))
-            })?,
-            layout_symbol: decoder.field(18, DecodedPersistentSymbolRequest::decode)?,
-            layout_definition_plan: decoder.field(19, DecodedPersistentId::decode)?,
-            layout_primary_atom: decoder.field(20, DecodedPersistentId::decode)?,
-            scan_symbol: decoder.field(21, DecodedPersistentSymbolRequest::decode)?,
-            scan_definition_plan: decoder.field(22, DecodedPersistentId::decode)?,
-            scan_primary_atom: decoder.field(23, DecodedPersistentId::decode)?,
-            registration_object_node: decoder.field(24, DecodedPersistentId::decode)?,
-            storage_definition_node: decoder.field(25, DecodedPersistentId::decode)?,
-            layout_fingerprint_node: decoder.field(26, DecodedPersistentId::decode)?,
-            scan_fingerprint_node: decoder.field(27, DecodedPersistentId::decode)?,
-            registration_fingerprint_node: decoder.field(28, DecodedPersistentId::decode)?,
-            registration_definition_patch: decoder.field(29, DecodedPersistentId::decode)?,
-            layout_fingerprint_patch: decoder.field(30, DecodedPersistentId::decode)?,
-            scan_fingerprint_patch: decoder.field(31, DecodedPersistentId::decode)?,
+            semantic: DecodedStrongStaticStorageSemanticProjectionV1 {
+                storage,
+                storage_symbol,
+                layout,
+                scan,
+                scan_program,
+                scan_kind,
+                byte_size,
+                allocation_extent,
+                required_alignment,
+                initial_state,
+                layout_provider,
+            },
+            registration_symbol,
+            registration_definition_plan,
+            registration_primary_atom,
+            storage_definition_plan,
+            storage_primary_atom,
+            initial_artifacts,
+            immortal_registration_symbols,
+            layout_symbol,
+            layout_definition_plan,
+            layout_primary_atom,
+            scan_symbol,
+            scan_definition_plan,
+            scan_primary_atom,
+            registration_object_node,
+            storage_definition_node,
+            layout_fingerprint_node,
+            scan_fingerprint_node,
+            registration_fingerprint_node,
+            registration_definition_patch,
+            layout_fingerprint_patch,
+            scan_fingerprint_patch,
         })
     }
 }

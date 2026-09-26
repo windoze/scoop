@@ -1,0 +1,6 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    __scoopThrowInitializationCycle("not a public callable")
+    return Counter(0)
+}

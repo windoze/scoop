@@ -1,5 +1,9 @@
 # Scoop Runtime 规范
 
+静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式升级为 /11、/12，旧 /9、/10 产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
+
+普通 catch 的绑定必须可以像其他引用值一样离开 handler：匹配 native payload 后，在绑定变量前物化一次 managed 异常对象，后续返回、存储和捕获使用该对象；native unwind record 仍按既有 cleanup 规则释放。初始化 catch 复用这次物化，不再次复制。每次 throw 仍创建独立 native payload，runtime C ABI 不变。
+
 跨 Cone 值类型装箱使用实际 provider 发布的 BoxedValue TypeDescriptor、接口表和 adjust thunk。值的接口引用、父接口及调用签名沿完整 typed IR 传递，消费者不复制外来实现。ZST 装箱仍产生独立对象身份，非零与含引用 payload 保留原有布局、canonical ABI、scan 和移动 GC 规则；这项消费能力不增加 runtime C ABI、String 表示或元数据验证策略。
 
 整数和 Boolean 沿相同装箱路径使用实际声明的 TD 与接口表；primitive 的机器表示不承担声明身份或来源资格。runtime 不接收前端的来源文件编号，也不据此决定调用或分派是否合法。
@@ -40,7 +44,7 @@ runtime 消费完整类型布局、scan、ABI 与对象引用，不依赖编译�
 
 初始化循环异常服务是前端已解析的实际 typed 函数声明。声明以原可见性进入共有 callable 支持记录，实际 MIR body、LIR canonical ABI、导出与依赖选择均使用普通 callable 表；internal 服务不加入 public lookup。`InitializationCycle` 只表达 lowering 选择失败分支目标的语义角色，不产生来源资格、第二份 ABI 或独立 Link owner/requirement。lowering 生成的调用可以没有源码 lookup 记录；已有源码调用仍核对实际目标、provider、参数、结果与物化根，所有生成调用仍核对完整 typed 依赖和 ABI。
 
-Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 ABI field 11 和外部服务表 field 12，section 只保留 field 2～9 的八字段 product。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
+Strong production 的两种表示使用 `/11`、`/12`，删除初始化专用 ABI field 11 和外部服务表 field 12，section 只保留 field 2～9 的八字段 product。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
 
 core与其他library Cone使用相同image、registration与ABI检查。runtime和linker只关心实际typed表示及调用契约，不检查core源码来自哪个目录，不消费core专用授权token或缓存receipt；用户重建core后按普通依赖fingerprint更新产物。
 
@@ -360,7 +364,7 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 - M21 的generated ensure先调用typed managed入口`scoop_rt_init_enter(descriptor)`。入口以acquire语义观察cell并返回封闭结果：当前线程获胜为`RunInitializer`，已经Initialized为`Ready`，既有失败为`Failed(rooted Throwable)`，同线程重入或跨线程wait-for cycle为`Cycle(GC-free stable unit path)`。无环等待按2.7、3.5进入safepoint-aware park，醒来后重新观察状态；生成代码不得自行spin、缓存cell字段或绕过coordinator。
 - generated ensure对`Failed`从已登记failure root取得managed异常并重新`scoop_rt_throw`；failure root的物理槽可按`Any` managed ref登记，但该runtime入口只接受/返回已经物化的`Throwable`，不能把任意managed值写入此专用槽。对`Cycle`先把path复制为普通managed String，再调用HIR已经绑定的core compiler-protocol cycle thrower；该`String -> Unit` target负责构造并抛出`IllegalStateException(message)`。enter返回所需的managed ref/result storage与GC-free path metadata必须由typed call/result plan完整描述；path的runtime side storage至少存活到复制完成。coordinator不认识core名称、thrower/constructor symbol或对象layout。
 - `RunInitializer`分支执行ordinary managed initializer body。成功后，生成代码先完成property storage写入，或以release语义写入singleton published root slot，再调用`scoop_rt_init_succeed(descriptor)`；该入口发布Initialized、移除dependency/wait edge并唤醒waiter。`Ready`分支只从已经登记的storage/root slot重新读取结果。
-- initializer抛出的native exception record不能保存进cell，也不能跨线程共享。generated catch-all在catch仍active时调用5.4的`scoop_rt_materialize_exception(caught)`得到普通managed `Throwable`并结束native catch，再调用`scoop_rt_init_fail(descriptor, throwable)`；该入口把throwable写入已登记的failure root slot，以release语义发布Failed，移除dependency/wait edge并唤醒waiter。随后当前访问从该managed对象重新`scoop_rt_throw`；以后所有访问从failure root读取并重新抛出同一managed对象，但每次都会建立新的native unwind record。
+- initializer抛出的native exception record不能保存进cell，也不能跨线程共享。generated catch-all在catch仍active时调用5.4的`scoop_rt_materialize_exception(caught)`得到普通managed `Throwable`，随后调用`scoop_rt_init_fail(descriptor, throwable)`；该入口把throwable写入已登记的failure root slot，以release语义发布Failed，移除dependency/wait edge并唤醒waiter。随后当前访问从该managed对象重新`scoop_rt_throw`；以后所有访问从failure root读取并重新抛出同一managed对象，但每次都会建立新的native unwind record。
 - `enter` / `succeed` / `fail`是编译器与runtime之间的typed内部ABI，不是源码FFI API。descriptor决定unit identity和对应root/storage，调用者不能提交任意裸地址；非法transition、descriptor/image不匹配或未持有winner资格属于4.4的fatal runtime ABI error。
 
 ---
@@ -383,7 +387,7 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 
 - M25起异常runtime只建立在Itanium Level I unwind接口上，不使用C++ ABI。runtime私有的`ScoopExceptionRecord`包含恰好一个满足目标对齐要求的`_Unwind_Exception`、catch/rethrow/lifetime元数据，以及按对象TypeDescriptor大小和对齐保存的Scoop对象payload；各部分的具体offset不属于生成代码ABI，raw unwind pointer与payload之间只能经runtime入口转换。
 - 每条新异常记录使用Scoop专属且稳定的`exception_class = 0x53434f4f50000000`（`"SCOOP\0\0\0"`）。`_Unwind_Exception.exception_cleanup`负责在记录最终删除时先撤销payload的stable external object root，再释放整条记录；unwinder私有字段只由unwind library读写，runtime和personality不得挪作catch状态。
-- 抛出入口`scoop_rt_throw(obj)`要求对象头的TypeDescriptor shape为`FixedObject`，从其`minimum_size/instance_alignment`读取精确allocation size/alignment，分配record并把完整对象按值复制到payload，随后在任何可能展开或触发GC的动作前登记该payload为stable external object root，再调用`_Unwind_RaiseException`。`Throwable`层次若出现其他shape是fatal type/runtime invariant error。catch取得的payload copy是本次异常对象本尊，原managed对象无需pin；绝不能把原managed对象或普通GC heap地址直接解释成`_Unwind_Exception`抛出。
+- 抛出入口`scoop_rt_throw(obj)`要求对象头的TypeDescriptor shape为`FixedObject`，从其`minimum_size/instance_alignment`读取精确allocation size/alignment，分配record并把完整对象按值复制到payload，随后在任何可能展开或触发GC的动作前登记该payload为stable external object root，再调用`_Unwind_RaiseException`。`Throwable`层次若出现其他shape是fatal type/runtime invariant error。catch匹配读取本次payload copy；选中后为绑定变量物化一次可逃逸的managed对象，原managed对象无需pin；绝不能把原managed对象或普通GC heap地址直接解释成`_Unwind_Exception`抛出。
 - `_Unwind_RaiseException`只会在没有handler或unwind错误时返回。runtime必须在仍可读取payload时打印稳定的`uncaught exception: <type name>`或unwind-failure诊断，删除异常记录并终止进程；不注册或调用C++ `std::terminate`。
 
 ### 5.2 Personality 与 landing pad
@@ -396,12 +400,14 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 ### 5.3 Catch 状态、结束与重抛
 
 - landing pad先捕获opaque exception record/raw pointer，再由普通dispatch块调`scoop_rt_begin_catch(raw)`验证`exception_class`、把对应record压入当前`ScoopThreadState`的caught-exception栈并返回其payload managed ref。该ref指向heap外稳定对象，但其对象头、TypeDescriptor和出站引用遵守普通Scoop对象与3.3 stable external root契约。
+- 普通catch选中分支后，在绑定源码变量前调用5.4的`scoop_rt_materialize_exception(caught)`一次。绑定变量是普通managed引用，可以返回、存入对象或被闭包捕获；不能把只在native catch活动期间有效的payload地址绑定给源码变量。native catch仍由既有cleanup路径结束，初始化失败处理直接复用该managed对象。
 - 每条正常离开handler的路径必须调一次`scoop_rt_end_catch()`。入口只操作当前线程栈顶并弹栈：普通caught record立即调`_Unwind_DeleteException`，标记为rethrow的record则恢复为in-flight而不删除；同一active record不得重复`BeginCatch`。cleanup callback是撤销root和释放record的唯一最终出口；runtime以active registry/state保证只调用一次Delete，callback在解引用record前也按raw地址检查active membership并拒绝重复回调。释放后的raw header不再是private ABI或Level-I API的有效输入。begin/end/rethrow都不得分配managed对象、触发GC或把异常记录地址暴露给Scoop源码。
 - `scoop_rt_rethrow()`只在存在active catch时合法。它在当前record上标记rethrow并对同一个`_Unwind_Exception`重新调用`_Unwind_RaiseException`；随后原handler的cleanup chain调用`EndCatch`时只弹出catch状态而不得删除record，外层`BeginCatch`重新接管同一payload identity。handler内抛出另一异常时，cleanup chain先结束旧catch，再以LLVM `resume`传播新record。
 - Scoop不提供`exception_ptr`、跨线程exception record共享或C++式公开引用计数；语言可跨线程/挂起保存的是managed `Throwable`，不是native unwind record。
 
 ### 5.4 跨控制边界的异常物化
 
+- `scoop_rt_materialize_exception(caught)`按caught payload的TypeDescriptor分配managed对象，保留新对象的`td`和`gc_word`，只复制对象头之后的payload。普通catch、初始化失败处理和suspend handler使用同一入口；每个选中的catch只物化一次。
 - M10 的suspend handler不允许把`scoop_rt_begin_catch`建立的native catch状态跨挂起点保存。选中catch或进入可能挂起的finally前，生成代码调用`scoop_rt_materialize_exception(caught)`：按caught payload的TypeDescriptor分配managed对象，保留新对象已初始化的`td` / `gc_word`，只复制对象头之后的payload。复制期间exception payload仍登记为stable external root；复制完成后立即`scoop_rt_end_catch()`，catch local / pending exception改指向managed副本；若该managed副本跨挂起保存，还必须满足第8章的exact slot、发布与扫描契约。
 - 恢复失败或物化后的继续传播从该managed对象重新调用`scoop_rt_throw`，因而创建新的native record。Scoop的throw-by-value语义不承诺两个native record相同；同一次未物化rethrow则按5.3保持原record/payload identity。
 - M21 initializer failure也必须在离开winner线程的catch、写入共享Failed状态之前调用同一物化入口；coordinator只保存已登记为global root的managed `Throwable`，绝不保存`_Unwind_Exception`、catch payload地址或active catch状态。物化、`scoop_rt_init_fail`与重新抛出的顺序遵守4.6。

@@ -44,7 +44,7 @@ impl CanonicalLirFoundation {
                     .globals
                     .iter()
                     .filter_map(|(_, global)| match &global.init {
-                        crate::GlobalInit::Storage { layout, .. } => Some(layout),
+                        crate::GlobalInit::Storage { layout, .. } => layout.local(),
                         crate::GlobalInit::StringConst { .. }
                         | crate::GlobalInit::CString { .. } => None,
                     }),
@@ -1164,7 +1164,8 @@ mod tests {
                     LirTargetProfile::DARWIN_AARCH64,
                     MaterializationRoot::cone_owned(),
                 )
-                .unwrap(),
+                .unwrap()
+                .into(),
                 ty: MANAGED_PTR,
                 initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
                 thread_local: false,

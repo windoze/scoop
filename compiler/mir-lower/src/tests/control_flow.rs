@@ -29,8 +29,7 @@ fn loop_header_poll_blocks(body: &mir::Body) -> Vec<mir::BlockId> {
 #[test]
 fn try_and_throw_become_explicit_cfg() {
     // try { throw MyError() } catch (e: MyError) { 1 } finally { 2 }
-    // — MIR keeps the structured form (DESIGN 3.3); the
-    // control-flow expansion is LIR's job.
+    // MIR expands handlers and cleanup into explicit control flow.
     let mut h = Harness::new();
     let my_error = h.exception("MyError");
     let error_ty = h.class_ty(my_error);
@@ -118,11 +117,14 @@ Module
         Type MyError
         Local $new.1
     bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val e: MyError
         Type MyError
         Retype MyError
           Type Any
-          CaughtException
+          Local $catch.2
       goto bb11
     bb10 try.next.10 unwind bb5
       Type Int

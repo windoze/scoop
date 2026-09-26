@@ -1,13 +1,13 @@
 #include "generated_entries.h"
 #include "eh_internal.h"
 #include "thread.h"
+#include <inttypes.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-/* The linked fixture has no global storage or initialization units.
- * Immortal values and their descriptors are collected from the actual artifacts
- * into the existing single-image runtime table. */
-const ScoopManagedGlobalDescriptor scoop_image_managed_globals[] = {{0}};
-const uint64_t scoop_image_managed_global_count = 0;
+/* Static roots and immortal values come from the actual artifact registrations.
+ * The fixtures access lazy units through their compiled ensure functions. */
+SCOOP_FIXTURE_GLOBALS
 SCOOP_FIXTURE_IMMORTALS
 const ScoopInitializationUnitDescriptor scoop_image_initialization_units[] = {{0}};
 const uint64_t scoop_image_initialization_unit_count = 0;
@@ -26,5 +26,9 @@ int main(void) {
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();
-    return result == 42 && (getenv("SCOOP_GC_STRESS_MOVE") == NULL || collected) ? 0 : 1;
+    bool correct = result == 42 && (getenv("SCOOP_GC_STRESS_MOVE") == NULL || collected);
+    if (!correct) {
+        fprintf(stderr, "fixture result=%" PRId64 ", collected=%d\n", result, collected);
+    }
+    return correct ? 0 : 1;
 }

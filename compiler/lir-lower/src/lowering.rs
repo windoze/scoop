@@ -101,11 +101,16 @@ pub(super) fn lower_graph(
         &enums,
         &native_abi.native_externals,
     )?;
-    let (storage_globals, native_globals, native_global_bridges) = lower_globals(
+    let globals::LoweredGlobals {
+        storage: storage_globals,
+        native: native_globals,
+        bridges: native_global_bridges,
+    } = lower_globals(
         GlobalLoweringInputs {
             context: &context,
             identity_roots: &identity_roots,
             module,
+            selected_layout,
             structs: &structs,
             enums: &enums,
             string_globals: &string_global_map,
@@ -168,7 +173,13 @@ pub(super) fn lower_graph(
                 module.cone,
                 bridge.source(),
                 local_function_map[&entry],
-                context.target_profile(),
+                globals::static_storage_layout(
+                    &context,
+                    lir::MaterializationRoot::cone_owned(),
+                    module,
+                    &mir::Type::Any,
+                    selected_layout,
+                )?,
                 &mut globals,
             ))
         }

@@ -9,6 +9,7 @@ pub fn replay_shared_lir_dependency_graph(
     source: scoop_hir::SharedTypeMetadataV1<'_>,
     layout: &lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
     dependencies: &[&lir::LayoutAbiExportConstituentsV1],
+    storages: &[lir::StrongStaticStorageRegistrationPlanV1],
 ) -> Result<(), Error> {
     let exports = layout.exports();
     if source.provider != exports.provider() {
@@ -100,6 +101,16 @@ pub fn replay_shared_lir_dependency_graph(
             ));
         }
     }
+
+    committed.extend(storages.iter().filter_map(|registration| {
+        let semantic = registration.semantic();
+        (semantic.layout_provider() != source.provider).then(|| {
+            lir::LayoutAbiDependencyV1::new(
+                semantic.layout_provider(),
+                lir::LayoutAbiSemanticTargetV1::Layout(semantic.layout()),
+            )
+        })
+    }));
 
     committed.sort_unstable();
     committed.dedup();

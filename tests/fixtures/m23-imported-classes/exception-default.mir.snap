@@ -53,17 +53,17 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      assign $new.2
+      assign $new.3
         Type Counter
         ClassAlloc Counter
       call external2 direct
         Type Counter
-        Local $new.2
+        Local $new.3
         Type Long
         Local $dependency.parameter.value
       return
         Type Counter
-        Local $new.2
+        Local $new.3
     bb8 try.body.8 unwind bb1
       val $dependency.default.local.0: Long
         Type Long
@@ -107,11 +107,14 @@ Module
           Local $dependency.parameter.other
       goto bb7
     bb10 try.catch.10
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val error: Throwable
         Type Throwable
         Retype Throwable
           Type Any
-          CaughtException
+          Local $catch.2
       goto bb12
     bb11 try.next.11 unwind bb5
       val $dependency.receiver: Long

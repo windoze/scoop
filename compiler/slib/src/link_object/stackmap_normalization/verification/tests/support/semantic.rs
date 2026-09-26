@@ -293,7 +293,8 @@ fn semantic_module(
                 LirTargetProfile::DARWIN_AARCH64,
                 MaterializationRoot::cone_owned(),
             )
-            .unwrap(),
+            .unwrap()
+            .into(),
             ty: LirType::Ptr(PointerKind::Managed),
             initial_state,
             thread_local: false,
@@ -594,6 +595,7 @@ fn static_storage_artifacts(module: &Module) -> StaticStorageArtifacts {
         })
         .unwrap();
     let storage = identity.identity_record().clone();
+    let layout = layout.local().unwrap();
     let layout_record = layout.layout_record().clone();
     let scan = layout.scan_record().clone();
     let storage_plan = strong_definition(

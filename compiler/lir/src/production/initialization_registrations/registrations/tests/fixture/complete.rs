@@ -28,6 +28,7 @@ impl Fixture {
             else {
                 panic!("the complete fixture has only storage globals");
             };
+            let layout = layout.local().expect("the fixture defines local layouts");
             layouts.push(layout.layout_record().clone());
             scans.push(layout.scan_record().clone());
             let storage = identity.identity_record().id();

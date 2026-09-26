@@ -369,8 +369,14 @@ impl Fixture {
             .map(|artifacts| StrongStaticStorageSemanticPlanV1 {
                 storage: artifacts.storage.id(),
                 symbol: symbol(PersistentSymbolKey::StaticStorage(artifacts.storage.id())),
-                layout: shape.layout.id(),
-                scan: shape.scan.id(),
+                layout: crate::LayoutIdentity::managed_value(
+                    shape.layout.key().exact_type(),
+                    crate::LirTargetProfile::DARWIN_AARCH64,
+                    crate::MaterializationRoot::cone_owned(),
+                )
+                .unwrap()
+                .into(),
+                layout_provider: ConeIdentity::SINGLE_FILE,
                 scan_program: crate::RefScan::References(vec![0]),
                 scan_kind: StaticStorageScanKindV1::Recursive,
                 byte_size: 8,

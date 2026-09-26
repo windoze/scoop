@@ -89,7 +89,14 @@ pub(super) fn definitions(
         }
     }
     Ok((
-        lir::StrongTypeReferenceDefinitionsV2::new(consumer, &types)?,
+        lir::StrongTypeReferenceDefinitionsV2::new(
+            consumer,
+            &types,
+            &dependencies
+                .iter()
+                .map(|dependency| dependency.layout.exports().layouts())
+                .collect::<Vec<_>>(),
+        )?,
         lir::StrongInitializationDefinitionCatalogV2::new(consumer, &units)?,
     ))
 }

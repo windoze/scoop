@@ -36,6 +36,26 @@ pub(super) fn validate(
             callable(*reference, selected)?;
         }
     }
+    for registration in production.static_storage_registrations().registrations() {
+        let semantic = registration.semantic();
+        if let crate::StaticStorageLayout::External(value) = semantic.value_layout() {
+            let provider = semantic.layout_provider();
+            let scan = value.scan_definition();
+            if !selected.contains(provider, Target::Layout(semantic.layout()))
+                || !selected.physical().records().iter().any(|import| {
+                    import.provider() == provider
+                        && import.subject() == Subject::Scan(semantic.scan())
+                        && import.expected_symbol() == scan.symbol()
+                        && import.required_definition() == scan.definition()
+                })
+            {
+                return Err(StrongProductionLayoutJoinError::StaticStorageLayout {
+                    provider,
+                    layout: semantic.layout(),
+                });
+            }
+        }
+    }
     for registration in production.initialization_registrations().registrations() {
         for dependency in registration.semantic().dependencies() {
             initialization(dependency, selected)?;

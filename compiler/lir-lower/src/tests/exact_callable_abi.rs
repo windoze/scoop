@@ -10,7 +10,9 @@ pub(super) fn fixture() -> (
     let mut builder = Builder::new();
     let function = builder.user_fn("exportedAbi", Arena::new(), Vec::new());
     let cycle = builder.user_fn("__scoopThrowInitializationCycle", Arena::new(), Vec::new());
-    let mut module = builder.finish_with_types(function, ConeIdentity::CORE, vec![]);
+    let mut exact_types = Vec::new();
+    test_exact_type(&builder.function_types, &mir::Type::Any, &mut exact_types);
+    let mut module = builder.finish_with_types(function, ConeIdentity::CORE, exact_types);
     module.output = mir::MirOutput::Library;
     let target = match module.meta.callable_signature_subject(function).unwrap() {
         mir::CallableSignatureSubject::Strong(owner) => {

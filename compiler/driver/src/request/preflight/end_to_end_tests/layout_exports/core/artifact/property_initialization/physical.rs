@@ -48,7 +48,7 @@ pub(super) fn select<'a>(
     Vec<lir::StrongExternalInitializationUseV2>,
 ) {
     let uses = mir.initialization_uses().records();
-    let mut source = Source::from_mir(input);
+    let mut source = Source::from_mir(input, layout);
     source.physical.extend(uses.iter().map(|usage| {
         (
             usage.provider(),

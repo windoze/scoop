@@ -25,6 +25,10 @@ pub enum StrongLirLoweringError {
         provider: scoop_identity::ConeIdentity,
         exact: scoop_identity::PersistentExactTypeId,
     },
+    MissingDependencyValueLayout {
+        provider: scoop_identity::ConeIdentity,
+        layout: scoop_identity::PersistentLayoutId,
+    },
     DependencyDescriptorBinding(scoop_identity::PersistentExactTypeId),
     Diagnostic(scoop_identity::ExactTypeDiagnosticError),
     StorageReplay(StorageLoweringError),
@@ -89,6 +93,10 @@ impl fmt::Display for StrongLirLoweringError {
             Self::MissingDependencyLayoutSelection { provider, exact } => write!(
                 formatter,
                 "dependency descriptor {exact} from {provider} requires a complete layout selection",
+            ),
+            Self::MissingDependencyValueLayout { provider, layout } => write!(
+                formatter,
+                "value layout {layout} from {provider} is absent from the dependency selection"
             ),
             Self::DependencyDescriptorBinding(exact) => write!(
                 formatter,
@@ -172,6 +180,7 @@ impl std::error::Error for StrongLirLoweringError {
             Self::InvalidInitializationCallable(_)
             | Self::DependencyLayoutConsumer { .. }
             | Self::DependencyLayoutTarget { .. }
+            | Self::MissingDependencyValueLayout { .. }
             | Self::MissingDependencyLayoutSelection { .. }
             | Self::DependencyDescriptorBinding(_)
             | Self::ForeignExternalLirSelection { .. }

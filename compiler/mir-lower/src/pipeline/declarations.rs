@@ -1,6 +1,27 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn lower_failure_root_type(&mut self, module: &hir::Module) {
+        let any = module
+            .types
+            .iter()
+            .find_map(|(id, ty)| matches!(ty.kind, hir::TypeKind::Any).then_some(id))
+            .expect("the complete HIR graph contains the failure-root Any type");
+        Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        }
+        .lower(
+            any,
+            &mut self.source_exact_types,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+    }
+
     pub(super) fn lower_initialization_units(&mut self, module: &hir::Module) {
         if module.initialization_units.is_empty() {
             assert!(module.initialization_failure_roots.is_empty());

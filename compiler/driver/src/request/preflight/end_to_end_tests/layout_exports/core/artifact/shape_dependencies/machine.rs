@@ -38,16 +38,7 @@ pub(super) fn check(
     assert!(plan.generated_nominal_shapes().is_empty());
     assert!(!plan.dependency_generated_nominal_shapes().is_empty());
     assert!(input.mir.module().meta.boxing_adjusts.is_empty());
-    let mut physical = vec![(
-        provider.layout.provider(),
-        lir::ExternalStrongShapeSubjectV1::TypeDescriptor(provider.string),
-    )];
-    if !plan.strings().is_empty() {
-        physical.push((
-            provider.layout.provider(),
-            lir::ExternalStrongShapeSubjectV1::TypeRegistration(provider.string),
-        ));
-    }
+    let mut source = Source::from_mir(input.mir, provider.layout);
     for root in plan.dependency_generated_nominal_shapes() {
         assert_eq!(root.provider(), provider.layout.provider());
         let shape = provider
@@ -62,28 +53,15 @@ pub(super) fn check(
             root.exact(),
             shape.roles().boxed_value().available().unwrap().exact()
         );
-        physical.push((
-            root.provider(),
-            lir::ExternalStrongShapeSubjectV1::TypeDescriptor(root.exact()),
-        ));
     }
-    physical.sort_unstable();
-    physical.dedup();
-    let mut roots = shapes
-        .iter()
-        .map(|(owner, source)| {
-            lir::LayoutAbiDependencyV1::new(
-                *owner,
-                lir::LayoutAbiSemanticTargetV1::ShapeSupport(*source),
-            )
-        })
-        .collect::<Vec<_>>();
-    roots.push(lir::LayoutAbiDependencyV1::new(
-        provider.layout.provider(),
-        lir::LayoutAbiSemanticTargetV1::Descriptor(provider.string),
-    ));
-    roots.sort_unstable();
-    let source = Source { roots, physical };
+    source.roots.extend(shapes.iter().map(|(owner, shape)| {
+        lir::LayoutAbiDependencyV1::new(
+            *owner,
+            lir::LayoutAbiSemanticTargetV1::ShapeSupport(*shape),
+        )
+    }));
+    source.roots.sort_unstable();
+    source.roots.dedup();
     let consumer = input.mir.module().cone;
     let selected = lir::StrongProductionDependencySelectionV2::try_new(
         consumer,

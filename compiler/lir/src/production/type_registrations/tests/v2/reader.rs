@@ -49,7 +49,7 @@ fn foreign_parent_and_dispatch_require_the_same_available_provider() {
     let expected = semantics(&fixture, Some(ConeIdentity::CORE));
     let definitions = catalog(&expected);
     let empty =
-        crate::StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap();
+        crate::StrongTypeReferenceDefinitionsV2::new(ConeIdentity::SINGLE_FILE, &[], &[]).unwrap();
     let plans = build(&fixture, Some(ConeIdentity::CORE)).unwrap();
     assert!(matches!(
         validate(&fixture, decoded(&plans), &empty),
@@ -72,6 +72,7 @@ fn foreign_parent_and_dispatch_require_the_same_available_provider() {
     let descriptors_only = crate::StrongTypeReferenceDefinitionsV2::new(
         ConeIdentity::SINGLE_FILE,
         definitions.descriptor_definitions(),
+        &[],
     )
     .unwrap();
     assert!(matches!(

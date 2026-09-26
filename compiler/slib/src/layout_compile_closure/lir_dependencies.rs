@@ -94,6 +94,7 @@ impl<'input> MirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     },
                     &layout,
                     &dependencies,
+                    strong.static_storage_registrations().registrations(),
                 )?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
                 Ok(LirDependencyGraphReplayedCrossConeLayoutSections {

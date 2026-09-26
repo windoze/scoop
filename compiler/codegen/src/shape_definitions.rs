@@ -210,7 +210,7 @@ fn collect_layouts(module: &Module) -> Result<BTreeSet<PersistentLayoutId>, Code
                 .globals
                 .iter()
                 .filter_map(|(_, global)| match &global.init {
-                    scoop_lir::GlobalInit::Storage { layout, .. } => Some(layout),
+                    scoop_lir::GlobalInit::Storage { layout, .. } => layout.local(),
                     scoop_lir::GlobalInit::StringConst { .. }
                     | scoop_lir::GlobalInit::CString { .. } => None,
                 }),
@@ -250,7 +250,11 @@ fn collect_scans(module: &Module) -> Result<BTreeMap<PersistentScanId, RefScan>,
         )?;
     }
     for (_, global) in module.globals.iter() {
-        if let scoop_lir::GlobalInit::Storage { layout, .. } = &global.init {
+        if let scoop_lir::GlobalInit::Storage {
+            layout: scoop_lir::StaticStorageLayout::Local(layout),
+            ..
+        } = &global.init
+        {
             insert_scan(&mut scans, layout.scan_record().id(), global.scan.clone())?;
         }
     }

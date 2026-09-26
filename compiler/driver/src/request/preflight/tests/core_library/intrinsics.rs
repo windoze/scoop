@@ -82,9 +82,10 @@ pub(super) fn assert_integer_exception_requires_layout(
         panic!("missing exception layout must be rejected before MIR: {error:?}")
     };
     assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].file, 0);
     assert_eq!(
         diagnostics[0].message,
-        "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: dependency integer division exception construction requires layout/ABI capability from M23-6"
+        "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: integer division exception constructor requires a materialized dependency layout; its owner has source-only representation"
     );
     let text = std::fs::read_to_string(&source).unwrap();
     let start = text.find("userCoreManagedIntegerDefault()").unwrap() as u32;

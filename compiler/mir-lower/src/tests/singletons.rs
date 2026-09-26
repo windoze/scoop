@@ -158,7 +158,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         state.ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::InitializationOutcome)
     );
-    for name in ["$init.caught", "$init.materialized", "$init.failure"] {
+    for name in ["$init.caught", "$init.failure"] {
         let local = ensure
             .body
             .locals

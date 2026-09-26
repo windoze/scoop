@@ -55,7 +55,7 @@ pub(super) fn check(
     let expected = section.selected().semantic_relations().collect::<Vec<_>>();
     let resolved = wire::resolve(&section, &expected, input.identities).unwrap();
     let replay = |candidate: &_| {
-        scoop_slib::replay_shared_lir_dependency_graph(metadata, candidate, &[core.exports()])
+        scoop_slib::replay_shared_lir_dependency_graph(metadata, candidate, &[core.exports()], &[])
     };
     replay(&resolved).unwrap();
     for (provider, owner) in shapes {

@@ -125,6 +125,26 @@ impl<'a> CfgLowerer<'a> {
                 Some(next)
             };
             self.enter(catch_block);
+            let materialized = self.new_hidden(
+                "catch",
+                StructuralDefinitionSiteRole::SyntheticValue,
+                SyntheticLocalRole::Temporary,
+                mir::Type::Any,
+            );
+            self.push(
+                mir::StatementKind::Call(mir::CallEffect::Value {
+                    destination: materialized,
+                    call: mir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
+                        },
+                        args: vec![mir::Expr::caught_exception()],
+                        pending: self.call_pending_context(),
+                    },
+                }),
+                catch.span,
+            );
             self.push(
                 mir::StatementKind::ValDecl {
                     local: catch.local,
@@ -133,7 +153,7 @@ impl<'a> CfgLowerer<'a> {
                         mir::ExprKind::Retype {
                             operand: Box::new(mir::Expr::new(
                                 mir::Type::Any,
-                                mir::ExprKind::CaughtException,
+                                mir::ExprKind::Local(materialized),
                             )),
                             ty: catch.ty.clone(),
                         },

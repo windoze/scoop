@@ -7,7 +7,8 @@ fn add_encoded_global(module: &mut Module, symbol: &str, ty: LirType, payload: L
         scan: RefScan::None,
         init: GlobalInit::Storage {
             identity,
-            layout: layout_identity(symbol, scoop_identity::RepresentationRole::ManagedValue),
+            layout: layout_identity(symbol, scoop_identity::RepresentationRole::ManagedValue)
+                .into(),
             ty,
             initial_state: LirStaticInitialState::EncodedStaticValue { payload },
             thread_local: false,

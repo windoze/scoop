@@ -17,7 +17,15 @@ pub(super) fn check(
     let expected = replay().unwrap_or_else(|error| panic!("{name}: {error}"));
     assert_eq!(&expected, production.digest_finalization_plan());
     let raw: lir::DecodedStrongDigestFinalizationPlanV1 = decoded(&expected);
-    assert_eq!(raw.resolve_foundation(foundation).unwrap(), expected);
+    assert_eq!(
+        raw.resolve_foundation(
+            foundation,
+            &scoop_lir::StrongTypeReferenceDefinitionsV2::new(foundation.producer(), &[], &[])
+                .unwrap()
+        )
+        .unwrap(),
+        expected
+    );
     if name.starts_with("shared-digests-") {
         let mut counts = BTreeMap::<_, (usize, usize, usize)>::new();
         for node in expected.nodes() {

@@ -105,7 +105,7 @@ impl WireEncode for StrongImmortalObjectRegistrationPlanV1 {
 impl WireEncode for StrongStaticStorageRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(31)?;
+        encoder.map(32)?;
         encode_static_semantic_fields(encoder, semantic)?;
         encode_field(encoder, 11, &self.registration_symbol())?;
         encode_field(encoder, 12, &self.registration_definition_plan())?;
@@ -128,7 +128,8 @@ impl WireEncode for StrongStaticStorageRegistrationPlanV1 {
         encode_field(encoder, 28, &self.registration_fingerprint_node())?;
         encode_field(encoder, 29, &self.registration_definition_patch())?;
         encode_field(encoder, 30, &self.layout_fingerprint_patch())?;
-        encode_field(encoder, 31, &self.scan_fingerprint_patch())
+        encode_field(encoder, 31, &self.scan_fingerprint_patch())?;
+        encode_field(encoder, 32, &semantic.layout_provider())
     }
 }
 

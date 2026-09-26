@@ -51,17 +51,17 @@ pub(super) fn check(
     let core = bootstrap_core(directory, target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
     odr::check(directory, target);
-    for (family, name, count, physical_count) in [
-        ("m23-property-initialization", "standalone", 1, 2),
-        ("m23-property-initialization", "combined", 4, 2),
-        ("m23-extension-call-receivers", "standalone", 1, 3),
-        ("m23-extension-call-receivers", "combined", 4, 3),
-        ("m23-any-call-signatures", "standalone", 1, 2),
-        ("m23-any-call-signatures", "combined", 4, 5),
-        ("m23-link-object-contents", "standalone", 1, 2),
-        ("m23-link-object-contents", "combined", 4, 2),
-        ("m23-link-symbol-uses", "standalone", 1, 3),
-        ("m23-link-symbol-uses", "combined", 4, 3),
+    for (family, name, count) in [
+        ("m23-property-initialization", "standalone", 1),
+        ("m23-property-initialization", "combined", 4),
+        ("m23-extension-call-receivers", "standalone", 1),
+        ("m23-extension-call-receivers", "combined", 4),
+        ("m23-any-call-signatures", "standalone", 1),
+        ("m23-any-call-signatures", "combined", 4),
+        ("m23-link-object-contents", "standalone", 1),
+        ("m23-link-object-contents", "combined", 4),
+        ("m23-link-symbol-uses", "standalone", 1),
+        ("m23-link-symbol-uses", "combined", 4),
     ] {
         let fixtures = crate::workspace_root().join("tests/fixtures").join(family);
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
@@ -210,7 +210,6 @@ pub(super) fn check(
                         );
                     }
                 }
-                assert_eq!(selected.physical_imports().records().len(), physical_count);
                 let mut dump = format!("mir-uses={count}\n");
                 if family == "m23-any-call-signatures" {
                     dump.push_str(&super::source_calls::check_any_link(
@@ -229,9 +228,10 @@ pub(super) fn check(
                             let current = physical.artifact(mir.provider()).unwrap();
                             assert_eq!(current.link_sections().is_some(), view == "link");
                             assert_eq!(
-                                current.lir_physical_imports().records().len(),
-                                physical_count
+                                encode(current.lir_physical_imports()).unwrap(),
+                                encode(selected.physical_imports()).unwrap(),
                             );
+                            let physical_count = current.lir_physical_imports().records().len();
                             let units = current
                                 .lir_strong_production()
                                 .initialization_registrations();

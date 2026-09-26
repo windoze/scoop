@@ -99,7 +99,8 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
             } if !arithmetic_layout => "integer division exception constructor",
             _ => return Ok(()),
         };
-        Err(Diagnostic::at(occurrence.expression.span, format!(
+        let evaluation = occurrence.expression.origin.evaluation;
+        Err(Diagnostic::at_file(evaluation.file as usize, evaluation.span, format!(
             "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: {operation} requires a materialized dependency layout; its owner has source-only representation")))
     }).map_err(|error| vec![match error {
         concrete::ExecutableExpressionVisitError::Visitor(diagnostic) => diagnostic,

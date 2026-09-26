@@ -52,8 +52,13 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             &identities,
             Some(type_definitions),
         )?;
-        let storages =
-            validate_static_storages(self.static_storages, target, foundation, &identities)?;
+        let storages = validate_static_storages(
+            self.static_storages,
+            target,
+            foundation,
+            &identities,
+            Some(type_definitions),
+        )?;
         let initialization = validate_initialization_registration_constituents_v2(
             self.initialization_units,
             target,

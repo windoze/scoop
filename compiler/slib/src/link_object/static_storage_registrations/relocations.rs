@@ -104,17 +104,40 @@ pub(super) fn verify_relocations(
         plan,
         StaticStorageRelocationRoleV1::ScanProgramPointer,
     )?;
-    validate_strong_target(
-        patch_sites,
-        plan,
-        &scan,
-        plan.scan_definition_plan(),
-        plan.scan_primary_atom(),
-        StrongDefinitionEntity::scan(plan.semantic().scan()),
-        StrongDefinitionRole::ScanProgram,
-        plan.scan_symbol(),
-        StaticStorageRelocationRoleV1::ScanProgramPointer,
-    )?;
+    if matches!(
+        plan.semantic().value_layout(),
+        scoop_lir::StaticStorageLayout::External(_)
+    ) {
+        let expected = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+            .contract()
+            .native_symbol_normalization()
+            .compiler_generated_object_symbol(plan.scan_symbol().symbol().as_str())
+            .into_bytes();
+        if !matches!(
+            scan.resolution(),
+            StrongRelocationResolutionV1::ExternalCandidate { .. }
+        ) || scan.symbol() != expected
+        {
+            return relocation_error(
+                plan,
+                StaticStorageRelocationRoleV1::ScanProgramPointer,
+                StaticStorageRegistrationRelocationFailureV1::TargetSymbol,
+            );
+        }
+        // The shared shape-link import resolves this actual provider definition.
+    } else {
+        validate_strong_target(
+            patch_sites,
+            plan,
+            &scan,
+            plan.scan_definition_plan(),
+            plan.scan_primary_atom(),
+            StrongDefinitionEntity::scan(plan.semantic().scan()),
+            StrongDefinitionRole::ScanProgram,
+            plan.scan_symbol(),
+            StaticStorageRelocationRoleV1::ScanProgramPointer,
+        )?;
+    }
     let _ = (storage_use, scan_use);
 
     match plan.initial_artifacts() {

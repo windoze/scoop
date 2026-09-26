@@ -117,6 +117,11 @@ impl Lowerer {
             let id = self.declare_struct_ctor(module, constructor_id);
             struct_ctor_functions.push((constructor_id, id));
         }
+        if !module.initialization_units.is_empty()
+            || matches!(self.output, LoweringOutput::Executable(_))
+        {
+            self.lower_failure_root_type(module);
+        }
         self.lower_initialization_units(module);
         let mut initialization_string_owners = HashMap::new();
         for (_, unit) in module.initialization_units.iter() {

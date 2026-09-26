@@ -18,7 +18,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.1: Int = external1 direct
+      call $call.1: Int = external0 direct
         Type Int
         Local $dependency.parameter.value
       global_assign initialized
@@ -76,24 +76,24 @@ Module
         InitializationUnitAddress init0 top-level:initialized
       goto bb10
     bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
       val $init.caught: Any
         Type Any
         Retype Any
           Type Any
-          CaughtException
+          Local $catch.1
       goto bb13
     bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:initialized
         Type Any
-        Local $init.materialized
+        Local $init.caught
       throw unwind bb6
         Type Any
-        Local $init.materialized
+        Local $init.caught
     bb14 if.then.14
       goto bb16
     bb15 if.else.15
@@ -117,7 +117,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:initialized
-      call external0 direct
+      call external1 direct
         Type String
         Local $init.message
       unreachable

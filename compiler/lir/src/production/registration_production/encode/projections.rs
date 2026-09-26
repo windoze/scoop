@@ -12,8 +12,9 @@ impl crate::StrongStaticStorageSemanticPlanV1 {
 }
 impl WireEncode for StrongStaticStorageSemanticProjectionV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
-        encode_static_semantic_fields(encoder, self.0)
+        encoder.map(11)?;
+        encode_static_semantic_fields(encoder, self.0)?;
+        encode_field(encoder, 32, &self.0.layout_provider())
     }
 }
 pub(super) fn encode_static_semantic_fields(

@@ -722,7 +722,8 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
                 layout: layout_identity(
                     "qualifiedNiche",
                     scoop_identity::RepresentationRole::ManagedValue,
-                ),
+                )
+                .into(),
                 ty: LirType::Enum(option),
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::EnumUnit { variant: none },
@@ -822,7 +823,8 @@ fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
             layout: layout_identity(
                 "crossedNicheNull",
                 scoop_identity::RepresentationRole::ManagedValue,
-            ),
+            )
+            .into(),
             ty: LirType::Enum(option),
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Code),

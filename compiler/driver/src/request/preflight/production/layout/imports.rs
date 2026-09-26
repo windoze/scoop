@@ -10,48 +10,15 @@ pub(super) fn select<'a>(
 ) -> Result<lir::StrongProductionDependencySelectionV2<'a>, Error> {
     let mut roots = Vec::new();
     let mut physical = Vec::new();
-    for shape in input
-        .materialization()
-        .dependency_generated_nominal_shapes()
-    {
-        roots.push(lir::LayoutAbiDependencyV1::new(
-            shape.provider(),
-            lir::LayoutAbiSemanticTargetV1::ShapeSupport(shape.source()),
-        ));
-        physical.push((
-            shape.provider(),
-            lir::ExternalStrongShapeSubjectV1::TypeDescriptor(shape.exact()),
-        ));
-    }
-    for source in input.module().meta.source_exact_types.iter() {
-        if !matches!(
-            source.ty(),
-            mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_)
-        ) {
-            continue;
-        }
-        let mir::SourceExactTypeOwner::Cone(provider) = source.owner() else {
-            continue;
-        };
-        if provider == input.module().cone {
-            continue;
-        }
-        let exact = source.identity_record().id();
-        roots.push(lir::LayoutAbiDependencyV1::new(
-            provider,
-            lir::LayoutAbiSemanticTargetV1::Descriptor(exact),
-        ));
-        physical.push((
-            provider,
-            lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
-        ));
-        if source.ty() == &mir::Type::String && !input.materialization().strings().is_empty() {
-            physical.push((
-                provider,
-                lir::ExternalStrongShapeSubjectV1::TypeRegistration(exact),
-            ));
-        }
-    }
+    super::super::collect_mir_references(
+        input,
+        &dependencies
+            .iter()
+            .map(|dependency| dependency.lir_exports())
+            .collect::<Vec<_>>(),
+        &mut roots,
+        &mut physical,
+    )?;
     for callable in input.materialization().external_callable_roots() {
         let provider = callable.provider();
         let target = callable.implementation();

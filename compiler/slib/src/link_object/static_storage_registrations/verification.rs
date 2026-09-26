@@ -345,41 +345,43 @@ fn verify_storage_artifacts(
         storage_range.byte_size(),
     )?;
 
-    require_primary_atom(
-        verified_member(
-            builtins,
-            required_scoop_member(builtins, plan, plan.layout_definition_plan())?,
-        )?,
-        plan,
-        plan.layout_definition_plan(),
-        plan.layout_primary_atom(),
-        StaticStorageArtifactRoleV1::Layout,
-        BuiltinObjectSectionRoleV1::ReadOnlyData,
-    )?;
-    let scan_member = required_scoop_member(builtins, plan, plan.scan_definition_plan())?;
-    let scan_index = verified_member(builtins, scan_member)?;
-    let (_, scan_start, scan_end) = require_primary_atom(
-        scan_index,
-        plan,
-        plan.scan_definition_plan(),
-        plan.scan_primary_atom(),
-        StaticStorageArtifactRoleV1::ScanProgram,
-        BuiltinObjectSectionRoleV1::ReadOnlyData,
-    )?;
-    let expected_scan = canonical_scan_bytes(plan);
-    require_size(
-        plan,
-        StaticStorageArtifactRoleV1::ScanProgram,
-        u64::try_from(expected_scan.len()).unwrap(),
-        scan_end - scan_start,
-    )?;
-    validate_artifact_bytes(
-        objects[&scan_member],
-        scan_start,
-        &expected_scan,
-        plan,
-        StaticStorageArtifactRoleV1::ScanProgram,
-    )?;
+    if plan.semantic().value_layout().local().is_some() {
+        require_primary_atom(
+            verified_member(
+                builtins,
+                required_scoop_member(builtins, plan, plan.layout_definition_plan())?,
+            )?,
+            plan,
+            plan.layout_definition_plan(),
+            plan.layout_primary_atom(),
+            StaticStorageArtifactRoleV1::Layout,
+            BuiltinObjectSectionRoleV1::ReadOnlyData,
+        )?;
+        let scan_member = required_scoop_member(builtins, plan, plan.scan_definition_plan())?;
+        let scan_index = verified_member(builtins, scan_member)?;
+        let (_, scan_start, scan_end) = require_primary_atom(
+            scan_index,
+            plan,
+            plan.scan_definition_plan(),
+            plan.scan_primary_atom(),
+            StaticStorageArtifactRoleV1::ScanProgram,
+            BuiltinObjectSectionRoleV1::ReadOnlyData,
+        )?;
+        let expected_scan = canonical_scan_bytes(plan);
+        require_size(
+            plan,
+            StaticStorageArtifactRoleV1::ScanProgram,
+            u64::try_from(expected_scan.len()).unwrap(),
+            scan_end - scan_start,
+        )?;
+        validate_artifact_bytes(
+            objects[&scan_member],
+            scan_start,
+            &expected_scan,
+            plan,
+            StaticStorageArtifactRoleV1::ScanProgram,
+        )?;
+    }
 
     match plan.initial_artifacts() {
         StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit => {}
