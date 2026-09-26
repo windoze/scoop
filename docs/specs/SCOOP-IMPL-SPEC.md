@@ -526,7 +526,7 @@ reader先执行所有view共享的“受限canonical normal-archive读取 → ma
 
 共有 canonical Scoop ABI 正规化从已经注册的 exact key 识别语言内建 Any，按目标的 managed pointer 布局计算其大小、对齐、GC 属性和 direct 参数/结果形式，并保留完整 Any exact identity；Any 同样参与既有非空 managed-reference niche 判断。该固定语言表示不依赖 native-boundary witness 或普通 nominal arena，计算本身不产生 provider definition、成员或布局消费资格，实际可达依赖及 ManagedValue 布局仍须由共有产物闭包核对。缺失 exact key 继续拒绝；其他同名 nominal 仍查询自身声明。C ABI 中按值传递 Any 继续按既有 managed-reference 规则拒绝。
 
-产物发布复用同次编译的完整 IR、已验证依赖和最终对象；外部产物读入与 Link 检查按 2.12 执行，同一字节快照不重复完整语义重放。
+同次编译完成的归档直接保存完整产物及其普通摘要；摘要由已有 manifest、语义 fingerprint、最终对象和生产记录产生，只记录后续构建与缓存实际需要的信息。原子发布直接写入这些归档 bytes，回读仅核对字节一致后替换目标，不重新创建语义会话或把当前产物和全部依赖再次交给 reader。外部输入的产物仍由共有 reader 检查格式、引用、ABI、符号和实际对象。删除已退出正式路径的 M23-5 归档 writer、双版本发布包装及其专用测试；发布接口只接收正常编译结果，不保留用于取得发布资格的 raw-bytes 重放入口。此清理不改变 wire、runtime ABI 或 String 表示。
 
 layout profile 的 Link reader 在同一共有语义重放之后，必须从当前 artifact 已验证的 LIR definition plans 与 generated bridge plan 重建完整 producer unit 分区，再逐项核对 Link identity closure 的实际对象物化表。普通 Strong 与 generated C bridge 使用各自 typed unit id，不以候选 member id 或名称补出所属关系；每个 unit 恰好物化一次，完整 member id、顺序和分组都须与重建结果相等。物化表与原 archive 的 LinkObject directory 精确对应，稳定键、role 和实际 payload 均须存在且一致，额外对象、漏项、错 provider 或 foreign unit 均拒绝。该查询与 ordinary Link reader 共用检查，不重开或复制整个产物，不新增 wire 字段、CORE 例外或机器资格。本项只关闭物化与目录关系，对象内容、重定位、registration、Code/runtime 指纹和完整 Compile/Link 一致性仍须继续验证。
 

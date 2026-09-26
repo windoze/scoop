@@ -6,8 +6,8 @@ use std::sync::Arc;
 use scoop_identity::{ConeIdentity, SemanticIdentitySession};
 use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_slib::{
-    ArtifactSnapshot, CrossConeArtifactClosureValidationError, CrossConeLayoutStrongProfile,
-    PublishableCrossConeArtifact, ValidatedCompileArtifact, ValidatedCrossConeStrongLinkArtifact,
+    ArtifactSnapshot, CrossConeArtifactClosureValidationError, CrossConeArtifactSummary,
+    CrossConeLayoutStrongProfile, ValidatedCompileArtifact, ValidatedCrossConeStrongLinkArtifact,
     validate_completed_cross_cone_artifact_closure,
 };
 
@@ -18,7 +18,7 @@ pub struct ValidatedCrossConeArtifactHandle {
     snapshot: Arc<ArtifactSnapshot>,
     compile: ValidatedCompileArtifact<CrossConeLayoutStrongProfile>,
     link: ValidatedCrossConeStrongLinkArtifact,
-    publication: PublishableCrossConeArtifact,
+    publication: CrossConeArtifactSummary,
 }
 
 impl fmt::Debug for ValidatedCrossConeArtifactHandle {
@@ -44,7 +44,7 @@ impl ValidatedCrossConeArtifactHandle {
         &self.link
     }
 
-    pub const fn publication(&self) -> &PublishableCrossConeArtifact {
+    pub const fn publication(&self) -> &CrossConeArtifactSummary {
         &self.publication
     }
 }

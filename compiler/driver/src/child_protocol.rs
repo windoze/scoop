@@ -145,7 +145,7 @@ fn success_response(
     if success.emitted_dump().is_some() {
         return Err(ChildProtocolError::UnexpectedDump);
     }
-    let artifact = success.artifact().validation();
+    let artifact = success.artifact().summary();
     let semantic = artifact.compile_summary().semantic_fingerprints();
     let FingerprintAvailability::Available(code) = semantic.code() else {
         return Err(ChildProtocolError::MissingStrongFingerprint("code"));

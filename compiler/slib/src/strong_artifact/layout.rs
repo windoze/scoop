@@ -32,10 +32,8 @@ use sections::{LayoutMetadataInput, assemble_metadata};
 
 /// Complete typed input for one `CrossConeLayoutStrong` archive.
 ///
-/// The Strong V2 section, both Link-only semantic closures, object coverage,
-/// Code fingerprint, and unchanged production manifest all originate in the
-/// consumed layout Code proof. The writer accepts no raw replacement for any
-/// of those projections.
+/// Strong V2, Link closures, object coverage, fingerprints, and the production
+/// manifest come from the same completed object production.
 pub struct CrossConeLayoutStrongArtifactInputV1<'ir> {
     producer: ProducerRecord,
     cone: ConeRecord,
@@ -100,8 +98,7 @@ impl<'ir> CrossConeLayoutStrongArtifactInputV1<'ir> {
 #[derive(Debug, Eq, PartialEq)]
 pub struct AssembledCrossConeLayoutStrongArtifactV1 {
     archive: CanonicalSlibArchive,
-    artifact_fingerprint: ArtifactFingerprint,
-    target_selection: ValidatedLirTargetSelection,
+    summary: crate::CrossConeArtifactSummary,
 }
 
 impl AssembledCrossConeLayoutStrongArtifactV1 {
@@ -127,6 +124,7 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             link_objects,
         } = input;
         let identity = cone.identity();
+        let link_object_count = link_objects.len();
         let (code, callable_link_closure, layout_link_closure) = layout_code.into_parts();
 
         validate_producers(
@@ -221,22 +219,34 @@ impl AssembledCrossConeLayoutStrongArtifactV1 {
             vec![manifest_section],
         )
         .map_err(CrossConeLayoutStrongArtifactWriteError::Manifest)?;
-        let artifact_fingerprint = manifest.artifact_fingerprint();
+        let summary = crate::CrossConeArtifactSummary::from_layout(
+            &manifest,
+            production_manifest.code_proof().production().projection(),
+            link_object_count,
+            target_selection,
+        );
         let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members)
             .map_err(CrossConeLayoutStrongArtifactWriteError::Archive)?;
-        Ok(Self {
-            archive,
-            artifact_fingerprint,
-            target_selection,
-        })
+        Ok(Self { archive, summary })
     }
 
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
-        self.artifact_fingerprint
+        self.summary.artifact_fingerprint()
     }
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
-        self.target_selection
+        self.summary.target_selection()
+    }
+
+    pub const fn summary(&self) -> &crate::CrossConeArtifactSummary {
+        &self.summary
+    }
+
+    pub fn publish(
+        &self,
+        destination: &std::path::Path,
+    ) -> Result<crate::PublishedCrossConeArtifact, crate::CrossConeArtifactPublishError> {
+        crate::PublishedCrossConeArtifact::write(&self.archive, &self.summary, destination)
     }
 
     pub fn as_bytes(&self) -> &[u8] {

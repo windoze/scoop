@@ -156,8 +156,8 @@ pub(super) fn assert_artifacts_equal(
         std::fs::read(second.artifact().path()).unwrap()
     );
     assert_eq!(
-        first.artifact().validation().artifact_fingerprint(),
-        second.artifact().validation().artifact_fingerprint()
+        first.artifact().summary().artifact_fingerprint(),
+        second.artifact().summary().artifact_fingerprint()
     );
 }
 

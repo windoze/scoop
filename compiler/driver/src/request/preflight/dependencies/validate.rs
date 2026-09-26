@@ -22,7 +22,7 @@ impl LoadedExplicitDependencyInputs {
         manifest: Option<&LoadedConeManifest>,
         current_identity: ConeIdentity,
         target: &ResolvedTargetProfile,
-    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
+    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
         let mut group_names = BTreeMap::<(String, String), (String, ConeIdentity)>::new();
         if let Some(manifest) = manifest {
@@ -108,7 +108,7 @@ impl LoadedExplicitDependencyInputs {
                 current_identity,
                 target.lir_target_selection(),
                 direct.clone(),
-                dependency_first.clone(),
+                dependency_first,
             ),
             target.c_bridge_toolchain().profile(),
             &mut semantic_session,
@@ -126,7 +126,6 @@ impl LoadedExplicitDependencyInputs {
             .collect();
         Ok(ValidatedExplicitDependencyInputSet::new(
             Rc::new(closure),
-            dependency_first,
             direct_dependencies,
             semantic_session,
         ))

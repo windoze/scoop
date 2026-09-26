@@ -38,29 +38,25 @@ pub use validated::{
     ValidatedSingleConeBuildRequest,
 };
 
-/// Proof that the manifest, explicit artifacts, and their recursive closure
-/// were validated before current-source discovery begins.
-pub struct ValidatedExplicitDependencyInputSet<'input> {
+/// Complete dependency artifacts and their shared semantic identity session.
+pub struct ValidatedExplicitDependencyInputSet {
     closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure>,
-    dependency_first: Vec<&'input [u8]>,
     direct_dependencies: Vec<scoop_slib::DependencyRecord>,
     _semantic_session: SemanticIdentitySession,
 }
 
-impl<'input> ValidatedExplicitDependencyInputSet<'input> {
+impl ValidatedExplicitDependencyInputSet {
     pub fn is_empty(&self) -> bool {
         self.closure.artifact_count() == 0
     }
 
     pub(crate) fn new(
         closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure>,
-        dependency_first: Vec<&'input [u8]>,
         direct_dependencies: Vec<scoop_slib::DependencyRecord>,
         semantic_session: SemanticIdentitySession,
     ) -> Self {
         Self {
             closure,
-            dependency_first,
             direct_dependencies,
             _semantic_session: semantic_session,
         }
@@ -68,10 +64,6 @@ impl<'input> ValidatedExplicitDependencyInputSet<'input> {
 
     pub(crate) fn semantic(&self) -> &scoop_slib::ValidatedCrossConeSemanticClosure {
         self.closure.semantic()
-    }
-
-    pub(crate) fn dependency_first(&self) -> &[&'input [u8]] {
-        &self.dependency_first
     }
 
     pub(crate) fn direct_dependencies(&self) -> &[scoop_slib::DependencyRecord] {

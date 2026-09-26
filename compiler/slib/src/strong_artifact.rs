@@ -27,9 +27,6 @@ use assembly::{
     verify_link_objects,
 };
 
-mod cross_cone;
-pub use cross_cone::*;
-
 mod layout;
 pub use layout::*;
 

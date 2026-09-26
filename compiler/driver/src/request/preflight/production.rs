@@ -53,26 +53,11 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             })
         });
         let artifact = (|| {
-            let current = cone.identity();
             let artifact =
                 protocols.lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;
-            let direct = self
-                .request
-                .dependencies()
-                .direct_dependencies()
-                .iter()
-                .map(scoop_slib::DependencyRecord::identity)
-                .collect::<Vec<_>>();
-            scoop_slib::publish_cross_cone_layout_artifact(
-                artifact.as_bytes(),
-                self.request.output().as_path(),
-                current,
-                &direct,
-                self.request.dependencies().dependency_first(),
-                self.request.target().lir_target_selection(),
-                self.request.target().c_bridge_toolchain().profile(),
-            )
-            .map_err(CurrentConeProductionFailure::Publication)
+            artifact
+                .publish(self.request.output().as_path())
+                .map_err(CurrentConeProductionFailure::Publication)
         })();
         match artifact {
             Ok(artifact) => Ok(SingleConeProductionSuccess::new_cross_cone(

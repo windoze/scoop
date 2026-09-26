@@ -1,17 +1,17 @@
-//! Shared final-file validation and atomic replacement.
+//! Write, byte readback, and atomic replacement of a completed archive.
 
 use std::io::Write;
 use std::path::Path;
 
 use super::{
-    CrossConeArtifactPublishError, CrossConePublishIoOperation, PublishableCrossConeArtifact,
+    CrossConeArtifactPublishError, CrossConeArtifactSummary, CrossConePublishIoOperation,
     PublishedCrossConeArtifact,
 };
 
 pub(super) fn publish(
     final_bytes: &[u8],
     destination: &Path,
-    validate: impl FnOnce(&[u8]) -> Result<PublishableCrossConeArtifact, CrossConeArtifactPublishError>,
+    summary: CrossConeArtifactSummary,
 ) -> Result<PublishedCrossConeArtifact, CrossConeArtifactPublishError> {
     let parent = destination
         .parent()
@@ -60,7 +60,11 @@ pub(super) fn publish(
             source,
         )
     })?;
-    let validation = validate(&round_trip_bytes)?;
+    if round_trip_bytes != final_bytes {
+        return Err(CrossConeArtifactPublishError::ReadbackMismatch {
+            path: temporary.to_path_buf(),
+        });
+    }
     temporary.persist(destination).map_err(|error| {
         CrossConeArtifactPublishError::io(
             CrossConePublishIoOperation::RenameTemporary,
@@ -71,6 +75,6 @@ pub(super) fn publish(
 
     Ok(PublishedCrossConeArtifact {
         path: destination.to_path_buf(),
-        validation,
+        summary,
     })
 }

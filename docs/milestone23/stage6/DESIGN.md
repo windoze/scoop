@@ -908,6 +908,8 @@ envelope / profile / target / byte ranges
 
 产物读取按明确边界完成检查并保留结果：envelope 验证长度、目录、版本和内容 hash；共有 HIR/MIR/LIR 解码验证格式、typed 引用与跨层关系；Link 在该结果上追加对象范围、符号、relocation、registration 和 Code/runtime fingerprint 检查。同一字节快照及其依赖不分别执行两轮完整 Compile、Link 语义重放。发布复用同次编译的完整 IR、已检查依赖与最终对象，写入后只核对实际写入内容，再原子替换目标。外部新输入仍须经过对应读取边界；结果改变时重新检查受影响部分。
 
+同次编译完成的归档直接保存完整产物及其普通摘要；摘要由已有 manifest、语义 fingerprint、最终对象和生产记录产生，只记录后续构建与缓存实际需要的信息。原子发布直接写入这些归档 bytes，回读仅核对字节一致后替换目标，不重新创建语义会话或把当前产物和全部依赖再次交给 reader。外部输入的产物仍由共有 reader 检查格式、引用、ABI、符号和实际对象。删除已退出正式路径的 M23-5 归档 writer、双版本发布包装及其专用测试；发布接口只接收正常编译结果，不保留用于取得发布资格的 raw-bytes 重放入口。此清理不改变 wire、runtime ABI 或 String 表示。
+
 源码的名称解析、访问规则、类型检查和默认值定义检查由前端负责；已解析的默认正文按 typed 引用实例化。IR/meta crate 保证完整结构和格式，reader 验证引用、归属与跨层关系，不再逐级重演语言语义或维护另一套 source-authority。实际 provider、typed target、签名、effect、field/variant/slot、初始化 unit 和物理 definition 必须对应，错误或损坏产物拒绝。继承和按值环拒绝，managed reference 递归在引用 leaf 终止。
 
 同次编译的完整 IR 直接生产导出、selected 与对象记录。只为重新制造候选表并比较其来源的工厂、source join、凭证状态机和重复投影退出正常路径；重型交叉核对仅在有价值的测试或显式验证模式中运行。内容 fingerprint 可用于确认同一快照、缓存失效和对象关系，不作为授权证明。

@@ -1,4 +1,4 @@
-//! Publication from one shared semantic and Link-object validation.
+//! Reader summaries from complete semantic and Link-object data.
 
 use scoop_lir::CBridgeToolchainProfileV1;
 
@@ -11,16 +11,20 @@ pub(crate) fn capture_layout_publication(
     artifact: &crate::PhysicalImportsReplayedCrossConeLayoutSections,
     symbols: &crate::ReplayedLayoutLinkSymbolUsesV1,
     target: ValidatedLirTargetSelection,
-) -> PublishableCrossConeArtifact {
-    summary::capture(artifact.publication_parts(), symbols, target)
+) -> CrossConeArtifactSummary {
+    CrossConeArtifactSummary::from_layout(
+        artifact.manifest(),
+        symbols.production_projection(),
+        symbols.link_objects().members().len(),
+        target,
+    )
 }
 pub use errors::CrossConeLayoutArtifactValidationError;
 
 use CrossConeLayoutArtifactValidationError as Error;
 
 /// Reads the common semantic sections once, then checks the actual Link objects.
-#[allow(clippy::too_many_arguments)]
-pub fn validate_publishable_cross_cone_layout_artifact(
+pub fn read_cross_cone_layout_artifact_summary(
     final_bytes: &[u8],
 
     current: ConeIdentity,
@@ -28,7 +32,7 @@ pub fn validate_publishable_cross_cone_layout_artifact(
     dependency_first: &[&[u8]],
     target: ValidatedLirTargetSelection,
     c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<PublishableCrossConeArtifact, Error> {
+) -> Result<CrossConeArtifactSummary, Error> {
     let complete = crate::read_cross_cone_layout_artifact_closure(
         crate::CrossConeArtifactClosureInput::completed(
             current,
@@ -42,34 +46,5 @@ pub fn validate_publishable_cross_cone_layout_artifact(
     let (artifact, symbols) = complete
         .artifact(current)
         .ok_or(Error::MissingCurrentArtifact)?;
-    Ok(summary::capture(
-        artifact.publication_parts(),
-        symbols,
-        target,
-    ))
-}
-
-/// Atomically publishes the final archive after its shared validation succeeds.
-#[allow(clippy::too_many_arguments)]
-pub fn publish_cross_cone_layout_artifact(
-    final_bytes: &[u8],
-    destination: &Path,
-
-    current: ConeIdentity,
-    direct: &[ConeIdentity],
-    dependency_first: &[&[u8]],
-    target: ValidatedLirTargetSelection,
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<PublishedCrossConeArtifact, CrossConeArtifactPublishError> {
-    atomic::publish(final_bytes, destination, |bytes| {
-        validate_publishable_cross_cone_layout_artifact(
-            bytes,
-            current,
-            direct,
-            dependency_first,
-            target,
-            c_bridge_profile,
-        )
-        .map_err(|source| CrossConeArtifactPublishError::LayoutValidation(Box::new(source)))
-    })
+    Ok(capture_layout_publication(artifact, symbols, target))
 }

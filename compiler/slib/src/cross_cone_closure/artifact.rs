@@ -7,7 +7,7 @@ use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
 
 use super::ValidatedCrossConeSemanticClosure;
 use crate::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, PublishableCrossConeArtifact, ValidatedCompileArtifact,
+    CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeArtifactSummary, ValidatedCompileArtifact,
     ValidatedCrossConeStrongLinkArtifact,
 };
 
@@ -62,7 +62,7 @@ impl<'input> CrossConeArtifactClosureInput<'input> {
 pub struct ValidatedCrossConeArtifactClosure {
     semantic: ValidatedCrossConeSemanticClosure,
     links: Vec<ValidatedCrossConeStrongLinkArtifact>,
-    publications: Vec<PublishableCrossConeArtifact>,
+    publications: Vec<CrossConeArtifactSummary>,
     positions: BTreeMap<ConeIdentity, usize>,
 }
 
@@ -87,7 +87,7 @@ impl ValidatedCompletedCrossConeArtifactClosure {
         &self.closure.links[self.current_position]
     }
 
-    pub fn current_publication(&self) -> &PublishableCrossConeArtifact {
+    pub fn current_publication(&self) -> &CrossConeArtifactSummary {
         &self.closure.publications[self.current_position]
     }
 
@@ -96,7 +96,7 @@ impl ValidatedCompletedCrossConeArtifactClosure {
     ) -> (
         ValidatedCompileArtifact<crate::CrossConeLayoutStrongProfile>,
         ValidatedCrossConeStrongLinkArtifact,
-        PublishableCrossConeArtifact,
+        CrossConeArtifactSummary,
     ) {
         let compile = self
             .closure
@@ -107,7 +107,7 @@ impl ValidatedCompletedCrossConeArtifactClosure {
         (compile, link, publication)
     }
 
-    pub fn into_current_publication(mut self) -> PublishableCrossConeArtifact {
+    pub fn into_current_publication(mut self) -> CrossConeArtifactSummary {
         self.closure.publications.swap_remove(self.current_position)
     }
 }
@@ -127,7 +127,7 @@ impl ValidatedCrossConeArtifactClosure {
         self.publications.len()
     }
 
-    pub fn publication(&self, identity: ConeIdentity) -> Option<&PublishableCrossConeArtifact> {
+    pub fn publication(&self, identity: ConeIdentity) -> Option<&CrossConeArtifactSummary> {
         self.positions
             .get(&identity)
             .map(|position| &self.publications[*position])
@@ -139,11 +139,11 @@ impl ValidatedCrossConeArtifactClosure {
             .map(|position| &self.links[*position])
     }
 
-    pub fn current_publication(&self) -> Option<&PublishableCrossConeArtifact> {
+    pub fn current_publication(&self) -> Option<&CrossConeArtifactSummary> {
         self.publication(self.semantic.current())
     }
 
-    pub fn into_current_publication(mut self) -> Option<PublishableCrossConeArtifact> {
+    pub fn into_current_publication(mut self) -> Option<CrossConeArtifactSummary> {
         let current = self.semantic.current();
         self.positions
             .get(&current)

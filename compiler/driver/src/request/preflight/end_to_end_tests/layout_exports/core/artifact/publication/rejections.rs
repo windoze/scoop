@@ -13,22 +13,15 @@ pub(super) fn check(
     let direct = [reader::open(provider).identity()];
     let dependencies = [provider.as_bytes()];
     let reject = |bytes: &[u8], providers: &[&[u8]]| {
-        let result = slib::publish_cross_cone_layout_artifact(
+        let result = slib::read_cross_cone_layout_artifact_summary(
             bytes,
-            destination,
             current,
             &direct,
             providers,
             artifact.target_selection(),
             profile,
         );
-        assert_eq!(std::fs::read(destination).unwrap(), artifact.as_bytes());
-        assert_no_temporary(destination.parent().unwrap(), destination);
-        let slib::CrossConeArtifactPublishError::LayoutValidation(error) = result.unwrap_err()
-        else {
-            panic!("expected layout validation rejection")
-        };
-        *error
+        result.unwrap_err()
     };
     let (bytes, expected) = source_calls::publication_mutation(public, artifact);
     let Error::Semantic { source } = reject(&bytes, &dependencies) else {
@@ -48,7 +41,7 @@ pub(super) fn check(
         matches!(*error, slib::CrossConeHirCallSiteOriginError::Signature { position, .. }
         if position == expected)
     );
-    dump.push_str("reject SourceSignature; destination-preserved=true\n");
+    dump.push_str("reader SourceSignature\n");
 
     let Error::Semantic { source } = reject(artifact.as_bytes(), &[]) else {
         panic!("expected missing dependency rejection")
@@ -58,7 +51,7 @@ pub(super) fn check(
         if matches!(*error, slib::CrossConeClosureGraphError::MissingDirectArtifact { identity }
             if identity == direct[0]))
     );
-    dump.push_str("reject MissingDependency; destination-preserved=true\n");
+    dump.push_str("reader MissingDependency\n");
 
     for (owner, source_artifact) in [(current, artifact), (direct[0], provider)] {
         let bytes = corrupt_code(source_artifact);
@@ -77,7 +70,7 @@ pub(super) fn check(
                 slib::CodeProductionProjectionError::FieldMismatch { field: 7 })))
         );
         dump.push_str(&format!(
-            "reject {}Code; destination-preserved=true\n",
+            "reader {}Code\n",
             if owner == current {
                 "Current"
             } else {
@@ -98,19 +91,11 @@ pub(super) fn check(
         panic!("expected actual Link object rejection")
     };
     assert_eq!(source.provider, current);
-    dump.push_str("reject MissingObject; destination-preserved=true\n");
+    dump.push_str("reader MissingObject\n");
 
     let blocked = destination.parent().unwrap().join("blocked.slib");
     std::fs::create_dir(&blocked).unwrap();
-    let result = slib::publish_cross_cone_layout_artifact(
-        artifact.as_bytes(),
-        &blocked,
-        current,
-        &direct,
-        &dependencies,
-        artifact.target_selection(),
-        profile,
-    );
+    let result = artifact.publish(&blocked);
     assert!(matches!(
         result,
         Err(slib::CrossConeArtifactPublishError::Io {

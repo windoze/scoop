@@ -89,7 +89,6 @@ use scoop_slib::{
     verify_strong_type_registrations_v1,
 };
 
-mod cross_cone_pipeline;
 mod errors;
 mod fingerprint_pipeline;
 pub(crate) mod layout;
@@ -97,7 +96,6 @@ mod members;
 mod planned;
 mod registrations;
 mod verification;
-pub use cross_cone_pipeline::*;
 pub use errors::*;
 pub use fingerprint_pipeline::*;
 pub use members::BuiltinObjectProducerV1;

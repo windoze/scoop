@@ -51,7 +51,7 @@ pub enum ValidatedCompilerProtocols {
 pub struct ValidatedSingleConeBuildRequest<'input> {
     pub(super) request: &'input LoadedSingleConeBuildRequest,
     pub(super) current: ValidatedCurrentConeInput<'input>,
-    pub(super) dependencies: ValidatedExplicitDependencyInputSet<'input>,
+    pub(super) dependencies: ValidatedExplicitDependencyInputSet,
     pub(super) protocols: ValidatedCompilerProtocols,
 }
 
@@ -64,7 +64,7 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         &self.protocols
     }
 
-    pub const fn dependencies(&self) -> &ValidatedExplicitDependencyInputSet<'input> {
+    pub const fn dependencies(&self) -> &ValidatedExplicitDependencyInputSet {
         &self.dependencies
     }
 

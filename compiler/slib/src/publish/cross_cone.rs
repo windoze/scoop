@@ -1,27 +1,21 @@
-//! Publication proofs and atomic persistence for cross-Cone strong profiles.
+//! Artifact summaries and atomic persistence for cross-Cone production.
 
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use scoop_identity::{
-    ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity, SemanticIdentitySession,
-};
+use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 
 use super::{CompileViewSummaryV1, LinkViewSummaryV1};
-use crate::{
-    ArtifactFingerprint, CrossConeArtifactClosureValidationError, DependencyRecord,
-    validate_completed_cross_cone_artifact_closure,
-};
+use crate::{ArtifactFingerprint, CanonicalSlibArchive, DependencyRecord};
 
 mod atomic;
 mod layout;
 pub use layout::*;
 
-/// Immutable summary proving that one exact final archive passed both views
-/// of its strong profile, including complete dependency-import equality.
-#[derive(Debug)]
-pub struct PublishableCrossConeArtifact {
+/// Manifest, dependency, and object information retained for normal consumers.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossConeArtifactSummary {
     artifact_fingerprint: ArtifactFingerprint,
     coordinate: ConeCoordinate,
     identity: ConeIdentity,
@@ -34,7 +28,7 @@ pub struct PublishableCrossConeArtifact {
     link_summary: LinkViewSummaryV1,
 }
 
-impl PublishableCrossConeArtifact {
+impl CrossConeArtifactSummary {
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.artifact_fingerprint
     }
@@ -87,49 +81,27 @@ impl PublishableCrossConeArtifact {
     }
 }
 
-/// Atomically publishes a completed artifact only after validating the exact
-/// final bytes together with their full dependency closure through both views.
-#[allow(clippy::too_many_arguments)]
-pub fn publish_cross_cone_artifact(
-    final_bytes: &[u8],
-    destination: &Path,
-
-    current: ConeIdentity,
-    direct: Vec<ConeIdentity>,
-    dependency_first: Vec<&[u8]>,
-    target: ValidatedLirTargetSelection,
-    c_bridge_profile: &scoop_lir::CBridgeToolchainProfileV1,
-) -> Result<PublishedCrossConeArtifact, CrossConeArtifactPublishError> {
-    atomic::publish(final_bytes, destination, |round_trip_bytes| {
-        let mut session = SemanticIdentitySession::new();
-        let validation = validate_completed_cross_cone_artifact_closure(
-            current,
-            target,
-            direct,
-            dependency_first,
-            round_trip_bytes,
-            c_bridge_profile,
-            &mut session,
-        )
-        .map_err(|source| CrossConeArtifactPublishError::Validation(Box::new(source)))?
-        .into_current_publication();
-        Ok(validation)
-    })
-}
-
 #[derive(Debug)]
 pub struct PublishedCrossConeArtifact {
     path: PathBuf,
-    validation: PublishableCrossConeArtifact,
+    summary: CrossConeArtifactSummary,
 }
 
 impl PublishedCrossConeArtifact {
+    pub(crate) fn write(
+        archive: &CanonicalSlibArchive,
+        summary: &CrossConeArtifactSummary,
+        destination: &Path,
+    ) -> Result<Self, CrossConeArtifactPublishError> {
+        atomic::publish(archive.as_bytes(), destination, summary.clone())
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    pub const fn validation(&self) -> &PublishableCrossConeArtifact {
-        &self.validation
+    pub const fn summary(&self) -> &CrossConeArtifactSummary {
+        &self.summary
     }
 }
 
@@ -166,8 +138,9 @@ pub enum CrossConeArtifactPublishError {
         path: PathBuf,
         source: std::io::Error,
     },
-    Validation(Box<CrossConeArtifactClosureValidationError>),
-    LayoutValidation(Box<CrossConeLayoutArtifactValidationError>),
+    ReadbackMismatch {
+        path: PathBuf,
+    },
 }
 
 impl CrossConeArtifactPublishError {
@@ -193,8 +166,11 @@ impl fmt::Display for CrossConeArtifactPublishError {
                 path,
                 source,
             } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
-            Self::Validation(source) => source.fmt(formatter),
-            Self::LayoutValidation(source) => source.fmt(formatter),
+            Self::ReadbackMismatch { path } => write!(
+                formatter,
+                "artifact bytes changed while writing {}",
+                path.display()
+            ),
         }
     }
 }
@@ -203,9 +179,7 @@ impl std::error::Error for CrossConeArtifactPublishError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
-            Self::Validation(source) => Some(source.as_ref()),
-            Self::LayoutValidation(source) => Some(source.as_ref()),
-            Self::MissingParent { .. } => None,
+            Self::MissingParent { .. } | Self::ReadbackMismatch { .. } => None,
         }
     }
 }

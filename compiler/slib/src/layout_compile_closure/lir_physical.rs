@@ -17,12 +17,10 @@ mod accessors;
 mod driver;
 mod errors;
 mod objects;
-mod publication;
 mod replay;
 mod symbols;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
 pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
-pub(crate) use publication::LayoutPublicationParts;
 pub use symbols::LinkSymbolsReplayedCrossConeLayoutClosure;
 
 pub struct PhysicalImportsReplayedCrossConeLayoutSections {

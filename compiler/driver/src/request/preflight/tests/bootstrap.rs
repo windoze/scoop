@@ -418,29 +418,29 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
 
     assert_eq!(published.artifact().path(), artifact_path);
     assert_eq!(
-        published.artifact().validation().coordinate(),
+        published.artifact().summary().coordinate(),
         &ConeCoordinate::reserved_core()
     );
     assert_eq!(
-        published.artifact().validation().identity(),
+        published.artifact().summary().identity(),
         scoop_identity::ConeIdentity::CORE
     );
     assert_eq!(
-        published.artifact().validation().kind(),
+        published.artifact().summary().kind(),
         scoop_slib::ConeKind::Library
     );
     assert_eq!(
-        published.artifact().validation().source_form(),
+        published.artifact().summary().source_form(),
         scoop_slib::ConeSourceForm::Manifest
     );
     assert_eq!(
-        published.artifact().validation().profile(),
+        published.artifact().summary().profile(),
         &scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG.id()
     );
     assert!(
         published
             .artifact()
-            .validation()
+            .summary()
             .link_summary()
             .link_object_count()
             > 0
@@ -485,15 +485,15 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
 
     assert_eq!(ordinary_published.artifact().path(), ordinary_artifact_path);
     assert_eq!(
-        ordinary_published.artifact().validation().coordinate(),
+        ordinary_published.artifact().summary().coordinate(),
         &ConeCoordinate::reserved_single_file()
     );
     assert_eq!(
-        ordinary_published.artifact().validation().kind(),
+        ordinary_published.artifact().summary().kind(),
         scoop_slib::ConeKind::Executable
     );
     assert_eq!(
-        ordinary_published.artifact().validation().source_form(),
+        ordinary_published.artifact().summary().source_form(),
         scoop_slib::ConeSourceForm::SingleFile
     );
 }

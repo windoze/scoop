@@ -59,7 +59,7 @@ fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
         &library_root,
         &sysroot.path().join("output/library.slib"),
     );
-    let library_validation = library.artifact().validation();
+    let library_validation = library.artifact().summary();
     assert_eq!(
         library_validation.coordinate(),
         &ConeCoordinate::new("dev.example", "stage3.library", "0.1.0").unwrap()
@@ -91,7 +91,7 @@ fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
         &executable_root,
         &sysroot.path().join("output/executable.slib"),
     );
-    let executable_validation = executable.artifact().validation();
+    let executable_validation = executable.artifact().summary();
     assert_eq!(executable_validation.kind(), ConeKind::Executable);
     assert_eq!(
         executable_validation.source_form(),
@@ -229,12 +229,9 @@ fun main() {
     );
 
     assert!(artifact.artifact().path().is_file());
-    assert_eq!(
-        artifact.artifact().validation().kind(),
-        ConeKind::Executable
-    );
+    assert_eq!(artifact.artifact().summary().kind(), ConeKind::Executable);
     assert!(matches!(
-        artifact.artifact().validation().link_summary().output(),
+        artifact.artifact().summary().link_summary().output(),
         SingleConeProductionOutputV1::Executable(_)
     ));
     assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);
@@ -276,12 +273,9 @@ fun main() {
     );
 
     assert!(artifact.artifact().path().is_file());
-    assert_eq!(
-        artifact.artifact().validation().kind(),
-        ConeKind::Executable
-    );
+    assert_eq!(artifact.artifact().summary().kind(), ConeKind::Executable);
     assert!(matches!(
-        artifact.artifact().validation().link_summary().output(),
+        artifact.artifact().summary().link_summary().output(),
         SingleConeProductionOutputV1::Executable(_)
     ));
     assert_graph_dependencies(&artifact, &target, &[ConeIdentity::CORE]);

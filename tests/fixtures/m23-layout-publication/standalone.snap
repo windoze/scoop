@@ -2,9 +2,9 @@ profile=org.scoop-lang.slib-profile/cross-cone-layout-strong/2
 direct=1 objects=6
 shared-semantics=true
 round-trip=true
-reject SourceSignature; destination-preserved=true
-reject MissingDependency; destination-preserved=true
-reject CurrentCode; destination-preserved=true
-reject DependencyCode; destination-preserved=true
-reject MissingObject; destination-preserved=true
+reader SourceSignature
+reader MissingDependency
+reader CurrentCode
+reader DependencyCode
+reader MissingObject
 reject RenameDirectory; destination-preserved=true

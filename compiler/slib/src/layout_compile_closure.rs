@@ -80,7 +80,6 @@ pub use lir_ordinary::{
     OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeDependenciesV1,
     SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
 };
-pub(crate) use lir_physical::LayoutPublicationParts;
 pub use lir_physical::{
     CrossConeLayoutLirPhysicalError, LinkObjectsReplayedCrossConeLayoutClosure,
     LinkSymbolsReplayedCrossConeLayoutClosure, PhysicalImportsReplayedCrossConeLayoutClosure,

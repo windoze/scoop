@@ -24,7 +24,6 @@ use crate::{
     StrongProfileLirProductionError,
 };
 
-mod cross_cone;
 pub(crate) mod layout_link_support;
 
 #[test]
@@ -1300,76 +1299,6 @@ fn finalized_link_object_fixture() -> (
     crate::CanonicalDefinedLinkSymbolOwnerSetV1,
     crate::CanonicalUndefinedSymbolRequirementSetV1,
 ) {
-    let (
-        production,
-        final_objects,
-        defined_symbols,
-        FinalizedFixtureRequirements::SingleCone(undefined_symbols),
-    ) = finalized_link_object_fixture_for_profile(LinkObjectFixtureProfile::SingleCone)
-    else {
-        unreachable!("the single-Cone fixture returns single-Cone requirements")
-    };
-    (
-        production,
-        final_objects,
-        defined_symbols,
-        undefined_symbols,
-    )
-}
-
-fn finalized_cross_cone_link_object_fixture(
-    bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-) -> (
-    StrongProductionSectionV1,
-    crate::VerifiedEntryPatchSetV1,
-    crate::CanonicalDefinedLinkSymbolOwnerSetV1,
-    crate::FinalizedUndefinedSymbolRequirementPartitionsV1,
-) {
-    let (
-        production,
-        final_objects,
-        defined_symbols,
-        FinalizedFixtureRequirements::CrossCone(undefined_partitions),
-    ) = finalized_link_object_fixture_for_profile(LinkObjectFixtureProfile::CrossCone(bridge))
-    else {
-        unreachable!("the cross-Cone fixture returns partitioned requirements")
-    };
-    (
-        production,
-        final_objects,
-        defined_symbols,
-        *undefined_partitions,
-    )
-}
-
-#[derive(Clone, Copy)]
-enum LinkObjectFixtureProfile<'bridge> {
-    SingleCone,
-    CrossCone(&'bridge scoop_lir::CrossConeLirBridgeSectionV1),
-}
-
-impl LinkObjectFixtureProfile<'_> {
-    const fn artifact_profile(self) -> ArtifactCapabilityProfile {
-        match self {
-            Self::SingleCone => ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-            Self::CrossCone(_) => ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-        }
-    }
-}
-
-enum FinalizedFixtureRequirements {
-    SingleCone(crate::CanonicalUndefinedSymbolRequirementSetV1),
-    CrossCone(Box<crate::FinalizedUndefinedSymbolRequirementPartitionsV1>),
-}
-
-fn finalized_link_object_fixture_for_profile(
-    profile: LinkObjectFixtureProfile<'_>,
-) -> (
-    StrongProductionSectionV1,
-    crate::VerifiedEntryPatchSetV1,
-    crate::CanonicalDefinedLinkSymbolOwnerSetV1,
-    FinalizedFixtureRequirements,
-) {
     let fixture = link_object_fixture();
     let (canonical, production) =
         strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
@@ -1424,37 +1353,13 @@ fn finalized_link_object_fixture_for_profile(
         &objects,
     )
     .unwrap();
-    let requirements = match profile {
-        LinkObjectFixtureProfile::SingleCone => FinalizedFixtureRequirements::SingleCone(
-            empty_undefined_requirements(&patch_sites, &foundation, &production),
-        ),
-        LinkObjectFixtureProfile::CrossCone(bridge) => FinalizedFixtureRequirements::CrossCone(
-            Box::new(empty_partitioned_undefined_requirements(
-                &patch_sites,
-                &foundation,
-                &production,
-                bridge,
-            )),
-        ),
-    };
-    let callable_bodies = match &requirements {
-        FinalizedFixtureRequirements::SingleCone(undefined_symbols) => {
-            crate::compute_strong_callable_body_object_fingerprints_v1(
-                callable_objects,
-                stackmaps,
-                undefined_symbols.clone(),
-                &objects,
-            )
-        }
-        FinalizedFixtureRequirements::CrossCone(undefined_partitions) => {
-            crate::compute_cross_cone_strong_callable_body_object_fingerprints_v1(
-                callable_objects,
-                stackmaps,
-                undefined_partitions.as_ref().clone(),
-                &objects,
-            )
-        }
-    }
+    let requirements = empty_undefined_requirements(&patch_sites, &foundation, &production);
+    let callable_bodies = crate::compute_strong_callable_body_object_fingerprints_v1(
+        callable_objects,
+        stackmaps,
+        requirements.clone(),
+        &objects,
+    )
     .unwrap();
     let callables =
         crate::compute_strong_callable_fingerprints_v1(callable_bodies.clone()).unwrap();
@@ -1484,22 +1389,11 @@ fn finalized_link_object_fixture_for_profile(
             &objects,
         )
         .unwrap();
-    let immortal_definitions = match &requirements {
-        FinalizedFixtureRequirements::SingleCone(undefined_symbols) => {
-            crate::compute_strong_immortal_object_definition_fingerprints_v1(
-                immortal_registration_objects,
-                undefined_symbols.clone(),
-                &objects,
-            )
-        }
-        FinalizedFixtureRequirements::CrossCone(undefined_partitions) => {
-            crate::compute_cross_cone_strong_immortal_object_definition_fingerprints_v1(
-                immortal_registration_objects,
-                undefined_partitions.as_ref().clone(),
-                &objects,
-            )
-        }
-    }
+    let immortal_definitions = crate::compute_strong_immortal_object_definition_fingerprints_v1(
+        immortal_registration_objects,
+        requirements.clone(),
+        &objects,
+    )
     .unwrap();
     let immortal_objects =
         crate::compute_strong_immortal_object_fingerprints_v1(immortal_definitions).unwrap();
@@ -1568,7 +1462,9 @@ fn finalized_link_object_fixture_for_profile(
         &objects,
     )
     .unwrap();
-    let compatibility = CompatibilityRecord::new(selection(), profile.artifact_profile()).unwrap();
+    let compatibility =
+        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+            .unwrap();
     let image = crate::compute_runtime_image_fingerprint_v1(image, patched, compatibility).unwrap();
     let image = crate::patch_runtime_image_fingerprint_v1(image).unwrap();
     let final_objects = crate::patch_entry_production_v1(image, entry).unwrap();
@@ -1616,53 +1512,6 @@ fn empty_undefined_requirements(
     let external = crate::verify_c_bridge_target_support_requirements_v1(runtime, bridge).unwrap();
     let external = crate::seal_builtin_object_external_requirements_v1(external).unwrap();
     crate::finalize_undefined_symbol_requirements_v1(current, external).unwrap()
-}
-
-fn empty_partitioned_undefined_requirements(
-    patch_sites: &crate::VerifiedScoopLirDigestPatchSiteSetV1,
-    foundation: &OdrFreeLirFoundation,
-    production: &StrongProductionSectionV1,
-    bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-) -> crate::FinalizedUndefinedSymbolRequirementPartitionsV1 {
-    let strong = patch_sites.builtins().strong_relocations().clone();
-    let current = crate::verify_current_cone_undefined_requirements_v1(
-        strong.clone(),
-        production.generated_bridge_plan().clone(),
-    )
-    .unwrap();
-    let native = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-        selection().target(),
-        foundation,
-    )
-    .unwrap();
-    let core = crate::verify_dependency_strong_requirements_v1(
-        selection().target(),
-        strong,
-        production.external_bridges().clone(),
-        &[],
-    )
-    .unwrap();
-    let cross_cone = crate::verify_cross_cone_strong_requirements_v1(
-        core.target(),
-        core.strong_closure().clone(),
-        core.external_bridges().clone(),
-        core.dependency_owners(),
-        bridge,
-    )
-    .unwrap();
-    let source = crate::verify_source_external_requirements_v1(cross_cone, native.clone()).unwrap();
-    let runtime = crate::verify_runtime_and_eh_requirements_v1(source, selection()).unwrap();
-    let bridge_semantics = crate::verify_generated_c_bridge_semantics_v1(
-        patch_sites.clone(),
-        production.generated_bridge_plan().clone(),
-        native,
-        &c_bridge_profile(),
-    )
-    .unwrap();
-    let external =
-        crate::verify_c_bridge_target_support_requirements_v1(runtime, bridge_semantics).unwrap();
-    let external = crate::seal_builtin_object_external_requirements_v1(external).unwrap();
-    crate::finalize_partitioned_undefined_symbol_requirements_v1(current, external).unwrap()
 }
 
 fn digest_patch_intent() -> scoop_identity::DigestPatchIntentId {

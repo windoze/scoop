@@ -54,8 +54,8 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     source_fields::write_source(&source);
     let first = build_core(&source, &artifact);
     direct_inputs::check(&target, workspace.path(), &artifact);
-    let first_dependency = first.artifact().validation().dependency_record();
-    let first_fingerprint = first.artifact().validation().artifact_fingerprint();
+    let first_dependency = first.artifact().summary().dependency_record();
+    let first_fingerprint = first.artifact().summary().artifact_fingerprint();
     assert_explicit_core_version_is_checked(&target, workspace.path(), &artifact);
     let consumer_source = workspace.path().join("consumer.scoop");
     std::fs::write(&consumer_source, CONSUMER).unwrap();
@@ -108,7 +108,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     intrinsics::assert_integer_exception_requires_layout(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
-        first_consumer.artifact().validation().direct_dependencies(),
+        first_consumer.artifact().summary().direct_dependencies(),
         &[first_dependency]
     );
 
@@ -121,27 +121,18 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     .unwrap();
     let second = build_core(&source, &artifact);
     assert_ne!(
-        second.artifact().validation().artifact_fingerprint(),
+        second.artifact().summary().artifact_fingerprint(),
         first_fingerprint
     );
-    let second_dependency = second.artifact().validation().dependency_record();
+    let second_dependency = second.artifact().summary().dependency_record();
     let second_consumer = build_consumer(&target, &consumer_source, &consumer_artifact, &artifact);
     assert_eq!(
-        second_consumer
-            .artifact()
-            .validation()
-            .direct_dependencies(),
+        second_consumer.artifact().summary().direct_dependencies(),
         &[second_dependency]
     );
     assert_ne!(
-        first_consumer
-            .artifact()
-            .validation()
-            .artifact_fingerprint(),
-        second_consumer
-            .artifact()
-            .validation()
-            .artifact_fingerprint()
+        first_consumer.artifact().summary().artifact_fingerprint(),
+        second_consumer.artifact().summary().artifact_fingerprint()
     );
 }
 

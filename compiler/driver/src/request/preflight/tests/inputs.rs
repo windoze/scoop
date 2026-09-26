@@ -72,7 +72,6 @@ fn empty_core_dependencies_run_the_shared_closure() {
         .validate_inner(None, ConeIdentity::CORE, &target)
         .unwrap();
     assert!(validated.is_empty());
-    assert!(validated.dependency_first().is_empty());
     assert!(validated.direct_dependencies().is_empty());
     assert_eq!(validated.semantic().current(), ConeIdentity::CORE);
     let world = validated.semantic().imported_semantic_world().unwrap();

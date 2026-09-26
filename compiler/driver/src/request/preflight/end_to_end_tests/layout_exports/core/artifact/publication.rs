@@ -11,7 +11,7 @@ pub(super) fn check_provider(
     profile: &lir::CBridgeToolchainProfileV1,
 ) {
     let input = reader::open(provider);
-    let publication = slib::validate_publishable_cross_cone_layout_artifact(
+    let publication = slib::read_cross_cone_layout_artifact_summary(
         provider.as_bytes(),
         input.identity(),
         &[],
@@ -39,26 +39,17 @@ pub(super) fn check(
     if name == "combined" {
         std::fs::write(&destination, b"previous validated publication").unwrap();
     }
-    let published = slib::publish_cross_cone_layout_artifact(
-        artifact.as_bytes(),
-        &destination,
-        current,
-        &direct,
-        &dependencies,
-        artifact.target_selection(),
-        profile,
-    )
-    .unwrap();
+    let published = artifact.publish(&destination).unwrap();
     assert_eq!(published.path(), destination);
     assert_eq!(std::fs::read(&destination).unwrap(), artifact.as_bytes());
-    verify(published.validation(), artifact);
-    assert_eq!(published.validation().direct_dependencies().len(), 1);
+    verify(published.summary(), artifact);
+    assert_eq!(published.summary().direct_dependencies().len(), 1);
     assert_eq!(
-        published.validation().direct_dependencies()[0],
+        published.summary().direct_dependencies()[0],
         reader::open(provider).dependency_record()
     );
     let bytes = std::fs::read(&destination).unwrap();
-    let reread = slib::validate_publishable_cross_cone_layout_artifact(
+    let reread = slib::read_cross_cone_layout_artifact_summary(
         &bytes,
         current,
         &direct,
@@ -69,13 +60,13 @@ pub(super) fn check(
     .unwrap();
     assert_eq!(
         reread.artifact_fingerprint(),
-        published.validation().artifact_fingerprint()
+        published.summary().artifact_fingerprint()
     );
     assert_eq!(
         reread.compile_summary(),
-        published.validation().compile_summary()
+        published.summary().compile_summary()
     );
-    assert_eq!(reread.link_summary(), published.validation().link_summary());
+    assert_eq!(reread.link_summary(), published.summary().link_summary());
     assert_no_temporary(root.path(), &destination);
 
     let mut dump = format!(
@@ -96,7 +87,7 @@ pub(super) fn check(
 }
 
 fn verify(
-    publication: &slib::PublishableCrossConeArtifact,
+    publication: &slib::CrossConeArtifactSummary,
     artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
 ) {
     let source = reader::open(artifact);
