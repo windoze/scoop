@@ -279,8 +279,9 @@ pub use nominal_callables::{
 pub use nominal_interfaces::{
     CanonicalNominalDispatchSelectionsV1, CanonicalNominalInterfacesV1,
     DecodedCanonicalNominalDispatchSelectionsV1, DecodedCanonicalNominalInterfacesV1,
-    DecodedNominalDeclarationDetailsV1, DecodedNominalDispatchOrderV1,
-    DecodedNominalInterfaceRecordV1, ExactSupertypeSemanticError,
+    DecodedInterfaceSourceMemberV1, DecodedNominalDeclarationDetailsV1,
+    DecodedNominalDispatchOrderV1, DecodedNominalInterfaceRecordV1, ExactSupertypeSemanticError,
+    InterfaceSourceMemberResolutionError, InterfaceSourceMemberV1,
     NominalDeclarationDetailsResolutionError, NominalDeclarationDetailsV1,
     NominalDeclarationInventoryError, NominalDispatchDeclarationError, NominalDispatchOrderError,
     NominalDispatchOrderResolutionError, NominalDispatchOrderV1, NominalDispatchSelectionError,

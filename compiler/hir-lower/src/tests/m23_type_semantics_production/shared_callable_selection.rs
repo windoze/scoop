@@ -17,13 +17,9 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
             let types = produce_cross_cone_type_semantics(output, &public).unwrap();
             let identities = source_inventory::identity_closure(output);
             let provider = output.output().export.cone;
-            let selected = hir::select_param_free_source_callables(
-                provider,
-                &public,
-                types.section(),
-                &identities,
-            )
-            .unwrap();
+            let selected =
+                hir::select_param_free_source_callables(provider, &public, &types, &identities)
+                    .unwrap();
             assert_eq!(selected.len(), count, "{case}");
             let world = core.world(provider);
             let classifier = world
@@ -82,7 +78,7 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
             let foreign = hir::select_param_free_source_callables(
                 ConeIdentity::CORE,
                 &public,
-                types.section(),
+                &types,
                 &identities,
             )
             .unwrap();

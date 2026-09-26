@@ -19,10 +19,14 @@ pub use error::*;
 /// This establishes slot identity and semantic ordering, not callable effects,
 /// implementation selection, default coverage, or source lookup permission.
 pub trait InheritanceSlotSchemaSemanticAuthority<E> {
-    fn interface_dispatch_source(
+    fn interface_parent_order(
         &self,
         owner: PersistentExactTypeId,
-    ) -> Result<&crate::InterfaceSourceDispatchV1, E>;
+    ) -> Result<&[PersistentExactTypeId], E>;
+    fn interface_members(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&[crate::InterfaceSourceMemberV1], E>;
     fn schemas(
         &self,
         owner: PersistentExactTypeId,

@@ -4,21 +4,6 @@ pub(in crate::production::type_semantics) fn project_edges(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
 ) -> Result<NominalInheritanceEdgesV1, Error> {
-    project_edges_with(export, nominal, exact)
-}
-
-pub(in crate::production::type_semantics) fn project_source_edges(
-    export: &ExportHir,
-    nominal: &ConcreteNominal<'_>,
-) -> Result<NominalInheritanceEdgesV1, Error> {
-    project_edges_with(export, nominal, source_exact)
-}
-
-fn project_edges_with(
-    export: &ExportHir,
-    nominal: &ConcreteNominal<'_>,
-    resolve: fn(&ExportHir, TypeId) -> Result<PersistentExactTypeId, Error>,
-) -> Result<NominalInheritanceEdgesV1, Error> {
     let (modality, base, interfaces) = match nominal.local {
         NominalLocalId::Struct(id) => (
             NominalInheritanceModalityV1::Final,
@@ -52,7 +37,6 @@ fn project_edges_with(
                 NominalInheritanceModalityV1::Interface,
                 None,
                 &parents,
-                resolve,
             );
         }
         NominalLocalId::Object(id) => {
@@ -64,7 +48,7 @@ fn project_edges_with(
             )
         }
     };
-    build_edges(export, nominal.exact, modality, base, interfaces, resolve)
+    build_edges(export, nominal.exact, modality, base, interfaces)
 }
 
 fn build_edges(
@@ -73,17 +57,16 @@ fn build_edges(
     modality: NominalInheritanceModalityV1,
     base: Option<TypeId>,
     interfaces: &[TypeId],
-    resolve: fn(&ExportHir, TypeId) -> Result<PersistentExactTypeId, Error>,
 ) -> Result<NominalInheritanceEdgesV1, Error> {
     let base = match base {
         Some(ty) => DirectClassBaseV1::ClassBase {
-            exact: resolve(export, ty)?,
+            exact: exact(export, ty)?,
         },
         None => DirectClassBaseV1::NoClassBase,
     };
     let interfaces = interfaces
         .iter()
-        .map(|ty| resolve(export, *ty))
+        .map(|ty| exact(export, *ty))
         .collect::<Result<Vec<_>, _>>()?;
     NominalInheritanceEdgesV1::try_new(owner, modality, base, interfaces).map_err(|error| {
         Error::InvalidInheritance {
@@ -118,5 +101,10 @@ fn source_exact(export: &ExportHir, ty: TypeId) -> Result<PersistentExactTypeId,
         .get(ty)
         .and_then(HirTypeIdentity::exact)
         .map(|record| record.id())
-        .ok_or(Error::MissingExactIdentity)
+        .ok_or_else(|| {
+            Error::InvalidSourceDeclaration(format!(
+                "inheritance signature has no exact type identity: {:?}",
+                export.types[ty]
+            ))
+        })
 }

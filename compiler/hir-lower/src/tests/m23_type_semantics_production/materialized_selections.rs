@@ -4,6 +4,7 @@ use hir::{
     SharedTypeMetadataError,
 };
 use scoop_identity::{ExactTypeKey, ValidatedIdentityGraph};
+use scoop_wire::WirePath;
 use scoop_wire::{WireDecode, WireEncode, decode_canonical, encode};
 
 mod validation;
@@ -28,10 +29,9 @@ fn materialized_selections_are_produced_and_replayed_from_shared_hir_bytes() {
             let mut public = public_interface(output);
             let production = produce_cross_cone_type_semantics(output, &public).unwrap();
             let mut identities = source_inventory::identity_closure(output);
-            let section: hir::DecodedCrossConeTypeSemanticsSectionV1 =
-                decoded(production.section());
+            let section: hir::DecodedCrossConeTypeSemanticsSectionV1 = decoded(&production);
             let section = section.resolve(&mut identities, &WirePath::root()).unwrap();
-            assert_eq!(&section, production.section());
+            assert_eq!(section, production);
             let wire_public: hir::DecodedCrossConeHirInterfaceSectionV1 =
                 decoded(&public.index_for_wire().unwrap());
             let wire_public = wire_public.resolve(&mut identities).unwrap();
@@ -73,7 +73,7 @@ fn unused_generic_declarations_and_defaults_do_not_create_selected_type_roots() 
         source_dispatch::with_hir_source(source, |output, _| {
             let public = public_interface(output);
             let production = produce_cross_cone_type_semantics(output, &public).unwrap();
-            encode(production.section().selected()).unwrap()
+            encode(production.selected()).unwrap()
         })
     };
     let extra = concat!(

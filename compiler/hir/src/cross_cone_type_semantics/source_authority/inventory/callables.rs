@@ -1,14 +1,10 @@
-//! Independent declaration contracts for dispatch roots and selected targets.
+//! Callable data used while assembling inheritance slot contracts.
 
 use super::*;
 use crate::{
     CallableModalityV1, DeclarationAccessSourceV1, InheritanceCallableDeclarationV1,
     InheritanceCallableSignatureV1, InheritanceSourceCallableFactsV1,
 };
-use scoop_wire::{Encoder, WireEncode};
-
-mod wire;
-pub use wire::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InheritanceSourceCallableV1 {
@@ -86,11 +82,5 @@ impl CanonicalInheritanceSourceCallablesV1 {
             .binary_search_by_key(&declaration, InheritanceSourceCallableV1::declaration)
             .ok()
             .map(|index| &self.records[index])
-    }
-}
-
-impl WireEncode for CanonicalInheritanceSourceCallablesV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        super::wire::sequence(encoder, &self.records)
     }
 }

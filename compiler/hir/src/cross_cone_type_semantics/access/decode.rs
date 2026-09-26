@@ -152,49 +152,6 @@ impl WireDecode for DecodedPersistentAccessDomainV1 {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedNominalAccessDomainsV1 {
-    lookup: DecodedPersistentAccessDomainV1,
-    inheritance: DecodedPersistentAccessDomainV1,
-    slot: DecodedPersistentAccessDomainV1,
-}
-
-impl DecodedNominalAccessDomainsV1 {
-    pub fn resolve<R: PersistentAccessResolver<E>, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<NominalAccessDomainsV1, PersistentAccessResolutionError<E>> {
-        Ok(NominalAccessDomainsV1::new(
-            PersistentLookupDomainV1::new(self.lookup.resolve(resolver)?),
-            PersistentInheritanceDomainV1::new(self.inheritance.resolve(resolver)?),
-            PersistentSlotContractDomainV1::new(self.slot.resolve(resolver)?),
-        ))
-    }
-}
-
-impl WireEncode for DecodedNominalAccessDomainsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.lookup.encode(encoder)?;
-        encoder.field(2)?;
-        self.inheritance.encode(encoder)?;
-        encoder.field(3)?;
-        self.slot.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedNominalAccessDomainsV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
-        Ok(Self {
-            lookup: decoder.field(1, DecodedPersistentAccessDomainV1::decode)?,
-            inheritance: decoder.field(2, DecodedPersistentAccessDomainV1::decode)?,
-            slot: decoder.field(3, DecodedPersistentAccessDomainV1::decode)?,
-        })
-    }
-}
-
 #[derive(Debug)]
 pub enum PersistentAccessResolutionError<E> {
     Resource(WireError),

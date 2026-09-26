@@ -135,74 +135,21 @@ impl WireEncode for PersistentAccessDomainV1 {
     }
 }
 
-/// Purpose-specific domains have no conversion between one another.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PersistentLookupDomainV1(PersistentAccessDomainV1);
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PersistentInheritanceDomainV1(PersistentAccessDomainV1);
+/// The effective access domain of the slot's root declaration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PersistentSlotContractDomainV1(PersistentAccessDomainV1);
 
-macro_rules! domain_purpose {
-    ($name:ident) => {
-        impl $name {
-            pub const fn new(domain: PersistentAccessDomainV1) -> Self {
-                Self(domain)
-            }
-            pub const fn domain(&self) -> &PersistentAccessDomainV1 {
-                &self.0
-            }
-        }
-        impl WireEncode for $name {
-            fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-                self.0.encode(encoder)
-            }
-        }
-    };
-}
-domain_purpose!(PersistentLookupDomainV1);
-domain_purpose!(PersistentInheritanceDomainV1);
-domain_purpose!(PersistentSlotContractDomainV1);
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NominalAccessDomainsV1 {
-    lookup: PersistentLookupDomainV1,
-    inheritance: PersistentInheritanceDomainV1,
-    slot: PersistentSlotContractDomainV1,
-}
-
-impl NominalAccessDomainsV1 {
-    pub const fn new(
-        lookup: PersistentLookupDomainV1,
-        inheritance: PersistentInheritanceDomainV1,
-        slot: PersistentSlotContractDomainV1,
-    ) -> Self {
-        Self {
-            lookup,
-            inheritance,
-            slot,
-        }
+impl PersistentSlotContractDomainV1 {
+    pub const fn new(domain: PersistentAccessDomainV1) -> Self {
+        Self(domain)
     }
-    pub const fn lookup(&self) -> &PersistentLookupDomainV1 {
-        &self.lookup
-    }
-    pub const fn inheritance(&self) -> &PersistentInheritanceDomainV1 {
-        &self.inheritance
-    }
-    pub const fn slot(&self) -> &PersistentSlotContractDomainV1 {
-        &self.slot
+    pub const fn domain(&self) -> &PersistentAccessDomainV1 {
+        &self.0
     }
 }
-
-impl WireEncode for NominalAccessDomainsV1 {
+impl WireEncode for PersistentSlotContractDomainV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.lookup.encode(encoder)?;
-        encoder.field(2)?;
-        self.inheritance.encode(encoder)?;
-        encoder.field(3)?;
-        self.slot.encode(encoder)
+        self.0.encode(encoder)
     }
 }
 

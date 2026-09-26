@@ -5,7 +5,7 @@ fn materialized_selections_reject_missing_extra_and_wrong_provider_records() {
     source_dispatch::with_hir_source(STANDALONE, |output, _| {
         let public = public_interface(output);
         let produced = produce_cross_cone_type_semantics(output, &public).unwrap();
-        let records = produced.section().selected().records();
+        let records = produced.selected().records();
         assert!(!records.is_empty());
         production::with_metadata(output, &public, |metadata, dependencies| {
             let check = |records| {

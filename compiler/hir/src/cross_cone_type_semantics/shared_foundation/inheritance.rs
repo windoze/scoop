@@ -51,9 +51,6 @@ impl CheckedSharedTypeFoundationV1<'_> {
         for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
             protected::validate(provider, dependencies, &context)?;
             for record in provider.section.inheritance().records() {
-                graph
-                    .validate_nominal_domains(record.owner(), record.domains())
-                    .map_err(Error::InheritanceDomains)?;
                 let owner = graph
                     .get(record.owner())
                     .ok_or(Error::InheritanceEdges(record.owner()))?

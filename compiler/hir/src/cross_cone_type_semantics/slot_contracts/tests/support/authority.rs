@@ -4,11 +4,17 @@ use scoop_identity::*;
 use std::sync::Arc;
 
 impl InheritanceSlotSchemaSemanticAuthority<&'static str> for Fixture {
-    fn interface_dispatch_source(
+    fn interface_parent_order(
         &self,
         owner: PersistentExactTypeId,
-    ) -> Result<&InterfaceSourceDispatchV1, &'static str> {
-        self.schema.interface_dispatch_source(owner)
+    ) -> Result<&[PersistentExactTypeId], &'static str> {
+        self.schema.interface_parent_order(owner)
+    }
+    fn interface_members(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&[crate::InterfaceSourceMemberV1], &'static str> {
+        self.schema.interface_members(owner)
     }
     fn schemas(
         &self,

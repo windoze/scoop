@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) struct Context<'a> {
-    pub source: &'a hir::CrossConeTypeSemanticsProductionV1,
+    pub source: &'a hir::CrossConeTypeSemanticsSectionV1,
     pub input: &'a mir::SingleConeStrongMirInput,
     pub authority: mir::MirDispatchSchemaAuthority<'a>,
     pub physical: BTreeMap<PersistentExactTypeId, &'a mir::Type>,
@@ -9,7 +9,7 @@ pub(super) struct Context<'a> {
 }
 impl<'a> Context<'a> {
     pub fn new(
-        source: &'a hir::CrossConeTypeSemanticsProductionV1,
+        source: &'a hir::CrossConeTypeSemanticsSectionV1,
         input: &'a mir::SingleConeStrongMirInput,
         authority: mir::MirDispatchSchemaAuthority<'a>,
     ) -> Result<Self, Error> {
@@ -57,7 +57,7 @@ impl<'a> Context<'a> {
     }
     pub fn record(
         &self,
-        source: &hir::SourceInheritanceInventoryV1,
+        source: &hir::NominalInheritanceInterfaceV1,
         owner: PersistentExactTypeId,
     ) -> Result<mir::ParamFreeMirDispatchSchemaV1, Error> {
         let physical = self

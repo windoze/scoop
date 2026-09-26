@@ -46,7 +46,7 @@ pub(super) fn object_overrides(
 
 pub(super) fn actual(
     input: &SingleConeStrongMirInput,
-    hir: &hir::CrossConeTypeSemanticsProductionV1,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
     types: &CanonicalParamFreeMirTypeExportsV1,
     authority: MirDispatchSchemaAuthority<'_>,
     schemas: &CanonicalMirDispatchSchemasV1,
@@ -67,7 +67,7 @@ pub(super) fn actual(
                 _ => None,
             })
             .unwrap_or(schema.owner());
-        let source = hir.inheritance_inventory().get(source_owner).unwrap();
+        let source = hir.inheritance().get(source_owner).unwrap();
         for table in source.slot_schemas().records() {
             let entries = match table.role() {
                 hir::InheritanceSlotSchemaRoleV1::ClassVtable => schema.vtable().entries(),

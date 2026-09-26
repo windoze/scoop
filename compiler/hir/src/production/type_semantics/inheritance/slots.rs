@@ -135,9 +135,11 @@ impl<'a> SlotContracts<'a> {
         let method = function
             .method
             .ok_or_else(|| invalid("dispatch declaration has no member owner"))?;
-        let identity = self.export.type_identities[method.owner]
-            .exact()
-            .ok_or(Error::MissingExactIdentity)?;
+        let identity = self.export.type_identities[method.owner].exact().ok_or(
+            Error::MissingExactIdentity {
+                context: "dispatch receiver",
+            },
+        )?;
         let ExactTypeKey::Nominal(owner) = identity.key() else {
             return Err(Error::GenericOdrRequired(identity.id()));
         };
@@ -162,4 +164,49 @@ fn insert<K: Ord, V>(map: &mut BTreeMap<K, V>, key: K, value: V) -> Result<(), E
         return Err(invalid("duplicate dispatch projection identity"));
     }
     Ok(())
+}
+
+fn domain(export: &ExportHir, source: &AccessDomain) -> Result<PersistentAccessDomainV1, Error> {
+    if source.is_empty() {
+        return Ok(PersistentAccessDomainV1::empty());
+    }
+    let constraints = source
+        .constraints()
+        .iter()
+        .map(|constraint| match constraint {
+            AccessConstraint::Cone(cone) => Ok(PersistentAccessConstraintV1::Cone(*cone)),
+            AccessConstraint::File(file) => Ok(PersistentAccessConstraintV1::File(file.clone())),
+            AccessConstraint::LexicalOwner(owner) => {
+                persistent_owner(export, *owner).map(PersistentAccessConstraintV1::LexicalOwner)
+            }
+            AccessConstraint::SubclassesOf(class) => {
+                let ty = export.class_applications[export.classes[*class].self_application]
+                    .canonical_type;
+                exact(export, ty).map(PersistentAccessConstraintV1::SubclassesOf)
+            }
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    PersistentAccessDomainV1::try_from_constraints(constraints).map_err(|error| {
+        Error::InvalidTable {
+            table: "access-domain",
+            reason: error.to_string(),
+        }
+    })
+}
+
+fn persistent_owner(export: &ExportHir, owner: VisibilityOwner) -> Result<SourceNominalId, Error> {
+    let identity = match owner {
+        VisibilityOwner::Class(id) => &export.nominal_identities[id],
+        VisibilityOwner::Interface(id) => &export.nominal_identities[id],
+        VisibilityOwner::Struct(id) => &export.nominal_identities[id],
+        VisibilityOwner::Enum(id) => &export.nominal_identities[id],
+        VisibilityOwner::Object(id) => &export.nominal_identities[id],
+    };
+    let source = identity.source().ok_or(Error::MissingExactIdentity {
+        context: "slot lexical owner",
+    })?;
+    Ok(match source {
+        HirSourceNominalIdentity::Concrete(record) => SourceNominalId::Concrete(record.id()),
+        HirSourceNominalIdentity::Generic(record) => SourceNominalId::GenericTemplate(record.id()),
+    })
 }

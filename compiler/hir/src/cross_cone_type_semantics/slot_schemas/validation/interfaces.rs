@@ -17,15 +17,16 @@ impl<A> Validation<'_, '_, '_, A> {
     {
         use InheritanceSlotSchemaSemanticError as Error;
 
-        let source = self
+        let source_parents = self
             .authority
-            .interface_dispatch_source(owner)
+            .interface_parent_order(owner)
             .map_err(Error::Foundation)?;
-
-        if source.owner() != owner
-            || source.parents().len() != parents.len()
-            || source
-                .parents()
+        let members = self
+            .authority
+            .interface_members(owner)
+            .map_err(Error::Foundation)?;
+        if source_parents.len() != parents.len()
+            || source_parents
                 .iter()
                 .any(|parent| parents.binary_search(parent).is_err())
         {
@@ -39,7 +40,7 @@ impl<A> Validation<'_, '_, '_, A> {
             suppressed: BTreeSet::new(),
         };
         let mut inherited = BTreeSet::new();
-        for parent in source.parents() {
+        for parent in source_parents {
             let previous = &self.interface_expansions[parent];
             for slot in &previous.sequence {
                 if inherited.insert(*slot) {
@@ -50,7 +51,7 @@ impl<A> Validation<'_, '_, '_, A> {
                 expansion.suppressed.insert(*slot);
             }
         }
-        for member in source.members() {
+        for member in members {
             let slot = member.slot();
             if identity::source_owner(self.graph, slot, self.authority)? != owner {
                 return Err(Error::NewSlotOwner { owner, slot });

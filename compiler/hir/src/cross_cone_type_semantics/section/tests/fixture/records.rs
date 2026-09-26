@@ -52,11 +52,6 @@ impl Fixture {
                 vec![],
             )
             .unwrap(),
-            NominalAccessDomainsV1::new(
-                PersistentLookupDomainV1::new(PersistentAccessDomainV1::universal()),
-                PersistentInheritanceDomainV1::new(PersistentAccessDomainV1::empty()),
-                PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::empty()),
-            ),
             CanonicalInheritanceConstructorsV1::default(),
             CanonicalInheritanceSlotContractsV1::try_new(vec![]).unwrap(),
             CanonicalProtectedDeclarationRefsV1::try_new(vec![member]).unwrap(),

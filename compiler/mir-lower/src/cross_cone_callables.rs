@@ -16,22 +16,18 @@ mod roles;
 pub fn lower_source_callable_bindings(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    source: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
     ordinary: &[mir::ParamFreeMirCallableExportV1],
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirCallableProductionError> {
-    let mut required = hir::select_param_free_source_callables(
-        input.module().cone,
-        public,
-        source.section(),
-        identities,
-    )
-    .map_err(|error| match error {
-        hir::SharedTypeMetadataError::Resource(error) => Error::Resource(error),
-        error => Error::SharedSource(Box::new(error)),
-    })?;
+    let mut required =
+        hir::select_param_free_source_callables(input.module().cone, public, source, identities)
+            .map_err(|error| match error {
+                hir::SharedTypeMetadataError::Resource(error) => Error::Resource(error),
+                error => Error::SharedSource(Box::new(error)),
+            })?;
     for callable in ordinary {
         required.remove(&callable.declaration());
     }

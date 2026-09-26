@@ -15,21 +15,15 @@ mod physical;
 use context::*;
 
 pub fn lower_dispatch_schemas(
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    source: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::SingleConeStrongMirInput,
     local_types: &mir::CanonicalParamFreeMirTypeExportsV1,
     authority: mir::MirDispatchSchemaAuthority<'_>,
     dependencies: &[&mir::CanonicalMirDispatchSchemasV1],
 ) -> Result<mir::CanonicalMirDispatchSchemasV1, SourceMirDispatchProductionError> {
     let context = Context::new(source, input, authority)?;
-    let mut records = reserve(
-        source
-            .inheritance_inventory()
-            .records()
-            .len()
-            .saturating_mul(2),
-    )?;
-    for source in source.inheritance_inventory().records() {
+    let mut records = reserve(source.inheritance().records().len().saturating_mul(2))?;
+    for source in source.inheritance().records() {
         let record = local_types
             .get(source.owner())
             .ok_or(Error::MissingType(source.owner()))?;

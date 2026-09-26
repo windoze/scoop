@@ -38,7 +38,7 @@ pub(super) fn check(
         AccessorRole::Getter => hir::InheritanceCallableDeclarationV1::Getter(accessor),
         AccessorRole::Setter => hir::InheritanceCallableDeclarationV1::Setter(accessor),
     };
-    let original = input.source.section();
+    let original = input.source;
     let mut selected = original.selected().records().to_vec();
     selected.push(hir::SelectedExternalTypeUseV1::new(
         reference.origin(),

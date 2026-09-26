@@ -40,7 +40,6 @@ pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
             first.edges().direct_interfaces().to_vec(),
         )
         .unwrap(),
-        first.domains().clone(),
         first.constructors().clone(),
         first.slots().clone(),
         first.protected_members().clone(),
@@ -50,31 +49,6 @@ pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
     assert!(
         matches!(reject(checked, modality), Error::InheritanceEdges(actual) if actual == owner)
     );
-
-    let mut domains = checked.section().inheritance().records().to_vec();
-    let first = &domains[0];
-    domains[0] = NominalInheritanceInterfaceV1::try_new(
-        first.edges().clone(),
-        hir::NominalAccessDomainsV1::new(
-            hir::PersistentLookupDomainV1::new(
-                hir::PersistentAccessDomainV1::try_from_constraints(vec![
-                    hir::PersistentAccessConstraintV1::Cone(ConeIdentity::SINGLE_FILE),
-                ])
-                .unwrap(),
-            ),
-            first.domains().inheritance().clone(),
-            first.domains().slot().clone(),
-        ),
-        first.constructors().clone(),
-        first.slots().clone(),
-        first.protected_members().clone(),
-        first.slot_schemas().clone(),
-    )
-    .unwrap();
-    assert!(matches!(
-        reject(checked, domains),
-        Error::InheritanceDomains(_)
-    ));
 }
 
 fn reject(

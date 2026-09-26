@@ -188,7 +188,6 @@ pub enum AccessDomainSemanticError {
     InvalidDelegation,
     InvalidSuper,
     InvalidPurpose,
-    NominalDomains,
 }
 impl From<InheritanceQueryError> for AccessDomainSemanticError {
     fn from(error: InheritanceQueryError) -> Self {
@@ -198,9 +197,6 @@ impl From<InheritanceQueryError> for AccessDomainSemanticError {
 impl fmt::Display for AccessDomainSemanticError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NominalDomains => {
-                f.write_str("nominal access domains disagree with source visibility or modality")
-            }
             Self::Resource(error) => error.fmt(f),
             Self::Inheritance(error) => error.fmt(f),
             Self::Encoding(error) => error.fmt(f),

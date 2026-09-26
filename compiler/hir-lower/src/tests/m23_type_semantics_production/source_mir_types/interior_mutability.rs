@@ -55,11 +55,9 @@ fn shared_struct_policy_matches_source_attributes_and_actual_mir_representation(
                         *interior_mutable
                     });
                 let materialized = match record.declaration() {
-                    hir::SourceNominalId::Concrete(owner) => hir_types
-                        .section()
-                        .representation_support()
-                        .get(owner)
-                        .is_some(),
+                    hir::SourceNominalId::Concrete(owner) => {
+                        hir_types.representation_support().get(owner).is_some()
+                    }
                     hir::SourceNominalId::GenericTemplate(_) => false,
                 };
                 assert_eq!(mir_policy.is_some(), materialized);

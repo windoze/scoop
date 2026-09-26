@@ -54,11 +54,17 @@ impl InheritanceSlotContractSemanticAuthority<Error> for Replay<'_, '_, '_> {
 }
 
 impl InheritanceSlotSchemaSemanticAuthority<Error> for Replay<'_, '_, '_> {
-    fn interface_dispatch_source(
+    fn interface_parent_order(
         &self,
         owner: PersistentExactTypeId,
-    ) -> Result<&InterfaceSourceDispatchV1, Error> {
-        self.schemas.interface_dispatch_source(owner)
+    ) -> Result<&[PersistentExactTypeId], Error> {
+        self.schemas.interface_parent_order(owner)
+    }
+    fn interface_members(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&[crate::InterfaceSourceMemberV1], Error> {
+        self.schemas.interface_members(owner)
     }
     fn schemas(
         &self,

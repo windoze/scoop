@@ -60,7 +60,7 @@ pub(super) fn check(
     );
     let artifact = crate::CrossConeLayoutArtifactMetadataInputV1::new(
         metadata,
-        input.source.section(),
+        input.source,
         source.bridge,
         layout,
     )

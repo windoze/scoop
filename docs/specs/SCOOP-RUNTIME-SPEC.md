@@ -367,6 +367,8 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 
 共有 HIR 类型位置的结构、foreign nominal 分发、真实 provider 与定义/求值位置在 HIR reader 边界检查一次。后续物化查询和 MIR/LIR 消费同一未变化的 typed 记录，不重新完整检查这组 HIR 关系，不建立额外验证状态或凭证；实际类型表示、签名、ABI、对象与传递引用仍由相应边界检查。外部字节重新读入或相关数据发生变化时重新验证受影响部分。这一职责调整不改变 wire、内容 fingerprint 的字段组成或 runtime C ABI。
 
+类型生产器直接返回完整的共有 type section；MIR 从其中已有的继承边、槽序和 typed 实现目标取得类型与 dispatch 信息。类型可物化性查询复用已有共有 nominal/callable 声明，不为同一次产出重新投影全部声明表。删除另行投影的来源 foundation、独立证明外层、只供旧测试消费的平行名义声明/参数/属性表，以及仅为比较同次结果而重建公开声明和 callable 表的工作。生产器仍从完整 HIR 生成全部实际记录，外部 reader 继续在明确边界检查格式、身份、引用、继承、类型与 ABI。删除仅用于重复证明的名义类型 lookup/inheritance/slot 三域副本；可见性仍由完整 typed 声明、词法 owner 和实际继承关系决定。`NominalInheritanceInterfaceV1` 的 field 5 退役，保留 field 1～4、6～9；HIR `cross-cone-type-semantics/6`、required inventory、profile 与 HIR fingerprint 同步更新，旧产物重建。未进入实际产物的旧辅助编码不保留兼容分支，runtime C ABI 与 String 表示不变。
+
 ### 5.1 Scoop exception record 与抛出
 
 - M25起异常runtime只建立在Itanium Level I unwind接口上，不使用C++ ABI。runtime私有的`ScoopExceptionRecord`包含恰好一个满足目标对齐要求的`_Unwind_Exception`、catch/rethrow/lifetime元数据，以及按对象TypeDescriptor大小和对齐保存的Scoop对象payload；各部分的具体offset不属于生成代码ABI，raw unwind pointer与payload之间只能经runtime入口转换。

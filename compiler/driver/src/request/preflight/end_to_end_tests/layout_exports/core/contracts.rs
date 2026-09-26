@@ -5,7 +5,7 @@ use scoop_lir_lower::LayoutAbiExportInputV1;
 pub(super) fn check(
     name: &str,
     hir: &current_hir::CurrentConeHirArtifacts,
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    source: &hir::CrossConeTypeSemanticsSectionV1,
     input: LayoutAbiExportInputV1<'_>,
     result: &lir::LayoutAbiExportConstituentsV1,
 ) -> String {
@@ -20,8 +20,7 @@ pub(super) fn check(
             .unwrap()
             .identity_record()
             .id();
-        let fact = source.section().exact_facts().get(exact).unwrap();
-        assert!(source.fact_shape(exact).is_some());
+        let fact = source.exact_facts().get(exact).unwrap();
         let shape = input.bridge.types().get(exact).unwrap();
         assert_eq!(
             shape.facts().kind(),

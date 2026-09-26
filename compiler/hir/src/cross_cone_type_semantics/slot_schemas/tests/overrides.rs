@@ -60,15 +60,13 @@ fn getter_override_leaves_the_independent_setter_slot() {
     )
     .unwrap();
     graph.validate_slot_schemas(child.exact, &fixture).unwrap();
-    let wrong = crate::InterfaceSourceDispatchV1::try_new(
-        child.exact,
+    let wrong = (
         vec![root.exact],
         vec![crate::InterfaceSourceMemberV1::new(
             new_getter,
             crate::CanonicalPersistentIdsV1::try_new(vec![setter]).unwrap(),
         )],
-    )
-    .unwrap();
+    );
     fixture.interface_sources.insert(child.exact, wrong);
     assert!(
         matches!(graph.validate_slot_schemas(child.exact, &fixture), Err(InheritanceSlotSchemaSemanticError::InvalidOverride { slot, overridden, .. }) if slot == new_getter && overridden == setter)
@@ -98,10 +96,9 @@ fn source_parent_owner_and_override_ancestry_are_required() {
         graph.validate_slot_schemas(child.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::InvalidOverride { .. })
     ));
-    fixture.interface_sources.insert(
-        child.exact,
-        crate::InterfaceSourceDispatchV1::try_new(child.exact, vec![], vec![]).unwrap(),
-    );
+    fixture
+        .interface_sources
+        .insert(child.exact, (vec![], vec![]));
     assert!(matches!(
         graph.validate_slot_schemas(child.exact, &fixture),
         Err(InheritanceSlotSchemaSemanticError::InterfaceSource(_))

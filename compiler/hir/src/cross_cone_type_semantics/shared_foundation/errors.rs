@@ -5,8 +5,8 @@ use scoop_identity::{
 use scoop_wire::WireError;
 
 use crate::{
-    AccessDomainSemanticError, ExactTypeFactsSemanticError, InheritanceGraphError,
-    NominalMaterializationClosureError, ProtectedDeclarationRefV1, SourceNominalId,
+    ExactTypeFactsSemanticError, InheritanceGraphError, NominalMaterializationClosureError,
+    ProtectedDeclarationRefV1, SourceNominalId,
 };
 
 #[derive(Debug)]
@@ -49,7 +49,6 @@ pub enum SharedTypeMetadataError {
     InheritanceInventory(ConeIdentity),
     InheritanceEdges(PersistentExactTypeId),
     InheritanceGraph(Box<InheritanceGraphError<SharedTypeMetadataError>>),
-    InheritanceDomains(AccessDomainSemanticError),
     DeclarationMetadata(DefinitionOriginSubject),
     CallableContract(CallableTemplateOrigin),
     CallableClassification(crate::NominalCallableClassificationError),

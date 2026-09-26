@@ -69,7 +69,7 @@ pub(super) fn traps(
 
 pub(super) fn check(
     output: &hir::DependencyHirOutput,
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    source: &hir::CrossConeTypeSemanticsSectionV1,
     input: &scoop_mir::SingleConeStrongMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,

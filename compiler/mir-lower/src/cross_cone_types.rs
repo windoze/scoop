@@ -14,7 +14,7 @@ use resources::reserve;
 
 /// Combines actual source representations and the sealed finite shape plan.
 pub fn lower_type_exports(
-    hir: &hir::CrossConeTypeSemanticsProductionV1,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
@@ -32,12 +32,12 @@ pub fn lower_type_exports(
 /// Produces the source and object-backing constituent of the M23-6 type table.
 /// The complete section still requires callable, dispatch and shape products.
 pub fn lower_source_type_exports(
-    hir: &hir::CrossConeTypeSemanticsProductionV1,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
     let module = input.module();
-    let source = hir.section().representation_support();
+    let source = hir.representation_support();
     let mut records = Vec::new();
     reserve(&mut records, source.records().len().saturating_mul(2))?;
     let mut produced = 0;
@@ -58,7 +58,6 @@ pub fn lower_source_type_exports(
         };
         let exact = identity.identity_record().id();
         let fact = hir
-            .section()
             .exact_facts()
             .get(exact)
             .ok_or(SourceMirTypeProductionError::MissingFacts(exact))?;
@@ -124,15 +123,14 @@ fn facts(
 }
 
 fn bases(
-    hir: &hir::CrossConeTypeSemanticsProductionV1,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
     exact: PersistentExactTypeId,
 ) -> Result<mir::MirBaseAndInterfacesV1, SourceMirTypeProductionError> {
-    let edges = hir.local_inheritance_edges();
-
-    let index = edges
-        .binary_search_by_key(&exact, hir::NominalInheritanceEdgesV1::owner)
-        .map_err(|_| SourceMirTypeProductionError::MissingInheritance(exact))?;
-    let source = &edges[index];
+    let source = hir
+        .inheritance()
+        .get(exact)
+        .ok_or(SourceMirTypeProductionError::MissingInheritance(exact))?
+        .edges();
     let mut interfaces = Vec::new();
     reserve(&mut interfaces, source.direct_interfaces().len())?;
     interfaces.extend_from_slice(source.direct_interfaces());

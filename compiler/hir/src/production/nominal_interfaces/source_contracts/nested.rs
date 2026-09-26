@@ -3,7 +3,7 @@ use super::*;
 use scoop_identity::DefinitionOriginSubject;
 
 pub(in crate::production) struct NestedSourceNode {
-    pub contract: NominalSourceContractV1,
+    pub record: NominalInterfaceRecordV1,
     pub access: DeclarationAccessSourceV1,
 }
 pub(in crate::production) fn project(
@@ -36,8 +36,8 @@ pub(in crate::production) fn project(
             .identity(export)
             .and_then(HirNominalIdentity::source)
             .ok_or_else(|| invalid("nested source lacks its sealed nominal identity"))?;
-        let contract = projection::project(export, node.local, source)?;
-        for child in contract.children().values() {
+        let record = projection::project(export, node.local, source)?;
+        for child in record.declaration_details().children().values() {
             push(&mut pending, (*child, depth + 1))?;
         }
         let subject = match owner {
@@ -56,7 +56,7 @@ pub(in crate::production) fn project(
             subject,
             node.visibility.into(),
         )?;
-        push(&mut records, NestedSourceNode { contract, access })?;
+        push(&mut records, NestedSourceNode { record, access })?;
     }
     Ok(records)
 }

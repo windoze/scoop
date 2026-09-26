@@ -178,11 +178,6 @@ pub(crate) fn trusted_core_from_source(
     }
 }
 
-pub(crate) fn parsed_core(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
-    let identity = super::super::core_source_identity("src/core.scoop");
-    parsed_sources(identity, source, "<core>", "")
-}
-
 pub(crate) fn parsed_ordinary(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
     parsed_sources(test_source_identity("src/main.scoop"), source, "<main>", "")
 }

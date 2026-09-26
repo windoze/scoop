@@ -1,5 +1,0 @@
-CBox fields=1 policy=CLayout { contract: HirCLayoutContract { aligned: Natural, packed: Natural } }
-Header fields=1 policy=CLayout { contract: HirCLayoutContract { aligned: A4, packed: Natural } }
-Ordinary fields=1 policy=Ordinary
-Outer fields=2 policy=CLayout { contract: HirCLayoutContract { aligned: A16, packed: A2 } }
-Packed fields=2 policy=CLayout { contract: HirCLayoutContract { aligned: A8, packed: A1 } }

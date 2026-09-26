@@ -87,8 +87,11 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
 
 pub(super) fn project(
     output: &hir::DependencyHirOutput,
-) -> hir::CanonicalSourceInheritanceInventoriesV1 {
-    hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap()
+) -> hir::CanonicalNominalInheritanceInterfacesV1 {
+    produce_cross_cone_type_semantics(output, &public_interface(output))
+        .unwrap()
+        .inheritance()
+        .clone()
 }
 
 pub(in crate::tests::m23_type_semantics_production) fn owners(
@@ -141,7 +144,7 @@ pub(super) fn owner(output: &hir::DependencyHirOutput, name: &str) -> Persistent
 
 pub(super) fn render(
     output: &hir::DependencyHirOutput,
-    inventory: &hir::CanonicalSourceInheritanceInventoriesV1,
+    inventory: &hir::CanonicalNominalInheritanceInterfacesV1,
 ) -> String {
     let export = output.output().export.module();
     let owners = owners(output);

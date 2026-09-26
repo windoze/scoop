@@ -1,5 +1,5 @@
 use super::*;
-use crate::{CanonicalPersistentIdsV1, InterfaceSourceDispatchV1, InterfaceSourceMemberV1};
+use crate::{CanonicalPersistentIdsV1, InterfaceSourceMemberV1};
 
 impl Fixture {
     pub fn interface_source(
@@ -8,33 +8,28 @@ impl Fixture {
         parents: &[Node],
         members: &[(PersistentDispatchSlotId, &[PersistentDispatchSlotId])],
     ) {
-        let source = InterfaceSourceDispatchV1::try_new(
+        self.interface_sources.insert(
             owner.exact,
-            parents.iter().map(|node| node.exact).collect(),
-            members
-                .iter()
-                .map(|(slot, overrides)| {
-                    InterfaceSourceMemberV1::new(
-                        *slot,
-                        CanonicalPersistentIdsV1::try_new(overrides.to_vec()).unwrap(),
-                    )
-                })
-                .collect(),
-        )
-        .unwrap();
-        self.interface_sources.insert(owner.exact, source);
+            (
+                parents.iter().map(|node| node.exact).collect(),
+                members
+                    .iter()
+                    .map(|(slot, overrides)| {
+                        InterfaceSourceMemberV1::new(
+                            *slot,
+                            CanonicalPersistentIdsV1::try_new(overrides.to_vec()).unwrap(),
+                        )
+                    })
+                    .collect(),
+            ),
+        );
     }
     pub fn declare(&mut self, owner: Node, slot: PersistentDispatchSlotId) {
-        if let Some(source) = self.interface_sources.get(&owner.exact) {
-            let mut members = source.members().to_vec();
+        if let Some((_, members)) = self.interface_sources.get_mut(&owner.exact) {
             members.push(InterfaceSourceMemberV1::new(
                 slot,
                 CanonicalPersistentIdsV1::empty(),
             ));
-            let source =
-                InterfaceSourceDispatchV1::try_new(owner.exact, source.parents().to_vec(), members)
-                    .unwrap();
-            self.interface_sources.insert(owner.exact, source);
         }
     }
 }

@@ -5,7 +5,7 @@ use super::*;
 pub struct MirTypeBridgeExportInputV1<'a> {
     pub hir: &'a hir::DependencyHirOutput,
     pub public: &'a hir::CrossConeHirInterfaceSectionV1,
-    pub source: &'a hir::CrossConeTypeSemanticsProductionV1,
+    pub source: &'a hir::CrossConeTypeSemanticsSectionV1,
     pub mir: &'a mir::SingleConeStrongMirInput,
     pub ordinary: &'a mir::CrossConeMirBridgeSectionV1,
     pub identities: &'a ValidatedIdentityGraph,
@@ -22,11 +22,8 @@ pub struct MirTypeBridgeDependencyTablesV1<'a> {
 
 impl MirTypeBridgeExportInputV1<'_> {
     pub(super) fn validate(self) -> Result<(), Error> {
-        use hir::NominalRepresentationSemanticAuthority;
         let provider = self.mir.module().cone;
-        if self.hir.output().local.module().cone != provider
-            || self.source.foundation().current_provider() != provider
-            || self.ordinary.artifact() != provider
+        if self.hir.output().local.module().cone != provider || self.ordinary.artifact() != provider
         {
             return Err(Error::ProviderMismatch);
         }

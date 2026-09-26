@@ -51,12 +51,7 @@ pub(in super::super) fn assemble_with_production(
         input.ordinary,
         &ordinary,
     );
-    crate::CrossConeLayoutArtifactMetadataInputV1::new(
-        metadata,
-        input.source.section(),
-        mir,
-        layout,
-    )
-    .assemble(emitted, &generated, owners)
-    .unwrap()
+    crate::CrossConeLayoutArtifactMetadataInputV1::new(metadata, input.source, mir, layout)
+        .assemble(emitted, &generated, owners)
+        .unwrap()
 }

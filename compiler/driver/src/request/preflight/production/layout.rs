@@ -243,13 +243,8 @@ pub(super) fn assemble(
         .dependency_symbol_owners()
         .cloned()
         .collect::<Vec<_>>();
-    crate::CrossConeLayoutArtifactMetadataInputV1::new(
-        metadata,
-        source.section(),
-        &mir_section,
-        &section,
-    )
-    .assemble(objects, &generated, &owners)
-    .map_err(Error::Artifact)
-    .map_err(Into::into)
+    crate::CrossConeLayoutArtifactMetadataInputV1::new(metadata, &source, &mir_section, &section)
+        .assemble(objects, &generated, &owners)
+        .map_err(Error::Artifact)
+        .map_err(Into::into)
 }

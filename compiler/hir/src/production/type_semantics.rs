@@ -1,16 +1,11 @@
-//! Projection of ordinary HIR into the M23-6 type-semantics transport.
+//! Projection of complete HIR into the shared M23-6 type section.
 
 use std::fmt;
 
 use scoop_identity::PersistentExactTypeId;
 
-use crate::{
-    CanonicalPersistentIdsV1, CrossConeTypeSemanticsSectionV1, DependencyHirOutput,
-    ExactTypeFactShapeV1, NominalInheritanceEdgesV1, SourceNominalId, TypeSectionDependencyFactV1,
-};
+use crate::{CrossConeTypeSemanticsSectionV1, DependencyHirOutput, SourceNominalId};
 
-mod authority;
-pub use authority::*;
 mod facts;
 pub(in crate::production) mod inheritance;
 mod nested_sources;
@@ -24,136 +19,16 @@ pub(in crate::production) use nominals::declaration_access_for_subject;
 mod nominals;
 mod source_parameter_shapes;
 
-/// The transport plus the independently projected inventories needed by the
-/// semantic validator. Keeping both products together prevents a driver from
-/// deriving validation authority from the candidate section itself.
-#[derive(Clone, Debug)]
-pub struct CrossConeTypeSemanticsProductionV1 {
-    section: CrossConeTypeSemanticsSectionV1,
-    foundation: CrossConeTypeSemanticsFoundationV1,
-    inheritance_inventory: crate::CanonicalSourceInheritanceInventoriesV1,
-    interface_sources: crate::CanonicalInterfaceSourceDispatchesV1,
-    slot_selections: crate::CanonicalInheritanceSourceSlotSelectionsV1,
-    source_callables: crate::CanonicalInheritanceSourceCallablesV1,
-    source_constructors: crate::CanonicalInheritanceSourceConstructorsV1,
-    source_protected_callables: crate::CanonicalInheritanceSourceProtectedCallablesV1,
-    source_properties: crate::CanonicalInheritanceSourcePropertiesV1,
-    source_parameters: crate::CanonicalInheritanceSourceParameterProtocolsV1,
-    source_nominals: crate::CanonicalNominalSourceContractsV1,
-}
-
-impl CrossConeTypeSemanticsProductionV1 {
-    /// Projects the M23-6 HIR payload from the sealed Export/LocalConcrete
-    /// pair and the M23-5 public interface produced from that same output.
-    /// Members, slots and default bodies share the resolved source projection.
-    /// Declarations with generic machine dependencies remain source-only;
-    /// closed nominal roots retain complete representation and inheritance.
-    /// Actual generic materialization still requires M23-7. Type requirements
-    /// use the same shared declaration metadata as the Compile reader.
+impl CrossConeTypeSemanticsSectionV1 {
+    /// Projects complete type representations, inheritance and dependency uses
+    /// from the same Export/LocalConcrete pair as the public HIR interface.
+    /// Generic machine materialization remains part of M23-7.
     pub fn from_dependency_hir(
         output: &DependencyHirOutput,
         metadata: crate::SharedTypeMetadataV1<'_>,
         dependencies: &[crate::SharedTypeMetadataV1<'_>],
     ) -> Result<Self, CrossConeTypeSemanticsProductionError> {
         nominals::produce(output, metadata, dependencies)
-    }
-
-    pub const fn section(&self) -> &CrossConeTypeSemanticsSectionV1 {
-        &self.section
-    }
-
-    pub fn into_parts(
-        self,
-    ) -> (
-        CrossConeTypeSemanticsSectionV1,
-        CrossConeTypeSemanticsFoundationV1,
-        crate::CanonicalSourceInheritanceInventoriesV1,
-        crate::CanonicalInterfaceSourceDispatchesV1,
-        crate::CanonicalInheritanceSourceSlotSelectionsV1,
-        crate::CanonicalInheritanceSourceCallablesV1,
-        crate::CanonicalInheritanceSourceConstructorsV1,
-        crate::CanonicalInheritanceSourceProtectedCallablesV1,
-        crate::CanonicalInheritanceSourcePropertiesV1,
-        crate::CanonicalInheritanceSourceParameterProtocolsV1,
-        crate::CanonicalNominalSourceContractsV1,
-    ) {
-        (
-            self.section,
-            self.foundation,
-            self.inheritance_inventory,
-            self.interface_sources,
-            self.slot_selections,
-            self.source_callables,
-            self.source_constructors,
-            self.source_protected_callables,
-            self.source_properties,
-            self.source_parameters,
-            self.source_nominals,
-        )
-    }
-
-    pub const fn foundation(&self) -> &CrossConeTypeSemanticsFoundationV1 {
-        &self.foundation
-    }
-
-    pub const fn inheritance_inventory(&self) -> &crate::CanonicalSourceInheritanceInventoriesV1 {
-        &self.inheritance_inventory
-    }
-
-    pub const fn interface_sources(&self) -> &crate::CanonicalInterfaceSourceDispatchesV1 {
-        &self.interface_sources
-    }
-
-    pub const fn slot_selections(&self) -> &crate::CanonicalInheritanceSourceSlotSelectionsV1 {
-        &self.slot_selections
-    }
-
-    pub const fn source_callables(&self) -> &crate::CanonicalInheritanceSourceCallablesV1 {
-        &self.source_callables
-    }
-
-    pub const fn source_constructors(&self) -> &crate::CanonicalInheritanceSourceConstructorsV1 {
-        &self.source_constructors
-    }
-
-    pub const fn source_protected_callables(
-        &self,
-    ) -> &crate::CanonicalInheritanceSourceProtectedCallablesV1 {
-        &self.source_protected_callables
-    }
-
-    pub fn source_roots(&self) -> &[SourceNominalId] {
-        self.foundation.source_roots()
-    }
-
-    pub const fn source_properties(&self) -> &crate::CanonicalInheritanceSourcePropertiesV1 {
-        &self.source_properties
-    }
-
-    pub const fn source_parameters(
-        &self,
-    ) -> &crate::CanonicalInheritanceSourceParameterProtocolsV1 {
-        &self.source_parameters
-    }
-
-    pub const fn source_nominals(&self) -> &crate::CanonicalNominalSourceContractsV1 {
-        &self.source_nominals
-    }
-
-    pub const fn local_exact_facts(&self) -> &CanonicalPersistentIdsV1<PersistentExactTypeId> {
-        self.foundation.local_exact_facts()
-    }
-
-    pub fn dependency_facts(&self) -> &[TypeSectionDependencyFactV1] {
-        self.foundation.dependency_facts()
-    }
-
-    pub fn local_inheritance_edges(&self) -> &[NominalInheritanceEdgesV1] {
-        self.foundation.local_inheritance_edges()
-    }
-
-    pub fn fact_shape(&self, exact: PersistentExactTypeId) -> Option<&ExactTypeFactShapeV1> {
-        self.foundation.fact_shape(exact)
     }
 }
 
@@ -182,7 +57,9 @@ pub enum CrossConeTypeSemanticsProductionError {
     MissingDefinitionOrigin(scoop_identity::DefinitionOriginSubject),
     InvalidLexicalOwner(scoop_identity::DefinitionOwnerAtom),
     InvalidSourceDeclaration(String),
-    MissingExactIdentity,
+    MissingExactIdentity {
+        context: &'static str,
+    },
     ExactIdentityMismatch(PersistentExactTypeId),
     MissingConcreteType(PersistentExactTypeId),
     MissingLocalSupport(PersistentExactTypeId),
@@ -234,8 +111,8 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
             Self::InvalidSourceDeclaration(reason) => {
                 write!(f, "invalid persistent source declaration: {reason}")
             }
-            Self::MissingExactIdentity => {
-                f.write_str("a parameter-free source nominal has no exact identity")
+            Self::MissingExactIdentity { context } => {
+                write!(f, "missing persistent exact type identity for {context}")
             }
             Self::ExactIdentityMismatch(exact) => write!(
                 f,

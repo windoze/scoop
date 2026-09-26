@@ -19,7 +19,7 @@ fn with_dispatch<R>(
     run: impl FnOnce(
         &hir::DependencyHirOutput,
         &SingleConeStrongMirInput,
-        &hir::CrossConeTypeSemanticsProductionV1,
+        &hir::CrossConeTypeSemanticsSectionV1,
         &CanonicalParamFreeMirTypeExportsV1,
         MirDispatchSchemaAuthority<'_>,
         &CanonicalMirDispatchSchemasV1,

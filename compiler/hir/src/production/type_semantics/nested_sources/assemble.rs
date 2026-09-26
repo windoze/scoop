@@ -13,7 +13,7 @@ impl Assembly {
         for source in nodes {
             if indexed
                 .insert(
-                    source.contract.owner(),
+                    source.record.declaration(),
                     Node {
                         source,
                         support: Vec::new(),
@@ -54,7 +54,7 @@ impl Assembly {
             .nodes
             .remove(&owner)
             .ok_or_else(|| invalid("nested source has a missing, repeated or cyclic child"))?;
-        for child in node.source.contract.children().values() {
+        for child in node.source.record.declaration_details().children().values() {
             let record = self.take(*child)?;
 
             resources::push(
@@ -64,11 +64,20 @@ impl Assembly {
         }
 
         let support = CanonicalNestedSourceSupportV1::try_new(node.support).map_err(invalid)?;
-        let interface = node
-            .source
-            .contract
-            .into_nested_interface(support)
-            .map_err(invalid)?;
+        let record = &node.source.record;
+        let details = record.declaration_details();
+        let interface = ProtectedNestedSourceInterfaceV1::try_new(
+            record.kind(),
+            details.modality(),
+            record.type_parameters().clone(),
+            record.exact_supertypes().clone(),
+            details.constructors().clone(),
+            details.members().clone(),
+            details.children().clone(),
+            record.source_shape().clone(),
+            support,
+        )
+        .map_err(invalid)?;
         let payload =
             ProtectedNestedNominalPayloadV1::try_new(owner, interface).map_err(invalid)?;
         NominalSupportNestedInterfaceV1::try_new(owner, node.source.access, payload)

@@ -1,15 +1,9 @@
-//! Independent source implementation decisions, indexed by exact owner and slot.
+//! Implementation choices used while assembling inheritance slot contracts.
 
 use scoop_identity::{PersistentDispatchSlotId, PersistentExactTypeId};
-use scoop_wire::{Encoder, WireEncode};
 
 use super::*;
 use crate::InheritanceSourceSlotSelectionV1;
-
-mod wire;
-pub use wire::*;
-#[cfg(test)]
-mod tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct InheritanceSourceSlotSelectionRecordV1 {
@@ -83,11 +77,5 @@ impl CanonicalInheritanceSourceSlotSelectionsV1 {
             .binary_search_by_key(&(owner, slot), InheritanceSourceSlotSelectionRecordV1::key)
             .ok()
             .map(|index| self.records[index].selection)
-    }
-}
-
-impl WireEncode for CanonicalInheritanceSourceSlotSelectionsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        super::wire::sequence(encoder, &self.records)
     }
 }

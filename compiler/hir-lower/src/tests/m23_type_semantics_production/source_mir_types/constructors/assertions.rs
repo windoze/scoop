@@ -6,14 +6,17 @@ use scoop_mir::MirCallableLoweringRoleV1;
 
 pub(super) fn actual(
     output: &hir::DependencyHirOutput,
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    source: &hir::CrossConeTypeSemanticsSectionV1,
     input: &scoop_mir::SingleConeStrongMirInput,
     bindings: &CanonicalMirCallableBindingsV1,
 ) {
-    assert_eq!(
-        bindings.entries().len(),
-        source.source_constructors().records().len()
-    );
+    let constructors = source
+        .inheritance()
+        .records()
+        .iter()
+        .flat_map(|record| record.constructors().records())
+        .collect::<Vec<_>>();
+    assert_eq!(bindings.entries().len(), constructors.len());
     let local = output.output().local.module();
     if let Some(private) = source_dispatch::owners(output).get("Private") {
         let root = input
@@ -131,7 +134,9 @@ pub(super) fn actual(
         .iter()
         .filter_map(|record| match record.materialization().template() {
             CallableTemplateOwner::Constructor(id)
-                if source.source_constructors().get(id).is_none() =>
+                if !constructors
+                    .iter()
+                    .any(|constructor| constructor.declaration() == id) =>
             {
                 Some(id)
             }
@@ -149,7 +154,7 @@ pub(super) fn actual(
 
 pub(super) fn dump(
     output: &hir::DependencyHirOutput,
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    source: &hir::CrossConeTypeSemanticsSectionV1,
     bindings: &CanonicalMirCallableBindingsV1,
 ) -> String {
     let owners = source_dispatch::owners(output);
@@ -186,9 +191,12 @@ pub(super) fn dump(
             _ => unreachable!(),
         };
         let access = source
-            .source_constructors()
-            .get(id)
+            .inheritance()
+            .records()
+            .iter()
+            .find_map(|record| record.constructors().get(id))
             .unwrap()
+            .source()
             .declaration_access()
             .declared_visibility();
         lines.push(format!(

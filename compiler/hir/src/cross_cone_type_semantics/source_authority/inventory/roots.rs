@@ -1,7 +1,5 @@
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
-
 use super::*;
-use crate::{DecodedSourceNominalId, SourceNominalId, SourceNominalIdResolver};
+use crate::SourceNominalId;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalSourceNominalIdsV1 {
@@ -21,43 +19,5 @@ impl CanonicalSourceNominalIdsV1 {
 
     pub fn values(&self) -> &[SourceNominalId] {
         &self.values
-    }
-}
-
-impl WireEncode for CanonicalSourceNominalIdsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        wire::sequence(encoder, &self.values)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedCanonicalSourceNominalIdsV1 {
-    values: Vec<DecodedSourceNominalId>,
-}
-
-impl DecodedCanonicalSourceNominalIdsV1 {
-    pub fn resolve<R: SourceNominalIdResolver<E>, E: fmt::Display>(
-        self,
-        resolver: &mut R,
-    ) -> Result<CanonicalSourceNominalIdsV1, SourceInventoryError> {
-        let mut values = reserve(self.values.len())?;
-        for value in self.values {
-            values.push(value.resolve(resolver).map_err(reference)?);
-        }
-        CanonicalSourceNominalIdsV1::from_ordered(values)
-    }
-}
-
-impl WireDecode for DecodedCanonicalSourceNominalIdsV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder
-            .decode_array(|d, _| DecodedSourceNominalId::decode(d))
-            .map(|values| Self { values })
-    }
-}
-
-impl WireEncode for DecodedCanonicalSourceNominalIdsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        wire::sequence(encoder, &self.values)
     }
 }

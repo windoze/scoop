@@ -48,10 +48,6 @@ fn shared_nominal_declarations_survive_ordinary_foundation_bytes_and_keep_lookup
                 assert_ne!(name.as_str(), "Unrelated");
                 let public = table.get(record.declaration()).is_some();
                 let details = record.declaration_details();
-                let contract = record.source_contract().unwrap();
-                assert_eq!(contract.source_shape(), record.source_shape());
-                assert_eq!(contract.members(), details.members());
-                assert_eq!(contract.children(), details.children());
                 if !public {
                     assert!(record.constructors().is_empty());
                     assert!(record.members().members().is_empty());

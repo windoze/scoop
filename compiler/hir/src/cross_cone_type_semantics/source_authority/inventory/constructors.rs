@@ -1,10 +1,6 @@
 use super::*;
 use crate::NominalSupportConstructorInterfaceV1;
 use scoop_identity::PersistentConstructorId;
-use scoop_wire::{Encoder, WireEncode};
-
-mod wire;
-pub use wire::*;
 
 /// Independent constructor source contracts, including protected declarations.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -46,11 +42,5 @@ impl CanonicalInheritanceSourceConstructorsV1 {
             )
             .ok()
             .map(|index| &self.records[index])
-    }
-}
-
-impl WireEncode for CanonicalInheritanceSourceConstructorsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        super::wire::sequence(encoder, &self.records)
     }
 }

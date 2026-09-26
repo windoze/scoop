@@ -84,7 +84,7 @@ fn protected_constructor_and_members_require_the_checked_source_table() {
 }
 
 #[test]
-fn constructor_source_and_nominal_domains_cannot_be_forged_by_the_surface() {
+fn constructor_must_belong_to_its_declared_nominal_owner() {
     let mut bundle = fixture();
     let base_ctor = bundle
         .table
@@ -104,19 +104,5 @@ fn constructor_source_and_nominal_domains_cannot_be_forged_by_the_surface() {
     assert!(matches!(
         bundle.validate(),
         Err(InheritanceInterfaceSemanticError::ConstructorOwner)
-    ));
-    let mut bundle = fixture();
-    bundle.change(bundle.base, |record| {
-        record.domains = NominalAccessDomainsV1::new(
-            record.domains.lookup().clone(),
-            PersistentInheritanceDomainV1::new(PersistentAccessDomainV1::universal()),
-            record.domains.slot().clone(),
-        )
-    });
-    assert!(matches!(
-        bundle.validate(),
-        Err(InheritanceInterfaceSemanticError::Domains(
-            AccessDomainSemanticError::NominalDomains
-        ))
     ));
 }

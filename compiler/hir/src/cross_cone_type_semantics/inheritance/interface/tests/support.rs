@@ -156,19 +156,9 @@ pub(in crate::cross_cone_type_semantics) fn fixture() -> Bundle {
             (owner.exact, slot),
             InheritanceSourceSlotSelectionV1::Concrete(declaration),
         );
-        let graph = CheckedNominalInheritanceGraphV1::validate(
-            fixture.graph.records.values(),
-            &fixture.graph,
-        )
-        .unwrap();
-        let domains = graph
-            .replay_nominal_domains(owner.exact)
-            .unwrap()
-            .to_record();
         records.push(
             NominalInheritanceInterfaceV1::try_new(
                 fixture.graph.records[&owner.exact].clone(),
-                domains,
                 CanonicalInheritanceConstructorsV1::try_new(vec![constructor]).unwrap(),
                 CanonicalInheritanceSlotContractsV1::try_new(vec![slot_contract]).unwrap(),
                 members,

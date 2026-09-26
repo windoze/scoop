@@ -1,4 +1,4 @@
-//! Required inheritance inputs projected independently of candidate interfaces.
+//! Inheritance declarations used while assembling the complete type section.
 
 use super::*;
 use crate::{
@@ -6,12 +6,6 @@ use crate::{
     CanonicalProtectedDeclarationRefsV1, ProtectedDeclarationRefV1,
 };
 use scoop_identity::{PersistentConstructorId, PersistentExactTypeId};
-use scoop_wire::{Encoder, WireEncode};
-
-mod decode;
-pub use decode::*;
-#[cfg(test)]
-mod tests;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceInheritanceInventoryV1 {
@@ -65,24 +59,9 @@ impl SourceInheritanceInventoryV1 {
     }
 }
 
-impl WireEncode for SourceInheritanceInventoryV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.owner.encode(encoder)?;
-        encoder.field(2)?;
-        self.constructors.encode(encoder)?;
-        encoder.field(3)?;
-        self.protected_members.encode(encoder)?;
-        encoder.field(4)?;
-        self.slot_schemas.encode(encoder)
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalSourceInheritanceInventoriesV1 {
     records: Vec<SourceInheritanceInventoryV1>,
-    owners: CanonicalPersistentIdsV1<PersistentExactTypeId>,
 }
 
 impl CanonicalSourceInheritanceInventoriesV1 {
@@ -101,31 +80,16 @@ impl CanonicalSourceInheritanceInventoriesV1 {
             SourceInheritanceInventoryV1::owner,
             "inheritance owners",
         )?;
-        let mut owners = reserve(records.len())?;
-        for record in records.iter() {
-            record.validate()?;
-            owners.push(record.owner());
-        }
-        let owners = CanonicalPersistentIdsV1::try_new(owners).map_err(reference)?;
-        Ok(Self { records, owners })
+        Ok(Self { records })
     }
 
     pub fn records(&self) -> &[SourceInheritanceInventoryV1] {
         &self.records
-    }
-    pub const fn owners(&self) -> &CanonicalPersistentIdsV1<PersistentExactTypeId> {
-        &self.owners
     }
     pub fn get(&self, owner: PersistentExactTypeId) -> Option<&SourceInheritanceInventoryV1> {
         self.records
             .binary_search_by_key(&owner, SourceInheritanceInventoryV1::owner)
             .ok()
             .map(|index| &self.records[index])
-    }
-}
-
-impl WireEncode for CanonicalSourceInheritanceInventoriesV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        wire::sequence(encoder, &self.records)
     }
 }

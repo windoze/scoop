@@ -1,35 +1,15 @@
 use std::fmt;
 
-use scoop_wire::{WireError, WirePath};
-
-use super::super::wire;
+use scoop_wire::WireError;
 
 mod callables;
 mod constructors;
 mod inheritance;
-mod interface_dispatch;
-mod nominal_callables;
-mod nominal_constructors;
-mod nominal_contracts;
-mod nominal_parameters;
-mod nominal_properties;
-mod parameter_protocols;
-mod properties;
-mod protected_callables;
 mod roots;
 mod slot_selections;
 pub use callables::*;
 pub use constructors::*;
 pub use inheritance::*;
-pub use interface_dispatch::*;
-pub use nominal_callables::*;
-pub use nominal_constructors::*;
-pub use nominal_contracts::*;
-pub use nominal_parameters::*;
-pub use nominal_properties::*;
-pub use parameter_protocols::*;
-pub use properties::*;
-pub use protected_callables::*;
 pub use roots::*;
 pub use slot_selections::*;
 
@@ -50,18 +30,6 @@ fn validate_order<T, K: Ord>(
     Ok(())
 }
 
-fn reserve<T>(count: usize) -> Result<Vec<T>, SourceInventoryError> {
-    let path = WirePath::root();
-
-    let mut output = Vec::new();
-    scoop_wire::allocation::try_reserve(&mut output, count, &path)?;
-    Ok(output)
-}
-
-fn reference(error: impl fmt::Display) -> SourceInventoryError {
-    SourceInventoryError::Reference(error.to_string())
-}
-
 #[derive(Debug)]
 pub enum SourceInventoryError {
     Resource(WireError),
@@ -70,15 +38,10 @@ pub enum SourceInventoryError {
         table: &'static str,
         index: usize,
     },
-    InvalidInterfaceDispatch {
-        owner: scoop_identity::PersistentExactTypeId,
-        reason: &'static str,
-    },
     ConstructorInMembers {
         owner: scoop_identity::PersistentExactTypeId,
         constructor: scoop_identity::PersistentConstructorId,
     },
-    NonRuntimeProperty(scoop_identity::PersistentPropertyId),
 }
 
 impl From<WireError> for SourceInventoryError {
@@ -98,21 +61,12 @@ impl fmt::Display for SourceInventoryError {
                     "duplicate or noncanonical {table} source inventory at index {index}"
                 )
             }
-            Self::InvalidInterfaceDispatch { owner, reason } => {
-                write!(f, "invalid interface dispatch source {owner}: {reason}")
-            }
             Self::ConstructorInMembers { owner, constructor } => write!(
                 f,
                 "source inheritance owner {owner} lists constructor {constructor} as a member"
             ),
-            Self::NonRuntimeProperty(property) => {
-                write!(f, "inheritance property source {property} cannot be const")
-            }
         }
     }
 }
 
 impl std::error::Error for SourceInventoryError {}
-
-#[cfg(test)]
-mod tests;

@@ -24,9 +24,6 @@ fn reference_source_fields_preserve_private_storage_binders_and_declaration_orde
             table
                 .validate_declared_field_inventory(&foundation)
                 .unwrap();
-            let required = hir::CanonicalSourceNominalIdsV1::from_export_hir(export).unwrap();
-            let contracts =
-                hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &required).unwrap();
             let mut dump = Vec::new();
             for (class, declaration) in export.classes.iter() {
                 let identity = &export.nominal_identities[class];
@@ -57,10 +54,6 @@ fn reference_source_fields_preserve_private_storage_binders_and_declaration_orde
                         .iter()
                         .map(|field| export.field_identities[*field].id())
                         .collect::<Vec<_>>()
-                );
-                assert_eq!(
-                    record.source_shape(),
-                    contracts.get(owner).unwrap().source_shape()
                 );
                 if declaration.name == "FieldBox" {
                     assert_eq!(fields.len(), 2);

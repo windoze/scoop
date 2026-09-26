@@ -369,8 +369,8 @@ pub fn produce_cross_cone_type_semantics(
     output: &hir::DependencyHirOutput,
     metadata: hir::SharedTypeMetadataV1<'_>,
     dependencies: &[hir::SharedTypeMetadataV1<'_>],
-) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
-    hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(output, metadata, dependencies)
+) -> Result<hir::CrossConeTypeSemanticsSectionV1, hir::CrossConeTypeSemanticsProductionError> {
+    hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(output, metadata, dependencies)
 }
 
 fn finish_output(

@@ -1,8 +1,7 @@
 use crate::cross_cone_type_semantics::wire;
 use crate::{
     CanonicalInheritanceSlotContractsV1, CanonicalInheritanceSlotSchemasV1,
-    CanonicalProtectedDeclarationRefsV1, NominalAccessDomainsV1, NominalInheritanceEdgesV1,
-    ProtectedDeclarationRefV1,
+    CanonicalProtectedDeclarationRefsV1, NominalInheritanceEdgesV1, ProtectedDeclarationRefV1,
 };
 use scoop_identity::PersistentExactTypeId;
 use scoop_wire::{Encoder, WireEncode};
@@ -22,12 +21,10 @@ pub use errors::*;
 pub use table::*;
 pub use validation::*;
 
-/// Complete representation-independent inheritance data. Only the enclosing
-/// source/graph/default closure can turn this transport record into authority.
+/// Complete inheritance edges, constructor records and dispatch slots.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalInheritanceInterfaceV1 {
     edges: NominalInheritanceEdgesV1,
-    domains: NominalAccessDomainsV1,
     constructors: CanonicalInheritanceConstructorsV1,
     slots: CanonicalInheritanceSlotContractsV1,
     protected_members: CanonicalProtectedDeclarationRefsV1,
@@ -36,15 +33,11 @@ pub struct NominalInheritanceInterfaceV1 {
 impl NominalInheritanceInterfaceV1 {
     pub fn try_new(
         edges: NominalInheritanceEdgesV1,
-        domains: NominalAccessDomainsV1,
         constructors: CanonicalInheritanceConstructorsV1,
         slots: CanonicalInheritanceSlotContractsV1,
         protected_members: CanonicalProtectedDeclarationRefsV1,
         slot_schemas: CanonicalInheritanceSlotSchemasV1,
     ) -> Result<Self, InheritanceInterfaceBuildError> {
-        if !domains.slot().domain().is_empty() {
-            return Err(InheritanceInterfaceBuildError::NominalSlotDomain);
-        }
         if protected_members
             .values()
             .iter()
@@ -66,7 +59,6 @@ impl NominalInheritanceInterfaceV1 {
         }
         Ok(Self {
             edges,
-            domains,
             constructors,
             slots,
             protected_members,
@@ -78,9 +70,6 @@ impl NominalInheritanceInterfaceV1 {
     }
     pub const fn edges(&self) -> &NominalInheritanceEdgesV1 {
         &self.edges
-    }
-    pub const fn domains(&self) -> &NominalAccessDomainsV1 {
-        &self.domains
     }
     pub const fn constructors(&self) -> &CanonicalInheritanceConstructorsV1 {
         &self.constructors
@@ -97,10 +86,9 @@ impl NominalInheritanceInterfaceV1 {
 }
 impl WireEncode for NominalInheritanceInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(8)?;
         self.edges.encode_fields(encoder)?;
-        encoder.field(5)?;
-        self.domains.encode(encoder)?;
+        // Field 5 is retired; visibility comes from the shared declaration.
         encoder.field(6)?;
         self.constructors.encode(encoder)?;
         encoder.field(7)?;

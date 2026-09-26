@@ -16,7 +16,7 @@ fn fixture(name: &str) -> (std::path::PathBuf, String) {
 
 fn sources(
     output: &hir::DependencyHirOutput,
-    hir: &hir::CrossConeTypeSemanticsProductionV1,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
     input: &SingleConeStrongMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &dyn scoop_mir::MirTypeBridgeTypeLookupV1,

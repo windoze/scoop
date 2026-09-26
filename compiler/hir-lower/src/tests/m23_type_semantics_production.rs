@@ -1,12 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeIdentity, NominalDeclarationOwner, PersistentExactTypeId};
-use scoop_wire::WirePath;
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::*;
 use crate::{CurrentConeSources, lower_current_cone};
-use hir::NominalInheritanceSemanticAuthority as _;
 
 mod public_projection;
 use public_projection::public_interface;
@@ -28,6 +26,7 @@ mod shared_accessor_forms;
 mod shared_callable_declarations;
 mod shared_callable_selection;
 mod shared_constructor_selection;
+mod shared_declaration_combinations;
 mod shared_default_receivers;
 mod shared_nominal_declarations;
 mod shared_object_initialization;
@@ -41,42 +40,11 @@ mod source_fields;
 mod source_inventory;
 mod source_mir_types;
 mod source_native_boundary;
-mod source_nominal_callables;
-mod source_nominal_constructors;
-mod source_nominal_parameters;
-mod source_nominal_properties;
-mod source_nominals;
 mod source_only_nominals;
-mod source_parameters;
-mod source_properties;
-mod source_protected_callables;
-mod source_shapes;
 
 mod materialized_selections;
 mod production;
 use production::produce_cross_cone_type_semantics;
-
-struct FactShapes(BTreeMap<PersistentExactTypeId, hir::ExactTypeFactShapeV1>);
-
-impl hir::ExactTypeFactsSemanticAuthority<&'static str> for FactShapes {
-    fn fact_shape(
-        &self,
-        exact: PersistentExactTypeId,
-    ) -> Result<&hir::ExactTypeFactShapeV1, &'static str> {
-        self.0.get(&exact).ok_or("missing dependency fact shape")
-    }
-}
-
-struct DependencyFacts<'a>(hir::CheckedExactTypeFactsV1<'a>);
-
-impl hir::ExactTypeFactsDependencyLookupV1 for DependencyFacts<'_> {
-    fn get_dependency_fact(
-        &self,
-        exact: PersistentExactTypeId,
-    ) -> Option<hir::CheckedExactTypeFactV1<'_>> {
-        self.0.get_checked(exact)
-    }
-}
 
 fn object_decl(name: &str) -> Decl {
     Decl::Object(ast::ObjectDecl {
@@ -136,12 +104,11 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
     let output = lower_public_nominals();
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    let section = production.section();
+    let section = &production;
 
     assert_eq!(section.representation_support().records().len(), 7);
     assert_eq!(section.inheritance().records().len(), 7);
     assert_eq!(section.exact_facts().records().len(), 7);
-    assert_eq!(production.dependency_facts().len(), 1);
     assert!(!section.selected().records().is_empty());
     assert!(section.protected_declarations().records().is_empty());
     assert!(public.default_templates().records().is_empty());
@@ -154,120 +121,19 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
             .sum::<usize>(),
         4
     );
-    assert_eq!(production.local_inheritance_edges().len(), 7);
-    assert!(production.local_inheritance_edges().iter().any(|edges| {
+    assert!(section.inheritance().records().iter().any(|record| {
         matches!(
-            edges.direct_base(),
+            record.edges().direct_base(),
             hir::DirectClassBaseV1::ClassBase { .. }
         )
     }));
     assert!(
-        production
-            .local_inheritance_edges()
-            .iter()
-            .any(|edges| !edges.direct_interfaces().is_empty())
-    );
-    assert_eq!(
-        production.local_exact_facts().values(),
         section
-            .exact_facts()
+            .inheritance()
             .records()
             .iter()
-            .map(|record| record.exact())
-            .collect::<Vec<_>>()
+            .any(|record| { !record.edges().direct_interfaces().is_empty() })
     );
-
-    let foundation = production.foundation();
-
-    let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
-        foundation.local_inheritance_edges().iter(),
-        foundation.source_roots().iter().copied(),
-        foundation,
-    )
-    .unwrap();
-    for record in section.inheritance().records() {
-        assert_eq!(graph.get(record.owner()).unwrap().edges(), record.edges());
-        graph
-            .validate_nominal_domains(record.owner(), record.domains())
-            .unwrap();
-    }
-    section
-        .representation_support()
-        .validate_source_semantics(foundation, &WirePath::root())
-        .unwrap();
-
-    let mut mutated_representations = section.representation_support().records().to_vec();
-    let mutated = mutated_representations
-        .iter_mut()
-        .find(|record| {
-            matches!(
-                record.shape(),
-                hir::NominalRepresentationShapeV1::Struct { fields, .. } if fields.len() == 1
-            )
-        })
-        .unwrap();
-    let key = foundation
-        .nominal_declaration_key(hir::SourceNominalId::Concrete(mutated.owner()))
-        .unwrap();
-    *mutated = hir::NominalRepresentationSupportV1::try_new(
-        key,
-        mutated.declaration_access().clone(),
-        hir::NominalRepresentationShapeV1::Struct {
-            fields: Vec::new(),
-            c_layout_policy: hir::NominalCLayoutPolicyV1::Ordinary,
-        },
-    )
-    .unwrap();
-    let mutated_representations =
-        hir::CanonicalNominalRepresentationSupportV1::try_new(mutated_representations).unwrap();
-    assert!(
-        mutated_representations
-            .validate_source_semantics(foundation, &WirePath::root())
-            .is_err()
-    );
-
-    let wrong_domains = hir::NominalAccessDomainsV1::new(
-        hir::PersistentLookupDomainV1::new(hir::PersistentAccessDomainV1::universal()),
-        hir::PersistentInheritanceDomainV1::new(hir::PersistentAccessDomainV1::universal()),
-        hir::PersistentSlotContractDomainV1::new(hir::PersistentAccessDomainV1::empty()),
-    );
-    assert!(
-        graph
-            .validate_nominal_domains(word_value_exact(section), &wrong_domains)
-            .is_err()
-    );
-
-    let dependency_shapes = FactShapes(
-        production
-            .dependency_facts()
-            .iter()
-            .map(|dependency| (dependency.exact, hir::ExactTypeFactShapeV1::Scalar))
-            .collect(),
-    );
-    let dependency_table = hir::CanonicalExactTypeFactsV1::try_new(
-        production
-            .dependency_facts()
-            .iter()
-            .map(|dependency| {
-                hir::ExactTypeFactsV1::try_new(
-                    dependency.exact,
-                    hir::ExactTypeKindV1::Value {
-                        zst: hir::ZstStatus::NonZero,
-                    },
-                    hir::ExactTypeGcV1::GcFree,
-                )
-                .unwrap()
-            })
-            .collect(),
-    )
-    .unwrap();
-    let checked_dependencies = dependency_table
-        .validate_semantics(&dependency_shapes)
-        .unwrap();
-    section
-        .exact_facts()
-        .validate_semantics_with_dependencies(foundation, &DependencyFacts(checked_dependencies))
-        .unwrap();
 
     let generic = output
         .output()
@@ -280,9 +146,10 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
         .generic_type_id()
         .unwrap();
     assert!(
-        production
-            .source_roots()
-            .contains(&NominalDeclarationOwner::GenericTemplate(generic))
+        public
+            .nominal_interfaces()
+            .get(NominalDeclarationOwner::GenericTemplate(generic))
+            .is_some()
     );
     assert!(
         section
@@ -362,22 +229,6 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
             zst: hir::ZstStatus::NonZero
         }
     );
-}
-
-fn word_value_exact(section: &hir::CrossConeTypeSemanticsSectionV1) -> PersistentExactTypeId {
-    let owner = section
-        .representation_support()
-        .records()
-        .iter()
-        .find(|record| {
-            matches!(
-                record.shape(),
-                hir::NominalRepresentationShapeV1::Struct { fields, .. } if fields.len() == 1
-            )
-        })
-        .unwrap()
-        .owner();
-    PersistentExactTypeId::from_key(&scoop_identity::ExactTypeKey::Nominal(owner)).unwrap()
 }
 
 mod additional;

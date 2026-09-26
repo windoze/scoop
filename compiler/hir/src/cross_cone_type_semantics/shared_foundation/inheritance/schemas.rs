@@ -3,7 +3,7 @@
 use super::*;
 use crate::{
     CanonicalInheritanceSlotSchemasV1, InheritanceSlotSchemaSemanticAuthority,
-    InterfaceSourceDispatchV1, NominalDispatchOrderV1,
+    NominalDispatchOrderV1,
 };
 use scoop_identity::{
     DispatchSlotKey, PersistentDispatchSlotId, PersistentFunctionId, PersistentPropertyAccessorId,
@@ -39,7 +39,7 @@ struct SchemaDeclarations<'a> {
     selections: BTreeMap<PersistentExactTypeId, &'a crate::CanonicalNominalDispatchSelectionsV1>,
     schemas: BTreeMap<PersistentExactTypeId, &'a CanonicalInheritanceSlotSchemasV1>,
     orders: BTreeMap<PersistentExactTypeId, &'a NominalDispatchOrderV1>,
-    interfaces: BTreeMap<PersistentExactTypeId, InterfaceSourceDispatchV1>,
+    interface_parents: BTreeMap<PersistentExactTypeId, Vec<PersistentExactTypeId>>,
     slots: BTreeMap<PersistentDispatchSlotId, Arc<DispatchSlotKey>>,
     functions: BTreeMap<PersistentFunctionId, Arc<SourceDeclarationKey>>,
     accessors: BTreeMap<PersistentPropertyAccessorId, Arc<PropertyAccessorKey>>,
@@ -47,11 +47,23 @@ struct SchemaDeclarations<'a> {
 }
 
 impl InheritanceSlotSchemaSemanticAuthority<Error> for SchemaDeclarations<'_> {
-    fn interface_dispatch_source(
+    fn interface_parent_order(
         &self,
         owner: PersistentExactTypeId,
-    ) -> Result<&InterfaceSourceDispatchV1, Error> {
-        self.interfaces.get(&owner).ok_or(Error::SlotOrder(owner))
+    ) -> Result<&[PersistentExactTypeId], Error> {
+        self.interface_parents
+            .get(&owner)
+            .map(Vec::as_slice)
+            .ok_or(Error::SlotOrder(owner))
+    }
+    fn interface_members(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&[crate::InterfaceSourceMemberV1], Error> {
+        match self.orders.get(&owner) {
+            Some(NominalDispatchOrderV1::Interface { members, .. }) => Ok(members),
+            _ => Err(Error::SlotOrder(owner)),
+        }
     }
     fn schemas(
         &self,

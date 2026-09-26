@@ -2,14 +2,10 @@ use super::*;
 use scoop_identity::PersistentDispatchSlotId;
 use scoop_wire::{decode_canonical, encode};
 
-mod callables;
-mod replay;
 mod selections;
 mod support;
 use support::*;
-pub(super) use support::{
-    owners, with_hir_source, with_hir_source_at, with_hir_sources, with_source,
-};
+pub(super) use support::{owners, with_hir_source, with_hir_sources, with_source};
 
 pub(super) const VIRTUAL: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -120,18 +116,24 @@ fn source_interface_order_matches_concrete_diamond_override_and_value_tables() {
 
 #[test]
 fn source_dispatch_bytes_ignore_unrelated_arena_allocation() {
-    let first = with_source(INTERFACES, |output, _| encode(&project(output)).unwrap());
-    let shifted = format!("fun unrelated(): Int = 7\n{INTERFACES}");
-    let second = with_source(&shifted, |output, _| encode(&project(output)).unwrap());
+    let prefix = "fun unrelated(): Int = 7\n";
+    // Keep declaration spans fixed while inserting an unrelated arena entry.
+    let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
+    let first = with_source(&format!("{padding}{INTERFACES}"), |output, _| {
+        encode(&project(output)).unwrap()
+    });
+    let second = with_source(&format!("{prefix}{INTERFACES}"), |output, _| {
+        encode(&project(output)).unwrap()
+    });
     assert_eq!(first, second);
 }
 
 fn roundtrip(
     output: &hir::DependencyHirOutput,
-    inventory: &hir::CanonicalSourceInheritanceInventoriesV1,
+    inventory: &hir::CanonicalNominalInheritanceInterfacesV1,
 ) {
     let mut identities = super::source_inventory::identity_closure(output);
-    let restored: hir::DecodedCanonicalSourceInheritanceInventoriesV1 =
+    let restored: hir::DecodedCanonicalNominalInheritanceInterfacesV1 =
         decode_canonical(&encode(inventory).unwrap()).unwrap();
     let restored = restored.resolve(&mut identities).unwrap();
     assert_eq!(&restored, inventory);
@@ -142,8 +144,10 @@ fn source_dispatch_preserves_generic_interfaces_without_machine_inventory() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
-            let inventory =
-                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
+            let inventory = produce_cross_cone_type_semantics(output, &public_interface(output))
+                .unwrap()
+                .inheritance()
+                .clone();
             assert!(inventory.records().is_empty());
             assert_eq!(
                 public_interface(output)

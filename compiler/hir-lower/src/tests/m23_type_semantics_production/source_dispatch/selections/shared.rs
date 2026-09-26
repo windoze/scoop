@@ -11,9 +11,19 @@ const GENERIC: &str = include_str!(concat!(
 #[test]
 fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds() {
     for source in [SELECTIONS, INTERFACES, VIRTUAL] {
-        with_source(source, |output, mir| {
-            let selected = selections(output);
-            concrete::verify(output, mir, &selected);
+        with_source(source, |output, _| {
+            let section =
+                produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
+            let selected = section.inheritance();
+            if source == SELECTIONS {
+                assert_eq!(
+                    render::render(output, selected),
+                    include_str!(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../../tests/fixtures/m23-type-source-dispatch/selections.choices.snap"
+                    ))
+                );
+            }
             let public = public_interface(output);
             let mut identities = super::super::super::source_inventory::identity_closure(output);
             let mut count = 0;
@@ -27,10 +37,23 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
                         .unwrap();
                 let choices = nominal.declaration_details().dispatch_selections();
                 let expected = selected
+                    .get(exact)
+                    .unwrap()
+                    .slots()
                     .records()
                     .iter()
-                    .filter(|record| record.owner() == exact)
-                    .map(|record| (record.slot(), record.selection()))
+                    .map(|record| {
+                        let selection = match record.implementation() {
+                            hir::InheritanceSlotImplementationV1::Abstract => Selection::Abstract,
+                            hir::InheritanceSlotImplementationV1::Concrete(target) => {
+                                Selection::Concrete(target.declaration())
+                            }
+                            hir::InheritanceSlotImplementationV1::InterfaceDefault(target) => {
+                                Selection::InterfaceDefault(target.declaration())
+                            }
+                        };
+                        (record.slot(), selection)
+                    })
                     .collect::<Vec<_>>();
                 assert_eq!(
                     choices
@@ -45,7 +68,14 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
                     decode_canonical(&encode(choices).unwrap()).unwrap();
                 assert_eq!(decoded.resolve(&mut identities).unwrap(), *choices);
             }
-            assert_eq!(count, selected.records().len());
+            assert_eq!(
+                count,
+                selected
+                    .records()
+                    .iter()
+                    .map(|record| record.slots().records().len())
+                    .sum::<usize>()
+            );
         });
     }
 }
@@ -54,7 +84,7 @@ fn shared_nominals_preserve_actual_dispatch_choices_for_all_concrete_owner_kinds
 fn shared_generic_choices_keep_source_identity_without_materializing_exact_types() {
     super::super::support::with_hir_source(GENERIC, |output, _| {
         let public = public_interface(output);
-        let machine = selections(output);
+        let machine = project(output);
         assert!(machine.records().is_empty());
         let export = output.output().export.module();
         let mut names = BTreeMap::new();

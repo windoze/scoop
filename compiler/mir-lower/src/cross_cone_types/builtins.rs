@@ -5,7 +5,7 @@ use scoop_identity::CoreBuiltinNominal;
 use super::*;
 
 pub(super) fn project(
-    hir: &hir::CrossConeTypeSemanticsProductionV1,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
     identity: &mir::SourceExactTypeIdentity,
@@ -38,7 +38,7 @@ pub(super) fn project(
         return Ok(None);
     }
     let exact = identity.identity_record().id();
-    let source = hir.section().exact_facts();
+    let source = hir.exact_facts();
 
     let source = source
         .get(exact)

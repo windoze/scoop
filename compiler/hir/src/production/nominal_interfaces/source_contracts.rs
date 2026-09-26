@@ -20,44 +20,6 @@ mod roots;
 pub(in crate::production) use roots::SharedSourceRoots;
 mod shapes;
 
-impl CanonicalNominalSourceContractsV1 {
-    /// Projects exactly the independently required source owners from sealed HIR.
-    /// Complete declaration validation must still close the required inventory,
-    /// artifact identities, access, and all referenced source-support records.
-    pub fn from_export_hir(
-        output: &ExportHirOutput,
-        required: &CanonicalSourceNominalIdsV1,
-    ) -> Result<Self, Error> {
-        let export = output.module();
-        let path = WirePath::root();
-        let mut records = Vec::new();
-
-        scoop_wire::allocation::try_reserve(&mut records, required.values().len(), &path)
-            .map_err(resource)?;
-        for local in locals(export) {
-            let identity = local
-                .identity(export)
-                .ok_or_else(|| invalid("sealed nominal has no typed identity"))?;
-            let Some(source) = identity.source() else {
-                continue;
-            };
-            let owner = source_nominal_id(source);
-            if source.declaration().origin() != export.cone
-                || required.values().binary_search(&owner).is_err()
-            {
-                continue;
-            }
-            records.push(projection::project(export, local, source)?);
-        }
-        if records.len() != required.values().len() {
-            return Err(invalid(
-                "required nominal source owner is absent from this sealed HIR",
-            ));
-        }
-        Self::try_new(records).map_err(Error::SourceInventory)
-    }
-}
-
 fn locals(export: &ExportHir) -> impl Iterator<Item = LocalNominalId> + '_ {
     export
         .classes

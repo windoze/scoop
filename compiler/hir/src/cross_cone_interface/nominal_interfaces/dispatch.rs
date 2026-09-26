@@ -5,9 +5,11 @@ use std::collections::BTreeSet;
 use scoop_identity::{PersistentDispatchSlotId, SignatureTypeKey};
 use scoop_wire::{Encoder, WireEncode};
 
-use crate::{InterfaceSourceMemberV1, PublicNominalKindV1};
+use crate::PublicNominalKindV1;
 
 mod decode;
+mod member;
+pub use member::*;
 mod validation;
 pub use decode::*;
 pub use validation::NominalDispatchDeclarationError;

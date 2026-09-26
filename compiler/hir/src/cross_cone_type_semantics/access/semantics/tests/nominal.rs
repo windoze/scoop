@@ -1,11 +1,8 @@
 use super::*;
-use crate::{
-    NominalAccessDomainsV1, NominalInheritanceModalityV1, PersistentInheritanceDomainV1,
-    PersistentLookupDomainV1, PersistentSlotContractDomainV1,
-};
+use crate::NominalInheritanceModalityV1;
 
 #[test]
-fn nominal_regions_replay_modality_and_never_acquire_a_callable_slot() {
+fn nominal_access_queries_respect_modality_and_lexical_visibility() {
     let mut fixture = Fixture::default();
     let outer = fixture.add("Outer", SourceNominalKind::Class, &[]);
     fixture.visibility(outer, DeclaredVisibilityV1::Internal);
@@ -29,19 +26,6 @@ fn nominal_regions_replay_modality_and_never_acquire_a_callable_slot() {
             Constraint::SubclassesOf(open.exact)
         ])
     );
-    assert!(domains.to_record().slot().domain().is_empty());
-    graph
-        .validate_nominal_domains(open.exact, &domains.to_record())
-        .unwrap();
-    let tampered = NominalAccessDomainsV1::new(
-        PersistentLookupDomainV1::new(domains.lookup().domain().clone()),
-        PersistentInheritanceDomainV1::new(domains.inheritance().domain().clone()),
-        PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal()),
-    );
-    assert!(matches!(
-        graph.validate_nominal_domains(open.exact, &tampered),
-        Err(AccessDomainSemanticError::NominalDomains)
-    ));
     for node in [final_class, value, object] {
         assert!(
             graph

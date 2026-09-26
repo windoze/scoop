@@ -13,7 +13,9 @@ pub(in crate::production::type_semantics::nominals) fn fact_requirements(
                 .type_identities
                 .get(ty)
                 .and_then(HirTypeIdentity::exact)
-                .ok_or(Error::MissingExactIdentity)?;
+                .ok_or(Error::MissingExactIdentity {
+                    context: "representation dependency",
+                })?;
             exacts.insert(exact.id());
             Ok(())
         })?;

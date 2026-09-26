@@ -28,46 +28,7 @@ pub(in crate::production::nominal_interfaces) fn project_required(
         {
             continue;
         }
-        let contract = projection::project(export, local, source)?;
-        let visibility = match local {
-            LocalNominalId::Class(id) => export.classes[id].access.declared,
-            LocalNominalId::Interface(id) => export.interfaces[id].access.declared,
-            LocalNominalId::Struct(id) => export.structs[id].access.declared,
-            LocalNominalId::Enum(id) => export.enums[id].access.declared,
-            LocalNominalId::Object(id) => export.objects[id].access.declared,
-        };
-        // Source contracts are consumed here; the wire owns only the resulting
-        // shared nominal record, not a parallel source-contract transcript.
-        let order = dispatch_order::project(export, local)?;
-        let selections = crate::production::nominal_dispatch::project(export, local.owner())?;
-        let record = NominalInterfaceRecordV1::from_source_contract(
-            contract,
-            visibility.into(),
-            order,
-            selections,
-            if let LocalNominalId::Struct(id) = local {
-                let constructors = &export.structs[id].constructors;
-                if constructors.is_empty() {
-                    None
-                } else {
-                    let primary = constructors
-                        .iter()
-                        .find(|&&constructor| {
-                            matches!(
-                                export.struct_constructors[constructor].kind,
-                                crate::StructConstructorKind::Primary
-                            )
-                        })
-                        .ok_or_else(|| {
-                            invalid("struct constructor set has no primary constructor")
-                        })?;
-                    Some(export.constructor_identities[*primary].id())
-                }
-            } else {
-                None
-            },
-        )
-        .map_err(invalid)?;
+        let record = projection::project(export, local, source)?;
 
         if records.insert(owner, record).is_some() {
             return Err(invalid("duplicate shared nominal declaration"));

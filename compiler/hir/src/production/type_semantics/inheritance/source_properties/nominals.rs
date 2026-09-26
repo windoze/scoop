@@ -1,16 +1,6 @@
 use super::*;
 use std::collections::BTreeSet;
 
-impl CanonicalNominalSourcePropertiesV1 {
-    /// Projects an independently required declaration inventory from sealed
-    /// HIR, including non-public properties and evaluated object constants.
-    pub fn from_export_hir(
-        output: &ExportHirOutput,
-        required: &CanonicalPersistentIdsV1<PersistentPropertyId>,
-    ) -> Result<Self, Error> {
-        Self::try_new(project(output.module(), required)?).map_err(Error::SourceInventory)
-    }
-}
 pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
     required: &CanonicalPersistentIdsV1<PersistentPropertyId>,

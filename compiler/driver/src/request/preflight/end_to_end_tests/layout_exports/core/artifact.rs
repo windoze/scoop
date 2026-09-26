@@ -78,7 +78,7 @@ pub(super) fn check(
     );
     let artifact = crate::CrossConeLayoutArtifactMetadataInputV1::new(
         metadata,
-        input.source.section(),
+        input.source,
         mir_section,
         layout,
     )
@@ -87,7 +87,7 @@ pub(super) fn check(
     bytes::check(
         name,
         &artifact,
-        input.source.section(),
+        input.source,
         mir_section,
         layout,
         &production,

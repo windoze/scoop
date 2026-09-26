@@ -80,7 +80,9 @@ pub(super) fn shape(
             let backing = export.objects[id].backing_class;
             let backing_id = export.nominal_identities[backing]
                 .concrete_type_id()
-                .ok_or(Error::MissingExactIdentity)?;
+                .ok_or(Error::MissingExactIdentity {
+                    context: "object backing type",
+                })?;
             Ok(NominalRepresentationShapeV1::Object {
                 backing_class: backing_id,
                 declared_fields: class_fields(

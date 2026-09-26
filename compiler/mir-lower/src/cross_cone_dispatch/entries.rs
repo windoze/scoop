@@ -11,9 +11,11 @@ impl Context<'_> {
         for (position, (slot, target)) in schema.slots().iter().zip(targets).enumerate() {
             let selection = self
                 .source
-                .slot_selections()
-                .get(owner, *slot)
-                .ok_or(Error::MissingSelection { owner, slot: *slot })?;
+                .inheritance()
+                .get(owner)
+                .and_then(|record| record.slots().get(*slot))
+                .ok_or(Error::MissingSelection { owner, slot: *slot })?
+                .implementation();
             let key = self
                 .authority
                 .identities
@@ -41,7 +43,7 @@ impl Context<'_> {
                 mir::MirDispatchReceiverAdaptationV1::ReferenceDispatch
             };
             let implementation = match selection {
-                hir::InheritanceSourceSlotSelectionV1::Abstract => {
+                hir::InheritanceSlotImplementationV1::Abstract => {
                     if *binding.lowering_role()
                         != (mir::MirCallableLoweringRoleV1::PureVirtualTrap { slot: *slot })
                     {
@@ -53,9 +55,9 @@ impl Context<'_> {
                         receiver,
                     }
                 }
-                hir::InheritanceSourceSlotSelectionV1::Concrete(expected)
-                | hir::InheritanceSourceSlotSelectionV1::InterfaceDefault(expected) => {
-                    let expected = source_target(expected);
+                hir::InheritanceSlotImplementationV1::Concrete(expected)
+                | hir::InheritanceSlotImplementationV1::InterfaceDefault(expected) => {
+                    let expected = source_target(expected.declaration());
                     if let mir::MirCallableLoweringRoleV1::BoxingAdjust { target: actual }
                     | mir::MirCallableLoweringRoleV1::DispatchAdjust { target: actual } =
                         *binding.lowering_role()
@@ -70,7 +72,7 @@ impl Context<'_> {
                         }
                         if matches!(
                             selection,
-                            hir::InheritanceSourceSlotSelectionV1::InterfaceDefault(_)
+                            hir::InheritanceSlotImplementationV1::InterfaceDefault(_)
                         ) {
                             mir::MirDispatchImplementationV1::InterfaceDefaultTarget {
                                 target: *target,

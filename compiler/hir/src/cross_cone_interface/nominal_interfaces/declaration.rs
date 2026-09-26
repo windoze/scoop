@@ -181,49 +181,4 @@ impl NominalInterfaceRecordV1 {
     pub const fn declaration_details(&self) -> &NominalDeclarationDetailsV1 {
         &self.details
     }
-
-    pub fn source_contract(
-        &self,
-    ) -> Result<crate::NominalSourceContractV1, crate::SourceInventoryError> {
-        crate::NominalSourceContractV1::try_new(
-            self.declaration,
-            self.details.modality,
-            self.type_parameters.clone(),
-            self.exact_supertypes.clone(),
-            self.details.constructors.clone(),
-            self.details.members.clone(),
-            self.details.children.clone(),
-            self.source_shape.clone(),
-        )
-    }
-
-    pub(crate) fn from_source_contract(
-        source: crate::NominalSourceContractV1,
-        visibility: DeclaredVisibilityV1,
-        dispatch_order: NominalDispatchOrderV1,
-        dispatch_selections: CanonicalNominalDispatchSelectionsV1,
-        primary_value_constructor: Option<PersistentConstructorId>,
-    ) -> Result<Self, NominalInterfaceRecordBuildError> {
-        let details = NominalDeclarationDetailsV1::new(
-            source.modality(),
-            visibility,
-            source.constructors().clone(),
-            source.members().clone(),
-            source.children().clone(),
-            dispatch_order,
-            dispatch_selections,
-            primary_value_constructor,
-        );
-        Self::try_new(
-            source.owner(),
-            source.kind(),
-            source.type_parameters().clone(),
-            source.supertypes().clone(),
-            CanonicalPersistentIdsV1::empty(),
-            CanonicalPublicMemberRefsV1::default(),
-            CanonicalPersistentIdsV1::empty(),
-            source.source_shape().clone(),
-            details,
-        )
-    }
 }

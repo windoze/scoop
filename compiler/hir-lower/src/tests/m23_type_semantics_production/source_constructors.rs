@@ -1,40 +1,44 @@
 use super::source_dispatch::with_source;
 use super::*;
-use hir::CanonicalInheritanceSourceConstructorsV1 as Table;
 use scoop_identity::{DefinitionOriginSubject, DuplicateSignatureKey, SignatureTypeKey};
-use scoop_wire::{decode_canonical, encode};
-
-mod wire;
 
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-dispatch/constructors.scoop"
 ));
 
-fn table(output: &hir::DependencyHirOutput) -> Table {
-    Table::from_dependency_hir(output).unwrap()
-}
-
 #[test]
 fn constructors_project_protected_public_defaults_and_struct_representation() {
     with_source(SOURCE, |output, _| {
-        let records = table(output);
-        let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output).unwrap();
+        let production =
+            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
+        let records = production
+            .inheritance()
+            .records()
+            .iter()
+            .flat_map(|owner| owner.constructors().records())
+            .map(|record| record.source())
+            .collect::<Vec<_>>();
+        let inventory = production.inheritance();
         let required = inventory
             .records()
             .iter()
-            .flat_map(|owner| owner.constructors().values().iter().copied())
+            .flat_map(|owner| {
+                owner
+                    .constructors()
+                    .records()
+                    .iter()
+                    .map(|record| record.declaration())
+            })
             .collect::<BTreeSet<_>>();
         assert_eq!(
             records
-                .records()
                 .iter()
                 .map(|record| record.declaration())
                 .collect::<BTreeSet<_>>(),
             required
         );
-        assert_eq!(records.records().len(), 6);
+        assert_eq!(records.len(), 6);
         let export = output.output().export.module();
         let mut names = BTreeMap::new();
         for (id, class) in export.classes.iter() {
@@ -54,7 +58,7 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
             names.insert(owner, structure.name.as_str());
         }
         let mut lines = Vec::new();
-        for record in records.records() {
+        for record in &records {
             let payload = record.payload();
             let hir::SourceNominalId::Concrete(owner) = payload.owner() else {
                 panic!("param-free owner")
@@ -91,7 +95,6 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
                 record.declaration_access().declared_visibility(),
                 payload.modality()
             ));
-            assert_eq!(records.get(record.declaration()), Some(record));
         }
         lines.sort();
         assert_eq!(
@@ -105,7 +108,10 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
     });
 }
 
-fn verify_parameter_types(export: &hir::ExportHir, table: &Table) {
+fn verify_parameter_types(
+    export: &hir::ExportHir,
+    table: &[&hir::NominalSupportConstructorInterfaceV1],
+) {
     let mut keys = BTreeMap::new();
     for (id, _) in export.class_constructors.iter() {
         if let Some(record) = export.constructor_identities[id].source_record() {
@@ -116,7 +122,7 @@ fn verify_parameter_types(export: &hir::ExportHir, table: &Table) {
         let record = &export.constructor_identities[id];
         keys.insert(record.id(), record.key());
     }
-    for record in table.records() {
+    for record in table {
         let DuplicateSignatureKey::Constructor { parameters } =
             keys[&record.declaration()].duplicate_signature()
         else {
@@ -136,33 +142,24 @@ fn verify_parameter_types(export: &hir::ExportHir, table: &Table) {
 }
 
 #[test]
-fn constructor_source_bytes_are_deterministic_and_resolve_without_candidate_tables() {
-    let first = with_source(SOURCE, |output, _| {
-        let table = table(output);
-        let bytes = encode(&table).unwrap();
-        let decoded: hir::DecodedCanonicalInheritanceSourceConstructorsV1 =
-            decode_canonical(&bytes).unwrap();
-        assert_eq!(encode(&decoded).unwrap(), bytes);
-        let mut identities = source_inventory::identity_closure(output);
-        assert_eq!(decoded.resolve(&mut identities).unwrap(), table);
-        bytes
-    });
-    let second = with_source(SOURCE, |output, _| encode(&table(output)).unwrap());
-    assert_eq!(first, second);
-}
-
-#[test]
-fn protected_constructor_sources_are_available_before_candidate_construction() {
+fn protected_constructor_interfaces_are_complete_in_the_type_section() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m23-type-source-dispatch/protected-construction.scoop"
     ));
     with_source(source, |output, _| {
-        let table = table(output);
-        assert_eq!(table.records().len(), 2);
+        let production =
+            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
+        let table = production
+            .inheritance()
+            .records()
+            .iter()
+            .flat_map(|record| record.constructors().records())
+            .map(|record| record.source())
+            .collect::<Vec<_>>();
+        assert_eq!(table.len(), 2);
         assert_eq!(
             table
-                .records()
                 .iter()
                 .filter(|record| record.declaration_access().declared_visibility()
                     == hir::DeclaredVisibilityV1::Protected)
@@ -171,18 +168,14 @@ fn protected_constructor_sources_are_available_before_candidate_construction() {
         );
         assert_eq!(
             table
-                .records()
                 .iter()
                 .filter(|record| record.declaration_access().declared_visibility()
                     == hir::DeclaredVisibilityV1::Public)
                 .count(),
             1
         );
-        let production =
-            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
         assert_eq!(
             production
-                .section()
                 .inheritance()
                 .records()
                 .iter()
@@ -190,13 +183,6 @@ fn protected_constructor_sources_are_available_before_candidate_construction() {
                 .sum::<usize>(),
             2
         );
-        assert_eq!(
-            production
-                .section()
-                .protected_declarations()
-                .records()
-                .len(),
-            1
-        );
+        assert_eq!(production.protected_declarations().records().len(), 1);
     });
 }

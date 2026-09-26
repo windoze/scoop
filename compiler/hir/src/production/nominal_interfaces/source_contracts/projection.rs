@@ -5,7 +5,7 @@ pub(super) fn project(
     export: &ExportHir,
     local: LocalNominalId,
     source: &HirSourceNominalIdentity,
-) -> Result<NominalSourceContractV1, Error> {
+) -> Result<NominalInterfaceRecordV1, Error> {
     let owner = source_nominal_id(source);
     let key = source.declaration();
     let (name, lexical_owner, parameters) = header(export, local);
@@ -31,17 +31,54 @@ pub(super) fn project(
         .project_binder_list(parameters, &binders)
         .map_err(invalid)?;
     let (supertypes, shape) = shapes::project(export, local, owner, &binders)?;
-    NominalSourceContractV1::try_new(
-        owner,
+    let visibility = match local {
+        LocalNominalId::Class(id) => export.classes[id].access.declared,
+        LocalNominalId::Interface(id) => export.interfaces[id].access.declared,
+        LocalNominalId::Struct(id) => export.structs[id].access.declared,
+        LocalNominalId::Enum(id) => export.enums[id].access.declared,
+        LocalNominalId::Object(id) => export.objects[id].access.declared,
+    };
+    let primary = if let LocalNominalId::Struct(id) = local {
+        let constructors = &export.structs[id].constructors;
+        if constructors.is_empty() {
+            None
+        } else {
+            let primary = constructors
+                .iter()
+                .find(|&&constructor| {
+                    matches!(
+                        export.struct_constructors[constructor].kind,
+                        StructConstructorKind::Primary
+                    )
+                })
+                .ok_or_else(|| invalid("struct constructor set has no primary constructor"))?;
+            Some(export.constructor_identities[*primary].id())
+        }
+    } else {
+        None
+    };
+    let details = NominalDeclarationDetailsV1::new(
         modality(export, local),
-        type_parameters,
-        supertypes,
+        visibility.into(),
         constructors::project(export, local, owner)?,
         members::project(export, local, owner)?,
         children(export, owner)?,
+        dispatch_order::project(export, local)?,
+        crate::production::nominal_dispatch::project(export, local.owner())?,
+        primary,
+    );
+    NominalInterfaceRecordV1::try_new(
+        owner,
+        shape.kind(),
+        type_parameters,
+        supertypes,
+        CanonicalPersistentIdsV1::empty(),
+        CanonicalPublicMemberRefsV1::default(),
+        CanonicalPersistentIdsV1::empty(),
         shape,
+        details,
     )
-    .map_err(Error::SourceInventory)
+    .map_err(invalid)
 }
 
 pub(super) fn header(

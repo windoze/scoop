@@ -11,7 +11,7 @@ const CONSUMERS: &str = include_str!(concat!(
 ));
 
 #[test]
-fn shared_public_and_source_contract_producers_preserve_every_intrinsic_family() {
+fn shared_nominal_producer_preserves_every_intrinsic_family() {
     let module =
         lower_core_with_additional_declarations(scoop_parser::parse(SHAPES).unwrap().declarations);
     let public = hir::CanonicalNominalInterfacesV1::from_export_hir(&module).unwrap();
@@ -68,12 +68,6 @@ fn shared_public_and_source_contract_producers_preserve_every_intrinsic_family()
     }
     assert_eq!(expected.len(), 14);
 
-    let required = hir::CanonicalSourceNominalIdsV1::try_new(
-        expected.iter().map(|(owner, _, _)| *owner).collect(),
-    )
-    .unwrap();
-    let contracts =
-        hir::CanonicalNominalSourceContractsV1::from_export_hir(&module, &required).unwrap();
     let mut dump = Vec::new();
     for (owner, name, family) in expected {
         let record = public.get(owner).unwrap();
@@ -81,11 +75,6 @@ fn shared_public_and_source_contract_producers_preserve_every_intrinsic_family()
             hir::NominalIntrinsicRepresentationV1::new(family),
         );
         assert_eq!(record.source_shape(), &expected);
-        assert_eq!(contracts.get(owner).unwrap().source_shape(), &expected);
-        assert_eq!(
-            contracts.get(owner).unwrap().type_parameters(),
-            record.type_parameters()
-        );
         let bounds = record
             .type_parameters()
             .binders()

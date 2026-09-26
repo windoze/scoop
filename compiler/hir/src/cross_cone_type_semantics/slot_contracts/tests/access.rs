@@ -132,7 +132,7 @@ fn abstract_obligations_must_be_reachable_and_implementable_by_the_owner() {
 }
 
 #[test]
-fn protected_root_domain_is_independent_of_nominal_slot_and_target_name_is_not_a_fallback() {
+fn protected_root_domain_preserves_typed_target_identity() {
     let mut fixture = Fixture::default();
     let base = fixture.add("Base", SourceNominalKind::Class);
     let derived = fixture.add("Derived", SourceNominalKind::Class);
@@ -159,15 +159,6 @@ fn protected_root_domain_is_independent_of_nominal_slot_and_target_name_is_not_a
     graph
         .validate_slot_contract(derived.exact, &record, &fixture)
         .unwrap();
-    assert!(
-        graph
-            .replay_nominal_domains(derived.exact)
-            .unwrap()
-            .to_record()
-            .slot()
-            .domain()
-            .is_empty()
-    );
     record.implementation =
         InheritanceSlotImplementationV1::Concrete(fixture.concrete(derived, target_slot));
     assert!(matches!(

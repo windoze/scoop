@@ -9,9 +9,7 @@ use crate::*;
 mod classes;
 mod interfaces;
 mod selections;
-mod source;
 pub(in crate::production::type_semantics) use selections::project as slot_selections;
-pub(in crate::production::type_semantics) use source::project as interface_sources;
 
 pub(super) fn project(
     export: &ExportHir,

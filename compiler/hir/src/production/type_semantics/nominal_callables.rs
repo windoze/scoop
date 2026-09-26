@@ -12,18 +12,6 @@ mod parameters;
 mod relations;
 mod variants;
 
-impl CanonicalNominalSourceCallablesV1 {
-    /// Projects independently required source methods, accessors and variants,
-    /// including restricted and generic metadata, without candidate interfaces.
-    pub fn from_export_hir(
-        output: &ExportHirOutput,
-        required: &BTreeSet<CallableTemplateOrigin>,
-    ) -> Result<Self, Error> {
-        let records = project(output.module(), required.clone())?;
-        Self::try_new(records).map_err(Error::SourceInventory)
-    }
-}
-
 pub(super) fn project(
     export: &ExportHir,
     required: BTreeSet<CallableTemplateOrigin>,

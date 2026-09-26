@@ -1,4 +1,4 @@
-//! Recursive nominal candidates projected independently from sealed source HIR.
+//! Recursive nominal support projected from complete source HIR.
 use super::CrossConeTypeSemanticsProductionError as Error;
 use super::inheritance::source_errors::{invalid, resource};
 use crate::production::nominal_interfaces::{NestedSourceNode, project_nested_sources};
@@ -9,9 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod assemble;
 pub(super) mod inventory;
-mod protocols;
 pub(super) mod resources;
-pub(super) use protocols::project as project_protocols;
+pub(super) use super::nominal_parameters::project as project_protocols;
 
 /// Source candidate and omission protocols. Default bodies, authority binding,
 /// representation joins and executable capabilities are checked separately.
@@ -53,7 +52,7 @@ pub(super) fn project_record(
     Error,
 > {
     let nodes = project_nested_sources(output, root)?;
-    let mut required = inventory::collect(nodes.iter().map(|node| &node.contract))?;
+    let mut required = inventory::collect(nodes.iter().map(|node| &node.record))?;
     let properties = super::inheritance::source_properties::project_nominal(
         output.module(),
         &required.properties()?,

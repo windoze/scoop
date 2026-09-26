@@ -57,7 +57,9 @@ impl FactProjector<'_> {
                     .origin
                     .source()
                     .map(super::super::nominals::source_id)
-                    .ok_or(Error::MissingExactIdentity)?;
+                    .ok_or(Error::MissingExactIdentity {
+                        context: "enum representation type",
+                    })?;
                 let source_enum = self
                     .export
                     .enums

@@ -2,22 +2,26 @@ use super::*;
 
 pub(super) fn render(
     output: &hir::DependencyHirOutput,
-    table: &hir::CanonicalInheritanceSourceSlotSelectionsV1,
+    table: &hir::CanonicalNominalInheritanceInterfacesV1,
 ) -> String {
     let (callables, slots) = labels(output);
     let mut result = String::new();
     for (name, owner) in super::super::support::owners(output) {
         result.push_str(&format!("{name}\n"));
         let mut lines = table
+            .get(owner)
+            .unwrap()
+            .slots()
             .records()
             .iter()
-            .filter(|record| record.owner() == owner)
             .map(|record| {
-                let selection = match record.selection() {
-                    Selection::Abstract => "abstract".to_owned(),
-                    Selection::Concrete(callable) => format!("concrete {}", callables[&callable]),
-                    Selection::InterfaceDefault(callable) => {
-                        format!("default {}", callables[&callable])
+                let selection = match record.implementation() {
+                    hir::InheritanceSlotImplementationV1::Abstract => "abstract".to_owned(),
+                    hir::InheritanceSlotImplementationV1::Concrete(callable) => {
+                        format!("concrete {}", callables[&callable.declaration()])
+                    }
+                    hir::InheritanceSlotImplementationV1::InterfaceDefault(callable) => {
+                        format!("default {}", callables[&callable.declaration()])
                     }
                 };
                 format!("  {} -> {selection}\n", slots[&record.slot()])

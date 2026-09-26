@@ -1,4 +1,0 @@
-Variadic.collect(values:VarargEmpty)
-Variadic.constructor(values:VarargEmpty)
-Variadic.defaulted(seed:Default, values:VarargDefault)
-Variadic.generic(values:VarargEmpty)

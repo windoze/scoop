@@ -3,9 +3,8 @@ use crate::{
     CanonicalBinderListV1, CanonicalNestedMemberRefsV1, CanonicalNestedNominalRefsV1,
     CanonicalNestedSourceSupportV1, CanonicalPersistentIdsV1, CanonicalPublicMemberRefsV1,
     CanonicalSignatureTypesV1, IntrinsicTypeParameters, NominalInheritanceModalityV1,
-    NominalInterfaceRecordBuildError, NominalInterfaceRecordV1, NominalSourceContractV1,
-    ProtectedNestedSourceInterfaceV1, SourceNominalId, TypeParameterBinderV1,
-    TypeParameterBoundsV1,
+    NominalInterfaceRecordBuildError, NominalInterfaceRecordV1, ProtectedNestedSourceInterfaceV1,
+    SourceNominalId, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 
 #[test]
@@ -54,21 +53,6 @@ fn check_builders(family: IntrinsicTypeKind, bounds: &[TypeParameterBoundsV1], v
         public_record(family, shape.kind(), binders.clone()).is_ok(),
         valid,
         "public {family:?} {bounds:?}"
-    );
-    assert_eq!(
-        NominalSourceContractV1::try_new(
-            owner(family),
-            NominalInheritanceModalityV1::Final,
-            binders.clone(),
-            CanonicalSignatureTypesV1::try_new(vec![]).unwrap(),
-            CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
-            CanonicalNestedMemberRefsV1::try_new(vec![]).unwrap(),
-            CanonicalNestedNominalRefsV1::try_new(vec![]).unwrap(),
-            shape.clone(),
-        )
-        .is_ok(),
-        valid,
-        "source contract {family:?} {bounds:?}"
     );
     assert_eq!(
         ProtectedNestedSourceInterfaceV1::try_new(

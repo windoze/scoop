@@ -102,9 +102,6 @@ impl CanonicalNominalInheritanceInterfacesV1 {
                 Error::SourceContract => Error::Edges,
                 other => other,
             })?;
-            graph
-                .validate_nominal_domains(record.owner(), record.domains())
-                .map_err(Error::Domains)?;
             let schemas = authority
                 .schemas(record.owner())
                 .map_err(Error::Foundation)?;
@@ -130,3 +127,6 @@ fn compare<T: WireEncode + PartialEq, E>(
     }
     Ok(())
 }
+
+mod selection;
+pub use selection::DecodedInheritanceSourceSlotSelectionV1;

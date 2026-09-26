@@ -6,7 +6,7 @@ pub(in crate::production::type_semantics) struct Required {
     properties: BTreeSet<PersistentPropertyId>,
 }
 pub(in crate::production::type_semantics) fn collect<'a>(
-    nodes: impl Iterator<Item = &'a NominalSourceContractV1>,
+    nodes: impl Iterator<Item = &'a NominalInterfaceRecordV1>,
 ) -> Result<Required, Error> {
     let mut required = Required {
         constructors: BTreeSet::new(),
@@ -14,10 +14,10 @@ pub(in crate::production::type_semantics) fn collect<'a>(
         properties: BTreeSet::new(),
     };
     for node in nodes {
-        for id in node.constructors().values() {
+        for id in node.declaration_details().constructors().values() {
             resources::insert(&mut required.constructors, *id)?;
         }
-        for member in node.members().values() {
+        for member in node.declaration_details().members().values() {
             match member {
                 NestedSourceMemberRefV1::Function(id) => resources::insert(
                     &mut required.callables,

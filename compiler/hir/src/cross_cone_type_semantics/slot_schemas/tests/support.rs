@@ -15,7 +15,13 @@ use crate::cross_cone_type_semantics::inheritance::tests::support::{
 #[derive(Default)]
 pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub inheritance: InheritanceFixture,
-    pub interface_sources: BTreeMap<PersistentExactTypeId, crate::InterfaceSourceDispatchV1>,
+    pub interface_sources: BTreeMap<
+        PersistentExactTypeId,
+        (
+            Vec<PersistentExactTypeId>,
+            Vec<crate::InterfaceSourceMemberV1>,
+        ),
+    >,
     pub schemas: BTreeMap<PersistentExactTypeId, CanonicalInheritanceSlotSchemasV1>,
     pub slots: BTreeMap<PersistentDispatchSlotId, DispatchSlotKey>,
     pub functions: BTreeMap<PersistentFunctionId, SourceDeclarationKey>,
@@ -103,13 +109,23 @@ impl Fixture {
     }
 }
 impl InheritanceSlotSchemaSemanticAuthority<&'static str> for Fixture {
-    fn interface_dispatch_source(
+    fn interface_parent_order(
         &self,
         owner: PersistentExactTypeId,
-    ) -> Result<&crate::InterfaceSourceDispatchV1, &'static str> {
+    ) -> Result<&[PersistentExactTypeId], &'static str> {
         self.interface_sources
             .get(&owner)
-            .ok_or("missing source interface")
+            .map(|source| source.0.as_slice())
+            .ok_or("unknown interface parents")
+    }
+    fn interface_members(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&[crate::InterfaceSourceMemberV1], &'static str> {
+        self.interface_sources
+            .get(&owner)
+            .map(|source| source.1.as_slice())
+            .ok_or("unknown interface members")
     }
     fn schemas(
         &self,

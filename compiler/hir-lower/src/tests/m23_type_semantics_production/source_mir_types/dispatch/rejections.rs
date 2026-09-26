@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check(
     input: &SingleConeStrongMirInput,
-    hir: &hir::CrossConeTypeSemanticsProductionV1,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
     types: &CanonicalParamFreeMirTypeExportsV1,
     authority: MirDispatchSchemaAuthority<'_>,
 ) {

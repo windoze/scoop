@@ -2,9 +2,7 @@ use super::*;
 use hir::{
     InheritanceCallableDeclarationV1 as Callable, InheritanceSourceSlotSelectionV1 as Selection,
 };
-use scoop_identity::CallableTemplateOwner;
 
-mod concrete;
 mod render;
 mod shared;
 
@@ -12,104 +10,3 @@ const SELECTIONS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-dispatch/selections.scoop"
 ));
-
-fn selections(
-    output: &hir::DependencyHirOutput,
-) -> hir::CanonicalInheritanceSourceSlotSelectionsV1 {
-    hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(output).unwrap()
-}
-
-#[test]
-fn source_selections_preserve_abstract_overrides_class_winners_and_value_methods() {
-    with_source(SELECTIONS, |output, mir| {
-        let table = selections(output);
-        concrete::verify(output, mir, &table);
-        let rendered = render::render(output, &table);
-        assert_eq!(
-            rendered,
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-dispatch/selections.choices.snap"
-            ))
-        );
-        roundtrip(output, &table);
-    });
-}
-
-#[test]
-fn source_selections_match_diamond_defaults_getters_setters_and_virtual_families() {
-    for source in [INTERFACES, VIRTUAL] {
-        with_source(source, |output, mir| {
-            let table = selections(output);
-            concrete::verify(output, mir, &table);
-            let source_slots = project(output)
-                .records()
-                .iter()
-                .flat_map(|record| {
-                    record.slot_schemas().records().iter().flat_map(|schema| {
-                        schema.slots().iter().map(|slot| (record.owner(), *slot))
-                    })
-                })
-                .collect::<std::collections::BTreeSet<_>>();
-            assert_eq!(
-                table
-                    .records()
-                    .iter()
-                    .map(|record| (record.owner(), record.slot()))
-                    .collect::<std::collections::BTreeSet<_>>(),
-                source_slots
-            );
-            let has_role = |role: fn(Callable) -> bool| {
-                table
-                    .records()
-                    .iter()
-                    .any(|record| match record.selection() {
-                        Selection::Concrete(callable) | Selection::InterfaceDefault(callable) => {
-                            role(callable)
-                        }
-                        Selection::Abstract => false,
-                    })
-            };
-            assert!(has_role(|callable| matches!(callable, Callable::Getter(_))));
-            assert!(has_role(|callable| matches!(callable, Callable::Setter(_))));
-            roundtrip(output, &table);
-        });
-    }
-}
-
-#[test]
-fn source_selections_leave_generic_dispatch_declarations_source_only() {
-    with_source(
-        "public interface Generic<T> {}\npublic class User : Generic<Int>",
-        |output, _| {
-            let selections =
-                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(output)
-                    .unwrap();
-            assert!(selections.records().is_empty());
-            assert_eq!(
-                public_interface(output)
-                    .nominal_interfaces()
-                    .records()
-                    .len(),
-                2
-            );
-        },
-    );
-}
-
-fn roundtrip(
-    output: &hir::DependencyHirOutput,
-    table: &hir::CanonicalInheritanceSourceSlotSelectionsV1,
-) {
-    let mut identities = super::super::source_inventory::identity_closure(output);
-    let decoded: hir::DecodedCanonicalInheritanceSourceSlotSelectionsV1 =
-        decode_canonical(&encode(table).unwrap()).unwrap();
-    assert_eq!(decoded.resolve(&mut identities).unwrap(), *table);
-}
-
-fn template(callable: Callable) -> CallableTemplateOwner {
-    match callable {
-        Callable::Function(id) => CallableTemplateOwner::Function(id),
-        Callable::Getter(id) | Callable::Setter(id) => CallableTemplateOwner::Accessor(id),
-    }
-}

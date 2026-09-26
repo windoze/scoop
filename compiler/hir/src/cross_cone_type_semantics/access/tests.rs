@@ -182,7 +182,7 @@ fn empty_and_universal_domains_have_distinct_fixed_wire() {
 }
 
 #[test]
-fn domains_round_trip_all_constraint_kinds_and_keep_purpose_fields() {
+fn domains_round_trip_all_constraint_kinds() {
     let mut fixture = fixture(SourceNominalKind::Class);
     let constraints = vec![
         PersistentAccessConstraintV1::SubclassesOf(fixture.exact),
@@ -191,14 +191,9 @@ fn domains_round_trip_all_constraint_kinds_and_keep_purpose_fields() {
         PersistentAccessConstraintV1::Cone(ConeIdentity::CORE),
     ];
     let domain = PersistentAccessDomainV1::try_from_constraints(constraints).unwrap();
-    let domains = NominalAccessDomainsV1::new(
-        PersistentLookupDomainV1::new(domain.clone()),
-        PersistentInheritanceDomainV1::new(PersistentAccessDomainV1::empty()),
-        PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal()),
-    );
-    let decoded: DecodedNominalAccessDomainsV1 =
-        decode_canonical(&encode(&domains).unwrap()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture).unwrap(), domains);
+    let decoded: DecodedPersistentAccessDomainV1 =
+        decode_canonical(&encode(&domain).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture).unwrap(), domain);
     assert_eq!(domain.intersect(&domain).unwrap(), domain);
     assert!(
         domain

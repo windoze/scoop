@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use scoop_identity::{
     DefinitionOriginSubject, DefinitionOwnerAtom, ExactTypeKey, PersistentExactTypeId,
     PersistentTypeId, SourceDeclarationKey,
@@ -8,10 +6,7 @@ use scoop_identity::{
 use super::{CrossConeTypeSemanticsProductionError as Error, *};
 use crate::*;
 
-mod authority_projection;
-mod materialization;
 mod representation;
-mod source_foundation;
 mod source_inventory;
 
 #[derive(Clone, Copy)]
@@ -34,43 +29,24 @@ pub(super) fn produce(
     output: &DependencyHirOutput,
     metadata: SharedTypeMetadataV1<'_>,
     dependencies: &[SharedTypeMetadataV1<'_>],
-) -> Result<CrossConeTypeSemanticsProductionV1, Error> {
+) -> Result<CrossConeTypeSemanticsSectionV1, Error> {
     let export = output.output().export.module();
     let local = output.output().local.module();
-    let public = metadata.public;
     if metadata.provider != export.cone {
         return Err(Error::PublicInterface(
             "shared metadata has a different provider".into(),
         ));
     }
-    let source_foundation::Projection {
-        concrete,
-        root_exacts,
-        public: projected_public,
-        foundation,
-    } = source_foundation::project(output.output())?;
-    if &projected_public != public.nominal_interfaces() {
-        return Err(Error::PublicInterface(
-            "the supplied M23-5 section was not projected from this Export HIR".into(),
-        ));
-    }
-    for local_id in public_nominals(export) {
-        let identity = identity(export, local_id)?;
-        identity.source().ok_or_else(|| {
-            let (kind, index) = location(local_id);
-            Error::GeneratedPublicNominal { kind, index }
-        })?;
-    }
-
-    let required_nominals =
-        CanonicalSourceNominalIdsV1::try_new(foundation.source_roots().to_vec())
-            .map_err(Error::SourceInventory)?;
-    let source_nominals = CanonicalNominalSourceContractsV1::from_export_hir(
-        &output.output().export,
-        &required_nominals,
-    )?;
+    let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export)?;
+    let materialization = NominalMaterializationClosure::from_declarations(
+        metadata.public.nominal_interfaces(),
+        metadata.public.callable_interfaces(),
+    )
+    .map_err(inheritance::source_errors::invalid)?;
+    let concrete = source_inventory::from_required(output, &required, &materialization)?;
+    let root_exacts = concrete.iter().map(|nominal| nominal.exact).collect();
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
-    let facts = facts::candidate(export, local, &root_exacts, &fact_requirements)?;
+    let facts = facts::produce(export, local, &root_exacts, &fact_requirements)?;
     let mut representations = Vec::with_capacity(concrete.len());
     for nominal in &concrete {
         let source_id = SourceNominalId::Concrete(nominal.owner);
@@ -89,32 +65,12 @@ pub(super) fn produce(
         representations.push(record);
     }
 
-    let public_callables = CanonicalCallableInterfacesV1::from_export_hir(export)
-        .map_err(|error| Error::PublicInterface(error.to_string()))?;
-    if &public_callables != public.callable_interfaces() {
-        return Err(Error::PublicInterface(
-            "the supplied callable table was not projected from this Export HIR".into(),
-        ));
-    }
-    let public_sources = CanonicalCallableSourceInterfacesV1::from_export_hir(export)
-        .map_err(|error| Error::PublicInterface(error.to_string()))?;
-    if &public_sources != public.source_interfaces() {
-        return Err(Error::PublicInterface(
-            "the supplied source-call table was not projected from this Export HIR".into(),
-        ));
-    }
     let inheritance_inventory = inheritance::source_inventory(export, &concrete)?;
-    let interface_sources = inheritance::interface_sources(export, &concrete)?;
     let slot_selections = inheritance::slot_selections(export, &concrete)?;
     let source_callables =
         inheritance::source_callables(export, &inheritance_inventory, &slot_selections)?;
     let source_constructors =
         inheritance::source_constructors(export, &concrete, &inheritance_inventory)?;
-    let source_protected_callables =
-        inheritance::source_protected_callables(export, &inheritance_inventory)?;
-    let source_properties =
-        inheritance::source_properties(export, &inheritance_inventory, &slot_selections)?;
-    let source_parameters = inheritance::source_parameters(export, &inheritance_inventory)?;
     let slots = inheritance::SlotContracts::new(export, &source_callables, &slot_selections)?;
     let inheritance = inheritance::produce(
         export,
@@ -141,19 +97,7 @@ pub(super) fn produce(
             .materialized_type_uses(dependencies)
             .map_err(|error| Error::SharedTypeMetadata(Box::new(error)))?,
     );
-    Ok(CrossConeTypeSemanticsProductionV1 {
-        section,
-        foundation,
-        inheritance_inventory,
-        interface_sources,
-        slot_selections,
-        source_callables,
-        source_constructors,
-        source_protected_callables,
-        source_properties,
-        source_parameters,
-        source_nominals,
-    })
+    Ok(section)
 }
 
 pub(super) fn nominal_access(export: &ExportHir, local: NominalLocalId) -> &NominalAccess {
@@ -164,47 +108,6 @@ pub(super) fn nominal_access(export: &ExportHir, local: NominalLocalId) -> &Nomi
         NominalLocalId::Interface(id) => &export.interfaces[id].access,
         NominalLocalId::Object(id) => &export.objects[id].access,
     }
-}
-
-fn public_nominals(export: &ExportHir) -> impl Iterator<Item = NominalLocalId> + '_ {
-    export
-        .public_surface
-        .structs
-        .iter()
-        .copied()
-        .map(NominalLocalId::Struct)
-        .chain(
-            export
-                .public_surface
-                .enums
-                .iter()
-                .copied()
-                .map(NominalLocalId::Enum),
-        )
-        .chain(
-            export
-                .public_surface
-                .classes
-                .iter()
-                .copied()
-                .map(NominalLocalId::Class),
-        )
-        .chain(
-            export
-                .public_surface
-                .interfaces
-                .iter()
-                .copied()
-                .map(NominalLocalId::Interface),
-        )
-        .chain(
-            export
-                .public_surface
-                .objects
-                .iter()
-                .copied()
-                .map(NominalLocalId::Object),
-        )
 }
 
 pub(super) fn identity(
@@ -270,7 +173,9 @@ fn verify_exact_pair(
     };
     let export_exact = export.type_identities[export_type]
         .exact()
-        .ok_or(Error::MissingExactIdentity)?
+        .ok_or(Error::MissingExactIdentity {
+            context: "source nominal type",
+        })?
         .id();
     if export_exact != exact
         || local
@@ -350,4 +255,30 @@ pub(super) fn lexical_owners(key: &SourceDeclarationKey) -> Result<Vec<SourceNom
             other => Err(Error::InvalidLexicalOwner(other.clone())),
         })
         .collect()
+}
+
+pub(super) fn all_nominals(export: &ExportHir) -> impl Iterator<Item = NominalLocalId> + '_ {
+    export
+        .structs
+        .iter()
+        .map(|(id, _)| NominalLocalId::Struct(id))
+        .chain(export.enums.iter().map(|(id, _)| NominalLocalId::Enum(id)))
+        .chain(
+            export
+                .classes
+                .iter()
+                .map(|(id, _)| NominalLocalId::Class(id)),
+        )
+        .chain(
+            export
+                .interfaces
+                .iter()
+                .map(|(id, _)| NominalLocalId::Interface(id)),
+        )
+        .chain(
+            export
+                .objects
+                .iter()
+                .map(|(id, _)| NominalLocalId::Object(id)),
+        )
 }

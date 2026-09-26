@@ -10,22 +10,10 @@ pub(super) mod owners;
 mod parameters;
 mod signatures;
 
-impl CanonicalNominalSourceParameterProtocolsV1 {
-    /// Projects declaration-side parameter protocols independently of lookup,
-    /// default bodies and executable materializations.
-    pub fn from_export_hir(
-        output: &ExportHirOutput,
-        required: &BTreeSet<CallableTemplateOrigin>,
-    ) -> Result<Self, Error> {
-        let records = project(output.module(), required.clone())?;
-        Self::try_new(records).map_err(Error::SourceInventory)
-    }
-}
-
 pub(super) fn project(
     export: &ExportHir,
     required: BTreeSet<CallableTemplateOrigin>,
-) -> Result<Vec<NominalSourceParameterProtocolV1>, Error> {
+) -> Result<CanonicalProtectedCallableSourceInterfacesV1, Error> {
     let path = WirePath::root();
 
     for owner in &required {
@@ -81,5 +69,5 @@ pub(super) fn project(
             "required nominal declaration has no source parameter interface",
         ));
     }
-    Ok(records)
+    CanonicalProtectedCallableSourceInterfacesV1::try_new(records).map_err(invalid)
 }

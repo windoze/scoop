@@ -8,17 +8,6 @@ use std::collections::BTreeSet;
 
 mod contract;
 
-impl CanonicalNominalSourceConstructorsV1 {
-    /// Projects independently required source constructors, including generic
-    /// and restricted declarations, without constructing lookup candidates.
-    pub fn from_export_hir(
-        output: &ExportHirOutput,
-        required: &BTreeSet<PersistentConstructorId>,
-    ) -> Result<Self, Error> {
-        Self::try_new(project(output.module(), required.clone())?).map_err(Error::SourceInventory)
-    }
-}
-
 struct Constructor<'a> {
     declaration: PersistentConstructorId,
     key: &'a SourceDeclarationKey,

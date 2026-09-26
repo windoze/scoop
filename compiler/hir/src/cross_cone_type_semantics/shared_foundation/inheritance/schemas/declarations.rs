@@ -53,9 +53,7 @@ pub(super) fn collect<'a>(
                 }
             }
 
-            let source = InterfaceSourceDispatchV1::try_new(owner, exacts, members.clone())
-                .map_err(|error| Error::Key(error.to_string()))?;
-            context.interfaces.insert(owner, source);
+            context.interface_parents.insert(owner, exacts);
         }
     }
     Ok(())

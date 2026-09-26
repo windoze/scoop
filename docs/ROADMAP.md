@@ -30,6 +30,8 @@ M23-6 的实际跨 Cone 验收包含 struct 类型、普通 final 成员、字�
 
 M23-6 的框架清理以生产调用链为依据：移除未被共有 reader 使用的 HIR foundation/declaration transcript、来源绑定层及专用证明测试，保留实际声明查询、默认参数实例化和正常产物错误回归。真实源码发布与下游消费继续作为验收依据。
 
+类型生产器直接返回完整的共有 type section；MIR 从其中已有的继承边、槽序和 typed 实现目标取得类型与 dispatch 信息。类型可物化性查询复用已有共有 nominal/callable 声明，不为同一次产出重新投影全部声明表。删除另行投影的来源 foundation、独立证明外层、只供旧测试消费的平行名义声明/参数/属性表，以及仅为比较同次结果而重建公开声明和 callable 表的工作。生产器仍从完整 HIR 生成全部实际记录，外部 reader 继续在明确边界检查格式、身份、引用、继承、类型与 ABI。删除仅用于重复证明的名义类型 lookup/inheritance/slot 三域副本；可见性仍由完整 typed 声明、词法 owner 和实际继承关系决定。`NominalInheritanceInterfaceV1` 的 field 5 退役，保留 field 1～4、6～9；HIR `cross-cone-type-semantics/6`、required inventory、profile 与 HIR fingerprint 同步更新，旧产物重建。未进入实际产物的旧辅助编码不保留兼容分支，runtime C ABI 与 String 表示不变。
+
 共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。 依赖查询直接使用真实 `ConeIdentity` 与 callable、property、type-alias 的类型化声明 ID；选择集合按这些 ID 保存完整接口和实际依赖路径。删除独立 world/projection/selection 品牌、仅为品牌服务的计数器和错误，以及从声明 ID 再映射到局部 u32 的三套重复表。候选选择依照当前依赖目录中的实际声明与表示，不要求由同一查询实例铸造；直接依赖的名称可见性、转导出路径、实际 provider 和引用完整性继续按共有规则检查。HIR 候选和已选声明只保存实际 provider ID，不逐项复制 artifact 坐标/fingerprint 凭证；HIR→MIR 使用同次编译的依赖快照及完整声明，核对实际定义和签名，不再次比较来源凭证。普通构建依赖记录与缓存 fingerprint 继续承担定位和失效职责。MIR 外部 callable 引用保存实际 provider 与类型化声明，不另映射到带会话品牌的局部编号；调用位置保留 GC effect。MIR 类型与 LIR layout/ABI 选择按实际 provider 和 typed target 直接返回完整记录，不先铸造并验证中间 handle；依赖闭包、类型、ABI、物理引用和 GC 契约仍在其消费边界检查。同一声明或 target 在另一选择集合中是否存在，按实际目录查询决定，不依据集合生成顺序或计数器。该进程内数据简化不改变 wire/profile、实体身份或 runtime ABI。
 
 版本：0.2（草案）
@@ -277,7 +279,7 @@ Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 
 - 清除 compiler/slib/runtime 的通用资源预算、计费与配额，删除成本策略与 profile/fingerprint/runtime ABI 的绑定。保留实际范围、整数溢出、非法环与 GC 契约检查。
 - 清除额外来源授权、防伪、重复证明和测试专用来源工厂；默认参数、名称解析和语言规则由前端负责，IR/meta 与 reader 不再另建语言语义实现。Compile/Link 共享同一不可变语义结果；发布与 runtime 热点不反复完整重放。
 - producer、reader、linker、wire/profile、版本、fingerprint、fixture、golden 和文档同步。退役 tag 不复用，不兼容产物重建。保留实际 C ABI、String 表示和 typed identity。
-- 共有默认值和受限声明只保存一份 typed 协议与正文；退役 type-semantics field 5～7 及嵌套源码 payload 的 field 3，capability /5 要求旧产物重建。
+- 共有默认值和受限声明只保存一份 typed 协议与正文；退役 type-semantics field 5～7 及嵌套源码 payload 的 field 3，capability /6 要求旧产物重建。
 - 正式 `scoopc` 发布与 `scoop` 依赖消费接入共有 `CrossConeLayoutStrong` reader；语义会话直接接收完整类型、ABI 与真实对象，移除旧 M23-5 的重复提交和 Link 消费路径，旧依赖重建。
 - 正式发布直接保存同次编译完成的归档和普通摘要，回读核对 bytes；删除旧 M23-5 writer 与双版本发布包装，外部产物继续通过共有 reader 检查。
 

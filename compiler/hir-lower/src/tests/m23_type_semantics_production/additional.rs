@@ -16,9 +16,7 @@ fn producer_emits_complete_interface_slot_contracts() {
     let public = public_interface(&output);
 
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    let slots = production.section().inheritance().records()[0]
-        .slots()
-        .records();
+    let slots = production.inheritance().records()[0].slots().records();
     assert_eq!(slots.len(), 1);
     assert!(matches!(
         slots[0].implementation(),
@@ -47,9 +45,9 @@ fn producer_keeps_final_direct_methods_in_the_m23_5_partition() {
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
 
-    assert_eq!(production.section().inheritance().records().len(), 1);
+    assert_eq!(production.inheritance().records().len(), 1);
     assert!(
-        production.section().inheritance().records()[0]
+        production.inheritance().records()[0]
             .slots()
             .records()
             .is_empty()
@@ -75,17 +73,9 @@ fn producer_preserves_generic_storage_as_source_only() {
     let public = public_interface(&output);
 
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    assert_eq!(production.source_roots().len(), 2);
-    assert_eq!(production.source_nominals().records().len(), 2);
     assert_eq!(public.nominal_interfaces().records().len(), 2);
-    assert!(
-        production
-            .section()
-            .representation_support()
-            .records()
-            .is_empty()
-    );
-    assert!(production.section().inheritance().records().is_empty());
+    assert!(production.representation_support().records().is_empty());
+    assert!(production.inheritance().records().is_empty());
 }
 
 #[test]
@@ -111,17 +101,9 @@ fn producer_preserves_generic_class_backing_field_as_source_only() {
     let public = public_interface(&output);
 
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    assert_eq!(production.source_roots().len(), 2);
-    assert_eq!(production.source_nominals().records().len(), 2);
     assert_eq!(public.nominal_interfaces().records().len(), 2);
-    assert!(
-        production
-            .section()
-            .representation_support()
-            .records()
-            .is_empty()
-    );
-    assert!(production.section().inheritance().records().is_empty());
+    assert!(production.representation_support().records().is_empty());
+    assert!(production.inheritance().records().is_empty());
 }
 
 #[test]
@@ -156,17 +138,9 @@ fn producer_preserves_generic_constructor_parameter_as_source_only() {
     let public = public_interface(&output);
 
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    assert_eq!(production.source_roots().len(), 2);
-    assert_eq!(production.source_nominals().records().len(), 2);
     assert_eq!(public.nominal_interfaces().records().len(), 2);
-    assert!(
-        production
-            .section()
-            .representation_support()
-            .records()
-            .is_empty()
-    );
-    assert!(production.section().inheritance().records().is_empty());
+    assert!(production.representation_support().records().is_empty());
+    assert!(production.inheritance().records().is_empty());
 }
 
 #[test]
@@ -182,20 +156,12 @@ fn generic_source_only_root_retains_its_declaration_identity() {
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
 
-    assert!(
-        production
-            .section()
-            .representation_support()
-            .records()
-            .is_empty()
-    );
+    assert!(production.representation_support().records().is_empty());
 
-    hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
-        production.local_inheritance_edges().iter(),
-        production.source_roots().iter().copied(),
-        production.foundation(),
-    )
-    .unwrap();
+    assert!(matches!(
+        public.nominal_interfaces().records()[0].declaration(),
+        NominalDeclarationOwner::GenericTemplate(_)
+    ));
 }
 
 #[test]
@@ -221,14 +187,12 @@ fn empty_slot_schemas_cover_transitive_interfaces() {
         .exact()
         .unwrap()
         .id();
-    let implementation = production.section().inheritance().get(exact).unwrap();
+    let implementation = production.inheritance().get(exact).unwrap();
     assert_eq!(implementation.slot_schemas().records().len(), 2);
-    for interface in production
-        .section()
-        .inheritance()
-        .records()
-        .iter()
-        .filter(|record| record.edges().modality() == hir::NominalInheritanceModalityV1::Interface)
+    for interface in
+        production.inheritance().records().iter().filter(|record| {
+            record.edges().modality() == hir::NominalInheritanceModalityV1::Interface
+        })
     {
         assert_eq!(interface.slot_schemas().records().len(), 1);
         assert!(

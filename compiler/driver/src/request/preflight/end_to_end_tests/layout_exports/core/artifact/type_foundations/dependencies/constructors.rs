@@ -66,7 +66,6 @@ fn replace(
 ) -> NominalInheritanceInterfaceV1 {
     NominalInheritanceInterfaceV1::try_new(
         record.edges().clone(),
-        record.domains().clone(),
         constructors,
         record.slots().clone(),
         members,

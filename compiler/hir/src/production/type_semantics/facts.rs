@@ -8,31 +8,13 @@ use crate::*;
 mod ownership;
 mod shapes;
 
-#[derive(Clone, Copy)]
-enum FactMode {
-    Candidate,
-    Source,
-}
-
-type FactSourceProjection = (
-    CanonicalPersistentIdsV1<PersistentExactTypeId>,
-    Vec<TypeSectionDependencyFactV1>,
-    BTreeMap<PersistentExactTypeId, ExactTypeFactShapeV1>,
-);
-
-pub(super) fn candidate(
+pub(super) fn produce(
     export: &ExportHir,
     local: &LocalConcreteHir,
     root_exacts: &BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<CanonicalExactTypeFactsV1, Error> {
-    let candidate = project(
-        FactMode::Candidate,
-        export,
-        local,
-        root_exacts,
-        required_exacts,
-    )?;
+    let candidate = project(export, local, root_exacts, required_exacts)?;
     CanonicalExactTypeFactsV1::try_new(candidate.local_facts.into_values().collect()).map_err(
         |error| Error::InvalidTable {
             table: "exact-facts",
@@ -41,50 +23,18 @@ pub(super) fn candidate(
     )
 }
 
-pub(super) fn source(
-    export: &ExportHir,
-    local: &LocalConcreteHir,
-    root_exacts: &BTreeSet<PersistentExactTypeId>,
-    required_exacts: &BTreeSet<PersistentExactTypeId>,
-) -> Result<FactSourceProjection, Error> {
-    source_projection(project(
-        FactMode::Source,
-        export,
-        local,
-        root_exacts,
-        required_exacts,
-    )?)
-}
-
-fn source_projection(authority: FactProjector<'_>) -> Result<FactSourceProjection, Error> {
-    let local_exact_facts =
-        CanonicalPersistentIdsV1::try_new(authority.local_facts.keys().copied().collect())
-            .map_err(|error| Error::InvalidTable {
-                table: "local-exact-fact inventory",
-                reason: error.to_string(),
-            })?;
-    Ok((
-        local_exact_facts,
-        authority.dependency_facts.into_values().collect(),
-        authority.shapes,
-    ))
-}
-
 fn project<'a>(
-    mode: FactMode,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<FactProjector<'a>, Error> {
     let mut projector = FactProjector {
-        mode,
         export,
         local,
         root_exacts,
         local_facts: BTreeMap::new(),
-        shapes: BTreeMap::new(),
-        dependency_facts: BTreeMap::new(),
+        dependency_types: BTreeSet::new(),
         active: BTreeSet::new(),
         zero_sized_values: BTreeMap::new(),
     };
@@ -103,13 +53,11 @@ fn project<'a>(
 }
 
 struct FactProjector<'a> {
-    mode: FactMode,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
     local_facts: BTreeMap<PersistentExactTypeId, ExactTypeFactsV1>,
-    shapes: BTreeMap<PersistentExactTypeId, ExactTypeFactShapeV1>,
-    dependency_facts: BTreeMap<PersistentExactTypeId, TypeSectionDependencyFactV1>,
+    dependency_types: BTreeSet<PersistentExactTypeId>,
     active: BTreeSet<PersistentExactTypeId>,
     zero_sized_values: BTreeMap<PersistentExactTypeId, bool>,
 }
@@ -120,7 +68,7 @@ impl FactProjector<'_> {
         exact: PersistentExactTypeId,
         force_local: bool,
     ) -> Result<(), Error> {
-        if self.local_facts.contains_key(&exact) || self.dependency_facts.contains_key(&exact) {
+        if self.local_facts.contains_key(&exact) || self.dependency_types.contains(&exact) {
             return Ok(());
         }
         let ty = self
@@ -128,12 +76,11 @@ impl FactProjector<'_> {
             .exact_type_identities
             .type_for_identity(exact)
             .ok_or(Error::MissingConcreteType(exact))?;
-        if !force_local && let Some(provider) = self.dependency_provider(ty) {
-            self.dependency_facts
-                .insert(exact, TypeSectionDependencyFactV1 { provider, exact });
+        if !force_local && self.dependency_provider(ty).is_some() {
+            self.dependency_types.insert(exact);
             return Ok(());
         }
-        if matches!(self.mode, FactMode::Candidate) && self.is_generic_application(ty) {
+        if self.is_generic_application(ty) {
             return Err(Error::GenericOdrRequired(exact));
         }
         if !force_local && !self.is_locally_owned(ty)? {
@@ -188,7 +135,6 @@ impl FactProjector<'_> {
                 reason: error.to_string(),
             })?;
         self.active.remove(&exact);
-        self.shapes.insert(exact, shape);
         self.local_facts.insert(exact, fact);
         Ok(())
     }
@@ -198,7 +144,9 @@ impl FactProjector<'_> {
             .exact_type_identities
             .get(ty)
             .map(|record| record.id())
-            .ok_or(Error::MissingExactIdentity)
+            .ok_or(Error::MissingExactIdentity {
+                context: "concrete fact type",
+            })
     }
 
     fn is_zero_sized(&mut self, exact: PersistentExactTypeId) -> Result<bool, Error> {
@@ -262,7 +210,9 @@ fn exacts(
                 .exact_type_identities
                 .get(*ty)
                 .map(|record| record.id())
-                .ok_or(Error::MissingExactIdentity)
+                .ok_or(Error::MissingExactIdentity {
+                    context: "source fact type",
+                })
         })
         .collect()
 }

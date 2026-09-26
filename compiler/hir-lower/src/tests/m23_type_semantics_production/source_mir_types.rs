@@ -26,7 +26,7 @@ fn with_production<R>(
     run: impl FnOnce(
         &hir::DependencyHirOutput,
         &scoop_mir::SingleConeStrongMirInput,
-        &hir::CrossConeTypeSemanticsProductionV1,
+        &hir::CrossConeTypeSemanticsSectionV1,
         &mut scoop_identity::ValidatedIdentityGraph,
         &CanonicalParamFreeMirTypeExportsV1,
     ) -> R,
