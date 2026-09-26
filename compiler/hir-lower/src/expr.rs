@@ -69,7 +69,9 @@ mod imported_constants;
 mod imported_origins;
 mod imported_properties;
 mod named_calls;
-pub(crate) use imported_properties::ImportedDependencyExtensionPropertyProbe;
+pub(crate) use imported_properties::{
+    ImportedDependencyExtensionPropertyProbe, ResolvedImportedMemberProperty,
+};
 pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 
 mod aggregates;

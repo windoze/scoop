@@ -1,0 +1,366 @@
+Module
+  class PropertyTrace vtable=0 itables=0
+  class MutableCell vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun receiver @fn0(trace: PropertyTrace) -> MutableCell
+    bb0 entry
+      val $place.0: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      call $old.1: Long = external0 direct
+        Type PropertyTrace
+        Local $place.0
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external1 direct
+        Type PropertyTrace
+        Local $place.0
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $call.1: MutableCell = external2 direct
+        Type PropertyTrace
+        Local trace
+      return
+        Type MutableCell
+        Local $call.1
+  fun argument @fn1(trace: PropertyTrace) -> Long
+    bb0 entry
+      val $place.2: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      call $old.3: Long = external3 direct
+        Type PropertyTrace
+        Local $place.2
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.3
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external4 direct
+        Type PropertyTrace
+        Local $place.2
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.receiver: Long = external0 direct
+        Type PropertyTrace
+        Local trace
+      call $dependency.argument.0: Long = external3 direct
+        Type PropertyTrace
+        Local trace
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.4
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      goto bb3
+    bb2 if.else.2
+      assign $result.4
+        Type Long
+        IntegerLiteral Long value=100 bits=0x0000000000000064
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Long
+        Local $result.4
+  fun primary @fn2() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external5 direct
+        Type MutableCell
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: MutableCell
+        Type MutableCell
+        Local $new.1
+      val $dependency.parameter.cell: MutableCell
+        Type MutableCell
+        Local $dependency.argument.0
+      assign $new.2
+        Type PropertyTrace
+        ClassAlloc PropertyTrace
+      call external6 direct
+        Type PropertyTrace
+        Local $new.2
+        Type MutableCell
+        Local $dependency.parameter.cell
+      val trace: PropertyTrace
+        Type PropertyTrace
+        Local $new.2
+      val $argument.0: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      val $parameter.trace: PropertyTrace
+        Type PropertyTrace
+        Local $argument.0
+      call $place.5: MutableCell = @fn0 direct
+        Type PropertyTrace
+        Local $parameter.trace
+      val $argument.0: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      val $parameter.trace: PropertyTrace
+        Type PropertyTrace
+        Local $argument.0
+      call $call.3: Long = @fn1 direct
+        Type PropertyTrace
+        Local $parameter.trace
+      call external7 direct
+        Type MutableCell
+        Local $place.5
+        Type Long
+        Local $call.3
+      val $argument.0: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      val $parameter.trace: PropertyTrace
+        Type PropertyTrace
+        Local $argument.0
+      call $place.6: MutableCell = @fn0 direct
+        Type PropertyTrace
+        Local $parameter.trace
+      call $old.7: Long = external8 direct
+        Type MutableCell
+        Local $place.6
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.7
+      val $argument.0: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      val $parameter.trace: PropertyTrace
+        Type PropertyTrace
+        Local $argument.0
+      call $dependency.argument.0: Long = @fn1 direct
+        Type PropertyTrace
+        Local $parameter.trace
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external7 direct
+        Type MutableCell
+        Local $place.6
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $argument.0: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      val $parameter.trace: PropertyTrace
+        Type PropertyTrace
+        Local $argument.0
+      call $place.8: MutableCell = @fn0 direct
+        Type PropertyTrace
+        Local $parameter.trace
+      call $old.9: Long = external8 direct
+        Type MutableCell
+        Local $place.8
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.9
+      val $new.10: Long
+        Type Long
+        IntegerUnary increment kind=Long
+          Type Long
+          Local $dependency.receiver
+      call external7 direct
+        Type MutableCell
+        Local $place.8
+        Type Long
+        Local $new.10
+      val old: Long
+        Type Long
+        Local $old.9
+      val $argument.0: PropertyTrace
+        Type PropertyTrace
+        Local trace
+      val $parameter.trace: PropertyTrace
+        Type PropertyTrace
+        Local $argument.0
+      call $place.11: MutableCell = @fn0 direct
+        Type PropertyTrace
+        Local $parameter.trace
+      call $old.12: Long = external8 direct
+        Type MutableCell
+        Local $place.11
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.12
+      val $new.13: Long
+        Type Long
+        IntegerUnary increment kind=Long
+          Type Long
+          Local $dependency.receiver
+      call external7 direct
+        Type MutableCell
+        Local $place.11
+        Type Long
+        Local $new.13
+      val next: Long
+        Type Long
+        Local $new.13
+      val $dependency.receiver: Long
+        Type Long
+        Local old
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=40 bits=0x0000000000000028
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Long
+        Type Long
+        Local next
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.14
+    bb4 if.then.4
+      call $dependency.receiver: Long = external0 direct
+        Type PropertyTrace
+        Local trace
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.15
+    bb7 if.then.7
+      call $dependency.receiver: Long = external3 direct
+        Type PropertyTrace
+        Local trace
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.16
+    bb10 if.then.10
+      assign $result.17
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      goto bb12
+    bb11 if.else.11
+      assign $result.17
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb12
+    bb12 if.merge.12
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.17
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.4
+        Type Counter
+        ClassAlloc Counter
+      call external9 direct
+        Type Counter
+        Local $new.4
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.4
+  output library

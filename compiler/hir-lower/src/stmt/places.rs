@@ -29,6 +29,11 @@ pub(super) enum WriteCapability {
         receiver: Option<crate::properties::PropertyCallReceiver>,
         name: ast::Ident,
     },
+    ImportedMemberProperty {
+        property: Box<crate::expr::ResolvedImportedMemberProperty>,
+        receiver: hir::Expr,
+        name: ast::Ident,
+    },
     OperatorSet {
         receiver: hir::Expr,
         index_arguments: Vec<ast::CallArgument>,
@@ -178,6 +183,27 @@ impl Lowerer {
                             property,
                             owner: Some(owner),
                             receiver: Some(receiver),
+                        }
+                    } else {
+                        WriteCapability::ReadOnly
+                    };
+                    return Some(ResolvedPlacePlan { read, write, ty });
+                }
+                if let Some(property) = self
+                    .resolve_imported_member_property(receiver.ty, name)
+                    .ok()?
+                {
+                    let ty = property.value_type;
+                    let read = self.emit_imported_member_property_read(
+                        &property,
+                        receiver.clone(),
+                        *span,
+                    )?;
+                    let write = if property.has_setter() {
+                        WriteCapability::ImportedMemberProperty {
+                            property: Box::new(property),
+                            receiver,
+                            name: name.clone(),
                         }
                     } else {
                         WriteCapability::ReadOnly
@@ -345,6 +371,11 @@ impl Lowerer {
                 name,
             } => self
                 .lower_imported_dependency_property_write(&binding, receiver, value, &name, span),
+            WriteCapability::ImportedMemberProperty {
+                property,
+                receiver,
+                name,
+            } => self.lower_imported_member_property_write(*property, receiver, value, &name, span),
             WriteCapability::OperatorSet {
                 receiver,
                 mut index_arguments,

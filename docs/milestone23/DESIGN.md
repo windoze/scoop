@@ -24,7 +24,7 @@ M23-6 的 param-free 调用消费覆盖由真实 nominal 组成的结构签名�
 
 外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
 
-普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。固定 struct 字段保存实际 field ID，直接读取共有值表示；计算属性按实际 getter ID 使用同一 callable 路径，不为字段额外生成函数。依赖默认值中的字段和 callable 使用定义时保存的 typed 声明与完整类型，实例化不重新要求公开 namespace 导入路径，也不再次证明模板引用集合。
+普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。固定 struct 字段保存实际 field ID，直接读取共有值表示；计算属性按实际 getter ID 使用同一 callable 路径，不为字段额外生成函数。依赖默认值中的字段和 callable 使用定义时保存的 typed 声明与完整类型，实例化不重新要求公开 namespace 导入路径，也不再次证明模板引用集合。 class/interface 属性写入按同一成员查询选中实际 property 与 setter，遵守独立 setter 可见性、receiver/右侧单次求值以及已有 place 规则；使用共有 callable、dispatch、GC 和 ABI 数据。
 
 默认值依赖按定义处已解析的 typed target 保存，`DefaultDependency` 不要求消费 Cone 再取得 namespace 导入路径。定义处实际发生过的查找路径可以保留；生产器不为没有名称查找的字段、成员或支持声明补造 witness，也不保存全体依赖的第二份导入路径表。Unit、Any 与其他声明遵循同一规则。共有 reader 继续检查 provider、引用、类型、默认值正文及实际声明关系，不从这份路径信息授予调用资格。读取边界核对源码上下文及位置后，实例化复用同一不可变记录，保留定义位置与调用处求值位置。
 

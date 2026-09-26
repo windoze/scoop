@@ -1,0 +1,290 @@
+Module
+  struct Token ()
+  struct WideValue (first: Long, second: Long, third: Long)
+  class ValueCells vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class Holder vtable=0 itables=0
+  fun fill @fn0(cells: ValueCells, token: Token, wide: WideValue, reference: Counter) -> Unit
+    bb0 entry
+      val $place.0: ValueCells
+        Type ValueCells
+        Local cells
+      call external0 direct
+        Type ValueCells
+        Local $place.0
+        Type Token
+        Local token
+      val $place.1: ValueCells
+        Type ValueCells
+        Local cells
+      call external1 direct
+        Type ValueCells
+        Local $place.1
+        Type WideValue
+        Local wide
+      val $place.2: ValueCells
+        Type ValueCells
+        Local cells
+      call external2 direct
+        Type ValueCells
+        Local $place.2
+        Type Counter
+        Local reference
+      return
+  fun primary @fn1() -> Counter
+    bb0 entry
+      call $dependency.argument.0: Token = external3 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call $dependency.argument.1: WideValue = external4 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external5 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.2: Counter
+        Type Counter
+        Local $new.1
+      val $dependency.parameter.token: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.wide: WideValue
+        Type WideValue
+        Local $dependency.argument.1
+      val $dependency.parameter.reference: Counter
+        Type Counter
+        Local $dependency.argument.2
+      assign $new.2
+        Type ValueCells
+        ClassAlloc ValueCells
+      call external6 direct
+        Type ValueCells
+        Local $new.2
+        Type Token
+        Local $dependency.parameter.token
+        Type WideValue
+        Local $dependency.parameter.wide
+        Type Counter
+        Local $dependency.parameter.reference
+      val cells: ValueCells
+        Type ValueCells
+        Local $new.2
+      val $argument.0: ValueCells
+        Type ValueCells
+        Local cells
+      call $argument.1: Token = external3 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call $argument.2: WideValue = external4 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external5 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.3: Counter
+        Type Counter
+        Local $new.3
+      val $parameter.cells: ValueCells
+        Type ValueCells
+        Local $argument.0
+      val $parameter.token: Token
+        Type Token
+        Local $argument.1
+      val $parameter.wide: WideValue
+        Type WideValue
+        Local $argument.2
+      val $parameter.reference: Counter
+        Type Counter
+        Local $argument.3
+      call @fn0 direct
+        Type ValueCells
+        Local $parameter.cells
+        Type Token
+        Local $parameter.token
+        Type WideValue
+        Local $parameter.wide
+        Type Counter
+        Local $parameter.reference
+      call $dependency.argument.0: Counter = external7 direct
+        Type ValueCells
+        Local cells
+      call $dependency.argument.1: Token = external8 direct
+        Type ValueCells
+        Local cells
+      val $dependency.parameter.value: Counter
+        Type Counter
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.1
+      assign $new.4
+        Type Holder
+        ClassAlloc Holder
+      call external9 direct
+        Type Holder
+        Local $new.4
+        Type Counter
+        Local $dependency.parameter.value
+        Type Token
+        Local $dependency.parameter.marker
+      val moved: Holder
+        Type Holder
+        Local $new.4
+      call $call.5: WideValue = external10 direct
+        Type ValueCells
+        Local cells
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type WideValue
+          Local $call.5
+      call $call.6: WideValue = external10 direct
+        Type ValueCells
+        Local cells
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type WideValue
+          Local $call.6
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $equality.lhs: Long
+        Type Long
+        IntegerBinary multiply kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: Holder
+        Type Holder
+        Local moved
+      call $dependency.receiver: Counter = external11 direct
+        Type Holder
+        Local $dependency.receiver
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      call $dependency.argument.0: Long = external12 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Holder
+        Type Holder
+        Local moved
+      call $call.7: Counter = external11 direct
+        Type Holder
+        Local $dependency.receiver
+      assign $result.3
+        Type Counter
+        Local $call.7
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.8
+        Type Counter
+        ClassAlloc Counter
+      call external5 direct
+        Type Counter
+        Local $new.8
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.3
+        Type Counter
+        Local $new.8
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Counter
+        Local $result.3
+  output library

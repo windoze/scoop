@@ -6,7 +6,7 @@
 
 虚调用读取当前 `ScoopTypeDescriptor` 的真实布局：runtime metadata V1 在 64 位生产目标上的 vtable 偏移为 88（type_id、完整 instance_shape、object_scan 和 parent 之后）。删除旧三标量 descriptor 前缀的偏移算法；这修正消费者读址，不改变 C ABI 或已发射 descriptor 格式。
 
-非泛型外来接口在 HIR 中保留真实声明、父接口及完整成员签名；外来 class 的虚槽与接口成员按 provider 的声明顺序和 typed override 关系解析。前端选中调用时保存完整的直接／虚调用／接口调用方式、typed 声明引用和所属表的槽位置。LocalConcrete/MIR 不为外来方法生成本地函数定义；MIR 接口槽直接保存完整参数、结果与 GC 签名，删除只为签名创建的不可达本地函数；LIR 使用实际 provider 的 canonical ABI，动态调用通过对象 TD 的 vtable 或对应接口 TD 的 itable 执行。外部 callee 不再一律要求 Direct，消费边界继续检查引用、receiver、签名、槽范围和 GC effect。
+非泛型外来接口在 HIR 中保留真实声明、父接口及完整成员签名；外来 class 的虚槽与接口成员按 provider 的声明顺序和 typed override 关系解析。前端选中调用时保存完整的直接／虚调用／接口调用方式、typed 声明引用和所属表的槽位置。LocalConcrete/MIR 不为外来方法生成本地函数定义；MIR 接口槽直接保存完整参数、结果与 GC 签名，删除只为签名创建的不可达本地函数；LIR 使用实际 provider 的 canonical ABI，动态调用通过对象 TD 的 vtable 或对应接口 TD 的 itable 执行。外部 callee 不再一律要求 Direct，消费边界继续检查引用、receiver、签名、槽范围和 GC effect。 成员属性写入从已解析 getter 所属的真实 property 取得 setter ID 与可见性，前端形成完整 typed 调用。赋值先物化 receiver 再求值右侧；复合赋值与更新复用已有 place temporary、读取及写回路径。provider 的公开存储属性与计算属性都导出实际 accessor，MIR/LIR 不重解名称或另建 setter 来源记录。 接口 dispatch 签名直接消费完整 typed callable 参数与结果；自动生成或抽象 accessor 不要求普通函数的命名参数源码协议，内部参数显示名不承担实体身份或调用选择职责。
 
 删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
 

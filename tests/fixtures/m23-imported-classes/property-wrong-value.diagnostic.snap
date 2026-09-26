@@ -1,0 +1,5 @@
+span=88..99
+expression=Counter(21)
+no applicable candidate for `Counter` in star import layer:
+  - dependency constructor `Counter` returns Counter, which is not compatible with expected Long
+  - dependency constructor `Counter` returns Counter, which is not compatible with expected Long

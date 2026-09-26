@@ -1,0 +1,23 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 0 : Long
+    val local1
+      Local $dependency.argument.0 : Long
+    val local2
+      ImportedDependencyCall #0 : ComputedValue
+        Local $dependency.parameter.initial : Long
+    val local3
+      Local cell : ComputedValue
+    ImportedDependencyCall #1 : Unit
+      Local $place.0 : ComputedValue
+      IntegerLiteral 10 : Long
+    val local4
+      ImportedDependencyCall #2 : Long
+        Local cell : ComputedValue
+    val local5
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #3 : Counter
+        Local $dependency.parameter.value : Long
+  output library

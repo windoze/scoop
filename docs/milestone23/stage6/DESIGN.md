@@ -38,7 +38,7 @@ MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产
 
 外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
 
-普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。
+普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。 成员属性读取与写入先选择同一真实 property；setter 通过该属性的 typed accessor ID 取得，不从同名属性、相同布局或 provider 来源推断。赋值、复合赋值和更新使用共有 place 与 callable 路径，保持 setter 可见性、单次求值、动态分派、ZST/大值 ABI 和含引用写屏障。验收由源码发布产物后跨 Cone 调用、再次发布并链接运行。 接口 dispatch 签名直接消费完整 typed callable 参数与结果；自动生成或抽象 accessor 不要求普通函数的命名参数源码协议，内部参数显示名不承担实体身份或调用选择职责。
 
 `hir/cross-cone-interface/27` 为无 namespace binding 的声明调用保留 `SourceDeclaration` reason（tag 3，只有 field 0 的 map）；既有 tag 1/2 保持。普通直接 callable 的 MIR 导出保存完整 GC effect，`mir/cross-cone-param-free-bridge/2` 的 field 1～3 保持 declaration、implementation 和 exact signature，新增 field 4（unsigned 1=Managed，2=NoGC）。旧 major 退役，profile、fingerprint 和缓存同步重建；runtime C ABI 与 String 表示不变。
 

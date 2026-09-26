@@ -1,0 +1,128 @@
+Module
+  class ComputedValue vtable=0 itables=0
+  class MutableBase vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  interface MutableValue
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.initial: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type ComputedValue
+        ClassAlloc ComputedValue
+      call external0 direct
+        Type ComputedValue
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.initial
+      val cell: MutableValue
+        Type MutableValue
+        Retype MutableValue
+          Type ComputedValue
+          Local $new.1
+      val $place.0: MutableValue
+        Type MutableValue
+        Local cell
+      call external1 interface MutableValue[1]
+        Type MutableValue
+        Local $place.0
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+      val $place.1: MutableValue
+        Type MutableValue
+        Local cell
+      call $old.2: Long = external2 interface MutableValue[0]
+        Type MutableValue
+        Local $place.1
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.2
+      val $new.3: Long
+        Type Long
+        IntegerUnary increment kind=Long
+          Type Long
+          Local $dependency.receiver
+      call external1 interface MutableValue[1]
+        Type MutableValue
+        Local $place.1
+        Type Long
+        Local $new.3
+      val next: Long
+        Type Long
+        Local $new.3
+      val $dependency.receiver: Long
+        Type Long
+        Local next
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call $dependency.receiver: Long = external2 interface MutableValue[0]
+        Type MutableValue
+        Local cell
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=41 bits=0x0000000000000029
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.4
+    bb4 if.then.4
+      assign $result.5
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      goto bb6
+    bb5 if.else.5
+      assign $result.5
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb6
+    bb6 if.merge.6
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.5
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

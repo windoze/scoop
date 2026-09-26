@@ -56,19 +56,20 @@ impl Lowerer {
                 })
                 .ok_or(ImportedSignatureTypeError::Structural)?;
             let callable = candidate.interface();
-            let source = candidate
-                .source_interface()
-                .ok_or(ImportedSignatureTypeError::Structural)?;
+            let source = candidate.source_interface();
+            // Dispatch signatures use the complete typed parameters. Generated
+            // and abstract accessors have no separate named-call source protocol.
             let parameters = callable
                 .parameters()
                 .parameters()
                 .iter()
-                .zip(source.parameters().parameters())
-                .map(|(parameter, source)| {
-                    Ok((
-                        source.name().as_str().to_owned(),
-                        self.imported_signature_type(parameter.value_type())?,
-                    ))
+                .enumerate()
+                .map(|(index, parameter)| {
+                    let name = source
+                        .and_then(|source| source.parameters().parameters().get(index))
+                        .map(|parameter| parameter.name().as_str().to_owned())
+                        .unwrap_or_else(|| format!("$parameter.{index}"));
+                    Ok((name, self.imported_signature_type(parameter.value_type())?))
                 })
                 .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
             let return_type = self.imported_signature_type(callable.result())?;

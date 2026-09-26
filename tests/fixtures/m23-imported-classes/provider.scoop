@@ -61,3 +61,32 @@ public interface OtherReadable {
 public fun throwValue(value: Throwable) { throw value }
 public fun throwDefault(value: Throwable = RebuiltFailure(21)) { throw value }
 public fun castDefault(input: Any, value: Counter = input as Counter): Counter = value
+
+public class MutableCell public constructor(public var value: Long)
+public class PropertyTrace public constructor(public val cell: MutableCell) {
+    public var receivers: Long = 0
+    public var arguments: Long = 0
+}
+public interface MutableValue {
+    public var value: Long
+}
+public open class MutableBase public constructor(initial: Long): MutableValue {
+    public open override var value: Long = initial
+}
+public class ComputedValue public constructor(initial: Long): MutableBase(initial) {
+    public override var value: Long = initial
+        get() = field + 1
+        set(next) { field = next * 2 }
+}
+public class ValueCells public constructor(
+    public var token: Token,
+    public var wide: WideValue,
+    public var reference: Counter
+)
+public class RestrictedValues public constructor() {
+    public val readonly: Long = 0
+    public var privateValue: Long = 0
+        private set(next) { field = next }
+    public var internalValue: Long = 0
+        internal set(next) { field = next }
+}

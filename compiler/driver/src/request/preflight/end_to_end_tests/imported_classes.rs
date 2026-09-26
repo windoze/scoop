@@ -50,6 +50,29 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
 }
 
 #[test]
+fn dependency_property_writes_compile_and_run_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "property-setter",
+            "property-computed",
+            "property-virtual",
+            "property-interface",
+            "property-updates",
+            "property-abi",
+        ],
+        &[
+            "property-readonly",
+            "property-private-setter",
+            "property-internal-setter",
+            "property-private-update",
+            "property-wrong-value",
+            "property-wrong-reference",
+        ],
+    );
+}
+
+#[test]
 fn runtime_cast_failures_use_the_providers_default_constructor_adapter() {
     check_class_cases(
         "default",

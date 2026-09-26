@@ -4,7 +4,7 @@
 
 引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/27`，旧产物与缓存重建，不改变 runtime C ABI。
 
-非泛型外来接口与 class 使用真实 nominal 声明、继承边和成员签名参与类型检查。经外来 open/abstract class 或接口的成员调用遵守相同的覆写与动态分派规则；final 成员保持直接调用。成员查找保留派生接口的有效覆写；class 及其基类链已有的匹配实现优先于接口声明，不把二者当作独立重载。类型别名不改变接口或槽身份，跨 Cone 的同名、同布局类型仍不相等。
+非泛型外来接口与 class 使用真实 nominal 声明、继承边和成员签名参与类型检查。经外来 open/abstract class 或接口的成员调用遵守相同的覆写与动态分派规则；final 成员保持直接调用。成员查找保留派生接口的有效覆写；class 及其基类链已有的匹配实现优先于接口声明，不把二者当作独立重载。类型别名不改变接口或槽身份，跨 Cone 的同名、同布局类型仍不相等。 外来成员属性沿相同继承与覆写规则选择实际 getter/setter；普通赋值、复合赋值及前后缀更新遵守 9.3.3 的单次求值规则。`val` 不允许写回，setter 的可见性独立于 getter；读取公开属性不能扩大其 setter 的访问范围。
 
 删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
 

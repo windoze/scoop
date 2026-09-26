@@ -118,13 +118,8 @@ impl Lowerer {
         })
     }
 
-    /// `receiver.name = value` (M6): the receiver must be a class and
-    /// `name` a `var` constructor property on it or its base chain
-    /// (resolved exactly like a field read — absolute layout index,
-    /// declaring class in the `FieldRef`). Value types are immutable
-    /// and reject the assignment outright. The value's desugaring
-    /// statements append to the receiver's sink (evaluation order:
-    /// receiver, then value, then the store).
+    /// Resolves a member or extension property and preserves receiver-before-value
+    /// evaluation. Imported members call the actual provider's setter.
     fn assign_class_field(
         &mut self,
         assign: &ast::Assign,
@@ -158,6 +153,20 @@ impl Lowerer {
                 Some(receiver),
                 value,
                 name.span,
+            );
+        }
+        if let Some(property) = self
+            .resolve_imported_member_property(receiver_ty, name)
+            .ok()?
+        {
+            let receiver = self.materialize_place_expr(receiver, "place", name.span, sink);
+            let value = self.lower_expr(&assign.value, sink, Some(property.value_type))?;
+            return self.lower_imported_member_property_write(
+                property,
+                receiver,
+                value,
+                name,
+                assign.span,
             );
         }
         let resolved = match self.resolve_extension_property_write(receiver, name, sink) {

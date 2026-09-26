@@ -1,27 +1,39 @@
 use super::*;
 use hir::ImportedCallableSource;
 
+mod write;
+
+pub(crate) struct ResolvedImportedMemberProperty {
+    getter: hir::ImportedCallableDeclaration,
+    capability: hir::PropertyCapabilityV1,
+    pub(crate) value_type: hir::TypeId,
+}
+
+impl ResolvedImportedMemberProperty {
+    pub(crate) fn has_setter(&self) -> bool {
+        self.capability.setter().is_some()
+    }
+}
+
 impl Lowerer {
-    pub(in crate::expr) fn lower_imported_member_property_read(
+    pub(crate) fn resolve_imported_member_property(
         &mut self,
-        receiver: &hir::Expr,
+        receiver: hir::TypeId,
         name: &ast::Ident,
-        span: ast::Span,
-        expected: Option<hir::TypeId>,
-    ) -> Result<Option<hir::Expr>, ()> {
-        if self.imported_nominal_declaration(receiver.ty).is_none() {
+    ) -> Result<Option<ResolvedImportedMemberProperty>, ()> {
+        if self.imported_nominal_declaration(receiver).is_none() {
             return Ok(None);
         }
         let candidates = self
             .imported_member_candidates(
-                receiver.ty,
+                receiver,
                 hir::ImportedMemberLookup::PropertyGetter(&name.text),
             )
             .map_err(|error| {
                 self.error(name.span, format!("invalid dependency property: {error}"))
             })?;
         let mut candidates = candidates.into_iter();
-        let Some(candidate) = candidates.next() else {
+        let Some(getter) = candidates.next() else {
             return Ok(None);
         };
         if candidates.next().is_some() {
@@ -31,26 +43,88 @@ impl Lowerer {
             );
             return Err(());
         }
-        let interface = candidate.interface();
-        let result_type = self
-            .imported_property_signature_type(interface.result(), "dependency property", span)
+        let scoop_identity::CallableTemplateOrigin::Accessor(accessor) =
+            getter.interface().declaration()
+        else {
+            unreachable!("a dependency property getter refers to an accessor")
+        };
+        let capability = self
+            .dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.property_for_accessor(accessor))
+            .expect("the member getter belongs to the selected property")
+            .capability();
+        let value_type = self
+            .imported_property_signature_type(
+                getter.interface().result(),
+                "dependency property",
+                name.span,
+            )
             .ok_or(())?;
+        Ok(Some(ResolvedImportedMemberProperty {
+            getter,
+            capability,
+            value_type,
+        }))
+    }
+
+    pub(in crate::expr) fn lower_imported_member_property_read(
+        &mut self,
+        receiver: &hir::Expr,
+        name: &ast::Ident,
+        span: ast::Span,
+        expected: Option<hir::TypeId>,
+    ) -> Result<Option<hir::Expr>, ()> {
+        let Some(property) = self.resolve_imported_member_property(receiver.ty, name)? else {
+            return Ok(None);
+        };
         if let Some(expected) = expected
-            && !self.is_subtype(result_type, expected)
+            && !self.is_subtype(property.value_type, expected)
         {
             self.error(
                 span,
                 format!(
                     "dependency property `{}` has type {}, expected {}",
                     name.text,
-                    self.type_name(result_type),
+                    self.type_name(property.value_type),
                     self.type_name(expected)
                 ),
             );
             return Err(());
         }
+        self.emit_imported_member_property_read(&property, receiver.clone(), span)
+            .map(Some)
+            .ok_or(())
+    }
+
+    pub(crate) fn emit_imported_member_property_read(
+        &mut self,
+        property: &ResolvedImportedMemberProperty,
+        receiver: hir::Expr,
+        span: ast::Span,
+    ) -> Option<hir::Expr> {
+        self.emit_imported_member_accessor(
+            property.getter.clone(),
+            receiver,
+            Vec::new(),
+            property.value_type,
+            span,
+            "reading an unsafe dependency property",
+        )
+    }
+
+    fn emit_imported_member_accessor(
+        &mut self,
+        candidate: hir::ImportedCallableDeclaration,
+        receiver: hir::Expr,
+        values: Vec<hir::Expr>,
+        result_type: hir::TypeId,
+        span: ast::Span,
+        unsafe_operation: &str,
+    ) -> Option<hir::Expr> {
+        let interface = candidate.interface();
         if interface.effects().safety() == hir::CallableSafetyV1::Unsafe {
-            self.require_unsafe_operation(span, "reading an unsafe dependency property");
+            self.require_unsafe_operation(span, unsafe_operation);
         }
         let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) =
             interface.owner()
@@ -60,24 +134,29 @@ impl Lowerer {
         let owner = self
             .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(owner))
             .expect("a dependency property receiver type was resolved during lookup");
-        let argument = self.adapt_to(receiver.clone(), owner);
+        let static_type = receiver.ty;
+        let mut args = Vec::with_capacity(values.len() + 1);
+        args.push(self.adapt_to(receiver, owner));
+        args.extend(values);
         let callee = self
             .select_imported_callable_declaration_use(candidate)
             .map_err(|error| {
-                self.error(span, format!("invalid dependency property getter: {error}"));
-            })?;
-        Ok(Some(hir::Expr {
+                self.error(
+                    span,
+                    format!("invalid dependency property accessor: {error}"),
+                );
+            })
+            .ok()?;
+        Some(hir::Expr {
             kind: hir::ExprKind::ImportedDependencyCall {
                 callee,
                 binding: None,
-                args: vec![argument],
-                receiver: hir::SourceCallReceiver::Receiver {
-                    static_type: receiver.ty,
-                },
+                args,
+                receiver: hir::SourceCallReceiver::Receiver { static_type },
             },
             ty: result_type,
             span,
             origin: self.expression_origin(span),
-        }))
+        })
     }
 }

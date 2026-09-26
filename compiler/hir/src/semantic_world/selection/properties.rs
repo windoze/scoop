@@ -3,6 +3,17 @@ use scoop_identity::{CallableTemplateOrigin, PropertyOwner};
 use super::*;
 
 impl ImportedDependencySelectionPlan {
+    pub fn property_for_accessor(
+        &self,
+        accessor: scoop_identity::PersistentPropertyAccessorId,
+    ) -> Option<&crate::PropertyInterfaceRecordV1> {
+        self.catalog.properties.values().find_map(|property| {
+            let capability = property.interface.capability();
+            (capability.getter() == accessor || capability.setter() == Some(accessor))
+                .then_some(&property.interface)
+        })
+    }
+
     pub fn property_candidate(
         &self,
         binding: &DirectImportedTargetBinding,

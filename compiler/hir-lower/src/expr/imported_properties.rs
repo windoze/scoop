@@ -1,4 +1,4 @@
-//! Dependency property access for the M23-5 executable subset.
+//! Dependency properties use the ordinary accessor and dispatch paths.
 //!
 //! Public property metadata selects an accessor; only the accessor becomes a
 //! machine-level dependency call. Provider storage and initialization details
@@ -17,6 +17,7 @@ mod read;
 mod write;
 
 pub(crate) use extension::ImportedDependencyExtensionPropertyProbe;
+pub(crate) use members::ResolvedImportedMemberProperty;
 
 pub(crate) struct ImportedDependencyPropertyRead {
     pub(crate) expression: hir::Expr,

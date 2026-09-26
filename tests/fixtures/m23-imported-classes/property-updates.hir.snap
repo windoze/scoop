@@ -1,0 +1,221 @@
+Module
+  fun receiver(trace: PropertyTrace): MutableCell
+    val local1
+      Local trace : PropertyTrace
+    val local2
+      ImportedDependencyCall #0 : Long
+        Local $place.0 : PropertyTrace
+    val local3
+      Local $old.1 : Long
+    val local4
+      IntegerLiteral 1 : Long
+    val local5
+      Local $dependency.argument.0 : Long
+    ImportedDependencyCall #1 : Unit
+      Local $place.0 : PropertyTrace
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    return
+      ImportedDependencyCall #2 : MutableCell
+        Local trace : PropertyTrace
+  fun argument(trace: PropertyTrace): Long
+    val local1
+      Local trace : PropertyTrace
+    val local2
+      ImportedDependencyCall #3 : Long
+        Local $place.2 : PropertyTrace
+    val local3
+      Local $old.3 : Long
+    val local4
+      IntegerLiteral 1 : Long
+    val local5
+      Local $dependency.argument.0 : Long
+    ImportedDependencyCall #4 : Unit
+      Local $place.2 : PropertyTrace
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local6
+      ImportedDependencyCall #0 : Long
+        Local trace : PropertyTrace
+    val local7
+      ImportedDependencyCall #3 : Long
+        Local trace : PropertyTrace
+    val local8
+      Local $dependency.argument.0 : Long
+    if
+      IntegerOperation long.equals <no-gc> : Boolean
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+      assign $result.4
+        IntegerLiteral 20 : Long
+    else
+      assign $result.4
+        IntegerLiteral 100 : Long
+    return
+      Local $result.4 : Long
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 0 : Long
+    val local1
+      Local $dependency.argument.0 : Long
+    val local2
+      ImportedDependencyCall #5 : MutableCell
+        Local $dependency.parameter.value : Long
+    val local3
+      Local $dependency.argument.0 : MutableCell
+    val local4
+      ImportedDependencyCall #6 : PropertyTrace
+        Local $dependency.parameter.cell : MutableCell
+    val local5
+      Local trace : PropertyTrace
+    val local6
+      Local $argument.0 : PropertyTrace
+    val local7
+      Call receiver : MutableCell
+        Local $parameter.trace : PropertyTrace
+    val local8
+      Local trace : PropertyTrace
+    val local9
+      Local $argument.0 : PropertyTrace
+    ImportedDependencyCall #7 : Unit
+      Local $place.5 : MutableCell
+      Call argument : Long
+        Local $parameter.trace : PropertyTrace
+    val local10
+      Local trace : PropertyTrace
+    val local11
+      Local $argument.0 : PropertyTrace
+    val local12
+      Call receiver : MutableCell
+        Local $parameter.trace : PropertyTrace
+    val local13
+      ImportedDependencyCall #8 : Long
+        Local $place.6 : MutableCell
+    val local16
+      Local $old.7 : Long
+    val local14
+      Local trace : PropertyTrace
+    val local15
+      Local $argument.0 : PropertyTrace
+    val local17
+      Call argument : Long
+        Local $parameter.trace : PropertyTrace
+    val local18
+      Local $dependency.argument.0 : Long
+    ImportedDependencyCall #7 : Unit
+      Local $place.6 : MutableCell
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local19
+      Local trace : PropertyTrace
+    val local20
+      Local $argument.0 : PropertyTrace
+    val local21
+      Call receiver : MutableCell
+        Local $parameter.trace : PropertyTrace
+    val local22
+      ImportedDependencyCall #8 : Long
+        Local $place.8 : MutableCell
+    val local23
+      Local $old.9 : Long
+    val local24
+      IntegerOperation long.inc <no-gc> : Long
+        Local $dependency.receiver : Long
+    ImportedDependencyCall #7 : Unit
+      Local $place.8 : MutableCell
+      Local $new.10 : Long
+    val local25
+      Local $old.9 : Long
+    val local26
+      Local trace : PropertyTrace
+    val local27
+      Local $argument.0 : PropertyTrace
+    val local28
+      Call receiver : MutableCell
+        Local $parameter.trace : PropertyTrace
+    val local29
+      ImportedDependencyCall #8 : Long
+        Local $place.11 : MutableCell
+    val local30
+      Local $old.12 : Long
+    val local31
+      IntegerOperation long.inc <no-gc> : Long
+        Local $dependency.receiver : Long
+    ImportedDependencyCall #7 : Unit
+      Local $place.11 : MutableCell
+      Local $new.13 : Long
+    val local32
+      Local $new.13 : Long
+    val local33
+      Local old : Long
+    val local34
+      IntegerLiteral 40 : Long
+    val local35
+      Local $dependency.argument.0 : Long
+    if
+      IntegerOperation long.equals <no-gc> : Boolean
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+      val local36
+        Local next : Long
+      val local37
+        IntegerLiteral 42 : Long
+      val local38
+        Local $dependency.argument.0 : Long
+      val local39
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+    else
+      val local39
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.14 : Boolean
+      val local40
+        ImportedDependencyCall #0 : Long
+          Local trace : PropertyTrace
+      val local41
+        IntegerLiteral 4 : Long
+      val local42
+        Local $dependency.argument.0 : Long
+      val local43
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+    else
+      val local43
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.15 : Boolean
+      val local44
+        ImportedDependencyCall #3 : Long
+          Local trace : PropertyTrace
+      val local45
+        IntegerLiteral 2 : Long
+      val local46
+        Local $dependency.argument.0 : Long
+      val local47
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+    else
+      val local47
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.16 : Boolean
+      assign $result.17
+        IntegerLiteral 21 : Long
+    else
+      assign $result.17
+        IntegerLiteral 0 : Long
+    val local49
+      Local $result.17 : Long
+    val local50
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #9 : Counter
+        Local $dependency.parameter.value : Long
+  output library
