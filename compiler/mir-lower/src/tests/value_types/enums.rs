@@ -60,18 +60,28 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     );
     let module = lower(&h.finish(main));
 
-    // One definition per (enum, type args), in creation order; the
-    // duplicate Option<Int> request was deduplicated by enum identity.
+    // Owned non-generic declarations precede lazily instantiated enums.
+    // The duplicate Option<Int> request is deduplicated by enum identity.
     let names: Vec<&str> = module
         .enums
         .iter()
         .map(|(_, def)| def.name.as_str())
         .collect();
-    assert_eq!(names, ["Option", "Color", "Option", "Option"]);
+    assert_eq!(
+        names,
+        [
+            "Color",
+            "ForeignCallbackMode",
+            "ForeignCallbackState",
+            "Option",
+            "Option",
+            "Option"
+        ]
+    );
 
     // The variant field types are substituted with the instance's
     // type arguments.
-    let option_int_def = &module.enums[la_arena::Idx::from_raw(0.into())];
+    let option_int_def = &module.enums[la_arena::Idx::from_raw(3.into())];
     assert_eq!(option_int_def.variants[0].name, "Some");
     assert_eq!(
         option_int_def.variants[0].fields[0].ty,
@@ -84,12 +94,12 @@ fn enum_instances_are_created_once_with_substituted_fields() {
             .iter()
             .all(|variant| variant.gc_free)
     );
-    let option_string_def = &module.enums[la_arena::Idx::from_raw(2.into())];
+    let option_string_def = &module.enums[la_arena::Idx::from_raw(4.into())];
     assert_eq!(
         option_string_def.variants[0].fields[0].ty,
         mir::Type::String
     );
-    let option_s_def = &module.enums[la_arena::Idx::from_raw(3.into())];
+    let option_s_def = &module.enums[la_arena::Idx::from_raw(5.into())];
     assert_eq!(
         option_s_def.variants[0].fields[0].ty,
         mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
@@ -103,9 +113,9 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     assert!(option_string_def.variants[1].gc_free);
     assert_eq!(module.option_core.len(), 3);
     for enum_id in [
-        la_arena::Idx::from_raw(0.into()),
-        la_arena::Idx::from_raw(2.into()),
         la_arena::Idx::from_raw(3.into()),
+        la_arena::Idx::from_raw(4.into()),
+        la_arena::Idx::from_raw(5.into()),
     ] {
         let option = module
             .option_core(enum_id)
@@ -142,12 +152,12 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     }
     assert!(
         module
-            .option_core(la_arena::Idx::from_raw(1.into()))
+            .option_core(la_arena::Idx::from_raw(0.into()))
             .is_none(),
         "an equal-shaped user enum must not be recognized as core Option"
     );
     // Color's variants are all unit variants.
-    let color_def = &module.enums[la_arena::Idx::from_raw(1.into())];
+    let color_def = &module.enums[la_arena::Idx::from_raw(0.into())];
     assert!(color_def.gc_free);
     assert_eq!(color_def.variants.len(), 3);
     assert!(
@@ -204,6 +214,14 @@ fn option_consumers_become_guarded_representation_independent_primitives() {
 
     let expected = "\
 Module
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   enum Option<Int>
     Some(_1: Int)
     None()
@@ -279,6 +297,14 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // `UnwrapException()` (M8) — an ordinary constructor call.
     let expected = "\
 Module
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   enum Option<Int>
     Some(_1: Int)
     None()

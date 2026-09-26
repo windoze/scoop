@@ -24,8 +24,6 @@ use crate::{
     strong_compile_decode::tests::{cone_named, open_graph},
 };
 
-mod commit;
-
 #[test]
 fn profile_graph_assigns_direct_and_support_roles_after_closure_validation() {
     let core_bytes = artifact(core_cone(), Vec::new());

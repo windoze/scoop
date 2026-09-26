@@ -39,16 +39,15 @@ fn source_reference_receivers_keep_this_explicit_super_and_constructor_contexts(
                     ) {
                         continue;
                     }
-                    let Context::Expression { usage, receiver } = occurrence.context() else {
+                    let Context::Expression { index, receiver } = occurrence.context() else {
                         panic!("expected expression reference");
                     };
                     references += 1;
                     write!(
                         snapshot,
-                        "{name}: {:?} expression {} {:?}",
+                        "{name}: {:?} expression {}",
                         occurrence.source().kind(),
-                        usage.expression_index(),
-                        usage.receiver_use()
+                        index
                     )
                     .unwrap();
                     match receiver {
@@ -63,7 +62,8 @@ fn source_reference_receivers_keep_this_explicit_super_and_constructor_contexts(
                                 panic!("expected receiver local")
                             };
                             assert_eq!(implicit_this, local == &LocalValueSelector::This);
-                            writeln!(snapshot, "; super {direct_super}").unwrap();
+                            writeln!(snapshot, "; this {implicit_this}; super {direct_super}")
+                                .unwrap();
                         }
                     }
                 }
@@ -98,11 +98,7 @@ fn source_reference_receivers_preserve_nested_captures_and_assignment_metadata()
                 for occurrence in contract.references().occurrences() {
                     match occurrence.context() {
                         Context::Metadata(metadata) => {
-                            assert!(occurrence.context().expression_use().is_none());
-                            assert!(matches!(
-                                occurrence.context().receiver(),
-                                hir::ProtectedDefaultReferenceReceiverV1::Metadata(_)
-                            ));
+                            assert!(occurrence.context().expression_index().is_none());
                             match metadata {
                                 hir::DefaultBodyReferenceMetadataV1::Capture(_) => captures += 1,
                                 hir::DefaultBodyReferenceMetadataV1::LocalFunction(_) => {
@@ -119,26 +115,17 @@ fn source_reference_receivers_preserve_nested_captures_and_assignment_metadata()
                             }
                         }
                         Context::Expression {
-                            usage,
-                            receiver: Receiver::Member { .. },
+                            receiver: Receiver::Member { implicit_this, .. },
+                            ..
                         } => {
-                            if let hir::ProtectedDefaultReceiverUseV1::Explicit {
-                                receiver_expression_index,
-                            } = usage.receiver_use()
-                            {
-                                assert!(receiver_expression_index > usage.expression_index());
+                            if !implicit_this {
                                 explicit += 1;
                             }
                         }
                         Context::Expression {
-                            usage,
                             receiver: Receiver::None,
-                        } => {
-                            assert_eq!(
-                                usage.receiver_use(),
-                                hir::ProtectedDefaultReceiverUseV1::None
-                            );
-                        }
+                            ..
+                        } => continue,
                     }
                 }
             }

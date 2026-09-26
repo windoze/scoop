@@ -172,7 +172,7 @@ fn byte_restored_nominal_sources_bind_complete_declarations_and_variant_origins(
                         .children()
                         .values()
                         .iter()
-                        .any(|child| table.get(*child).is_none())
+                        .all(|child| table.get(*child).is_some())
                 );
             }
         });

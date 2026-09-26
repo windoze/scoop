@@ -8,7 +8,7 @@ mod wire;
 use fixture::*;
 
 fn decoded(section: &CrossConeTypeSemanticsSectionV1) -> DecodedCrossConeTypeSemanticsSectionV1 {
-    decode_canonical(&encode(&section.index_for_wire().unwrap()).unwrap()).unwrap()
+    decode_canonical(&encode(section).unwrap()).unwrap()
 }
 fn empty() -> CrossConeTypeSemanticsSectionV1 {
     CrossConeTypeSemanticsSectionV1::new(
@@ -16,9 +16,6 @@ fn empty() -> CrossConeTypeSemanticsSectionV1 {
         CanonicalNominalRepresentationSupportV1::default(),
         CanonicalNominalInheritanceInterfacesV1::default(),
         CanonicalProtectedDeclarationInterfacesV1::default(),
-        CanonicalProtectedCallableSourceInterfacesV1::default(),
-        CanonicalProtectedDefaultTemplatesV1::try_new(vec![]).unwrap(),
-        CanonicalExportDefinitionSourcesV1::try_new(vec![]).unwrap(),
         CanonicalSelectedExternalTypeUsesV1::try_new(vec![]).unwrap(),
     )
 }

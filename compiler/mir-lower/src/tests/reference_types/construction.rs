@@ -122,6 +122,14 @@ fn class_initializers_chain_on_one_exact_allocation() {
     // complete-layout field.
     let expected = "\
 Module
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   class Root vtable=0 itables=0
   class Base vtable=0 itables=0
   class Point vtable=0 itables=0

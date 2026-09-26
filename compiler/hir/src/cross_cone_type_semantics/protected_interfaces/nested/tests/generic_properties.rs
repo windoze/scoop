@@ -134,12 +134,7 @@ fn generic_property_keeps_source_access_without_fabricating_a_concrete_domain() 
     )])
     .unwrap();
     fixture.nominal_sources.insert(owner, interface.clone());
-    let payload = ProtectedNestedNominalPayloadV1::try_new(
-        owner,
-        interface,
-        NestedNominalSupportV1::GenericTemplate,
-    )
-    .unwrap();
+    let payload = ProtectedNestedNominalPayloadV1::try_new(owner, interface).unwrap();
     let record = ProtectedNestedNominalInterfaceV1::try_new(owner, access, payload).unwrap();
     let decoded: DecodedProtectedNestedNominalInterfaceV1 =
         decode_canonical(&encode(&record).unwrap()).unwrap();

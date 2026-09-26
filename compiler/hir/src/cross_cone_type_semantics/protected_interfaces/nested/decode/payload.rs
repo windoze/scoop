@@ -1,57 +1,10 @@
 use super::*;
 use crate::{DeclaredVisibilityV1, DecodedDeclarationAccessSourceV1};
-use scoop_identity::PersistentTypeId;
-use scoop_wire::WireErrorKind;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DecodedNestedNominalSupportV1 {
-    ParamFree {
-        inheritance_exact: DecodedPersistentId<PersistentExactTypeId>,
-        representation_owner: DecodedPersistentId<PersistentTypeId>,
-    },
-    GenericTemplate,
-}
-impl WireDecode for DecodedNestedNominalSupportV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        match decoder.field(0, Decoder::unsigned)? {
-            1 => {
-                wire::expect_fields(decoder, fields, 3)?;
-                Ok(Self::ParamFree {
-                    inheritance_exact: decoder.field(1, DecodedPersistentId::decode)?,
-                    representation_owner: decoder.field(2, DecodedPersistentId::decode)?,
-                })
-            }
-            2 => {
-                wire::expect_fields(decoder, fields, 1)?;
-                Ok(Self::GenericTemplate)
-            }
-            tag => Err(wire::error(decoder, WireErrorKind::UnknownTag { tag })),
-        }
-    }
-}
-impl WireEncode for DecodedNestedNominalSupportV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::ParamFree {
-                inheritance_exact,
-                representation_owner,
-            } => {
-                wire::tag(encoder, 3, 1)?;
-                encoder.field(1)?;
-                inheritance_exact.encode(encoder)?;
-                encoder.field(2)?;
-                representation_owner.encode(encoder)
-            }
-            Self::GenericTemplate => wire::tag(encoder, 1, 2),
-        }
-    }
-}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedProtectedNestedNominalPayloadV1 {
     source_nominal: DecodedSourceNominalId,
     source_interface: DecodedProtectedNestedSourceInterfaceV1,
-    support: DecodedNestedNominalSupportV1,
 }
 impl DecodedProtectedNestedNominalPayloadV1 {
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
@@ -71,45 +24,26 @@ impl DecodedProtectedNestedNominalPayloadV1 {
             .resolve(resolver)
             .map_err(Error::Foundation)?;
         let source_interface = self.source_interface.resolve_at(resolver)?;
-        let support = match self.support {
-            DecodedNestedNominalSupportV1::ParamFree {
-                inheritance_exact,
-                representation_owner,
-            } => NestedNominalSupportV1::ParamFree {
-                inheritance_exact: resolver
-                    .resolve(inheritance_exact)
-                    .map_err(Error::Foundation)?,
-                representation_owner: resolver
-                    .resolve(representation_owner)
-                    .map_err(Error::Foundation)?,
-            },
-            DecodedNestedNominalSupportV1::GenericTemplate => {
-                NestedNominalSupportV1::GenericTemplate
-            }
-        };
-        ProtectedNestedNominalPayloadV1::try_new(source_nominal, source_interface, support)
+        ProtectedNestedNominalPayloadV1::try_new(source_nominal, source_interface)
             .map_err(Error::Build)
     }
 }
 impl WireDecode for DecodedProtectedNestedNominalPayloadV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             source_nominal: decoder.field(1, DecodedSourceNominalId::decode)?,
             source_interface: decoder.field(2, DecodedProtectedNestedSourceInterfaceV1::decode)?,
-            support: decoder.field(3, DecodedNestedNominalSupportV1::decode)?,
         })
     }
 }
 impl WireEncode for DecodedProtectedNestedNominalPayloadV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.source_nominal.encode(encoder)?;
         encoder.field(2)?;
-        self.source_interface.encode(encoder)?;
-        encoder.field(3)?;
-        self.support.encode(encoder)
+        self.source_interface.encode(encoder)
     }
 }
 

@@ -4,21 +4,12 @@ use super::*;
 fn shape_link_canonical_table_sorts_real_imports_and_rejects_duplicate_or_wire_order() {
     let fixture = ProviderFixture::new(false);
     let provider = fixture.provider();
-    let support = fixture.support(true);
-    let definitions = consumer();
     let imports = [
         Subject::InitializationDescriptor(fixture.unit().unit()),
         Subject::StaticStorage(fixture.unit().storage()),
     ]
     .map(|subject| {
-        ExternalShapeLinkImportV1::replay(
-            &provider,
-            subject,
-            ConeIdentity::CORE,
-            &definitions,
-            &support,
-        )
-        .unwrap()
+        ExternalShapeLinkImportV1::replay(&provider, subject, ConeIdentity::CORE).unwrap()
     });
     let table = CanonicalExternalShapeLinkImportsV1::from_checked(imports.to_vec()).unwrap();
     let reversed =

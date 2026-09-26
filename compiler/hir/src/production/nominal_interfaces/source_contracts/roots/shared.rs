@@ -27,7 +27,7 @@ impl SharedSourceRoots {
         })
     }
 
-    fn collect(export: &ExportHir) -> Result<Self, Error> {
+    pub(super) fn collect(export: &ExportHir) -> Result<Self, Error> {
         let index = super::Index::new(export)?;
         let source_index = SourceIndex::new(export)?;
         let mut nominals = Roots {

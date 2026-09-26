@@ -17,7 +17,6 @@ use crate::{
 
 mod constructors;
 mod contracts;
-mod defaults;
 mod edges;
 mod members;
 mod protected;
@@ -50,7 +49,7 @@ impl CheckedSharedTypeFoundationV1<'_> {
         )
         .map_err(|error| Error::InheritanceGraph(Box::new(error)))?;
         for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
-            protected::validate(provider, dependencies, &context, &graph)?;
+            protected::validate(provider, dependencies, &context)?;
             for record in provider.section.inheritance().records() {
                 graph
                     .validate_nominal_domains(record.owner(), record.domains())
@@ -71,13 +70,6 @@ impl CheckedSharedTypeFoundationV1<'_> {
             }
         }
         schemas::validate(self, dependencies, &context, &graph)?;
-        for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
-            provider
-                .section
-                .protected_source_interfaces()
-                .validate_shared_declarations(provider.section, provider.metadata)?;
-            defaults::validate(provider, dependencies, &context, &graph)?;
-        }
         Ok(use_graph(&graph))
     }
 }

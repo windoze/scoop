@@ -169,41 +169,49 @@ impl<I: PersistentId, K: WireEncode> WireEncode for DecodedCborIdentityRecord<I,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RuntimeIdentityRecord<I> {
+pub struct RuntimeIdentityRecord<I, K = CallableBodyKey> {
     id: I,
     key_bytes: Vec<u8>,
+    key: Arc<K>,
 }
 
-impl<I: PersistentId> RuntimeIdentityRecord<I> {
-    pub fn from_key<K: RuntimeIdentityKey<I>>(
-        key: &K,
-    ) -> Result<Self, RuntimeIdentityRecordBuildError<K::Error>> {
+impl<I: PersistentId, K: RuntimeIdentityKey<I> + Clone> RuntimeIdentityRecord<I, K> {
+    pub fn from_key(key: &K) -> Result<Self, RuntimeIdentityRecordBuildError<K::Error>> {
         let id = key
             .derive_identity()
             .map_err(RuntimeIdentityRecordBuildError::Key)?;
-        let key_bytes = encode_runtime(key).map_err(RuntimeIdentityRecordBuildError::Encode)?;
-        Ok(Self { id, key_bytes })
+        Self::from_verified_key(id, Arc::new(key.clone()))
+            .map_err(RuntimeIdentityRecordBuildError::Encode)
     }
+}
 
+impl<I: PersistentId, K> RuntimeIdentityRecord<I, K> {
     pub const fn id(&self) -> I {
         self.id
     }
 
-    pub(crate) fn from_verified_key<K: RuntimeEncode>(
-        id: I,
-        key: &K,
-    ) -> Result<Self, RuntimeEncodeError> {
-        encode_runtime(key).map(|key_bytes| Self { id, key_bytes })
+    pub(crate) fn from_verified_key(id: I, key: Arc<K>) -> Result<Self, RuntimeEncodeError>
+    where
+        K: RuntimeEncode,
+    {
+        let key_bytes = encode_runtime(key.as_ref())?;
+        Ok(Self { id, key_bytes, key })
     }
 }
 
-impl<I> RuntimeIdentityRecord<I> {
+impl<I, K> RuntimeIdentityRecord<I, K> {
     pub fn key_bytes(&self) -> &[u8] {
         &self.key_bytes
     }
+    pub fn key(&self) -> &K {
+        self.key.as_ref()
+    }
+    pub fn shared_key(&self) -> Arc<K> {
+        Arc::clone(&self.key)
+    }
 }
 
-impl<I: WireEncode> WireEncode for RuntimeIdentityRecord<I> {
+impl<I: WireEncode, K> WireEncode for RuntimeIdentityRecord<I, K> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -232,11 +240,12 @@ impl<I: PersistentId> DecodedRuntimeIdentityRecord<I> {
         decode_runtime(&self.key_bytes)
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn validate_key<K>(
         &self,
-    ) -> Result<(RuntimeIdentityRecord<I>, K), RuntimeIdentityRecordValidationError<K::Error, I>>
+    ) -> Result<(RuntimeIdentityRecord<I, K>, K), RuntimeIdentityRecordValidationError<K::Error, I>>
     where
-        K: RuntimeDecode + RuntimeIdentityKey<I>,
+        K: RuntimeDecode + RuntimeIdentityKey<I> + Clone,
     {
         let key = decode_runtime::<K>(&self.key_bytes)
             .map_err(RuntimeIdentityRecordValidationError::Decode)?;
@@ -256,6 +265,7 @@ impl<I: PersistentId> DecodedRuntimeIdentityRecord<I> {
             RuntimeIdentityRecord {
                 id,
                 key_bytes: reencoded,
+                key: Arc::new(key.clone()),
             },
             key,
         ))
@@ -762,7 +772,7 @@ mod tests {
                 .unwrap();
         let (validated, decoded_key) = decoded.validate_key::<DecodedCallableBodyKey>().unwrap();
 
-        assert_eq!(validated, record);
+        assert_eq!(validated.id(), record.id());
         assert_eq!(validated.key_bytes(), record.key_bytes());
         assert_eq!(encode(&validated).unwrap(), encoded);
         assert_eq!(

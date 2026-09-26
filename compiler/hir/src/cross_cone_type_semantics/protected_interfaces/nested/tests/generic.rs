@@ -37,23 +37,7 @@ fn generic_source_root_preserves_binders_without_an_exact_inheritance_node() {
     )])
     .unwrap();
     fixture.nominal_sources.insert(owner, interface.clone());
-    assert!(matches!(
-        ProtectedNestedNominalPayloadV1::try_new(
-            owner,
-            interface.clone(),
-            NestedNominalSupportV1::ParamFree {
-                inheritance_exact: outer.exact,
-                representation_owner: nominal(outer)
-            }
-        ),
-        Err(NestedSourceBuildError::SupportKind)
-    ));
-    let payload = ProtectedNestedNominalPayloadV1::try_new(
-        owner,
-        interface,
-        NestedNominalSupportV1::GenericTemplate,
-    )
-    .unwrap();
+    let payload = ProtectedNestedNominalPayloadV1::try_new(owner, interface).unwrap();
     let record = ProtectedNestedNominalInterfaceV1::try_new(owner, access, payload).unwrap();
     let bytes = encode(&record).unwrap();
     let decoded: DecodedProtectedNestedNominalInterfaceV1 = decode_canonical(&bytes).unwrap();

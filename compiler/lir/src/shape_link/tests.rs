@@ -68,20 +68,6 @@ fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
 }
 
 #[test]
-fn no_shape_support_never_grants_object_or_initialization_relations() {
-    for (index, subject) in subjects().into_iter().enumerate() {
-        let result = NoShapeLinkSupportV1.support_source(ConeIdentity::SINGLE_FILE, subject);
-        if index < 6 {
-            assert!(result.unwrap().is_none());
-        } else {
-            assert!(
-                matches!(result, Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
-            );
-        }
-    }
-}
-
-#[test]
 fn shape_link_contract_reader_rejects_unknown_tags_and_wrong_product_arity() {
     for bytes in [
         vec![0xa2, 0, 0, 1, 0],

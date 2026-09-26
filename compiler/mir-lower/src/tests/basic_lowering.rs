@@ -88,6 +88,14 @@ fn lowers_hello_world() {
     let expected = "\
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   fun print @fn0(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct

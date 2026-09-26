@@ -16,7 +16,6 @@ use super::{
     SingleConeBuildRequest, SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind,
     StageDumpPolicy, TrustedCoreInput,
 };
-use crate::CrossConeStrongIrProductionV1;
 
 mod current_hir;
 pub use current_hir::{CurrentConeHirStageError, CurrentConeStrongProfileError};

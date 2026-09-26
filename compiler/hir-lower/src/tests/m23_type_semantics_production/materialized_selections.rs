@@ -29,7 +29,7 @@ fn materialized_selections_are_produced_and_replayed_from_shared_hir_bytes() {
             let production = produce_cross_cone_type_semantics(output, &public).unwrap();
             let mut identities = source_inventory::identity_closure(output);
             let section: hir::DecodedCrossConeTypeSemanticsSectionV1 =
-                decoded(&production.section().index_for_wire().unwrap());
+                decoded(production.section());
             let section = section.resolve(&mut identities, &WirePath::root()).unwrap();
             assert_eq!(&section, production.section());
             let wire_public: hir::DecodedCrossConeHirInterfaceSectionV1 =

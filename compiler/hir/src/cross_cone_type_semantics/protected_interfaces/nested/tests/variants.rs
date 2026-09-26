@@ -91,7 +91,7 @@ fn nested_enum_shape_closes_variant_constructor_through_typed_variant_protocol()
     let mut missing = record.payload().source_interface().clone();
     missing.source_support = CanonicalNestedSourceSupportV1::default();
     assert!(matches!(
-        ProtectedNestedNominalPayloadV1::try_new(owner.source, missing, record.payload().support()),
+        ProtectedNestedNominalPayloadV1::try_new(owner.source, missing),
         Err(NestedSourceBuildError::ReferenceClosure)
     ));
 }

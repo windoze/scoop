@@ -6,7 +6,6 @@ pub(super) fn validate<'a>(
     dependencies: &[CheckedSharedTypeFoundationV1<'a>],
     record: &NominalSupportNestedInterfaceV1,
     context: &Context<'_>,
-    graph: &CheckedNominalInheritanceGraphV1<'_>,
 ) -> Result<(), Error> {
     let metadata = provider.metadata;
     let owner = record.declaration();
@@ -33,9 +32,6 @@ pub(super) fn validate<'a>(
     {
         return Err(Error::NestedContract(owner));
     }
-    record
-        .validate_concrete_support(graph, provider.section.representation_support())
-        .map_err(|error| Error::NestedSupport(Box::new(error)))?;
     for child in actual.source_support().records() {
         match child {
             NestedSourceSupportV1::Callable(callable) => contracts::validate_callable(
@@ -58,7 +54,7 @@ pub(super) fn validate<'a>(
                 property,
             )?,
             NestedSourceSupportV1::NestedNominal(nominal) => {
-                validate(provider, dependencies, nominal, context, graph)?
+                validate(provider, dependencies, nominal, context)?
             }
         }
     }

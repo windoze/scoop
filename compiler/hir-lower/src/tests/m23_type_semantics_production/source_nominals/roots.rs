@@ -20,7 +20,7 @@ fn names(
 }
 
 #[test]
-fn nominal_source_roots_close_protected_support_without_unrelated_private_types() {
+fn nominal_source_roots_preserve_complete_nested_and_storage_support() {
     with_source(ROOTS, |output, _| {
         let roots =
             hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export).unwrap();
@@ -36,6 +36,7 @@ fn nominal_source_roots_close_protected_support_without_unrelated_private_types(
                 "HiddenChoice",
                 "Host",
                 "InheritedNested",
+                "InternalSibling",
                 "Last",
                 "LeftRole",
                 "Node",
@@ -46,6 +47,9 @@ fn nominal_source_roots_close_protected_support_without_unrelated_private_types(
                 "RightRole",
                 "RootRole",
                 "SupportBase",
+                "UnneededBaseChild",
+                "UnneededPublicChild",
+                "UnrelatedSibling",
                 "Value",
             ]
         );
@@ -88,7 +92,9 @@ fn nominal_source_roots_keep_generic_and_static_nested_support_distinct() {
                 "GenericBase",
                 "GenericChild",
                 "GenericOuter",
+                "Hidden",
                 "HiddenChild",
+                "InternalChild",
                 "Leaf",
                 "Marker",
                 "Pair",
@@ -107,7 +113,7 @@ fn nominal_source_roots_keep_generic_and_static_nested_support_distinct() {
             hir::SourceNominalId::Concrete(_)
         ));
         assert!(concrete.type_parameters().binders().is_empty());
-        assert_eq!(table.records().len(), 16);
+        assert_eq!(table.records().len(), 18);
     });
 }
 

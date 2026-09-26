@@ -51,20 +51,6 @@ fn produced_dispatch_contracts_roundtrip_and_validate_against_source_choices() {
             let slots = dispatch.bind_slot_sources().unwrap();
             for (owner, record) in &restored {
                 slots.validate_contract(*owner, record).unwrap();
-                assert!(
-                    production
-                        .section()
-                        .definition_sources()
-                        .contains(record.declaration_access().definition_origin())
-                );
-                if let Some(target) = record.implementation().target() {
-                    assert!(
-                        production
-                            .section()
-                            .definition_sources()
-                            .contains(target.declaration_access().definition_origin())
-                    );
-                }
             }
             assert!(
                 restored

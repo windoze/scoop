@@ -81,7 +81,7 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
         .production()
         .lir_strong()
         .image_plan();
-    let link_image = closure.current_link().production().lir().image_plan();
+    let link_image = closure.current_link().strong_production().image_plan();
     assert_eq!(compile_image, link_image);
     assert_eq!(compile_image.dependencies(), dependencies);
     let selected = closure

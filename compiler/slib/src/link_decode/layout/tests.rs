@@ -1,8 +1,6 @@
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityId};
 use scoop_wire::encode;
 
-mod shared;
-
 use super::*;
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView,
@@ -181,7 +179,7 @@ fn layout_sections(
             MetadataLocation::Hir,
             hir_cross_cone_type_semantics_capability(),
             MemberPurposeSet::COMPILE,
-            empty_array_fields(8),
+            vec![0xa5, 1, 0x80, 2, 0x80, 3, 0x80, 4, 0x80, 8, 0x80],
         ),
     ]);
     mir.extend([

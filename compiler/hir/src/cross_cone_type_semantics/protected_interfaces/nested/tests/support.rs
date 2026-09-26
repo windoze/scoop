@@ -83,15 +83,7 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn payload(
     fixture
         .nominal_sources
         .insert(owner.source, interface.clone());
-    ProtectedNestedNominalPayloadV1::try_new(
-        owner.source,
-        interface,
-        NestedNominalSupportV1::ParamFree {
-            inheritance_exact: owner.exact,
-            representation_owner: nominal(owner),
-        },
-    )
-    .unwrap()
+    ProtectedNestedNominalPayloadV1::try_new(owner.source, interface).unwrap()
 }
 pub(in crate::cross_cone_type_semantics::protected_interfaces) fn representations(
     fixture: &Fixture,

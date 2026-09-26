@@ -63,7 +63,7 @@ fn receipt_binding_checks_every_independent_authority_dimension() {
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));
     let current_compiler = compiler(b"compiler");
     let current_cone = cone(ConeCoordinate::reserved_core());
-    let profile = ArtifactCapabilityProfileId::cross_cone_semantics_strong();
+    let profile = ArtifactCapabilityProfileId::cross_cone_layout_strong();
     let receipt = CacheReceiptBodyV1::new(
         key,
         first.artifact_fingerprint(),
@@ -174,7 +174,7 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));
     let compiler = compiler(b"compiler");
     let cone = cone(ConeCoordinate::reserved_core());
-    let profile = ArtifactCapabilityProfileId::cross_cone_semantics_strong();
+    let profile = ArtifactCapabilityProfileId::cross_cone_layout_strong();
     let receipt = CacheReceiptBodyV1::new(
         key,
         artifact.artifact_fingerprint(),

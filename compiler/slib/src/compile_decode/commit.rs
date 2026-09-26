@@ -23,8 +23,7 @@ mod profile_seal {
     pub trait Sealed {}
 }
 
-/// Marker implemented only by compile capability profiles whose proof chain
-/// is available in this compiler.
+/// The complete production data carried by each supported Compile profile.
 pub trait CompileCapabilityProfile: profile_seal::Sealed {
     type Production;
 }
@@ -49,13 +48,12 @@ impl CompileCapabilityProfile for SingleConeStrongProfile {
     type Production = crate::ValidatedSingleConeStrongProduction;
 }
 
-/// The M23-5 production Compile profile after closure-wide semantic
-/// validation and atomic identity import.
+/// The complete M23-6 type, layout and object profile in one semantic session.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct CrossConeSemanticsStrongProfile;
+pub struct CrossConeLayoutStrongProfile;
 
-impl profile_seal::Sealed for CrossConeSemanticsStrongProfile {}
-impl CompileCapabilityProfile for CrossConeSemanticsStrongProfile {
+impl profile_seal::Sealed for CrossConeLayoutStrongProfile {}
+impl CompileCapabilityProfile for CrossConeLayoutStrongProfile {
     type Production = crate::ValidatedCrossConeSemanticsProduction;
 }
 
@@ -65,7 +63,7 @@ impl CompileCapabilityProfile for CrossConeSemanticsStrongProfile {
 /// This type deliberately exposes no publication, dependency, object, or Link
 /// conversion.
 pub struct ValidatedCompileArtifact<P: CompileCapabilityProfile> {
-    metadata: crate::graph::ArtifactMetadata,
+    metadata: Rc<crate::graph::ArtifactMetadata>,
     identities: Rc<ValidatedIdentityGraph>,
     hir: ImportedHirFoundation,
     mir: ImportedMirFoundation,
@@ -92,7 +90,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
         let imported = commit_identity_graph(&mut graph, &identities, session)?;
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
         Ok(ValidatedCompileArtifact {
-            metadata: graph.into(),
+            metadata: Rc::new(graph.into()),
             identities: Rc::new(identities),
             hir: ImportedHirFoundation::from_validated(hir, hir_identities),
             mir: ImportedMirFoundation::from_validated(mir, mir_identities),
@@ -105,16 +103,16 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
 
 impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
     pub(crate) fn from_parts(
-        graph: ValidatedGraphArtifact<'_>,
-        identities: ValidatedIdentityGraph,
+        metadata: Rc<crate::graph::ArtifactMetadata>,
+        identities: Rc<ValidatedIdentityGraph>,
         hir: ImportedHirFoundation,
         mir: ImportedMirFoundation,
         lir: ImportedLirFoundation,
         production: P::Production,
     ) -> Self {
         Self {
-            metadata: graph.into(),
-            identities: Rc::new(identities),
+            metadata,
+            identities,
             hir,
             mir,
             lir,
@@ -123,31 +121,27 @@ impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
         }
     }
 
-    pub(crate) fn shared_identity_graph(&self) -> Rc<ValidatedIdentityGraph> {
-        Rc::clone(&self.identities)
-    }
-
     pub(crate) fn identity_graph(&self) -> &ValidatedIdentityGraph {
         &self.identities
     }
 
-    pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
+    pub fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
         self.metadata.coordinate()
     }
 
-    pub const fn identity(&self) -> scoop_identity::ConeIdentity {
+    pub fn identity(&self) -> scoop_identity::ConeIdentity {
         self.metadata.identity()
     }
 
-    pub const fn kind(&self) -> ConeKind {
+    pub fn kind(&self) -> ConeKind {
         self.metadata.kind()
     }
 
-    pub const fn source_form(&self) -> ConeSourceForm {
+    pub fn source_form(&self) -> ConeSourceForm {
         self.metadata.source_form()
     }
 
-    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+    pub fn target_selection(&self) -> ValidatedLirTargetSelection {
         self.metadata.target_selection()
     }
 
@@ -155,15 +149,15 @@ impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
         self.metadata.direct_dependencies()
     }
 
-    pub const fn compatibility(&self) -> &crate::CompatibilityRecord {
+    pub fn compatibility(&self) -> &crate::CompatibilityRecord {
         self.metadata.compatibility()
     }
 
-    pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
+    pub fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.metadata.artifact_fingerprint()
     }
 
-    pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
+    pub fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
         self.metadata.manifest.semantic_fingerprints()
     }
 

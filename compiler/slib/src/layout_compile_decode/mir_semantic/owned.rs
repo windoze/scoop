@@ -4,9 +4,9 @@ use super::*;
 use crate::graph::ArtifactMetadata;
 
 pub(crate) struct LayoutSemanticSections {
-    pub(crate) metadata: ArtifactMetadata,
+    pub(crate) metadata: std::rc::Rc<ArtifactMetadata>,
     pub(crate) view: crate::link_decode::DecodedLayoutView,
-    pub(crate) identities: ValidatedIdentityGraph,
+    pub(crate) identities: std::rc::Rc<ValidatedIdentityGraph>,
     pub(crate) foundations: OdrFreeStrongFoundationSet,
     pub(crate) hir_core: CoreBootstrapInterfaceSectionV1,
     pub(crate) hir_interface: CrossConeHirInterfaceSectionV1,
@@ -19,9 +19,9 @@ pub(crate) struct LayoutSemanticSections {
 impl PreparedCrossConeLayoutMirSections<'_> {
     pub(crate) fn into_semantics(self) -> LayoutSemanticSections {
         LayoutSemanticSections {
-            metadata: self.graph.into(),
+            metadata: std::rc::Rc::new(self.graph.into()),
             view: self.view,
-            identities: self.identities,
+            identities: std::rc::Rc::new(self.identities),
             foundations: self.foundations,
             hir_core: self.hir_core,
             hir_interface: self.hir_interface,

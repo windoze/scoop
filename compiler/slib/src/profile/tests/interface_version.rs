@@ -13,10 +13,10 @@ fn source_interface_v19_requires_original_source_call_receivers() {
 }
 
 #[test]
-fn type_semantics_v4_requires_default_call_receiver_signatures() {
+fn type_semantics_v5_rejects_retired_duplicate_source_tables() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        4,
+        5,
         &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG],
     );
 }

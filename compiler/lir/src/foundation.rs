@@ -31,6 +31,7 @@ pub use wire::{
 };
 
 mod bridge_layouts;
+mod identities;
 mod imported;
 mod projection;
 mod strong_profile;

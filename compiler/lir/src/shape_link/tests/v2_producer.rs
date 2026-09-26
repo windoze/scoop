@@ -30,32 +30,23 @@ fn exercise_dependency_production(provider: Provider) {
     let mut consumer = consumer_module(&consumer_coordinate);
     let consumer_exact = consumer.meta.exact_types[0].id();
     let consumer_unit = attach_eager_initialization(&mut consumer, "consumerValue", consumer_exact);
-    let consumer_foundation = OdrFreeLirFoundation::from_module(&consumer).unwrap();
-    let consumer_definitions =
-        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&consumer_foundation).unwrap();
     let provider_view = provider.shape_link_provider();
     let descriptor_import = ExternalShapeLinkImportV1::replay(
         &provider_view,
         ExternalStrongShapeSubjectV1::TypeDescriptor(provider.exact),
         consumer.cone,
-        &consumer_definitions,
-        &NoShapeLinkSupportV1,
     )
     .unwrap();
     let callable_import = ExternalShapeLinkImportV1::replay(
         &provider_view,
         ExternalStrongShapeSubjectV1::Callable(provider.callable),
         consumer.cone,
-        &consumer_definitions,
-        &NoShapeLinkSupportV1,
     )
     .unwrap();
     let initialization_import = ExternalShapeLinkImportV1::replay(
         &provider_view,
         ExternalStrongShapeSubjectV1::InitializationDescriptor(provider.initialization_unit),
         consumer.cone,
-        &consumer_definitions,
-        &provider.initialization_support(),
     )
     .unwrap();
     let terminal = provider.layout_section();
@@ -210,15 +201,10 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
     let provider = Provider::new();
     let consumer_coordinate = ConeCoordinate::new("test", "narrow-consumer", "1.0.0").unwrap();
     let consumer = consumer_module(&consumer_coordinate);
-    let consumer_foundation = OdrFreeLirFoundation::from_module(&consumer).unwrap();
-    let consumer_definitions =
-        StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&consumer_foundation).unwrap();
     let descriptor_import = ExternalShapeLinkImportV1::replay(
         &provider.shape_link_provider(),
         ExternalStrongShapeSubjectV1::TypeDescriptor(provider.exact),
         consumer.cone,
-        &consumer_definitions,
-        &NoShapeLinkSupportV1,
     )
     .unwrap();
     let terminal = provider.layout_section();

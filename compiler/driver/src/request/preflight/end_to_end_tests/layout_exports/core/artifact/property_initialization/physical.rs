@@ -57,29 +57,12 @@ pub(super) fn select<'a>(
     }));
     source.physical.sort_unstable();
     source.physical.dedup();
-    let support = InitializationSupport {
-        uses,
-        units: production
-            .initialization_registrations()
-            .registrations()
-            .iter()
-            .map(|record| record.semantic())
-            .collect(),
-    };
-    let definitions =
-        lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(output.foundation()).unwrap();
     let imports = source
         .physical
         .iter()
         .map(|(_, subject)| {
-            lir::ExternalShapeLinkImportV1::replay(
-                provider,
-                *subject,
-                output.module().cone,
-                &definitions,
-                &support,
-            )
-            .unwrap()
+            lir::ExternalShapeLinkImportV1::replay(provider, *subject, output.module().cone)
+                .unwrap()
         })
         .collect();
     let selected = lir::StrongProductionDependencySelectionV2::try_new(
@@ -107,38 +90,4 @@ pub(super) fn select<'a>(
             .unwrap();
     assert_eq!(projected.len(), uses.len());
     (selected, projected)
-}
-
-struct InitializationSupport<'a, 's> {
-    uses: &'s [mir::SelectedExternalInitializationUseV1],
-    units: Vec<&'a lir::StrongInitializationUnitSemanticPlanV2>,
-}
-
-impl<'a> lir::ShapeLinkSupportLookupV1<'a> for InitializationSupport<'a, '_> {
-    fn support_source(
-        &self,
-        provider: ConeIdentity,
-        subject: lir::ExternalStrongShapeSubjectV1,
-    ) -> Result<Option<lir::ShapeLinkSupportSourceV1<'a>>, lir::ShapeLinkError> {
-        let id = match subject {
-            lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(id) => id,
-            lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_) => return Ok(None),
-            _ => return Err(lir::ShapeLinkError::SupportRelation(subject)),
-        };
-
-        if !self
-            .uses
-            .iter()
-            .any(|usage| usage.provider() == provider && usage.dependency_unit() == id)
-        {
-            return Err(lir::ShapeLinkError::SupportRelation(subject));
-        }
-        let unit = self
-            .units
-            .iter()
-            .copied()
-            .find(|unit| unit.unit() == id)
-            .ok_or(lir::ShapeLinkError::SupportRelation(subject))?;
-        Ok(Some(lir::ShapeLinkSupportSourceV1::Initialization { unit }))
-    }
 }

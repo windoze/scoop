@@ -89,53 +89,10 @@ pub(super) fn graph(
     pending.finish().unwrap()
 }
 
-pub(super) struct UnitSupport<'a>(&'a Provider);
-pub(super) fn support(provider: &Provider) -> UnitSupport<'_> {
-    UnitSupport(provider)
-}
-impl<'a> ShapeLinkSupportLookupV1<'a> for UnitSupport<'a> {
-    fn support_source(
-        &self,
-        provider: ConeIdentity,
-        subject: ExternalStrongShapeSubjectV1,
-    ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
-        assert_eq!(provider, self.0.identity);
-        let unit = self
-            .0
-            .section
-            .initialization_registrations()
-            .registrations()[0]
-            .semantic();
-        use ExternalStrongShapeSubjectV1::*;
-        Ok(match subject {
-            InitializationCell(id) | InitializationDescriptor(id) if id == unit.unit() => {
-                Some(ShapeLinkSupportSourceV1::Initialization { unit })
-            }
-            StaticStorage(id) | StaticStorageRegistration(id)
-                if id == unit.storage() || id == unit.failure_root() =>
-            {
-                let storage = self
-                    .0
-                    .section
-                    .static_storage_registrations()
-                    .registrations()
-                    .iter()
-                    .find(|record| record.semantic().storage() == id)
-                    .unwrap()
-                    .semantic();
-                Some(ShapeLinkSupportSourceV1::StaticStorage { unit, storage })
-            }
-            _ => None,
-        })
-    }
-}
-
 pub(super) fn imports<'a>(
     provider: &'a Provider,
     view: &ShapeLinkProviderV1<'a>,
     consumer: ConeIdentity,
-    definitions: &StrongObjectSymbolSurfaceV1,
-    support: &UnitSupport<'a>,
 ) -> CanonicalExternalShapeLinkImportsV1 {
     let exports = provider.layout_section();
     let layout = &exports.layouts().records()[0];
@@ -160,10 +117,7 @@ pub(super) fn imports<'a>(
     CanonicalExternalShapeLinkImportsV1::from_checked(
         subjects
             .into_iter()
-            .map(|subject| {
-                ExternalShapeLinkImportV1::replay(view, subject, consumer, definitions, support)
-                    .unwrap()
-            })
+            .map(|subject| ExternalShapeLinkImportV1::replay(view, subject, consumer).unwrap())
             .collect(),
     )
     .unwrap()

@@ -40,9 +40,6 @@ pub use lir_bridge_validation::*;
 mod commit;
 pub use commit::*;
 
-mod validate;
-pub use validate::*;
-
 mod artifact;
 pub use artifact::*;
 

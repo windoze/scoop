@@ -3,9 +3,7 @@ use crate::{
     CanonicalNominalRepresentationSupportV1, CheckedNominalInheritanceGraphV1,
     NominalSourceShapeSemanticAuthority, NominalSupportPropertySemanticAuthority, SourceNominalId,
 };
-use scoop_wire::WirePath;
 
-mod concrete;
 mod errors;
 mod metadata;
 mod records;
@@ -72,13 +70,6 @@ impl ProtectedNestedNominalInterfaceV1 {
     }
 }
 impl NominalSupportNestedInterfaceV1 {
-    pub(in crate::cross_cone_type_semantics) fn validate_concrete_support<E>(
-        &self,
-        graph: &CheckedNominalInheritanceGraphV1<'_>,
-        representations: &CanonicalNominalRepresentationSupportV1,
-    ) -> Result<(), NestedSourceSemanticError<E>> {
-        concrete::validate(self, graph, representations)
-    }
     pub fn validate_source<'a, A: NestedNominalSemanticAuthority<E>, E>(
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
@@ -114,7 +105,6 @@ fn validate<A: NestedNominalSemanticAuthority<E>, E>(
         return Err(Error::Modality);
     }
     metadata::validate(record.declaration(), interface, authority)?;
-    concrete::validate(record, graph, representations)?;
     records::validate(record, graph, representations, authority)?;
     Ok(())
 }

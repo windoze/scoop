@@ -48,6 +48,31 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
 }
 
 impl LinkSymbolsReplayedCrossConeLayoutClosure {
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        ConeIdentity,
+        lir::ValidatedLirTargetSelection,
+        Vec<ConeIdentity>,
+        Vec<(
+            PhysicalImportsReplayedCrossConeLayoutSections,
+            ReplayedLayoutLinkSymbolUsesV1,
+        )>,
+    ) {
+        let PhysicalImportsReplayedCrossConeLayoutClosure {
+            current,
+            target,
+            direct,
+            artifacts,
+            ..
+        } = self.physical;
+        (
+            current,
+            target,
+            direct,
+            artifacts.into_iter().zip(self.symbols).collect(),
+        )
+    }
     pub const fn physical_imports(&self) -> &PhysicalImportsReplayedCrossConeLayoutClosure {
         &self.physical
     }

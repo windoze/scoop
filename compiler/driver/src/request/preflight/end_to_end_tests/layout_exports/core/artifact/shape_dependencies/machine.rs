@@ -79,17 +79,11 @@ pub(super) fn check(
     roots.sort_unstable();
     let source = Source { roots, physical };
     let consumer = input.mir.module().cone;
-    // These fixtures define only functions. This symbol surface serves the
-    // pre-lowering TD import check; it is not a Compile artifact proof.
-    let foundation =
-        lir::OdrFreeLirFoundation::try_new(consumer, lir::CanonicalLirFoundation::empty()).unwrap();
-    let definitions =
-        lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let selected = lir::StrongProductionDependencySelectionV2::try_new(
         consumer,
         provider.target.lir_target(),
         &[provider.layout],
-        source.imports(provider.view, consumer, &definitions),
+        source.imports(provider.view, consumer),
         &source.roots,
     )
     .unwrap();

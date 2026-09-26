@@ -18,7 +18,7 @@ pub(super) fn replace_types(
     artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
     types: &hir::CrossConeTypeSemanticsSectionV1,
 ) -> Vec<u8> {
-    let replacement = encode(&types.index_for_wire().unwrap()).unwrap();
+    let replacement = encode(types).unwrap();
     replace_hir_section(
         artifact,
         &slib::hir_cross_cone_type_semantics_capability(),

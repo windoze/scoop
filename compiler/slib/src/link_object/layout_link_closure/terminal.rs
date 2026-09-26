@@ -5,8 +5,7 @@ use std::collections::BTreeMap;
 use scoop_identity::ConeIdentity;
 use scoop_lir::{
     CrossConeLayoutAbiSectionV1, ExternalShapeLinkImportV1, OdrFreeLirFoundation,
-    ShapeLinkProviderPartsV1, ShapeLinkProviderV1, ShapeLinkSupportLookupV1,
-    StrongProductionSectionV2,
+    ShapeLinkProviderPartsV1, ShapeLinkProviderV1, StrongProductionSectionV2,
 };
 use scoop_wire::{WirePath, encode_canonical_temporary};
 
@@ -26,7 +25,7 @@ pub use replay::verify_replayed_layout_strong_owners_v1;
 pub struct CrossConeLayoutTerminalArtifactV1<'a> {
     section: &'a CrossConeLayoutAbiSectionV1<'a>,
     provider: ShapeLinkProviderV1<'a>,
-    support: &'a dyn ShapeLinkSupportLookupV1<'a>,
+
     defined_symbols: &'a CanonicalDefinedLinkSymbolOwnerSetV1,
 }
 
@@ -35,7 +34,7 @@ pub struct CrossConeLayoutTerminalArtifactPartsV1<'a> {
     pub production: &'a StrongProductionSectionV2,
     pub ordinary: &'a scoop_lir::CrossConeLirBridgeSectionV1,
     pub section: &'a CrossConeLayoutAbiSectionV1<'a>,
-    pub support: &'a dyn ShapeLinkSupportLookupV1<'a>,
+
     pub defined_symbols: &'a CanonicalDefinedLinkSymbolOwnerSetV1,
 }
 
@@ -66,7 +65,6 @@ impl<'a> CrossConeLayoutTerminalArtifactV1<'a> {
         Ok(Self {
             section: parts.section,
             provider,
-            support: parts.support,
             defined_symbols: parts.defined_symbols,
         })
     }
@@ -173,8 +171,6 @@ fn validate_import(
         &terminal.provider,
         import.subject(),
         consumer.identity(),
-        consumer.provider.canonical_definitions(),
-        terminal.support,
     )
     .map_err(
         |source| CrossConeLayoutTerminalValidationError::ImportReplay {

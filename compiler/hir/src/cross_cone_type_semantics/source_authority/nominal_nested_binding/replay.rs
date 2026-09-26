@@ -4,13 +4,9 @@ pub(super) fn validate<'c>(
     authority: &mut BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
     candidate: &'c NominalSupportNestedInterfaceV1,
     protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
-    graph: &CheckedNominalInheritanceGraphV1<'_>,
     checked: &mut BoundNestedNominalSourceV1<'c, '_, '_, '_, '_>,
 ) -> Result<(), Error> {
     contracts::nominal(authority, candidate)?;
-    candidate
-        .validate_concrete_support(graph, checked.representations)
-        .map_err(Error::from_concrete)?;
     let records = candidate
         .payload()
         .source_interface()
@@ -31,7 +27,7 @@ pub(super) fn validate<'c>(
             }
             NestedSourceSupportV1::Property(_) => continue,
             NestedSourceSupportV1::NestedNominal(child) => {
-                validate(authority, child, protocols, graph, checked)?;
+                validate(authority, child, protocols, checked)?;
                 continue;
             }
         };

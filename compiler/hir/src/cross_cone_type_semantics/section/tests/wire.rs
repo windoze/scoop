@@ -1,15 +1,10 @@
 use super::*;
 
 #[test]
-fn empty_section_has_exactly_eight_required_fields() {
+fn empty_section_has_exactly_five_required_fields() {
     let section = empty();
-    let expected = [
-        0xa8, 1, 0x80, 2, 0x80, 3, 0x80, 4, 0x80, 5, 0x80, 6, 0x80, 7, 0x80, 8, 0x80,
-    ];
-    assert_eq!(
-        encode(&section.index_for_wire().unwrap()).unwrap(),
-        expected
-    );
+    let expected = [0xa5, 1, 0x80, 2, 0x80, 3, 0x80, 4, 0x80, 8, 0x80];
+    assert_eq!(encode(&section).unwrap(), expected);
     let mut resolver = PendingIdentityValidation::new().finish().unwrap();
     assert_eq!(
         decoded(&section)
@@ -23,9 +18,14 @@ fn empty_section_has_exactly_eight_required_fields() {
                 .is_err()
         );
     }
-    for prefix in [0xa7, 0xa9] {
+    for prefix in [0xa4, 0xa6, 0xa8] {
         let mut malformed = expected.to_vec();
         malformed[0] = prefix;
+        assert!(decode_canonical::<DecodedCrossConeTypeSemanticsSectionV1>(&malformed).is_err());
+    }
+    for retired in [5, 6, 7] {
+        let mut malformed = expected;
+        malformed[9] = retired;
         assert!(decode_canonical::<DecodedCrossConeTypeSemanticsSectionV1>(&malformed).is_err());
     }
     let mut duplicate_field = expected;
@@ -34,10 +34,10 @@ fn empty_section_has_exactly_eight_required_fields() {
 }
 
 #[test]
-fn eight_nonempty_tables_round_trip_with_real_forward_default_indices() {
+fn nonempty_tables_preserve_complete_typed_references() {
     let fixture = Fixture::new();
     let section = fixture.section();
-    let wire = encode(&section.index_for_wire().unwrap()).unwrap();
+    let wire = encode(&section).unwrap();
     let decoded: DecodedCrossConeTypeSemanticsSectionV1 = decode_canonical(&wire).unwrap();
     assert_eq!(encode(&decoded).unwrap(), wire);
     let restored = decoded
@@ -48,66 +48,26 @@ fn eight_nonempty_tables_round_trip_with_real_forward_default_indices() {
     assert_eq!(restored.representation_support().records().len(), 1);
     assert_eq!(restored.inheritance().records().len(), 1);
     assert_eq!(restored.protected_declarations().records().len(), 1);
-    assert_eq!(restored.protected_source_interfaces().records().len(), 1);
-    assert_eq!(restored.protected_defaults().records().len(), 1);
-    assert_eq!(restored.definition_sources().sources().len(), 1);
     assert_eq!(restored.selected().records().len(), 1);
-    assert_eq!(
-        restored.protected_source_interfaces().records()[0]
-            .parameters()
-            .parameters()[0]
-            .calling()
-            .template(),
-        Some(fixture.key())
-    );
-    assert_eq!(encode(&restored.index_for_wire().unwrap()).unwrap(), wire);
+    assert_eq!(encode(&restored).unwrap(), wire);
 }
 
-pub(super) fn fields(section: &CrossConeTypeSemanticsSectionV1) -> [Vec<u8>; 8] {
+pub(super) fn fields(section: &CrossConeTypeSemanticsSectionV1) -> [Vec<u8>; 5] {
     [
         encode(section.exact_facts()).unwrap(),
         encode(section.representation_support()).unwrap(),
         encode(section.inheritance()).unwrap(),
         encode(section.protected_declarations()).unwrap(),
-        encode(
-            &section
-                .protected_source_interfaces()
-                .index_templates(section.protected_defaults().keys())
-                .unwrap(),
-        )
-        .unwrap(),
-        encode(&section.protected_defaults().index_locals().unwrap()).unwrap(),
-        encode(section.definition_sources()).unwrap(),
         encode(section.selected()).unwrap(),
     ]
 }
-pub(super) fn raw(fields: &[Vec<u8>; 8]) -> DecodedCrossConeTypeSemanticsSectionV1 {
-    let mut bytes = vec![0xa8];
+pub(super) fn raw(fields: &[Vec<u8>; 5]) -> DecodedCrossConeTypeSemanticsSectionV1 {
+    let mut bytes = vec![0xa5];
     for (index, field) in fields.iter().enumerate() {
-        bytes.push(index as u8 + 1);
+        bytes.push([1, 2, 3, 4, 8][index]);
         bytes.extend(field);
     }
     decode_canonical(&bytes).unwrap()
-}
-
-#[test]
-fn reader_requires_both_directions_of_source_default_key_closure() {
-    let fixture = Fixture::new();
-    let section = fixture.section();
-    for missing in [4, 5] {
-        let mut fields = fields(&section);
-        fields[missing] = vec![0x80];
-        assert!(matches!(
-            raw(&fields).resolve(&mut fixture.resolver(), &WirePath::root()),
-            Err(TypeSemanticsSectionResolutionError::Sources(_))
-        ));
-    }
-    let mut missing = section.clone();
-    missing.protected_defaults = CanonicalProtectedDefaultTemplatesV1::try_new(vec![]).unwrap();
-    assert!(matches!(
-        missing.index_for_wire(),
-        Err(TypeSemanticsSectionIndexError::Source(_))
-    ));
 }
 
 #[test]

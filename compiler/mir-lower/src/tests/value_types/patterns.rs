@@ -95,6 +95,14 @@ fn when_lowers_to_a_decision_sequence() {
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   enum Option<Int>
     Some(_1: Int)
     None()
@@ -757,6 +765,14 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   enum Option<Int>
     Some(_1: Int)
     None()
@@ -1214,6 +1230,14 @@ fn destructuring_val_declarations_extract_bindings() {
     let expected = "\
 Module
   struct Point (x: Int, y: Int)
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   fun main @fn0() -> Unit
     bb0 entry
       val $bind.1: (Int, String)

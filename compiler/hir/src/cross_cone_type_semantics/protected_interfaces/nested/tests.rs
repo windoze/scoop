@@ -120,7 +120,7 @@ fn source_inventory_rejects_self_consistent_omission_and_wrong_concrete_join() {
         vec![],
         vec![callable],
     );
-    let expected = payload(&mut fixture, owner, interface);
+    payload(&mut fixture, owner, interface);
     let omitted = ProtectedNestedNominalPayloadV1::try_new(
         owner.source,
         source(
@@ -130,7 +130,6 @@ fn source_inventory_rejects_self_consistent_omission_and_wrong_concrete_join() {
             vec![],
             vec![],
         ),
-        expected.support(),
     )
     .unwrap();
     let record = NominalSupportNestedInterfaceV1::try_new(
@@ -148,25 +147,6 @@ fn source_inventory_rejects_self_consistent_omission_and_wrong_concrete_join() {
         record.validate_source(&graph, &table, &mut fixture),
         Err(NestedSourceSemanticError::Inventory)
     ));
-    let wrong = ProtectedNestedNominalPayloadV1::try_new(
-        owner.source,
-        expected.source_interface().clone(),
-        NestedNominalSupportV1::ParamFree {
-            inheritance_exact: outer.exact,
-            representation_owner: nominal(owner),
-        },
-    )
-    .unwrap();
-    let record = NominalSupportNestedInterfaceV1::try_new(
-        owner.source,
-        fixture.graph.access[&owner.source].clone(),
-        wrong,
-    )
-    .unwrap();
-    assert!(matches!(
-        record.validate_source(&graph, &table, &mut fixture),
-        Err(NestedSourceSemanticError::ConcreteSupport)
-    ));
 }
 
 #[test]
@@ -176,10 +156,6 @@ fn nested_builder_rejects_missing_orphan_and_foreign_owner_support() {
     let owner = nested_class(&mut fixture, outer, "Nested");
     let (reference, callable) =
         function(&mut fixture, owner, "method", DeclaredVisibilityV1::Public);
-    let support = NestedNominalSupportV1::ParamFree {
-        inheritance_exact: owner.exact,
-        representation_owner: nominal(owner),
-    };
     for (refs, records) in [(vec![reference], vec![]), (vec![], vec![callable.clone()])] {
         assert!(matches!(
             ProtectedNestedNominalPayloadV1::try_new(
@@ -190,8 +166,7 @@ fn nested_builder_rejects_missing_orphan_and_foreign_owner_support() {
                     refs,
                     vec![],
                     records
-                ),
-                support
+                )
             ),
             Err(NestedSourceBuildError::ReferenceClosure)
         ));
@@ -207,8 +182,7 @@ fn nested_builder_rejects_missing_orphan_and_foreign_owner_support() {
                 vec![foreign_ref],
                 vec![],
                 vec![foreign]
-            ),
-            support
+            )
         ),
         Err(NestedSourceBuildError::Owner)
     ));

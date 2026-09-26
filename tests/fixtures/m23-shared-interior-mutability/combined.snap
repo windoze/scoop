@@ -1,5 +1,5 @@
 GenericCell: public=true generic=true interior_mutable=true mir=None
 Guarded: public=false generic=false interior_mutable=true mir=Some(true)
-Hidden: public=false generic=false interior_mutable=true mir=None
+Hidden: public=false generic=false interior_mutable=true mir=Some(true)
 Packet: public=true generic=false interior_mutable=true mir=Some(true)
 Plain: public=true generic=false interior_mutable=false mir=Some(false)

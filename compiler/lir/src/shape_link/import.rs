@@ -2,8 +2,8 @@ use scoop_identity::{ConeIdentity, ObjectDefinitionPlanId, PersistentSymbolReque
 use scoop_wire::{Encoder, WireEncode};
 
 use super::wire::{EncodeResult, field};
-use super::{ShapeLinkContractV1, ShapeLinkError, ShapeLinkProviderV1, ShapeLinkSupportLookupV1};
-use crate::{ExternalStrongShapeSubjectV1, StrongObjectSymbolSurfaceV1};
+use super::{ShapeLinkContractV1, ShapeLinkError, ShapeLinkProviderV1};
+use crate::ExternalStrongShapeSubjectV1;
 
 mod semantic;
 pub(super) use semantic::semantic_target;
@@ -24,10 +24,8 @@ impl ExternalShapeLinkImportV1 {
         provider: &ShapeLinkProviderV1<'a>,
         subject: ExternalStrongShapeSubjectV1,
         consumer: ConeIdentity,
-        consumer_definitions: &StrongObjectSymbolSurfaceV1,
-        support: &dyn ShapeLinkSupportLookupV1<'a>,
     ) -> Result<Self, ShapeLinkError> {
-        provider.import(subject, consumer, consumer_definitions, support)
+        provider.import(subject, consumer)
     }
     pub const fn provider(&self) -> ConeIdentity {
         self.provider

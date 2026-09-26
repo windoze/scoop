@@ -1,7 +1,6 @@
 use super::wire;
 use scoop_identity::CallableTemplateOrigin;
 
-mod closure;
 mod decode;
 mod errors;
 mod indexed;
@@ -11,7 +10,6 @@ mod semantics;
 mod table;
 #[cfg(test)]
 mod tests;
-pub use closure::*;
 pub use decode::*;
 pub use errors::*;
 pub use indexed::*;

@@ -763,8 +763,8 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
             lir_production,
         );
         Ok(ValidatedCompileArtifact::from_parts(
-            graph,
-            identities,
+            std::rc::Rc::new(graph.into()),
+            std::rc::Rc::new(identities),
             ImportedHirFoundation::from_odr_free(hir_foundation, hir_identities),
             ImportedMirFoundation::from_odr_free(mir_foundation, mir_identities),
             ImportedLirFoundation::from_odr_free(lir_foundation, lir_identities),

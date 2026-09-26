@@ -120,15 +120,21 @@ pub(super) fn with_pair(
     let string = closure
         .project_source_type_descriptor(source_string.provider(), source_string.persistent())
         .unwrap();
-    let front = DecodedSlibEnvelope::open(core_bytes, target.lir_target_selection())
-        .unwrap()
-        .validate_graph()
-        .unwrap()
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
+    let core_read = scoop_slib::read_cross_cone_layout_artifact_closure(
+        scoop_slib::CrossConeArtifactClosureInput::completed(
+            ConeIdentity::CORE,
+            target.lir_target_selection(),
+            vec![],
+            vec![],
+            core_bytes,
+        ),
+        target.c_bridge_toolchain().profile(),
+    )
+    .unwrap();
+    let (front, _) = core_read.artifact(ConeIdentity::CORE).unwrap();
     let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
     let coordinates = [front.coordinate().clone(), coordinate.clone()];
-    let (source_graph, _, _) = identities(&hir.hir, &mir.strong, None, &front);
+    let (source_graph, _, _) = identities(&hir.hir, &mir.strong, None, front);
     let diagnostics =
         scoop_identity::ExactTypeDiagnosticCatalog::try_new(&source_graph, &coordinates).unwrap();
     let dependency_layouts = match (provider_exports, layout_provider) {
@@ -158,7 +164,7 @@ pub(super) fn with_pair(
         ),
     }
     .unwrap();
-    let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), &front);
+    let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), front);
     let foundation = hir::OdrFreeHirFoundation::try_new(
         hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
     )
@@ -182,14 +188,16 @@ pub(super) fn with_pair(
     .unwrap();
     let types = match provider_exports {
         Some((provider, _)) => provider.types().clone(),
-        None => dependencies::mir_types(&mir.strong, &graph),
+        None => front.mir_type_bridge().exports().types().clone(),
     };
     let mir_callables = provider_exports
         .map(|(provider, _)| provider.callables())
+        .or(Some(front.mir_type_bridge().exports().callables()))
         .into_iter()
         .collect::<Vec<_>>();
     let dispatch = provider_exports
         .map(|(provider, _)| provider.dispatch())
+        .or(Some(front.mir_type_bridge().exports().dispatch()))
         .into_iter()
         .collect::<Vec<_>>();
     let input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
@@ -228,10 +236,11 @@ pub(super) fn with_pair(
     let mir_input = input;
     let layouts = match provider_exports {
         Some((_, provider)) => provider.layouts().clone(),
-        None => dependencies::layouts(&types, &core_lir, &graph, target.lir_target()),
+        None => front.lir_exports().layouts().clone(),
     };
     let lir_callables = provider_exports
         .map(|(_, provider)| provider.callables())
+        .or(Some(front.lir_exports().callables()))
         .into_iter()
         .collect::<Vec<_>>();
     let registration = lir

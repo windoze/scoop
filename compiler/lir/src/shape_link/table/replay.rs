@@ -1,7 +1,7 @@
 //! Candidate rows are contracts to compare, never evidence of actual use.
 
 use super::*;
-use crate::{ShapeLinkProviderV1, ShapeLinkSupportLookupV1, StrongObjectSymbolSurfaceV1};
+use crate::ShapeLinkProviderV1;
 use scoop_identity::{ConeIdentity, PersistentIdResolver, ValidatedIdentityGraph};
 
 impl DecodedCanonicalExternalShapeLinkImportsV1 {
@@ -9,9 +9,8 @@ impl DecodedCanonicalExternalShapeLinkImportsV1 {
     pub(crate) fn replay<'a>(
         self,
         consumer: ConeIdentity,
-        definitions: &StrongObjectSymbolSurfaceV1,
         providers: &[ShapeLinkProviderV1<'a>],
-        support: &dyn ShapeLinkSupportLookupV1<'a>,
+
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<CanonicalExternalShapeLinkImportsV1, ShapeLinkError> {
         let path = WirePath::root();
@@ -33,13 +32,7 @@ impl DecodedCanonicalExternalShapeLinkImportsV1 {
                 .iter()
                 .find(|view| view.provider() == provider)
                 .ok_or(ShapeLinkError::MissingProvider(provider))?;
-            let expected = ExternalShapeLinkImportV1::replay(
-                terminal,
-                subject,
-                consumer,
-                definitions,
-                support,
-            )?;
+            let expected = ExternalShapeLinkImportV1::replay(terminal, subject, consumer)?;
             actual.validate_against(&expected)?;
             records.push(expected);
         }

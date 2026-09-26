@@ -1,51 +1,5 @@
 use super::*;
 
-struct Candidate<'a>(ShapeLinkSupportSourceV1<'a>);
-impl<'a> ShapeLinkSupportLookupV1<'a> for Candidate<'a> {
-    fn support_source(
-        &self,
-        _: ConeIdentity,
-        _: Subject,
-    ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
-        Ok(Some(self.0))
-    }
-}
-
-#[test]
-fn shape_link_support_candidate_cannot_replace_provider_unit_semantics() {
-    let fixture = ProviderFixture::new(false);
-    let unit = fixture.unit();
-    let altered = StrongInitializationUnitSemanticPlanV2::from_artifact(
-        unit.unit(),
-        "another-object".to_owned(),
-        unit.schedule(),
-        unit.storage(),
-        unit.failure_root(),
-        unit.initializer(),
-        unit.ensure(),
-        unit.dependencies().to_vec(),
-    );
-    let candidate = Candidate(ShapeLinkSupportSourceV1::Initialization { unit: &altered });
-    let subject = Subject::InitializationCell(unit.unit());
-    assert!(
-        matches!(ExternalShapeLinkImportV1::replay(&fixture.provider(), subject, ConeIdentity::CORE, &consumer(), &candidate), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
-    );
-    let storage = fixture
-        .section
-        .registration_production()
-        .static_storages()
-        .registrations()
-        .iter()
-        .find(|record| record.semantic().storage() == unit.failure_root())
-        .unwrap()
-        .semantic();
-    let candidate = Candidate(ShapeLinkSupportSourceV1::StaticStorage { unit, storage });
-    let subject = Subject::StaticStorage(unit.storage());
-    assert!(
-        matches!(ExternalShapeLinkImportV1::replay(&fixture.provider(), subject, ConeIdentity::CORE, &consumer(), &candidate), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
-    );
-}
-
 #[test]
 fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
     let fixture = ProviderFixture::new(false);
@@ -54,8 +8,6 @@ fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
         &fixture.provider(),
         Subject::Callable(target),
         ConeIdentity::CORE,
-        &consumer(),
-        &NoShapeLinkSupportV1,
     )
     .unwrap();
     let result: ExactLayoutExportV1 = crate::exact_layout::tests::unit().into();

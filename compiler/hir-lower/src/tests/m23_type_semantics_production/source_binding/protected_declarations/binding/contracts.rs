@@ -118,12 +118,9 @@ fn protected_binding_compares_every_kind_of_complete_source_contract() {
                         s.source_support().clone(),
                     )
                     .unwrap();
-                    let payload = hir::ProtectedNestedNominalPayloadV1::try_new(
-                        r.declaration(),
-                        interface,
-                        r.payload().support(),
-                    )
-                    .unwrap();
+                    let payload =
+                        hir::ProtectedNestedNominalPayloadV1::try_new(r.declaration(), interface)
+                            .unwrap();
                     Declaration::NestedNominal(Box::new(
                         hir::ProtectedNestedNominalInterfaceV1::try_new(
                             r.declaration(),

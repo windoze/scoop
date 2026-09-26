@@ -55,7 +55,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
             sha256(b"distribution"),
             sha256(b"build"),
         ),
-        ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
+        ArtifactCapabilityProfileId::cross_cone_layout_strong(),
         Vec::new(),
     )
     .unwrap();

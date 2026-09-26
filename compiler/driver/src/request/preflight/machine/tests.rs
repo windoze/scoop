@@ -83,6 +83,8 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
             scoop_lir_lower::RuntimeStringDescriptor::Local,
             &empty,
             target,
+            &scoop_lir::StrongProductionDependencySelectionV2::empty(ConeIdentity::CORE, target)
+                .unwrap(),
             &diagnostics
         ),
         Err(CurrentConeLirStageError::Lowering(
@@ -98,6 +100,8 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         scoop_lir_lower::RuntimeStringDescriptor::Local,
         &selected,
         target,
+        &scoop_lir::StrongProductionDependencySelectionV2::empty(ConeIdentity::CORE, target)
+            .unwrap(),
         &diagnostics,
     )
     .unwrap();

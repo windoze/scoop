@@ -67,6 +67,3 @@ impl CheckedNominalInheritanceGraphV1<'_> {
 
 #[cfg(test)]
 pub(in crate::cross_cone_type_semantics) mod tests;
-
-#[cfg(test)]
-pub(in crate::cross_cone_type_semantics) use interface::tests::support::fixture as inheritance_interface_fixture;

@@ -36,8 +36,6 @@ pub(super) fn check(
         lir::ExternalTypeDescriptor::new(layout.provider(), string).unwrap(),
     );
     let foundation = lir::OdrFreeLirFoundation::from_module(&module).unwrap();
-    let definitions =
-        lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: producer.foundation(),
         production,
@@ -49,7 +47,7 @@ pub(super) fn check(
     })
     .unwrap();
     let source = selection::Source::new(layout.provider(), &[empty, value], string);
-    let imports = source.imports(&provider, module.cone, &definitions);
+    let imports = source.imports(&provider, module.cone);
     let selected = lir::StrongProductionDependencySelectionV2::try_new(
         module.cone,
         module.meta.target_profile,

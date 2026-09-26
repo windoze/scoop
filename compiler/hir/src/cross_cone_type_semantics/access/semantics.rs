@@ -13,7 +13,6 @@ mod implication;
 mod nominal;
 mod normalization;
 mod protected;
-mod shared;
 #[cfg(test)]
 mod tests;
 

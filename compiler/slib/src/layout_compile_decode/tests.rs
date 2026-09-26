@@ -350,7 +350,7 @@ fn layout_sections(
 }
 
 fn empty_type_semantics() -> Vec<u8> {
-    empty_array_fields(8)
+    vec![0xa5, 1, 0x80, 2, 0x80, 3, 0x80, 4, 0x80, 8, 0x80]
 }
 
 fn empty_array_fields(count: u8) -> Vec<u8> {

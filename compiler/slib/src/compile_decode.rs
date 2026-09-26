@@ -17,11 +17,11 @@ use crate::{
 mod error;
 pub use error::{FoundationStructureValidationError, IdentityFoundationDecodeError};
 mod commit;
+pub(crate) use commit::commit_identity_graph;
 pub use commit::{
-    CompileCapabilityProfile, CompileCommitError, CrossConeSemanticsStrongProfile,
+    CompileCapabilityProfile, CompileCommitError, CrossConeLayoutStrongProfile,
     IdentityFoundationProfile, SingleConeStrongProfile, ValidatedCompileArtifact,
 };
-pub(crate) use commit::{commit_identity_graph, semantic_identity_import};
 mod native_boundary;
 pub(crate) use native_boundary::{
     AbiReplayDependency, NativeBoundaryFoundationView, collect_abi_types,

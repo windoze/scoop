@@ -70,7 +70,7 @@ fn complete_protected_production_roundtrips_and_matches_independent_sources() {
                         Declaration::Property(r) => assert_eq!(r.as_ref(), &hir::ProtectedPropertyInterfaceV1::try_from(members.property_source(r.declaration()).unwrap().clone()).unwrap()),
                         Declaration::NestedNominal(r) => {
                             let support = hir::NominalSupportNestedInterfaceV1::try_new(r.declaration(), r.declaration_access().clone(), r.payload().clone()).unwrap();
-                            let checked = authority.validate_nested_source(&support, &protocols, &fixture.source.entries().representations).unwrap();
+                            let checked = authority.validate_nested_source(&support, &protocols).unwrap();
                             owners.extend(checked.protocols().map(|r| r.record().owner()));
                         }
                     }
@@ -87,7 +87,6 @@ fn complete_protected_production_roundtrips_and_matches_independent_sources() {
                 assert!(std::ptr::eq(checked.constructors(), constructors));
                 assert!(std::ptr::eq(checked.parameter_sources(), &sources.protocols));
                 assert!(std::ptr::eq(checked.table(), &declarations));
-                assert!(std::ptr::eq(checked.representations(), &fixture.source.entries().representations));
                 assert_eq!(checked.protocols().map(|r| r.record().owner()).collect::<BTreeSet<_>>(), owners);
                 for protocol in protocols.records() {
                     assert_eq!(checked.protocol(protocol.owner()).unwrap().record(), protocol);

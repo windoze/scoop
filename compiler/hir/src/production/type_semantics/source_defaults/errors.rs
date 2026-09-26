@@ -10,7 +10,6 @@ pub enum NominalDefaultSourceProductionError {
     Template(DefaultSourceTemplateBuildError),
     Table(DefaultSourceTemplateTableBuildError),
     Coverage(DefaultSourceTemplateCoverageError),
-    Profiles(SourceInventoryError),
     MissingOwner(CallableTemplateOrigin),
     DuplicateOwner(CallableTemplateOrigin),
     PositionOverflow(CallableTemplateOrigin),
@@ -24,7 +23,6 @@ impl fmt::Display for NominalDefaultSourceProductionError {
             Self::Template(e) => e.fmt(f),
             Self::Table(e) => e.fmt(f),
             Self::Coverage(e) => e.fmt(f),
-            Self::Profiles(e) => e.fmt(f),
             Self::MissingOwner(owner) => {
                 write!(f, "nominal default source has no sealed owner {owner:?}")
             }

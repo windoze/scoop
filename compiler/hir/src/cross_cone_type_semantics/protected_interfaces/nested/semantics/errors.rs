@@ -23,7 +23,6 @@ pub enum NestedSourceSemanticError<E> {
     Modality,
     Inventory,
     Supertypes,
-    ConcreteSupport,
     ReferenceClosure,
 }
 impl<E: fmt::Display> fmt::Display for NestedSourceSemanticError<E> {
@@ -51,9 +50,6 @@ impl<E: fmt::Display> fmt::Display for NestedSourceSemanticError<E> {
             ),
             Self::Supertypes => {
                 f.write_str("nested nominal has an invalid class/interface supertype partition")
-            }
-            Self::ConcreteSupport => {
-                f.write_str("nested param-free inheritance or representation reference disagrees")
             }
             Self::ReferenceClosure => {
                 f.write_str("nested support source reference closure is incomplete")

@@ -13,10 +13,10 @@ fn foundation_binds_complete_nested_source_roots_with_real_concrete_support() {
         let table = sources(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let bound = foundation.bind_nominal_sources(&table).unwrap();
-        assert_eq!(bound.table().records().len(), 20);
+        assert_eq!(bound.table().records().len(), 24);
         let entries = fixture.source.entries();
-        assert_eq!(entries.representation_owners.values().len(), 19);
-        assert_eq!(entries.local_inheritance_edges.records().len(), 19);
+        assert_eq!(entries.representation_owners.values().len(), 23);
+        assert_eq!(entries.local_inheritance_edges.records().len(), 23);
         for (name, visibility, depth) in [
             ("Entry", Visibility::Protected, 1),
             ("Helper", Visibility::Private, 2),

@@ -68,6 +68,7 @@ pub(super) fn lower_selected_lir(
     runtime_string: scoop_lir_lower::RuntimeStringDescriptor,
     selected_callables: &scoop_lir::SelectedExternalLirSet,
     target: scoop_lir::LirTargetProfile,
+    selected_layout: &scoop_lir::StrongProductionDependencySelectionV2<'_>,
     diagnostics: &impl scoop_identity::ExactTypeDiagnosticGraph,
 ) -> Result<
     (
@@ -76,11 +77,12 @@ pub(super) fn lower_selected_lir(
     ),
     CurrentConeLirStageError,
 > {
-    let lir = scoop_lir_lower::lower_with_diagnostics(
+    let lir = scoop_lir_lower::lower_with_layout_dependencies(
         strong,
         runtime_string,
         selected_callables,
         target,
+        selected_layout,
         diagnostics,
     )
     .map_err(CurrentConeLirStageError::Lowering)?;

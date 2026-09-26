@@ -15,7 +15,7 @@ pub(super) fn check(
     strong: &mir::StrongCallableBridgeSurfaceV1,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
 ) {
-    let hir_bytes = encode(&hir.index_for_wire().unwrap()).unwrap();
+    let hir_bytes = encode(hir).unwrap();
     let open = || {
         DecodedSlibEnvelope::open(artifact.as_bytes(), artifact.target_selection())
             .unwrap()

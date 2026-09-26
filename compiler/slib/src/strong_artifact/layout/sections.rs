@@ -54,10 +54,6 @@ pub(super) fn assemble_metadata(
         .hir_cross_cone
         .index_for_wire()
         .map_err(CrossConeLayoutStrongArtifactWriteError::HirInterfaceIndex)?;
-    let hir_type_semantics = input
-        .hir_type_semantics
-        .index_for_wire()
-        .map_err(CrossConeLayoutStrongArtifactWriteError::HirTypeSemanticsIndex)?;
     let hir = LayerAssembly::new(
         MetadataLocation::Hir,
         vec![
@@ -87,7 +83,7 @@ pub(super) fn assemble_metadata(
                 MetadataLocation::Hir,
                 hir_cross_cone_type_semantics_capability(),
                 MemberPurposeSet::COMPILE,
-                &hir_type_semantics,
+                input.hir_type_semantics,
             )?,
         ],
     )?;

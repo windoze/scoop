@@ -157,9 +157,6 @@ fn replacement(
         representations,
         section.inheritance().clone(),
         section.protected_declarations().clone(),
-        section.protected_source_interfaces().clone(),
-        section.protected_defaults().clone(),
-        section.definition_sources().clone(),
         section.selected().clone(),
     )
 }

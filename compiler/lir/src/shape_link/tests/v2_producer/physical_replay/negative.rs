@@ -4,8 +4,7 @@ pub(super) fn check<'a>(
     provider: &'a Provider,
     view: &ShapeLinkProviderV1<'a>,
     consumer: ConeIdentity,
-    definitions: &StrongObjectSymbolSurfaceV1,
-    support: &fixtures::UnitSupport<'a>,
+
     expected: &CanonicalExternalShapeLinkImportsV1,
 ) {
     let rows = expected.records();
@@ -14,9 +13,7 @@ pub(super) fn check<'a>(
             decode_canonical(&encode(&wire::Rows(rows)).unwrap()).unwrap();
         decoded.replay(
             consumer,
-            definitions,
             std::slice::from_ref(view),
-            support,
             &mut graph(provider, &[]),
         )
     };
@@ -60,25 +57,13 @@ pub(super) fn check<'a>(
     let decoded =
         || decode_canonical::<DecodedCanonicalExternalShapeLinkImportsV1>(&bytes).unwrap();
     assert!(
-        matches!(decoded().replay(consumer, definitions, &[], support, &mut graph(provider, &[])),
+        matches!(decoded().replay(consumer, &[], &mut graph(provider, &[])),
         Err(ShapeLinkError::MissingProvider(id)) if id == provider.identity)
     );
     assert!(matches!(
         decoded().replay(
-            consumer,
-            definitions,
-            std::slice::from_ref(view),
-            &NoShapeLinkSupportV1,
-            &mut graph(provider, &[])
-        ),
-        Err(ShapeLinkError::SupportRelation(_))
-    ));
-    assert!(matches!(
-        decoded().replay(
             provider.identity,
-            definitions,
             std::slice::from_ref(view),
-            support,
             &mut graph(provider, &[])
         ),
         Err(ShapeLinkError::LocalImport)
@@ -86,9 +71,7 @@ pub(super) fn check<'a>(
     assert!(matches!(
         decoded().replay(
             consumer,
-            definitions,
             std::slice::from_ref(view),
-            support,
             &mut PendingIdentityValidation::new().finish().unwrap()
         ),
         Err(ShapeLinkError::Identity(_))

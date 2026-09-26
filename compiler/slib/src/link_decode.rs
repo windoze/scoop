@@ -33,17 +33,15 @@ use crate::{
     CBridgeTargetSupportRequirementValidationError, CanonicalDefinedLinkSymbolOwnerSetV1,
     CanonicalUndefinedSymbolRequirementSetV1, CodeFingerprintError,
     CodeLinkObjectMemberValidationError, ConeImageValidationError, ConeKind, ConeSourceForm,
-    CrossConeLinkClosureSectionV1, CrossConeLinkClosureSectionValidationError,
-    CrossConeStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
-    DecodedCrossConeLinkClosureSectionV1, DecodedLinkIdentityClosureSectionV1,
+    CrossConeLinkClosureSectionValidationError, CrossConeStrongRequirementValidationError,
+    CurrentConeUndefinedRequirementValidationError, DecodedLinkIdentityClosureSectionV1,
     DecodedMetadataEnvelope, DecodedSingleConeProductionManifestV1,
     DefinedLinkSymbolOwnerBuildError, DigestPatchSiteValidationError, EntryPatchError,
     EntryProductionValidationError, FinalObjectNormalizationError,
-    FinalizedUndefinedSymbolRequirementPartitionsV1, GeneratedCBridgeObjectCandidateV1,
-    GeneratedCBridgeSemanticValidationError, LinkDigestPatchInputValidationError,
-    LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError,
-    LinkObjectMaterializationValidationError, LinkObjectProjectionValidationError,
-    LinkSymbolProjectionValidationError, ManifestSection,
+    GeneratedCBridgeObjectCandidateV1, GeneratedCBridgeSemanticValidationError,
+    LinkDigestPatchInputValidationError, LinkIdentityClosureSectionV1,
+    LinkIdentityClosureSectionValidationError, LinkObjectMaterializationValidationError,
+    LinkObjectProjectionValidationError, LinkSymbolProjectionValidationError, ManifestSection,
     MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
     ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
     ProductionCodeProjectionError, RuntimeAndEhRequirementValidationError,
@@ -82,25 +80,17 @@ use crate::{
     VerifiedStrongStaticStorageRegistrationSetV1, VerifiedStrongTypeFingerprintSetV1,
     VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
     hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
-    lir_cross_cone_link_closure_capability, lir_identity_foundation_capability,
-    lir_link_identity_closure_capability, lir_strong_production_capability,
-    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    lir_identity_foundation_capability, lir_link_identity_closure_capability,
+    lir_strong_production_capability, manifest_single_cone_production_capability,
+    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
 
 mod states;
 pub use states::*;
 
-mod compile_view;
 mod cross_cone;
 mod decode;
-mod shared;
-pub use compile_view::*;
 pub use cross_cone::*;
-pub(crate) use shared::{
-    DecodedCrossConeLinkOnlySections, decode_cross_cone_link_only,
-    validate_cross_cone_link_from_compile,
-};
 mod layout;
 pub use layout::*;
 mod fingerprinting;

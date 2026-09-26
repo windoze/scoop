@@ -170,7 +170,7 @@ fn producer_preserves_generic_constructor_parameter_as_source_only() {
 }
 
 #[test]
-fn generic_source_only_root_has_independent_definition_origin_authority() {
+fn generic_source_only_root_retains_its_declaration_identity() {
     let core = trusted_core();
     let mut source = file(vec![generic_struct_decl("Box", vec!["T"], Vec::new())]);
     make_core_public(&mut source);
@@ -182,7 +182,6 @@ fn generic_source_only_root_has_independent_definition_origin_authority() {
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
 
-    assert!(production.section().definition_sources().is_empty());
     assert!(
         production
             .section()

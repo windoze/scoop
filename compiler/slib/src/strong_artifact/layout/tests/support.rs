@@ -46,9 +46,6 @@ pub(super) fn empty_hir_type_semantics() -> CrossConeTypeSemanticsSectionV1 {
         CanonicalNominalRepresentationSupportV1::try_new(vec![]).unwrap(),
         CanonicalNominalInheritanceInterfacesV1::try_new(vec![]).unwrap(),
         CanonicalProtectedDeclarationInterfacesV1::try_new(vec![]).unwrap(),
-        CanonicalProtectedCallableSourceInterfacesV1::try_new(vec![]).unwrap(),
-        CanonicalProtectedDefaultTemplatesV1::try_new(vec![]).unwrap(),
-        CanonicalExportDefinitionSourcesV1::try_new(vec![]).unwrap(),
         CanonicalSelectedExternalTypeUsesV1::try_new(vec![]).unwrap(),
     )
 }

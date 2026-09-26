@@ -73,19 +73,11 @@ impl Source {
         &self,
         provider: &ShapeLinkProviderV1<'a>,
         consumer: ConeIdentity,
-        definitions: &StrongObjectSymbolSurfaceV1,
     ) -> Vec<ExternalShapeLinkImportV1> {
         self.physical
             .iter()
             .map(|(_, subject)| {
-                ExternalShapeLinkImportV1::replay(
-                    provider,
-                    *subject,
-                    consumer,
-                    definitions,
-                    &NoShapeLinkSupportV1,
-                )
-                .unwrap()
+                ExternalShapeLinkImportV1::replay(provider, *subject, consumer).unwrap()
             })
             .collect()
     }
@@ -103,17 +95,11 @@ pub(super) fn select<'a>(
             .iter()
             .all(|(owner, _)| *owner == layout.provider())
     );
-    // The pre-lowering import check has no local LIR definitions yet. The real
-    // foundation and every physical use are checked again during publication.
-    let foundation =
-        OdrFreeLirFoundation::try_new(input.module().cone, CanonicalLirFoundation::empty())
-            .unwrap();
-    let definitions = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     StrongProductionDependencySelectionV2::try_new(
         input.module().cone,
         layout.target_profile(),
         &[layout],
-        source.imports(provider, input.module().cone, &definitions),
+        source.imports(provider, input.module().cone),
         &source.roots,
     )
     .unwrap()

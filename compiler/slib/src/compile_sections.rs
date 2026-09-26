@@ -22,14 +22,6 @@ pub(crate) struct DecodedCompileMetadataEnvelopes<'input> {
 }
 
 impl<'input> DecodedCompileMetadataEnvelopes<'input> {
-    pub(crate) fn envelope(&self, location: MetadataLocation) -> &DecodedMetadataEnvelope<'input> {
-        match location {
-            MetadataLocation::Hir => &self.hir,
-            MetadataLocation::Mir => &self.mir,
-            MetadataLocation::Lir => &self.lir,
-        }
-    }
-
     pub(crate) fn required_section(
         &self,
         location: MetadataLocation,

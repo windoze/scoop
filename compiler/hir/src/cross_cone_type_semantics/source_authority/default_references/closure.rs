@@ -2,6 +2,9 @@
 use crate::*;
 use scoop_wire::{WireError, WirePath};
 mod errors;
+mod receiver;
+use receiver::project_default_reference_context;
+pub use receiver::{DefaultExpressionReferenceReceiverV1, DefaultReferenceContextV1};
 mod records;
 mod visitor;
 pub use errors::*;
@@ -26,13 +29,7 @@ impl DefaultSourceTemplateV1 {
 
         path: &WirePath,
     ) -> Result<DefaultSourceReferenceClosureV1<'_>, DefaultSourceReferenceClosureError> {
-        let expressions = DefaultReferenceExpressionIndexV1::collect(
-            self.body(),
-            self.locals(),
-            self.definition_origin(),
-            path,
-        )?;
-        let mut visitor = visitor::Visitor::new(self, &expressions, path)?;
+        let mut visitor = visitor::Visitor::new(self, path)?;
         self.body().visit_direct_references(
             self.locals(),
             self.definition_origin(),

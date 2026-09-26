@@ -10,3 +10,4 @@ HiddenBase Protected constructors=1 protected=1 slots=1
 Leaf Protected constructors=1 protected=0 slots=5
 Pair Protected constructors=1 protected=0 slots=1
 Role Public constructors=0 protected=0 slots=1
+Unrelated Private constructors=0 protected=0 slots=0

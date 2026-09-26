@@ -150,10 +150,6 @@ impl Provider {
         .unwrap()
     }
 
-    pub(super) fn initialization_support(&self) -> InitializationSupport<'_> {
-        InitializationSupport { provider: self }
-    }
-
     pub(super) fn shape_link_provider(&self) -> ShapeLinkProviderV1<'_> {
         ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: self.output.foundation(),
@@ -175,39 +171,6 @@ impl Provider {
             &self.dispatch,
             &self.callables,
         )
-    }
-}
-
-pub(super) struct InitializationSupport<'a> {
-    provider: &'a Provider,
-}
-
-impl<'a> ShapeLinkSupportLookupV1<'a> for InitializationSupport<'a> {
-    fn support_source(
-        &self,
-        provider: ConeIdentity,
-        subject: ExternalStrongShapeSubjectV1,
-    ) -> Result<Option<ShapeLinkSupportSourceV1<'a>>, ShapeLinkError> {
-        if provider != self.provider.identity
-            || subject
-                != ExternalStrongShapeSubjectV1::InitializationDescriptor(
-                    self.provider.initialization_unit,
-                )
-        {
-            return Ok(None);
-        }
-        let unit = self
-            .provider
-            .section
-            .initialization_registrations()
-            .registrations()
-            .iter()
-            .find(|registration| {
-                registration.semantic().unit() == self.provider.initialization_unit
-            })
-            .unwrap()
-            .semantic();
-        Ok(Some(ShapeLinkSupportSourceV1::Initialization { unit }))
     }
 }
 

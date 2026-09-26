@@ -4,8 +4,7 @@ use DefaultSourceReferenceClosureError as Error;
 use DefaultSourceReferenceRecordV1 as Record;
 use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
 
-pub(super) struct Visitor<'a, 'i> {
-    expressions: &'i DefaultReferenceExpressionIndexV1,
+pub(super) struct Visitor<'a> {
     receiver: &'a OptionalTemplateReceiverV1,
     result: DefaultSourceReferenceClosureV1<'a>,
     callables: Domain<'a, ExportDefaultCallableTargetV1>,
@@ -15,13 +14,8 @@ pub(super) struct Visitor<'a, 'i> {
     singletons: Domain<'a, PersistentObjectValueId>,
     fields: Domain<'a, DefaultFieldRefV1>,
 }
-impl<'a, 'i> Visitor<'a, 'i> {
-    pub fn new(
-        template: &'a DefaultSourceTemplateV1,
-        expressions: &'i DefaultReferenceExpressionIndexV1,
-
-        path: &WirePath,
-    ) -> Result<Self, Error> {
+impl<'a> Visitor<'a> {
+    pub fn new(template: &'a DefaultSourceTemplateV1, path: &WirePath) -> Result<Self, Error> {
         use ExportDefaultReferenceKindV1 as Kind;
         let refs = template.references();
         // Each source domain is bounded by u32; their sum fits in u64.
@@ -40,7 +34,6 @@ impl<'a, 'i> Visitor<'a, 'i> {
         let mut occurrences = Vec::new();
         scoop_wire::allocation::try_reserve_count(&mut occurrences, count, path)?;
         Ok(Self {
-            expressions,
             receiver: template.receiver(),
             result: DefaultSourceReferenceClosureV1 {
                 template: template.key(),
@@ -64,7 +57,7 @@ impl<'a, 'i> Visitor<'a, 'i> {
         Ok(self.result)
     }
 }
-impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
+impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a> {
     type Error = Error;
     fn expression(
         &mut self,
@@ -132,14 +125,7 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
                 (i, Record::Field(r))
             }
         };
-        let context =
-            project_default_reference_context(occurrence, self.receiver, self.expressions)
-                .map_err(|error| match error {
-                    DefaultReferenceReceiverError::Resource(error) => Error::Resource(error),
-                    DefaultReferenceReceiverError::ReceiverOutsideBody => {
-                        Error::ReceiverOutsideBody
-                    }
-                })?;
+        let context = project_default_reference_context(occurrence, self.receiver);
         self.result
             .occurrences
             .push(DefaultSourceReferenceOccurrenceV1 {

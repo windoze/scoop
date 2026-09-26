@@ -10,7 +10,6 @@ use crate::*;
 
 mod authority_projection;
 pub(super) use authority_projection::all_nominals;
-mod interfaces;
 mod materialization;
 mod representation;
 mod source_foundation;
@@ -125,43 +124,20 @@ pub(super) fn produce(
         &source_constructors,
         &slots,
     )?;
-    let (protected_declarations, protected_sources) =
-        interfaces::project(output, &source_parameters)?;
-    let protected_defaults = CanonicalProtectedDefaultTemplatesV1::from_dependency_hir(
-        output,
-        &protected_sources,
-        &inheritance,
-    )?;
+    let (_, protected_declarations, _) =
+        ProtectedDeclarationSourceProductionV1::from_export_hir(&output.output().export)?
+            .into_parts();
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)
         .map_err(|error| Error::InvalidTable {
             table: "representation-support",
             reason: error.to_string(),
         })?;
-    let origins = TypeDefinitionSourceInputsV1 {
-        representations: &representation_support,
-        inheritance: &inheritance,
-        protected_declarations: &protected_declarations,
-        source_interfaces: &protected_sources,
-        defaults: &protected_defaults,
-    }
-    .collect_definition_sources(&scoop_wire::WirePath::root())
-    .map_err(|error| Error::InvalidSourceDeclaration(error.to_string()))?;
-    let definition_sources =
-        CanonicalExportDefinitionSourcesV1::try_new(origins).map_err(|error| {
-            Error::InvalidTable {
-                table: "definition-source",
-                reason: error.to_string(),
-            }
-        })?;
     let section = CrossConeTypeSemanticsSectionV1::new(
         facts,
         representation_support,
         inheritance,
         protected_declarations,
-        protected_sources,
-        protected_defaults,
-        definition_sources,
         metadata
             .materialized_type_uses(dependencies)
             .map_err(|error| Error::SharedTypeMetadata(Box::new(error)))?,

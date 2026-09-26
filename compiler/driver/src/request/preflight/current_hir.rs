@@ -69,25 +69,4 @@ impl CurrentConeHirArtifacts {
             classifier: &self.nominal_classifier,
         }
     }
-
-    pub fn seal_strong_profile(
-        self,
-        strong: scoop_mir::SingleConeStrongMirInput,
-        mir_cross_cone: scoop_mir::CrossConeMirBridgeSectionV1,
-        lir: scoop_lir::SingleConeStrongLirOutput,
-        lir_cross_cone: scoop_lir::CrossConeLirBridgeSectionV1,
-    ) -> Result<crate::CrossConeStrongIrProductionV1, CurrentConeStrongProfileError> {
-        let hir_foundation = scoop_hir::OdrFreeHirFoundation::try_new(self.foundation)
-            .map_err(CurrentConeStrongProfileError::HirOdr)?;
-        Ok(crate::CrossConeStrongIrProductionV1::new(
-            hir_foundation,
-            self.production_section,
-            self.cross_cone_section,
-            strong.foundation().clone(),
-            strong.production().clone(),
-            mir_cross_cone,
-            lir,
-            lir_cross_cone,
-        ))
-    }
 }

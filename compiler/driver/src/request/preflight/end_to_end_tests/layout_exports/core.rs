@@ -349,17 +349,13 @@ fn identity_graph(
 ) -> ValidatedIdentityGraph {
     let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();
     let mir = mir.foundation().as_canonical();
-    let lir: Option<lir::DecodedLirFoundation> =
-        lir.map(|lir| decoded(lir.foundation().as_canonical()));
+    let lir = lir.map(|lir| lir.foundation().as_canonical());
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     hir.register_identities(&mut pending).unwrap();
     mir.register_identities(&mut pending).unwrap();
     if let Some(lir) = &lir {
         lir.register_identities(&mut pending).unwrap();
-    }
-    if let Some(lir) = &lir {
-        lir.resolve_identities(&mut pending).unwrap();
     }
     pending.finish().unwrap()
 }

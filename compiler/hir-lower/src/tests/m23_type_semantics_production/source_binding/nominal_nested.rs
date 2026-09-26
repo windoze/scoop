@@ -43,10 +43,9 @@ fn restored_nested_sources_replay_complete_recursive_contracts_and_protocols() {
                 let mut authority = members
                     .bind_parameter_protocols(constructors, &sources.protocols)
                     .unwrap();
-                let reps = &fixture.source.entries().representations;
                 for record in &candidates.records {
                     let checked = authority
-                        .validate_nested_source(record, &candidates.protocols, reps)
+                        .validate_nested_source(record, &candidates.protocols)
                         .unwrap();
                     assert_eq!(checked.provider(), fixture.source.entries().provider);
                     assert!(std::ptr::eq(checked.members(), members));
@@ -56,7 +55,6 @@ fn restored_nested_sources_replay_complete_recursive_contracts_and_protocols() {
                         &sources.protocols
                     ));
                     assert!(std::ptr::eq(checked.record(), record));
-                    assert!(std::ptr::eq(checked.representations(), reps));
                     let mut expected = BTreeSet::new();
                     collect_protocols(record, &mut expected);
                     assert_eq!(

@@ -17,22 +17,11 @@ fn shape_link_artifact_reader_uses_the_replayed_strong_v2_semantic_plans() {
     })
     .unwrap();
     let subject = Subject::InitializationDescriptor(fixture.unit().unit());
-    let from_reader = ExternalShapeLinkImportV1::replay(
-        &provider,
-        subject,
-        ConeIdentity::CORE,
-        &consumer(),
-        &fixture.support(true),
-    )
-    .unwrap();
-    let from_producer = ExternalShapeLinkImportV1::replay(
-        &fixture.provider(),
-        subject,
-        ConeIdentity::CORE,
-        &consumer(),
-        &fixture.support(true),
-    )
-    .unwrap();
+    let from_reader =
+        ExternalShapeLinkImportV1::replay(&provider, subject, ConeIdentity::CORE).unwrap();
+    let from_producer =
+        ExternalShapeLinkImportV1::replay(&fixture.provider(), subject, ConeIdentity::CORE)
+            .unwrap();
     assert_eq!(
         encode(&from_reader).unwrap(),
         encode(&from_producer).unwrap()

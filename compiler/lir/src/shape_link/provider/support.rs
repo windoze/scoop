@@ -1,42 +1,34 @@
 use super::*;
-use crate::shape_link::ShapeLinkSupportSourceV1;
 
 impl<'a> ShapeLinkProviderV1<'a> {
     pub(super) fn support_contract(
         &self,
         subject: ExternalStrongShapeSubjectV1,
         physical: StrongShapeDefinitionRefV1,
-        support: &dyn ShapeLinkSupportLookupV1<'a>,
     ) -> Result<ShapeLinkContractV1, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;
-        let source = support
-            .support_source(self.provider(), subject)?
-            .ok_or(ShapeLinkError::SupportRelation(subject))?;
-
-        let unit = match source {
-            ShapeLinkSupportSourceV1::Initialization { unit }
-            | ShapeLinkSupportSourceV1::StaticStorage { unit, .. } => unit,
-        };
-
         let registration = self
             .parts
             .production
             .initialization_registrations()
             .registrations()
             .iter()
-            .find(|registration| registration.semantic().unit() == unit.unit())
+            .find(|registration| {
+                let unit = registration.semantic();
+                match subject {
+                    Subject::InitializationCell(id) | Subject::InitializationDescriptor(id) => {
+                        unit.unit() == id
+                    }
+                    Subject::StaticStorage(id) | Subject::StaticStorageRegistration(id) => {
+                        unit.storage() == id || unit.failure_root() == id
+                    }
+                    _ => false,
+                }
+            })
             .ok_or(ShapeLinkError::SupportRelation(subject))?;
-        // The hook names a relation, not a replacement payload. The contract
-        // uses the actual provider's complete V2 semantic plan.
-
-        if unit != registration.semantic() {
-            return Err(ShapeLinkError::SupportRelation(subject));
-        }
-        match (subject, source) {
-            (
-                Subject::InitializationCell(id) | Subject::InitializationDescriptor(id),
-                ShapeLinkSupportSourceV1::Initialization { .. },
-            ) => {
+        let unit = registration.semantic();
+        match subject {
+            Subject::InitializationCell(id) | Subject::InitializationDescriptor(id) => {
                 let (definition, symbol, atom) =
                     if matches!(subject, Subject::InitializationCell(_)) {
                         (
@@ -62,14 +54,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                     unit_projection: registration.semantic().clone(),
                 })
             }
-            (
-                Subject::StaticStorage(id) | Subject::StaticStorageRegistration(id),
-                ShapeLinkSupportSourceV1::StaticStorage { storage, .. },
-            ) => {
-                if storage.storage() != id || (unit.storage() != id && unit.failure_root() != id) {
-                    return Err(ShapeLinkError::SupportRelation(subject));
-                }
-
+            Subject::StaticStorage(id) | Subject::StaticStorageRegistration(id) => {
                 let registration = self
                     .parts
                     .production
@@ -92,8 +77,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                     )
                 };
 
-                if storage != registration.semantic()
-                    || definition != physical.definition()
+                if definition != physical.definition()
                     || symbol != physical.symbol()
                     || atom != physical.primary()
                 {

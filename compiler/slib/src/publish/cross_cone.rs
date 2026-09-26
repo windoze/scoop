@@ -8,12 +8,9 @@ use scoop_identity::{
 };
 use scoop_lir::ValidatedLirTargetSelection;
 
-use super::{CompileViewSummaryV1, LinkViewSummaryV1, PublishViewMismatchError, output_matches};
+use super::{CompileViewSummaryV1, LinkViewSummaryV1};
 use crate::{
-    ArtifactFingerprint, CrossConeArtifactClosureValidationError,
-    CrossConeLinkSemanticImportBuildError, CrossConeLinkSemanticImportSetV1,
-    CrossConeSemanticsStrongProfile, DependencyRecord, FingerprintAvailability,
-    ValidatedCompileArtifact, ValidatedCrossConeStrongLinkArtifact,
+    ArtifactFingerprint, CrossConeArtifactClosureValidationError, DependencyRecord,
     validate_completed_cross_cone_artifact_closure,
 };
 
@@ -38,46 +35,6 @@ pub struct PublishableCrossConeArtifact {
 }
 
 impl PublishableCrossConeArtifact {
-    pub fn from_validated_views(
-        compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
-        link: &ValidatedCrossConeStrongLinkArtifact,
-    ) -> Result<Self, CrossConePublishViewMismatchError> {
-        validate_common_views(compile, link)?;
-        validate_semantic_import_projection(
-            compile.production().lir_cross_cone(),
-            link.cross_cone_link_closure().semantic_imports(),
-        )?;
-
-        let compile_semantic = compile.semantic_fingerprints();
-        let link_semantic = link.semantic_fingerprints();
-        let manifest = link.production_manifest();
-        let link_object_count = manifest
-            .code_proof()
-            .production()
-            .link_objects()
-            .members()
-            .len();
-
-        Ok(Self {
-            artifact_fingerprint: compile.artifact_fingerprint(),
-            coordinate: compile.coordinate().clone(),
-            identity: compile.identity(),
-            kind: compile.kind(),
-            source_form: compile.source_form(),
-            target_selection: compile.target_selection(),
-            profile: compile.compatibility().artifact_profile().clone(),
-            direct_dependencies: compile.direct_dependencies().to_vec(),
-            compile_summary: CompileViewSummaryV1::new(compile_semantic),
-            link_summary: LinkViewSummaryV1 {
-                distribution: manifest.distribution(),
-                output: manifest.output().clone(),
-                image_owner_member: manifest.image_owner_member(),
-                link_object_count,
-                semantic_fingerprints: link_semantic,
-            },
-        })
-    }
-
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.artifact_fingerprint
     }
@@ -127,103 +84,6 @@ impl PublishableCrossConeArtifact {
 
     pub const fn link_summary(&self) -> &LinkViewSummaryV1 {
         &self.link_summary
-    }
-}
-
-fn validate_common_views(
-    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
-    link: &ValidatedCrossConeStrongLinkArtifact,
-) -> Result<(), PublishViewMismatchError> {
-    if compile.artifact_fingerprint() != link.artifact_fingerprint() {
-        return Err(PublishViewMismatchError::ArtifactFingerprint);
-    }
-    if compile.identity() != link.identity() || compile.coordinate() != link.coordinate() {
-        return Err(PublishViewMismatchError::Cone);
-    }
-    if compile.kind() != link.kind() || compile.source_form() != link.source_form() {
-        return Err(PublishViewMismatchError::ConeShape);
-    }
-    if compile.target_selection() != link.target_selection() {
-        return Err(PublishViewMismatchError::TargetSelection);
-    }
-    if compile.compatibility() != link.compatibility() {
-        return Err(PublishViewMismatchError::Compatibility);
-    }
-
-    let compile_semantic = compile.semantic_fingerprints();
-    let link_semantic = link.semantic_fingerprints();
-    if compile_semantic != link_semantic {
-        return Err(PublishViewMismatchError::SemanticFingerprints);
-    }
-    let manifest = link.production_manifest();
-    if compile_semantic.code() != FingerprintAvailability::Available(manifest.code_fingerprint()) {
-        return Err(PublishViewMismatchError::CodeFingerprint);
-    }
-    if compile_semantic.runtime_image()
-        != FingerprintAvailability::Available(manifest.runtime_image_fingerprint())
-    {
-        return Err(PublishViewMismatchError::RuntimeImageFingerprint);
-    }
-    if !output_matches(
-        compile.kind(),
-        compile.production().hir_core().output_contract(),
-        manifest.output(),
-    ) {
-        return Err(PublishViewMismatchError::Output);
-    }
-    if manifest
-        .code_proof()
-        .production()
-        .link_objects()
-        .members()
-        .is_empty()
-    {
-        return Err(PublishViewMismatchError::EmptyLinkObjectSet);
-    }
-    Ok(())
-}
-
-fn validate_semantic_import_projection(
-    compile: &scoop_lir::CrossConeLirBridgeSectionV1,
-    link: &CrossConeLinkSemanticImportSetV1,
-) -> Result<(), CrossConePublishViewMismatchError> {
-    let expected = CrossConeLinkSemanticImportSetV1::from_lir_bridge(compile)
-        .map_err(CrossConePublishViewMismatchError::CompileProjection)?;
-    if &expected != link {
-        return Err(CrossConePublishViewMismatchError::SemanticImportProjection);
-    }
-    Ok(())
-}
-
-#[derive(Debug)]
-pub enum CrossConePublishViewMismatchError {
-    Common(PublishViewMismatchError),
-    CompileProjection(CrossConeLinkSemanticImportBuildError),
-    SemanticImportProjection,
-}
-
-impl From<PublishViewMismatchError> for CrossConePublishViewMismatchError {
-    fn from(source: PublishViewMismatchError) -> Self {
-        Self::Common(source)
-    }
-}
-
-impl std::fmt::Display for CrossConePublishViewMismatchError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "cross-Cone Compile/Link publication views disagree: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for CrossConePublishViewMismatchError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Common(source) => Some(source),
-            Self::CompileProjection(source) => Some(source),
-            Self::SemanticImportProjection => None,
-        }
     }
 }
 
@@ -347,34 +207,5 @@ impl std::error::Error for CrossConeArtifactPublishError {
             Self::LayoutValidation(source) => Some(source.as_ref()),
             Self::MissingParent { .. } => None,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn dual_view_projection_requires_the_exact_consumer_and_import_bytes() {
-        let first = empty_bridge("publication-first");
-        let matching = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&first).unwrap();
-        validate_semantic_import_projection(&first, &matching).unwrap();
-
-        let second = empty_bridge("publication-second");
-        let mismatched = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&second).unwrap();
-        assert!(matches!(
-            validate_semantic_import_projection(&first, &mismatched),
-            Err(CrossConePublishViewMismatchError::SemanticImportProjection)
-        ));
-    }
-
-    fn empty_bridge(name: &str) -> scoop_lir::CrossConeLirBridgeSectionV1 {
-        let cone = crate::strong_compile_decode::tests::cone_named(name);
-        let (foundation, _) =
-            crate::link_decode::strong_production_fixture_for_test(cone.coordinate().clone(), &[]);
-        let foundation =
-            scoop_lir::OdrFreeLirFoundation::try_new(cone.identity(), foundation).unwrap();
-        scoop_lir::CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new())
-            .unwrap()
     }
 }

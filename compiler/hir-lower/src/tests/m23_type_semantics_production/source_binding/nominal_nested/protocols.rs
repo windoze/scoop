@@ -26,11 +26,7 @@ fn nested_protocol_replay_requires_even_zero_parameter_records_and_checks_callin
                     )
                     .unwrap();
                     let Error::MissingProtocol(actual) = authority
-                        .validate_nested_source(
-                            record,
-                            &missing,
-                            &fixture.source.entries().representations,
-                        )
+                        .validate_nested_source(record, &missing)
                         .unwrap_err()
                     else {
                         panic!("missing protocol");
@@ -80,11 +76,7 @@ fn nested_protocol_replay_requires_even_zero_parameter_records_and_checks_callin
                         )
                         .unwrap();
                         let Error::Protocol(error) = authority
-                            .validate_nested_source(
-                                record,
-                                &forged,
-                                &fixture.source.entries().representations,
-                            )
+                            .validate_nested_source(record, &forged)
                             .unwrap_err()
                         else {
                             panic!("calling protocol rejection");

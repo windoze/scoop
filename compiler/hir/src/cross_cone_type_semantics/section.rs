@@ -1,24 +1,14 @@
-//! The complete eight-field type-semantics transport. Publication and selected
-//! capabilities are obtained only through the section's semantic validator.
+//! Complete representation, inheritance, and selected type-use metadata.
+//! Source protocols and defaults are stored in the shared HIR interface.
 use crate::*;
 
-mod checked;
 mod decode;
-mod exports;
-mod indexed;
 mod public_support;
-mod selection;
-#[cfg(test)]
-mod semantic_tests;
 mod source;
 #[cfg(test)]
 mod tests;
-pub use checked::*;
 pub use decode::*;
-pub use exports::TypeSectionExportValidationError;
-pub use indexed::*;
 pub use public_support::*;
-pub use selection::*;
 pub use source::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -27,9 +17,6 @@ pub struct CrossConeTypeSemanticsSectionV1 {
     representation_support: CanonicalNominalRepresentationSupportV1,
     inheritance: CanonicalNominalInheritanceInterfacesV1,
     protected_declarations: CanonicalProtectedDeclarationInterfacesV1,
-    protected_source_interfaces: CanonicalProtectedCallableSourceInterfacesV1,
-    protected_defaults: CanonicalProtectedDefaultTemplatesV1,
-    definition_sources: CanonicalExportDefinitionSourcesV1,
     selected: CanonicalSelectedExternalTypeUsesV1,
 }
 impl CrossConeTypeSemanticsSectionV1 {
@@ -39,9 +26,6 @@ impl CrossConeTypeSemanticsSectionV1 {
         representation_support: CanonicalNominalRepresentationSupportV1,
         inheritance: CanonicalNominalInheritanceInterfacesV1,
         protected_declarations: CanonicalProtectedDeclarationInterfacesV1,
-        protected_source_interfaces: CanonicalProtectedCallableSourceInterfacesV1,
-        protected_defaults: CanonicalProtectedDefaultTemplatesV1,
-        definition_sources: CanonicalExportDefinitionSourcesV1,
         selected: CanonicalSelectedExternalTypeUsesV1,
     ) -> Self {
         Self {
@@ -49,9 +33,6 @@ impl CrossConeTypeSemanticsSectionV1 {
             representation_support,
             inheritance,
             protected_declarations,
-            protected_source_interfaces,
-            protected_defaults,
-            definition_sources,
             selected,
         }
     }
@@ -67,28 +48,26 @@ impl CrossConeTypeSemanticsSectionV1 {
     pub const fn protected_declarations(&self) -> &CanonicalProtectedDeclarationInterfacesV1 {
         &self.protected_declarations
     }
-    pub const fn protected_source_interfaces(
-        &self,
-    ) -> &CanonicalProtectedCallableSourceInterfacesV1 {
-        &self.protected_source_interfaces
-    }
-    pub const fn protected_defaults(&self) -> &CanonicalProtectedDefaultTemplatesV1 {
-        &self.protected_defaults
-    }
-    pub const fn definition_sources(&self) -> &CanonicalExportDefinitionSourcesV1 {
-        &self.definition_sources
-    }
     pub const fn selected(&self) -> &CanonicalSelectedExternalTypeUsesV1 {
         &self.selected
     }
+}
 
-    pub fn definition_source_inputs(&self) -> TypeDefinitionSourceInputsV1<'_> {
-        TypeDefinitionSourceInputsV1 {
-            representations: &self.representation_support,
-            inheritance: &self.inheritance,
-            protected_declarations: &self.protected_declarations,
-            source_interfaces: &self.protected_source_interfaces,
-            defaults: &self.protected_defaults,
-        }
+impl scoop_wire::WireEncode for CrossConeTypeSemanticsSectionV1 {
+    fn encode(
+        &self,
+        encoder: &mut scoop_wire::Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(5)?;
+        encoder.field(1)?;
+        self.exact_facts.encode(encoder)?;
+        encoder.field(2)?;
+        self.representation_support.encode(encoder)?;
+        encoder.field(3)?;
+        self.inheritance.encode(encoder)?;
+        encoder.field(4)?;
+        self.protected_declarations.encode(encoder)?;
+        encoder.field(8)?;
+        self.selected.encode(encoder)
     }
 }

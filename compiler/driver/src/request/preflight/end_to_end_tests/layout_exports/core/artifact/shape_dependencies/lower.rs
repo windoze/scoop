@@ -40,14 +40,20 @@ pub(super) fn with_mir(
     let callables = closure
         .project_dependency_callables_to_lir(&mir.selected_callables)
         .unwrap();
-    let core = DecodedSlibEnvelope::open(core_bytes, target.lir_target_selection())
-        .unwrap()
-        .validate_graph()
-        .unwrap()
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
+    let read = scoop_slib::read_cross_cone_layout_artifact_closure(
+        scoop_slib::CrossConeArtifactClosureInput::completed(
+            ConeIdentity::CORE,
+            target.lir_target_selection(),
+            vec![],
+            vec![],
+            core_bytes,
+        ),
+        target.c_bridge_toolchain().profile(),
+    )
+    .unwrap();
+    let (core, _) = read.artifact(ConeIdentity::CORE).unwrap();
     let (identities, _, core_hir) =
-        support::identity::identities(&hir.hir, &mir.strong, None, &core);
+        support::identity::identities(&hir.hir, &mir.strong, None, core);
     let foundation = hir::OdrFreeHirFoundation::try_new(
         hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
     )

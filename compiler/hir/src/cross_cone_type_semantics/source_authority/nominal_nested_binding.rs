@@ -18,7 +18,6 @@ pub struct BoundNestedNominalSourceV1<'c, 'p, 's, 'a, 'f> {
     constructors: &'p BoundNominalConstructorSourcesV1<'s, 'a, 'f>,
     parameter_sources: &'p CanonicalNominalSourceParameterProtocolsV1,
     record: &'c NominalSupportNestedInterfaceV1,
-    representations: &'c CanonicalNominalRepresentationSupportV1,
     protocols: BTreeMap<CallableTemplateOrigin, CheckedProtectedSourceProtocolV1<'c>>,
 }
 impl<'c, 'p, 's, 'a, 'f> BoundNestedNominalSourceV1<'c, 'p, 's, 'a, 'f> {
@@ -37,9 +36,6 @@ impl<'c, 'p, 's, 'a, 'f> BoundNestedNominalSourceV1<'c, 'p, 's, 'a, 'f> {
     pub const fn record(&self) -> &'c NominalSupportNestedInterfaceV1 {
         self.record
     }
-    pub const fn representations(&self) -> &'c CanonicalNominalRepresentationSupportV1 {
-        self.representations
-    }
     pub fn protocols(&self) -> impl Iterator<Item = CheckedProtectedSourceProtocolV1<'c>> + '_ {
         self.protocols.values().copied()
     }
@@ -55,25 +51,15 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         &mut self,
         candidate: &'c NominalSupportNestedInterfaceV1,
         protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
-        representations: &'c CanonicalNominalRepresentationSupportV1,
     ) -> Result<BoundNestedNominalSourceV1<'c, 'p, 's, 'a, 'f>, Error> {
-        let foundation = self.members().nominals.foundation;
-        let entries = foundation.source().entries();
-        let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
-            entries.local_inheritance_edges.records().iter(),
-            entries.source_roots.values().iter().copied(),
-            foundation,
-        )
-        .map_err(Error::from_graph)?;
         let mut checked = BoundNestedNominalSourceV1 {
             members: self.members(),
             constructors: self.constructors(),
             parameter_sources: self.table(),
             record: candidate,
-            representations,
             protocols: BTreeMap::new(),
         };
-        replay::validate(self, candidate, protocols, &graph, &mut checked)?;
+        replay::validate(self, candidate, protocols, &mut checked)?;
         Ok(checked)
     }
 }

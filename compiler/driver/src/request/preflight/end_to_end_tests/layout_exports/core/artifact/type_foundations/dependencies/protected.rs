@@ -52,9 +52,6 @@ fn reject(
         source.representation_support().clone(),
         source.inheritance().clone(),
         CanonicalProtectedDeclarationInterfacesV1::try_new(records).unwrap(),
-        source.protected_source_interfaces().clone(),
-        source.protected_defaults().clone(),
-        source.definition_sources().clone(),
         source.selected().clone(),
     );
     candidate
@@ -71,12 +68,7 @@ fn replace_nested(
     hir::ProtectedNestedNominalInterfaceV1::try_new(
         source.declaration(),
         source.declaration_access().clone(),
-        hir::ProtectedNestedNominalPayloadV1::try_new(
-            source.declaration(),
-            interface,
-            source.payload().support(),
-        )
-        .unwrap(),
+        hir::ProtectedNestedNominalPayloadV1::try_new(source.declaration(), interface).unwrap(),
     )
     .unwrap()
 }

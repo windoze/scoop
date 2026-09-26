@@ -10,7 +10,6 @@ use scoop_slib::{
 use super::*;
 use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 
-mod compile_view_pairing;
 mod cross_cone;
 mod default_call_domains;
 mod default_callable_access;

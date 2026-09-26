@@ -154,6 +154,35 @@ impl Lowerer {
                 &mut self.shell,
             );
         }
+        // Owned non-generic declarations include private types referenced only
+        // by exported default arguments. Foreign and generic applications keep
+        // their existing use-driven materialization path.
+        for declaration in module
+            .enums
+            .iter()
+            .map(|(_, declaration)| declaration)
+            .filter(|declaration| {
+                declaration.type_arguments.is_empty()
+                    && declaration.origin.source().is_some_and(|source| {
+                        source.concrete_id().is_some()
+                            && source.declaration().origin() == module.cone
+                    })
+            })
+        {
+            Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            }
+            .lower(
+                declaration.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+        }
     }
 
     /// Fill the MIR struct field types. This runs after the type context

@@ -12,22 +12,14 @@ mod storage;
 pub(super) use index::Index;
 
 impl CanonicalSourceNominalIdsV1 {
-    /// Discovers public/inheritance roots, their storage dependencies, and
-    /// protected nested support without granting public lookup authority.
+    /// Collects the declarations required by the shared source interface,
+    /// including private storage, nested declarations, and default arguments.
     pub fn from_export_hir(output: &ExportHirOutput) -> Result<Self, Error> {
         Self::from_module(output.module())
     }
 
     pub(in crate::production) fn from_module(export: &ExportHir) -> Result<Self, Error> {
-        Self::collect_module(export, false)
-    }
-
-    fn collect_module(export: &ExportHir, complete_children: bool) -> Result<Self, Error> {
-        Self::collect_roots(
-            export,
-            complete_children,
-            index::public(export).map(|local| index::source(export, local)),
-        )
+        shared::SharedSourceRoots::collect(export).map(|roots| roots.nominals)
     }
 
     pub(in crate::production::nominal_interfaces) fn from_complete_roots(

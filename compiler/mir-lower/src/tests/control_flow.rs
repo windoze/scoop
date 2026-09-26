@@ -69,6 +69,14 @@ fn try_and_throw_become_explicit_cfg() {
 
     let expected = "\
 Module
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   class MyError vtable=0 itables=0
   fun main @fn0() -> Unit
     bb0 entry

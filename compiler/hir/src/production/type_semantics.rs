@@ -17,7 +17,6 @@ mod nested_sources;
 mod protected_sources;
 pub use protected_sources::*;
 mod default_access_declarations;
-mod defaults;
 mod nominal_callables;
 mod nominal_constructors;
 mod nominal_parameters;

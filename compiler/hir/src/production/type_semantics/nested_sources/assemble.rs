@@ -1,5 +1,4 @@
 use super::*;
-use scoop_identity::{ExactTypeKey, PersistentExactTypeId};
 
 struct Node {
     source: NestedSourceNode,
@@ -70,16 +69,8 @@ impl Assembly {
             .contract
             .into_nested_interface(support)
             .map_err(invalid)?;
-        let support = match owner {
-            SourceNominalId::Concrete(id) => NestedNominalSupportV1::ParamFree {
-                inheritance_exact: PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(id))
-                    .map_err(invalid)?,
-                representation_owner: id,
-            },
-            SourceNominalId::GenericTemplate(_) => NestedNominalSupportV1::GenericTemplate,
-        };
         let payload =
-            ProtectedNestedNominalPayloadV1::try_new(owner, interface, support).map_err(invalid)?;
+            ProtectedNestedNominalPayloadV1::try_new(owner, interface).map_err(invalid)?;
         NominalSupportNestedInterfaceV1::try_new(owner, node.source.access, payload)
             .map_err(invalid)
     }

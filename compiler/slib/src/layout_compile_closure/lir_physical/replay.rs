@@ -3,8 +3,6 @@ use scoop_identity::ValidatedIdentityGraph;
 
 pub(super) fn physical(
     layout: lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
-    strong: &lir::StrongProductionSectionV2,
-    mir: &mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     dependencies: &[&PhysicalImportsReplayedCrossConeLayoutSections],
     identities: &mut ValidatedIdentityGraph,
 ) -> Result<lir::PhysicalImportsReplayedLayoutAbiSectionV1, SharedLirPhysicalError> {
@@ -24,14 +22,5 @@ pub(super) fn physical(
             },
         )?);
     }
-    let support = support::SharedSupport {
-        consumer: mir,
-        dependencies,
-    };
-    Ok(layout.replay_physical_imports(
-        strong.canonical_definitions(),
-        &providers,
-        &support,
-        identities,
-    )?)
+    Ok(layout.replay_physical_imports(&providers, identities)?)
 }

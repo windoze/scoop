@@ -202,8 +202,7 @@ public fun invoke(value: Number): Int {
     assert_eq!(
         closure
             .current_link()
-            .production()
-            .lir()
+            .strong_production()
             .image_plan()
             .dependencies(),
         expected_consumer_dependencies,
@@ -224,7 +223,9 @@ public fun invoke(value: Number): Int {
     );
     let link_imports = closure
         .current_link()
-        .cross_cone_link_closure()
+        .symbol_uses()
+        .undefined_partitions()
+        .cross_cone()
         .semantic_imports()
         .imports();
     assert_eq!(link_imports.len(), selected.len());

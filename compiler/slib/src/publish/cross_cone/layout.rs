@@ -7,6 +7,13 @@ use crate::CrossConeClosureArtifactSlotV1;
 
 mod errors;
 mod summary;
+pub(crate) fn capture_layout_publication(
+    artifact: &crate::PhysicalImportsReplayedCrossConeLayoutSections,
+    symbols: &crate::ReplayedLayoutLinkSymbolUsesV1,
+    target: ValidatedLirTargetSelection,
+) -> PublishableCrossConeArtifact {
+    summary::capture(artifact.publication_parts(), symbols, target)
+}
 pub use errors::CrossConeLayoutArtifactValidationError;
 
 use CrossConeLayoutArtifactValidationError as Error;

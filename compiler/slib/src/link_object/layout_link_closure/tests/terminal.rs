@@ -1,4 +1,4 @@
-use scoop_lir::{CanonicalLirFoundation, NoShapeLinkSupportV1, OdrFreeLirFoundation};
+use scoop_lir::{CanonicalLirFoundation, OdrFreeLirFoundation};
 
 use super::fixture::empty_section;
 use super::*;
@@ -114,7 +114,7 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
             production: &fixture.provider.production,
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
-            support: &NoShapeLinkSupportV1,
+
             defined_symbols: &fixture.provider_owners,
         });
     assert!(result.is_ok());
@@ -138,7 +138,7 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
             production: &fixture.provider.production,
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
-            support: &NoShapeLinkSupportV1,
+
             defined_symbols: &fixture.provider_owners,
         })
         .unwrap();
@@ -159,7 +159,7 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
             production: &fixture.provider.production,
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
-            support: &NoShapeLinkSupportV1,
+
             defined_symbols: &consumer.defined_symbols,
         });
     assert!(matches!(

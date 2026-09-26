@@ -10,9 +10,9 @@ use scoop_identity::{
 use scoop_lir::{ImportedLirFoundation, ParamFreeLirCallableExportV1, ValidatedLirTargetSelection};
 use scoop_mir::{ImportedMirFoundation, ParamFreeMirCallableExportV1};
 
-use super::{CrossConeProviderRole, LirBridgeValidatedCrossConeHirClosure};
+use super::CrossConeProviderRole;
 use crate::{
-    CompileCommitError, CrossConeSemanticsStrongProfile, ValidatedCompileArtifact,
+    CompileCommitError, CrossConeLayoutStrongProfile, ValidatedCompileArtifact,
     ValidatedCrossConeSemanticsProduction,
 };
 
@@ -20,7 +20,7 @@ mod projection;
 mod world;
 pub use projection::*;
 
-/// A complete M23-5 dependency closure whose identity graphs were committed
+/// A complete layout dependency closure whose identity graphs were committed
 /// to one semantic session as a single transaction.
 ///
 /// The provider storage is intentionally private. Public lookup can enumerate
@@ -30,71 +30,78 @@ pub struct ValidatedCrossConeSemanticClosure {
     current: ConeIdentity,
     target: ValidatedLirTargetSelection,
     direct: Vec<ConeIdentity>,
-    dependency_first: Vec<ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>>,
+    dependency_first: Vec<ValidatedCompileArtifact<CrossConeLayoutStrongProfile>>,
     positions: std::collections::BTreeMap<ConeIdentity, usize>,
     dependency_positions: Vec<Vec<usize>>,
 }
 
-impl<'input> LirBridgeValidatedCrossConeHirClosure<'input> {
-    /// Atomically imports every validated provider identity graph.
-    ///
-    /// `SemanticIdentitySession::import_batch` stages the complete batch and
-    /// leaves the session untouched if any origin or canonical key conflicts.
-    pub fn commit(
-        self,
+impl ValidatedCrossConeSemanticClosure {
+    pub(super) fn from_layout(
+        current: ConeIdentity,
+        target: ValidatedLirTargetSelection,
+        direct: Vec<ConeIdentity>,
+        artifacts: &[std::rc::Rc<crate::PhysicalImportsReplayedCrossConeLayoutSections>],
         session: &mut SemanticIdentitySession,
-    ) -> Result<ValidatedCrossConeSemanticClosure, CrossConeSemanticCommitError> {
-        let artifact_count = self.dependency_first.len();
-        if self.type_alias_expansions.len() != artifact_count {
-            return Err(CrossConeSemanticCommitError::StateCountMismatch {
-                artifacts: artifact_count,
-                alias_expansions: self.type_alias_expansions.len(),
-            });
-        }
-
-        let mut dependency_first = Vec::new();
-        dependency_first
-            .try_reserve_exact(artifact_count)
-            .map_err(|_| CrossConeSemanticCommitError::Allocation {
-                requested_slots: artifact_count,
-            })?;
-        let imported = {
-            let mut imports = Vec::<SemanticIdentityImport<'_>>::new();
-            imports.try_reserve_exact(artifact_count).map_err(|_| {
-                CrossConeSemanticCommitError::Allocation {
-                    requested_slots: artifact_count,
-                }
-            })?;
-            imports.extend(
-                self.dependency_first
+    ) -> Result<Self, CrossConeSemanticCommitError> {
+        let imports = artifacts
+            .iter()
+            .map(|artifact| {
+                let semantic = artifact.manifest().semantic_fingerprints();
+                SemanticIdentityImport::new(
+                    artifact.identity(),
+                    scoop_identity::SemanticOriginFingerprint::new(
+                        *semantic.hir().as_array(),
+                        *semantic.mir().as_array(),
+                        *semantic.lir().as_array(),
+                    ),
+                    artifact.identity_graph(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let imported = session
+            .import_batch(&imports)
+            .map_err(CrossConeSemanticCommitError::SemanticImport)?;
+        let positions = artifacts
+            .iter()
+            .enumerate()
+            .map(|(index, artifact)| (artifact.identity(), index))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let dependency_positions = artifacts
+            .iter()
+            .map(|artifact| {
+                artifact
+                    .manifest()
+                    .direct_dependencies()
                     .iter()
-                    .map(|front| front.semantic_identity_import()),
-            );
-            session
-                .import_batch(&imports)
-                .map_err(CrossConeSemanticCommitError::SemanticImport)?
-        };
-
-        dependency_first.extend(
-            self.dependency_first
-                .into_iter()
-                .zip(imported)
-                .zip(self.type_alias_expansions)
-                .map(|((front, identities), aliases)| front.into_committed(identities, aliases)),
-        );
-
-        Ok(ValidatedCrossConeSemanticClosure {
-            current: self.current,
-            target: self.target,
-            direct: self.direct,
+                    .map(|dependency| positions[&dependency.identity()])
+                    .collect()
+            })
+            .collect();
+        let dependency_first = artifacts
+            .iter()
+            .zip(imported)
+            .map(|(artifact, imported)| {
+                let (hir, mir, lir) = imported.into_parts();
+                ValidatedCompileArtifact::from_parts(
+                    artifact.shared_metadata(),
+                    artifact.shared_identity_graph(),
+                    ImportedHirFoundation::from_odr_free(artifact.hir_foundation().clone(), hir),
+                    ImportedMirFoundation::from_odr_free(artifact.mir_foundation().clone(), mir),
+                    ImportedLirFoundation::from_odr_free(artifact.lir_foundation().clone(), lir),
+                    ValidatedCrossConeSemanticsProduction::new(std::rc::Rc::clone(artifact)),
+                )
+            })
+            .collect();
+        Ok(Self {
+            current,
+            target,
+            direct,
             dependency_first,
-            positions: self.positions,
-            dependency_positions: self.dependency_positions,
+            positions,
+            dependency_positions,
         })
     }
-}
 
-impl ValidatedCrossConeSemanticClosure {
     pub const fn current(&self) -> ConeIdentity {
         self.current
     }
@@ -107,6 +114,16 @@ impl ValidatedCrossConeSemanticClosure {
             .iter()
             .filter(|artifact| artifact.identity() != self.current)
             .map(|artifact| (artifact.coordinate(), artifact.identity_graph()))
+    }
+
+    /// Complete dependency products retained by the shared artifact reader.
+    pub fn layout_dependencies(
+        &self,
+    ) -> impl Iterator<Item = &crate::PhysicalImportsReplayedCrossConeLayoutSections> {
+        self.dependency_first
+            .iter()
+            .filter(|artifact| artifact.identity() != self.current)
+            .map(|artifact| artifact.production().layout())
     }
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
@@ -175,7 +192,7 @@ impl ValidatedCrossConeSemanticClosure {
     fn provider(
         &self,
         identity: ConeIdentity,
-    ) -> Option<&ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>> {
+    ) -> Option<&ValidatedCompileArtifact<CrossConeLayoutStrongProfile>> {
         if identity == self.current {
             return None;
         }
@@ -188,30 +205,23 @@ impl ValidatedCrossConeSemanticClosure {
     /// with [`DecodedCrossConeClosure::with_current_artifact`].
     pub fn current_artifact(
         &self,
-    ) -> Option<&ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>> {
+    ) -> Option<&ValidatedCompileArtifact<CrossConeLayoutStrongProfile>> {
         self.positions
             .get(&self.current)
             .map(|position| &self.dependency_first[*position])
     }
 
-    pub(super) fn all_artifacts_for_validation(
-        &self,
-    ) -> impl ExactSizeIterator<Item = &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>>
-    {
-        self.dependency_first.iter()
-    }
-
     pub(super) fn into_artifact_at(
         mut self,
         position: usize,
-    ) -> ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
+    ) -> ValidatedCompileArtifact<CrossConeLayoutStrongProfile> {
         self.dependency_first.swap_remove(position)
     }
 
     pub(super) fn artifact_at(
         &self,
         position: usize,
-    ) -> &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
+    ) -> &ValidatedCompileArtifact<CrossConeLayoutStrongProfile> {
         &self.dependency_first[position]
     }
 }
@@ -219,15 +229,15 @@ impl ValidatedCrossConeSemanticClosure {
 /// Enumeration-capable view of one validated direct dependency.
 #[derive(Clone, Copy)]
 pub struct DirectCrossConeSemanticProvider<'closure> {
-    artifact: &'closure ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
+    artifact: &'closure ValidatedCompileArtifact<CrossConeLayoutStrongProfile>,
 }
 
 impl<'closure> DirectCrossConeSemanticProvider<'closure> {
-    pub const fn coordinate(self) -> &'closure ConeCoordinate {
+    pub fn coordinate(self) -> &'closure ConeCoordinate {
         self.artifact.coordinate()
     }
 
-    pub const fn identity(self) -> ConeIdentity {
+    pub fn identity(self) -> ConeIdentity {
         self.artifact.identity()
     }
 
@@ -251,15 +261,15 @@ impl<'closure> DirectCrossConeSemanticProvider<'closure> {
 /// Non-enumerable view of one transitive support provider.
 #[derive(Clone, Copy)]
 pub struct SupportCrossConeSemanticProvider<'closure> {
-    artifact: &'closure ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
+    artifact: &'closure ValidatedCompileArtifact<CrossConeLayoutStrongProfile>,
 }
 
 impl<'closure> SupportCrossConeSemanticProvider<'closure> {
-    pub const fn coordinate(self) -> &'closure ConeCoordinate {
+    pub fn coordinate(self) -> &'closure ConeCoordinate {
         self.artifact.coordinate()
     }
 
-    pub const fn identity(self) -> ConeIdentity {
+    pub fn identity(self) -> ConeIdentity {
         self.artifact.identity()
     }
 

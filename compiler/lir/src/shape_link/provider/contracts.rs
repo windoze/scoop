@@ -6,7 +6,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
         &self,
         subject: ExternalStrongShapeSubjectV1,
         physical: StrongShapeDefinitionRefV1,
-        support: &dyn ShapeLinkSupportLookupV1<'a>,
     ) -> Result<ShapeLinkContractV1, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;
 
@@ -103,9 +102,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
             Subject::StaticStorage(_)
             | Subject::StaticStorageRegistration(_)
             | Subject::InitializationCell(_)
-            | Subject::InitializationDescriptor(_) => {
-                self.support_contract(subject, physical, support)?
-            }
+            | Subject::InitializationDescriptor(_) => self.support_contract(subject, physical)?,
         })
     }
 }

@@ -35,15 +35,3 @@ fn complete_default_sources_distinguish_vararg_default_and_empty_omission() {
         .validate_parameter_coverage(production.parameters())
         .unwrap();
 }
-
-#[test]
-fn nominal_default_source_production_rejects_foreign_roots_in_a_mixed_test_world() {
-    let source =
-        scoop_parser::parse("public struct Value(val field: Int = 1)\nfun main() {}").unwrap();
-    let mixed = lower(&[complete_core_file(), source]).unwrap();
-    let error = Production::from_export_hir(&mixed.export).unwrap_err();
-    assert!(
-        matches!(error, hir::NominalDefaultSourceProductionError::Sources(hir::CrossConeTypeSemanticsProductionError::InvalidSourceDeclaration(ref message)) if message == "public source root is not owned by this Cone"),
-        "{error:?}"
-    );
-}

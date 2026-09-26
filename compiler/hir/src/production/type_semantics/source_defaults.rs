@@ -5,16 +5,14 @@ use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::WirePath;
 use std::collections::HashMap;
 mod errors;
-pub(super) mod profile;
 use NominalDefaultSourceProductionError as Error;
 pub use errors::NominalDefaultSourceProductionError;
 
-/// Complete source bodies, parameter facts and profiles; semantic replay is separate.
+/// Complete source bodies and their parameter declarations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalDefaultSourceProductionV1 {
     parameters: CanonicalNominalSourceParameterProtocolsV1,
     templates: CanonicalDefaultSourceTemplatesV1,
-    profiles: CanonicalDefaultSourceProfilesV1,
 }
 impl NominalDefaultSourceProductionV1 {
     pub fn from_dependency_hir(output: &DependencyHirOutput) -> Result<Self, Error> {
@@ -39,17 +37,13 @@ impl NominalDefaultSourceProductionV1 {
     pub const fn templates(&self) -> &CanonicalDefaultSourceTemplatesV1 {
         &self.templates
     }
-    pub const fn profiles(&self) -> &CanonicalDefaultSourceProfilesV1 {
-        &self.profiles
-    }
     pub fn into_parts(
         self,
     ) -> (
         CanonicalNominalSourceParameterProtocolsV1,
         CanonicalDefaultSourceTemplatesV1,
-        CanonicalDefaultSourceProfilesV1,
     ) {
-        (self.parameters, self.templates, self.profiles)
+        (self.parameters, self.templates)
     }
 }
 
@@ -73,7 +67,6 @@ fn produce(
         parameters.get(owner).is_some()
     })?;
     let mut records = Vec::new();
-    let mut profiles = Vec::new();
     for protocol in parameters.records() {
         let local = *owners
             .get(&protocol.owner())
@@ -91,12 +84,6 @@ fn produce(
 
             scoop_wire::allocation::try_reserve(&mut records, 1, &path).map_err(Error::Resource)?;
             let source = body(local, position)?;
-            let profile =
-                profile::from_source(output.module(), local, &source).map_err(Error::Sources)?;
-
-            scoop_wire::allocation::try_reserve(&mut profiles, 1, &path)
-                .map_err(Error::Resource)?;
-            profiles.push(DefaultSourceProfileV1::new(source.key(), profile));
             records.push(source);
         }
     }
@@ -104,14 +91,9 @@ fn produce(
     templates
         .validate_parameter_coverage(&parameters)
         .map_err(Error::Coverage)?;
-    let profiles = CanonicalDefaultSourceProfilesV1::try_new(profiles).map_err(Error::Profiles)?;
-    profiles
-        .validate_template_coverage(&templates)
-        .map_err(Error::Profiles)?;
     Ok(NominalDefaultSourceProductionV1 {
         parameters,
         templates,
-        profiles,
     })
 }
 

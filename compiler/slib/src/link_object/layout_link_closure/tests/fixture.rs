@@ -153,14 +153,10 @@ impl Provider {
             dispatch: self.section.dispatch(),
         })
         .unwrap();
-        let foundation =
-            OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
         ExternalShapeLinkImportV1::replay(
             &provider,
             ExternalStrongShapeSubjectV1::Layout(self.layout),
             consumer,
-            &StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap(),
-            &NoShapeLinkSupportV1,
         )
         .unwrap()
     }

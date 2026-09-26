@@ -17,7 +17,6 @@ pub(super) fn validate<'a>(
     provider: CheckedSharedTypeFoundationV1<'a>,
     dependencies: &[CheckedSharedTypeFoundationV1<'a>],
     context: &Context<'_>,
-    graph: &CheckedNominalInheritanceGraphV1<'_>,
 ) -> Result<(), Error> {
     inventory::validate(provider)?;
     for record in provider.section.protected_declarations().records() {
@@ -54,13 +53,9 @@ pub(super) fn validate<'a>(
                 source,
                 property.payload(),
             )?,
-            ProtectedDeclarationInterfaceV1::NestedNominal(nominal) => nested::validate(
-                provider,
-                dependencies,
-                nominal.source_record(),
-                context,
-                graph,
-            )?,
+            ProtectedDeclarationInterfaceV1::NestedNominal(nominal) => {
+                nested::validate(provider, dependencies, nominal.source_record(), context)?
+            }
         }
     }
     Ok(())

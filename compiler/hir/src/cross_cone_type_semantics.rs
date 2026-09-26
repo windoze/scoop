@@ -1,13 +1,11 @@
 //! Representation-independent cross-Cone type facts and inheritance contracts.
 //!
-//! These constituents belong to `cross-cone-type-semantics/4`; neither the
+//! These constituents belong to `cross-cone-type-semantics/5`; neither the
 //! public lookup interface nor the native-boundary witness grants this authority.
 
 mod access;
-mod definition_sources;
 mod facts;
 mod inheritance;
-mod protected_defaults;
 mod protected_interfaces;
 mod protected_source_interfaces;
 mod representation;
@@ -23,10 +21,8 @@ mod source_callable_selection;
 mod wire;
 
 pub use access::*;
-pub use definition_sources::*;
 pub use facts::*;
 pub use inheritance::*;
-pub use protected_defaults::*;
 pub use protected_interfaces::*;
 pub use protected_source_interfaces::*;
 pub use representation::*;

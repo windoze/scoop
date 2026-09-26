@@ -55,9 +55,6 @@ fn reject(
         original.representation_support().clone(),
         original.inheritance().clone(),
         original.protected_declarations().clone(),
-        original.protected_source_interfaces().clone(),
-        original.protected_defaults().clone(),
-        original.definition_sources().clone(),
         CanonicalSelectedExternalTypeUsesV1::try_new(records).unwrap(),
     );
     let candidate = candidate

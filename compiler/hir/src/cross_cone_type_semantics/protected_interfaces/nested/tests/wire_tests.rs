@@ -35,7 +35,7 @@ impl WireEncode for ReversedMembers<'_> {
     }
 }
 #[test]
-fn nested_reader_rejects_noncanonical_member_order_and_unknown_tag() {
+fn nested_reader_rejects_noncanonical_member_order() {
     let mut fixture = Fixture::default();
     let outer = fixture.class("Outer");
     let owner = nested_class(&mut fixture, outer, "Nested");
@@ -58,6 +58,4 @@ fn nested_reader_rejects_noncanonical_member_order_and_unknown_tag() {
             NestedSourceBuildError::NonCanonicalOrder
         ))
     ));
-
-    assert!(decode_canonical::<DecodedNestedNominalSupportV1>(&[0xa1, 0, 3]).is_err());
 }

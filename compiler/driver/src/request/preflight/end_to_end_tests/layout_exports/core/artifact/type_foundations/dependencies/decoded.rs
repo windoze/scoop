@@ -67,8 +67,7 @@ impl DecodedTypes {
                 .collect::<Vec<_>>(),
         )
         .unwrap();
-        let types: hir::DecodedCrossConeTypeSemanticsSectionV1 =
-            decoded(&source.section().index_for_wire().unwrap());
+        let types: hir::DecodedCrossConeTypeSemanticsSectionV1 = decoded(source.section());
         let types = types
             .resolve(&mut identities, &scoop_wire::WirePath::root())
             .unwrap();

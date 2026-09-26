@@ -287,12 +287,17 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let coordinates = [scoop_identity::ConeCoordinate::reserved_core()];
     let diagnostics =
         scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
-    let (real_lir, lir_public) = machine::lower_selected_lir(
+    let (real_lir, _) = machine::lower_selected_lir(
         &real_mir.strong,
         &real_mir.public,
         scoop_lir_lower::RuntimeStringDescriptor::Local,
         &scoop_lir::SelectedExternalLirSet::empty(scoop_identity::ConeIdentity::CORE),
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &scoop_lir::StrongProductionDependencySelectionV2::empty(
+            ConeIdentity::CORE,
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        )
+        .unwrap(),
         &diagnostics,
     )
     .unwrap();
@@ -343,10 +348,16 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
 
     let production = real_lir
-        .build_production_section(
+        .build_production_section_v2(
             scoop_identity::ConeCoordinate::reserved_core(),
             &[],
             scoop_lir::EntryProductionSourceV1::Library,
+            &scoop_lir::StrongProductionDependencySelectionV2::empty(
+                ConeIdentity::CORE,
+                scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            )
+            .unwrap(),
+            &[],
         )
         .unwrap();
     let production_shape_support = production.shape_support_plan();
@@ -354,10 +365,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         production_shape_support.closures().len(),
         expected_shape_roots
     );
-    let strong = output
-        .seal_strong_profile(real_mir.strong, real_mir.public, real_lir, lir_public)
-        .unwrap();
-    let hir_counts = strong.hir_foundation().as_canonical().counts();
+    let hir_counts = output.foundation.counts();
     assert_eq!(hir_counts.callable_applications, 0);
     assert_eq!(hir_counts.odr_groups, 0);
     assert_eq!(hir_counts.odr_members, 0);
@@ -427,7 +435,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     );
     assert_eq!(
         published.artifact().validation().profile(),
-        &scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG.id()
+        &scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG.id()
     );
     assert!(
         published

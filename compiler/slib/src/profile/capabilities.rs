@@ -49,7 +49,7 @@ pub fn lir_strong_production_capability() -> CapabilityId {
 }
 
 pub fn hir_cross_cone_type_semantics_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-type-semantics", 4)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-type-semantics", 5)
         .expect("built-in capability id is valid")
 }
 

@@ -69,6 +69,14 @@ fn is_instance_and_casts_lower_to_runtime_checks() {
     let expected = "\
 Module
   struct S (x: Int)
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   enum Option<S>
     Some(_1: S)
     None()

@@ -5,7 +5,7 @@ use scoop_hir::{
 use scoop_identity::SemanticOriginFingerprint;
 
 use super::ValidatedCrossConeSemanticClosure;
-use crate::{CrossConeSemanticsStrongProfile, ValidatedCompileArtifact};
+use crate::{CrossConeLayoutStrongProfile, ValidatedCompileArtifact};
 
 impl ValidatedCrossConeSemanticClosure {
     /// Projects this atomically committed closure into HIR's immutable,
@@ -53,7 +53,7 @@ impl ValidatedCrossConeSemanticClosure {
 }
 
 pub(super) fn provider_certificate(
-    artifact: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
+    artifact: &ValidatedCompileArtifact<CrossConeLayoutStrongProfile>,
 ) -> ImportedProviderCertificate {
     let semantic = artifact.semantic_fingerprints();
     ImportedProviderCertificate::from_validated(

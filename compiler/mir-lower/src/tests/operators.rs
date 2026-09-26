@@ -633,6 +633,14 @@ fn division_by_zero_throws_arithmetic_exception() {
 
     let expected = "\
 Module
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
   class ArithmeticException vtable=0 itables=0
   fun main @fn0() -> Unit
     bb0 entry

@@ -53,16 +53,3 @@ pub trait TypeSectionDeclarationSemanticAuthority<E>:
         table.validate_sources(graph, representations, self)
     }
 }
-
-pub trait TypeSectionDefaultSemanticAuthority<E>:
-    ProtectedSourceProtocolSemanticAuthority<E>
-    + ProtectedDefaultSemanticAuthority<E>
-    + TypeDefinitionSourceSemanticAuthority<E>
-{
-}
-impl<A, E> TypeSectionDefaultSemanticAuthority<E> for A where
-    A: ProtectedSourceProtocolSemanticAuthority<E>
-        + ProtectedDefaultSemanticAuthority<E>
-        + TypeDefinitionSourceSemanticAuthority<E>
-{
-}

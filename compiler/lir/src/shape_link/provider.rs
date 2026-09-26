@@ -1,8 +1,6 @@
 use scoop_identity::ConeIdentity;
 
-use super::{
-    ExternalShapeLinkImportV1, ShapeLinkContractV1, ShapeLinkError, ShapeLinkSupportLookupV1,
-};
+use super::{ExternalShapeLinkImportV1, ShapeLinkContractV1, ShapeLinkError};
 use crate::*;
 
 pub(super) mod contracts;
@@ -86,8 +84,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
         &self,
         subject: ExternalStrongShapeSubjectV1,
         consumer: ConeIdentity,
-        consumer_definitions: &StrongObjectSymbolSurfaceV1,
-        support: &dyn ShapeLinkSupportLookupV1<'a>,
     ) -> Result<ExternalShapeLinkImportV1, ShapeLinkError> {
         if consumer == self.provider() {
             return Err(ShapeLinkError::LocalImport);
@@ -105,16 +101,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
             return Err(ShapeLinkError::DefinitionRelation(subject));
         }
 
-        for definition in consumer_definitions.plans() {
-            if definition.primary_symbol() == physical.symbol()
-                || definition.atom_boundaries().iter().any(|boundary| {
-                    boundary.start() == physical.symbol() || boundary.end() == physical.symbol()
-                })
-            {
-                return Err(ShapeLinkError::ConsumerDefinition(physical.symbol()));
-            }
-        }
-        let contract = self.contract(subject, physical, support)?;
+        let contract = self.contract(subject, physical)?;
         if !contract.matches_subject(subject) {
             return Err(ShapeLinkError::Contract);
         }

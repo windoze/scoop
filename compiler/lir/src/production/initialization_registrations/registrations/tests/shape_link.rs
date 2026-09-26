@@ -7,7 +7,7 @@ use ExternalStrongShapeSubjectV1 as Subject;
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 mod fixture;
-use fixture::{ProviderFixture, consumer};
+use fixture::ProviderFixture;
 mod canonical;
 mod reader;
 mod relations;
@@ -17,8 +17,6 @@ fn shape_link_replays_actual_storage_unit_and_callable_definitions_for_both_sche
     for lazy in [false, true] {
         let fixture = ProviderFixture::new(lazy);
         let provider = fixture.provider();
-        let support = fixture.support(true);
-        let consumer = consumer();
         let unit = fixture.unit();
         let subjects = [
             Subject::StaticStorage(unit.storage()),
@@ -29,14 +27,8 @@ fn shape_link_replays_actual_storage_unit_and_callable_definitions_for_both_sche
             Subject::Callable(fixture.callables.records()[0].target()),
         ];
         for subject in subjects {
-            let import = ExternalShapeLinkImportV1::replay(
-                &provider,
-                subject,
-                ConeIdentity::CORE,
-                &consumer,
-                &support,
-            )
-            .unwrap();
+            let import =
+                ExternalShapeLinkImportV1::replay(&provider, subject, ConeIdentity::CORE).unwrap();
             let physical =
                 StrongShapeDefinitionRefV1::from_foundation(subject, &fixture.source.foundation)
                     .unwrap();
@@ -53,32 +45,13 @@ fn shape_link_replays_actual_storage_unit_and_callable_definitions_for_both_sche
 }
 
 #[test]
-fn shape_link_rejects_private_support_local_use_and_consumer_defined_symbol() {
+fn shape_link_rejects_same_provider_imports() {
     let fixture = ProviderFixture::new(false);
     let provider = fixture.provider();
     let subject = Subject::StaticStorage(fixture.unit().storage());
-    assert!(
-        matches!(ExternalShapeLinkImportV1::replay(&provider, subject, ConeIdentity::CORE, &consumer(), &fixture.support(false)), Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
-    );
     assert!(matches!(
-        ExternalShapeLinkImportV1::replay(
-            &provider,
-            subject,
-            ConeIdentity::SINGLE_FILE,
-            &consumer(),
-            &fixture.support(true)
-        ),
+        ExternalShapeLinkImportV1::replay(&provider, subject, provider.provider()),
         Err(ShapeLinkError::LocalImport)
-    ));
-    assert!(matches!(
-        ExternalShapeLinkImportV1::replay(
-            &provider,
-            subject,
-            ConeIdentity::CORE,
-            fixture.section.canonical_definitions(),
-            &fixture.support(true)
-        ),
-        Err(ShapeLinkError::ConsumerDefinition(_))
     ));
 }
 
@@ -89,8 +62,6 @@ fn shape_link_reader_rejects_definition_symbol_and_semantic_tampering() {
         &fixture.provider(),
         Subject::InitializationDescriptor(fixture.unit().unit()),
         ConeIdentity::CORE,
-        &consumer(),
-        &fixture.support(true),
     )
     .unwrap();
     let bytes = encode(&import).unwrap();
@@ -129,8 +100,6 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
         &fixture.provider(),
         Subject::InitializationDescriptor(unit),
         ConeIdentity::CORE,
-        &consumer(),
-        &fixture.support(true),
     )
     .unwrap();
     let terminal = layout_section(

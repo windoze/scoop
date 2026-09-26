@@ -105,7 +105,9 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
         assert_eq!(
             closure
                 .current_link()
-                .cross_cone_link_closure()
+                .symbol_uses()
+                .undefined_partitions()
+                .cross_cone()
                 .semantic_imports()
                 .imports()
                 .len(),

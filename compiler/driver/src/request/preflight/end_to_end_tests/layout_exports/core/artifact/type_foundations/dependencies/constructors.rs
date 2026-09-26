@@ -87,9 +87,6 @@ fn reject(
         source.representation_support().clone(),
         CanonicalNominalInheritanceInterfacesV1::try_new(records).unwrap(),
         protected,
-        source.protected_source_interfaces().clone(),
-        source.protected_defaults().clone(),
-        source.definition_sources().clone(),
         source.selected().clone(),
     );
     candidate

@@ -5,9 +5,9 @@ use scoop_identity::{
 use scoop_lir::{
     CanonicalLirFoundation, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
     DecodedStrongProductionSectionV2, EntryProductionSourceV1, ExactValueLayoutV1,
-    NoShapeLinkSupportV1, OdrFreeLirFoundation, ScalarRepresentationKindV1,
-    StrongInitializationDefinitionCatalogV2, StrongProductionSectionV1, StrongProductionSectionV2,
-    StrongRegistrationProductionSurfaceV1, StrongTypeReferenceDefinitionsV2,
+    OdrFreeLirFoundation, ScalarRepresentationKindV1, StrongInitializationDefinitionCatalogV2,
+    StrongProductionSectionV1, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
+    StrongTypeReferenceDefinitionsV2,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -109,7 +109,7 @@ pub(super) fn artifact<'a>(
         production,
         ordinary: &provider.ordinary,
         section,
-        support: &NoShapeLinkSupportV1,
+
         defined_symbols: owners,
     })
     .unwrap()
@@ -124,7 +124,7 @@ pub(super) fn consumer_artifact<'a>(
         production: &consumer.production,
         ordinary: &consumer.ordinary,
         section: &consumer.section,
-        support: &NoShapeLinkSupportV1,
+
         defined_symbols: owners,
     })
     .unwrap()

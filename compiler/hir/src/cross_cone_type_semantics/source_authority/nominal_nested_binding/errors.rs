@@ -9,8 +9,6 @@ pub enum NominalNestedBindingError {
     Nominal(Box<NominalSourceBindingError>),
     Member(Box<NominalMemberBindingError>),
     Constructor(Box<NominalConstructorBindingError>),
-    Graph(Box<InheritanceGraphError<TypeFoundationBindingError>>),
-    Concrete(Box<NestedSourceSemanticError<NominalSourceBindingError>>),
     Protocol(Box<ProtectedSourceSemanticError<NominalParameterBindingError>>),
     Contract {
         declaration: NestedSupportDeclarationV1,
@@ -41,23 +39,6 @@ source_error!(NominalSourceBindingError, Nominal);
 source_error!(NominalMemberBindingError, Member);
 source_error!(NominalConstructorBindingError, Constructor);
 impl NominalNestedBindingError {
-    pub(super) fn from_graph(error: InheritanceGraphError<TypeFoundationBindingError>) -> Self {
-        match error {
-            InheritanceGraphError::Resource(e) => Self::Resource(e),
-            InheritanceGraphError::Foundation(TypeFoundationBindingError::Resource(e)) => {
-                Self::Resource(e)
-            }
-            other => Self::Graph(Box::new(other)),
-        }
-    }
-    pub(super) fn from_concrete(
-        error: NestedSourceSemanticError<NominalSourceBindingError>,
-    ) -> Self {
-        match error {
-            NestedSourceSemanticError::Resource(e) => Self::Resource(e),
-            other => Self::Concrete(Box::new(other)),
-        }
-    }
     pub(in crate::cross_cone_type_semantics::source_authority) fn from_protocol(
         error: ProtectedSourceSemanticError<NominalParameterBindingError>,
     ) -> Self {
@@ -79,8 +60,6 @@ impl fmt::Display for NominalNestedBindingError {
             Self::Nominal(e) => e.fmt(f),
             Self::Member(e) => e.fmt(f),
             Self::Constructor(e) => e.fmt(f),
-            Self::Graph(e) => e.fmt(f),
-            Self::Concrete(e) => e.fmt(f),
             Self::Protocol(e) => e.fmt(f),
             Self::Contract { declaration, field } => write!(
                 f,

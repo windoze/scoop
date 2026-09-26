@@ -6,7 +6,7 @@ use std::sync::Arc;
 use scoop_identity::{ConeIdentity, SemanticIdentitySession};
 use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_slib::{
-    ArtifactSnapshot, CrossConeArtifactClosureValidationError, CrossConeSemanticsStrongProfile,
+    ArtifactSnapshot, CrossConeArtifactClosureValidationError, CrossConeLayoutStrongProfile,
     PublishableCrossConeArtifact, ValidatedCompileArtifact, ValidatedCrossConeStrongLinkArtifact,
     validate_completed_cross_cone_artifact_closure,
 };
@@ -16,7 +16,7 @@ use super::{ArtifactClosurePlan, ArtifactClosureValidationError};
 /// Complete data for one immutable artifact, retained for subsequent consumers.
 pub struct ValidatedCrossConeArtifactHandle {
     snapshot: Arc<ArtifactSnapshot>,
-    compile: ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
+    compile: ValidatedCompileArtifact<CrossConeLayoutStrongProfile>,
     link: ValidatedCrossConeStrongLinkArtifact,
     publication: PublishableCrossConeArtifact,
 }
@@ -36,7 +36,7 @@ impl ValidatedCrossConeArtifactHandle {
         &self.snapshot
     }
 
-    pub const fn compile(&self) -> &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
+    pub const fn compile(&self) -> &ValidatedCompileArtifact<CrossConeLayoutStrongProfile> {
         &self.compile
     }
 

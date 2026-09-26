@@ -1,28 +1,21 @@
 //! Per-artifact strong LIR production and dependency-bridge validation.
 
-use scoop_hir::{
-    CanonicalTypeAliasExpansionsV1, CoreBootstrapInterfaceSectionV1,
-    CrossConeHirInterfaceSectionV1, ImportedHirFoundation,
-};
+use scoop_hir::{CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1};
 use scoop_identity::{
     CanonicalScoopAbiFunctionSignature, ConeCoordinate, ConeIdentity, ExactCallableSignature,
-    GcEffect, ImportedIdentityLayers, SemanticIdentityImport, ValidatedIdentityGraph,
+    GcEffect, ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError, ImportedLirFoundation,
-    OdrFreeLirFoundation, StrongExternalLirBridgeReconstructionError, StrongProductionSectionV1,
+    CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError, OdrFreeLirFoundation,
+    StrongExternalLirBridgeReconstructionError, StrongProductionSectionV1,
 };
-use scoop_mir::{
-    CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, ImportedMirFoundation,
-    OdrFreeMirFoundation,
-};
+use scoop_mir::{CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation};
 
 use super::MirBridgeValidatedCrossConeHirFrontSections;
 use crate::{
-    CrossConeSemanticsStrongProfile, NativeBoundaryCompileError, ValidatedCompileArtifact,
-    ValidatedGraphArtifact,
+    NativeBoundaryCompileError, ValidatedGraphArtifact,
     compile_decode::{
-        NativeBoundaryFoundationView, replay_canonical_scoop_abi, semantic_identity_import,
+        NativeBoundaryFoundationView, replay_canonical_scoop_abi,
         validate_shared_native_boundary_parts,
     },
     strong_compile_decode::{
@@ -49,55 +42,8 @@ pub struct LirBridgeValidatedCrossConeHirFrontSections<'input> {
     lir_cross_cone_bridge: CrossConeLirBridgeSectionV1,
 }
 
-/// All Compile-facing production surfaces retained after closure-wide
-/// validation and atomic identity import for one M23-5 artifact.
-pub struct ValidatedCrossConeSemanticsProduction {
-    foundations: crate::strong_compile_decode::OdrFreeStrongFoundationSet,
-    strong: crate::ValidatedSingleConeStrongProduction,
-    hir_interface: CrossConeHirInterfaceSectionV1,
-    mir_cross_cone: CrossConeMirBridgeSectionV1,
-    lir_cross_cone: CrossConeLirBridgeSectionV1,
-    type_alias_expansions: CanonicalTypeAliasExpansionsV1,
-}
-
-impl ValidatedCrossConeSemanticsProduction {
-    pub(crate) fn shared_foundations(
-        &self,
-    ) -> crate::strong_compile_decode::OdrFreeStrongFoundationSet {
-        self.foundations.clone()
-    }
-    pub(crate) fn shared_strong_production(&self) -> crate::ValidatedSingleConeStrongProduction {
-        self.strong.clone()
-    }
-
-    pub fn hir_core(&self) -> &CoreBootstrapInterfaceSectionV1 {
-        self.strong.hir()
-    }
-
-    pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
-        &self.hir_interface
-    }
-
-    pub fn mir_core(&self) -> &CoreBootstrapBridgeSectionV1 {
-        self.strong.mir()
-    }
-
-    pub const fn mir_cross_cone(&self) -> &CrossConeMirBridgeSectionV1 {
-        &self.mir_cross_cone
-    }
-
-    pub fn lir_strong(&self) -> &StrongProductionSectionV1 {
-        self.strong.lir()
-    }
-
-    pub const fn lir_cross_cone(&self) -> &CrossConeLirBridgeSectionV1 {
-        &self.lir_cross_cone
-    }
-
-    pub const fn type_alias_expansions(&self) -> &CanonicalTypeAliasExpansionsV1 {
-        &self.type_alias_expansions
-    }
-}
+mod production;
+pub use production::ValidatedCrossConeSemanticsProduction;
 
 impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
@@ -182,49 +128,6 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
             &self.mir_cross_cone_bridge,
             &self.lir_cross_cone_bridge,
             expectations,
-        )
-    }
-
-    pub(crate) fn semantic_identity_import(&self) -> SemanticIdentityImport<'_> {
-        semantic_identity_import(&self.graph, &self.identities)
-    }
-
-    pub(crate) fn into_committed(
-        self,
-        imported: ImportedIdentityLayers,
-        type_alias_expansions: CanonicalTypeAliasExpansionsV1,
-    ) -> ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
-        let Self {
-            graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self;
-        let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
-        let production = ValidatedCrossConeSemanticsProduction {
-            foundations: foundations.clone(),
-            strong: crate::ValidatedSingleConeStrongProduction::new(
-                hir_core_production,
-                mir_core_production,
-                lir_strong_production,
-            ),
-            hir_interface,
-            mir_cross_cone: mir_cross_cone_bridge,
-            lir_cross_cone: lir_cross_cone_bridge,
-            type_alias_expansions,
-        };
-        ValidatedCompileArtifact::from_parts(
-            graph,
-            identities,
-            ImportedHirFoundation::from_odr_free(foundations.hir, hir_identities),
-            ImportedMirFoundation::from_odr_free(foundations.mir, mir_identities),
-            ImportedLirFoundation::from_odr_free(foundations.lir, lir_identities),
-            production,
         )
     }
 }

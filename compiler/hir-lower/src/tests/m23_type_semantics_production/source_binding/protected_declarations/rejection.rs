@@ -1,25 +1,6 @@
 use super::*;
 
 #[test]
-fn protected_production_rejects_missing_source() {
-    with_hir_source(SOURCE, |output, _| {
-        let export = &output.output().export;
-        for field in ["origins", "parameters", "defaults"] {
-            let mut module = export.clone().into_module();
-            match field {
-                "origins" => module.export_definition_origins = Default::default(),
-                "parameters" => module.source_parameter_interfaces.clear(),
-                "defaults" => module.export_default_sources = Default::default(),
-                _ => unreachable!(),
-            }
-            let forged =
-                hir::ExportHirOutput::try_new(module, export.output_kind().clone()).unwrap();
-            assert!(Production::from_export_hir(&forged).is_err(), "{field}");
-        }
-    });
-}
-
-#[test]
 fn protected_wrappers_reject_other_declared_visibilities() {
     with_hir_source(SOURCE, |output, _| {
         let mut fixture = Fixture::from_output(output);

@@ -3,7 +3,6 @@
 use std::path::{Path, PathBuf};
 
 mod artifact_production;
-mod ir_production;
 mod object_production;
 mod request;
 mod trusted_core;
@@ -13,7 +12,6 @@ pub use artifact_production::{
     CrossConeLayoutArtifactMetadataInputV1, CrossConeStrongArtifactMetadataInputV1,
     LayoutArtifactProductionError,
 };
-pub use ir_production::{CrossConeStrongIrArtifactProductionError, CrossConeStrongIrProductionV1};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
     CBridgeEnvelopeVerifiedObjectProductionV1, CodeFingerprintedObjectProductionV1,

@@ -12,7 +12,6 @@ mod errors;
 mod indexed;
 mod nested;
 mod origins;
-mod publication;
 pub use nested::*;
 mod resources;
 mod validation;

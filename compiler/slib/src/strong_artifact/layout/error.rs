@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_hir::{CrossConeHirInterfaceIndexError, TypeSemanticsSectionIndexError};
+use scoop_hir::CrossConeHirInterfaceIndexError;
 use scoop_identity::ConeIdentity;
 use scoop_wire::HashError;
 
@@ -40,7 +40,6 @@ pub enum CrossConeLayoutStrongArtifactWriteError {
     Compatibility(HashError),
     LinkIdentityClosure(LinkIdentityClosureBuildError),
     HirInterfaceIndex(CrossConeHirInterfaceIndexError),
-    HirTypeSemanticsIndex(TypeSemanticsSectionIndexError),
     Encoding {
         section: StrongArtifactSectionV1,
         source: scoop_wire::cbor::EncodeError,
@@ -123,7 +122,6 @@ impl std::error::Error for CrossConeLayoutStrongArtifactWriteError {
             Self::LinkObjectFingerprint(source) | Self::Compatibility(source) => Some(source),
             Self::LinkIdentityClosure(source) => Some(source),
             Self::HirInterfaceIndex(source) => Some(source),
-            Self::HirTypeSemanticsIndex(source) => Some(source),
             Self::Encoding { source, .. } => Some(source),
             Self::MetadataSection { source, .. } => Some(source),
             Self::MetadataEnvelope { source, .. } => Some(source),

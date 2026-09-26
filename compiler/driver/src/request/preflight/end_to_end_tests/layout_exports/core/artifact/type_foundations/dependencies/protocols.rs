@@ -1,14 +1,6 @@
 //! Actual parameter protocols join the complete shared source declarations.
 
 use super::*;
-use hir::{
-    CanonicalProtectedCallableSourceInterfacesV1, CanonicalProtectedSourceParametersV1,
-    ProtectedCallableSourceInterfaceV1, ProtectedParameterCallingV1, ProtectedSourceParameterV1,
-};
-use scoop_identity::{CallableTemplateOrigin, DeclarationName, SourceDeclarationKey};
-
-mod parameters;
-
 pub(super) fn check(
     core: CheckedSharedTypeFoundationV1<'_>,
     sysroot: &Path,
@@ -27,46 +19,13 @@ pub(super) fn check(
     let provider = lower(sysroot, target, &root, vec![], &[core]);
     let checked = provider.check(&[core]).unwrap();
     checked.with_inheritance_graph(&[core], |_| ()).unwrap();
-    let records = checked.section().protected_source_interfaces().records();
-    let mut missing = records.to_vec();
-    missing.remove(index(checked, "none"));
-    assert!(matches!(
-        reject(checked, core, missing),
-        Error::SourceProtocolInventory(_)
-    ));
-    let shared = checked.metadata().public;
-    let extra = shared
-        .source_interfaces()
-        .records()
-        .iter()
-        .find(|record| {
-            !records
-                .iter()
-                .any(|source| source.owner() == record.owner())
-                && record.parameters().is_empty()
-                && matches!(record.owner(), CallableTemplateOrigin::Function(_))
-        })
-        .unwrap();
-    let mut surplus = records.to_vec();
-    surplus.push(
-        ProtectedCallableSourceInterfaceV1::try_new(
-            extra.owner(),
-            CanonicalProtectedSourceParametersV1::default(),
-        )
-        .unwrap(),
-    );
-    assert!(matches!(
-        reject(checked, core, surplus),
-        Error::SourceProtocolInventory(_)
-    ));
-    parameters::check(checked, core);
-
+    let records = checked.metadata().public.source_interfaces().records();
     let mut output = String::new();
     for record in records {
         output.push_str(&format!(
             "{:?} parameters={}\n",
             record.owner(),
-            record.parameters().len_u32()
+            record.parameters().parameters().len()
         ));
         for (position, parameter) in record.parameters().parameters().iter().enumerate() {
             output.push_str(&format!(
@@ -82,47 +41,4 @@ pub(super) fn check(
         std::fs::write(&snapshot, &output).unwrap();
     }
     assert_eq!(output, std::fs::read_to_string(snapshot).unwrap());
-}
-
-fn index(checked: CheckedSharedTypeFoundationV1<'_>, name: &str) -> usize {
-    checked
-        .section()
-        .protected_source_interfaces()
-        .records()
-        .iter()
-        .position(|record| {
-            let key = match record.owner() {
-                CallableTemplateOrigin::Function(id) => checked
-                    .metadata()
-                    .identities
-                    .canonical_key::<_, SourceDeclarationKey>(id)
-                    .unwrap(),
-                _ => return false,
-            };
-            matches!(key.name(), DeclarationName::Named(actual) if actual.as_str() == name)
-        })
-        .unwrap()
-}
-
-fn reject(
-    checked: CheckedSharedTypeFoundationV1<'_>,
-    core: CheckedSharedTypeFoundationV1<'_>,
-    records: Vec<ProtectedCallableSourceInterfaceV1>,
-) -> Error {
-    let source = checked.section();
-    let candidate = CrossConeTypeSemanticsSectionV1::new(
-        source.exact_facts().clone(),
-        source.representation_support().clone(),
-        source.inheritance().clone(),
-        source.protected_declarations().clone(),
-        CanonicalProtectedCallableSourceInterfacesV1::try_new(records).unwrap(),
-        source.protected_defaults().clone(),
-        source.definition_sources().clone(),
-        source.selected().clone(),
-    );
-    candidate
-        .validate_shared_foundation(checked.metadata(), &[core])
-        .unwrap()
-        .with_inheritance_graph(&[core], |_| ())
-        .expect_err("source parameters must match the complete shared declarations")
 }

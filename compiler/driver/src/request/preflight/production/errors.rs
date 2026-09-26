@@ -9,8 +9,8 @@ pub enum CurrentConeProductionFailure {
     Warnings(crate::request::CurrentConeDiagnosticSetError),
     Producer(scoop_slib::ProducerRecordError),
     Cone(scoop_slib::ConeRecordError),
-    Artifact(crate::CrossConeStrongIrArtifactProductionError),
-    Publication(crate::CrossConeArtifactProductionError),
+    Layout(Box<super::LayoutProductionError>),
+    Publication(scoop_slib::CrossConeArtifactPublishError),
 }
 
 impl fmt::Display for CurrentConeProductionFailure {
@@ -23,7 +23,7 @@ impl fmt::Display for CurrentConeProductionFailure {
             Self::Warnings(source) => source.fmt(formatter),
             Self::Producer(source) => source.fmt(formatter),
             Self::Cone(source) => source.fmt(formatter),
-            Self::Artifact(source) => source.fmt(formatter),
+            Self::Layout(source) => source.fmt(formatter),
             Self::Publication(source) => source.fmt(formatter),
         }
     }
@@ -39,9 +39,15 @@ impl std::error::Error for CurrentConeProductionFailure {
             Self::Warnings(source) => source,
             Self::Producer(source) => source,
             Self::Cone(source) => source,
-            Self::Artifact(source) => source,
+            Self::Layout(source) => source.as_ref(),
             Self::Publication(source) => source,
         })
+    }
+}
+
+impl From<super::LayoutProductionError> for CurrentConeProductionFailure {
+    fn from(error: super::LayoutProductionError) -> Self {
+        Self::Layout(Box::new(error))
     }
 }
 

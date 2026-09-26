@@ -1,11 +1,11 @@
 Module
+  enum Choice tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
   enum CoroutineStep<Combined> tagged size=24 align=8 variants=(struct0)@8+16:refs ()@8+0
   enum CoroutineSlot<Combined> tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
   enum CoroutineStep<Holder> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Holder> niche(kind=managed,payload_variant=1)
-  enum Choice tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
-  enum CoroutineStep<Choice> tagged size=32 align=8 variants=(enum4)@8+24:refs ()@8+0
-  enum CoroutineSlot<Choice> tagged size=32 align=8 variants=()@8+0 (enum4)@8+24:refs
+  enum CoroutineStep<Choice> tagged size=32 align=8 variants=(enum0)@8+24:refs ()@8+0
+  enum CoroutineSlot<Choice> tagged size=32 align=8 variants=()@8+0 (enum0)@8+24:refs
   enum CoroutineStep<Marker> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Marker> niche(kind=managed,payload_variant=1)
   fun @scoop$1$cb$b78cf870494b0d1499a4047400b5cba9af29a40eef04b849b40e3e49706bd1e8(ptr<managed>) -> i32
@@ -49,11 +49,11 @@ Module
   td td14 g(r=00000007;i=8001e56b846dfd66265f3c4b4d3242d62b119c300dd72330d1532dcdeefdd338) @scoop$1$td$fbefa7a1d241b5cd5fb47cd43de783f5d7c78cc4ddd308362187f21fba0b5ea9 type-id=7712591950657226091 shape=BoxedValue minimum-size=48 align=8 parent=none vtable=[] itables=[]
   layout Combined size=16 align=8 refs=[8]
   layout Hidden size=4 align=4 refs=[]
+  layout Choice size=24 align=8 enum-scan=refs[16]
   layout CoroutineStep<Combined> size=24 align=8 enum-scan=refs[16]
   layout CoroutineSlot<Combined> size=24 align=8 enum-scan=refs[16]
   layout CoroutineStep<Holder> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Holder> size=8 align=8 enum-scan=refs[0]
-  layout Choice size=24 align=8 enum-scan=refs[16]
   layout CoroutineStep<Choice> size=32 align=8 enum-scan=refs[24]
   layout CoroutineSlot<Choice> size=32 align=8 enum-scan=refs[24]
   layout CoroutineStep<Marker> size=8 align=8 enum-scan=refs[0]

@@ -1158,10 +1158,10 @@ impl ValidatedIdentityGraph {
         layer: IdentityLayer,
 
         path: &WirePath,
-    ) -> Result<Vec<RuntimeIdentityRecord<I>>, IdentityValidationError>
+    ) -> Result<Vec<RuntimeIdentityRecord<I, K>>, IdentityValidationError>
     where
         I: PersistentId + 'static,
-        K: RuntimeIdentityKey<I> + Clone + 'static,
+        K: RuntimeIdentityKey<I> + Clone + Send + Sync + 'static,
     {
         let record_count = self
             .candidates
@@ -1192,7 +1192,8 @@ impl ValidatedIdentityGraph {
             let Some(key) = self
                 .canonical_keys
                 .get(&slot)
-                .and_then(|key| key.as_any().downcast_ref::<K>())
+                .cloned()
+                .and_then(|key| key.into_any().downcast::<K>().ok())
             else {
                 continue;
             };

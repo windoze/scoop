@@ -1,6 +1,17 @@
 use super::*;
 
 impl PhysicalImportsReplayedCrossConeLayoutSections {
+    pub(crate) fn shared_metadata(&self) -> std::rc::Rc<crate::graph::ArtifactMetadata> {
+        std::rc::Rc::clone(&self.semantic.metadata)
+    }
+    pub(crate) fn metadata(&self) -> &crate::graph::ArtifactMetadata {
+        &self.semantic.metadata
+    }
+    pub(crate) fn shared_identity_graph(
+        &self,
+    ) -> std::rc::Rc<scoop_identity::ValidatedIdentityGraph> {
+        std::rc::Rc::clone(&self.semantic.identities)
+    }
     pub fn identity(&self) -> ConeIdentity {
         self.semantic.metadata.identity()
     }

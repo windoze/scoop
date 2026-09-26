@@ -19,7 +19,6 @@ mod errors;
 mod objects;
 mod publication;
 mod replay;
-mod support;
 mod symbols;
 pub use errors::{CrossConeLayoutLirPhysicalError, SharedLirPhysicalError};
 pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;

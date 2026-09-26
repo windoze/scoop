@@ -1,7 +1,7 @@
 //! Complete physical contracts resolved against actual dependency records.
 
 use super::*;
-use crate::{CanonicalExternalShapeLinkImportsV1, ShapeLinkProviderV1, ShapeLinkSupportLookupV1};
+use crate::{CanonicalExternalShapeLinkImportsV1, ShapeLinkProviderV1};
 
 /// Owns the exports, selected relations and resolved physical contracts.
 pub struct PhysicalImportsReplayedLayoutAbiSectionV1 {
@@ -13,9 +13,8 @@ pub struct PhysicalImportsReplayedLayoutAbiSectionV1 {
 impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
     pub fn replay_physical_imports<'a>(
         self,
-        definitions: &crate::StrongObjectSymbolSurfaceV1,
         dependencies: &[ShapeLinkProviderV1<'a>],
-        support: &dyn ShapeLinkSupportLookupV1<'a>,
+
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<PhysicalImportsReplayedLayoutAbiSectionV1, LayoutAbiSectionError> {
         let path = WirePath::root();
@@ -33,13 +32,9 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
             scoop_wire::allocation::try_reserve_set(&mut providers, 1, &path)?;
             providers.insert(provider);
         }
-        let physical = self.physical.replay(
-            self.exports.provider(),
-            definitions,
-            dependencies,
-            support,
-            identities,
-        )?;
+        let physical = self
+            .physical
+            .replay(self.exports.provider(), dependencies, identities)?;
         for import in physical.records() {
             let terminal = dependencies
                 .iter()

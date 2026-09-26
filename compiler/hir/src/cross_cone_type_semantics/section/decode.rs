@@ -7,16 +7,12 @@ pub use errors::*;
 pub trait TypeSemanticsSectionResolver<E>:
     NominalRepresentationResolver<E>
     + NominalInheritanceInterfaceResolver<E>
-    + DefaultStatementReferenceResolver<E>
-    + ProtectedDefaultReferenceResolver<E>
     + SelectedTypeUseResolver<E>
 {
 }
 impl<R, E> TypeSemanticsSectionResolver<E> for R where
     R: NominalRepresentationResolver<E>
         + NominalInheritanceInterfaceResolver<E>
-        + DefaultStatementReferenceResolver<E>
-        + ProtectedDefaultReferenceResolver<E>
         + SelectedTypeUseResolver<E>
 {
 }
@@ -27,9 +23,6 @@ pub struct DecodedCrossConeTypeSemanticsSectionV1 {
     representation_support: DecodedCanonicalNominalRepresentationSupportV1,
     inheritance: DecodedCanonicalNominalInheritanceInterfacesV1,
     protected_declarations: DecodedCanonicalProtectedDeclarationInterfacesV1,
-    protected_source_interfaces: DecodedCanonicalProtectedCallableSourceInterfacesV1,
-    protected_defaults: DecodedCanonicalProtectedDefaultTemplatesV1,
-    definition_sources: DecodedCanonicalExportDefinitionSourcesV1,
     selected: DecodedCanonicalSelectedExternalTypeUsesV1,
 }
 impl DecodedCrossConeTypeSemanticsSectionV1 {
@@ -56,20 +49,6 @@ impl DecodedCrossConeTypeSemanticsSectionV1 {
             .protected_declarations
             .resolve(resolver)
             .map_err(|e| Error::Declarations(Box::new(e)))?;
-        // Field 5 refers forward to the exact key projection of field 6.
-        // The source protocol resolver checks both directions of this relation.
-        let protected_defaults = self
-            .protected_defaults
-            .resolve(resolver)
-            .map_err(|e| Error::Defaults(Box::new(e)))?;
-        let protected_source_interfaces = self
-            .protected_source_interfaces
-            .resolve(resolver, protected_defaults.keys())
-            .map_err(|e| Error::Sources(Box::new(e)))?;
-        let definition_sources = self
-            .definition_sources
-            .resolve(resolver)
-            .map_err(|e| Error::Origins(Box::new(e)))?;
         let selected = self
             .selected
             .resolve(resolver, &path.clone().field(8))
@@ -79,16 +58,13 @@ impl DecodedCrossConeTypeSemanticsSectionV1 {
             representation_support,
             inheritance,
             protected_declarations,
-            protected_source_interfaces,
-            protected_defaults,
-            definition_sources,
             selected,
         ))
     }
 }
 impl WireDecode for DecodedCrossConeTypeSemanticsSectionV1 {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
-        d.expect_map(8)?;
+        d.expect_map(5)?;
         Ok(Self {
             exact_facts: d.field(1, DecodedCanonicalExactTypeFactsV1::decode)?,
             representation_support: d
@@ -96,19 +72,13 @@ impl WireDecode for DecodedCrossConeTypeSemanticsSectionV1 {
             inheritance: d.field(3, DecodedCanonicalNominalInheritanceInterfacesV1::decode)?,
             protected_declarations: d
                 .field(4, DecodedCanonicalProtectedDeclarationInterfacesV1::decode)?,
-            protected_source_interfaces: d.field(
-                5,
-                DecodedCanonicalProtectedCallableSourceInterfacesV1::decode,
-            )?,
-            protected_defaults: d.field(6, DecodedCanonicalProtectedDefaultTemplatesV1::decode)?,
-            definition_sources: d.field(7, DecodedCanonicalExportDefinitionSourcesV1::decode)?,
             selected: d.field(8, DecodedCanonicalSelectedExternalTypeUsesV1::decode)?,
         })
     }
 }
 impl WireEncode for DecodedCrossConeTypeSemanticsSectionV1 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(8)?;
+        e.map(5)?;
         e.field(1)?;
         self.exact_facts.encode(e)?;
         e.field(2)?;
@@ -117,12 +87,6 @@ impl WireEncode for DecodedCrossConeTypeSemanticsSectionV1 {
         self.inheritance.encode(e)?;
         e.field(4)?;
         self.protected_declarations.encode(e)?;
-        e.field(5)?;
-        self.protected_source_interfaces.encode(e)?;
-        e.field(6)?;
-        self.protected_defaults.encode(e)?;
-        e.field(7)?;
-        self.definition_sources.encode(e)?;
         e.field(8)?;
         self.selected.encode(e)
     }

@@ -23,7 +23,7 @@ fn source_only_nominals_preserve_complete_declarations_and_close_machine_depende
             let section = production.section();
             if case == "combined" {
                 assert!(!section.protected_declarations().records().is_empty());
-                assert_eq!(section.protected_defaults().records().len(), 1);
+                assert_eq!(public.default_templates().records().len(), 1);
             }
             let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
                 foundation.local_inheritance_edges().iter(),

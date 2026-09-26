@@ -2,8 +2,10 @@
 
 use super::*;
 mod errors;
+mod layout;
 mod protocols;
 pub use errors::{CurrentConeProductionError, CurrentConeProductionFailure};
+pub use layout::LayoutProductionError;
 
 impl ParsedSingleConeBuildRequest<'_, '_> {
     pub fn build_and_publish(
@@ -51,34 +53,26 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             })
         });
         let artifact = (|| {
-            let strong =
-                protocols.lower_machine(hir, self.request, cone.coordinate(), &mut dump)?;
-            let producer =
-                scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
-                    .map_err(CurrentConeProductionFailure::Producer)?;
-            let owners = self
+            let current = cone.identity();
+            let artifact =
+                protocols.lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;
+            let direct = self
                 .request
                 .dependencies()
-                .closure
-                .dependency_symbol_owners()
-                .cloned()
+                .direct_dependencies()
+                .iter()
+                .map(scoop_slib::DependencyRecord::identity)
                 .collect::<Vec<_>>();
-            let artifact = strong
-                .produce_artifact(
-                    producer,
-                    cone,
-                    self.request.dependencies().direct_dependencies().to_vec(),
-                    temporary_parent,
-                    self.request.target(),
-                    &owners,
-                )
-                .map_err(CurrentConeProductionFailure::Artifact)?;
-            artifact
-                .publish(
-                    self.request.output().as_path(),
-                    self.request.dependencies().dependency_first().to_vec(),
-                )
-                .map_err(CurrentConeProductionFailure::Publication)
+            scoop_slib::publish_cross_cone_layout_artifact(
+                artifact.as_bytes(),
+                self.request.output().as_path(),
+                current,
+                &direct,
+                self.request.dependencies().dependency_first(),
+                self.request.target().lir_target_selection(),
+                self.request.target().c_bridge_toolchain().profile(),
+            )
+            .map_err(CurrentConeProductionFailure::Publication)
         })();
         match artifact {
             Ok(artifact) => Ok(SingleConeProductionSuccess::new_cross_cone(

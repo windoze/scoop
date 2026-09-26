@@ -7,7 +7,6 @@ use scoop_wire::{WireDecode, WireEncode, decode_canonical, encode};
 
 mod assertions;
 mod core;
-mod dependencies;
 mod private_types;
 mod rejections;
 mod shared_abis;

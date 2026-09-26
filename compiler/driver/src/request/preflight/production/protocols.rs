@@ -12,9 +12,11 @@ impl ValidatedCompilerProtocols {
         &self,
         hir: current_hir::CurrentConeHirArtifacts,
         request: &ValidatedSingleConeBuildRequest<'_>,
-        coordinate: &ConeCoordinate,
+        cone: scoop_slib::ConeRecord,
+        temporary_parent: &Path,
         dump: &mut Option<EmittedStageDump>,
-    ) -> Result<CrossConeStrongIrProductionV1, CurrentConeProductionFailure> {
+    ) -> Result<scoop_slib::AssembledCrossConeLayoutStrongArtifactV1, CurrentConeProductionFailure>
+    {
         let selected = request
             .dependencies()
             .semantic()
@@ -59,58 +61,19 @@ impl ValidatedCompilerProtocols {
                 )
             }
         };
-        lower_machine(hir, request, coordinate, selected, runtime_string, dump)
+        layout::assemble(
+            hir,
+            request,
+            cone,
+            temporary_parent,
+            selected,
+            runtime_string,
+            dump,
+        )
     }
 }
 
-fn lower_machine(
-    hir: current_hir::CurrentConeHirArtifacts,
-    request: &ValidatedSingleConeBuildRequest<'_>,
-    coordinate: &ConeCoordinate,
-    selected: scoop_mir::SelectedExternalMirSet,
-    runtime_string: scoop_lir_lower::RuntimeStringDescriptor,
-    dump: &mut Option<EmittedStageDump>,
-) -> Result<CrossConeStrongIrProductionV1, CurrentConeProductionFailure> {
-    let closure = request.dependencies().semantic();
-    let mir = hir
-        .machine_input()
-        .lower_selected_mir(selected)
-        .map_err(CurrentConeProductionFailure::Mir)?;
-    if dump.is_none() {
-        *dump = capture_stage_dump(request.emit(), StageDumpKind::Mir, || {
-            scoop_mir::dump(mir.strong.module())
-        });
-    }
-    let selected = closure
-        .project_dependency_callables_to_lir(&mir.selected_callables)
-        .map_err(CurrentConeLirStageError::DependencyProjection)
-        .map_err(CurrentConeProductionFailure::Lir)?;
-    let (identities, coordinates) = type_identities(&hir, &mir, closure, coordinate)
-        .map_err(CurrentConeLirStageError::Identity)
-        .map_err(CurrentConeProductionFailure::Lir)?;
-    let diagnostics =
-        scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates)
-            .map_err(CurrentConeLirStageError::DiagnosticCatalog)
-            .map_err(CurrentConeProductionFailure::Lir)?;
-    let (lir, lir_public) = machine::lower_selected_lir(
-        &mir.strong,
-        &mir.public,
-        runtime_string,
-        &selected,
-        request.target().lir_target(),
-        &diagnostics,
-    )
-    .map_err(CurrentConeProductionFailure::Lir)?;
-    if dump.is_none() {
-        *dump = capture_stage_dump(request.emit(), StageDumpKind::Lir, || {
-            scoop_lir::dump(lir.module())
-        });
-    }
-    hir.seal_strong_profile(mir.strong, mir.public, lir, lir_public)
-        .map_err(CurrentConeProductionFailure::StrongProfile)
-}
-
-fn type_identities(
+pub(super) fn type_identities(
     hir: &current_hir::CurrentConeHirArtifacts,
     mir: &machine::CurrentConeMirArtifacts,
     dependencies: &scoop_slib::ValidatedCrossConeSemanticClosure,

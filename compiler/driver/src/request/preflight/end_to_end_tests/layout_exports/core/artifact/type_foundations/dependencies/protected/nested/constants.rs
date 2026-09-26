@@ -35,13 +35,13 @@ pub(super) fn check(
         if child.payload().source_interface().kind() != hir::PublicNominalKindV1::Class {
             continue;
         }
-        let hir::NestedNominalSupportV1::ParamFree {
-            inheritance_exact,
-            representation_owner,
-        } = child.payload().support()
-        else {
-            panic!("the static nested class keeps its independent representation")
+        let hir::SourceNominalId::Concrete(representation_owner) = child.declaration() else {
+            panic!("the nested class is non-generic")
         };
+        let inheritance_exact = scoop_identity::PersistentExactTypeId::from_key(
+            &scoop_identity::ExactTypeKey::Nominal(representation_owner),
+        )
+        .unwrap();
         assert!(
             !child
                 .payload()
@@ -130,12 +130,7 @@ pub(super) fn check(
     **object = NominalSupportNestedInterfaceV1::try_new(
         object.declaration(),
         object.declaration_access().clone(),
-        hir::ProtectedNestedNominalPayloadV1::try_new(
-            object.declaration(),
-            interface,
-            object.payload().support(),
-        )
-        .unwrap(),
+        hir::ProtectedNestedNominalPayloadV1::try_new(object.declaration(), interface).unwrap(),
     )
     .unwrap();
     **root = replace_nested(

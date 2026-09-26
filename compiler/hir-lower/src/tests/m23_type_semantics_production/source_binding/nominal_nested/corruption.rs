@@ -111,11 +111,7 @@ fn nested_source_replay_rejects_callable_constructor_and_property_contract_chang
                     entries[index] = changed;
                     let forged = replacing(record, entries);
                     assert!(matches!(
-                        authority.validate_nested_source(
-                            &forged,
-                            &candidates.protocols,
-                            &fixture.source.entries().representations
-                        ),
+                        authority.validate_nested_source(&forged, &candidates.protocols),
                         Err(Error::Contract { .. })
                     ));
                 }
@@ -193,11 +189,7 @@ fn nested_source_replay_checks_contracts_inside_grandchild_support() {
                 declaration: actual,
                 ..
             } = authority
-                .validate_nested_source(
-                    &forged,
-                    &candidates.protocols,
-                    &fixture.source.entries().representations,
-                )
+                .validate_nested_source(&forged, &candidates.protocols)
                 .unwrap_err()
             else {
                 panic!("recursive source contract rejection");

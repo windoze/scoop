@@ -11,7 +11,6 @@ use scoop_wire::{decode_canonical, encode};
 
 mod coverage;
 mod origins;
-mod profiles;
 mod varargs;
 mod wire;
 const SOURCE: &str = include_str!(concat!(

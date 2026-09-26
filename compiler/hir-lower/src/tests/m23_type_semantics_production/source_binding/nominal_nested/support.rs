@@ -91,12 +91,7 @@ pub(super) fn rebuild(record: &Record, interface: hir::ProtectedNestedSourceInte
     Record::try_new(
         record.declaration(),
         record.declaration_access().clone(),
-        hir::ProtectedNestedNominalPayloadV1::try_new(
-            record.declaration(),
-            interface,
-            record.payload().support(),
-        )
-        .unwrap(),
+        hir::ProtectedNestedNominalPayloadV1::try_new(record.declaration(), interface).unwrap(),
     )
     .unwrap()
 }
@@ -163,9 +158,9 @@ pub(super) fn outline(fixture: &Fixture, records: &[Record]) -> String {
         }
         let mut protocols = BTreeSet::new();
         collect_protocols(record, &mut protocols);
-        let kind = match record.payload().support() {
-            hir::NestedNominalSupportV1::ParamFree { .. } => "ParamFree",
-            hir::NestedNominalSupportV1::GenericTemplate => "GenericTemplate",
+        let kind = match record.declaration() {
+            hir::SourceNominalId::Concrete(_) => "Concrete",
+            hir::SourceNominalId::GenericTemplate(_) => "GenericTemplate",
         };
         rows.push(format!(
             "{name}: {kind}, callable={}, constructor={}, property={}, child={}, protocols={}\n",

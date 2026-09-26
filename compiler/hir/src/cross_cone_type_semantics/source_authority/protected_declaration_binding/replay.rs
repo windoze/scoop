@@ -65,11 +65,7 @@ pub(super) fn validate<'c>(
                 continue;
             }
             Declaration::NestedNominal(r) => {
-                let nested = authority.validate_nested_source(
-                    r.source_record(),
-                    protocols,
-                    checked.representations,
-                )?;
+                let nested = authority.validate_nested_source(r.source_record(), protocols)?;
                 for protocol in nested.protocols() {
                     retain(checked, protocol)?;
                 }

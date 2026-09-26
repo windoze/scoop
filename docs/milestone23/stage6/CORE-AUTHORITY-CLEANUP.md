@@ -1,5 +1,7 @@
 # M23-6：普通编译器职责与过度设计清理
 
+嵌套声明的源码 payload 只保留实际声明身份与完整源码接口，不重复携带可由该身份推导的 inheritance exact、representation owner 或泛型/非泛型资格标志。是否存在机器表示由同一产物的实际 representation、inheritance、MIR 与 LIR 表表达；源码完整但尚未物化的声明仍可正常发布。reader 在这些表的消费边界检查引用与表示一致性，不因解析嵌套源码声明再次完整验证同一表示。原 payload 的 field 3 退役且不得复用；HIR `cross-cone-type-semantics` capability 升至 5，旧产物按版本规则重建，runtime C ABI 不变。producer 的类型事实与表示投影必须覆盖共有声明接口中实际需要的私有存储与嵌套支持类型，不能只依据 public binding 根的局部列表。
+
 本设计落实最新版 AGENTS.md，并明确修正旧目标和设计中保留通用预算、来源证明、任意成本模型及重复完整验证的条款。清理覆盖 compiler、slib、runtime 和所有相关规范、格式、测试，不限于 core；将 core 专用机制改成所有 Cone 共用的机制不等于删除过度设计。
 
 配套：[语言规范 12.6](../../specs/SCOOP-SPEC.md#126-核心库)、[实现规范 2.12](../../specs/SCOOP-IMPL-SPEC.md#212-core-普通库的共有验证)、[运行时规范](../../specs/SCOOP-RUNTIME-SPEC.md)、[M23 总设计](../DESIGN.md) 和 [M23-6 设计](DESIGN.md)。
@@ -38,7 +40,13 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 
 ### 2.6 重复证明与完整验证
 
+共有源码接口保存所有必要声明的参数协议、typed 默认值正文和定义环境，protected、private 与默认值支持声明使用同一记录。type-semantics section 不再复制受限参数协议、默认值或来源并集；原 field 5、6、7 退役，现有 field 1～4、8 保持原编号。前端完成语言与可见性检查，reader 核对已有正文的编码、typed 引用与 owner/binder 关系，不再生成 ParamFree/GenericSourceMetadata 资格、逐正文访问证明或独立完整重放。源码完整但无运行时表示的类型可以参与默认参数声明；实际物化时按 typed 声明处理。此次格式变化纳入 cross-cone-type-semantics/5，旧产物需重建，runtime C ABI 不变。
+
 同次编译使用完整 HIR/MIR/LIR 直接生产导出和对象，不反复逆向制造同一对象以证明来源或操作资格。外部产物在读取边界完成格式、typed 引用与跨层关系检查；Compile/Link 对同一字节快照和依赖复用该结果。Link 追加真实对象范围、符号、relocation、registration、patch 和 Code/runtime fingerprint 检查，不能删除必要检查或接受损坏产物。
+
+M23-6 的正式 `scoopc` 发布与 `scoop` 依赖消费统一使用 `CrossConeLayoutStrong`。共有 reader 一次读入完整 HIR 类型语义、MIR 类型与 callable、LIR layout/ABI/dispatch 及真实对象；语义会话直接导入这些记录的实体映射，Compile 与 Link 引用同一完整结果。旧 M23-5 的独立提交、Link 重开及两份发布证明链退出正常路径，不把新 reader 的数据反向构造为旧 producer section。此前格式的依赖需重建；section tag 不复用，runtime C ABI 和 String 表示不变。
+
+初始化与存储导入直接查询实际 provider 的完整 Strong 记录，核对实际 definition、symbol 与 ABI；移除 support-source 资格回调、空授权对象和重复 MIR 使用证明。源码使用与 typed 依赖闭包继续在对应语义边界检查。
 
 当前源码的类型查询与 LIR 诊断目录直接接收 canonical HIR/MIR 实体记录及已读依赖图；不经自身 wire 编解码重建来源。实体层次、实际 provider 和 canonical key 仍完整保留，合并只检查实际 typed identity 冲突。
 

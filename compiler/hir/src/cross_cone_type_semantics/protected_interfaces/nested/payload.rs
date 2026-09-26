@@ -1,62 +1,26 @@
 use super::*;
 use crate::{DeclarationAccessSourceV1, DeclaredVisibilityV1, SourceNominalId};
-use scoop_identity::{PersistentExactTypeId, PersistentTypeId};
 use scoop_wire::{Encoder, WireEncode};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum NestedNominalSupportV1 {
-    ParamFree {
-        inheritance_exact: PersistentExactTypeId,
-        representation_owner: PersistentTypeId,
-    },
-    GenericTemplate,
-}
-impl WireEncode for NestedNominalSupportV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::ParamFree {
-                inheritance_exact,
-                representation_owner,
-            } => {
-                wire::tag(encoder, 3, 1)?;
-                encoder.field(1)?;
-                inheritance_exact.encode(encoder)?;
-                encoder.field(2)?;
-                representation_owner.encode(encoder)
-            }
-            Self::GenericTemplate => wire::tag(encoder, 1, 2),
-        }
-    }
-}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProtectedNestedNominalPayloadV1 {
     source_nominal: SourceNominalId,
     source_interface: ProtectedNestedSourceInterfaceV1,
-    support: NestedNominalSupportV1,
 }
 impl ProtectedNestedNominalPayloadV1 {
     pub fn try_new(
         source_nominal: SourceNominalId,
         source_interface: ProtectedNestedSourceInterfaceV1,
-        support: NestedNominalSupportV1,
     ) -> Result<Self, NestedSourceBuildError> {
-        match (source_nominal, support) {
-            (
-                SourceNominalId::Concrete(id),
-                NestedNominalSupportV1::ParamFree {
-                    representation_owner,
-                    ..
-                },
-            ) if id == representation_owner && source_interface.type_parameters().is_empty() => {}
-            (SourceNominalId::GenericTemplate(_), NestedNominalSupportV1::GenericTemplate)
-                if !source_interface.type_parameters().is_empty() => {}
-            _ => return Err(NestedSourceBuildError::SupportKind),
+        if matches!(source_nominal, SourceNominalId::Concrete(_))
+            != source_interface.type_parameters().is_empty()
+        {
+            return Err(NestedSourceBuildError::SupportKind);
         }
         source_interface.validate_reference_closure(source_nominal)?;
         Ok(Self {
             source_nominal,
             source_interface,
-            support,
         })
     }
     pub const fn source_nominal(&self) -> SourceNominalId {
@@ -65,19 +29,14 @@ impl ProtectedNestedNominalPayloadV1 {
     pub const fn source_interface(&self) -> &ProtectedNestedSourceInterfaceV1 {
         &self.source_interface
     }
-    pub const fn support(&self) -> NestedNominalSupportV1 {
-        self.support
-    }
 }
 impl WireEncode for ProtectedNestedNominalPayloadV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.source_nominal.encode(encoder)?;
         encoder.field(2)?;
-        self.source_interface.encode(encoder)?;
-        encoder.field(3)?;
-        self.support.encode(encoder)
+        self.source_interface.encode(encoder)
     }
 }
 

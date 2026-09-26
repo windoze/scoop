@@ -76,13 +76,7 @@ impl Fixture {
     pub fn value_type(&self) -> SignatureTypeKey {
         SignatureTypeKey::Nominal(self.unit.id())
     }
-    pub fn key(&self) -> ProtectedDefaultTemplateKeyV1 {
-        ProtectedDefaultTemplateKeyV1::try_new(
-            CallableTemplateOrigin::Function(self.function.id()),
-            0,
-        )
-        .unwrap()
-    }
+
     pub fn section(&self) -> CrossConeTypeSemanticsSectionV1 {
         let protected = self.declaration();
         CrossConeTypeSemanticsSectionV1::new(
@@ -117,9 +111,6 @@ impl Fixture {
             ])
             .unwrap(),
             CanonicalProtectedDeclarationInterfacesV1::try_new(vec![protected]).unwrap(),
-            CanonicalProtectedCallableSourceInterfacesV1::try_new(vec![self.protocol()]).unwrap(),
-            CanonicalProtectedDefaultTemplatesV1::try_new(vec![self.template()]).unwrap(),
-            CanonicalExportDefinitionSourcesV1::try_new(vec![self.origin.clone()]).unwrap(),
             // This is a transport fixture; local-looking selected records must
             // still be rejected by the later complete semantic transaction.
             CanonicalSelectedExternalTypeUsesV1::try_new(vec![SelectedExternalTypeUseV1::new(
