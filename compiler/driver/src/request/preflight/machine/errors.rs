@@ -2,6 +2,8 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CurrentConeLirStageError {
+    Identity(scoop_identity::IdentityValidationError),
+    DiagnosticCatalog(scoop_identity::ExactTypeDiagnosticCatalogError),
     TypeDescriptor(scoop_slib::CrossConeTypeDescriptorProjectionError),
     DependencyProjection(scoop_slib::CrossConeLirSelectionProjectionError),
     Lowering(scoop_lir_lower::StrongLirLoweringError),
@@ -11,6 +13,8 @@ pub enum CurrentConeLirStageError {
 impl fmt::Display for CurrentConeLirStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Identity(source) => source.fmt(formatter),
+            Self::DiagnosticCatalog(source) => source.fmt(formatter),
             Self::TypeDescriptor(source) => source.fmt(formatter),
             Self::DependencyProjection(source) => source.fmt(formatter),
             Self::Lowering(source) => source.fmt(formatter),
@@ -22,6 +26,8 @@ impl fmt::Display for CurrentConeLirStageError {
 impl std::error::Error for CurrentConeLirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::Identity(source) => source,
+            Self::DiagnosticCatalog(source) => source,
             Self::TypeDescriptor(source) => source,
             Self::DependencyProjection(source) => source,
             Self::Lowering(source) => source,

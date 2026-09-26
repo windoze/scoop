@@ -99,6 +99,16 @@ impl ValidatedCrossConeSemanticClosure {
         self.current
     }
 
+    /// Borrows the complete dependency records for current-cone type queries.
+    pub fn identity_inputs(
+        &self,
+    ) -> impl Iterator<Item = (&ConeCoordinate, &scoop_identity::ValidatedIdentityGraph)> {
+        self.dependency_first
+            .iter()
+            .filter(|artifact| artifact.identity() != self.current)
+            .map(|artifact| (artifact.coordinate(), artifact.identity_graph()))
+    }
+
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
         self.target
     }

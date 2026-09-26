@@ -43,13 +43,13 @@ Module
   block entry
     t0 = aggregate () : struct0
     ret t0
-  td td0 HeapCell @scoop$1$td$59ef07552b21a7abd651fb41d86d390e908c366ab9c851c217edf7ad43a02526 type-id=6232308157493779620 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td1 box<HeapEmpty> @scoop$1$td$b828c2b2c1f9a7b8f939219f1d04ebb658fe88ee1ce9887c0eb88e6c3d4ba58e type-id=12560702906009081739 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td2 HeapEmpty @scoop$1$td$165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6 type-id=13920687771323353398 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td3 CoroutineStep<HeapCell> @scoop$1$td$0079a0c1cf6b0bcdc146e3023b1088db0ae8471b6f6e3c8ba4ef14d96b74f904 type-id=11000316599803413075 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 CoroutineSlot<HeapEmpty> @scoop$1$td$4da99289a0ee784743980979db3a745fed25590c5e1bdef6514c939e7a8b04ad type-id=5876496404907966599 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td5 CoroutineSlot<HeapCell> @scoop$1$td$4ddb91dffa51a25688791b7e85709d2384297866918845ddb4055b7a54ac4217 type-id=14756216878542636231 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td6 CoroutineStep<HeapEmpty> @scoop$1$td$ee1b2bc054225237ad343b741a521c55d7eea392fca16e4704a93122539cb246 type-id=6053613819786720778 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Aheap-zst-standalone%3A0.1.0;p=;o=-;k=C;x=HeapCell) @scoop$1$td$59ef07552b21a7abd651fb41d86d390e908c366ab9c851c217edf7ad43a02526 type-id=6232308157493779620 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td1 g(r=00000006;i=fffde6270412d52196774a1c507eb3992d6c71265caa71f23e5f8c8cc8ddea85) @scoop$1$td$b828c2b2c1f9a7b8f939219f1d04ebb658fe88ee1ce9887c0eb88e6c3d4ba58e type-id=12560702906009081739 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td2 n(c=dev.example%3Aheap-zst-standalone%3A0.1.0;p=;o=-;k=S;x=HeapEmpty) @scoop$1$td$165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6 type-id=13920687771323353398 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000005;i=6ccea2f80541667f3fa5c6cdf51a304c6f08d73fe816f45ce077e2b2fad8b960) @scoop$1$td$0079a0c1cf6b0bcdc146e3023b1088db0ae8471b6f6e3c8ba4ef14d96b74f904 type-id=11000316599803413075 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 g(r=00000007;i=c93471b4459deed984e45d9ca5093d69303daca66de74fde7fbc9a28fd9497b6) @scoop$1$td$4da99289a0ee784743980979db3a745fed25590c5e1bdef6514c939e7a8b04ad type-id=5876496404907966599 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 g(r=00000007;i=e33f25c0db78b3d67e75e3e384617e1faf5cc4489f8d0d7cf8f49e0f1be32996) @scoop$1$td$4ddb91dffa51a25688791b7e85709d2384297866918845ddb4055b7a54ac4217 type-id=14756216878542636231 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 g(r=00000005;i=1e45a2a74a412e786e7b4a6ff7caeb0a26734fb2654e80430738ad99827f54bb) @scoop$1$td$ee1b2bc054225237ad343b741a521c55d7eea392fca16e4704a93122539cb246 type-id=6053613819786720778 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout HeapEmpty size=0 align=1 refs=[]
   layout CoroutineStep<HeapCell> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<HeapCell> size=8 align=8 enum-scan=refs[0]

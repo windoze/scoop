@@ -467,6 +467,8 @@ record 之间的查询可以借用本地完整表及已验证 dependency 表组�
 
 MIR 生产与读取共用已有的 `MirTypeBridgeDependencyViewV1`：它借用真实 provider 的完整导出表、初始化单元和普通 callable 定义。driver 从已解析依赖图提供可达 provider 的目录；section 不再保存 producer section 组成的递归依赖图，也不要求读出的依赖重新构造为 producer section。选择入口保留 provider 唯一性与实际 typed 引用闭包检查，manifest 依赖环检测复用共有图边界。读取结果可直接用于后续 MIR 类型、callable、dispatch、初始化和布局生产。
 
+当前源码的类型查询图直接保留 HIR/MIR foundation 已生成的 canonical 实体记录，按真实 IR layer 合并已读依赖图；不对同次编译的 foundation 再做 wire 编解码和哈希重建。正式 LIR lowering 从该图及实际 Cone coordinate 建立完整类型诊断目录。记录合并仍检查 typed identity 冲突；reader 继续负责外部字节的格式、引用和循环检查。
+
 MIR section 直接消费同一次 HIR→MIR 已生产的六张完整导出表、初始化单元记录和 typed 依赖使用。删除独立来源工厂、重复预期表、逐表比较回调及 source-join 凭证；生产侧不再次重建或完整验证已经检查的记录。读取边界按实际 HIR 声明、MIR 定义与依赖目录检查格式、类型、签名、effect、可见性、实体归属和引用关系，保留已检查组成表供后续使用，不重建 producer section。依赖选择仍检查实际 provider、完整 typed target 和引用闭包。
 
 生产侧的类型与 shape 依赖直接取 HIR 已保存的实际物化使用记录，不再次遍历全部 HIR 来证明同一记录。外部 callable 从同次 MIR 实际引用取得；ordinary 分区已有的 provider、declaration、implementation 和签名继续复用，其余用途进入类型桥接闭包。初始化使用从实际操作生成一次。元数据中的未物化默认正文和无关源码声明不产生机器依赖。

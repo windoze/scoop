@@ -12,6 +12,7 @@ impl ValidatedCompilerProtocols {
         &self,
         hir: current_hir::CurrentConeHirArtifacts,
         request: &ValidatedSingleConeBuildRequest<'_>,
+        coordinate: &ConeCoordinate,
         dump: &mut Option<EmittedStageDump>,
     ) -> Result<CrossConeStrongIrProductionV1, CurrentConeProductionFailure> {
         let selected = request
@@ -58,13 +59,14 @@ impl ValidatedCompilerProtocols {
                 )
             }
         };
-        lower_machine(hir, request, selected, runtime_string, dump)
+        lower_machine(hir, request, coordinate, selected, runtime_string, dump)
     }
 }
 
 fn lower_machine(
     hir: current_hir::CurrentConeHirArtifacts,
     request: &ValidatedSingleConeBuildRequest<'_>,
+    coordinate: &ConeCoordinate,
     selected: scoop_mir::SelectedExternalMirSet,
     runtime_string: scoop_lir_lower::RuntimeStringDescriptor,
     dump: &mut Option<EmittedStageDump>,
@@ -83,12 +85,20 @@ fn lower_machine(
         .project_dependency_callables_to_lir(&mir.selected_callables)
         .map_err(CurrentConeLirStageError::DependencyProjection)
         .map_err(CurrentConeProductionFailure::Lir)?;
+    let (identities, coordinates) = type_identities(&hir, &mir, closure, coordinate)
+        .map_err(CurrentConeLirStageError::Identity)
+        .map_err(CurrentConeProductionFailure::Lir)?;
+    let diagnostics =
+        scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates)
+            .map_err(CurrentConeLirStageError::DiagnosticCatalog)
+            .map_err(CurrentConeProductionFailure::Lir)?;
     let (lir, lir_public) = machine::lower_selected_lir(
         &mir.strong,
         &mir.public,
         runtime_string,
         &selected,
         request.target().lir_target(),
+        &diagnostics,
     )
     .map_err(CurrentConeProductionFailure::Lir)?;
     if dump.is_none() {
@@ -98,4 +108,28 @@ fn lower_machine(
     }
     hir.seal_strong_profile(mir.strong, mir.public, lir, lir_public)
         .map_err(CurrentConeProductionFailure::StrongProfile)
+}
+
+fn type_identities(
+    hir: &current_hir::CurrentConeHirArtifacts,
+    mir: &machine::CurrentConeMirArtifacts,
+    dependencies: &scoop_slib::ValidatedCrossConeSemanticClosure,
+    coordinate: &ConeCoordinate,
+) -> Result<
+    (scoop_identity::ValidatedIdentityGraph, Vec<ConeCoordinate>),
+    scoop_identity::IdentityValidationError,
+> {
+    let mut pending = scoop_identity::PendingIdentityValidation::new();
+    pending.register_authority(hir.hir.output().export.cone)?;
+    hir.foundation.register_identities(&mut pending)?;
+    mir.strong
+        .foundation()
+        .as_canonical()
+        .register_identities(&mut pending)?;
+    let mut coordinates = vec![coordinate.clone()];
+    for (coordinate, identities) in dependencies.identity_inputs() {
+        pending.register_external_graph_authorities(identities)?;
+        coordinates.push(coordinate.clone());
+    }
+    Ok((pending.finish()?, coordinates))
 }

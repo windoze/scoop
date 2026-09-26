@@ -334,12 +334,12 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 ReadyRegistry @scoop$1$td$d7cbac1151ee4c13913a0e27c2f858c3a6b1466af0ce75ff026074fc73cafc27 type-id=16140416260342835972 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 DeferredHost.ReadyFactory @scoop$1$td$4ff0ffc61a7586e3764631f6eac5b406dc253f352f2546f5e8e89decd5ced6d0 type-id=14359490911194117353 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 CoroutineSlot<ReadyRegistry> @scoop$1$td$16c124b6b28967f4abb16dbe60a7f1be5f7ec5d92394a6e99d0351615fc6e07e type-id=7025108670692405104 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 CoroutineSlot<DeferredHost.ReadyFactory> @scoop$1$td$ba48e0d43232e084e60b8ac7d23cc5644feafd7f6e9c9ac4268c112b7f215916 type-id=13417840119897556171 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 CoroutineStep<ReadyRegistry> @scoop$1$td$bfda6a71d73e4467ad550015b4e6b79d6bee0a34a138d8de2ea73ff3e2616b1b type-id=2330840255388541797 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td5 CoroutineStep<DeferredHost.ReadyFactory> @scoop$1$td$d23f96fe229d643f44f428b41e6a43d34d650b9906b53d6dd3dd4a100b292c73 type-id=10747225838853789770 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Ainitialization-demand%3A0.1.0;p=;o=-;k=O;x=ReadyRegistry) @scoop$1$td$d7cbac1151ee4c13913a0e27c2f858c3a6b1466af0ce75ff026074fc73cafc27 type-id=16140416260342835972 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=dev.example%3Ainitialization-demand%3A0.1.0;p=;o=C:DeferredHost;k=O;x=ReadyFactory) @scoop$1$td$4ff0ffc61a7586e3764631f6eac5b406dc253f352f2546f5e8e89decd5ced6d0 type-id=14359490911194117353 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000007;i=24eb89e43cdb705d705772a65d49955fc639fb3af670a67cde2884cbbb75ad6d) @scoop$1$td$16c124b6b28967f4abb16dbe60a7f1be5f7ec5d92394a6e99d0351615fc6e07e type-id=7025108670692405104 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000007;i=60745410a69ab8c3172bce1608cf435f83b38b78ad1d558f522ce6e4186d06bb) @scoop$1$td$ba48e0d43232e084e60b8ac7d23cc5644feafd7f6e9c9ac4268c112b7f215916 type-id=13417840119897556171 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 g(r=00000005;i=f7f0b0dc5bcd6331f83088bc91e0410128a246684f53a85706de7950978a45e6) @scoop$1$td$bfda6a71d73e4467ad550015b4e6b79d6bee0a34a138d8de2ea73ff3e2616b1b type-id=2330840255388541797 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 g(r=00000005;i=dd4056c46f6a26679f782d0d852ae38c08c82fb336d613c250c4e62fd4146979) @scoop$1$td$d23f96fe229d643f44f428b41e6a43d34d650b9906b53d6dd3dd4a100b292c73 type-id=10747225838853789770 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout CoroutineStep<ReadyRegistry> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<ReadyRegistry> size=8 align=8 enum-scan=refs[0]
   layout CoroutineStep<DeferredHost.ReadyFactory> size=8 align=8 enum-scan=refs[0]

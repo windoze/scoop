@@ -42,12 +42,8 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .compiler_protocol_definitions()
             .is_some()
     );
-    let mut expected_foundation = scoop_hir::CanonicalHirFoundation::from_modules(
-        &output.hir.output().export,
-        &output.hir.output().local,
-        &output.hir.output().native_boundary_types,
-    )
-    .unwrap();
+    let mut expected_foundation =
+        scoop_hir::CanonicalHirFoundation::from_type_semantics_output(&output.hir).unwrap();
     expected_foundation
         .complete_cross_cone_interface_source_points(
             output.hir.output().export.module(),
@@ -276,12 +272,28 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         real_mir.strong.module().meta.callable_signatures.len()
     );
     let expected_lir_shape_roots = shape_plan.roots().to_vec();
+    let mut pending = scoop_identity::PendingIdentityValidation::new();
+    pending
+        .register_authority(scoop_identity::ConeIdentity::CORE)
+        .unwrap();
+    output.foundation.register_identities(&mut pending).unwrap();
+    real_mir
+        .strong
+        .foundation()
+        .as_canonical()
+        .register_identities(&mut pending)
+        .unwrap();
+    let identities = pending.finish().unwrap();
+    let coordinates = [scoop_identity::ConeCoordinate::reserved_core()];
+    let diagnostics =
+        scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
     let (real_lir, lir_public) = machine::lower_selected_lir(
         &real_mir.strong,
         &real_mir.public,
         scoop_lir_lower::RuntimeStringDescriptor::Local,
         &scoop_lir::SelectedExternalLirSet::empty(scoop_identity::ConeIdentity::CORE),
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &diagnostics,
     )
     .unwrap();
     let lir_shape_roots = real_lir.shape_support().roots();

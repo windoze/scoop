@@ -290,6 +290,8 @@ M23-6 的普通源码 MIR 类型导出由 mir-lower 接收同次生产的 HIR ty
 
 MIR section 直接消费同一次 HIR→MIR 已生产的六张完整导出表、初始化单元记录和 typed 依赖使用。删除独立来源工厂、重复预期表、逐表比较回调及 source-join 凭证；生产侧不再次重建或完整验证已经检查的记录。读取边界按实际 HIR 声明、MIR 定义与依赖目录检查格式、类型、签名、effect、可见性、实体归属和引用关系，保留已检查组成表供后续使用，不重建 producer section。依赖选择仍检查实际 provider、完整 typed target 和引用闭包。
 
+driver 从当前完整 HIR/MIR foundation 的 canonical 实体记录直接建立类型查询图，复用依赖 reader 已解析的实体记录；不将同次编译的 foundation 编码后再解码、重哈希来取得查询入口。当前记录保持原有 HIR/MIR layer，依赖保持真实 provider 与共享 canonical key；合并仍检查 typed identity 冲突。LIR 的完整类型诊断目录由该图及实际 Cone coordinate 提供，供正常源码编译的布局与 descriptor 生产使用。外部字节的格式、哈希、引用和循环检查继续在 reader 边界执行。
+
 初始化单元在 MIR 物化时已经确定实际 initializer、ensure、完整逻辑签名与 GC effect；导出直接复制这些完整记录，不再投影第二套来源签名或保存 ProducerEmitted／ReaderSemanticReplay 证明状态。reader 从实际声明的 unit key 和同一产物的 callable 定义恢复相同数据，并检查真实 provider、ordinary Managed、无 receiver/参数及 Unit 返回值。实际机器定义与 relocation 在 Link 对象边界检查；两种消费使用同一记录类型，七字段 wire 不增加冗余 unit-role 表。
 
 构造器 MIR callable binding 从同次 HIR type-semantics 的构造记录、LocalConcrete 构造物化及 sealed strong MIR 共同生产。public/protected 构造记录决定完整导出范围，private 构造不由其实际存在自动获得导出资格。LocalConcrete 的已有 typed materialization 连接声明 id 与 MIR 实现，参数 exact 身份沿用共有构造签名投影；不得按名称或 arena 序号配对。struct 构造的源码与 lowered 签名均为无 receiver、返回该值类型；class 构造的源码签名返回该 class，而实际初始化函数接收同一 exact class 的隐藏 receiver 并返回 Unit。源码 GC effect 与实际函数分别保留，再经共有角色/签名验证。struct 主构造使用独立 PrimaryValueConstructor 角色：源码合同为 Managed，实际值组装 leaf 为 NoGc，参数顺序与完整字段 exact 类型一致，允许值包含引用而不授予源码 NoGC 调用资格；次构造保持源码 effect。缺少任一所需构造、类型或实际 body 时整体失败。依赖类型通过共有索引借用。

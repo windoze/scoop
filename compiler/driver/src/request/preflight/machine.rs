@@ -68,6 +68,7 @@ pub(super) fn lower_selected_lir(
     runtime_string: scoop_lir_lower::RuntimeStringDescriptor,
     selected_callables: &scoop_lir::SelectedExternalLirSet,
     target: scoop_lir::LirTargetProfile,
+    diagnostics: &impl scoop_identity::ExactTypeDiagnosticGraph,
 ) -> Result<
     (
         scoop_lir::SingleConeStrongLirOutput,
@@ -75,8 +76,14 @@ pub(super) fn lower_selected_lir(
     ),
     CurrentConeLirStageError,
 > {
-    let lir = scoop_lir_lower::lower(strong, runtime_string, selected_callables, target)
-        .map_err(CurrentConeLirStageError::Lowering)?;
+    let lir = scoop_lir_lower::lower_with_diagnostics(
+        strong,
+        runtime_string,
+        selected_callables,
+        target,
+        diagnostics,
+    )
+    .map_err(CurrentConeLirStageError::Lowering)?;
     let public = scoop_lir_lower::lower_cross_cone_bridge_section(strong, public, &lir)
         .map_err(CurrentConeLirStageError::CrossConeBridge)?;
     Ok((lir, public))

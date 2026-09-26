@@ -225,9 +225,9 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 Holder @scoop$1$td$0be78b8328f9cbb964b0bde8783222cb94e9c15dfccb447b625febc3a8245daf type-id=3703656593083800629 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 CoroutineSlot<Holder> @scoop$1$td$39bea27981b8d93ef2d5133f82ea0b874eb452116a38e62a5c14255bdfe16beb type-id=18232750371652252290 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 CoroutineStep<Holder> @scoop$1$td$a6a493f57f03f96631d910195cd3543fc67b751d7c691bbd43c5481e524a4cfa type-id=2043022839869941082 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 n(c=dev.example%3Aprojection-combined%3A0.1.0;p=;o=-;k=O;x=Holder) @scoop$1$td$0be78b8328f9cbb964b0bde8783222cb94e9c15dfccb447b625febc3a8245daf type-id=3703656593083800629 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 g(r=00000007;i=707878e6a14b4662389a89e4be952fe913a9777c79dec27bd8eae7bfab797667) @scoop$1$td$39bea27981b8d93ef2d5133f82ea0b874eb452116a38e62a5c14255bdfe16beb type-id=18232750371652252290 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000005;i=93995e0dadd713408a1c777a6458b574441f257ae7bed3bbdf1b7c398e2fced8) @scoop$1$td$a6a493f57f03f96631d910195cd3543fc67b751d7c691bbd43c5481e524a4cfa type-id=2043022839869941082 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout CoroutineStep<Holder> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Holder> size=8 align=8 enum-scan=refs[0]
   layout Holder value size=8 align=8 refs=[0]

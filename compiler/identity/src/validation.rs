@@ -22,6 +22,7 @@ use crate::{
     SourceNativeExternalContractKey,
 };
 
+mod canonical;
 mod decoded;
 mod external;
 mod records;

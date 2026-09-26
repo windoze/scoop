@@ -275,7 +275,7 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 UserCache @scoop$1$td$098cc31a02098ecca66591c7756599d2fccfe79fd2ec6aa2380d22b93729f0f9 type-id=6351018757997357437 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=UserCache) @scoop$1$td$098cc31a02098ecca66591c7756599d2fccfe79fd2ec6aa2380d22b93729f0f9 type-id=6351018757997357437 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout UserCache value size=8 align=8 refs=[0]
   layout UserCache size=24 align=8 refs=[]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde

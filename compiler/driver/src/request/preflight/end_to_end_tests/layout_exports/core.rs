@@ -347,9 +347,8 @@ fn identity_graph(
     mir: &mir::SingleConeStrongMirInput,
     lir: Option<&lir::SingleConeStrongLirOutput>,
 ) -> ValidatedIdentityGraph {
-    let hir: hir::DecodedHirFoundation =
-        decoded(&hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap());
-    let mir: mir::DecodedMirFoundation = decoded(mir.foundation().as_canonical());
+    let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();
+    let mir = mir.foundation().as_canonical();
     let lir: Option<lir::DecodedLirFoundation> =
         lir.map(|lir| decoded(lir.foundation().as_canonical()));
     let mut pending = PendingIdentityValidation::new();
@@ -359,8 +358,6 @@ fn identity_graph(
     if let Some(lir) = &lir {
         lir.register_identities(&mut pending).unwrap();
     }
-    hir.resolve_identities(&mut pending).unwrap();
-    mir.resolve_identities(&mut pending).unwrap();
     if let Some(lir) = &lir {
         lir.resolve_identities(&mut pending).unwrap();
     }

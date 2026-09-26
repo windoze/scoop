@@ -127,6 +127,10 @@ impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
         Rc::clone(&self.identities)
     }
 
+    pub(crate) fn identity_graph(&self) -> &ValidatedIdentityGraph {
+        &self.identities
+    }
+
     pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
         self.metadata.coordinate()
     }

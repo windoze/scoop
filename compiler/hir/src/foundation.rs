@@ -32,6 +32,7 @@ mod declaration_type_sites;
 mod default_origins;
 mod definition_locations;
 mod evaluation_locations;
+mod identities;
 mod imported;
 mod imported_protocols;
 mod projection;

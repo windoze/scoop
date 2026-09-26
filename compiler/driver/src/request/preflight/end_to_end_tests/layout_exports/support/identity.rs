@@ -45,10 +45,9 @@ pub(in super::super) fn identities(
             .unwrap(),
     )
     .unwrap();
-    let hir: hir::DecodedHirFoundation =
-        decoded(&hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap());
+    let hir = hir::CanonicalHirFoundation::from_type_semantics_output(hir).unwrap();
     let provider = mir.module().cone;
-    let mir: mir::DecodedMirFoundation = decoded(mir.foundation().as_canonical());
+    let mir = mir.foundation().as_canonical();
     let lir_foundation: Option<lir::DecodedLirFoundation> =
         lir.map(|lir| decoded(lir.foundation().as_canonical()));
     let mut pending = PendingIdentityValidation::new();
@@ -62,8 +61,6 @@ pub(in super::super) fn identities(
     pending
         .register_external_graph_authorities(&core_graph)
         .unwrap();
-    hir.resolve_identities(&mut pending).unwrap();
-    mir.resolve_identities(&mut pending).unwrap();
     if let Some(foundation) = &lir_foundation {
         foundation.resolve_identities(&mut pending).unwrap();
     }

@@ -50,6 +50,28 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     );
     sources::snapshot("mir", &scoop_mir::dump(mir.strong.module()));
     let selected = selection::lir(&mir.selected_callables);
+    let mut pending = scoop_identity::PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending
+        .register_authority(provider.coordinate.identity().unwrap())
+        .unwrap();
+    hir.foundation.register_identities(&mut pending).unwrap();
+    provider
+        .foundation
+        .register_identities(&mut pending)
+        .unwrap();
+    mir.strong
+        .foundation()
+        .as_canonical()
+        .register_identities(&mut pending)
+        .unwrap();
+    let identities = pending.finish().unwrap();
+    let coordinates = [
+        scoop_identity::ConeCoordinate::reserved_core(),
+        provider.coordinate.clone(),
+    ];
+    let diagnostics =
+        scoop_identity::ExactTypeDiagnosticCatalog::try_new(&identities, &coordinates).unwrap();
     let target = scoop_lir::LirTargetProfile::DARWIN_AARCH64;
     let empty =
         scoop_lir::SelectedExternalLirSet::try_from_callables(ConeIdentity::CORE, Vec::new())
@@ -60,7 +82,8 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
             &mir.public,
             scoop_lir_lower::RuntimeStringDescriptor::Local,
             &empty,
-            target
+            target,
+            &diagnostics
         ),
         Err(CurrentConeLirStageError::Lowering(
             scoop_lir_lower::StrongLirLoweringError::ExternalCallableCountMismatch {
@@ -75,6 +98,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         scoop_lir_lower::RuntimeStringDescriptor::Local,
         &selected,
         target,
+        &diagnostics,
     )
     .unwrap();
     assert_eq!(lir.module().meta.external_callables.len(), 1);

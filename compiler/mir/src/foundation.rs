@@ -23,6 +23,7 @@ pub use wire::{
     CallbackApplicationRelationError, DecodedMirFoundation, MirFoundationReferenceError,
     MirFoundationValidationError, ValidatedMirFoundation,
 };
+mod identities;
 mod imported;
 mod projection;
 mod strong_profile;

@@ -51,7 +51,8 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             })
         });
         let artifact = (|| {
-            let strong = protocols.lower_machine(hir, self.request, &mut dump)?;
+            let strong =
+                protocols.lower_machine(hir, self.request, cone.coordinate(), &mut dump)?;
             let producer =
                 scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
                     .map_err(CurrentConeProductionFailure::Producer)?;

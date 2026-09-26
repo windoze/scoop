@@ -25,7 +25,7 @@ impl CurrentConeHirArtifacts {
             .map_err(CurrentConeHirStageError::Lowering)?;
 
         runtime_requirements::validate(&hir, world).map_err(CurrentConeHirStageError::Lowering)?;
-        let mut foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&hir)
+        let mut foundation = scoop_hir::CanonicalHirFoundation::from_type_semantics_output(&hir)
             .map_err(CurrentConeHirStageError::Foundation)?;
         let production_section =
             scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.output().export)
