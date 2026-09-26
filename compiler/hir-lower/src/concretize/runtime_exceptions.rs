@@ -1,7 +1,7 @@
-//! Runtime cast requirements use the actual exception declaration.
+//! Runtime failures use their actual exception declarations.
 
 use scoop_ast::{Diagnostic, Span};
-use scoop_identity::SignatureTypeKey;
+use scoop_identity::{PersistentTypeId, SignatureTypeKey};
 
 use super::*;
 use crate::imported_core::ImportedSignatureTypeError;
@@ -13,6 +13,23 @@ impl Lowerer {
             return Ok(());
         };
         let declaration = imported.exceptions().class_cast_exception().persistent();
+        self.prepare_runtime_exception_type(declaration)
+    }
+
+    pub(crate) fn prepare_arithmetic_exception_type(
+        &mut self,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let CoreLoweringAuthority::Imported(imported) = &self.core else {
+            return Ok(());
+        };
+        let declaration = imported.exceptions().arithmetic_exception().persistent();
+        self.prepare_runtime_exception_type(declaration)
+    }
+
+    fn prepare_runtime_exception_type(
+        &mut self,
+        declaration: PersistentTypeId,
+    ) -> Result<(), ImportedSignatureTypeError> {
         if self.types.iter().any(|(_, ty)| {
             matches!(ty, export::Type::ImportedClass(class) if class.declaration.identity.id() == declaration)
         }) {
@@ -39,6 +56,18 @@ impl Concretizer<'_> {
             return;
         };
         let declaration = protocols.exceptions().class_cast_exception().persistent();
+        self.lower_runtime_exception_type(declaration);
+    }
+
+    pub(super) fn lower_arithmetic_exception_type(&mut self) {
+        let export::CoreProtocols::Imported(protocols) = self.core else {
+            return;
+        };
+        let declaration = protocols.exceptions().arithmetic_exception().persistent();
+        self.lower_runtime_exception_type(declaration);
+    }
+
+    fn lower_runtime_exception_type(&mut self, declaration: PersistentTypeId) {
         if let Some((ty, _)) = self.source.types.iter().find(|(_, ty)| {
             matches!(ty, export::Type::ImportedClass(class) if class.declaration.identity.id() == declaration)
         }) {
@@ -51,20 +80,27 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
     let concrete::ConcreteCoreProtocols::Imported(protocols) = &module.core_protocols else {
         return Ok(());
     };
-    let declaration = protocols.exceptions().class_cast_exception().persistent();
-    if module
-        .classes
-        .iter()
-        .any(|(_, class)| class.origin.concrete_type_id() == Some(declaration))
-    {
+    let has_layout = |declaration| {
+        module
+            .classes
+            .iter()
+            .any(|(_, class)| class.origin.concrete_type_id() == Some(declaration))
+    };
+    let cast_layout = has_layout(protocols.exceptions().class_cast_exception().persistent());
+    let arithmetic_layout = has_layout(protocols.exceptions().arithmetic_exception().persistent());
+    if cast_layout && arithmetic_layout {
         return Ok(());
     }
     module.visit_executable_expressions(|occurrence| {
-        if matches!(occurrence.expression.kind, concrete::ExprKind::Cast { optional: false, .. }) {
-            return Err(Diagnostic::at(occurrence.expression.span,
-                "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: runtime cast failure constructor requires a materialized dependency layout; its owner has source-only representation"));
-        }
-        Ok(())
+        let operation = match occurrence.expression.kind {
+            concrete::ExprKind::Cast { optional: false, .. } if !cast_layout => "runtime cast failure constructor",
+            concrete::ExprKind::IntegerOperation {
+                operation: concrete::IntegerOperation::Managed { .. }, ..
+            } if !arithmetic_layout => "integer division exception constructor",
+            _ => return Ok(()),
+        };
+        Err(Diagnostic::at(occurrence.expression.span, format!(
+            "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: {operation} requires a materialized dependency layout; its owner has source-only representation")))
     }).map_err(|error| vec![match error {
         concrete::ExecutableExpressionVisitError::Visitor(diagnostic) => diagnostic,
         concrete::ExecutableExpressionVisitError::Structure(error) => Diagnostic::at(

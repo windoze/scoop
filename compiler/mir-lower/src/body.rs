@@ -3,6 +3,7 @@ use super::*;
 mod callbacks;
 mod calls;
 mod casts;
+mod exceptions;
 mod expressions;
 mod function;
 mod imported_calls;

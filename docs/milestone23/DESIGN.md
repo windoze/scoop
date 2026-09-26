@@ -8,6 +8,8 @@ M23-6 的外来非泛型接口/class 调用直接使用共有声明及 provider 
 
 值类型通过同一声明查询保留其真实接口关系与父接口，装箱使用 provider 已发布的 boxed TD、接口表和 adjust thunk。struct、enum、ZST 及含引用 payload 的下游调用沿相同路径处理，core 的新增值类型与其他 library Cone 一致。intrinsic 表示不丢弃原声明的接口信息，也不要求在当前 Cone 重建 core 定义。
 
+整数 `div/rem` 通过共有依赖声明解析 `ArithmeticException`，并与强制 `as` 的失败分支共用普通类型、constructor、ABI 与 relocation 路径。只有实际运行点物化异常表示；未使用的默认表达式不产生机器依赖。删除 Managed 整数运算的旧无条件布局门和 MIR 的 Defined core 要求，不另存来源或操作证明。验收覆盖正常除法/余数、signed 边界、除零 catch、默认参数、修改 core 后的默认构造器适配，以及产物的下游链接和移动 GC 运行。
+
 primitive 的完整声明与接口从共有 nominal 查询进入 HIR；具体化和 MIR 按 canonical 类型及真实 nominal 身份使用表示。`IntrinsicTypeDeclaration` 的 kind/provider 编号包装退役，类型表示直接持有 typed kind，诊断所需源码位置留在原 source 表。该调整不改变持久身份、wire/profile 或 runtime C ABI，也不建立新的来源工厂。
 
 共有查询结果按需复用，实际装箱、receiver 和函数变型适配才物化所需 primitive 声明；不能把完整 primitive arena、查询缓存或未实例化默认值整体变成机器依赖根。

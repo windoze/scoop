@@ -1,0 +1,1 @@
+public fun rejected(value: Long): Long = value.div("two")

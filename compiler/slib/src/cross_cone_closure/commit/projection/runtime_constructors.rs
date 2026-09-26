@@ -1,4 +1,4 @@
-//! Implicit cast failures select an ordinary dependency constructor.
+//! Implicit runtime failures select ordinary dependency constructors.
 
 use scoop_hir::{ImportedCoreProtocolCallableDefinition, concrete};
 use scoop_identity::StrongCallableDefinitionOwner;
@@ -7,7 +7,7 @@ use scoop_mir::{MirCallableLoweringRoleV1, SelectedExternalMirCallable};
 use super::{CrossConeMirSelectionProjectionError as Error, ValidatedCrossConeSemanticClosure};
 
 impl ValidatedCrossConeSemanticClosure {
-    pub(super) fn project_cast_constructor(
+    pub(super) fn project_runtime_constructors(
         &self,
         module: &concrete::Module,
         selected: &mut Vec<SelectedExternalMirCallable>,
@@ -15,13 +15,21 @@ impl ValidatedCrossConeSemanticClosure {
         let concrete::ConcreteCoreProtocols::Imported(protocols) = &module.core_protocols else {
             return Ok(());
         };
-        let mut required = false;
+        let mut cast_required = false;
+        let mut arithmetic_required = false;
         module
             .visit_executable_expressions(|occurrence| {
-                required |= matches!(
+                cast_required |= matches!(
                     occurrence.expression.kind,
                     concrete::ExprKind::Cast {
                         optional: false,
+                        ..
+                    }
+                );
+                arithmetic_required |= matches!(
+                    occurrence.expression.kind,
+                    concrete::ExprKind::IntegerOperation {
+                        operation: concrete::IntegerOperation::Managed { .. },
                         ..
                     }
                 );
@@ -33,10 +41,28 @@ impl ValidatedCrossConeSemanticClosure {
                 }
                 concrete::ExecutableExpressionVisitError::Visitor(never) => match never {},
             })?;
-        if !required {
-            return Ok(());
+        for (required, constructor) in [
+            (
+                cast_required,
+                protocols.exceptions().class_cast_exception_constructor(),
+            ),
+            (
+                arithmetic_required,
+                protocols.exceptions().arithmetic_exception_constructor(),
+            ),
+        ] {
+            if required {
+                self.project_runtime_constructor(constructor, selected)?;
+            }
         }
-        let constructor = protocols.exceptions().class_cast_exception_constructor();
+        Ok(())
+    }
+
+    fn project_runtime_constructor(
+        &self,
+        constructor: &scoop_hir::ImportedCoreProtocolCallable,
+        selected: &mut Vec<SelectedExternalMirCallable>,
+    ) -> Result<(), Error> {
         let provider = constructor.provider();
         let target = match constructor.definition() {
             ImportedCoreProtocolCallableDefinition::Constructor(id) => {

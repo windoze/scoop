@@ -23,7 +23,7 @@ pub fn lower_current_cone(
     };
     let dependency_mapping =
         lower_dependency_callables(output, &selected_callables, &mut callables)?;
-    lower_cast_constructor(hir, &selected_callables, &mut callables)?;
+    lower_runtime_constructors(hir, &selected_callables, &mut callables)?;
     let module = lower_with_dependencies(
         &output.output().local,
         cycle_authority,
@@ -130,8 +130,8 @@ fn lower_dependency_callables(
     Ok(mapping)
 }
 
-pub(super) fn cast_constructor_target(
-    protocols: &scoop_hir::ImportedCoreProtocols,
+pub(super) fn runtime_constructor_target(
+    constructor: &scoop_hir::ImportedCoreProtocolCallable,
 ) -> Result<
     (
         mir::ConeIdentity,
@@ -141,16 +141,15 @@ pub(super) fn cast_constructor_target(
 > {
     use scoop_hir::ImportedCoreProtocolCallableDefinition as Definition;
     use scoop_identity::StrongCallableDefinitionOwner as Target;
-    let constructor = protocols.exceptions().class_cast_exception_constructor();
     let target = match constructor.definition() {
         Definition::Constructor(id) => Target::Constructor(id.persistent()),
         Definition::GeneratedCallable(id) => Target::GeneratedCallable(id.persistent()),
-        _ => return Err(CurrentConeMirLoweringError::InvalidCastConstructor),
+        _ => return Err(CurrentConeMirLoweringError::InvalidRuntimeConstructor),
     };
     Ok((constructor.provider(), target))
 }
 
-fn lower_cast_constructor(
+fn lower_runtime_constructors(
     module: &hir::Module,
     selected: &mir::SelectedExternalMirSet,
     callables: &mut Arena<mir::ExternalCallableUse>,
@@ -158,19 +157,24 @@ fn lower_cast_constructor(
     let hir::ConcreteCoreProtocols::Imported(protocols) = &module.core_protocols else {
         return Ok(());
     };
-    let (provider, target) = cast_constructor_target(protocols)?;
-    if callables.iter().any(|(_, callable)| {
-        callable.reference().provider() == provider
-            && callable.reference().implementation() == target
-    }) {
-        return Ok(());
-    }
-    if let Some(id) = selected.callable_for(provider, target) {
-        callables.alloc(
-            selected
-                .callable_use(id, mir::GcEffect::Managed)
-                .expect("the selected constructor retains its complete physical signature"),
-        );
+    for constructor in [
+        protocols.exceptions().class_cast_exception_constructor(),
+        protocols.exceptions().arithmetic_exception_constructor(),
+    ] {
+        let (provider, target) = runtime_constructor_target(constructor)?;
+        if callables.iter().any(|(_, callable)| {
+            callable.reference().provider() == provider
+                && callable.reference().implementation() == target
+        }) {
+            continue;
+        }
+        if let Some(id) = selected.callable_for(provider, target) {
+            callables.alloc(
+                selected
+                    .callable_use(id, mir::GcEffect::Managed)
+                    .expect("the selected constructor retains its complete physical signature"),
+            );
+        }
     }
     Ok(())
 }
@@ -181,7 +185,7 @@ pub enum CurrentConeMirLoweringError {
     InvalidInitializationCycleThrower,
     MissingInitializationCycleThrower,
     InitializationCycleThrowerMismatch,
-    InvalidCastConstructor,
+    InvalidRuntimeConstructor,
     ForeignExternalMirSelection {
         expected: mir::ConeIdentity,
         actual: mir::ConeIdentity,

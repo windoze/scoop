@@ -15,7 +15,6 @@ mod body;
 mod callable_identities;
 mod callables;
 mod callback_slots;
-mod casts;
 mod classes;
 mod closures;
 mod constructor_slots;
@@ -27,6 +26,7 @@ mod interfaces;
 mod nominals;
 mod objects;
 mod protocols;
+mod runtime_exceptions;
 mod types;
 
 use automatic::AutomaticNominalRoots;
@@ -73,7 +73,7 @@ pub(crate) fn lower_output(
             )
         }
     };
-    casts::check_runtime_layout(&module)?;
+    runtime_exceptions::check_runtime_layout(&module)?;
     let materialization = export::LocalShapeSupportPlan::try_new(&module, requirements)
         .expect("validated public shape roots survive concretization");
     Ok(

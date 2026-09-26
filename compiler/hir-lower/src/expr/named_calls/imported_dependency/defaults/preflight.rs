@@ -155,13 +155,6 @@ impl Lowerer {
             }
             Kind::PrimitiveUnary { operand, .. } | Kind::Unary { operand, .. } => self
                 .preflight_imported_default_expression(owner, template, operand, locals, callables),
-            Kind::IntegerOperation {
-                operation: hir::DefaultIntegerOperationV1::Managed { .. },
-                ..
-            } => Err(ImportedDefaultPlanError::Requires {
-                requirement: ImportedCapabilityRequirement::Layout,
-                operation: "dependency integer division exception construction",
-            }),
             Kind::IntegerOperation { arguments, .. } => match arguments {
                 hir::DefaultIntegerArgumentsV1::Unary(operand) => self
                     .preflight_imported_default_expression(

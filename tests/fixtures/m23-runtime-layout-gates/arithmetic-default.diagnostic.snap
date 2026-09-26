@@ -1,0 +1,3 @@
+span=37..43
+expression=42 / 2
+SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: integer division exception constructor requires a materialized dependency layout; its owner has source-only representation

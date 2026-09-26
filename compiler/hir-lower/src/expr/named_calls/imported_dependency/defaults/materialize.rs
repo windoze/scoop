@@ -285,26 +285,35 @@ impl Lowerer {
             Kind::IntegerOperation {
                 operation,
                 arguments,
-            } => hir::ExprKind::IntegerOperation {
-                operation: (*operation).into(),
-                arguments: match arguments {
-                    hir::DefaultIntegerArgumentsV1::Unary(operand) => {
-                        hir::HirIntegerOperationArguments::Unary(Box::new(
-                            self.materialize_imported_default_expression(operand, context)?,
-                        ))
-                    }
-                    hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
-                        hir::HirIntegerOperationArguments::Binary {
-                            lhs: Box::new(
-                                self.materialize_imported_default_expression(lhs, context)?,
-                            ),
-                            rhs: Box::new(
-                                self.materialize_imported_default_expression(rhs, context)?,
-                            ),
+            } => {
+                if matches!(operation, hir::DefaultIntegerOperationV1::Managed { .. }) {
+                    self.prepare_arithmetic_exception_type().map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(
+                            error.diagnostic("integer division exception type"),
+                        )
+                    })?;
+                }
+                hir::ExprKind::IntegerOperation {
+                    operation: (*operation).into(),
+                    arguments: match arguments {
+                        hir::DefaultIntegerArgumentsV1::Unary(operand) => {
+                            hir::HirIntegerOperationArguments::Unary(Box::new(
+                                self.materialize_imported_default_expression(operand, context)?,
+                            ))
                         }
-                    }
-                },
-            },
+                        hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
+                            hir::HirIntegerOperationArguments::Binary {
+                                lhs: Box::new(
+                                    self.materialize_imported_default_expression(lhs, context)?,
+                                ),
+                                rhs: Box::new(
+                                    self.materialize_imported_default_expression(rhs, context)?,
+                                ),
+                            }
+                        }
+                    },
+                }
+            }
             Kind::IntegerConversion {
                 source_kind,
                 target_kind,

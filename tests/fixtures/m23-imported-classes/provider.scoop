@@ -113,3 +113,4 @@ public struct EchoValue(val reference: Counter): ValueEcho {
 }
 public fun defaultValueReader(value: Readable = StructReader(20)): Readable = value
 public fun defaultPrimitiveHash(value: Hash = 21): Hash = value
+public fun defaultQuotient(value: Long = 42 / 2): Long = value

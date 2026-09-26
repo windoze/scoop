@@ -409,7 +409,7 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 ### 5.5 依赖与边界
 
 - 生产runtime与生成对象的异常依赖只允许Itanium Level I `_Unwind_*`接口；不得导入`__cxa_*`、`__gxx_personality_v0`、`__gcc_personality_v0`或C++ terminate符号。每个target profile必须显式选择兼容的unwind provider并以产物级符号检查验收；Darwin/AArch64由系统`libSystem`重导出libunwind接口，不添加`-lc++abi`，也不要求当前SDK不提供的独立`-lunwind`链接名。
-- 内置异常的抛出点：除零（`ArithmeticException`）、`as`失败（`ClassCastException`）、`!!`失败（`UnwrapException`）、数组越界等（spec 10.5、11.7）由generated managed CFG构造异常并调用runtime-only no-return throw入口；不能藏进可能把异常展开出native frame的Scoop ABI FFI helper。range的非正step由普通Scoop core body抛`IllegalArgumentException`，不需要runtime专用入口。
+- 内置异常的抛出点：除零（`ArithmeticException`）、`as`失败（`ClassCastException`）、`!!`失败（`UnwrapException`）、数组越界等（spec 10.5、11.7）由generated managed CFG构造异常并调用runtime-only no-return throw入口；不能藏进可能把异常展开出native frame的Scoop ABI FFI helper。range的非正step由普通Scoop core body抛`IllegalArgumentException`，不需要runtime专用入口。整数除零与类型转换失败均使用实际 provider 的异常 TD 和普通 constructor；允许其零参数调用通过默认参数 adapter 实现。保持原有 managed 分配、展开与移动 GC 契约，不改变 runtime C ABI。
 - **边界规则**：异常不得穿越C ABI frame（行为未定义）；能否穿越Scoop ABI FFI frame取决于实现（FFI函数无landing pad，穿越意味着跳过外部语言代码——初版禁止，行为定为终止进程）。M25只替换Scoop进程内的异常runtime，不扩大FFI可展开边界。
 
 ## 6. 核心类型的运行时后备

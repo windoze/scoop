@@ -1,0 +1,94 @@
+Module
+  fun divide(value: Long, divisor: Long): Long
+    val local2
+      Local value : Long
+    val local3
+      Local divisor : Long
+    val local4
+      Local $dependency.argument.0 : Long
+    return
+      IntegerOperation long.div <managed> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 0 : Long
+    try
+      val local1
+        IntegerLiteral 42 : Long
+      val local2
+        IntegerLiteral 0 : Long
+      val local3
+        Local $argument.0 : Long
+      val local4
+        Local $argument.1 : Long
+      Call divide : Long
+        Local $parameter.value : Long
+        Local $parameter.divisor : Long
+    catch failure: ArithmeticException
+      val local6
+        Local caught : Long
+      val local7
+        IntegerLiteral 10 : Long
+      val local8
+        Local $dependency.argument.0 : Long
+      assign caught
+        IntegerOperation long.add <no-gc> : Long
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+    try
+      val local9
+        IntegerLiteral 42u : UInt
+      val local10
+        Local value : UInt
+      val local11
+        IntegerLiteral 0u : UInt
+      val local12
+        Local $dependency.argument.0 : UInt
+      val local13
+        IntegerOperation uint.rem <managed> : UInt
+          Local $dependency.receiver : UInt
+          Local $dependency.parameter.other : UInt
+      val local15
+        Local caught : Long
+      val local14
+        Local remainder : UInt
+      val local16
+        IntegerConversion UInt -> Long <no-gc> : Long
+          Local $dependency.receiver : UInt
+      val local17
+        Local $dependency.argument.0 : Long
+      assign caught
+        IntegerOperation long.add <no-gc> : Long
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+    catch failure: ArithmeticException
+      val local19
+        Local caught : Long
+      val local20
+        IntegerLiteral 10 : Long
+      val local21
+        Local $dependency.argument.0 : Long
+      assign caught
+        IntegerOperation long.add <no-gc> : Long
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+    finally
+      val local22
+        Local caught : Long
+      val local23
+        IntegerLiteral 1 : Long
+      val local24
+        Local $dependency.argument.0 : Long
+      assign caught
+        IntegerOperation long.add <no-gc> : Long
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+    val local25
+      Local caught : Long
+    val local26
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #0 : Counter
+        Local $dependency.parameter.value : Long
+  output library

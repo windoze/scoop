@@ -1,0 +1,21 @@
+Module
+  fun withDefault @fn0(value: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local value
+  fun primary @fn1() -> Long
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $call.1: Long = @fn0 direct
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.1
+  output library

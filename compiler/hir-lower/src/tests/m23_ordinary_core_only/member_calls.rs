@@ -83,7 +83,7 @@ fn imported_core_members_preserve_source_argument_diagnostics() {
         (
             "managed.scoop",
             "value.div(2)",
-            "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: dependency callable requires layout/ABI capability from M23-6",
+            "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: integer division exception constructor requires a materialized dependency layout; its owner has source-only representation",
         ),
     ] {
         let source = fixture(name);

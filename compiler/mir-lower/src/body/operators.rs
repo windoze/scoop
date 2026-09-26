@@ -280,12 +280,16 @@ impl BodyLowerer<'_> {
             local: rhs_slot,
             init: rhs,
         });
-        let throw = self.throw_builtin(
-            crate::defined_protocols(self.core_protocols)
-                .exceptions
-                .arithmetic_exception,
-            span,
-        );
+        let throw = match self.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                self.throw_builtin(protocols.exceptions.arithmetic_exception, span)
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => self.throw_imported_exception(
+                protocols.exceptions().arithmetic_exception().persistent(),
+                protocols.exceptions().arithmetic_exception_constructor(),
+                span,
+            ),
+        };
         self.prelude.push(smir::StatementKind::If {
             cond: smir::Expr::integer_compare(
                 mir::IntegerComparisonOperation::new(kind, mir::IntegerComparisonOperator::Equal),

@@ -530,6 +530,9 @@ impl Concretizer<'_> {
                 arguments,
             } => {
                 let operation = *operation;
+                if matches!(operation, concrete::IntegerOperation::Managed { .. }) {
+                    self.lower_arithmetic_exception_type();
+                }
                 let arguments =
                     match arguments {
                         export::HirIntegerOperationArguments::Unary(operand) => {

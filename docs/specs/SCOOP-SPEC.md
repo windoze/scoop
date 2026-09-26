@@ -1154,7 +1154,7 @@ literal在8.6 winner commit前持有candidate-local可表示type集合。exact e
 core整数的二元算术、逐bit运算和比较要求两个已定型operand为同一canonical type；literal可按上段直接提交。shift例外地要求左operand/result保持该integer type、count为canonical `Long`。不同width或signedness的非literal不隐式提升，必须显式转换。对宽度W：
 
 - `+`、`-`、`*`、一元`-`、`inc`/`dec`及bit操作按`2^W`wrapping；一元`+`是同类型identity。signed结果按W位二进制补码解释，overflow不抛异常；
-- `/`向零截断，`%`余数与被除数同号；除数为0抛`ArithmeticException`。signed `MIN / -1 == MIN`且`MIN % -1 == 0`，不能继承后端poison/trap；
+- `/`向零截断，`%`余数与被除数同号；除数为0抛`ArithmeticException`。signed `MIN / -1 == MIN`且`MIN % -1 == 0`，不能继承后端poison/trap；跨 Cone 运算使用前端解析的实际异常声明及零参数 constructor 或其默认参数适配入口，core 的声明可以位于普通依赖中；
 - `and`/`or`/`xor`/`inv`逐bit工作。`shl`/`shr`/`ushr`的count为`Long`，有效count取其低`log2(W)`位；signed `shr`为算术右移，signed `ushr`和unsigned右移为逻辑右移；
 - signed/unsigned比较分别使用数学有符号/无符号次序；`compareTo`统一返回canonical `Long`的`-1L/0L/1L`；
 - const evaluator与运行期使用完全相同的width、wrapping、division和shift语义；const除零是定义错误，普通表达式仍按运行期异常执行。

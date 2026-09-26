@@ -2,7 +2,7 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn normalize_primitive_method_call(
-        &self,
+        &mut self,
         function: hir::FunctionId,
         receiver: hir::Expr,
         args: &[hir::Expr],
@@ -44,7 +44,7 @@ impl Lowerer {
     }
 
     pub(in crate::expr) fn normalize_integer_method_call(
-        &self,
+        &mut self,
         intrinsic: hir::IntegerIntrinsicKind,
         receiver: hir::Expr,
         args: &[hir::Expr],
@@ -59,6 +59,9 @@ impl Lowerer {
                 }
             }
             hir::IntegerIntrinsicKind::ManagedOperation { kind, operation } => {
+                if let Err(error) = self.prepare_arithmetic_exception_type() {
+                    self.error(span, error.diagnostic("integer division exception type"));
+                }
                 ExprKind::IntegerOperation {
                     operation: hir::IntegerOperation::Managed { kind, operation },
                     arguments: integer_operation_arguments(

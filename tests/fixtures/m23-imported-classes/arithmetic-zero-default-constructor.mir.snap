@@ -1,0 +1,364 @@
+Module
+  class ArithmeticException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun divide @fn0(value: Long, divisor: Long) -> Long
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        Local divisor
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $div.1: Long
+        Type Long
+        Local $dependency.receiver
+      val $div.2: Long
+        Type Long
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.1
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.2
+          Type Long
+          IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Long
+        SafeIntegerDivRem divide kind=Long
+          Type Long
+          Local $div.1
+          Type Long
+          Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      return
+        Type Long
+        Local $div.result.3
+  fun primary @fn1() -> Counter
+    bb0 entry
+      var caught: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      goto bb20
+    bb8 try.body.8 unwind bb1
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      val $parameter.divisor: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = @fn0 direct
+        Type Long
+        Local $parameter.value
+        Type Long
+        Local $parameter.divisor
+      goto bb7
+    bb9 try.catch.9
+      val failure: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          CaughtException
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.receiver: Long
+        Type Long
+        Local caught
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign caught
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+    bb13 try.unwind.13
+      landing_pad cleanup=false
+      goto bb14
+    bb14 try.dispatch.14
+      begin_catch
+      branch bb24 bb25
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb15 try.handler_pad.15
+      landing_pad cleanup=true
+      goto bb16
+    bb16 try.handler_cleanup.16
+      end_catch
+      val $dependency.receiver: Long
+        Type Long
+        Local caught
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign caught
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      resume
+    bb17 try.exit_pad.17
+      landing_pad cleanup=true
+      goto bb18
+    bb18 try.exit_cleanup.18
+      end_catch
+      resume
+    bb19 try.end.19
+      val $dependency.argument.0: Long
+        Type Long
+        Local caught
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+    bb20 try.body.20 unwind bb13
+      val value: UInt
+        Type UInt
+        IntegerLiteral UInt value=42 bits=0x0000002a
+      val $dependency.receiver: UInt
+        Type UInt
+        Local value
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val $div.1: UInt
+        Type UInt
+        Local $dependency.receiver
+      val $div.2: UInt
+        Type UInt
+        Local $dependency.parameter.other
+      branch bb21 bb22
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $div.2
+          Type UInt
+          IntegerLiteral UInt value=0 bits=0x00000000
+    bb21 if.then.21 unwind bb13
+      assign $new.2
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.2
+      throw unwind bb13
+        Type ArithmeticException
+        Local $new.2
+    bb22 if.merge.22 unwind bb13
+      val remainder: UInt
+        Type UInt
+        SafeIntegerDivRem remainder kind=UInt
+          Type UInt
+          Local $div.1
+          Type UInt
+          Local $div.2
+      val $dependency.receiver: Long
+        Type Long
+        Local caught
+      val $dependency.receiver: UInt
+        Type UInt
+        Local remainder
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion UInt -> Long
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign caught
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb23
+    bb23 scope.23
+      val $dependency.receiver: Long
+        Type Long
+        Local caught
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign caught
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb19
+    bb24 try.catch.24
+      val failure: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          CaughtException
+      goto bb26
+    bb25 try.next.25 unwind bb17
+      val $dependency.receiver: Long
+        Type Long
+        Local caught
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign caught
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      rethrow unwind bb17
+    bb26 scope.26 unwind bb15
+      val $dependency.receiver: Long
+        Type Long
+        Local caught
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign caught
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      end_catch
+      goto bb27
+    bb27 scope.27
+      val $dependency.receiver: Long
+        Type Long
+        Local caught
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign caught
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb19
+  output library

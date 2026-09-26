@@ -8,10 +8,10 @@ use scoop_wire::WirePath;
 
 use super::ValidatedCrossConeSemanticClosure;
 
-mod casts;
 mod errors;
 mod lir;
 mod protocols;
+mod runtime_constructors;
 pub use errors::*;
 pub use protocols::{CrossConeInitializationSelectionError, CrossConeProtocolImportError};
 
@@ -106,7 +106,7 @@ impl ValidatedCrossConeSemanticClosure {
             }
         }
 
-        self.project_cast_constructor(hir.output().local.module(), &mut projected)?;
+        self.project_runtime_constructors(hir.output().local.module(), &mut projected)?;
         SelectedExternalMirSet::try_from_selections(self.current, projected)
             .map_err(CrossConeMirSelectionProjectionError::Selection)
     }

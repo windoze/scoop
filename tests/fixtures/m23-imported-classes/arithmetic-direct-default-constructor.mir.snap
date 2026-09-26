@@ -1,0 +1,219 @@
+Module
+  class ArithmeticException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun operand @fn0(value: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local value
+  fun primary @fn1() -> Counter
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=43 bits=0x000000000000002b
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $dependency.receiver: Long = @fn0 direct
+        Type Long
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $div.1: Long
+        Type Long
+        Local $dependency.receiver
+      val $div.2: Long
+        Type Long
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.1
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.2
+          Type Long
+          IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Long
+        SafeIntegerDivRem divide kind=Long
+          Type Long
+          Local $div.1
+          Type Long
+          Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val quotient: Long
+        Type Long
+        Local $div.result.3
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=43 bits=0x000000000000002b
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $dependency.receiver: Long = @fn0 direct
+        Type Long
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $div.4: Long
+        Type Long
+        Local $dependency.receiver
+      val $div.5: Long
+        Type Long
+        Local $dependency.parameter.other
+      branch bb9 bb10
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb9 if.then.9
+      assign $new.3
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.3
+      throw
+        Type ArithmeticException
+        Local $new.3
+    bb10 if.merge.10
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.4
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb11 logic.rhs.11
+      assign $logic.4
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.5
+          Type Long
+          IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      goto bb13
+    bb12 logic.short.12
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb13
+    bb13 logic.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $logic.4
+    bb14 if.then.14
+      assign $div.result.6
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb16
+    bb15 if.else.15
+      assign $div.result.6
+        Type Long
+        SafeIntegerDivRem remainder kind=Long
+          Type Long
+          Local $div.4
+          Type Long
+          Local $div.5
+      goto bb16
+    bb16 if.merge.16
+      val remainder: Long
+        Type Long
+        Local $div.result.6
+      val $dependency.receiver: Long
+        Type Long
+        Local quotient
+      val $dependency.argument.0: Long
+        Type Long
+        Local remainder
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.5
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.5
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.5
+  output library

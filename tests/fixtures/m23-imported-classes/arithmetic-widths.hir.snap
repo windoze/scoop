@@ -1,0 +1,241 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 43 : Int8
+    val local1
+      IntegerLiteral 43 : Int16
+    val local2
+      IntegerLiteral 43 : Int
+    val local3
+      IntegerLiteral 43 : Long
+    val local4
+      IntegerLiteral 43u : UInt8
+    val local5
+      IntegerLiteral 43u : UInt16
+    val local6
+      IntegerLiteral 43u : UInt
+    val local7
+      IntegerLiteral 43uL : ULong
+    val local8
+      Local a : Int8
+    val local9
+      IntegerLiteral 2 : Int8
+    val local10
+      Local $dependency.argument.0 : Int8
+    val local11
+      IntegerOperation int8.div <managed> : Int8
+        Local $dependency.receiver : Int8
+        Local $dependency.parameter.other : Int8
+    val local16
+      IntegerConversion Int8 -> Long <no-gc> : Long
+        Local $dependency.receiver : Int8
+    val local12
+      Local b : Int16
+    val local13
+      IntegerLiteral 2 : Int16
+    val local14
+      Local $dependency.argument.0 : Int16
+    val local15
+      IntegerOperation int16.div <managed> : Int16
+        Local $dependency.receiver : Int16
+        Local $dependency.parameter.other : Int16
+    val local17
+      IntegerConversion Int16 -> Long <no-gc> : Long
+        Local $dependency.receiver : Int16
+    val local18
+      Local $dependency.argument.0 : Long
+    val local23
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local19
+      Local c : Int
+    val local20
+      IntegerLiteral 2 : Int
+    val local21
+      Local $dependency.argument.0 : Int
+    val local22
+      IntegerOperation int.div <managed> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local24
+      IntegerConversion Int -> Long <no-gc> : Long
+        Local $dependency.receiver : Int
+    val local25
+      Local $dependency.argument.0 : Long
+    val local29
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local26
+      Local d : Long
+    val local27
+      IntegerLiteral 2 : Long
+    val local28
+      Local $dependency.argument.0 : Long
+    val local30
+      IntegerOperation long.div <managed> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local31
+      Local $dependency.argument.0 : Long
+    val local36
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local32
+      Local e : UInt8
+    val local33
+      IntegerLiteral 2u : UInt8
+    val local34
+      Local $dependency.argument.0 : UInt8
+    val local35
+      IntegerOperation uint8.div <managed> : UInt8
+        Local $dependency.receiver : UInt8
+        Local $dependency.parameter.other : UInt8
+    val local37
+      IntegerConversion UInt8 -> Long <no-gc> : Long
+        Local $dependency.receiver : UInt8
+    val local38
+      Local $dependency.argument.0 : Long
+    val local43
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local39
+      Local f : UInt16
+    val local40
+      IntegerLiteral 2u : UInt16
+    val local41
+      Local $dependency.argument.0 : UInt16
+    val local42
+      IntegerOperation uint16.div <managed> : UInt16
+        Local $dependency.receiver : UInt16
+        Local $dependency.parameter.other : UInt16
+    val local44
+      IntegerConversion UInt16 -> Long <no-gc> : Long
+        Local $dependency.receiver : UInt16
+    val local45
+      Local $dependency.argument.0 : Long
+    val local50
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local46
+      Local g : UInt
+    val local47
+      IntegerLiteral 2u : UInt
+    val local48
+      Local $dependency.argument.0 : UInt
+    val local49
+      IntegerOperation uint.div <managed> : UInt
+        Local $dependency.receiver : UInt
+        Local $dependency.parameter.other : UInt
+    val local51
+      IntegerConversion UInt -> Long <no-gc> : Long
+        Local $dependency.receiver : UInt
+    val local52
+      Local $dependency.argument.0 : Long
+    val local57
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local53
+      Local h : ULong
+    val local54
+      IntegerLiteral 2uL : ULong
+    val local55
+      Local $dependency.argument.0 : ULong
+    val local56
+      IntegerOperation ulong.div <managed> : ULong
+        Local $dependency.receiver : ULong
+        Local $dependency.parameter.other : ULong
+    val local58
+      IntegerConversion ULong -> Long <no-gc> : Long
+        Local $dependency.receiver : ULong
+    val local59
+      Local $dependency.argument.0 : Long
+    val local60
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local61
+      IntegerLiteral -128 : Int8
+    val local62
+      IntegerLiteral -1 : Int8
+    val local63
+      Local minimum : Int8
+    val local64
+      Local minusOne : Int8
+    val local65
+      Local $dependency.argument.0 : Int8
+    val local66
+      IntegerOperation int8.div <managed> : Int8
+        Local $dependency.receiver : Int8
+        Local $dependency.parameter.other : Int8
+    val local67
+      Local minimum : Int8
+    val local68
+      Local $dependency.argument.0 : Int8
+    if
+      Unary Not : Boolean
+        IntegerOperation int8.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int8
+          Local $dependency.parameter.other : Int8
+      val local75
+        BoolLiteral true : Boolean
+    else
+      val local69
+        Local minimum : Int8
+      val local70
+        Local minusOne : Int8
+      val local71
+        Local $dependency.argument.0 : Int8
+      val local72
+        IntegerOperation int8.rem <managed> : Int8
+          Local $dependency.receiver : Int8
+          Local $dependency.parameter.other : Int8
+      val local73
+        IntegerLiteral 0 : Int8
+      val local74
+        Local $dependency.argument.0 : Int8
+      val local75
+        Unary Not : Boolean
+          IntegerOperation int8.equals <no-gc> : Boolean
+            Local $dependency.receiver : Int8
+            Local $dependency.parameter.other : Int8
+    if
+      Local $shortCircuit.0 : Boolean
+      val local76
+        IntegerLiteral 0 : Long
+      val local77
+        Local $dependency.argument.0 : Long
+      return
+        ImportedDependencyCall #0 : Counter
+          Local $dependency.parameter.value : Long
+    val local78
+      Local total : Long
+    val local79
+      IntegerLiteral 168 : Long
+    val local80
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      val local81
+        IntegerLiteral 0 : Long
+      val local82
+        Local $dependency.argument.0 : Long
+      return
+        ImportedDependencyCall #0 : Counter
+          Local $dependency.parameter.value : Long
+    val local83
+      IntegerLiteral 21 : Long
+    val local84
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #0 : Counter
+        Local $dependency.parameter.value : Long
+  output library

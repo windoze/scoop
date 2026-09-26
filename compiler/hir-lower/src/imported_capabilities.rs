@@ -42,14 +42,7 @@ pub(crate) fn callable_requirement(
     has_vararg: bool,
 ) -> ImportedCapabilityRequirement {
     let interface = candidate.interface();
-    if matches!(
-        interface.effects().implementation(),
-        hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Integer(
-            hir::IntegerIntrinsicKind::ManagedOperation { .. }
-        ))
-    ) {
-        ImportedCapabilityRequirement::Layout
-    } else if matches!(interface.owner(), hir::PublicDeclarationOwnerV1::Nominal(_))
+    if matches!(interface.owner(), hir::PublicDeclarationOwnerV1::Nominal(_))
         || interface.access() == hir::PublicLookupAccessV1::PublicSlot
     {
         ImportedCapabilityRequirement::Dispatch

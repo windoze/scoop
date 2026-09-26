@@ -3,14 +3,20 @@
 use super::*;
 
 const MESSAGE: &str = "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: runtime cast failure constructor requires a materialized dependency layout; its owner has source-only representation";
+const ARITHMETIC_MESSAGE: &str = "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED: integer division exception constructor requires a materialized dependency layout; its owner has source-only representation";
 
 #[test]
-fn runtime_cast_source_only_layout_is_diagnosed_before_mir_and_publication() {
+fn runtime_exception_source_only_layout_is_diagnosed_before_mir_and_publication() {
     let target = resolved_target().expect("runtime layout fixtures require the host target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-runtime-layout-gates");
-    for name in ["standalone", "combined"] {
+    for (name, message) in [
+        ("standalone", MESSAGE),
+        ("combined", MESSAGE),
+        ("arithmetic", ARITHMETIC_MESSAGE),
+        ("arithmetic-default", ARITHMETIC_MESSAGE),
+    ] {
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
         let root = sysroot.path().join(name);
         write_manifest_cone(&root, "dev.example", name, "library", &source);
@@ -29,40 +35,41 @@ fn runtime_cast_source_only_layout_is_diagnosed_before_mir_and_publication() {
             panic!("{name}: runtime layout must be checked before MIR: {error:?}")
         };
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].message, MESSAGE);
+        assert_eq!(diagnostics[0].message, message);
         let span = diagnostics[0].span.unwrap();
         assert!(span.start < span.end);
         let expression = &source[span.start as usize..span.end as usize];
         let dump = format!(
-            "span={}..{}\nexpression={expression}\n{MESSAGE}\n",
+            "span={}..{}\nexpression={expression}\n{message}\n",
             span.start, span.end
         );
         snapshot(&fixtures.join(format!("{name}.diagnostic.snap")), &dump);
         assert!(!destination.exists());
     }
 
-    let name = "inactive";
-    let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
-    let root = sysroot.path().join(name);
-    write_manifest_cone(&root, "dev.example", name, "library", &source);
-    let destination = root.join("output.slib");
-    let request = SingleConeBuildRequest::new(
-        CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(&root),
-        },
-        ExplicitDependencyInputs::new(vec![], vec![]),
-        TrustedCoreInput::Artifact(HostArtifactLocator::new(core.artifact().path()).unwrap()),
-        target,
-        SlibOutputDestination::new(destination.clone()).unwrap(),
-        DiagnosticOutputPolicy::Human,
-        StageDumpPolicy::Stage(StageDumpKind::Mir),
-    )
-    .unwrap();
-    let artifact = request.build_and_publish().unwrap();
-    let dump = artifact.emitted_dump().unwrap();
-    assert_eq!(dump.kind(), StageDumpKind::Mir);
-    snapshot(&fixtures.join("inactive.mir.snap"), dump.text());
-    assert!(destination.is_file());
+    for name in ["inactive", "arithmetic-inactive"] {
+        let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
+        let root = sysroot.path().join(name);
+        write_manifest_cone(&root, "dev.example", name, "library", &source);
+        let destination = root.join("output.slib");
+        let request = SingleConeBuildRequest::new(
+            CurrentConeInput::Manifest {
+                root: ManifestRootLocator::cone_directory(&root),
+            },
+            ExplicitDependencyInputs::new(vec![], vec![]),
+            TrustedCoreInput::Artifact(HostArtifactLocator::new(core.artifact().path()).unwrap()),
+            target.clone(),
+            SlibOutputDestination::new(destination.clone()).unwrap(),
+            DiagnosticOutputPolicy::Human,
+            StageDumpPolicy::Stage(StageDumpKind::Mir),
+        )
+        .unwrap();
+        let artifact = request.build_and_publish().unwrap();
+        let dump = artifact.emitted_dump().unwrap();
+        assert_eq!(dump.kind(), StageDumpKind::Mir);
+        snapshot(&fixtures.join(format!("{name}.mir.snap")), dump.text());
+        assert!(destination.is_file());
+    }
 }
 
 fn snapshot(path: &Path, text: &str) {

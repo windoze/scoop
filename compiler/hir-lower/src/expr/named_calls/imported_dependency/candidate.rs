@@ -59,10 +59,9 @@ impl ImportedCallableCandidate {
             return None;
         };
         match intrinsic {
-            hir::IntrinsicFunctionKind::Integer(
-                kind @ (hir::IntegerIntrinsicKind::NoGcOperation { .. }
-                | hir::IntegerIntrinsicKind::Conversion { .. }),
-            ) => Some(NormalizedImportedIntrinsic::Integer(kind)),
+            hir::IntrinsicFunctionKind::Integer(kind) => {
+                Some(NormalizedImportedIntrinsic::Integer(kind))
+            }
             hir::IntrinsicFunctionKind::PrimitiveUnary(kind) => {
                 Some(NormalizedImportedIntrinsic::Unary(kind))
             }

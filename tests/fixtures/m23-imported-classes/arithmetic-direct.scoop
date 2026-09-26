@@ -1,0 +1,8 @@
+import dependency.classes.Counter
+
+private fun operand(value: Long): Long = value
+public fun primary(): Counter {
+    val quotient = operand(43) / 2
+    val remainder = operand(43) % 2
+    return Counter(quotient + remainder - 1)
+}

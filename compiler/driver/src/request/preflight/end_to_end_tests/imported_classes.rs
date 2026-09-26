@@ -116,6 +116,26 @@ fn primitive_interfaces_compile_and_run_through_actual_artifacts() {
 }
 
 #[test]
+fn integer_division_compiles_and_runs_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "arithmetic-direct",
+            "arithmetic-widths",
+            "arithmetic-zero",
+            "arithmetic-default",
+            "arithmetic-core",
+        ],
+        &["arithmetic-no-gc", "arithmetic-wrong-argument"],
+    );
+}
+
+#[test]
+fn runtime_arithmetic_failures_use_the_providers_default_constructor_adapter() {
+    check_class_cases("default", &["arithmetic-zero", "arithmetic-direct"], &[]);
+}
+
+#[test]
 fn runtime_cast_failures_use_the_providers_default_constructor_adapter() {
     check_class_cases(
         "default",
@@ -156,7 +176,13 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         replacement.trim(),
     );
     assert_ne!(original, changed_exception);
-    std::fs::write(throwable, changed_exception).unwrap();
+    let replacement = source(&format!("core-arithmetic-{cast_variant}"));
+    let changed_arithmetic = changed_exception.replace(
+        "public class ArithmeticException public constructor() : Exception(Some(\"arithmetic error\"))",
+        replacement.trim(),
+    );
+    assert_ne!(changed_exception, changed_arithmetic);
+    std::fs::write(throwable, changed_arithmetic).unwrap();
     let changed = core_source.join("src/stage3_test.scoop");
     std::fs::write(
         &changed,
