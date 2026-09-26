@@ -25,6 +25,14 @@ impl Lowerer {
                 .into_iter()
                 .chain(class.interfaces.iter().copied())
                 .any(|parent| self.is_subtype(parent, b)),
+            (Type::ImportedStruct(structure), _) => structure
+                .interfaces
+                .iter()
+                .any(|parent| self.is_subtype(*parent, b)),
+            (Type::ImportedEnum(enumeration), _) => enumeration
+                .interfaces
+                .iter()
+                .any(|parent| self.is_subtype(*parent, b)),
             (Type::Param(parameter), _) => {
                 let Some(parameter) = self
                     .type_params_in_scope

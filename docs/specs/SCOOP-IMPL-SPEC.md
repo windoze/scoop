@@ -1,5 +1,7 @@
 # Scoop 实现大纲
 
+依赖值类型的共有声明查询必须向 HIR 提供解析后的接口类型，具体化继续保留完整接口闭包。构建相互引用的 nominal 时先登记真实声明身份与类型 ID，再完成字段、父类型和方法签名，成功输出不含未完成记录。struct/enum 的经 class 间接递归与接口方法引用实现者不会创建第二份类型；非法按值循环仍由值布局检查拒绝。MIR 装箱直接使用该接口关系，并消费实际 provider 的 boxed TD 与分派定义；本 Cone 只生成自身定义所需的 adjust thunk。
+
 引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/27`，旧产物与缓存重建，不改变 runtime C ABI。
 
 默认值中的参数自由 class 构造与 struct 构造共用实际 constructor 引用、参数实例化和调用选择；引用上行转换保留在正文中，实例化后继续使用相同的 typed 操作。

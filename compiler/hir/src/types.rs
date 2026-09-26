@@ -56,6 +56,7 @@ pub enum Type {
 pub struct ImportedStructType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub fields: Vec<ImportedNominalField>,
+    pub interfaces: Vec<TypeId>,
     pub gc_free: bool,
 }
 
@@ -99,6 +100,7 @@ pub struct ImportedInterfaceMethod {
 pub struct ImportedEnumType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub variants: Vec<ImportedEnumValueVariant>,
+    pub interfaces: Vec<TypeId>,
     pub gc_free: bool,
 }
 

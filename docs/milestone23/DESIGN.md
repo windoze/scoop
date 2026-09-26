@@ -6,6 +6,8 @@
 
 M23-6 的外来非泛型接口/class 调用直接使用共有声明及 provider 的 dispatch 顺序。前端产生完整 typed 调用方式；MIR/LIR 的 external callee 同时支持 Direct、Virtual 和 Interface，动态调用沿实际 TD 与 canonical ABI 执行，不为外来方法重建本地函数。来源身份不决定能否动态调用，实际类型、槽、签名和 effect 决定合法性。
 
+值类型通过同一声明查询保留其真实接口关系与父接口，装箱使用 provider 已发布的 boxed TD、接口表和 adjust thunk。struct、enum、ZST 及含引用 payload 的下游调用沿相同路径处理，core 的新增值类型与其他 library Cone 一致。intrinsic 表示不丢弃原声明的接口信息，也不要求在当前 Cone 重建 core 定义。
+
 共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/27` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 默认值正文中的 enum 模式和变体测试保存真实 variant 与 owner 类型，引用集合不重复记录构造器使用；只有实际构造表达式保存构造器访问引用。共有 producer、reader 与默认值实例化沿同一 typed 正文消费，`hir/cross-cone-interface/27` 同步该引用集合语义并要求旧 `/22` 及更早产物重建，不改变 runtime ABI。
@@ -2575,9 +2577,9 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 详细设计见 `docs/milestone23/stage6/DESIGN.md`。新增 `cross-cone-layout-strong/2`，以四条 required section 承载 HIR type/inheritance、MIR type bridge、LIR layout/ABI 及 Link-only layout-use closure，strong-production/9 升级为 /10 以完整表达普通依赖的 TD/dispatch 引用。独立 HIR source-authority 草案退役；完整声明、表示、参数/default 与实际使用信息由共有 metadata 持有，生产与 bytes-only reader 共用 typed identity、访问、依赖、跨阶段语义、ABI/layout 和 object 校验。源码接口可保留尚需后续能力的声明；机器接口只发布完整物化闭包通过 M23-7/10 gate 的根，实际使用不支持的能力仍拒绝。三层 outer schema 仍为1；旧 core 专用资格、bridge 和 Link 分区按补充设计退出，同步 capability/profile inventory 与 fingerprint，不复用退役 tag。有效 callable 与 general physical use 由共有 requirement 验证保证互斥且联合完整。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
 
-依赖M23-5。实现第3.6节的`ValueStorageLayout`、Scoop ABI payload elision、C ABI拒绝规则、boxing、address/static token与`Array`/`MutableArray<ZST>`，并完成param-free跨Cone layout/scan/TypeDescriptor、inheritance/slot/dispatch bridge及receiver-dependent protected access witness。本阶段新增独立required layout/ABI/scan capability，在完整`ValidatedArtifactClosure<Compile>`上验证依赖witness后才返回通用layout API；M23-2 foundation中服务现有extern/callback闭包的`NativeBoundaryTypeDefinitionRecordV1`、canonical C storage/signature/layout leaf仍只是一条受限native-boundary proof，不能提前冒充本阶段能力。本阶段冻结新增section版本、layout、scan与typed Scoop ABI；既有canonical generated-C storage contract与extern fingerprint bytes不回改，M23-7的specialization只能实例化这些规则，不能重写它们。
+依赖 M23-5。实现第 3.6 节的 `ValueStorageLayout`、Scoop ABI payload elision、C ABI 拒绝规则、boxing、address/static token 与 `Array`/`MutableArray<ZST>`，并完成参数自由的跨 Cone layout、scan、TypeDescriptor、继承与 dispatch 消费。protected 访问由前端根据实际声明和 receiver 检查；reader 保留真实类型、引用、ABI、布局与对象格式检查，不要求额外访问证明或 native 来源资格。各阶段直接使用已取得的完整 typed IR；普通格式与 fingerprint 规则表达版本变化，不冻结已退役的证明或成本策略。M23-7 的泛型与 ODR 能力仍在其原阶段实现。
 
-完成门：第9.5节的compiler/layout/object级矩阵通过，包括ZST参数/返回、box、static初值/token、array length/index/scan和C ABI negative；provider/consumer对同一exact type得到相同layout/scan/TD identity与fingerprint，跨Cone继承/dispatch产出完备artifact。可由现有单image harness覆盖的runtime行为继续回归；真正多Cone链接后的moving-GC矩阵留到M23-9/M23-11，不在本阶段虚构完成。
+完成门：第 9.5 节的 compiler/layout/object 矩阵通过，包括 ZST 参数/返回、box、static 初值/token、array length/index/scan 和 C ABI negative；provider/consumer 对同一 exact type 使用一致的布局、scan、TD 身份和内容 fingerprint。实际源码产出完整 artifact，由下游跨 Cone 消费，并在单个最终镜像中链接实际对象与 runtime，覆盖普通及移动 GC。该验收不提前实现 M23-8 的多镜像启动或 M23-9 的 artifact-only program-link。
 
 ### M23-7：跨Cone generic、ODR与generic delegated extension
 

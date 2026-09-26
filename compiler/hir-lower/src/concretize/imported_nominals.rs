@@ -19,15 +19,6 @@ impl Concretizer<'_> {
         else {
             unreachable!("an imported struct retains a struct declaration")
         };
-        let fields = source
-            .fields
-            .iter()
-            .map(|field| concrete::DeclaredStructField {
-                identity: field.identity,
-                name: field.name.clone(),
-                ty: self.lower_type(field.ty, &[]),
-            })
-            .collect();
         let id = concrete::StructId::from_raw(
             u32::try_from(self.structs.len())
                 .expect("concrete struct ids fit in u32")
@@ -65,7 +56,7 @@ impl Concretizer<'_> {
                     interior_mutable: shape.interior_mutable(),
                 },
                 c_abi,
-                fields,
+                fields: Vec::new(),
             },
             // Dependency dispatch and callable definitions remain in the
             // provider. This arena contains the consumer's value representation.
@@ -77,6 +68,24 @@ impl Concretizer<'_> {
         assert_eq!(allocated, id);
         self.imported_structs.insert(identity, id);
         self.struct_type.insert(id, ty);
+        let fields = source
+            .fields
+            .iter()
+            .map(|field| concrete::DeclaredStructField {
+                identity: field.identity,
+                name: field.name.clone(),
+                ty: self.lower_type(field.ty, &[]),
+            })
+            .collect();
+        let concrete::StructRepresentation::Declared {
+            fields: concrete_fields,
+            ..
+        } = &mut self.structs[id].representation
+        else {
+            unreachable!("an imported source struct keeps its declared representation")
+        };
+        *concrete_fields = fields;
+        self.structs[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces);
         ty
     }
 
@@ -89,6 +98,31 @@ impl Concretizer<'_> {
         if let Some(id) = self.imported_enums.get(&identity) {
             return self.enum_type[id];
         }
+        let id = concrete::EnumId::from_raw(
+            u32::try_from(self.enums.len())
+                .expect("concrete enum ids fit in u32")
+                .into(),
+        );
+        let ty = self.intern_type(concrete::TypeKind::Enum(id), source.gc_free);
+        let allocated = self.enums.alloc(concrete::EnumDef {
+            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
+                declaration.identity.clone(),
+            )),
+            canonical_type: ty,
+            name: declaration.name().to_owned(),
+            owner: None,
+            type_arguments: Vec::new(),
+            gc_free: source.gc_free,
+            variants: Vec::new(),
+            // Callable and dispatch definitions remain in the provider.
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            span: scoop_ast::Span::new(0, 0),
+        });
+        assert_eq!(allocated, id);
+        self.imported_enums.insert(identity, id);
+        self.enum_type.insert(id, ty);
         let variants = source
             .variants
             .iter()
@@ -110,31 +144,29 @@ impl Concretizer<'_> {
                 }
             })
             .collect();
-        let id = concrete::EnumId::from_raw(
-            u32::try_from(self.enums.len())
-                .expect("concrete enum ids fit in u32")
-                .into(),
-        );
-        let ty = self.intern_type(concrete::TypeKind::Enum(id), source.gc_free);
-        let allocated = self.enums.alloc(concrete::EnumDef {
-            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
-                declaration.identity.clone(),
-            )),
-            canonical_type: ty,
-            name: declaration.name().to_owned(),
-            owner: None,
-            type_arguments: Vec::new(),
-            gc_free: source.gc_free,
-            variants,
-            // Callable and dispatch definitions remain in the provider.
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
-            methods: Vec::new(),
-            span: scoop_ast::Span::new(0, 0),
-        });
-        assert_eq!(allocated, id);
-        self.imported_enums.insert(identity, id);
-        self.enum_type.insert(id, ty);
+        self.enums[id].variants = variants;
+        self.enums[id].interfaces = self.lower_imported_value_interfaces(&source.interfaces);
         ty
+    }
+
+    fn lower_imported_value_interfaces(
+        &mut self,
+        roots: &[export::TypeId],
+    ) -> Vec<concrete::TypeId> {
+        let mut pending: Vec<_> = roots.iter().rev().copied().collect();
+        let mut visited = Vec::new();
+        let mut interfaces = Vec::new();
+        while let Some(ty) = pending.pop() {
+            if visited.contains(&ty) {
+                continue;
+            }
+            visited.push(ty);
+            let export::Type::ImportedInterface(source) = &self.source.types[ty] else {
+                unreachable!("dependency value supertypes are resolved interfaces")
+            };
+            pending.extend(source.parents.iter().rev().copied());
+            interfaces.push(self.lower_type(ty, &[]));
+        }
+        interfaces
     }
 }

@@ -1,0 +1,4 @@
+import dependency.classes.ReadChoice
+import dependency.classes.OtherReadable
+
+public fun rejected(value: ReadChoice): OtherReadable = value

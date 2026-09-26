@@ -1,0 +1,6 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+import dependency.classes.StructReader
+
+public fun retainValue(value: Readable): Readable = value
+public fun primary(): Counter = Counter(retainValue(StructReader(20)).answer())

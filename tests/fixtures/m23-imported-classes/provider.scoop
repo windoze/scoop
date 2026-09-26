@@ -90,3 +90,25 @@ public class RestrictedValues public constructor() {
     public var internalValue: Long = 0
         internal set(next) { field = next }
 }
+
+public struct StructReader(val value: Long): Readable {
+    public override fun read(): Long = value
+}
+public enum ReadChoice: Readable {
+    Ready, Empty
+    public override fun read(): Long = 20
+}
+public struct ZeroReader(): ChildReader
+public struct WideReader(val first: Long, val second: Long, val third: Long): Readable {
+    public override fun read(): Long = first + second + third
+}
+public struct ReferenceReader(val reference: Counter): Readable {
+    public override fun read(): Long = reference.value
+}
+public interface ValueEcho {
+    public fun echo(value: EchoValue): EchoValue
+}
+public struct EchoValue(val reference: Counter): ValueEcho {
+    public override fun echo(value: EchoValue): EchoValue = value
+}
+public fun defaultValueReader(value: Readable = StructReader(20)): Readable = value

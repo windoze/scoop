@@ -1,0 +1,48 @@
+Module
+  struct StructReader (value: Long)
+  class Counter vtable=0 itables=0
+  class box<StructReader> vtable=0 itables=0
+  interface Readable
+  generated_exact_type get0 location=class1 nominal_id=137fbb61b95eeca5cf307f8329cd7cdaaf67bc37460e8986e538acdcc0965ccc exact_id=139041762888b86ad8d540ea75aef5205e9f5fc5f0a9d9f5bfd876bd8d05c779
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.default.local.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.default.local.1: Long
+        Type Long
+        Local $dependency.default.local.0
+      call $call.1: StructReader = external0 direct
+        Type Long
+        Local $dependency.default.local.1
+      val $dependency.parameter.value: Readable
+        Type Readable
+        Box
+          Type StructReader
+          Local $call.1
+      call $dependency.receiver: Readable = external1 direct
+        Type Readable
+        Local $dependency.parameter.value
+      val $dependency.parameter.extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.argument.0: Long = external2 interface Readable[1]
+        Type Readable
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

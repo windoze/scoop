@@ -1,0 +1,90 @@
+Module
+  struct ReferenceReader (reference: Counter)
+  class Counter vtable=0 itables=0
+  class box<ReferenceReader> vtable=0 itables=0
+  interface Readable
+  generated_exact_type get0 location=class1 nominal_id=765db3a8b78f54c840816e7d4a94bdd9505c66707583977e255f099dd4e88574 exact_id=1a9478eaa021d0e43901668c3d8866eeee272868bb761f89d2d5e5f9220b29fb
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Counter
+        Type Counter
+        Local $new.1
+      val $dependency.parameter.reference: Counter
+        Type Counter
+        Local $dependency.argument.0
+      call $call.2: ReferenceReader = external1 direct
+        Type Counter
+        Local $dependency.parameter.reference
+      val value: Readable
+        Type Readable
+        Box
+          Type ReferenceReader
+          Local $call.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      val extra: Counter
+        Type Counter
+        Local $new.3
+      val $dependency.receiver: Readable
+        Type Readable
+        Local value
+      call $dependency.receiver: Long = external2 interface Readable[0]
+        Type Readable
+        Local $dependency.receiver
+      val $dependency.receiver: Counter
+        Type Counter
+        Local extra
+      call $dependency.argument.0: Long = external3 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.4
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.4
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.4
+  output library

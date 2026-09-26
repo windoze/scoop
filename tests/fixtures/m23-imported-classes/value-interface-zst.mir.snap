@@ -1,0 +1,68 @@
+Module
+  struct ZeroReader ()
+  class Counter vtable=0 itables=0
+  class box<ZeroReader> vtable=0 itables=0
+  interface ChildReader
+  interface ParentReader
+  generated_exact_type get0 location=class1 nominal_id=3aaa4808c06cf142dcd36e7f94c25039adccef755d916e6a7a92a2ce651a95b0 exact_id=2f47ffffbf8e47b7324e089a503a22bab0cf89d64749da22ff3ae725a28a7e4f
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call $call.1: ZeroReader = external0 direct
+      val first: ChildReader
+        Type ChildReader
+        Box
+          Type ZeroReader
+          Local $call.1
+      call $call.2: ZeroReader = external0 direct
+      val second: Any
+        Type Any
+        Box
+          Type ZeroReader
+          Local $call.2
+      branch bb1 bb2
+        Type Boolean
+        Binary RefEq
+          Type ChildReader
+          Local first
+          Type Any
+          Local second
+    bb1 if.then.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+    bb2 if.merge.2
+      val $dependency.receiver: ChildReader
+        Type ChildReader
+        Local first
+      call $dependency.argument.0: Long = external2 interface ChildReader[1]
+        Type ChildReader
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.4
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.4
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.4
+  output library

@@ -1,5 +1,7 @@
 # Scoop 实现路线图
 
+M23-6 的值类型接口验收使用真实源码产生并消费产物，覆盖外来 struct/enum、父接口、默认方法、ZST、大值及含引用 payload 的装箱与分派；同时覆盖修改并重建 core 后新增值类型的下游使用。HIR/MIR/LIR 保留真实声明和完整接口关系，普通与移动 GC 运行验证实际 provider 的 TD、接口表及 canonical ABI。intrinsic 值类型也必须通过共有声明取得接口关系，不能依赖本地 core 定义或用空接口表跳过。
+
 运行时类型转换的失败构造使用前端解析的实际异常类型与 constructor 引用，并沿共有的类型、callable、ABI 和 Link 路径消费。删除由 Cast 反向投影的独立 CastFailure call-site、RuntimeOperationDependency role，以及 reader 对同一目标再按 compiler protocol 进行资格判断的通道；普通源码调用的位置、参数、结果与 typed 引用检查保留。共有 HIR 格式更新为 `hir/cross-cone-interface/27`，原 call-site reason tag 2 与 external-reference role tag 9 退役，不复用；旧产物、profile fingerprint 与缓存重建。该调整不改变转换失败抛出 ClassCastException 的语言行为、runtime C ABI 或 String 表示。
 
 引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/27`，旧产物与缓存重建，不改变 runtime C ABI。

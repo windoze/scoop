@@ -303,6 +303,8 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 - 实现 interface 的成员函数、属性 getter 不得修改 `this` 的任何字段（值类型字段本来就不可写，此规则是自然推论）；
 - 若 interface 契约要求可变行为（例如要求实现 `var` 属性的 setter），值类型实现它是**编译错误**。
 
+跨 Cone 的值类型遵守同一接口关系：struct、enum 及具有 intrinsic 表示的值类型从实际声明取得其接口和父接口，赋值、参数、返回及显式转换均使用相同的子类型规则。导入不能丢弃接口关系；同名接口、同布局值类型或 provider 身份不能替代真实类型身份。
+
 ```
 interface Describable {
     fun describe(): String

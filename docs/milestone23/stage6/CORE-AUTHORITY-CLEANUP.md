@@ -6,6 +6,8 @@
 
 外来接口与动态调用沿共有类型和 callable 查询消费真实定义。删除 external callee 必须 Direct 的阶段限制后，由完整 typed receiver、所属 dispatch 表、槽位置、声明签名和实际 ABI 表达调用；不能为此添加新的来源工厂、dispatch 凭证或完整语义重放。
 
+值类型装箱同样消费真实声明及其完整接口关系。普通 struct/enum 与 intrinsic 值类型不能因声明来自依赖而丢失接口或要求本地 core；实际 provider 的 boxed TD、接口表、adjust thunk 通过共有定义与 relocation 路径使用。保留真实声明 ID、接口继承、payload 布局和 GC 信息，不将其包装成来源资格或另建证明表。
+
 共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/27` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 enum 模式和变体测试不是构造器调用：删除默认值引用集合中仅为这些操作保存的构造器访问记录及 reader 对该记录的要求，直接消费正文已有的实际 variant、owner 与字段引用。保留实际构造表达式的构造器关系、前端可见性和类型检查；`hir/cross-cone-interface/27` 同步语义并要求旧 `/22` 及更早产物重建，不建立替代凭证。

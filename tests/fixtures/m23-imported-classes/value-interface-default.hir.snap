@@ -1,0 +1,25 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 20 : Long
+    val local1
+      Local $dependency.default.local.0 : Long
+    val local2
+      Box : Readable
+        ImportedDependencyCall #0 : StructReader
+          Local $dependency.default.local.1 : Long
+    val local3
+      ImportedDependencyCall #1 : Readable
+        Local $dependency.parameter.value : Readable
+    val local4
+      IntegerLiteral 1 : Long
+    val local5
+      ImportedDependencyCall #2 interface[1] : Long
+        Local $dependency.receiver : Readable
+        Local $dependency.parameter.extra : Long
+    val local6
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #3 : Counter
+        Local $dependency.parameter.value : Long
+  output library

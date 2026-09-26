@@ -1,0 +1,43 @@
+Module
+  struct RebuiltValueReader (value: Long)
+  class Counter vtable=0 itables=0
+  class box<RebuiltValueReader> vtable=0 itables=0
+  interface RebuiltReadable
+  generated_exact_type get0 location=class1 nominal_id=df0f4674138996862af59a5e4272c1d0afda6063966203f47a0e238f639329f9 exact_id=04c86780f10fff37a8d2b0897c743a6f33cf1982d027255bd1b29bc10ccc1e67
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.1: RebuiltValueReader = external0 direct
+        Type Long
+        Local $dependency.parameter.value
+      val value: RebuiltReadable
+        Type RebuiltReadable
+        Box
+          Type RebuiltValueReader
+          Local $call.1
+      val $dependency.receiver: RebuiltReadable
+        Type RebuiltReadable
+        Local value
+      call $dependency.argument.0: Long = external1 interface RebuiltReadable[0]
+        Type RebuiltReadable
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

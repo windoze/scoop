@@ -924,6 +924,8 @@ class 字段与 closure capture 的 ZST payload 读写在 MIR→LIR 阶段消除
 
 ### 9.2 box/unbox执行路径
 
+外来 struct/enum 的完整 HIR 包含真实声明、字段和解析后的接口；具体化保留父接口闭包，不能将它清为空表。相互引用的类型先登记真实 ID 再完成记录，以支持接口签名引用实现者和经 class 的间接递归。装箱沿既有来源 exact type 选择实际 provider 的 boxed TD 和 dispatch 定义；消费者只保存所需表示与类型关系，不复制外来方法或生成第二套 adjust thunk。验收用真实源码和隐藏 provider 源码后的产物消费，覆盖接口默认方法、父接口、ZST、大值、含引用 payload 及 core 扩展，并链接运行普通与移动 GC。
+
 ```text
 BoxPayload = ZeroSized | NonZero { source_place }
 UnboxResult = ZeroSized | NonZero { destination_place }
