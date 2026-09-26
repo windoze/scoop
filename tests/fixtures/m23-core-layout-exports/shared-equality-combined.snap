@@ -8,13 +8,12 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=216 descriptors=108 dispatch=129 callables=39 shapes=29
+layouts=216 descriptors=108 dispatch=129 callables=38 shapes=29
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedEqualityChoice.equals: OrdinaryManaged receiver=true args=["Indirect(8)", "Indirect(8)"] result=Direct(1)
 callable SharedEqualityLeaf.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
-callable SharedEqualityMarker.leaf: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable SharedEqualityOverloaded.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
 callable SharedEqualityPair.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
 callable SharedEqualityUsesManual.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)

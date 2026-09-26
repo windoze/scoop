@@ -21,6 +21,11 @@ pub(in crate::production) fn from_type(
                 structure.declaration.identity.id(),
             ));
         }
+        crate::Type::ImportedInterface(structure) => {
+            return Some(NominalDeclarationOwner::Concrete(
+                structure.declaration.identity.id(),
+            ));
+        }
         crate::Type::Unit => {
             return Some(core_builtin_owner(
                 export,

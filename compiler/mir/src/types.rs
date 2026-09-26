@@ -480,8 +480,16 @@ pub struct InterfaceDef {
     pub name: String,
     /// Canonical arguments of this fully specialized application.
     pub type_arguments: Vec<Type>,
-    /// Signature-only method declarations in itable-slot order.
-    pub methods: Vec<FunctionId>,
+    /// Complete method signatures in itable-slot order.
+    pub methods: Vec<InterfaceMethod>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InterfaceMethod {
+    pub name: String,
+    pub gc_effect: GcEffect,
+    pub parameters: Vec<Type>,
+    pub return_type: Type,
 }
 
 #[derive(Debug)]

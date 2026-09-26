@@ -4,6 +4,7 @@ Module
     Empty()
   class RebuiltCounter vtable=0 itables=0
   class Counter vtable=0 itables=0
+  interface RebuiltReadable
   fun primary @fn0() -> Counter
     bb0 entry
       val $dependency.argument.0: Long

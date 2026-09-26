@@ -1,5 +1,7 @@
 //! Prelude references and shared dependency signature types.
 
+mod interfaces;
+mod members;
 mod nominals;
 
 use scoop_ast::Span;
@@ -59,6 +61,9 @@ impl Lowerer {
         if let hir::Type::ImportedClass(ty) = &self.types[ty] {
             return Some(ty.declaration.identity.id());
         }
+        if let hir::Type::ImportedInterface(ty) = &self.types[ty] {
+            return Some(ty.declaration.identity.id());
+        }
         let CoreLoweringAuthority::Imported(authority) = &self.core else {
             return None;
         };
@@ -74,6 +79,7 @@ impl Lowerer {
             hir::Type::ImportedStruct(_)
             | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
+            | hir::Type::ImportedInterface(_)
             | hir::Type::Struct(_)
             | hir::Type::Class(_)
             | hir::Type::Interface(_)

@@ -97,7 +97,7 @@ impl Lowerer {
             }
         } else {
             hir::Expr {
-                kind: expr.kind,
+                kind: hir::ExprKind::ReferenceUpcast(Box::new(expr)),
                 ty: target,
                 span,
                 origin: self.expression_origin(span),

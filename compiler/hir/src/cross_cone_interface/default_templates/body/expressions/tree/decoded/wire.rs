@@ -146,6 +146,7 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             ),
             Self::Box(operand) => encode_one(encoder, 34, operand.as_ref()),
             Self::Unbox(operand) => encode_one(encoder, 35, operand.as_ref()),
+            Self::ReferenceUpcast(operand) => encode_one(encoder, 58, operand.as_ref()),
             Self::IsInstance {
                 operand,
                 checked_type,
@@ -374,6 +375,7 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
             33 => decode_method_call(decoder, fields, true),
             34 => decode_boxed_expression(decoder, fields).map(Self::Box),
             35 => decode_boxed_expression(decoder, fields).map(Self::Unbox),
+            58 => decode_boxed_expression(decoder, fields).map(Self::ReferenceUpcast),
             36 => {
                 expect_sum_length(decoder, fields, 3)?;
                 Ok(Self::IsInstance {

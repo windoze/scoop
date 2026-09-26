@@ -1,5 +1,6 @@
 use super::*;
 
+mod dispatch;
 mod emission;
 mod protocol;
 
@@ -175,58 +176,15 @@ impl<'a> FunctionLowerer<'a> {
                     .iter()
                     .map(|arg| self.lower_expr(arg))
                     .collect::<StorageResult<Vec<_>>>()?;
-                match call.target.kind {
+                match &call.target.kind {
                     mir::CallKind::Direct => {
                         let destination =
                             LoweredCallDestination::local(self.local_function_map[&id]);
                         self.finish_call(destination, args, &signature)?
                     }
-                    // vtable dispatch (impl spec 2.9): the receiver's
-                    // object header holds the TypeDescriptor, whose
-                    // vtable pointer is `ScoopTypeDescriptor` field 5.
-                    mir::CallKind::Virtual { slot } => {
-                        let td = self.load_at_offset(
-                            args[0],
-                            self.context.object_type_descriptor_offset(),
-                            lir::METADATA_PTR,
-                        );
-                        let vtable = self.load_at_offset(
-                            lir::Value::Temp(td),
-                            self.context.type_descriptor_vtable_offset(),
-                            lir::METADATA_PTR,
-                        );
-                        let destination = self.dispatch_destination(
-                            lir::Value::Temp(vtable),
-                            lir::DispatchKind::Virtual,
-                            slot,
-                            callee.gc_effect,
-                        );
-                        self.finish_indirect(destination, args, &signature)?
-                    }
-                    // itable dispatch: `scoop_rt_itable_lookup(td,
-                    // iface_td)` finds the interface's table by its
-                    // TypeDescriptor key.
-                    mir::CallKind::Interface { interface, slot } => {
-                        let td = self.load_at_offset(
-                            args[0],
-                            self.context.object_type_descriptor_offset(),
-                            lir::METADATA_PTR,
-                        );
-                        let iface_td = self.td_ref(&mir::Type::Interface(interface));
-                        let table = self.emit_plain_call(
-                            LoweredCallDestination::no_gc_runtime(
-                                lir::NoGcRuntimeFunction::ITableLookup,
-                            ),
-                            vec![lir::METADATA_PTR, lir::METADATA_PTR],
-                            lir::METADATA_PTR,
-                            vec![lir::Value::Temp(td), iface_td],
-                        )?;
-                        let destination = self.dispatch_destination(
-                            table,
-                            lir::DispatchKind::Interface,
-                            slot,
-                            callee.gc_effect,
-                        );
+                    kind @ (mir::CallKind::Virtual { .. } | mir::CallKind::Interface { .. }) => {
+                        let destination =
+                            self.load_dispatch_destination(kind, args[0], callee.gc_effect)?;
                         self.finish_indirect(destination, args, &signature)?
                     }
                     mir::CallKind::Closure { .. } => {
@@ -362,7 +320,6 @@ impl<'a> FunctionLowerer<'a> {
         call: &mir::Call,
         id: lir::ExternalCallableId,
     ) -> StorageResult<lir::Value> {
-        assert!(matches!(call.target.kind, mir::CallKind::Direct));
         let callable = &self.external_callables[id];
         assert_eq!(
             call.args.len(),
@@ -374,11 +331,22 @@ impl<'a> FunctionLowerer<'a> {
             .iter()
             .map(|argument| self.lower_expr(argument))
             .collect::<StorageResult<Vec<_>>>()?;
-        self.emit_non_native_call_with_signature(
-            LoweredCallDestination::external(id, callable.gc_effect()),
-            callable.signature(),
-            args,
-        )
+        let effect = callable.gc_effect();
+        let signature = callable.signature().clone();
+        let destination = match &call.target.kind {
+            mir::CallKind::Direct => LoweredCallDestination::external(id, effect),
+            kind @ (mir::CallKind::Virtual { .. } | mir::CallKind::Interface { .. }) => {
+                let effect = match effect {
+                    lir::GcEffect::Managed => mir::GcEffect::Managed,
+                    lir::GcEffect::NoGc => mir::GcEffect::NoGc,
+                };
+                self.load_dispatch_destination(kind, args[0], effect)?
+            }
+            mir::CallKind::Closure { .. } | mir::CallKind::FunctionBridge { .. } => {
+                unreachable!("external declarations do not use closure dispatch")
+            }
+        };
+        self.emit_non_native_call_with_signature(destination, &signature, args)
     }
 
     /// Load a value of `ty` at a fixed byte offset from a raw pointer.

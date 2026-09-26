@@ -8,11 +8,10 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=184 descriptors=92 dispatch=116 callables=30 shapes=25
+layouts=184 descriptors=92 dispatch=116 callables=29 shapes=25
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable SharedShapeBase.read: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable SharedShapeReadable.read: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedShapeBase.NestedToken.$c9: OrdinaryNoGc receiver=false args=[] result=Zst(0)

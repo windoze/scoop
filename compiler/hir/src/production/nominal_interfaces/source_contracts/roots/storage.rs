@@ -83,6 +83,24 @@ impl Roots {
                 }
                 return Ok(());
             }
+            Type::ImportedInterface(interface) => {
+                for ty in
+                    interface
+                        .parents
+                        .iter()
+                        .copied()
+                        .chain(interface.methods.iter().flat_map(|method| {
+                            method
+                                .parameters
+                                .iter()
+                                .map(|(_, ty)| *ty)
+                                .chain([method.return_type])
+                        }))
+                {
+                    self.require_field_type(export, index, ty)?;
+                }
+                return Ok(());
+            }
             Type::ImportedStruct(structure) => {
                 for field in &structure.fields {
                     self.require_field_type(export, index, field.ty)?;

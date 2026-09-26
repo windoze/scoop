@@ -172,7 +172,11 @@ fn assert_component_call_source(
     source: hir::BindingTemporary,
 ) {
     let (receiver_local, init) = component_setup_binding(setup);
-    let hir::ExprKind::Local(initializer_source) = init.kind else {
+    let mut source_expression = init;
+    while let hir::ExprKind::ReferenceUpcast(value) = &source_expression.kind {
+        source_expression = value;
+    }
+    let hir::ExprKind::Local(initializer_source) = source_expression.kind else {
         panic!("a component receiver temporary must read its source directly")
     };
     assert_eq!(initializer_source, source.local);

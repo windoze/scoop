@@ -151,6 +151,7 @@ impl Concretizer<'_> {
             export::Type::ImportedStruct(structure) => self.lower_imported_struct(&structure),
             export::Type::ImportedEnum(enumeration) => self.lower_imported_enum(&enumeration),
             export::Type::ImportedClass(class) => self.lower_imported_class(&class),
+            export::Type::ImportedInterface(interface) => self.lower_imported_interface(&interface),
             export::Type::Struct(application) => {
                 let value = self.source.struct_applications[application].clone();
                 if matches!(

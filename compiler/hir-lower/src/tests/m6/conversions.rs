@@ -82,14 +82,21 @@ fn class_to_interface_is_a_zero_cost_retype() {
     ]);
     let module = lower_user(file).expect("upcasts must lower");
 
-    // No Box: the local is retyped to the interface.
+    // The upcast preserves the source class without allocating a box.
     let up = returned(body_of(&module, "up"));
-    assert!(matches!(up.kind, hir::ExprKind::Local(_)));
+    let hir::ExprKind::ReferenceUpcast(source) = &up.kind else {
+        panic!("a reference upcast retains its source expression")
+    };
+    assert!(matches!(source.kind, hir::ExprKind::Local(_)));
+    assert!(matches!(module.types[source.ty], hir::Type::Class(..)));
     assert!(matches!(module.types[up.ty], hir::Type::Interface(..)));
 
     match &returned(body_of(&module, "mk")).kind {
         hir::ExprKind::ArrayLiteral(elements) => {
-            assert!(matches!(elements[0].kind, hir::ExprKind::Local(_)));
+            assert!(matches!(
+                elements[0].kind,
+                hir::ExprKind::ReferenceUpcast(_)
+            ));
             assert!(matches!(
                 module.types[elements[0].ty],
                 hir::Type::Interface(..)

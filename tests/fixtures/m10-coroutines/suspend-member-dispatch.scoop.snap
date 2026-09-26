@@ -19560,7 +19560,7 @@ Module
     heap_store local39 +16 param0
     machine_heap_store coroutine-adapter-state local39 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting))
     t139 = heap_load local3 +0 : ptr<metadata>
-    t140 = heap_load t139 +40 : ptr<metadata>
+    t140 = heap_load t139 +88 : ptr<metadata>
     call managed-indirect-target4 sp<managed-call:7> live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local3:ptr<managed>@0, local39:ptr<managed>@0] local56 = sig=indirect4 (sret enum7 size=16 align=8 scan=none, ptr<managed>, ptr<managed>) dispatch[Virtual:0] t140(local3, local39)
     store local56 -> local40
     t141 = enum_tag e7 local40 : machine<enum-tag>

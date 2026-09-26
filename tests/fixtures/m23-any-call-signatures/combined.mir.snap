@@ -34,7 +34,9 @@ Module
       call initial: Int = external1 direct
       val $dependency.receiver: Any
         Type Any
-        StringConst @str0
+        Retype Any
+          Type String
+          StringConst @str0
       call accepted: Any = external7 direct
         Type Any
         Local $dependency.receiver
@@ -49,15 +51,21 @@ Module
         Local $dependency.parameter.value
       call external9 direct
         Type Any
-        StringConst @str1
+        Retype Any
+          Type String
+          StringConst @str1
         Type Any
         Local $call.1
       call selected: Any = external10 direct
         Type Any
-        StringConst @str2
+        Retype Any
+          Type String
+          StringConst @str2
       val $dependency.default.local.0: Any
         Type Any
-        StringConst @str3
+        Retype Any
+          Type String
+          StringConst @str3
       call $dependency.parameter.value: Any = external7 direct
         Type Any
         Local $dependency.default.local.0

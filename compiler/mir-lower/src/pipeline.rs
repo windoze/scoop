@@ -1,7 +1,5 @@
 use super::*;
 
-use std::collections::BTreeMap;
-
 mod coroutines;
 mod declarations;
 mod functions;
@@ -73,11 +71,6 @@ impl Lowerer {
             let id = self.declare_function(module, hir_id);
             user_functions.push((hir_id, id));
         }
-        let mut interface_methods = module
-            .interfaces
-            .iter()
-            .map(|(id, interface)| (id, vec![None; interface.methods.len()]))
-            .collect::<BTreeMap<_, _>>();
         for (hir_id, function) in module.functions.iter() {
             let Some(method) = function.receiver.method() else {
                 continue;
@@ -89,33 +82,20 @@ impl Lowerer {
             };
             let implementation =
                 module.interfaces[interface].methods[slot.into_raw() as usize].implementation;
-            let mir_id = if implementation == hir::InterfaceMemberImplementation::Body
+            if implementation == hir::InterfaceMemberImplementation::Body
                 || module.interfaces[interface].type_arguments.is_empty()
             {
                 let id = self.declare_function(module, hir_id);
                 user_functions.push((hir_id, id));
-                id
             } else {
-                self.declare_interface_method(module, hir_id)
-            };
-            let previous = interface_methods
-                .get_mut(&interface)
-                .expect("the interface method names a local interface")[slot.into_raw() as usize]
-                .replace(mir_id);
-            assert!(
-                previous.is_none(),
-                "concrete HIR emits one declaration per interface slot"
-            );
-        }
-        for (hir_id, slots) in interface_methods {
-            let mir_id = self.interfaces.mir_id(hir_id);
-            let mut methods = Vec::with_capacity(slots.len());
-            for (slot, function) in slots.into_iter().enumerate() {
-                methods.push(
-                    function
-                        .unwrap_or_else(|| self.declare_interface_signature(module, hir_id, slot)),
-                );
+                self.declare_interface_method(module, hir_id);
             }
+        }
+        for (hir_id, interface) in module.interfaces.iter() {
+            let mir_id = self.interfaces.mir_id(hir_id);
+            let methods = (0..interface.methods.len())
+                .map(|slot| self.lower_interface_signature(module, hir_id, slot))
+                .collect();
             self.interfaces.defs[mir_id].methods = methods;
         }
         // Bound callable-reference invoke bodies preserve virtual/interface

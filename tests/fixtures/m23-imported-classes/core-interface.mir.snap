@@ -1,0 +1,54 @@
+Module
+  class RebuiltCounter vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  interface RebuiltReadable
+  fun preserve @fn0(value: RebuiltReadable) -> RebuiltReadable
+    bb0 entry
+      return
+        Type RebuiltReadable
+        Local value
+  fun primary @fn1() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type RebuiltCounter
+        ClassAlloc RebuiltCounter
+      call external0 direct
+        Type RebuiltCounter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.0: RebuiltReadable
+        Type RebuiltReadable
+        Retype RebuiltReadable
+          Type RebuiltCounter
+          Local $new.1
+      val $parameter.value: RebuiltReadable
+        Type RebuiltReadable
+        Local $argument.0
+      call $dependency.receiver: RebuiltReadable = @fn0 direct
+        Type RebuiltReadable
+        Local $parameter.value
+      call $dependency.argument.0: Long = external1 interface RebuiltReadable[0]
+        Type RebuiltReadable
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

@@ -889,18 +889,7 @@ fn lowering_context_derives_scalar_pointer_and_runtime_prefix_layouts() {
     let (_, expected_exception) = context.aggregate_layout([raw_pointer, i32_layout]);
     assert_eq!(context.exception_record_layout(), expected_exception);
 
-    let (descriptor_offsets, _) = context.aggregate_layout([
-        i64_layout,
-        i64_layout,
-        i64_layout,
-        metadata_pointer,
-        metadata_pointer,
-        metadata_pointer,
-    ]);
-    assert_eq!(
-        context.type_descriptor_vtable_offset(),
-        descriptor_offsets[5]
-    );
+    assert_eq!(context.type_descriptor_vtable_offset(), 88);
 }
 
 #[test]

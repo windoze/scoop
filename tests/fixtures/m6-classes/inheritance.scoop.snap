@@ -10999,7 +10999,7 @@ Module
     store local2 -> local11
     store local11 -> local12
     t8 = heap_load local12 +0 : ptr<metadata>
-    t9 = heap_load t8 +40 : ptr<metadata>
+    t9 = heap_load t8 +88 : ptr<metadata>
     call managed-direct-target3 sp<managed-call:7> live=[local12:ptr<managed>@0] t10 = sig=direct3 (ptr<managed>) -> i32 dispatch[Virtual:0] t9(local12)
     store t10 -> local13
     store local13 -> local14

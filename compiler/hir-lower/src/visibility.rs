@@ -511,6 +511,9 @@ impl Lowerer {
             hir::Type::ImportedClass(ref structure) => {
                 Some(self.imported_nominal_access_domain(&structure.declaration))
             }
+            hir::Type::ImportedInterface(ref structure) => {
+                Some(self.imported_nominal_access_domain(&structure.declaration))
+            }
             hir::Type::Integer(kind) => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
             }
@@ -601,6 +604,7 @@ impl Lowerer {
             hir::Type::ImportedStruct(_)
             | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
+            | hir::Type::ImportedInterface(_)
             | hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean

@@ -61,6 +61,7 @@ impl Lowerer {
             hir::Type::String
             | hir::Type::Class(..)
             | hir::Type::ImportedClass(_)
+            | hir::Type::ImportedInterface(_)
             | hir::Type::Interface(_)
             | hir::Type::Any
             | hir::Type::Function(_) => None,

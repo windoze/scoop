@@ -8,14 +8,38 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ImportedDependencyCallableUse {
     reference: crate::ImportedDependencyCallableRef,
+    dispatch: ImportedDependencyDispatch,
+}
+
+/// The source-selected dispatch table and its provider-defined slot position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportedDependencyDispatch {
+    Direct,
+    Virtual {
+        slot: u32,
+    },
+    Interface {
+        interface: scoop_identity::PersistentTypeId,
+        slot: u32,
+    },
 }
 
 impl ImportedDependencyCallableUse {
-    pub fn new(reference: crate::ImportedDependencyCallableRef) -> Self {
-        Self { reference }
+    pub fn new(
+        reference: crate::ImportedDependencyCallableRef,
+        dispatch: ImportedDependencyDispatch,
+    ) -> Self {
+        Self {
+            reference,
+            dispatch,
+        }
     }
 
     pub const fn reference(self) -> crate::ImportedDependencyCallableRef {
         self.reference
+    }
+
+    pub const fn dispatch(self) -> ImportedDependencyDispatch {
+        self.dispatch
     }
 }

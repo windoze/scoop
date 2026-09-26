@@ -1,0 +1,37 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 20 : Long
+    val local1
+      Local $dependency.argument.0 : Long
+    val local2
+      ImportedDependencyCall #0 : VirtualBase
+        Local $dependency.parameter.value : Long
+    val local3
+      ReferenceUpcast : Any
+        Local value : VirtualBase
+    if
+      Binary And : Boolean
+        Binary RefEq : Boolean
+          Local alias : Any
+          Local value : VirtualBase
+        IsInstance VirtualCounter : Boolean
+          Local value : VirtualBase
+      val local4
+        Local value : VirtualCounter
+      val local5
+        ImportedDependencyCall #1 : Long
+          Local $dependency.receiver : VirtualCounter
+      val local6
+        Local $dependency.argument.0 : Long
+      return
+        ImportedDependencyCall #2 : Counter
+          Local $dependency.parameter.value : Long
+    val local7
+      IntegerLiteral 0 : Long
+    val local8
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

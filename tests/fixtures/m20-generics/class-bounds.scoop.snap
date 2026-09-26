@@ -11051,7 +11051,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
     t0 = heap_load local0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
+    t1 = heap_load t0 +88 : ptr<metadata>
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Virtual:1] t1(local0)
     store t2 -> local1
     ret local1
@@ -11062,7 +11062,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
     t0 = heap_load local0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
+    t1 = heap_load t0 +88 : ptr<metadata>
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret local1

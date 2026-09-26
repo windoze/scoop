@@ -1,6 +1,6 @@
 1 receiver=String args=["String"] provider_default=true
-10 local receiver=String argument=Any
 12 local receiver=String argument=Any
-14 receiver=String args=["String"] provider_default=false
+14 local receiver=String argument=Any
+16 receiver=String args=["String"] provider_default=false
 3 receiver=absent args=["Integer(IntegerKind { signedness: Signed, width: W32 })"] provider_default=false
 5 receiver=String args=["String", "Integer(IntegerKind { signedness: Signed, width: W32 })"] provider_default=false

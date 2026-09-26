@@ -8,15 +8,11 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=206 descriptors=103 dispatch=140 callables=45 shapes=29
+layouts=206 descriptors=103 dispatch=140 callables=41 shapes=29
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable SharedLirDispatchBase.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable SharedLirDispatchBase.pass: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(24)"] result=Indirect(24)
-callable SharedLirDispatchLeft.empty: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedLirDispatchRoot.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable SharedLirDispatchRoot.empty: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedLirDispatchRoot.pass: OrdinaryManaged receiver=true args=["Direct(8)", "Indirect(24)"] result=Indirect(24)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedLirDispatchToken.$c6: OrdinaryNoGc receiver=false args=[] result=Zst(0)

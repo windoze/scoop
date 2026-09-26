@@ -18,6 +18,7 @@ pub(super) fn integer_domain(ty: &Type) -> Option<IntegerDomain> {
         | Type::ImportedStruct(_)
         | Type::ImportedEnum(_)
         | Type::ImportedClass(_)
+        | Type::ImportedInterface(_)
         | Type::Class(_)
         | Type::Interface(_)
         | Type::Any

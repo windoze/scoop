@@ -84,6 +84,7 @@ impl Validator<'_> {
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
             | Type::ImportedClass(_)
+            | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)
@@ -314,6 +315,7 @@ impl Validator<'_> {
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
             | Type::ImportedClass(_)
+            | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean

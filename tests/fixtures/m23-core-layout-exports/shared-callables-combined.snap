@@ -10,15 +10,12 @@ source-only descriptor IndexOutOfBoundsException
 source-only descriptor SharedSourceOnlyHolder
 source-only descriptor UnwrapException
 local-only descriptor SharedCallableImpl
-layouts=168 descriptors=84 dispatch=106 callables=31 shapes=23
+layouts=168 descriptors=84 dispatch=106 callables=28 shapes=23
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedCallableAgain.hiddenSlot: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedCallableAgain.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
-callable SharedCallableBase.hiddenSlot: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
-callable SharedCallableBase.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
-callable SharedCallableView.ready: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedCallableView.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedCallableToken.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)

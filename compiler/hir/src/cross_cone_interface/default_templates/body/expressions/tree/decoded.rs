@@ -125,6 +125,7 @@ enum DecodedDefaultExpressionKindV1 {
     },
     Box(Box<DecodedDefaultExpressionV1>),
     Unbox(Box<DecodedDefaultExpressionV1>),
+    ReferenceUpcast(Box<DecodedDefaultExpressionV1>),
     IsInstance {
         operand: Box<DecodedDefaultExpressionV1>,
         checked_type: DecodedSignatureTypeKey,

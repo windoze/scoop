@@ -2351,10 +2351,14 @@ fn assert_adapted_extension_component(
     let [(receiver, receiver_init)] = receivers.as_slice() else {
         panic!("one extension component must materialize exactly one receiver")
     };
-    let hir::ExprKind::Local(receiver_source) = receiver_init.kind else {
+    let hir::ExprKind::ReferenceUpcast(source_expression) = &receiver_init.kind else {
+        panic!("the component receiver retains its reference adaptation")
+    };
+    let hir::ExprKind::Local(receiver_source) = source_expression.kind else {
         panic!("the adapted extension receiver must read the class subject")
     };
     assert_eq!(receiver_source, *subject);
+    assert_eq!(source_expression.ty, body.locals[*subject].ty);
     assert_eq!(hir::type_name(module, receiver_init.ty), receiver_type);
     assert_eq!(body.locals[*receiver].ty, receiver_init.ty);
     assert!(!body.locals[*receiver].mutable);

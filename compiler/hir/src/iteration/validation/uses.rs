@@ -140,6 +140,7 @@ fn expression_references_any_inner(
         }
         | ExprKind::Box(operand)
         | ExprKind::Unbox(operand)
+        | ExprKind::ReferenceUpcast(operand)
         | ExprKind::IsInstance { operand, .. }
         | ExprKind::Cast { operand, .. }
         | ExprKind::PrimitiveUnary { operand, .. }

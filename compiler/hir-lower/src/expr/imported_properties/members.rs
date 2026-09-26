@@ -9,15 +9,12 @@ impl Lowerer {
         span: ast::Span,
         expected: Option<hir::TypeId>,
     ) -> Result<Option<hir::Expr>, ()> {
-        let Some(owner) = self.imported_nominal_declaration(receiver.ty) else {
+        if self.imported_nominal_declaration(receiver.ty).is_none() {
             return Ok(None);
-        };
+        }
         let candidates = self
-            .dependencies
-            .as_ref()
-            .expect("an imported nominal retains dependency declarations")
-            .member_callable_candidates(
-                hir::SourceNominalId::Concrete(owner),
+            .imported_member_candidates(
+                receiver.ty,
                 hir::ImportedMemberLookup::PropertyGetter(&name.text),
             )
             .map_err(|error| {
@@ -55,6 +52,15 @@ impl Lowerer {
         if interface.effects().safety() == hir::CallableSafetyV1::Unsafe {
             self.require_unsafe_operation(span, "reading an unsafe dependency property");
         }
+        let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) =
+            interface.owner()
+        else {
+            unreachable!("a resolved dependency property has a nominal owner")
+        };
+        let owner = self
+            .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(owner))
+            .expect("a dependency property receiver type was resolved during lookup");
+        let argument = self.adapt_to(receiver.clone(), owner);
         let callee = self
             .select_imported_callable_declaration_use(candidate)
             .map_err(|error| {
@@ -64,7 +70,7 @@ impl Lowerer {
             kind: hir::ExprKind::ImportedDependencyCall {
                 callee,
                 binding: None,
-                args: vec![receiver.clone()],
+                args: vec![argument],
                 receiver: hir::SourceCallReceiver::Receiver {
                     static_type: receiver.ty,
                 },

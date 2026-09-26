@@ -328,6 +328,7 @@ pub(in super::super) fn collect_expr_types(
         | ExprKind::PtrCast(source)
         | ExprKind::Box(source)
         | ExprKind::Unbox(source)
+        | ExprKind::ReferenceUpcast(source)
         | ExprKind::ArrayLen(source)
         | ExprKind::ArrayClone(source)
         | ExprKind::PrimitiveUnary {

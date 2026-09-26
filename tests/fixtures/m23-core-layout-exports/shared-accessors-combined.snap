@@ -8,10 +8,9 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=158 descriptors=79 dispatch=100 callables=27 shapes=22
+layouts=158 descriptors=79 dispatch=100 callables=26 shapes=22
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable AccessorView.$get$defaulted: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable AccessorView.$get$slot: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable AccessorView.$set$slot: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(4)"] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

@@ -8,11 +8,10 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=175 descriptors=87 dispatch=110 callables=27 shapes=24
+layouts=175 descriptors=87 dispatch=110 callables=26 shapes=24
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable SharedMirBase.read: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable SharedMirReadable.read: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedMirPacket.$c5: OrdinaryNoGc receiver=false args=["Direct(1)", "Direct(4)", "Direct(8)"] result=Indirect(16)

@@ -531,6 +531,10 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}Unbox : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+        ExprKind::ReferenceUpcast(operand) => {
+            out.push_str(&format!("{pad}ReferenceUpcast : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
         ExprKind::IsInstance { operand, check_ty } => {
             out.push_str(&format!(
                 "{pad}IsInstance {} : {ty}\n",
@@ -600,8 +604,13 @@ pub(super) fn dump_expr(
         }
 
         ExprKind::ImportedDependencyCall { callee, args, .. } => {
+            let dispatch = match module.imported_dependency_callables[*callee].dispatch() {
+                ImportedDependencyDispatch::Direct => String::new(),
+                ImportedDependencyDispatch::Virtual { slot } => format!(" virtual[{slot}]"),
+                ImportedDependencyDispatch::Interface { slot, .. } => format!(" interface[{slot}]"),
+            };
             out.push_str(&format!(
-                "{pad}ImportedDependencyCall #{} : {ty}\n",
+                "{pad}ImportedDependencyCall #{}{dispatch} : {ty}\n",
                 callee.into_raw().into_u32()
             ));
             for arg in args {

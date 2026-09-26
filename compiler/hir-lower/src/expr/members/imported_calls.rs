@@ -55,21 +55,16 @@ impl Lowerer {
         expected: Option<TypeId>,
         required: RequiredCallableModifiers,
     ) -> Result<ImportedDependencyCallProbe, ImportedMemberSelectionFailure> {
-        let Some(owner) = self.imported_nominal_declaration(receiver.ty()) else {
+        if self.imported_nominal_declaration(receiver.ty()).is_none() {
             return Err(ImportedMemberSelectionFailure::NoApplicable(None));
-        };
-        let Some(dependencies) = &self.dependencies else {
-            return Err(ImportedMemberSelectionFailure::NoApplicable(None));
-        };
+        }
         let lookup = match required.operator {
             Some(operator) => hir::ImportedMemberLookup::Operator(
                 hir::CallableOperatorRoleV1::Language(wire_operator(operator)),
             ),
             None => hir::ImportedMemberLookup::Name(&name.text),
         };
-        let candidates = match dependencies
-            .member_callable_candidates(hir::SourceNominalId::Concrete(owner), lookup)
-        {
+        let candidates = match self.imported_member_candidates(receiver.ty(), lookup) {
             Ok(candidates) => candidates,
             Err(error) => {
                 let mut failure = self.clone();

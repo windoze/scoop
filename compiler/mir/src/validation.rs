@@ -98,7 +98,9 @@ pub enum MirValidationErrorKind {
     InvalidExternalCallableReference {
         callable: ExternalCallableUseId,
     },
-    ExternalCallableRequiresDirect,
+    InvalidExternalDispatch {
+        reason: &'static str,
+    },
     InvalidForeignCallbackFamily {
         reason: &'static str,
     },
@@ -495,8 +497,8 @@ impl std::fmt::Display for MirValidationError {
                 "external callable {} is missing from this MIR module",
                 callable.into_raw()
             ),
-            MirValidationErrorKind::ExternalCallableRequiresDirect => {
-                formatter.write_str("external callable requires direct dispatch")
+            MirValidationErrorKind::InvalidExternalDispatch { reason } => {
+                formatter.write_str(reason)
             }
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }

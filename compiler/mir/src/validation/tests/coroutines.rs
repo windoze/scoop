@@ -201,7 +201,21 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         adapter,
         Type::Class(throwable),
     );
-    module.interfaces[continuation].methods = vec![resume, resume_failure];
+    module.interfaces[continuation].methods = [resume, resume_failure]
+        .map(|id| {
+            let method = &module.functions[id];
+            InterfaceMethod {
+                name: method.name.clone(),
+                gc_effect: method.gc_effect,
+                parameters: method
+                    .params
+                    .iter()
+                    .map(|parameter| parameter.ty.clone())
+                    .collect(),
+                return_type: method.return_ty.clone(),
+            }
+        })
+        .into();
     module.classes[adapter].itables = vec![ItableRecord {
         interface: continuation,
         slots: vec![

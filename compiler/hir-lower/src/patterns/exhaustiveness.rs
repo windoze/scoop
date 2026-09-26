@@ -68,6 +68,7 @@ impl Lowerer {
             }),
             Type::ImportedEnum(_)
             | Type::ImportedClass(_)
+            | Type::ImportedInterface(_)
             | Type::Tuple(_)
             | Type::Struct(_)
             | Type::Integer(_) => Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty }),
@@ -299,6 +300,7 @@ impl Lowerer {
             }
             Type::Class(_)
             | Type::ImportedClass(_)
+            | Type::ImportedInterface(_)
             | Type::Interface(_)
             | Type::Any
             | Type::Function(_)

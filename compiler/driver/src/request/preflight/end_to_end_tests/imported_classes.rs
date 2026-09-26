@@ -72,6 +72,14 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
         "secondary",
         "recursive",
         "core-extension",
+        "virtual",
+        "interface",
+        "interface-alias",
+        "interface-parent",
+        "reference-identity",
+        "core-interface",
+        "interface-values",
+        "interface-default-constructor",
     ] {
         let name = format!("classes-{case}");
         let root = sysroot.path().join(&name);
@@ -140,6 +148,8 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
         "no-gc",
         "internal-constructor",
         "abstract-constructor",
+        "interface-wrong-identity",
+        "interface-wrong-argument",
     ] {
         let root = sysroot.path().join(case);
         let source = source(case);

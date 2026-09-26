@@ -371,6 +371,9 @@ impl Concretizer<'_> {
             export::ExprKind::Unbox(value) => {
                 concrete::ExprKind::Unbox(Box::new(self.lower_expr(value, substitution, locals)))
             }
+            export::ExprKind::ReferenceUpcast(value) => concrete::ExprKind::ReferenceUpcast(
+                Box::new(self.lower_expr(value, substitution, locals)),
+            ),
             export::ExprKind::IsInstance { operand, check_ty } => concrete::ExprKind::IsInstance {
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),
                 check_ty: self.lower_type(*check_ty, substitution),

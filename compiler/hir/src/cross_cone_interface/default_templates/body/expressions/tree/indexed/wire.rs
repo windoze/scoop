@@ -123,6 +123,7 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             ),
             Self::Box(operand) => encode_one(encoder, 34, operand.as_ref()),
             Self::Unbox(operand) => encode_one(encoder, 35, operand.as_ref()),
+            Self::ReferenceUpcast(operand) => encode_one(encoder, 58, operand.as_ref()),
             Self::IsInstance {
                 operand,
                 checked_type,

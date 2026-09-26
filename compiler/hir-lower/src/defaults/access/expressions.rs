@@ -98,6 +98,7 @@ impl ReferenceCollector<'_> {
             | hir::ExprKind::PtrCast(source)
             | hir::ExprKind::Box(source)
             | hir::ExprKind::Unbox(source)
+            | hir::ExprKind::ReferenceUpcast(source)
             | hir::ExprKind::ArrayLen(source)
             | hir::ExprKind::ArrayClone(source)
             | hir::ExprKind::SomeWrap(source)

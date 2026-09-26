@@ -20,7 +20,8 @@ Module
     val local0
       ImportedDependencyCall #0 : Int
     val local1
-      StringLiteral "receiver" : Any
+      ReferenceUpcast : Any
+        StringLiteral "receiver" : String
     val local2
       ImportedDependencyCall #6 : Any
         Local $dependency.receiver : Any
@@ -29,14 +30,17 @@ Module
     val local4
       Local $dependency.argument.0 : Any
     ImportedDependencyCall #8 : Unit
-      StringLiteral "write" : Any
+      ReferenceUpcast : Any
+        StringLiteral "write" : String
       ImportedDependencyCall #7 : Any
         Local $dependency.parameter.value : Any
     val local5
       ImportedDependencyCall #9 : Any
-        StringLiteral "read" : Any
+        ReferenceUpcast : Any
+          StringLiteral "read" : String
     val local6
-      StringLiteral "provider-default" : Any
+      ReferenceUpcast : Any
+        StringLiteral "provider-default" : String
     val local7
       ImportedDependencyCall #6 : Any
         Local $dependency.default.local.0 : Any

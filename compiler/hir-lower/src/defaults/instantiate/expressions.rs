@@ -197,6 +197,9 @@ impl Lowerer {
             hir::ExprKind::Unbox(value) => {
                 hir::ExprKind::Unbox(Box::new(self.instantiate_default_expr(value, context)))
             }
+            hir::ExprKind::ReferenceUpcast(value) => hir::ExprKind::ReferenceUpcast(Box::new(
+                self.instantiate_default_expr(value, context),
+            )),
             hir::ExprKind::IsInstance { operand, check_ty } => hir::ExprKind::IsInstance {
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
                 check_ty: self.instantiate_method_ty(*check_ty, &context.bindings),

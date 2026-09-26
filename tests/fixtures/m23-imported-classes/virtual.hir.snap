@@ -1,0 +1,18 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 20 : Long
+    val local1
+      Local $dependency.argument.0 : Long
+    val local2
+      ImportedDependencyCall #0 : VirtualBase
+        Local $dependency.parameter.value : Long
+    val local3
+      ImportedDependencyCall #1 virtual[0] : Long
+        Local $dependency.receiver : VirtualBase
+    val local4
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

@@ -144,6 +144,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | DefaultExpressionKindV1::PtrCast(operand)
             | DefaultExpressionKindV1::Box(operand)
             | DefaultExpressionKindV1::Unbox(operand)
+            | DefaultExpressionKindV1::ReferenceUpcast(operand)
             | DefaultExpressionKindV1::ArrayLen(operand)
             | DefaultExpressionKindV1::ArrayClone(operand)
             | DefaultExpressionKindV1::PrimitiveUnary { operand, .. }

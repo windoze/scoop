@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+import dependency.classes.defaultReadable
+
+public fun primary(): Counter = Counter(defaultReadable().read())

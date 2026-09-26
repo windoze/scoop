@@ -41,6 +41,7 @@ impl NominalExactLeafClassifierV1 {
             implementation,
             signature,
             gc_effect: callable.effects().gc_effect(),
+            modality: callable.modality(),
         }))
     }
 
@@ -92,9 +93,7 @@ fn eligible_declaration(
 ) -> Option<StrongCallableDefinitionOwner> {
     let direct_owner = match callable.owner() {
         PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => true,
-        PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(_)) => {
-            callable.modality() == CallableModalityV1::Final
-        }
+        PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(_)) => true,
         PublicDeclarationOwnerV1::Nominal(SourceNominalId::GenericTemplate(_)) => false,
     };
     if !direct_owner
@@ -125,12 +124,16 @@ pub struct ParamFreeNominalCallableV1 {
     implementation: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
     gc_effect: GcEffect,
+    modality: CallableModalityV1,
 }
 
 impl ParamFreeNominalCallableV1 {
     /// The existing direct-callable table stores functions and accessors.
     /// Other definitions retain their complete M23-6 lowering records.
     pub const fn direct_declaration(&self) -> Option<DependencyCallableDeclarationId> {
+        if matches!(self.modality, CallableModalityV1::Abstract) {
+            return None;
+        }
         match self.implementation {
             StrongCallableDefinitionOwner::Function(id) => {
                 Some(DependencyCallableDeclarationId::Function(id))

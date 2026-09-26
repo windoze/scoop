@@ -212,14 +212,11 @@ impl Builder {
     pub(in crate::tests) fn interface(&mut self, name: &str, methods: &[&str]) -> mir::InterfaceId {
         let methods = methods
             .iter()
-            .map(|method| {
-                self.functions.alloc(mir::Function {
-                    gc_effect: mir::GcEffect::Managed,
-                    name: format!("{name}.{method}"),
-                    params: Vec::new(),
-                    return_ty: mir::Type::Unit,
-                    body: mir::Body::unreachable(Arena::new()),
-                })
+            .map(|method| mir::InterfaceMethod {
+                gc_effect: mir::GcEffect::Managed,
+                name: format!("{name}.{method}"),
+                parameters: Vec::new(),
+                return_type: mir::Type::Unit,
             })
             .collect();
         self.interfaces.alloc(mir::InterfaceDef {

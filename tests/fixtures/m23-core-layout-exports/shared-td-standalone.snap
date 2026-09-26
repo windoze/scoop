@@ -8,11 +8,10 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=166 descriptors=83 dispatch=103 callables=26 shapes=23
+layouts=166 descriptors=83 dispatch=103 callables=25 shapes=23
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable SharedTdBase.token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedTdEmpty.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SourceLocation.$c6: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)"] result=Indirect(40)

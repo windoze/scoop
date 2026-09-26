@@ -3,6 +3,7 @@
 use super::*;
 
 mod classes;
+mod interfaces;
 
 impl Concretizer<'_> {
     pub(super) fn lower_imported_struct(

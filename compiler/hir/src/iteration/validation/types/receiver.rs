@@ -136,6 +136,11 @@ impl Validator<'_> {
                 && self.is_value_type(value.ty)?
                 && !self.is_value_type(expression.ty)?
                 && self.type_is_subtype(value.ty, expression.ty)?),
+            ExprKind::ReferenceUpcast(value) => Ok(self
+                .validate_receiver_derivation(value, locals)?
+                && !self.is_value_type(value.ty)?
+                && !self.is_value_type(expression.ty)?
+                && self.type_is_subtype(value.ty, expression.ty)?),
             ExprKind::FunctionCoercion {
                 source,
                 coercion,
@@ -184,6 +189,7 @@ impl Validator<'_> {
             | Type::String
             | Type::Class(_)
             | Type::ImportedClass(_)
+            | Type::ImportedInterface(_)
             | Type::Interface(_)
             | Type::Function(_) => false,
         })

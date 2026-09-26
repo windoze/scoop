@@ -6,16 +6,22 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ImportedDependencyCallableUse {
     reference: crate::ImportedDependencyCallableRef,
+    dispatch: crate::ImportedDependencyDispatch,
 }
 
 impl ImportedDependencyCallableUse {
     pub fn from_export(source: crate::ImportedDependencyCallableUse) -> Self {
         Self {
             reference: source.reference(),
+            dispatch: source.dispatch(),
         }
     }
 
     pub const fn reference(self) -> crate::ImportedDependencyCallableRef {
         self.reference
+    }
+
+    pub const fn dispatch(self) -> crate::ImportedDependencyDispatch {
+        self.dispatch
     }
 }

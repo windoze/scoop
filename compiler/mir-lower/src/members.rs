@@ -72,55 +72,32 @@ impl Lowerer {
     }
 
     /// Materialize an interface slot that has no callable use in this cone.
-    /// Local-concrete HIR carries its complete signature on the interface
-    /// definition, so MIR can still give every slot a typed function entity
-    /// without waiting for a call site or reconstructing it from a name.
-    pub(super) fn declare_interface_signature(
+    /// Interfaces contain complete signatures without inventing local bodies.
+    pub(super) fn lower_interface_signature(
         &mut self,
         module: &hir::Module,
         interface: hir::InterfaceId,
         slot: usize,
-    ) -> mir::FunctionId {
+    ) -> mir::InterfaceMethod {
         let declaration = &module.interfaces[interface];
         let method = &declaration.methods[slot];
-        let owner = mir::Type::Interface(self.interfaces.mir_id(interface));
-        let mut locals = Arena::new();
-        let this = locals.alloc(mir::Local {
-            name: "this".to_string(),
-            ty: owner.clone(),
-            mutable: false,
-        });
-        let mut params = vec![mir::Param {
-            name: "this".to_string(),
-            ty: owner,
-            local: this,
-        }];
+        let mut parameters = vec![mir::Type::Interface(self.interfaces.mir_id(interface))];
         let types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
         };
-        params.extend(method.params.iter().map(|param| {
-            let ty = types.lower(
+        parameters.extend(method.params.iter().map(|param| {
+            types.lower(
                 param.ty,
                 &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
                 &mut self.shell,
-            );
-            let local = locals.alloc(mir::Local {
-                name: param.name.clone(),
-                ty: ty.clone(),
-                mutable: false,
-            });
-            mir::Param {
-                name: param.name.clone(),
-                ty,
-                local,
-            }
+            )
         }));
-        let return_ty = types.lower(
+        let return_type = types.lower(
             method.return_ty,
             &mut self.source_exact_types,
             &mut self.enums,
@@ -128,14 +105,12 @@ impl Lowerer {
             &mut self.interfaces,
             &mut self.shell,
         );
-        let name = format!("{}.{}", declaration.name, method.name);
-        self.functions.alloc(mir::Function {
+        mir::InterfaceMethod {
+            name: format!("{}.{}", declaration.name, method.name),
             gc_effect: lower_gc_effect(method.attributes.gc_effect),
-            name,
-            params,
-            return_ty,
-            body: mir::Body::unreachable(locals),
-        })
+            parameters,
+            return_type,
+        }
     }
 
     /// Fill the MIR class fields: the base class's (already

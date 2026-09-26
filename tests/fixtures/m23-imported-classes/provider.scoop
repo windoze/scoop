@@ -15,3 +15,45 @@ public abstract class AbstractCounter public constructor(val value: Long)
 public fun makeCounter(value: Long): Counter = Counter(value)
 public fun identity(value: Counter): Counter = value
 public typealias CounterAlias = Counter
+
+public open class VirtualBase public constructor(val seed: Long) {
+    public open fun read(): Long = seed
+}
+public class VirtualCounter public constructor(value: Long): VirtualBase(value) {
+    public override fun read(): Long = seed + 1
+}
+public fun virtualCounter(value: Long): VirtualBase = VirtualCounter(value)
+
+public interface Readable {
+    public fun read(): Long
+    public fun answer(extra: Long = 1): Long = read() + extra
+}
+public class Reader public constructor(val value: Long): Readable {
+    public override fun read(): Long = value
+}
+public fun readable(value: Long): Readable = Reader(value)
+public fun retainReadable(value: Readable): Readable = value
+public fun defaultReadable(value: Readable = Reader(21)): Readable = value
+public typealias ReadableAlias = Readable
+
+public interface ParentReader {
+    public fun parent(): Long = 20
+}
+public interface ChildReader: ParentReader {
+    public fun child(): Long = parent() + 1
+}
+public class ChildReaderImpl public constructor(): ChildReader
+public fun childReader(): ChildReader = ChildReaderImpl()
+
+public struct WideValue(val first: Long, val second: Long, val third: Long)
+public interface ValueReader {
+    public fun value(marker: Token, input: Counter): WideValue
+}
+public class ValueReaderImpl public constructor(): ValueReader {
+    public override fun value(marker: Token, input: Counter): WideValue =
+        WideValue(input.value, 0, 0)
+}
+public fun valueReader(): ValueReader = ValueReaderImpl()
+public interface OtherReadable {
+    public fun read(): Long
+}

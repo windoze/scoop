@@ -315,6 +315,9 @@ impl Lowerer {
                 ));
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
+            ExprKind::ReferenceUpcast(operand) => {
+                self.collect_no_gc_expr_violations(operand, out, requirements);
+            }
             ExprKind::IsInstance { operand, .. } | ExprKind::Cast { operand, .. } => {
                 out.push((
                     expr.span,

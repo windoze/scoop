@@ -101,6 +101,9 @@ impl Lowerer {
 
         use hir::DefaultExpressionKindV1 as Kind;
         let kind = match expression.kind() {
+            Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
+                self.materialize_imported_default_expression(operand, context)?,
+            )),
             Kind::StringLiteral {
                 value,
                 owner: hir::DefaultStringOwnerV1::CurrentInstantiation,
@@ -157,6 +160,14 @@ impl Lowerer {
             }
             Kind::StructInit {
                 constructor: hir::DefaultConstructorRefV1::Struct { declaration, .. },
+                arguments,
+            }
+            | Kind::ClassInit {
+                constructor:
+                    hir::DefaultConstructorRefV1::Class {
+                        declaration: hir::DefaultClassConstructorIdV1::Source(declaration),
+                        ..
+                    },
                 arguments,
             } => {
                 let args = self.materialize_imported_default_expressions(arguments, context)?;

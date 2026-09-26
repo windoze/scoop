@@ -361,6 +361,7 @@ impl Lowerer {
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
             | Type::ImportedClass(_)
+            | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)

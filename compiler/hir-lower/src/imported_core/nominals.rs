@@ -12,6 +12,7 @@ impl Lowerer {
             hir::Type::ImportedStruct(ty) => ty.declaration.identity.id() == identity,
             hir::Type::ImportedEnum(ty) => ty.declaration.identity.id() == identity,
             hir::Type::ImportedClass(ty) => ty.declaration.identity.id() == identity,
+            hir::Type::ImportedInterface(ty) => ty.declaration.identity.id() == identity,
             _ => false,
         }) {
             return Ok(id);
@@ -27,6 +28,12 @@ impl Lowerer {
             hir::NominalSourceShapeV1::Class(_)
         ) {
             return self.imported_class_type(declaration);
+        }
+        if matches!(
+            declaration.interface.source_shape(),
+            hir::NominalSourceShapeV1::Interface
+        ) {
+            return self.imported_interface_type(declaration);
         }
         for parent in declaration.interface.exact_supertypes().values() {
             self.imported_signature_type(parent)?;
@@ -107,6 +114,7 @@ impl Lowerer {
             fields: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
+            virtual_slots: Vec::new(),
         };
         let ty = self.intern_type(hir::Type::ImportedClass(Arc::new(class.clone())));
         for parent in declaration.interface.exact_supertypes().values() {
@@ -132,6 +140,22 @@ impl Lowerer {
                 })
             })
             .collect::<Result<Vec<_>, ImportedSignatureTypeError>>()?;
+        if let Some(base) = class.base_class {
+            let hir::Type::ImportedClass(base) = &self.types[base] else {
+                return Err(ImportedSignatureTypeError::Structural);
+            };
+            class.virtual_slots = base.virtual_slots.clone();
+        }
+        for slot in declaration
+            .interface
+            .declaration_details()
+            .dispatch_order()
+            .declared_slots()
+        {
+            if !class.virtual_slots.contains(&slot) {
+                class.virtual_slots.push(slot);
+            }
+        }
         self.types[ty] = hir::Type::ImportedClass(Arc::new(class));
         Ok(ty)
     }

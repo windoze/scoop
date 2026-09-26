@@ -224,6 +224,7 @@ fn patch_local_function_call_expr(
         }
         | hir::ExprKind::Box(receiver)
         | hir::ExprKind::Unbox(receiver)
+        | hir::ExprKind::ReferenceUpcast(receiver)
         | hir::ExprKind::IsInstance {
             operand: receiver, ..
         }

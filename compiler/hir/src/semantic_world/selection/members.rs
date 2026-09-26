@@ -100,6 +100,22 @@ impl ImportedCallableSource for ImportedCallableDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
+    pub fn callable_for_slot(
+        &self,
+        owner: SourceNominalId,
+        slot: scoop_identity::PersistentDispatchSlotId,
+    ) -> Result<Option<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
+        self.catalog
+            .callables
+            .values()
+            .find(|entry| {
+                entry.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
+                    && entry.interface.slot_relations().values().contains(&slot)
+            })
+            .map(|entry| self.callable_declaration(entry.interface.declaration()))
+            .transpose()
+    }
+
     pub fn callable_declaration(
         &self,
         declaration: scoop_identity::CallableTemplateOrigin,

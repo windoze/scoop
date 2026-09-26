@@ -32,7 +32,7 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
             let ordinary =
                 hir::select_ordinary_source_callables(provider, &public, &classifier, &identities)
                     .unwrap();
-            assert_eq!(ordinary.len(), if case == "standalone" { 3 } else { 7 });
+            assert_eq!(ordinary.len(), if case == "standalone" { 3 } else { 10 });
             let mut rows = Vec::new();
             for source in public.callable_interfaces().all_declarations() {
                 let (key, included, old) = match source.declaration() {

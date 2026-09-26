@@ -180,6 +180,7 @@ impl Lowerer {
             hir::Type::String
             | hir::Type::Class(..)
             | hir::Type::ImportedClass(_)
+            | hir::Type::ImportedInterface(_)
             | hir::Type::Interface(_)
             | hir::Type::Any
             | hir::Type::Function(_) => Err(CAbiError {
@@ -308,7 +309,8 @@ impl Lowerer {
             | hir::Type::FunPtr(_)
             | hir::Type::Enum(_)
             | hir::Type::ImportedEnum(_)
-            | hir::Type::ImportedClass(_) => Some(false),
+            | hir::Type::ImportedClass(_)
+            | hir::Type::ImportedInterface(_) => Some(false),
             hir::Type::Param(_) => None,
             hir::Type::Tuple(elements) => {
                 for element in elements {
@@ -373,6 +375,7 @@ impl Lowerer {
             | hir::Type::ImportedStruct(_)
             | hir::Type::ImportedEnum(_)
             | hir::Type::ImportedClass(_)
+            | hir::Type::ImportedInterface(_)
             | hir::Type::Struct(_)
             | hir::Type::Enum(_)
             | hir::Type::Tuple(_) => Ok(()),

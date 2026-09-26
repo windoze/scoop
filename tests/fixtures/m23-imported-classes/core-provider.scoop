@@ -1,5 +1,8 @@
-public class RebuiltCounter public constructor(val value: Long) {
-    public fun read(): Long = value + stage3CoreAnswer() - 43
+public interface RebuiltReadable {
+    public fun read(): Long
+}
+public class RebuiltCounter public constructor(val value: Long): RebuiltReadable {
+    public override fun read(): Long = value + stage3CoreAnswer() - 43
 }
 public typealias RebuiltAlias = RebuiltCounter
 public enum RebuiltFlag { Ready, Empty }

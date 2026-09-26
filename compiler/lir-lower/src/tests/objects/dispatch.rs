@@ -37,7 +37,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
     let module = lower(b.finish(main));
 
     // The receiver's object header (index 0) holds the TD; its
-    // vtable pointer is ScoopTypeDescriptor field 5; the callee is
+    // vtable pointer is at byte offset 88; the callee is
     // vtable[0].
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
@@ -52,7 +52,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[local0:ptr<managed>@0]
     t0 = heap_load local0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
+    t1 = heap_load t0 +88 : ptr<metadata>
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret

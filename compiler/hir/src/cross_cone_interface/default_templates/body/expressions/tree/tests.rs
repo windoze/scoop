@@ -245,14 +245,15 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             operand: Box::new(unit(&fixture)),
             trap_on_none: CanonicalBooleanV1::True,
         },
+        DefaultExpressionKindV1::ReferenceUpcast(Box::new(unit(&fixture))),
     ];
 
-    assert_eq!(cases.len(), 56);
+    assert_eq!(cases.len(), 57);
     for (index, kind) in cases.into_iter().enumerate() {
-        let expected_tag = if index == 43 {
-            57
-        } else {
-            u64::try_from(index + 1).unwrap()
+        let expected_tag = match index {
+            43 => 57,
+            56 => 58,
+            _ => u64::try_from(index + 1).unwrap(),
         };
         let expression = expression(kind, &fixture);
         let bytes = encode(&expression.index_locals(&mut fixture.locals()).unwrap()).unwrap();
@@ -349,9 +350,9 @@ fn explicit_optional_expression_sum_round_trips() {
 #[test]
 fn expression_decoder_rejects_unknown_tags_and_non_exact_sums() {
     let error =
-        decode_canonical::<DecodedDefaultExpressionV1>(&[0xa3, 0x01, 0xa1, 0x00, 0x18, 0x3a, 0])
+        decode_canonical::<DecodedDefaultExpressionV1>(&[0xa3, 0x01, 0xa1, 0x00, 0x18, 0xff, 0])
             .unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 58 });
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 255 });
 
     let error = decode_canonical::<DecodedDefaultExpressionV1>(&[
         0xa3, 0x01, 0xa2, 0x00, 0x04, 0x01, 0x00, 0,

@@ -272,6 +272,7 @@ pub enum ExprKind {
     },
     Box(Box<Expr>),
     Unbox(Box<Expr>),
+    ReferenceUpcast(Box<Expr>),
     IsInstance {
         operand: Box<Expr>,
         check_ty: TypeId,

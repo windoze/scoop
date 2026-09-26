@@ -10,6 +10,7 @@ use crate::NominalCallableClassificationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedDependencySelectionPlanBuildError {
+    MissingDispatchSlot(scoop_identity::PersistentDispatchSlotId),
     MissingNominal(scoop_identity::PersistentTypeId),
     MissingNominalField(scoop_identity::PersistentFieldId),
     MissingEnumVariant(scoop_identity::PersistentEnumVariantId),
@@ -38,6 +39,9 @@ pub enum ImportedDependencySelectionPlanBuildError {
 impl fmt::Display for ImportedDependencySelectionPlanBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingDispatchSlot(id) => {
+                write!(formatter, "dependency dispatch slot {id} is missing")
+            }
             Self::MissingNominal(id) => write!(
                 formatter,
                 "dependency nominal {id} has no declaration identity"
@@ -107,7 +111,8 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             Self::NominalClassifier(error) => Some(error),
             Self::Classification(error) => Some(error),
             Self::Initialization(error) => Some(error),
-            Self::MissingNominal(_)
+            Self::MissingDispatchSlot(_)
+            | Self::MissingNominal(_)
             | Self::MissingNominalField(_)
             | Self::MissingEnumVariant(_)
             | Self::MissingEnumField(_)
@@ -225,6 +230,7 @@ impl std::error::Error for ImportedDependencyCandidateError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedDependencySelectionError {
+    InvalidDispatch { declaration: CallableTemplateOrigin },
     MissingCallable(CallableTemplateOrigin),
     MissingConstant(PersistentPropertyId),
     MissingTypeAlias(scoop_identity::PersistentTypeAliasId),
@@ -236,6 +242,10 @@ pub enum ImportedDependencySelectionError {
 impl fmt::Display for ImportedDependencySelectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidDispatch { declaration } => write!(
+                formatter,
+                "imported callable {declaration:?} has no matching dispatch slot"
+            ),
             Self::MissingCallable(id) => write!(
                 formatter,
                 "selected callable {id:?} is absent from the dependency catalog"
@@ -268,7 +278,8 @@ impl std::error::Error for ImportedDependencySelectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::RouteMerge(error) => Some(error),
-            Self::MissingCallable(_)
+            Self::InvalidDispatch { .. }
+            | Self::MissingCallable(_)
             | Self::MissingConstant(_)
             | Self::MissingTypeAlias(_)
             | Self::CapabilityUnavailable { .. }

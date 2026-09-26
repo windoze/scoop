@@ -1,12 +1,8 @@
-layouts=62 descriptors=31 dispatch=36 callables=21 shapes=9
+layouts=62 descriptors=31 dispatch=36 callables=17 shapes=9
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable Base.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable Base.protectedRun: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
-callable Base.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable Choice.equals: OrdinaryManaged receiver=true args=["Indirect(8)", "Indirect(8)"] result=Direct(1)
 callable Contract.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable Contract.echo: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable Contract.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable Pair.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
 callable Token.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)

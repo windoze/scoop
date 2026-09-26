@@ -1,0 +1,57 @@
+Module
+  class Counter vtable=0 itables=0
+  interface Readable
+  fun accept @fn0(value: Readable) -> Readable
+    bb0 entry
+      val $dependency.argument.0: Readable
+        Type Readable
+        Local value
+      val $dependency.parameter.value: Readable
+        Type Readable
+        Local $dependency.argument.0
+      call $call.1: Readable = external0 direct
+        Type Readable
+        Local $dependency.parameter.value
+      return
+        Type Readable
+        Local $call.1
+  fun primary @fn1() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $argument.0: Readable = external1 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $parameter.value: Readable
+        Type Readable
+        Local $argument.0
+      call $dependency.receiver: Readable = @fn0 direct
+        Type Readable
+        Local $parameter.value
+      val $dependency.parameter.extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.argument.0: Long = external2 interface Readable[1]
+        Type Readable
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  output library

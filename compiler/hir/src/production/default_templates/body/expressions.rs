@@ -225,6 +225,9 @@ impl BodyProjection<'_, '_> {
             ExprKind::Unbox(value) => {
                 DefaultExpressionKindV1::Unbox(Box::new(self.expression(value)?))
             }
+            ExprKind::ReferenceUpcast(value) => {
+                DefaultExpressionKindV1::ReferenceUpcast(Box::new(self.expression(value)?))
+            }
             ExprKind::IsInstance { operand, check_ty } => DefaultExpressionKindV1::IsInstance {
                 operand: Box::new(self.expression(operand)?),
                 checked_type: self.type_key(*check_ty)?,

@@ -5,6 +5,7 @@
 //! arena interning in one place guarantees that one semantic selection has
 //! one local HIR use id regardless of how it was reached.
 
+use hir::ImportedCallableSource;
 use scoop_hir as hir;
 
 use crate::Lowerer;
@@ -20,6 +21,7 @@ impl Lowerer {
         ),
         hir::ImportedDependencySelectionError,
     > {
+        let dispatch = self.imported_callable_dispatch(candidate.interface())?;
         let binding = std::sync::Arc::new(candidate.binding().clone());
         let reference = self
             .dependencies
@@ -27,7 +29,7 @@ impl Lowerer {
             .expect("ordinary lowering carries a dependency selection plan")
             .select_callable(candidate)?;
         Ok((
-            self.intern_imported_dependency_callable_use(reference),
+            self.intern_imported_dependency_callable_use(reference, dispatch),
             binding,
         ))
     }
@@ -36,27 +38,76 @@ impl Lowerer {
         &mut self,
         candidate: hir::ImportedCallableDeclaration,
     ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
+        let dispatch = self.imported_callable_dispatch(candidate.interface())?;
         let reference = self
             .dependencies
             .as_mut()
             .expect("ordinary lowering carries a dependency selection plan")
             .select_declared_callable(candidate)?;
-        Ok(self.intern_imported_dependency_callable_use(reference))
+        Ok(self.intern_imported_dependency_callable_use(reference, dispatch))
+    }
+
+    fn imported_callable_dispatch(
+        &mut self,
+        callable: &hir::CallableInterfaceRecordV1,
+    ) -> Result<hir::ImportedDependencyDispatch, hir::ImportedDependencySelectionError> {
+        use hir::ImportedDependencyDispatch as Dispatch;
+        let invalid = || hir::ImportedDependencySelectionError::InvalidDispatch {
+            declaration: callable.declaration(),
+        };
+        if callable.modality() == hir::CallableModalityV1::Final {
+            return Ok(Dispatch::Direct);
+        }
+        let hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(owner)) =
+            callable.owner()
+        else {
+            return Err(invalid());
+        };
+        let ty = self
+            .imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(owner))
+            .map_err(|_| invalid())?;
+        match &self.types[ty] {
+            hir::Type::ImportedClass(class) => {
+                let position = class
+                    .virtual_slots
+                    .iter()
+                    .position(|slot| callable.slot_relations().values().contains(slot))
+                    .ok_or_else(invalid)?;
+                Ok(Dispatch::Virtual {
+                    slot: u32::try_from(position).map_err(|_| invalid())?,
+                })
+            }
+            hir::Type::ImportedInterface(interface) => {
+                let position = interface
+                    .methods
+                    .iter()
+                    .position(|method| method.declaration.declaration() == callable.declaration())
+                    .ok_or_else(invalid)?;
+                Ok(Dispatch::Interface {
+                    interface: owner,
+                    slot: u32::try_from(position).map_err(|_| invalid())?,
+                })
+            }
+            _ => Err(invalid()),
+        }
     }
 
     fn intern_imported_dependency_callable_use(
         &mut self,
         reference: hir::ImportedDependencyCallableRef,
+        dispatch: hir::ImportedDependencyDispatch,
     ) -> hir::ImportedDependencyCallableUseId {
         let existing = self
             .imported_dependency_callables
             .iter()
-            .find_map(|(id, use_)| (use_.reference() == reference).then_some(id));
+            .find_map(|(id, use_)| {
+                (use_.reference() == reference && use_.dispatch() == dispatch).then_some(id)
+            });
         match existing {
             Some(existing) => existing,
             None => self
                 .imported_dependency_callables
-                .alloc(hir::ImportedDependencyCallableUse::new(reference)),
+                .alloc(hir::ImportedDependencyCallableUse::new(reference, dispatch)),
         }
     }
 }

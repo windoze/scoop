@@ -34,6 +34,23 @@ impl Concretizer<'_> {
                 "each LocalConcrete interface slot has one Export HIR origin"
             );
         }
+        for (_, ty) in self.source.types.iter() {
+            let export::Type::ImportedInterface(source) = ty else {
+                continue;
+            };
+            let Some(id) = self
+                .imported_interfaces
+                .get(&source.declaration.identity.id())
+            else {
+                continue;
+            };
+            let index = id.into_raw().into_u32() as usize;
+            interface_slots[index] = source
+                .methods
+                .iter()
+                .map(|method| Some(method.slot.clone()))
+                .collect();
+        }
         let interface_slots = interface_slots
             .into_iter()
             .map(|slots| {

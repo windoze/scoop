@@ -19,6 +19,8 @@ pub enum Type {
     ImportedEnum(std::sync::Arc<ImportedEnumType>),
     /// A dependency reference type with its actual declaration and field types.
     ImportedClass(std::sync::Arc<ImportedClassType>),
+    /// A dependency interface with complete inherited method signatures.
+    ImportedInterface(std::sync::Arc<ImportedInterfaceType>),
     /// A reference type declared with `class` (spec 9.1).
     /// A class application with complete host arguments (empty for a
     /// non-generic class). M14 gives generic classes the same nominal
@@ -70,6 +72,27 @@ pub struct ImportedClassType {
     pub fields: Vec<ImportedNominalField>,
     pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
+    pub virtual_slots: Vec<scoop_identity::PersistentDispatchSlotId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedInterfaceType {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub parents: Vec<TypeId>,
+    pub methods: Vec<ImportedInterfaceMethod>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedInterfaceMethod {
+    pub slot: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchSlotId,
+        scoop_identity::DispatchSlotKey,
+    >,
+    pub overrides: Vec<scoop_identity::PersistentDispatchSlotId>,
+    pub declaration: CallableInterfaceRecordV1,
+    pub name: String,
+    pub parameters: Vec<(String, TypeId)>,
+    pub return_type: TypeId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -126,6 +149,9 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::ImportedClass(x), Type::ImportedClass(y)) => {
             x.declaration.identity.id() == y.declaration.identity.id()
         }
+        (Type::ImportedInterface(x), Type::ImportedInterface(y)) => {
+            x.declaration.identity.id() == y.declaration.identity.id()
+        }
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Any, Type::Any) => true,
@@ -159,6 +185,7 @@ pub(crate) fn type_name_with_params(
         Type::ImportedStruct(structure) => structure.declaration.name().to_owned(),
         Type::ImportedEnum(enumeration) => enumeration.declaration.name().to_owned(),
         Type::ImportedClass(class) => class.declaration.name().to_owned(),
+        Type::ImportedInterface(class) => class.declaration.name().to_owned(),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),

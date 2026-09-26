@@ -1,0 +1,32 @@
+Module
+  class VirtualBase vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: VirtualBase = external0 direct
+        Type Long
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Long = external1 virtual[0]
+        Type VirtualBase
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  output library

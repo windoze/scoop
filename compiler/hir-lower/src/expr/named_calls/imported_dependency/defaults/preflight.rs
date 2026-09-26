@@ -65,6 +65,8 @@ impl Lowerer {
         self.imported_default_type(expression.result_type())?;
         use hir::DefaultExpressionKindV1 as Kind;
         match expression.kind() {
+            Kind::ReferenceUpcast(operand) => self
+                .preflight_imported_default_expression(owner, template, operand, locals, callables),
             Kind::StringLiteral {
                 owner: hir::DefaultStringOwnerV1::CurrentInstantiation,
                 ..
@@ -110,6 +112,14 @@ impl Lowerer {
                 constructor:
                     hir::DefaultConstructorRefV1::Struct {
                         declaration,
+                        owner_type,
+                    },
+                arguments,
+            }
+            | Kind::ClassInit {
+                constructor:
+                    hir::DefaultConstructorRefV1::Class {
+                        declaration: hir::DefaultClassConstructorIdV1::Source(declaration),
                         owner_type,
                     },
                 arguments,

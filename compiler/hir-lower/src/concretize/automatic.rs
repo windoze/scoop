@@ -44,6 +44,7 @@ impl Concretizer<'_> {
             export::Type::ImportedStruct(_)
             | export::Type::ImportedEnum(_)
             | export::Type::ImportedClass(_)
+            | export::Type::ImportedInterface(_)
             | export::Type::Unit
             | export::Type::Integer(_)
             | export::Type::Boolean

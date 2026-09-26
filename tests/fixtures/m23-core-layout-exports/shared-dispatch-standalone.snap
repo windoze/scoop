@@ -8,16 +8,12 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=184 descriptors=92 dispatch=112 callables=31 shapes=26
+layouts=184 descriptors=92 dispatch=112 callables=27 shapes=26
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedDispatchAbstract.pending: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable SharedDispatchAgain.pending: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable SharedDispatchBase.$get$copy: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable SharedDispatchBase.first: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
-callable SharedDispatchOrder.alpha: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable SharedDispatchOrder.zeta: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedDispatchToken.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SourceLocation.$c6: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)"] result=Indirect(40)

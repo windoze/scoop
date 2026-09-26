@@ -8,11 +8,10 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=191 descriptors=95 dispatch=117 callables=31 shapes=26
+layouts=191 descriptors=95 dispatch=117 callables=30 shapes=26
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable SharedLayoutBase.read: OrdinaryManaged receiver=true args=["Direct(8)"] result=Indirect(48)
 callable SharedLayoutReadable.read: OrdinaryManaged receiver=true args=["Direct(8)"] result=Indirect(48)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedLayoutEmpty.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)

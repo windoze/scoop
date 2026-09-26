@@ -10775,7 +10775,7 @@ Module
     store integer<Int>(0x00000001) -> local2
     store local2 -> local3
     t2 = heap_load local1 +0 : ptr<metadata>
-    t3 = heap_load t2 +40 : ptr<metadata>
+    t3 = heap_load t2 +88 : ptr<metadata>
     call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t4 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Virtual:0] t3(local1, local3)
     store t4 -> local4
     store local4 -> local5

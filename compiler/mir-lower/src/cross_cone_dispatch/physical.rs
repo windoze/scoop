@@ -21,7 +21,7 @@ pub(super) fn targets(
         {
             return Err(mismatch());
         }
-        for (slot, function) in schema.slots().iter().zip(&module.interfaces[*id].methods) {
+        for (slot, actual) in schema.slots().iter().zip(&module.interfaces[*id].methods) {
             let key = context
                 .authority
                 .identities
@@ -30,20 +30,19 @@ pub(super) fn targets(
             let binding = context.callable(target)?;
             let signature = binding.lowered_signature();
             let exact = signature.exact();
-            let actual = &module.functions[*function];
 
             if actual.gc_effect != signature.gc_effect()
-                || actual.params.len() != exact.parameters().len() + 1
-                || actual.params.first().map(|parameter| &parameter.ty) != Some(ty)
+                || actual.parameters.len() != exact.parameters().len() + 1
+                || actual.parameters.first() != Some(ty)
                 || actual
-                    .params
+                    .parameters
                     .iter()
                     .skip(1)
                     .zip(exact.parameters())
                     .any(|(parameter, exact)| {
-                        context.physical.get(exact).copied() != Some(&parameter.ty)
+                        context.physical.get(exact).copied() != Some(parameter)
                     })
-                || context.physical.get(&exact.result()).copied() != Some(&actual.return_ty)
+                || context.physical.get(&exact.result()).copied() != Some(&actual.return_type)
             {
                 return Err(mismatch());
             }

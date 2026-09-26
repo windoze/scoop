@@ -632,6 +632,10 @@ impl BodyLowerer<'_> {
                     check_ty: Box::new(check_ty),
                 }
             }
+            hir::ExprKind::ReferenceUpcast(operand) => smir::ExprKind::Retype {
+                operand: Box::new(self.lower_expr(operand)),
+                ty: Box::new(ty.clone()),
+            },
             hir::ExprKind::Cast {
                 operand,
                 check_ty,
@@ -644,26 +648,7 @@ impl BodyLowerer<'_> {
             }
 
             hir::ExprKind::ImportedDependencyCall { callee, args, .. } => {
-                let (callee, role) = self.imported_dependency_callable_map[callee];
-                let callee = mir::Callee::External(callee);
-                let return_ty = self.lower_type(expr.ty);
-                if let mir::MirCallableLoweringRoleV1::ClassInitializer { .. } = role {
-                    // The source expression returns the allocated class, while the
-                    // physical initializer call returns Unit.
-                    self.lower_type(self.module.unit);
-                    let mir::Type::Class(class_id) = return_ty else {
-                        unreachable!("a class initializer has a class semantic result")
-                    };
-                    return smir::Expr::new(
-                        return_ty,
-                        smir::ExprKind::ClassNew {
-                            class_id,
-                            initializer: callee,
-                            args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
-                        },
-                    );
-                }
-                return self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty);
+                return self.lower_imported_call(*callee, args, expr.ty);
             }
             hir::ExprKind::LocalFunctionCall {
                 callee,

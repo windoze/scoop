@@ -278,6 +278,13 @@ impl CanonicalHirFoundation {
         })
     }
 
+    pub(crate) fn dispatch_slot_record(
+        &self,
+        id: PersistentDispatchSlotId,
+    ) -> Option<&DispatchSlotRecord> {
+        self.dispatch_slots.iter().find(|record| record.id() == id)
+    }
+
     pub(crate) fn generic_function_by_bytes(
         &self,
         bytes: &[u8; 32],

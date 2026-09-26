@@ -16,6 +16,10 @@ impl Lowerer {
         let b_ty = self.types[b].clone();
         match (a_ty, b_ty) {
             (_, Type::Any) => true,
+            (Type::ImportedInterface(interface), _) => interface
+                .parents
+                .iter()
+                .any(|parent| self.is_subtype(*parent, b)),
             (Type::ImportedClass(class), _) => class
                 .base_class
                 .into_iter()
@@ -246,6 +250,7 @@ impl Lowerer {
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
             | Type::ImportedClass(_)
+            | Type::ImportedInterface(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)
@@ -283,11 +288,22 @@ impl Lowerer {
             return true;
         }
         match &self.types[a] {
-            Type::Any | Type::Interface(..) => true,
+            Type::Any | Type::Interface(..) | Type::ImportedInterface(_) => true,
+            Type::ImportedClass(class) => {
+                class.declaration.interface.declaration_details().modality()
+                    != hir::NominalInheritanceModalityV1::Final
+                    && matches!(
+                        self.types[b],
+                        Type::Interface(_) | Type::ImportedInterface(_)
+                    )
+            }
             &Type::Class(application) => {
                 let template = self.class_applications[application].template;
                 self.classes[template].modifier != hir::ClassModifier::Final
-                    && matches!(self.types[b], Type::Interface(..))
+                    && matches!(
+                        self.types[b],
+                        Type::Interface(..) | Type::ImportedInterface(_)
+                    )
             }
             _ => false,
         }
@@ -300,7 +316,6 @@ impl Lowerer {
         match self.types[ty] {
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
-            | Type::ImportedClass(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean
