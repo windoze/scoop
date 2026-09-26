@@ -46,8 +46,8 @@ M23-3 第一次产生真正可发布、同时通过 Compile/Link 两种 purpose 
 6. 每个成功 artifact 的全部 `LinkObject` 联合定义且只定义一个当前 Cone 的 hidden strong `ScoopImageDescriptorV1`，并产生六类 strong registration、member-aware definition/undefined requirement、typed digest DAG、`StrongRegistrationFingerprint`、`RuntimeImageFingerprint` 与 `CodeFingerprint`；
 7. M23-3 production profile 对任意 ODR group/member/body/linkage/symbol fail closed。即使 specialization 只在一个 Cone 中出现，也不能降级成临时 strong；真正 ODR 到 M23-7 才开放；
 8. core 中允许跨 Cone 引用的 param-free source nominal，由定义 Cone 预物化 M23-2 冻结的有限 `ExactOwnerRoot` shape-support closure；consumer 只能引用这些 external strong definition，不能替 core 重新发射；
-9. library 不需要 `main`；executable 在 HIR 输出中非可选地携带唯一 local entry，并由 LIR/codegen产生 root failure storage、root gateway 与 `ScoopRootEntryDescriptorV1`；它仍先成为 `.slib`，本阶段不生成 `ScoopProgramDescriptorV1` 或 binary；
-10. writer 只有在同一份重新读取的 artifact 分别构造 `ValidatedCompileArtifact<SingleConeStrongProfile>` 和 `ValidatedLinkArtifact<SingleConeStrongProfile>` 后，才原子发布输出。Graph-only、Compile-only、foundation 或未验证 object 都不是成功产物。
+9. library 不需要 `main`；executable 在 HIR 输出中非可选地携带唯一 local entry，并由 LIR/codegen产生 root failure storage、root gateway 与 `ScoopRootEntryDescriptorV1`；它仍先成为 `.slib`，本阶段不生成 program 启动对象或 binary；
+10. writer 发布包含完整 Compile/Link 数据及实际 object 的产物。M23-6 已删除发布时对同一产物及全部依赖分别重放两遍完整语义验证的要求：producer 复用本次编译的完整 IR 和已验证依赖，在产物边界完成必要的格式、引用、ABI 与 object 检查后原子发布。
 
 M23-3 的“core-only”描述依赖关系，不等于恢复 core 专用的名称/ABI 后门。core prelude、well-known relation、MIR/LIR external bridge都来自 core artifact 中的 typed section；本阶段的 consumer API只开放该受限能力。ordinary exact/star import、re-export、generic concretization和通用跨 Cone layout分别仍由M23-5、M23-7和M23-6负责。
 
@@ -1840,7 +1840,7 @@ member-aware defined-owner set，要求其producer精确为reserved core Cone，
 
 M23总设计第6.1节列出的`ScoopDescriptorPrefixV1`、六类registration、`ScoopRootEntryDescriptorV1`与`ScoopImageDescriptorV1`字段顺序、magic、tag、size/alignment和empty-span sentinel规则在本阶段成为compiler-side冻结ABI。实现新增唯一共享header`runtime/include/scoop_runtime_metadata_v1.h`；C runtime和Rust/LLVM mirror都从该文件的常量/golden验证，不能各自维护不同数字。
 
-M23-3不发射`ScoopProgramDescriptorV1`或`ScoopRuntimeCoreBindingsV1`实例；header可以声明最终v1形状，实际builder/consumer分别到M23-8/M23-9实现。M24 release hook字段绝不能提前混入M23 schema 1。
+M23-3 只发射实际使用的 image、registration 与 root entry。M23-6 已删除没有 producer/consumer 的 program/core binding C 结构和布局镜像；M23-8/9 在实际接入启动与链接时定义必要数据，不提前冻结未实现的记录。M24 release hook 不提前混入 M23 schema 1。
 
 ### 13.2 strong registration identity
 

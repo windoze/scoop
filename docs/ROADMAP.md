@@ -244,6 +244,8 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-6 跨Cone layout、typed ABI与ZST
 
+M23-6 删除没有实际 producer/consumer 的 `ScoopRuntimeCoreBindingsV1`、`ScoopProgramDescriptorV1`、固定 String capability ID 及其 LLVM 布局镜像和专用测试，不把它们改名后保留。未使用的 program/core magic `0x53434f4f50505247`、`0x53434f4f50434f52` 退役且不复用。实际发射的 image、root entry、type/callable、storage、immortal、initialization 和 safepoint 记录继续使用既有格式；这项删除不改变实际 runtime C ABI、String 表示或其 fingerprint。M23-8/9 的多 image 启动与 program-link 仍留在后续阶段，按实际入口和引用需要定义数据，不提前冻结新的 program record 或另建 String 授权表。
+
 协议数据清理删除重复 String source/exact capability 和独立 definitions 外层，`hir/core-bootstrap-interface/4` 直接保存完整 typed 角色。旧 section field 4 退役，field 5 保存实际本地产物定义；类型身份、初始化服务与 ABI 继续通过共有路径消费，旧 `/1`～`/3` 产物与缓存重建。
 
 String descriptor 使用完整 MIR 中实际声明的 source exact identity，沿共有 descriptor 查询、layout selection、physical import、registration 和 Link relocation 消费。删除独立 String bridge 与固定角色的 descriptor 恢复通道，不以 provider 坐标或协议来源豁免普通引用检查。Strong production `/7`、`/8` 退役原服务表中的 TD tag 2；旧产物与缓存重建，String 表示及 runtime C ABI 不变。
@@ -276,7 +278,7 @@ Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 
 
 ### M23-8 runtime multi-image registry与启动
 
-- 消费M23-3已冻结的image descriptor ABI，冻结`ScoopProgramDescriptorV1`及runtime登记/启动契约；实现六类registration table、全image登记、canonical eager/lazy初始化、no-throw gateway与连续LLVM v3 stackmap blob消费。
+- 消费已有 image descriptor，按实际生产调用确定启动所需 C 数据与登记契约；实现六类registration table、全image登记、canonical eager/lazy初始化、no-throw gateway与连续LLVM v3 stackmap blob消费。
 - 先由typed synthetic program descriptor驱动3+ image、moving GC、exception、failure/cycle、ODR重复与损坏metadata fatal测试，不依赖生产linker或weak-symbol扫描。
 
 ### M23-9 基础artifact-only program-link

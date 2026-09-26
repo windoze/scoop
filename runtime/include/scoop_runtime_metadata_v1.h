@@ -20,10 +20,11 @@
 
 #define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(1)
 
-#define SCOOP_PROGRAM_DESCRIPTOR_MAGIC_V1 UINT64_C(0x53434f4f50505247)
+/* Unused program/core record magic values 0x53434f4f50505247 and
+ * 0x53434f4f50434f52 are retired and must not be reused. */
+
 #define SCOOP_IMAGE_DESCRIPTOR_MAGIC_V1 UINT64_C(0x53434f4f50494d47)
 #define SCOOP_ROOT_ENTRY_DESCRIPTOR_MAGIC_V1 UINT64_C(0x53434f4f50454e54)
-#define SCOOP_RUNTIME_CORE_BINDINGS_MAGIC_V1 UINT64_C(0x53434f4f50434f52)
 #define SCOOP_STATIC_STORAGE_DESCRIPTOR_MAGIC_V1 UINT64_C(0x53434f4f5053544f)
 #define SCOOP_IMMORTAL_OBJECT_DESCRIPTOR_MAGIC_V1 UINT64_C(0x53434f4f50494d4d)
 #define SCOOP_INITIALIZATION_UNIT_DESCRIPTOR_MAGIC_V1 UINT64_C(0x53434f4f50494e49)
@@ -72,13 +73,6 @@ typedef struct ScoopByteSpanV1 {
     const uint8_t *data;
     uint64_t length;
 } ScoopByteSpanV1;
-
-static const uint8_t SCOOP_CORE_STRING_CAPABILITY_ID_V1[32] = {
-    0xd6, 0x96, 0x47, 0x67, 0x50, 0x41, 0xab, 0x4e,
-    0x7a, 0x25, 0x50, 0xb9, 0xa5, 0xa2, 0x7b, 0x49,
-    0x74, 0x1c, 0x08, 0xb3, 0x0a, 0xb0, 0x7b, 0x25,
-    0x9d, 0x99, 0x8e, 0x60, 0x6f, 0x21, 0x8b, 0x77,
-};
 
 typedef struct ScoopConeRecordV1 {
     ScoopByteSpanV1 group;
@@ -228,19 +222,6 @@ typedef struct ScoopRootEntryDescriptorV1 {
 
 typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
 
-typedef struct ScoopRuntimeCoreBindingsV1 {
-    ScoopDescriptorPrefixV1 prefix;
-    const ScoopImageDescriptorV1 *core_image;
-    ScoopDigest256V1 string_type_id;
-    const ScoopTypeRegistrationDescriptorV1 *string_type;
-    uint64_t object_header_size;
-    uint64_t string_length_offset;
-    uint64_t string_bytes_offset;
-    uint64_t string_minimum_size;
-    uint64_t string_alignment;
-    ScoopDigest256V1 string_scan_fingerprint;
-} ScoopRuntimeCoreBindingsV1;
-
 struct ScoopImageDescriptorV1 {
     ScoopDescriptorPrefixV1 prefix;
     ScoopConeRecordV1 cone;
@@ -260,20 +241,6 @@ struct ScoopImageDescriptorV1 {
     const ScoopCallableRegistrationDescriptorV1 *const *callables;
     uint64_t callable_count;
 };
-
-typedef struct ScoopProgramDescriptorV1 {
-    ScoopDescriptorPrefixV1 prefix;
-    ScoopDigest256V1 runtime_abi;
-    ScoopDigest256V1 target_profile;
-    ScoopDigest256V1 graph_fingerprint;
-    const ScoopImageDescriptorV1 *root_image;
-    const ScoopRootEntryDescriptorV1 *entry;
-    const ScoopRuntimeCoreBindingsV1 *core;
-    const ScoopImageDescriptorV1 *const *images;
-    uint64_t image_count;
-} ScoopProgramDescriptorV1;
-
-extern const ScoopProgramDescriptorV1 scoop_program_descriptor;
 
 #define SCOOP_METADATA_ASSERT_LAYOUT(type, size, alignment) \
     _Static_assert(sizeof(type) == (size), #type " size"); \
@@ -407,17 +374,6 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1,
                              gateway_definition_fingerprint, 144);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, failure_root, 176);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, gateway, 184);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopRuntimeCoreBindingsV1, 136, 8);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, prefix, 0);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, core_image, 16);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, string_type_id, 24);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, string_type, 56);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, object_header_size, 64);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, string_length_offset, 72);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, string_bytes_offset, 80);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, string_minimum_size, 88);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, string_alignment, 96);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRuntimeCoreBindingsV1, string_scan_fingerprint, 104);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopImageDescriptorV1, 240, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImageDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImageDescriptorV1, cone, 16);
@@ -436,16 +392,6 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopImageDescriptorV1, safepoints, 208);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImageDescriptorV1, safepoint_count, 216);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImageDescriptorV1, callables, 224);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImageDescriptorV1, callable_count, 232);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopProgramDescriptorV1, 152, 8);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, prefix, 0);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, runtime_abi, 16);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, target_profile, 48);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, graph_fingerprint, 80);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, root_image, 112);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, entry, 120);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, core, 128);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, images, 136);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopProgramDescriptorV1, image_count, 144);
 
 #undef SCOOP_METADATA_ASSERT_OFFSET
 #undef SCOOP_METADATA_ASSERT_LAYOUT

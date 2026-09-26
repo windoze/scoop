@@ -384,46 +384,15 @@ Context没有独立source key declaration或单独的全局definition record；�
 
 ### 3.4 descriptor与wire版本
 
-M23当前`ScoopImageDescriptorV1`/`ScoopProgramDescriptorV1`是exact-sized并只覆盖既有registration种类。M27不能在V1尾部追加字段，必须：
+M23 当前实际发射的 `ScoopImageDescriptorV1` 是 exact-sized，只覆盖既有 registration 种类。M23-6 已删除没有生产用途的 program/core binding 结构；本文不再假设这些结构、其 Graph digest 或验证包装是已有 ABI。M27 实施时以届时实际运行的启动和链接格式为基线：
 
-- 为top-level image/program descriptor与runtime ABI fingerprint发布新的exact schema version；
-- 显式登记code-owner Context key use、slot cell ownership/ODR关系与Context runtime support metadata；
-- `ContextRuntimeSupport`不是新的link input或link action，而是final program-link按扩展后的`ProgramObjectPlan`生成在既有`VerifiedProgramDescriptorObject`中的一组typed associated atom/record。M27同步扩展该program-object capability、生成规则和object verifier allowlist；`ResolvedLinkPlan.program_object`、既有`ProgramDescriptor` action及其link evidence已经完整承诺这些bytes、definition、requirement和relocation，不得另造`TargetSynthetic`旁路；
-- program descriptor恰好引用一个`ContextRuntimeSupport` record。它是runtime-private managed type/descriptor/scan/layout-access metadata的唯一strong producer，并以typed relocation绑定`ValidatedRuntimeArtifact`中已验证的native Context entry targets；用户Cone及generic ODR materialization不得重复生产这些program-level定义。bootstrap/teardown由C runtime直接执行这些native entry，不生成Scoop managed gateway、`PersistentCallableBodyId`或callable registration；
-- 同步升级Export HIR、MIR、LIR和`.slib`相关wire schema/capability，reader按purpose view有界验证后再分配session-local typed id；
-- Export HIR semantic fingerprint消费ordered symbolic requirement contract/key recipe；LocalConcrete、MIR与LIR semantic fingerprint消费具体key与Context操作；Code/Object fingerprint再覆盖实际lowering、key-use record、cell及relocation；RuntimeImage只消费本image实际生产的key-use/cell record。`ContextRuntimeSupportV1.support_fingerprint`是typed `ContextRuntimeSupportFingerprint`，其canonical算法固定为：
-
-  ```text
-  ContextRuntimeSupportFingerprint = SHA-256(
-      ByteSpan("scoop-context-runtime-support-v1") || canonical(map {
-          1: support_schema,
-          2: ContextRepresentationVersion,
-          3: internal_type_contracts_sorted_by_role,
-          4: runtime_layout_access_contract,
-          5: typed_native_entry_requirements_sorted_by_entry_id,
-          6: associated_object_definition_leaves_sorted_by_node_id,
-      })
-  )
-  ```
-
-  每条internal type contract含role、`PersistentTypeId`、`PersistentExactTypeId`、semantic shape、layout、RefScan和`release_hook = None`；associated leaf集合包含support record自身按下述归零规则得到的ObjectDefinition。该fingerprint不读取Graph、program object digest、最终地址或登记期slot值；
-- M27不新增含糊的“program semantic fingerprint”。它把M23计算`GraphFingerprint`所用的canonical resolved Cone graph projection与`ContextRuntimeSupportFingerprint`一起放入新domain，发布并存储`GraphFingerprintV2`：
-
-  ```text
-  GraphFingerprintV2 = SHA-256(
-      ByteSpan("scoop-program-graph-v2") || canonical(map {
-          1: resolved_cone_graph_projection,
-          2: ContextRuntimeSupportFingerprint,
-      })
-  )
-  ```
-
-  `ScoopProgramDescriptorV2.graph_fingerprint`、`VerifiedProgramDescriptorObject.graph_fingerprint`和`ResolvedLinkPlan.graph_fingerprint`都精确携带这个v2 typed digest；`ResolvedLinkPlanFingerprint`继续通过verified program object、object digest和该字段消费它。v1/v2不能仅凭相同32-byte carrier混用；
-- program-link为program object建立独立的typed `ProgramDigestFinalizationPlan`，不借用只属于per-Cone LIR/object的`DigestFinalizationPlan`。它先发射所有graph-managed slot为零的provisional program object并由object verifier产生internal type/layout/scan/support record的associated `ObjectDefinition` leaf；计算support record自身的ObjectDefinition时把该record的`support_fingerprint` slot归零，按typed DAG排除peer/descendant slot。随后唯一计算并回填`ContextRuntimeSupportFingerprint`，再计算并回填`GraphFingerprintV2`，最后计算`VerifiedProgramDescriptorObject.object_digest`并以相同plan重跑object verifier。每个slot固定32 bytes、初始为零、恰有一个writer且无relocation；任何额外slot、反向依赖或回填后不一致都拒绝；
-- 任何层都不能让单个binding site越层直接成为RuntimeImage输入；登记期slot数值不进入semantic/object/program fingerprint；
-- 继续遵守M23 envelope phase → semantic phase → commit顺序；全部Context关系验证完成后、任何managed initializer运行前才publish cell。
-
-确切C struct字段顺序、table拆分和version常量在规范同步阶段定稿，不由本文参考伪结构锁死。
+- image 或已实现的 program 启动数据增加 Context 字段时，按正常规则升级相应格式和 runtime ABI；不得直接在 exact-sized V1 尾部追加字段；
+- 登记实际 code-owner 的 Context key use、cell 所属 callable 与必要的 ODR 关系。Context runtime support 的类型、布局、scan 和 native entry 由实际 program-link 产物表达，使用普通定义、要求和 typed relocation；
+- program 级 Context 支持只生成一份，用户 Cone 不重复生成这些定义。bootstrap/teardown 由 C runtime 调用其 native entry，不为这些调用伪造 managed callable body 或 registration；
+- 同步升级实际受影响的 HIR、MIR、LIR 和 `.slib` 格式。HIR 保存 symbolic requirement 和 key recipe，后续完整 IR 保存具体 key 和 Context 操作；
+- 缓存 fingerprint 覆盖实际语义、布局、object bytes 和 relocation 的变化；RuntimeImage 只包含本 image 实际生成的记录。启动登记写入的 cell slot 值不参与持久身份或产物 fingerprint；
+- 在实际消费边界检查类型、引用、布局、GC 和初始化顺序，复用未变化的 IR 及检查结果。删除预设的 program digest 证明链、独立回填状态机及回填后重放整份 object 验证的要求；
+- Context cell 在关系解析完成后、managed initializer 运行前初始化。其字段、table 与版本在实现相应功能时按具体需要确定，不提前冻结未实现的结构。
 
 ## 4. Runtime正确性契约
 

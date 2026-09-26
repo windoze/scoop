@@ -288,23 +288,6 @@ const ROOT_ENTRY_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "gateway" => 184,
     ),
 };
-const RUNTIME_CORE_BINDINGS: ExpectedStruct = ExpectedStruct {
-    name: "ScoopRuntimeCoreBindingsV1",
-    size: 136,
-    alignment: 8,
-    fields: expected_fields!(
-        "prefix" => 0,
-        "core_image" => 16,
-        "string_type_id" => 24,
-        "string_type" => 56,
-        "object_header_size" => 64,
-        "string_length_offset" => 72,
-        "string_bytes_offset" => 80,
-        "string_minimum_size" => 88,
-        "string_alignment" => 96,
-        "string_scan_fingerprint" => 104,
-    ),
-};
 const IMAGE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopImageDescriptorV1",
     size: 240,
@@ -329,23 +312,6 @@ const IMAGE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "callable_count" => 232,
     ),
 };
-const PROGRAM_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
-    name: "ScoopProgramDescriptorV1",
-    size: 152,
-    alignment: 8,
-    fields: expected_fields!(
-        "prefix" => 0,
-        "runtime_abi" => 16,
-        "target_profile" => 48,
-        "graph_fingerprint" => 80,
-        "root_image" => 112,
-        "entry" => 120,
-        "core" => 128,
-        "images" => 136,
-        "image_count" => 144,
-    ),
-};
-
 /// All LLVM aggregate types in the private runtime metadata v1 ABI.
 pub(crate) struct RuntimeMetadataV1Types<'ctx> {
     descriptor_prefix: StructType<'ctx>,
@@ -365,9 +331,7 @@ pub(crate) struct RuntimeMetadataV1Types<'ctx> {
     initialization_unit_descriptor: StructType<'ctx>,
     safepoint_registration_descriptor: StructType<'ctx>,
     root_entry_descriptor: StructType<'ctx>,
-    runtime_core_bindings: StructType<'ctx>,
     image_descriptor: StructType<'ctx>,
-    program_descriptor: StructType<'ctx>,
 }
 
 impl<'ctx> RuntimeMetadataV1Types<'ctx> {
@@ -525,21 +489,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
             ],
             false,
         );
-        let runtime_core_bindings = context.struct_type(
-            &[
-                descriptor_prefix.into(),
-                ptr.into(),
-                digest.into(),
-                ptr.into(),
-                i64.into(),
-                i64.into(),
-                i64.into(),
-                i64.into(),
-                i64.into(),
-                digest.into(),
-            ],
-            false,
-        );
         let image_descriptor = context.struct_type(
             &[
                 descriptor_prefix.into(),
@@ -557,20 +506,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 i64.into(),
                 ptr.into(),
                 i64.into(),
-                ptr.into(),
-                i64.into(),
-            ],
-            false,
-        );
-        let program_descriptor = context.struct_type(
-            &[
-                descriptor_prefix.into(),
-                digest.into(),
-                digest.into(),
-                digest.into(),
-                ptr.into(),
-                ptr.into(),
-                ptr.into(),
                 ptr.into(),
                 i64.into(),
             ],
@@ -594,9 +529,7 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
             initialization_unit_descriptor,
             safepoint_registration_descriptor,
             root_entry_descriptor,
-            runtime_core_bindings,
             image_descriptor,
-            program_descriptor,
         }
     }
 
@@ -631,9 +564,7 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 self.safepoint_registration_descriptor,
             ),
             (ROOT_ENTRY_DESCRIPTOR, self.root_entry_descriptor),
-            (RUNTIME_CORE_BINDINGS, self.runtime_core_bindings),
             (IMAGE_DESCRIPTOR, self.image_descriptor),
-            (PROGRAM_DESCRIPTOR, self.program_descriptor),
         ] {
             validate_struct_layout(target_data, expected, actual)?;
         }

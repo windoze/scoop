@@ -66,7 +66,7 @@ Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 
 - 上游generic template在每个实际需要它的下游Cone完成concretization、MIR/LIR lowering与发射。相同specialization的函数、layout、TypeDescriptor、dispatch table、adapter及generic static storage使用同一ODR group和fingerprint整体coalesce；
 - M21延期的generic delegated extension property在M23开放：每个exact receiver application拥有program-wide唯一、lazy exactly-once的delegate storage/init unit，identity由property template与完整concrete receiver arguments决定；
 - `.slib`首次冻结跨Cone layout与typed Scoop ABI，因此M23同时收口ZST：logical size保持0，address-taken/static place使用独立token，Scoop ABI显式elide payload，ZST array以logical index而非pointer推进，C ABI拒绝无portable C object representation的零尺寸值；
-- 每个Cone artifact的全部linkable object合起来恰好定义一个名称唯一的hidden strong `ScoopImageDescriptorV1`；manifest以typed member/definition owner指出其所在成员，其他object与blob不得重复发射。独立link stage另生成唯一`ScoopProgramDescriptorV1`，显式引用依赖闭包中每个image、root executable entry与well-known core binding；runtime不扫描weak symbol或按符号前缀猜image；
+- 每个Cone artifact的全部linkable object合起来恰好定义一个名称唯一的hidden strong `ScoopImageDescriptorV1`；manifest以typed member/definition owner指出其所在成员，其他object与blob不得重复发射。后续独立 link stage 接入实际 image 集合与 root executable entry，不提前冻结独立 program/core binding 结构；runtime不扫描weak symbol或按符号前缀猜image；
 - runtime先验证并登记全部image、stackmap、callable、TypeDescriptor、static storage/root、immortal object和init unit，之后才初始化heap、attach主线程并执行任何managed initializer。eager顺序为依赖优先、同层Cone coordinate稳定排序、Cone内`PersistentInitializationUnitId` bytes排序；
 - reserved core Cone `scoop:scoop.core:0.1.0`从用户编译单元中移出，作为sysroot中由`scoop`解析、由 `scoopc` 按共有产物规则读取的独立 library Cone预编译/缓存。普通Cone对它具有隐式direct dependency；core prelude来自其typed export metadata，不再由user/core file index或`Option`短名特判模拟；
 - M23包含M22**非generic**typealias的跨Coneimport、re-export与展开；generic/nested typealias、interface method自身type parameter、动态image与跨版本ABI承诺继续留在后续。
@@ -1231,7 +1231,7 @@ RuntimeArtifactFingerprint =
 
 source path不含host sysroot前缀；source/build-rule closure、C compiler identity/version、canonical generated-C模板与完整flags分别由`c_bridge_toolchain`及`runtime_build`的typed contract/fingerprint承诺，`lir_target`则承诺runtime object必须匹配的target/storage ABI。三项都按上述field 1…3直接进入同domain preimage，不能压成未定义的单一toolchain digest，也不能从object bytes或当前host反推。重复object id、同id不同record、缺失source build evidence、未分类额外object或跨object definition/requirement冲突都拒绝；相同bytes/contract产生相同object id，构建分片改变则允许改变runtime artifact fingerprint。M23每次为executable构建该集合，不接受外部prebuilt runtime bundle，也不设runtime-object cache；以后若引入可分发/cacheable runtime bundle，必须先单独冻结其container/manifest与信任协议。
 
-runtime definition封闭为C process entry、公开`RuntimeEntry`与带typed private id的runtime helper；requirement封闭为`ProgramDescriptorV1`和`runtime_build`列出的support/native contract。runtime artifact必须定义三项projection共同要求的C entry与runtime entry，不能定义`ScoopProgramDescriptorV1`、Cone image、Scoop-owned或generated-bridge symbol。program object从封闭`ProgramObjectPlan`生成后立即反解析；其唯一default-visible strong definition是`scoop_program_descriptor`，其余hidden/local record和每条image/root/core/support relocation必须与plan一一对应，不能产生额外native requirement。program/runtime/Cone/target relocatable object以及静态archive的**全部preverified candidate**都在native linker启动前逐object拒绝`LC_LINKER_OPTION`、autolink、embedded linker script/option或其他隐式扩展link输入；是否最终被archive算法抽取不能改变验证结果，M23也不尝试把这类副作用递归“发现后补进”closure/cache key。
+runtime 对象提供实际 C process entry、runtime functions 与必要 helper，按真实符号、target、调用约定和依赖验证。它们不定义 Scoop Cone 的实体。program-link 产生的入口与 image 引用按实际调用需要形成普通对象，复用已有符号和 relocation 规则；不提前建立仅为独立 program/core binding 存在的 plan、凭证或重放工厂。
 
 因此pre-link Cone闭包验证、program/runtime/native/profile各自的input verifier与post-link map/image verifier共同覆盖最终输入全集；任一实际受控贡献或dynamic provider没有唯一`FinalLinkInput` origin、绕过typed contract、抢占Scoop/program/runtime保留symbol，或linker trace/dynamic-import evidence与最终image不一致都拒绝。linker/`cc` driver隐式加入的startup object、default library或参数也必须由target profile列出、归一化为pre-link plan及相应final origin并进入实际输入identity；无法取得完整archive-member load trace、link map、dynamic-import与platform-identity pinning/revalidation证据的target/linker profile不合格。shared provider未绑定的其他export不塞进Cone的`DefinedLinkSymbolOwner`或`FinalLinkSymbolOwner`，也不能interpose任何解析为`Controlled`的requirement。
 
@@ -1712,7 +1712,7 @@ core 使用 reserved library coordinate `scoop:scoop.core:0.1.0`，sysroot 只�
 - core HIR export 包含普通 public surface 与 typed prelude binding；所需 well-known 角色使用完整 typed 声明引用，不形成额外的 Core/NotCore 资格包装；
 - 每个普通Cone把已验证core `.slib`作为direct dependency加载，不再把core source与用户AST拼进一个scope；
 - core source/artifact 版本、semantic fingerprints 与 compiler ABI 按共有规则校验；源码变化经普通构建重建，显式不兼容 prebuilt 拒绝，不产生 trusted input 特权，也不退回同单元编译；
-- runtime需要的String TypeDescriptor等well-known地址由最终program descriptor的`ScoopRuntimeCoreBindings`传入，不再依赖硬编码`scoop_td_String`源码符号。
+- runtime 所需 String TypeDescriptor 沿实际 provider 的共有类型与 relocation 路径接入既有 C ABI，不另设 program/core binding 表。
 
 core prelude 是其 typed metadata 的一部分，至少能表示 package star 与 `Option` variant scope。默认 prelude 的选择遵守语言规范，普通 library 由调用方显式/star import；不增加 core marker、授权 token 或独立来源证明。
 
@@ -1915,7 +1915,7 @@ linker dead-strip不能丢失未被普通call graph引用但需要登记的image
 
 ### 6.1 descriptor ABI
 
-M23把descriptor定为版本化的私有C ABI，而不是“实现自行选择字段”的概念接口。下面是v1的完整逻辑布局；`scoop_runtime_metadata_v1.h`由runtime与codegen共同包含/镜像，Darwin/AArch64 profile固定64-bit pointer、little-endian、natural 8-byte struct alignment。codegen按LLVM `DataLayout`发射同一字段顺序，并以object verifier和C `_Static_assert(sizeof/offsetof)`逐字段比对：
+当前实际发射的 descriptor 使用版本化的私有 C ABI。下列 v1 布局对应现有 image/registration/entry；未使用的 program/core binding 结构已删除。`scoop_runtime_metadata_v1.h`由runtime与codegen共同包含/镜像，Darwin/AArch64 profile固定64-bit pointer、little-endian、natural 8-byte struct alignment。codegen按LLVM `DataLayout`发射同一字段顺序，并以object verifier和C `_Static_assert(sizeof/offsetof)`逐字段比对：
 
 ```c
 typedef struct {
@@ -1926,14 +1926,6 @@ typedef struct {
 
 typedef struct { uint8_t bytes[32]; } ScoopDigest256V1;
 typedef struct { const uint8_t *data; uint64_t length; } ScoopByteSpanV1;
-
-/* SHA-256(ByteSpan("scoop-runtime-core-capability-v1") || ByteSpan("String")) */
-static const uint8_t SCOOP_CORE_STRING_CAPABILITY_ID_V1[32] = {
-    0xd6, 0x96, 0x47, 0x67, 0x50, 0x41, 0xab, 0x4e,
-    0x7a, 0x25, 0x50, 0xb9, 0xa5, 0xa2, 0x7b, 0x49,
-    0x74, 0x1c, 0x08, 0xb3, 0x0a, 0xb0, 0x7b, 0x25,
-    0x9d, 0x99, 0x8e, 0x60, 0x6f, 0x21, 0x8b, 0x77
-};
 
 typedef struct {
     ScoopByteSpanV1 group;
@@ -2079,19 +2071,6 @@ typedef struct ScoopRootEntryDescriptorV1 {
 } ScoopRootEntryDescriptorV1;
 
 typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
-typedef struct ScoopRuntimeCoreBindingsV1 {
-    ScoopDescriptorPrefixV1 prefix;
-    const ScoopImageDescriptorV1 *core_image;
-    ScoopDigest256V1 string_type_id;
-    const ScoopTypeRegistrationDescriptorV1 *string_type;
-    uint64_t object_header_size;
-    uint64_t string_length_offset;
-    uint64_t string_bytes_offset;
-    uint64_t string_minimum_size;
-    uint64_t string_alignment;
-    ScoopDigest256V1 string_scan_fingerprint;
-} ScoopRuntimeCoreBindingsV1;
-
 struct ScoopImageDescriptorV1 {
     ScoopDescriptorPrefixV1 prefix;
     ScoopConeRecordV1 cone;
@@ -2112,22 +2091,9 @@ struct ScoopImageDescriptorV1 {
     uint64_t callable_count;
 };
 
-typedef struct ScoopProgramDescriptorV1 {
-    ScoopDescriptorPrefixV1 prefix;
-    ScoopDigest256V1 runtime_abi;
-    ScoopDigest256V1 target_profile;
-    ScoopDigest256V1 graph_fingerprint;
-    const ScoopImageDescriptorV1 *root_image;
-    const ScoopRootEntryDescriptorV1 *entry;
-    const ScoopRuntimeCoreBindingsV1 *core;
-    const ScoopImageDescriptorV1 *const *images;
-    uint64_t image_count;
-} ScoopProgramDescriptorV1;
-
-extern const ScoopProgramDescriptorV1 scoop_program_descriptor;
 ```
 
-每个有prefix的record使用不同magic：program `0x53434f4f50505247`、image `0x53434f4f50494d47`、entry `0x53434f4f50454e54`、core `0x53434f4f50434f52`、storage `0x53434f4f5053544f`、immortal `0x53434f4f50494d4d`、init `0x53434f4f50494e49`、type `0x53434f4f50545950`、safepoint `0x53434f4f50535054`、callable `0x53434f4f5043414c`；`abi_version == 1`且v1的`struct_size`必须**恰好**等于共享header中的`sizeof`，不是“至少这么大”。所有reserved字段为零。runtime先只读固定16-byte prefix，在magic/version/size通过后才解释余下字段。每个pointer/count pair的pointer在count为0时仍指向对应类型的只读addressable sentinel；非零span须做count上限、乘加溢出、alignment和已加载segment权限验证。digest总是inline 32 bytes；文本总是non-null byte span而非NUL字符串。
+每个有prefix的record使用不同magic：image `0x53434f4f50494d47`、entry `0x53434f4f50454e54`、storage `0x53434f4f5053544f`、immortal `0x53434f4f50494d4d`、init `0x53434f4f50494e49`、type `0x53434f4f50545950`、safepoint `0x53434f4f50535054`、callable `0x53434f4f5043414c`；`abi_version == 1`且v1的`struct_size`必须**恰好**等于共享header中的`sizeof`，不是“至少这么大”。所有reserved字段为零。runtime先只读固定16-byte prefix，在magic/version/size通过后才解释余下字段。每个pointer/count pair的pointer在count为0时仍指向对应类型的只读addressable sentinel；非零 span 须核对实际 section/segment 可容纳的 count、乘加溢出、alignment和已加载segment权限验证。digest总是inline 32 bytes；文本总是non-null byte span而非NUL字符串。
 
 `ValueStorageLayout`描述未装箱值，`ScoopTypeInstanceShapeV1`只描述带对象头的managed instance；两者不能再共用一个含糊的`size/align/scan`。LIR内部先使用下列封闭和类型，所有variant只能经private checked constructor产生；C product只是codegen/runtime边界上的机械编码，reader必须完整验证后解码回该sum：
 
@@ -2309,29 +2275,9 @@ raw LLVM v3 location顺序原样保留，包括前三个statepoint header locati
 
 function table的ASLR地址由匹配`safepoint_id`的registration解析到其callable record，并必须逐bit等于该record的entry；它与最终`return_pc = function_address + instruction_offset`只用于segment、唯一性和运行期root lookup，二者都不进入fingerprint。`instruction_offset`和`stack_size`仍进入fingerprint。Darwin/AArch64 profile另验证location总数精确为`3 + 2 * root_pair_count`、前三项为8-byte constant且statepoint flags/deopt count为0、每对root为相同的8-byte SP/FP `Indirect`可写slot；registration中的site/body/role/root count与canonical字段必须逐项相等。Rust object/final verifier与C runtime共享Constant/ConstantIndex等价、pool重排/ASLR不变，以及逐字段篡改会改变digest的golden vectors。
 
-RuntimeImage hash stream依次为domain byte span `scoop-runtime-image-v1`、runtime ABI digest、target profile digest、`ConeRecord { group byte span, name byte span, version byte span, identity }`、direct-dependency sequence及六个record table sequence；`RuntimeImageFingerprint = SHA-256(stream)`。它不是`ArtifactFingerprint`；其自身slot不是输入，且绝不输入raw link-object member bytes、ASLR地址、program-level core binding或该digest回填后的bytes。`DigestFinalizationPlan`要求runtime-image node显式依赖record key中实际出现的definition/layout/scan/descriptor/gateway/callable/stackmap节点；object finalizer计算并回填其所在member，manifest保存同值，link verifier核对两份，runtime再从链接record和program ABI输入重算。
+RuntimeImage hash stream依次为domain byte span `scoop-runtime-image-v1`、runtime ABI digest、target profile digest、`ConeRecord { group byte span, name byte span, version byte span, identity }`、direct-dependency sequence及六个record table sequence；`RuntimeImageFingerprint = SHA-256(stream)`。它不是`ArtifactFingerprint`；其自身slot不是输入，且绝不输入raw link-object member bytes、ASLR地址、尚未定义的 program 级数据或该digest回填后的bytes。`DigestFinalizationPlan`要求runtime-image node显式依赖record key中实际出现的definition/layout/scan/descriptor/gateway/callable/stackmap节点；object finalizer计算并回填其所在member，manifest保存同值，link verifier核对两份，消费方复用已验证且未变化的内容与 typed 引用，不强制 runtime 重算整份产物 fingerprint。
 
-最终program另使用两个封闭key，不能把entry/core pointer写进hash：
-
-```text
-RootEntryKey = {
-    owner_cone_identity, callable_id, source_signature_fingerprint,
-    gateway_callable_id, gateway_definition_fingerprint,
-    failure_root = PersistentStaticStorageId,
-    gateway = RootGateway(gateway_callable_id)
-}
-
-RuntimeCoreBindingsKey = {
-    core_image = ConeIdentity, // Actual String declaration provider
-    string_capability_id = SCOOP_CORE_STRING_CAPABILITY_ID_V1,
-    string_type_id,
-    string_type_registration = PersistentExactTypeId,
-    object_header_size, string_length_offset, string_bytes_offset,
-    string_minimum_size, string_alignment, string_scan_fingerprint
-}
-```
-
-link verifier与runtime都先把entry的`failure_root`/`gateway`及 String binding 的 `core_image`/`string_type` 四个 pointer 解析到对应 kind-specific id，并验证 gateway body、producer 与实际 String provider image 的定义关系，再编码key。final-program builder 把实际 String provider 的已验证 `Scan` digest 逐 byte 复制到`RuntimeCoreBindingsV1.string_scan_fingerprint`，这不是新的digest node或新的hash domain。Graph hash stream按同一encoder依次为domain byte span `scoop-program-graph-v1`、runtime ABI、target profile、root Cone identity、按伪代码声明序的`RootEntryKey`、`RuntimeCoreBindingsKey`，最后是带count的canonical-topological `{ConeIdentity, RuntimeImageFingerprint}` product sequence；其SHA-256即`GraphFingerprint`。它不属于任何Cone的`DigestFinalizationPlan`，由final-program builder在program slot为全零时唯一计算/写入，再由link verifier/runtime重算。只排除program record中的`graph_fingerprint`自身，不排除entry/core内已经完成的上游digest。Rust producer/finalizer/link verifier与C runtime共享至少包含空/全variant/边界长度的逐byteencoder与digest golden vectors；code变化由`CodeFingerprint`、`ArtifactFingerprint`与最终link key覆盖，不与runtime image fingerprint或program graph建立自引用。
+M23-6 删除没有实际 producer/consumer 的 `ScoopRuntimeCoreBindingsV1`、`ScoopProgramDescriptorV1`、固定 String capability ID 及其 LLVM 布局镜像和专用测试，不把它们改名后保留。未使用的 program/core magic `0x53434f4f50505247`、`0x53434f4f50434f52` 退役且不复用。实际发射的 image、root entry、type/callable、storage、immortal、initialization 和 safepoint 记录继续使用既有格式；这项删除不改变实际 runtime C ABI、String 表示或其 fingerprint。M23-8/9 的多 image 启动与 program-link 仍留在后续阶段，按实际入口和引用需要定义数据，不提前冻结新的 program record 或另建 String 授权表。
 
 每个Cone image descriptor symbol由其`ConeIdentity`mangle且为hidden strong symbol；相同Cone在钻石图只允许一个artifact instance。image必须携带完整canonical coordinate，runtime重新验证第1.1节grammar、重算`ConeIdentity`，并以coordinate bytes验证同层排序；coordinate因此是ABI验证/排序输入，不只是诊断字符串。generic ODR member不产生额外伪Cone image。
 
@@ -2349,35 +2295,27 @@ IR中schedule必须是封闭`InitializationSchedule::{EagerStartup { gateway }, 
 
 init descriptor的普通`storage`也必须是owner绑定的`InitializationValueStorageRef`，其persistent storage key包含该unit及property/published-object role；不能指向另一个unit的合法storage registration。两个不同unit不得共享该registration或allocation range，`storage`与本unit的`failure_root`也必须不同；唯一例外仍是同一ODR unit经完整record验证后的重复引用。该关系由LIR类型保证，并由link verifier/runtime的`storage id/address -> initialization unit`反向map防御性重验。
 
-`ScoopRuntimeCoreBindingsV1`只包含C runtime主动使用的能力。前端解析得到的 String 角色以完整 typed exact/layout 引用经共有 HIR/LIR metadata 提供，关联实际 provider，不通过专用 core 来源资格包装；linker必须证明binding中的`string_type_id`精确等于该well-known relation重算出的`PersistentExactTypeId`，不能用另一个同布局 class 替代。共享ABI header中的v1 capability-kind常量严格按6.1 encoder计算为`SHA-256(ByteSpan("scoop-runtime-core-capability-v1") || ByteSpan("String")) = d69647675041ab4e7a2550b9a5a27b49741c08b30ab07b259d998e606f218b77`，并以上述`SCOOP_CORE_STRING_CAPABILITY_ID_V1[32]`字节数组声明；final-program builder和C runtime直接使用这32 bytes参与Graph key/golden，不以C字符串NUL、host endian或symbol地址重算。该常量只标识versioned String capability kind，不单独编码runtime ABI；Graph已把`runtime_abi`作为独立必需输入，普通声明变更反映在其 typed relation 与内容 fingerprint 中；只有实际 C 表示或调用契约变化才按正常规则修订 runtime ABI。
-
-String binding 必须指向实际声明 provider image 的 producer 表中的 type registration；历史 C 字段 `core_image` 不要求固定 CORE identity 或 coordinate。`string_type_id == string_type->registration.semantic_id`且其TD地址相同；runtime逐项要求`sizeof(ScoopObjectHeader) == object_header_size == 16`、`offsetof(ScoopString, len) == string_length_offset == 16`、`offsetof(ScoopString, data) == string_bytes_offset == string_minimum_size == 24`、alignment为8，且TD shape为`InlineBytes { minimum_size/inline_offset: 24, instance_alignment: 8, inline_size/stride/alignment: 1 }`、两个scan均为None并匹配fingerprint。这样String分配不会只因拿到“某个看似可用的TD指针”就越界。compiler生成代码继续使用普通typed external refs，这个表不是运行期名称服务。
+String 由前端解析为实际 typed class，MIR/LIR 与 Link 使用同一 provider 的 exact type、TypeDescriptor、registration 和 relocation。现有 C ABI 的 `scoop_td_String` 表示 runtime 所需的 String descriptor 地址；链接使用实际声明的定义，不从固定 CORE identity 重建它，也不按名称或同布局替换类型。对象头为 16 bytes，length offset 为 16，inline bytes offset/minimum 为 24，alignment 为 8；`InlineBytes` 的 size/stride/alignment 为 1，object/inline scan 为空。保留这些真实表示和边界检查，不单列重复的 String 布局/scan 副本、capability-kind digest 或 program/core binding 证明。
 
 ### 6.2 启动注册阶段
 
-进程启动顺序固定为：
+本节为 M23-8/9 的实际接入顺序，不构成 M23-6 的新交付门槛。启动接入使用已有 image/registration 数据与普通入口引用，不建立 program/core binding 证明链：
 
-1. runtime/thread/callback的纯native基础状态；
-2. **envelope phase**：只读取唯一program的固定prefix及已验证范围内的顶层字段；逐层验证program/image/entry/core/六类record的prefix、exact `struct_size`、pointer/count乘加、alignment与segment权限后才读取对应其余字段，不跟随尚未验证的nested pointer；
-3. **provisional-index phase**：遍历全部image/table，验证coordinate/dependency结构、record排序与表内typed registration identity，建立尚未对外可见的`semantic id ↔ record address`、callable body与object-address maps及dependency DAG；此时不重算或信任RuntimeImage/Graph fingerprint，也不调用任何登记副作用；
-4. **semantic phase**：解析最终section中串接的全部stackmap v3 blob并核对safepoint/body owner；验证TypeDescriptor/scan/layout、ODR、static-storage/immortal range、init cell、专用failure root、initializer/ensure/gateway、root entry与core String binding，再用provisional maps解析所有cross-record pointer；
-5. **image-hash phase**：只从步骤4已验证并类型化的record key按canonical encoder重算每个`RuntimeImageFingerprint`，与object/manifest值逐一核对；
-6. **graph-hash phase**：验证canonical dependency-first image顺序及root/core owner，重算`RootEntryKey`、`RuntimeCoreBindingsKey`与最终`GraphFingerprint`并核对program slot；
-7. 全部成功后一次性commit并freeze static metadata registry；任何失败丢弃整个provisional state；
-8. 初始化GC heap/handle等需要完整root universe的状态；
-9. attach主线程，初始为native-safe且没有活动managed栈段；
-10. 按6.3对每个eager unit独立执行下述transition wrapper，经no-throw startup gateway运行初始化，返回后恢复native-safe；
-11. 再独立执行一次transition wrapper，通过program descriptor的no-throw root gateway调用typed root `main`，返回后恢复native-safe。
+1. 初始化 runtime/thread/callback 的 native 基础状态。
+2. 在实际加载边界检查记录格式、地址范围和必要的 registration、初始化、GC 关系，读取最终 section 中的 stackmap；已验证且未变化的类型、布局、scan 和依赖关系直接复用。
+3. 登记静态 roots、类型与 callable，建立 GC 需要的索引，再初始化 heap/handle 等状态。
+4. attach 主线程并建立实际 native/managed 栈边界。
+5. 按已解析依赖顺序经 no-throw startup gateway 运行 eager initialization，再进入 root gateway；失败按已有初始化与异常语义结束启动。
 
-每次C startup coordinator调用gateway，都在本次wrapper的栈底建立独立`NativeToManagedBoundary`并按LIFO保存previous mode/boundary。新段状态是封闭`EntryPending | ActiveManagedSegment`：`EntryPending`证明gateway尚未执行、段内没有managed frame，不能伪造C return PC作为anchor。wrapper发布完整boundary及managed mode后按runtime spec 3.5复查GC phase/epoch；若需要park，使用该empty-segment证明，醒来重验后才执行gateway。gateway的typed `NativeGatewayEntry`强制第一个可握手操作为本body的入口poll，发布准确managed anchor并把段变为`ActiveManagedSegment`，此后使用普通managed call/invoke/root plan。collector扫描始终止于本次boundary，不能跨入C coordinator。gateway在仍处managed段时完成catch、异常物化和failure-root发布、结束native catch，只返回GC-free status；wrapper收到返回后不再保留该段managed frame，以release语义发布native-safe，再按握手协议移除本次boundary并恢复外层记录。transition链的修改与collector snapshot通过同一epoch/发布协议同步，不能在collector可读取时销毁record。每次调用都独立enter/leave，不能用attach时的一条boundary覆盖整个eager loop；普通callback重入继续沿相同LIFO规则另建段。
+每次C startup coordinator调用gateway，都在本次wrapper的栈底建立独立`NativeToManagedBoundary`并按LIFO保存previous mode/boundary。新段状态是封闭`EntryPending | ActiveManagedSegment`：`EntryPending` 表示 gateway 尚未执行、段内没有 managed frame，不能伪造C return PC作为anchor。wrapper发布完整boundary及managed mode后按runtime spec 3.5复查GC phase/epoch；若需要park，使用该空栈段状态，醒来重验后才执行gateway。gateway的typed `NativeGatewayEntry`强制第一个可握手操作为本body的入口poll，发布准确managed anchor并把段变为`ActiveManagedSegment`，此后使用普通managed call/invoke/root plan。collector扫描始终止于本次boundary，不能跨入C coordinator。gateway在仍处managed段时完成catch、异常物化和failure-root发布、结束native catch，只返回GC-free status；wrapper收到返回后不再保留该段managed frame，以release语义发布native-safe，再按握手协议移除本次boundary并恢复外层记录。transition链的修改与collector snapshot通过同一epoch/发布协议同步，不能在collector可读取时销毁record。每次调用都独立enter/leave，不能用attach时的一条boundary覆盖整个eager loop；普通callback重入继续沿相同LIFO规则另建段。
 
-任何managed allocation、initializer、callback或Scoop exception构造都不能发生在步骤1–8。尤其不能为了提早验证Graph而解引用尚未通过步骤2–4的record/scan/gateway pointer；metadata验证失败是稳定fatal artifact/runtime ABI error，source构建流程应由link verifier更早捕获同类错误。
+元数据接入和 GC root 登记完成前不执行 managed allocation、initializer 或 callback。消费边界只读取已确认范围内的记录；不可变数据验证后直接使用，不增加 image-hash/graph-hash 证明阶段。
 
 root登记从“恰好调用一次的单表”改为registry。不同identity的storage allocation range不得重叠；即使logical `byte_size == 0`也必须通过1-byte identity token取得不同地址。ODR重复按record variant比较：storage的record/base/size/extent/alignment/scan/layout，immortal的record/start/size/alignment/type，init的record/schedule/path/cell/storage/failure/entries/gateway，type的record/TD/runtime id/descriptor/layout，safepoint的record/site/owner/root count/stackmap，callable的record/body id/entry/body definition，以及各自registration identity/definition fingerprint都必须完全相同才去重一次。已确认的同一ODR immortal/storage/callable winner可共享对应range/address；其他range/address不得重叠。相同stable id对应不同地址说明linker未正确coalesce，必须fatal，不能登记两份来掩盖TypeDescriptor/static/callable identity分裂。
 
 ### 6.3 初始化顺序、重复与失败
 
-runtime独立验证program-link写入的topological order。每轮ready set是“全部direct dependency都已出现在此前prefix”的剩余image，从中按canonical coordinate byte order取最小；因此dependency总在dependent之前且不受edge存储方向影响。每个Cone中eager unit按`PersistentInitializationUnitId` bytes严格递增。runtime对每个unit经6.2的独立transition wrapper调用no-throw `startup_gateway`，gateway内部再调用generated ensure；因此显式直接依赖可以提前初始化目标，cell/Failed/cycle语义完全沿用M21，同时不会让异常穿过C frame。
+后续 program-link 从已解析且无环的依赖图生成 dependency-first 初始化顺序，同层按 canonical coordinate 排序，每个 Cone 的 eager unit 按 `PersistentInitializationUnitId` 排序。runtime 直接消费该顺序，经 6.2 的 native/managed 边界调用 no-throw startup gateway；ensure、Failed 与 cycle 行为沿用 M21，不重新运行完整依赖图和来源验证。
 
 init descriptor全程序登记时：
 
@@ -2400,7 +2338,7 @@ M15的platform API继续保留span list，为未来dylib准备，但M23不登记
 
 ### 6.5 终止
 
-program descriptor与image metadata在整个进程生命周期稳定。shutdown沿用M13/M21/M25顺序：拒绝新attach/callback，验证无非主线程/token/caught exception/active initialization，再销毁GC与thread状态。M23不卸载Cone、不撤销image root、不运行global destructor，也不逆序执行initializer清理。
+实际启动引用与 image metadata 在进程生命周期内稳定。shutdown 沿用现有顺序：停止新 attach/callback，确认没有仍活动的线程、回调或初始化使用者，再释放 GC 与 thread 状态。M23 不卸载 Cone、不撤销静态 image roots，也不逆序执行 initializer。
 
 ## 7. Generic delegated extension property
 
@@ -2489,7 +2427,7 @@ non-generic delegated extension继续按M21普通top-level eager storage；两�
 - section/member/count/nesting/string/body 及 blob 的真实输入范围、格式位宽、截断、整数溢出和循环引用有边界测试；测试覆盖多个 object 的真实消费；
 - 隔离目录与随机input顺序bitwise reproducibility；
 - HIR-only变化、layout变化与object-only变化分别触发正确compile/relink fingerprint；只改变object分片/member assignment/range/patch placement而保持canonical LIR语义时，LIR semantic fingerprint不变但code/artifact fingerprint按实际bytes变化；
-- typed digest graph以不同合法topological traversal得到同一结果；缺边、环、双writer、错patch owner/offset、非零provisional slot均拒绝。`DigestNodeId`与strong registration使用固定domain/kind/input排序，逐项篡改strong record canonical field、own-slot归零规则或任一typed input都改变结果；逐项篡改六种`RuntimeImageRecordKey`、stackmap fingerprint、`RootEntryKey`和`RuntimeCoreBindingsKey`时对应image/program digest必须变化，不能被peer-slot归零掩盖；
+- 实际产物的内容 fingerprint 对输入顺序稳定，registration、stackmap、object bytes、引用和 relocation 的有效变化触发相应缓存失效；digest 计算所需的依赖、环、patch 范围与唯一写入检查覆盖真实发射路径。已删除的 program/core binding 记录不再拥有 digest 节点或专用反例测试；
 - Rust producer/finalizer/link verifier与C runtime消费同一canonical encoder golden bytes/hash：覆盖空与非空dependency/六张table、每个record/choice/role/site tag、Eager/Lazy、byte-span及count边界；缺失空table count、错误endian/padding/order、unknown/reserved tag均稳定拒绝；
 - scan normal-form golden 覆盖 None/References/Sequence/Array、共享 DAG、非 canonical 节点、错 offset/alignment、越界和 cycle；合法共享子图通过，非法环失败。回归验证登记后的分配、装箱、数组和 GC 不重复执行完整静态验证。
 
@@ -2629,7 +2567,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 ### M23-8：runtime multi-image registry与启动
 
-依赖M23-7。实现第6章runtime侧完整descriptor C ABI、六类registration table、provisional/semantic/image/graph验证、canonical初始化顺序、native → managed no-throw gateway、多个连续LLVM v3 stackmap blob与终止协议；冻结`ScoopProgramDescriptorV1`。本阶段用typed synthetic program descriptor builder驱动runtime测试，不依赖生产linker或扫描weak symbol；M23-3已发射的per-Cone image在这里首次由多image runtime消费。
+依赖M23-7。在真实产物上接入第 6 章六类 registration、初始化顺序、native → managed no-throw gateway、stackmap 与终止行为；启动数据的 C 表示按实际调用需要确定，复用现有 per-Cone image。验收使用实际编译产物及相应链接运行，不另建 synthetic program descriptor 工厂或重复 image/graph 证明。
 
 完成门：3+个synthetic image在任何managed initializer前完成登记；dependency-first/Cone tie-break/unit-id顺序、lazy/eager、failure/cycle、moving GC、exception gateway、损坏metadata fatal、ODR重复record和multi-blob stackmap矩阵通过。这里证明runtime算法和ABI，不声称真实linker已经生成program object。
 
