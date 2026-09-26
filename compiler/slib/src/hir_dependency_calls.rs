@@ -1,11 +1,15 @@
-//! Shared HIR occurrence to MIR callable checks for ordinary and layout profiles.
+//! HIR call occurrences joined once to the actual MIR dependency definitions.
 
 use scoop_hir::{CrossConeHirInterfaceSectionV1, ExternalHirReferenceRoleV1, ExternalHirTargetV1};
 use scoop_identity::{
     CallableMaterializationContext, CallableOwner, CallableTemplateOrigin, CallableTemplateOwner,
-    DependencyCallableDeclarationId,
+    DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
 };
-use scoop_mir::{CrossConeMirBridgeSectionV1, StrongCallableBridgeSurfaceV1};
+use scoop_mir::{
+    CrossConeMirBridgeSectionV1, DependencyResolvedCrossConeMirTypeBridgeSectionV1,
+    MirTypeBridgeDependencyV1, MirTypeBridgeDependencyViewV1, MirTypeBridgeTargetV1,
+    StrongCallableBridgeSurfaceV1,
+};
 
 use crate::CrossConeMirClosureRelationError;
 
@@ -16,20 +20,67 @@ pub(crate) fn validate_executable_hir_calls(
     interface: &CrossConeHirInterfaceSectionV1,
     strong: &StrongCallableBridgeSurfaceV1,
     bridge: &CrossConeMirBridgeSectionV1,
+    lowered: Option<(
+        &DependencyResolvedCrossConeMirTypeBridgeSectionV1,
+        &[MirTypeBridgeDependencyViewV1<'_>],
+    )>,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     use CrossConeMirClosureRelationError as Error;
-
-    validate_hir_selected_set(interface, bridge)?;
-    for selected in bridge.selected() {
+    for record in bridge.selected() {
         let Some(reference) = interface
             .external_references()
-            .get(dependency_hir_target(selected.declaration()))
+            .get(dependency_hir_target(record.declaration()))
         else {
             continue;
         };
+        if reference.origin() != record.provider() {
+            return Err(Error::HirSelectionOriginMismatch {
+                declaration: record.declaration(),
+                expected: record.provider(),
+                actual: reference.origin(),
+            });
+        }
+    }
+    for reference in interface.external_references().records() {
+        if !reference
+            .roles()
+            .contains(ExternalHirReferenceRoleV1::ConcreteSelectedUse)
+        {
+            continue;
+        }
+        let Some(target) = concrete_callable(reference.target())? else {
+            continue;
+        };
+        let provider = reference.origin();
+        let signature = if let Some(direct) = bridge
+            .selected()
+            .iter()
+            .find(|record| record.provider() == provider && record.implementation() == target)
+        {
+            direct.signature()
+        } else {
+            let definition = lowered
+                .and_then(|(selected, dependencies)| {
+                    let relation = MirTypeBridgeDependencyV1::new(
+                        provider,
+                        MirTypeBridgeTargetV1::Callable(target),
+                    );
+                    selected
+                        .selected_relations()
+                        .binary_search(&relation)
+                        .ok()?;
+                    dependencies
+                        .iter()
+                        .find(|view| view.provider() == provider)?
+                        .exports()
+                        .callables()
+                        .get(target)
+                })
+                .ok_or(Error::MissingMirSelection { provider, target })?;
+            definition.semantic_signature().exact()
+        };
         for site in reference.call_sites().records() {
             let position = site.position();
-
             if position.root.context() != CallableMaterializationContext::NoSubstitution {
                 return Err(Error::CallRoot { position });
             }
@@ -46,7 +97,6 @@ pub(crate) fn validate_executable_hir_calls(
             if strong.get(owner).is_none() {
                 return Err(Error::CallRoot { position });
             }
-            let signature = selected.signature();
             let arguments = signature
                 .receiver()
                 .into_option()
@@ -57,8 +107,8 @@ pub(crate) fn validate_executable_hir_calls(
             {
                 return Err(Error::CallSignature {
                     position: Box::new(position),
-                    provider: selected.provider(),
-                    declaration: selected.declaration(),
+                    provider,
+                    target,
                 });
             }
         }
@@ -66,80 +116,36 @@ pub(crate) fn validate_executable_hir_calls(
     Ok(())
 }
 
-pub(crate) fn validate_hir_selected_set(
-    interface: &CrossConeHirInterfaceSectionV1,
-    bridge: &CrossConeMirBridgeSectionV1,
-) -> Result<(), CrossConeMirClosureRelationError> {
-    let selected = bridge.selected();
-    for record in selected {
-        let target = dependency_hir_target(record.declaration());
-        let Some(reference) = interface.external_references().get(target) else {
-            continue;
-        };
-        if reference.origin() != record.provider() {
-            return Err(
-                CrossConeMirClosureRelationError::HirSelectionOriginMismatch {
-                    declaration: record.declaration(),
-                    expected: record.provider(),
-                    actual: reference.origin(),
-                },
-            );
+pub(crate) fn concrete_callable(
+    target: ExternalHirTargetV1,
+) -> Result<Option<StrongCallableDefinitionOwner>, CrossConeMirClosureRelationError> {
+    Ok(match target {
+        ExternalHirTargetV1::Callable(CallableTemplateOrigin::Function(id)) => {
+            Some(StrongCallableDefinitionOwner::Function(id))
         }
-    }
-
-    for reference in interface.external_references().records() {
-        if !reference
-            .roles()
-            .contains(ExternalHirReferenceRoleV1::ConcreteSelectedUse)
-        {
-            continue;
+        ExternalHirTargetV1::Callable(CallableTemplateOrigin::Accessor(id)) => {
+            Some(StrongCallableDefinitionOwner::PropertyAccessor(id))
         }
-        let declaration = match reference.target() {
-            ExternalHirTargetV1::Callable(CallableTemplateOrigin::Function(declaration)) => {
-                Some(DependencyCallableDeclarationId::Function(declaration))
-            }
-            ExternalHirTargetV1::Callable(CallableTemplateOrigin::Accessor(declaration)) => Some(
-                DependencyCallableDeclarationId::PropertyAccessor(declaration),
-            ),
-            target @ (ExternalHirTargetV1::Callable(_)
-            | ExternalHirTargetV1::GeneratedCallable(_)) => {
-                return Err(CrossConeMirClosureRelationError::UnsupportedHirSelection { target });
-            }
-            ExternalHirTargetV1::Nominal(_)
-            | ExternalHirTargetV1::Property(_)
-            | ExternalHirTargetV1::ObjectValue(_)
-            | ExternalHirTargetV1::TypeAlias(_)
-            | ExternalHirTargetV1::Field(_)
-            | ExternalHirTargetV1::EnumVariantField(_) => None,
-        };
-        let Some(declaration) = declaration else {
-            continue;
-        };
-        if selected
-            .binary_search_by_key(&(reference.origin(), declaration), |record| {
-                (record.provider(), record.declaration())
-            })
-            .is_err()
-        {
-            return Err(CrossConeMirClosureRelationError::MissingMirSelection {
-                provider: reference.origin(),
-                declaration,
-            });
+        ExternalHirTargetV1::Callable(CallableTemplateOrigin::Constructor(id)) => {
+            Some(StrongCallableDefinitionOwner::Constructor(id))
         }
-    }
-    Ok(())
+        ExternalHirTargetV1::GeneratedCallable(id) => {
+            Some(StrongCallableDefinitionOwner::GeneratedCallable(id))
+        }
+        ExternalHirTargetV1::Callable(_) => {
+            return Err(CrossConeMirClosureRelationError::UnmaterializedHirSelection { target });
+        }
+        _ => None,
+    })
 }
 
 pub(crate) fn dependency_hir_target(
     declaration: DependencyCallableDeclarationId,
 ) -> ExternalHirTargetV1 {
-    let callable = match declaration {
-        DependencyCallableDeclarationId::Function(declaration) => {
-            CallableTemplateOrigin::Function(declaration)
+    ExternalHirTargetV1::Callable(match declaration {
+        DependencyCallableDeclarationId::Function(id) => CallableTemplateOrigin::Function(id),
+        DependencyCallableDeclarationId::PropertyAccessor(id) => {
+            CallableTemplateOrigin::Accessor(id)
         }
-        DependencyCallableDeclarationId::PropertyAccessor(declaration) => {
-            CallableTemplateOrigin::Accessor(declaration)
-        }
-    };
-    ExternalHirTargetV1::Callable(callable)
+    })
 }

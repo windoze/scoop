@@ -53,8 +53,11 @@ pub(super) fn check(
         for selected in mir.callables() {
             let actual = lir
                 .callable(
-                    lir.callable_for(selected.provider(), selected.declaration())
-                        .unwrap(),
+                    lir.callable_for(
+                        selected.provider(),
+                        selected.direct_record().unwrap().declaration(),
+                    )
+                    .unwrap(),
                 )
                 .unwrap();
             assert_eq!(actual.role(), selected.role());

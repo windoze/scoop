@@ -1,5 +1,6 @@
 //! Expression-tree projection for portable defaults.
 
+mod imported;
 mod support;
 
 use crate::{
@@ -14,7 +15,7 @@ impl BodyProjection<'_, '_> {
         &mut self,
         expression: &Expr,
     ) -> Result<DefaultExpressionV1, super::super::DefaultBodyProjectionError> {
-        let kind = self.expression_kind(&expression.kind)?;
+        let kind = self.expression_kind(&expression.kind, expression.ty)?;
         DefaultExpressionV1::try_new(
             kind,
             self.type_key(expression.ty)?,
@@ -26,6 +27,7 @@ impl BodyProjection<'_, '_> {
     fn expression_kind(
         &mut self,
         kind: &ExprKind,
+        result_type: crate::TypeId,
     ) -> Result<DefaultExpressionKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
             ExprKind::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
@@ -275,11 +277,7 @@ impl BodyProjection<'_, '_> {
                 args,
                 receiver,
                 ..
-            } => DefaultExpressionKindV1::Call {
-                callee: self.entities.imported_dependency_callable(*callee)?,
-                receiver: receiver.try_map(|ty| self.type_key(ty))?,
-                arguments: self.expressions(args)?,
-            },
+            } => self.imported_call(*callee, args, *receiver, result_type)?,
             ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

@@ -50,27 +50,16 @@ fn validate_mir_selections(
     input: &mir::SingleConeStrongMirInput,
     bridge: &mir::CrossConeMirBridgeSectionV1,
 ) -> Result<(), CrossConeLirBridgeLoweringError> {
-    let mut roots = Vec::new();
-    roots
-        .try_reserve_exact(input.materialization().external_callable_roots().len())
-        .map_err(|_| CrossConeLirBridgeLoweringError::Allocation {
-            requested_slots: input.materialization().external_callable_roots().len(),
-        })?;
-    roots.extend(input.materialization().external_callable_roots().iter());
-    roots.sort_unstable_by_key(|root| (root.provider(), root.declaration()));
-
-    if roots.len() != bridge.selected().len() {
-        return Err(CrossConeLirBridgeLoweringError::MirSelectionCountMismatch {
-            bridge: bridge.selected().len(),
-            roots: roots.len(),
-        });
-    }
-    for (index, (selected, root)) in bridge.selected().iter().zip(roots).enumerate() {
-        if selected.provider() != root.provider()
-            || selected.declaration() != root.declaration()
-            || selected.implementation() != root.implementation()
-            || selected.signature() != root.signature()
-        {
+    let roots = input.materialization().external_callable_roots();
+    for (index, selected) in bridge.selected().iter().enumerate() {
+        let root = roots
+            .iter()
+            .find(|root| {
+                root.provider() == selected.provider()
+                    && root.implementation() == selected.implementation()
+            })
+            .ok_or(CrossConeLirBridgeLoweringError::MirSelectionMismatch { index })?;
+        if selected.signature() != root.signature() {
             return Err(CrossConeLirBridgeLoweringError::MirSelectionMismatch { index });
         }
     }
@@ -197,10 +186,6 @@ pub enum CrossConeLirBridgeLoweringError {
     Allocation {
         requested_slots: usize,
     },
-    MirSelectionCountMismatch {
-        bridge: usize,
-        roots: usize,
-    },
     MirSelectionMismatch {
         index: usize,
     },
@@ -241,7 +226,6 @@ impl std::error::Error for CrossConeLirBridgeLoweringError {
             Self::MirArtifactMismatch { .. }
             | Self::LirArtifactMismatch { .. }
             | Self::Allocation { .. }
-            | Self::MirSelectionCountMismatch { .. }
             | Self::MirSelectionMismatch { .. }
             | Self::LirSelectionCountMismatch { .. }
             | Self::LirSelectionMismatch { .. } => None,

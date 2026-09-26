@@ -210,10 +210,30 @@ impl ReferenceCollector<'_> {
                 receiver,
                 ..
             } => {
-                self.record_callable(
-                    hir::ExportDefaultCallableTarget::ImportedDependency(*callee),
-                    origin,
-                );
+                let reference = self.lowerer.imported_dependency_callables[*callee].reference();
+                let selected = self
+                    .lowerer
+                    .dependencies
+                    .as_ref()
+                    .expect("imported calls retain their dependency declarations")
+                    .resolve_callable(reference)
+                    .expect("an imported call retains its selected declaration");
+                if let scoop_identity::CallableTemplateOrigin::Constructor(declaration) =
+                    selected.interface().declaration()
+                {
+                    self.constructor_use(
+                        hir::ExportDefaultConstructorTarget::Imported {
+                            declaration,
+                            owner_type: expression.ty,
+                        },
+                        origin,
+                    );
+                } else {
+                    self.record_callable(
+                        hir::ExportDefaultCallableTarget::ImportedDependency(*callee),
+                        origin,
+                    );
+                }
                 self.expressions(args);
                 if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
                     self.type_reference(*static_type, origin);

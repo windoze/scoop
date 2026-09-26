@@ -142,10 +142,7 @@ fn ordinary_scoop_function_with_core_closed_signature_is_executable() {
         .classify_callable(&callable)
         .unwrap()
         .expect("ordinary core-closed callable is executable");
-    assert_eq!(
-        classified.declaration().implementation(),
-        classified.implementation()
-    );
+    assert_eq!(classified.implementation(), classified.implementation());
     assert_eq!(classified.signature().effect(), Effect::Ordinary);
     assert_eq!(classified.signature().receiver().into_option(), None);
     assert!(classified.signature().parameters().is_empty());

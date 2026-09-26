@@ -76,6 +76,7 @@ fn reject(
             details.children().clone(),
             details.dispatch_order().clone(),
             CanonicalNominalDispatchSelectionsV1::try_new(records).unwrap(),
+            details.primary_value_constructor(),
         ),
     )
 }

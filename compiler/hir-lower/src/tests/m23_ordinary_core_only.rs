@@ -254,7 +254,7 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
         hir.imported_dependencies()
             .callables()
             .map(|selected| {
-                let declaration = selected.capability().declaration();
+                let declaration = selected.capability().direct_declaration().unwrap();
                 let scoop_identity::DependencyCallableDeclarationId::Function(function) =
                     declaration
                 else {

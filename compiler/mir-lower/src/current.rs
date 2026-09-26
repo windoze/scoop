@@ -97,7 +97,7 @@ fn lower_dependency_callables(
         let selected = use_.callable();
         let capability = selected.capability();
         let id = imported
-            .callable_for(selected.provider(), capability.declaration())
+            .callable_for(selected.provider(), capability.implementation())
             .ok_or(CurrentConeMirLoweringError::MissingDependencyMirCallable {
                 index: source_id.into_raw().into_u32(),
             })?;
@@ -111,7 +111,7 @@ fn lower_dependency_callables(
                 },
             );
         }
-        if target.signature() != capability.signature() {
+        if target.semantic_signature() != capability.signature() {
             return Err(CurrentConeMirLoweringError::DependencySignatureMismatch {
                 index: source_id.into_raw().into_u32(),
             });

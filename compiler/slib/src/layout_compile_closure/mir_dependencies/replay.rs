@@ -44,6 +44,29 @@ pub fn replay_shared_mir_dependency_graph(
         )
     }));
 
+    for reference in references.records() {
+        if !reference
+            .roles()
+            .contains(scoop_hir::ExternalHirReferenceRoleV1::ConcreteSelectedUse)
+        {
+            continue;
+        }
+        let target = crate::hir_dependency_calls::concrete_callable(reference.target())
+            .map_err(|source| Error::CallSites(Box::new(source)))?;
+        let Some(target) = target else {
+            continue;
+        };
+        if dependencies.iter().any(|view| {
+            view.provider() == reference.origin()
+                && view.exports().callables().get(target).is_some()
+        }) {
+            committed.push(mir::MirTypeBridgeDependencyV1::new(
+                reference.origin(),
+                mir::MirTypeBridgeTargetV1::Callable(target),
+            ));
+        }
+    }
+
     committed.sort_unstable();
     committed.dedup();
     mir.replay_dependency_closure(units, dependencies, &committed, source.identities)?;

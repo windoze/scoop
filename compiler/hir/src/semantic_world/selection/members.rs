@@ -100,7 +100,7 @@ impl ImportedCallableSource for ImportedCallableDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
-    pub(super) fn callable_declaration(
+    pub fn callable_declaration(
         &self,
         declaration: scoop_identity::CallableTemplateOrigin,
     ) -> Result<ImportedCallableDeclaration, ImportedDependencyCandidateError> {
@@ -128,7 +128,26 @@ impl ImportedDependencySelectionPlan {
                     ))?
                     .name
             }
-            CallableCatalogName::Constructor | CallableCatalogName::VariantConstructor => {
+            CallableCatalogName::Constructor => {
+                let PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner)) =
+                    entry.interface.owner()
+                else {
+                    return Err(ImportedDependencyCandidateError::MissingCallableSource(
+                        declaration,
+                    ));
+                };
+                let nominal = self.catalog.nominals.get(&owner).ok_or(
+                    ImportedDependencyCandidateError::MissingCallableSource(declaration),
+                )?;
+                let scoop_identity::DeclarationName::Named(name) = nominal.identity.key().name()
+                else {
+                    return Err(ImportedDependencyCandidateError::MissingCallableSource(
+                        declaration,
+                    ));
+                };
+                name
+            }
+            CallableCatalogName::VariantConstructor => {
                 return Err(ImportedDependencyCandidateError::MissingCallableSource(
                     declaration,
                 ));
@@ -142,6 +161,22 @@ impl ImportedDependencySelectionPlan {
             defaults: entry.default_templates.clone(),
             definition_sources: Arc::clone(&entry.definition_sources),
         })
+    }
+
+    pub fn constructor_candidates(
+        &self,
+        owner: scoop_identity::PersistentTypeId,
+    ) -> Result<Vec<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
+        self.catalog
+            .callables
+            .values()
+            .filter(|entry| {
+                entry.interface.owner()
+                    == PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner))
+                    && matches!(entry.name, CallableCatalogName::Constructor)
+            })
+            .map(|entry| self.callable_declaration(entry.interface.declaration()))
+            .collect()
     }
 
     pub fn member_callable_candidates(

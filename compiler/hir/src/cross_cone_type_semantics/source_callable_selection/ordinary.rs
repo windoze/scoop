@@ -24,13 +24,16 @@ pub fn select_ordinary_source_callables<'a>(
         else {
             continue;
         };
+        let Some(declaration) = classified.direct_declaration() else {
+            continue;
+        };
         if !identity::is_local(provider, identities, source.declaration())?
             || !requires_body(public, identities, source.declaration())?
         {
             continue;
         }
 
-        required.insert(classified.declaration(), source);
+        required.insert(declaration, source);
     }
     Ok(required)
 }

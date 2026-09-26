@@ -166,6 +166,37 @@ impl Lowerer {
                 Err(failure) => failures.push(failure),
             }
         }
+        for binding in targets {
+            let NamedCallTarget::ImportedDependency(hir::ImportedTarget::Type(owner)) =
+                binding.target
+            else {
+                continue;
+            };
+            let candidates = self
+                .dependencies
+                .as_ref()
+                .expect("dependency name lookup retains its declaration catalog")
+                .constructor_candidates(owner.persistent());
+            let candidates = match candidates {
+                Ok(candidates) => candidates,
+                Err(error) => {
+                    self.error(
+                        call.span,
+                        format!("invalid dependency constructor declaration: {error}"),
+                    );
+                    return Err(());
+                }
+            };
+            for candidate in candidates {
+                match self.probe_imported_constructor(candidate, call, expected) {
+                    Ok(probe) => applicable.push(NamedApplicable {
+                        probe: NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)),
+                        commit: NamedFunctionCommit::ImportedDependency,
+                    }),
+                    Err(failure) => failures.push(failure),
+                }
+            }
+        }
         for plan in plans {
             let arguments =
                 self.named_nominal_expected_arguments(plan.view.result_type, plan.expected);

@@ -59,8 +59,14 @@ pub(super) fn lower_graph(
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums)?;
-    let (external_callables, external_callable_map) =
-        lower_external_callables(&context, input, selected_callables, &structs, &enums)?;
+    let (external_callables, external_callable_map) = lower_external_callables(
+        &context,
+        input,
+        selected_callables,
+        selected_layout,
+        &structs,
+        &enums,
+    )?;
     let native_abi = native_abi::lower(
         &context,
         module,

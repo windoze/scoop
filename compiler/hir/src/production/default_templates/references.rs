@@ -44,6 +44,14 @@ pub(super) fn project(
     let mut constructors = Vec::with_capacity(references.constructors.len());
     for (index, reference) in references.constructors.iter().enumerate() {
         let target = match reference.target {
+            crate::ExportDefaultConstructorTarget::Imported {
+                declaration,
+                owner_type,
+            } => projection.entities.imported_constructor(
+                declaration,
+                owner_type,
+                projection.binders,
+            )?,
             crate::ExportDefaultConstructorTarget::Struct(application) => projection
                 .entities
                 .struct_constructor(application, projection.binders)?,

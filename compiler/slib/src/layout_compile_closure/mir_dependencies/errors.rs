@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum SharedMirDependencyGraphError {
+    CallSites(Box<crate::CrossConeMirClosureRelationError>),
     InputProvider {
         source: ConeIdentity,
         mir: ConeIdentity,

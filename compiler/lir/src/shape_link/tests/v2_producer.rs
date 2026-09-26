@@ -75,7 +75,7 @@ fn exercise_dependency_production(provider: Provider) {
         .materialize_type_descriptor(provider.identity, provider.exact)
         .unwrap();
     let callable = selected
-        .materialize_dispatch_callable(
+        .materialize_callable(
             provider.identity,
             provider.callable,
             pointer_result_signature(),
@@ -222,7 +222,7 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
     .unwrap();
 
     assert!(matches!(
-        selected.materialize_dispatch_callable(
+        selected.materialize_callable(
             provider.identity,
             provider.callable,
             pointer_result_signature(),

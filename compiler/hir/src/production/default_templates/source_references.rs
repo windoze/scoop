@@ -31,6 +31,10 @@ pub(super) fn project(
             .map(|r| (r.target, r.origin, &r.witness)),
         ExportDefaultReferenceKindV1::Constructor,
         |target| match target {
+            ExportDefaultConstructorTarget::Imported {
+                declaration,
+                owner_type,
+            } => entities.imported_constructor(declaration, owner_type, binders),
             ExportDefaultConstructorTarget::Struct(application) => {
                 entities.struct_constructor(application, binders)
             }

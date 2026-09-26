@@ -57,8 +57,8 @@ fn getter_setter_and_update_support_explicit_and_implicit_receivers() {
                 .callables()
                 .filter(|callable| {
                     matches!(
-                        callable.capability().declaration(),
-                        scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(_)
+                        callable.capability().implementation(),
+                        scoop_identity::StrongCallableDefinitionOwner::PropertyAccessor(_)
                     )
                 })
                 .count(),

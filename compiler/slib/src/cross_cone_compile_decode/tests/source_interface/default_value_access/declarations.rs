@@ -31,6 +31,7 @@ pub(in super::super) fn restrict(
                     details.children().clone(),
                     details.dispatch_order().clone(),
                     details.dispatch_selections().clone(),
+                    details.primary_value_constructor(),
                 ),
             )
             .unwrap();

@@ -63,7 +63,7 @@ pub enum CrossConeMirClosureRelationError {
     CallSignature {
         position: Box<scoop_hir::concrete::ExecutableExpressionPosition>,
         provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
+        target: StrongCallableDefinitionOwner,
     },
     NominalClassifier(scoop_hir::NominalExactLeafClassifierBuildError),
     NominalClassification(scoop_hir::NominalCallableClassificationError),
@@ -88,12 +88,12 @@ pub enum CrossConeMirClosureRelationError {
         expected: ConeIdentity,
         actual: ConeIdentity,
     },
-    UnsupportedHirSelection {
+    UnmaterializedHirSelection {
         target: ExternalHirTargetV1,
     },
     MissingMirSelection {
         provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
+        target: StrongCallableDefinitionOwner,
     },
     MissingProvider {
         provider: ConeIdentity,
@@ -128,10 +128,10 @@ impl fmt::Display for CrossConeMirClosureRelationError {
             Self::CallSignature {
                 position,
                 provider,
-                declaration,
+                target,
             } => write!(
                 formatter,
-                "HIR call {position:?} disagrees with the logical signature of {provider}:{declaration:?}"
+                "HIR call {position:?} disagrees with the logical signature of {provider}:{target:?}"
             ),
             Self::NominalClassifier(source) => source.fmt(formatter),
             Self::NominalClassification(source) => source.fmt(formatter),
@@ -164,16 +164,13 @@ impl fmt::Display for CrossConeMirClosureRelationError {
                 formatter,
                 "MIR selection {declaration:?} names provider {expected}, but its HIR reference originates in {actual}"
             ),
-            Self::UnsupportedHirSelection { target } => write!(
+            Self::UnmaterializedHirSelection { target } => write!(
                 formatter,
-                "concrete HIR callable selection {target:?} has no M23-5 dependency-callable identity"
+                "concrete HIR callable selection {target:?} has no materialized callable identity"
             ),
-            Self::MissingMirSelection {
-                provider,
-                declaration,
-            } => write!(
+            Self::MissingMirSelection { provider, target } => write!(
                 formatter,
-                "concrete HIR selection {provider}:{declaration:?} is absent from the MIR selected set"
+                "concrete HIR selection {provider}:{target:?} is absent from the MIR selected set"
             ),
             Self::MissingProvider {
                 provider,

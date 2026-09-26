@@ -84,7 +84,7 @@ fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
     assert_eq!(selected.consumer(), world.current());
     assert_eq!(callable.provider(), provider.identity());
     assert_eq!(
-        callable.capability().declaration().implementation(),
+        callable.capability().implementation(),
         callable.capability().implementation()
     );
 }

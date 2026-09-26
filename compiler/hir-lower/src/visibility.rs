@@ -643,6 +643,7 @@ impl Lowerer {
         target: hir::ExportDefaultConstructorTarget,
     ) -> hir::AccessDomain {
         match target {
+            hir::ExportDefaultConstructorTarget::Imported { .. } => hir::AccessDomain::universal(),
             hir::ExportDefaultConstructorTarget::Struct(application) => {
                 let constructor = self.struct_constructor_applications[application].constructor;
                 self.struct_constructors[constructor]

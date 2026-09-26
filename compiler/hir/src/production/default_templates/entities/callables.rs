@@ -86,10 +86,13 @@ impl DefaultEntityProjector<'_> {
         arguments.map(|&ty| self.type_key(ty, binders)).collect()
     }
 
-    pub(in crate::production::default_templates) fn imported_dependency_callable(
+    pub(in crate::production::default_templates) fn imported_dependency_source(
         &self,
         id: ImportedDependencyCallableUseId,
-    ) -> Result<DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
+    ) -> Result<
+        &crate::SelectedImportedDependencyCallable,
+        super::super::DefaultEntityProjectionError,
+    > {
         let index = super::super::raw_index(id);
         let use_ = arena_get(&self.export.imported_dependency_callables, id).ok_or(
             super::super::DefaultEntityProjectionError::Unknown {
@@ -103,16 +106,60 @@ impl DefaultEntityProjector<'_> {
             .ok_or(
                 super::super::DefaultEntityProjectionError::ImportedDependencyUnavailable(index),
             )?;
-        let declaration = match selected.capability().declaration() {
-            scoop_identity::DependencyCallableDeclarationId::Function(id) => {
+        Ok(selected)
+    }
+
+    pub(in crate::production::default_templates) fn imported_dependency_callable(
+        &self,
+        id: ImportedDependencyCallableUseId,
+    ) -> Result<DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
+        let source = self
+            .imported_dependency_source(id)?
+            .interface()
+            .declaration();
+        let declaration = match source {
+            scoop_identity::CallableTemplateOrigin::Function(id) => {
                 DefaultCallableDeclarationV1::Function(id)
             }
-            scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(id) => {
+            scoop_identity::CallableTemplateOrigin::GenericFunction(id) => {
+                DefaultCallableDeclarationV1::GenericFunction(id)
+            }
+            scoop_identity::CallableTemplateOrigin::Accessor(id) => {
                 DefaultCallableDeclarationV1::PropertyAccessor(id)
+            }
+            scoop_identity::CallableTemplateOrigin::Constructor(_)
+            | scoop_identity::CallableTemplateOrigin::VariantConstructor(_) => {
+                return Err(super::super::DefaultEntityProjectionError::CallableKind(
+                    source,
+                ));
             }
         };
         DefaultCallableRefV1::try_new(declaration, OptionalSignatureType::Absent, Vec::new())
             .map_err(super::super::DefaultEntityProjectionError::Callable)
+    }
+
+    pub(in crate::production::default_templates) fn imported_constructor(
+        &self,
+        declaration: scoop_identity::PersistentConstructorId,
+        owner_type: TypeId,
+        binders: &[HirSignatureBinder],
+    ) -> Result<crate::DefaultConstructorRefV1, super::super::DefaultEntityProjectionError> {
+        let source_type = self.type_key(owner_type, binders)?;
+        match &self.export.types[owner_type] {
+            crate::Type::Struct(_) | crate::Type::ImportedStruct(_) => {
+                Ok(crate::DefaultConstructorRefV1::Struct {
+                    declaration,
+                    owner_type: source_type,
+                })
+            }
+            crate::Type::Class(_) => Ok(crate::DefaultConstructorRefV1::Class {
+                declaration: crate::DefaultClassConstructorIdV1::Source(declaration),
+                owner_type: source_type,
+            }),
+            _ => Err(super::super::DefaultEntityProjectionError::CallableKind(
+                scoop_identity::CallableTemplateOrigin::Constructor(declaration),
+            )),
+        }
     }
 
     pub(in crate::production::default_templates) fn bound_callable(

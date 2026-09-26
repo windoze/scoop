@@ -98,7 +98,7 @@ fn both_sealers_reject_duplicate_implementations_across_providers() {
         .with_initialization_cycle(record.clone())
         .unwrap();
         let ordinary = selected
-            .callable_for(other_provider, record.declaration())
+            .callable_for(other_provider, record.implementation())
             .unwrap();
         let cycle = selected.initialization_cycle().unwrap();
         for ((_, value), (id, effect)) in module

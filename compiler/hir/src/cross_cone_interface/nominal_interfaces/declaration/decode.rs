@@ -1,5 +1,7 @@
 use super::*;
 use crate::{DecodedNestedSourceMemberRefV1, NestedSourceBuildError};
+use scoop_identity::DecodedPersistentId;
+use scoop_wire::WireErrorKind;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedNominalDeclarationDetailsV1 {
@@ -10,6 +12,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     children: Vec<DecodedSourceNominalId>,
     dispatch_order: DecodedNominalDispatchOrderV1,
     dispatch_selections: DecodedCanonicalNominalDispatchSelectionsV1,
+    primary_value_constructor: Option<DecodedPersistentId<PersistentConstructorId>>,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -49,13 +52,17 @@ impl DecodedNominalDeclarationDetailsV1 {
             self.dispatch_selections
                 .resolve(resolver)
                 .map_err(Error::DispatchSelections)?,
+            self.primary_value_constructor
+                .map(|id| resolver.resolve(id))
+                .transpose()
+                .map_err(Error::Reference)?,
         ))
     }
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(7)?;
+        decoder.expect_map(8)?;
         let value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
             visibility: decoder.field(2, DeclaredVisibilityV1::decode)?,
@@ -69,6 +76,18 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
             dispatch_order: decoder.field(6, DecodedNominalDispatchOrderV1::decode)?,
             dispatch_selections: decoder
                 .field(7, DecodedCanonicalNominalDispatchSelectionsV1::decode)?,
+            primary_value_constructor: decoder.field(8, |decoder| match decoder.array()? {
+                0 => Ok(None),
+                1 => DecodedPersistentId::decode(decoder).map(Some),
+                actual => Err(WireError::new(
+                    WireErrorKind::InvalidLength {
+                        expected: 1,
+                        actual,
+                    },
+                    decoder.path().clone(),
+                    Some(decoder.position()),
+                )),
+            })?,
         };
 
         Ok(value)
@@ -77,7 +96,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
 
 impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -97,7 +116,13 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
         encoder.field(6)?;
         self.dispatch_order.encode(encoder)?;
         encoder.field(7)?;
-        self.dispatch_selections.encode(encoder)
+        self.dispatch_selections.encode(encoder)?;
+        encoder.field(8)?;
+        encoder.array(u64::from(self.primary_value_constructor.is_some()))?;
+        if let Some(primary) = self.primary_value_constructor {
+            primary.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 

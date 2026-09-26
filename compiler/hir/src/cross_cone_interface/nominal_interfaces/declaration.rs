@@ -20,9 +20,11 @@ pub struct NominalDeclarationDetailsV1 {
     children: CanonicalNestedNominalRefsV1,
     dispatch_order: NominalDispatchOrderV1,
     dispatch_selections: CanonicalNominalDispatchSelectionsV1,
+    primary_value_constructor: Option<PersistentConstructorId>,
 }
 
 impl NominalDeclarationDetailsV1 {
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         modality: NominalInheritanceModalityV1,
         visibility: DeclaredVisibilityV1,
@@ -31,6 +33,7 @@ impl NominalDeclarationDetailsV1 {
         children: CanonicalNestedNominalRefsV1,
         dispatch_order: NominalDispatchOrderV1,
         dispatch_selections: CanonicalNominalDispatchSelectionsV1,
+        primary_value_constructor: Option<PersistentConstructorId>,
     ) -> Self {
         Self {
             modality,
@@ -40,7 +43,12 @@ impl NominalDeclarationDetailsV1 {
             children,
             dispatch_order,
             dispatch_selections,
+            primary_value_constructor,
         }
+    }
+
+    pub const fn primary_value_constructor(&self) -> Option<PersistentConstructorId> {
+        self.primary_value_constructor
     }
 
     pub const fn modality(&self) -> NominalInheritanceModalityV1 {
@@ -108,6 +116,18 @@ impl NominalDeclarationDetailsV1 {
                 ));
             }
         }
+        if let Some(primary) = self.primary_value_constructor {
+            if kind != PublicNominalKindV1::Struct {
+                return Err(NominalInterfaceRecordBuildError::PrimaryValueConstructorKind(kind));
+            }
+            if !self.constructors.values().contains(&primary) {
+                return Err(NominalInterfaceRecordBuildError::UndeclaredConstructor(
+                    primary,
+                ));
+            }
+        } else if kind == PublicNominalKindV1::Struct && !self.constructors.is_empty() {
+            return Err(NominalInterfaceRecordBuildError::MissingPrimaryValueConstructor);
+        }
         for member in members.members() {
             let declared = match *member {
                 PublicMemberRefV1::Callable(CallableTemplateOrigin::Function(id)) => {
@@ -133,7 +153,7 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -147,7 +167,13 @@ impl WireEncode for NominalDeclarationDetailsV1 {
         encoder.field(6)?;
         self.dispatch_order.encode(encoder)?;
         encoder.field(7)?;
-        self.dispatch_selections.encode(encoder)
+        self.dispatch_selections.encode(encoder)?;
+        encoder.field(8)?;
+        encoder.array(u64::from(self.primary_value_constructor.is_some()))?;
+        if let Some(primary) = self.primary_value_constructor {
+            primary.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
@@ -176,6 +202,7 @@ impl NominalInterfaceRecordV1 {
         visibility: DeclaredVisibilityV1,
         dispatch_order: NominalDispatchOrderV1,
         dispatch_selections: CanonicalNominalDispatchSelectionsV1,
+        primary_value_constructor: Option<PersistentConstructorId>,
     ) -> Result<Self, NominalInterfaceRecordBuildError> {
         let details = NominalDeclarationDetailsV1::new(
             source.modality(),
@@ -185,6 +212,7 @@ impl NominalInterfaceRecordV1 {
             source.children().clone(),
             dispatch_order,
             dispatch_selections,
+            primary_value_constructor,
         );
         Self::try_new(
             source.owner(),

@@ -68,6 +68,7 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
                         CanonicalNestedNominalRefsV1::default(),
                         NominalDispatchOrderV1::empty(PublicNominalKindV1::Class),
                         choices.clone(),
+                        None,
                     ),
                 )
                 .unwrap()

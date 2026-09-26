@@ -76,6 +76,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     let empty =
         scoop_lir::SelectedExternalLirSet::try_from_callables(ConeIdentity::CORE, Vec::new())
             .unwrap();
+    let root = &mir.strong.materialization().external_callable_roots()[0];
     assert!(matches!(
         lower_selected_lir(
             &mir.strong,
@@ -87,11 +88,13 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
             &diagnostics
         ),
         Err(CurrentConeLirStageError::Lowering(
-            scoop_lir_lower::StrongLirLoweringError::ExternalCallableCountMismatch {
-                mir: 1,
-                lir: 0
-            }
-        ))
+            scoop_lir_lower::StrongLirLoweringError::DependencyLayout(
+                scoop_lir::LayoutExternalMaterializationError::MissingCallable {
+                    provider,
+                    target
+                }
+            )
+        )) if provider == root.provider() && target == root.implementation()
     ));
     let (lir, public) = lower_selected_lir(
         &mir.strong,

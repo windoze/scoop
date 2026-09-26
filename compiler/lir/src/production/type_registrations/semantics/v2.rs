@@ -236,7 +236,7 @@ fn validate_callable_selection(
     module: &Module,
 ) -> Result<(), StrongTypeDescriptorSemanticPlanBuildError> {
     let replayed = selected
-        .materialize_dispatch_callable(
+        .materialize_callable(
             callable.provider(),
             callable.target(),
             callable.signature().clone(),

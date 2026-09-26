@@ -32,7 +32,6 @@ pub(super) fn project(
         if root.role() == mir::CallableRole::InitializationCycle
             || input.ordinary.selected().iter().any(|selected| {
                 selected.provider() == root.provider()
-                    && selected.declaration() == root.declaration()
                     && selected.implementation() == root.implementation()
                     && selected.signature() == root.signature()
             })

@@ -46,16 +46,16 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         materialize_type_descriptor(self, provider, exact)
     }
 
-    /// Materializes one dispatch-callable declaration from the same selected
+    /// Materializes one callable declaration from the same selected
     /// semantic record and physical import used by Strong production.
-    pub fn materialize_dispatch_callable(
+    pub fn materialize_callable(
         &self,
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,
         signature: ScoopAbiSignature,
         enums: &EnumDefs,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
-        materialize_dispatch_callable(self, provider, target, signature, enums)
+        materialize_callable(self, provider, target, signature, enums)
     }
 }
 
@@ -96,14 +96,14 @@ impl StrongProductionDependencySelectionV2<'_> {
         materialize_type_descriptor(self, provider, exact)
     }
 
-    pub fn materialize_dispatch_callable(
+    pub fn materialize_callable(
         &self,
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,
         signature: ScoopAbiSignature,
         enums: &EnumDefs,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
-        materialize_dispatch_callable(self, provider, target, signature, enums)
+        materialize_callable(self, provider, target, signature, enums)
     }
 }
 
@@ -209,7 +209,7 @@ fn materialize_type_descriptor<'a>(
     ))
 }
 
-fn materialize_dispatch_callable<'a>(
+fn materialize_callable<'a>(
     selected: &'a impl MaterializationSelection<'a>,
     provider: ConeIdentity,
     target: StrongCallableDefinitionOwner,

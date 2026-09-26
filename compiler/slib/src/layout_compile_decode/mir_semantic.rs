@@ -96,12 +96,6 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
         let mir_ordinary = mir_cross_cone_bridge
             .validate(provider, &mut identities, &foundations.mir)
             .map_err(CrossConeLayoutMirFrontValidationError::OrdinaryBridge)?;
-        crate::hir_dependency_calls::validate_executable_hir_calls(
-            &hir_interface,
-            mir_core.strong_callable_bridges(),
-            &mir_ordinary,
-        )
-        .map_err(|source| CrossConeLayoutMirFrontValidationError::CallSites(Box::new(source)))?;
         Ok((
             PreparedCrossConeLayoutMirSections {
                 graph,
@@ -176,7 +170,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
 
 #[derive(Debug)]
 pub enum CrossConeLayoutMirFrontValidationError {
-    CallSites(Box<crate::CrossConeMirClosureRelationError>),
     CoreProduction(MirProductionValidationError),
     CrossLayer(StrongProfileRelationError),
     OrdinaryBridge(CrossConeMirBridgeValidationError),
@@ -185,7 +178,6 @@ pub enum CrossConeLayoutMirFrontValidationError {
 impl fmt::Display for CrossConeLayoutMirFrontValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CallSites(source) => write!(formatter, "invalid HIR/MIR call sites: {source}"),
             Self::CoreProduction(source) => {
                 write!(formatter, "invalid legacy MIR production: {source}")
             }
@@ -202,7 +194,6 @@ impl fmt::Display for CrossConeLayoutMirFrontValidationError {
 impl std::error::Error for CrossConeLayoutMirFrontValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CallSites(source) => Some(source.as_ref()),
             Self::CoreProduction(source) => Some(source),
             Self::CrossLayer(source) => Some(source),
             Self::OrdinaryBridge(source) => Some(source),

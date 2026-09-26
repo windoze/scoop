@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum SharedLirDependencyGraphError {
+    CallableReferences(Box<crate::CrossConeMirClosureRelationError>),
     InputProvider {
         source: ConeIdentity,
         layout: ConeIdentity,

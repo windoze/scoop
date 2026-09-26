@@ -100,6 +100,13 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                         .iter()
                         .map(|&index| complete[index].prepared.shared_metadata()),
                 );
+                crate::hir_dependency_calls::validate_executable_hir_calls(
+                    parts.hir_interface,
+                    parts.mir_core.strong_callable_bridges(),
+                    parts.mir_ordinary,
+                    Some((&mir, &dependencies)),
+                )
+                .map_err(|source| SharedMirDependencyGraphError::CallSites(Box::new(source)))?;
                 replay_shared_mir_dependency_graph(
                     scoop_hir::SharedTypeMetadataV1 {
                         provider,

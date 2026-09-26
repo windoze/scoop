@@ -83,6 +83,29 @@ pub fn replay_shared_lir_dependency_graph(
             .copied(),
     );
 
+    for reference in references.records() {
+        if !reference
+            .roles()
+            .contains(scoop_hir::ExternalHirReferenceRoleV1::ConcreteSelectedUse)
+        {
+            continue;
+        }
+        let target = crate::hir_dependency_calls::concrete_callable(reference.target())
+            .map_err(|source| Error::CallableReferences(Box::new(source)))?;
+        let Some(target) = target else {
+            continue;
+        };
+        if by_provider
+            .get(&reference.origin())
+            .is_some_and(|dependency| dependency.callables().get(target).is_some())
+        {
+            committed.push(lir::LayoutAbiDependencyV1::new(
+                reference.origin(),
+                lir::LayoutAbiSemanticTargetV1::Callable(target),
+            ));
+        }
+    }
+
     committed.sort_unstable();
     committed.dedup();
     layout.replay_dependency_closure(dependencies, &committed)?;

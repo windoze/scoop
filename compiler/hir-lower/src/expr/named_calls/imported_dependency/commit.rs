@@ -27,7 +27,10 @@ impl Lowerer {
         } = probe;
         *self = *state;
         if candidate.interface().effects().safety() == hir::CallableSafetyV1::Unsafe {
-            self.require_unsafe_operation(call_span, "calling an unsafe dependency function");
+            self.require_unsafe_operation(
+                call_span,
+                &format!("calling an unsafe dependency {}", candidate.description()),
+            );
         }
 
         let (receiver, source_receiver) = match receiver {
@@ -178,7 +181,7 @@ impl Lowerer {
             ImportedCallableCandidate::Binding(candidate) => self
                 .select_imported_dependency_callable_use(*candidate)
                 .map(|(callee, binding)| (callee, Some(binding))),
-            ImportedCallableCandidate::Member(candidate) => self
+            ImportedCallableCandidate::Declaration(candidate) => self
                 .select_imported_callable_declaration_use(*candidate)
                 .map(|callee| (callee, None)),
         };

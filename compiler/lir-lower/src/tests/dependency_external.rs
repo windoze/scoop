@@ -174,9 +174,9 @@ fn cross_cone_lir_bridge_rejects_a_mir_selection_not_owned_by_the_input() {
     assert!(matches!(
         super::super::lower_cross_cone_bridge_section(&input, &incomplete_bridge, &output),
         Err(
-            super::super::CrossConeLirBridgeLoweringError::MirSelectionCountMismatch {
-                bridge: 0,
-                roots: 1,
+            super::super::CrossConeLirBridgeLoweringError::LirSelectionCountMismatch {
+                mir: 0,
+                lir: 1,
             }
         )
     ));
@@ -223,7 +223,15 @@ fn dependency_mir_bridge(
             .map(|root| {
                 mir::SelectedDependencyMirCallableV1::try_new(
                     root.provider(),
-                    root.declaration(),
+                    match root.implementation() {
+                        scoop_identity::StrongCallableDefinitionOwner::Function(id) => {
+                            scoop_identity::DependencyCallableDeclarationId::Function(id)
+                        }
+                        scoop_identity::StrongCallableDefinitionOwner::PropertyAccessor(id) => {
+                            scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(id)
+                        }
+                        other => panic!("expected a direct callable, got {other:?}"),
+                    },
                     root.implementation(),
                     root.signature().clone(),
                 )
@@ -303,7 +311,9 @@ fn dependency_input(
     )
     .unwrap();
     let selected_mir = mir::SelectedExternalMirSet::try_from_bridge(&mir_bridge).unwrap();
-    let selected_id = selected_mir.callable_for(provider, declaration).unwrap();
+    let selected_id = selected_mir
+        .callable_for(provider, declaration.implementation())
+        .unwrap();
     let imported = module.meta.external_callables.alloc(
         selected_mir
             .callable_use(selected_id, mir_effect)

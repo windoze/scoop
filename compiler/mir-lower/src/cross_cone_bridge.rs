@@ -73,6 +73,9 @@ fn derive_exports(
         else {
             continue;
         };
+        let Some(declaration) = classified.direct_declaration() else {
+            continue;
+        };
         let implementation = classified.implementation().callable_owner();
         let Some(strong) = strong
             .bridges()
@@ -82,13 +85,11 @@ fn derive_exports(
             continue;
         };
         if strong.signature() != classified.signature() {
-            return Err(CrossConeMirBridgeLoweringError::StrongSignatureMismatch {
-                declaration: classified.declaration(),
-            });
+            return Err(CrossConeMirBridgeLoweringError::StrongSignatureMismatch { declaration });
         }
         exports.push(
             ParamFreeMirCallableExportV1::try_new(
-                classified.declaration(),
+                declaration,
                 classified.implementation(),
                 classified.signature().clone(),
                 match classified.gc_effect() {
@@ -97,7 +98,7 @@ fn derive_exports(
                 },
             )
             .map_err(|source| CrossConeMirBridgeLoweringError::Export {
-                declaration: classified.declaration(),
+                declaration,
                 source: Box::new(source),
             })?,
         );

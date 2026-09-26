@@ -1,7 +1,7 @@
 //! Every selected callable resolves through its actual provider and role.
 
 use scoop_lir::{SelectedDependencyLirCallableV1, SelectedExternalLirSet};
-use scoop_mir::{SelectedExternalMirCallable, SelectedExternalMirSet};
+use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
 
 use super::{CrossConeLirSelectionProjectionError as Error, ValidatedCrossConeSemanticClosure};
 
@@ -19,7 +19,9 @@ impl ValidatedCrossConeSemanticClosure {
         }
         let mut projected = Vec::with_capacity(selected.len());
         for callable in selected.callables() {
-            projected.push((callable.role(), self.project_selected_callable(callable)?));
+            if let Some(record) = callable.direct_record() {
+                projected.push((callable.role(), self.project_selected_callable(record)?));
+            }
         }
         SelectedExternalLirSet::try_from_role_records(self.current, projected)
             .map_err(Error::Selection)
@@ -27,7 +29,7 @@ impl ValidatedCrossConeSemanticClosure {
 
     fn project_selected_callable(
         &self,
-        callable: &SelectedExternalMirCallable,
+        callable: &SelectedDependencyMirCallableV1,
     ) -> Result<SelectedDependencyLirCallableV1, Error> {
         let provider = callable.provider();
         let declaration = callable.declaration();

@@ -30,21 +30,21 @@ fn selected_dependency_set_preserves_canonical_bridge_order_and_typed_lookup() {
     assert!(!selected.is_empty());
 
     let first_id = selected
-        .callable_for(first.provider(), first.declaration())
+        .callable_for(first.provider(), first.implementation())
         .unwrap();
     assert_eq!(
         selected
             .resolve_callable(first_id)
-            .map(SelectedExternalMirCallable::record),
+            .and_then(SelectedExternalMirCallable::direct_record),
         Some(&first)
     );
     let reference = first_id;
     assert_eq!(reference.provider(), first.provider());
-    assert_eq!(reference.declaration(), first.declaration());
+    assert_eq!(reference.implementation(), first.implementation());
     assert_eq!(
         selected
             .resolve_callable(reference)
-            .map(SelectedExternalMirCallable::record),
+            .and_then(SelectedExternalMirCallable::direct_record),
         Some(&first)
     );
     let managed = selected

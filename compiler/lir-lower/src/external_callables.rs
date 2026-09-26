@@ -6,12 +6,13 @@ use la_arena::Arena;
 use scoop_lir as lir;
 use scoop_mir as mir;
 
-use crate::{LoweringContext, StrongLirLoweringError, abi};
+use crate::{LoweringContext, StrongLirLoweringError as Error, abi};
 
 pub(super) fn lower_external_callables(
     context: &LoweringContext,
     input: &mir::SingleConeStrongMirInput,
     selected: &lir::SelectedExternalLirSet,
+    layouts: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
 ) -> Result<
@@ -19,17 +20,17 @@ pub(super) fn lower_external_callables(
         Arena<lir::ExternalCallable>,
         HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
     ),
-    StrongLirLoweringError,
+    Error,
 > {
     let roots = input.materialization().external_callable_roots();
     if selected.consumer() != input.module().cone {
-        return Err(StrongLirLoweringError::ForeignExternalLirSelection {
+        return Err(Error::ForeignExternalLirSelection {
             expected: input.module().cone,
             actual: selected.consumer(),
         });
     }
-    if selected.len() != roots.len() {
-        return Err(StrongLirLoweringError::ExternalCallableCountMismatch {
+    if selected.len() > roots.len() || (layouts.is_none() && selected.len() != roots.len()) {
+        return Err(Error::ExternalCallableCountMismatch {
             mir: roots.len(),
             lir: selected.len(),
         });
@@ -38,44 +39,10 @@ pub(super) fn lower_external_callables(
     let module = input.module();
     let mut callables = Arena::new();
     let mut mapping = HashMap::with_capacity(roots.len());
+    let mut direct_count = 0;
     for (index, root) in roots.iter().enumerate() {
-        let id = selected
-            .callable_for(root.provider(), root.declaration())
-            .ok_or(StrongLirLoweringError::MissingExternalCallable {
-                index,
-                provider: root.provider(),
-                declaration: root.declaration(),
-            })?;
-        let authority = selected
-            .callable(id)
-            .expect("a selected dependency key maps to an in-bounds LIR authority");
-        let bridge = authority.bridge();
-        if authority.role() != root.role()
-            || bridge.target() != root.implementation()
-            || bridge.abi_signature().signature() != root.signature()
-        {
-            return Err(StrongLirLoweringError::ExternalCallableMismatch {
-                index,
-                provider: root.provider(),
-                declaration: root.declaration(),
-            });
-        }
-        let expected_gc = match root.gc_effect() {
-            mir::GcEffect::Managed => scoop_identity::GcEffect::Managed,
-            mir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
-        };
-        if bridge.abi_signature().gc_effect() != expected_gc
-            || bridge.root_plan().canonical_gc_effect() != expected_gc
-        {
-            return Err(StrongLirLoweringError::ExternalCallableGcEffectMismatch {
-                index,
-                provider: root.provider(),
-                declaration: root.declaration(),
-                mir: root.gc_effect(),
-                lir: bridge.abi_signature().gc_effect(),
-            });
-        }
-
+        let provider = root.provider();
+        let target = root.implementation();
         let exact_arguments = root
             .signature()
             .receiver()
@@ -90,7 +57,7 @@ pub(super) fn lower_external_callables(
                     .source_exact_types
                     .get_by_identity(exact)
                     .map(|identity| identity.ty())
-                    .ok_or(StrongLirLoweringError::MissingExternalArgumentType {
+                    .ok_or(Error::MissingExternalArgumentType {
                         index,
                         argument,
                         exact,
@@ -101,17 +68,64 @@ pub(super) fn lower_external_callables(
             .meta
             .source_exact_types
             .get_by_identity(root.signature().result())
-            .ok_or(StrongLirLoweringError::MissingExternalResultType {
+            .ok_or(Error::MissingExternalResultType {
                 index,
                 exact: root.signature().result(),
             })?;
         let signature =
             abi::classify_mir_signature(context, parameters, result.ty(), structs, enums)?;
-        let callable = authority
-            .materialize(signature)
-            .map_err(StrongLirLoweringError::ExternalCallable)?;
+        let callable = if let Some(direct) = selected.callable_by_target(provider, target) {
+            if direct.role() != root.role() {
+                return Err(Error::ExternalCallableMismatch {
+                    index,
+                    provider,
+                    target,
+                });
+            }
+            direct_count += 1;
+            direct
+                .materialize(signature)
+                .map_err(Error::ExternalCallable)?
+        } else {
+            layouts
+                .ok_or(Error::MissingExternalCallable {
+                    index,
+                    provider,
+                    target,
+                })?
+                .materialize_callable(provider, target, signature, enums)
+                .map_err(Error::DependencyLayout)?
+        };
+        if callable.canonical_signature().signature() != root.signature() {
+            return Err(Error::ExternalCallableMismatch {
+                index,
+                provider,
+                target,
+            });
+        }
+        let expected_gc = match root.gc_effect() {
+            mir::GcEffect::Managed => scoop_identity::GcEffect::Managed,
+            mir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
+        };
+        if callable.canonical_signature().gc_effect() != expected_gc
+            || callable.root_plan().canonical_gc_effect() != expected_gc
+        {
+            return Err(Error::ExternalCallableGcEffectMismatch {
+                index,
+                provider,
+                target,
+                mir: root.gc_effect(),
+                lir: callable.canonical_signature().gc_effect(),
+            });
+        }
         let lir_id = callables.alloc(callable);
         mapping.insert(root.callable(), lir_id);
+    }
+    if direct_count != selected.len() {
+        return Err(Error::ExternalCallableCountMismatch {
+            mir: direct_count,
+            lir: selected.len(),
+        });
     }
     Ok((callables, mapping))
 }

@@ -1,0 +1,11 @@
+package dependency.constructors
+
+public struct Token()
+public struct Other()
+public struct Wide(val first: Long, val second: Long, val third: Long, val marker: Token = Token()) {
+    @NoGC public constructor(seed: Long, step: Long = 2): this(seed, seed + step, seed + step + step, Token()) {}
+    @NoGC private constructor(token: Token): this(1, 2, 3, token) {}
+    public constructor(flag: Boolean): this(1, 2, 3, Token()) {}
+    @NoGC public fun sum(): Long = first + second + third
+}
+@NoGC public fun defaultWide(value: Wide = Wide(3, 4, 5)): Long = value.sum()

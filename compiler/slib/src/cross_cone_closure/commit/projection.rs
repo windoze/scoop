@@ -1,7 +1,9 @@
 //! Stage-specific projection of committed dependency selections.
 
 use scoop_hir::DependencyHirOutput;
-use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
+use scoop_mir::{
+    SelectedDependencyMirCallableV1, SelectedExternalMirCallable, SelectedExternalMirSet,
+};
 use scoop_wire::WirePath;
 
 use super::ValidatedCrossConeSemanticClosure;
@@ -44,41 +46,66 @@ impl ValidatedCrossConeSemanticClosure {
                 .provider(provider)
                 .ok_or(CrossConeMirSelectionProjectionError::MissingProvider { provider })?;
             let capability = callable.capability();
-            let declaration = capability.declaration();
-            let export = artifact
-                .production()
-                .mir_cross_cone()
-                .export(declaration)
-                .ok_or(CrossConeMirSelectionProjectionError::MissingExport {
-                    provider,
-                    declaration,
-                })?;
-            if export.implementation() != capability.implementation() {
-                return Err(
-                    CrossConeMirSelectionProjectionError::ImplementationMismatch {
+            let target = capability.implementation();
+            let expected_gc = match capability.gc_effect() {
+                scoop_identity::GcEffect::Managed => scoop_mir::GcEffect::Managed,
+                scoop_identity::GcEffect::NoGc => scoop_mir::GcEffect::NoGc,
+            };
+            if let Some(export) = capability
+                .direct_declaration()
+                .and_then(|declaration| artifact.production().mir_cross_cone().export(declaration))
+            {
+                if export.implementation() != target {
+                    return Err(
+                        CrossConeMirSelectionProjectionError::ImplementationMismatch {
+                            provider,
+                            target,
+                        },
+                    );
+                }
+                if export.signature() != capability.signature() || export.gc_effect() != expected_gc
+                {
+                    return Err(CrossConeMirSelectionProjectionError::SignatureMismatch {
                         provider,
-                        declaration,
-                    },
-                );
-            }
-            if export.signature() != capability.signature() {
-                return Err(CrossConeMirSelectionProjectionError::SignatureMismatch {
+                        target,
+                    });
+                }
+                let record = SelectedDependencyMirCallableV1::try_new(
                     provider,
-                    declaration,
-                });
-            }
-            projected.push(
-                SelectedDependencyMirCallableV1::try_new(
-                    provider,
-                    declaration,
-                    export.implementation(),
+                    export.declaration(),
+                    target,
                     export.signature().clone(),
                 )
-                .map_err(CrossConeMirSelectionProjectionError::Record)?,
-            );
+                .map_err(CrossConeMirSelectionProjectionError::Record)?;
+                projected.push(SelectedExternalMirCallable::dependency(record));
+            } else {
+                let definition = artifact
+                    .production()
+                    .layout()
+                    .mir_type_bridge()
+                    .exports()
+                    .callables()
+                    .get(target)
+                    .ok_or(CrossConeMirSelectionProjectionError::MissingExport {
+                        provider,
+                        target,
+                    })?;
+                if definition.semantic_signature().exact() != capability.signature()
+                    || definition.semantic_signature().gc_effect() != expected_gc
+                {
+                    return Err(CrossConeMirSelectionProjectionError::SignatureMismatch {
+                        provider,
+                        target,
+                    });
+                }
+                projected.push(SelectedExternalMirCallable::from_lowered(
+                    provider,
+                    definition.clone(),
+                ));
+            }
         }
 
-        SelectedExternalMirSet::try_from_callables(self.current, projected)
+        SelectedExternalMirSet::try_from_selections(self.current, projected)
             .map_err(CrossConeMirSelectionProjectionError::Selection)
     }
 }

@@ -29,7 +29,9 @@ fn validate_export_relation(
         else {
             continue;
         };
-        let declaration = eligible.declaration();
+        let Some(declaration) = eligible.direct_declaration() else {
+            continue;
+        };
         let implementation = declaration.implementation().callable_owner();
 
         let Some(strong) = strong_bridges
@@ -42,13 +44,12 @@ fn validate_export_relation(
         if strong.signature() != eligible.signature() {
             return Err(CrossConeMirClosureRelationError::StrongSignatureMismatch { declaration });
         }
-        expected.push(eligible);
+        expected.push((declaration, eligible));
     }
     let actual = dependency_bridge.exports();
 
-    expected.sort_unstable_by_key(scoop_hir::ParamFreeNominalCallableV1::declaration);
-    for eligible in &expected {
-        let declaration = eligible.declaration();
+    expected.sort_unstable_by_key(|(declaration, _)| *declaration);
+    for &(declaration, ref eligible) in &expected {
         let export = find_export(actual, declaration)
             .ok_or(CrossConeMirClosureRelationError::MissingMaximalExport { declaration })?;
         let expected_gc = match eligible.gc_effect() {
@@ -61,7 +62,7 @@ fn validate_export_relation(
     }
     for export in actual {
         if expected
-            .binary_search_by_key(&export.declaration(), |eligible| eligible.declaration())
+            .binary_search_by_key(&export.declaration(), |(declaration, _)| *declaration)
             .is_err()
         {
             return Err(CrossConeMirClosureRelationError::UnexpectedExport {

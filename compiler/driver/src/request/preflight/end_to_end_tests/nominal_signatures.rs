@@ -63,12 +63,12 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
                 .mir_cross_cone()
                 .exports()
                 .iter()
-                .find(|export| export.declaration() == signature.declaration())
+                .find(|export| export.implementation() == signature.implementation())
                 .unwrap();
             assert_eq!(mir.signature(), signature.signature());
             let lir = production
                 .lir_cross_cone()
-                .export(signature.declaration())
+                .export(signature.direct_declaration().unwrap())
                 .unwrap();
             assert_eq!(lir.abi_signature().signature(), signature.signature());
             rows.push(format!(

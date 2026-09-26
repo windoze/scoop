@@ -100,6 +100,10 @@ impl fmt::Display for DefaultTemplateEnvelopeProjectionError {
 impl fmt::Display for DefaultEntityProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::CallableKind(declaration) => write!(
+                formatter,
+                "declaration {declaration:?} has the wrong callable kind"
+            ),
             Self::Resource(source) => source.fmt(formatter),
             Self::Unknown { kind, index } => {
                 write!(formatter, "default body references unknown {kind} {index}")

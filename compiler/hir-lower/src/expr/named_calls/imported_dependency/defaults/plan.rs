@@ -16,7 +16,8 @@ pub(in super::super) struct ImportedDefaultPlan {
 #[derive(Clone)]
 pub(in super::super) struct PreparedImportedDefault {
     pub(super) template: hir::ExportDefaultTemplateV1,
-    pub(super) callables: BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
+    pub(super) callables:
+        BTreeMap<scoop_identity::CallableTemplateOrigin, hir::ImportedCallableDeclaration>,
 }
 
 impl ImportedDefaultPlan {
@@ -65,7 +66,7 @@ pub(in super::super) enum ImportedDefaultPlanError {
     UnknownLocal(LocalValueSelector),
     InvalidControlFlow(&'static str),
     Callable {
-        callee: hir::DefaultCallableRefV1,
+        callee: scoop_identity::CallableTemplateOrigin,
         error: String,
     },
     Requires {
@@ -110,3 +111,27 @@ impl fmt::Display for ImportedDefaultPlanError {
 }
 
 impl std::error::Error for ImportedDefaultPlanError {}
+
+/// Param-free default calls use their actual source declaration as the plan key.
+pub(super) fn default_callable_origin(
+    callee: &hir::DefaultCallableRefV1,
+) -> Result<scoop_identity::CallableTemplateOrigin, ImportedDefaultPlanError> {
+    use scoop_identity::CallableTemplateOrigin as Origin;
+    if !callee.type_arguments().is_empty() {
+        return Err(ImportedDefaultPlanError::Requires {
+            requirement: ImportedCapabilityRequirement::Generic,
+            operation: "dependency default generic call",
+        });
+    }
+    match callee.declaration() {
+        hir::DefaultCallableDeclarationV1::Function(id) => Ok(Origin::Function(id)),
+        hir::DefaultCallableDeclarationV1::PropertyAccessor(id) => Ok(Origin::Accessor(id)),
+        hir::DefaultCallableDeclarationV1::GenericFunction(_)
+        | hir::DefaultCallableDeclarationV1::Generated(_) => {
+            Err(ImportedDefaultPlanError::Requires {
+                requirement: ImportedCapabilityRequirement::Generic,
+                operation: "dependency default generic or lexical call",
+            })
+        }
+    }
+}

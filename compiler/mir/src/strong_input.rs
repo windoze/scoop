@@ -1,9 +1,8 @@
 //! Sealed MIR input for the single-Cone strong production path.
 
 use scoop_identity::{
-    CallableOwner, ConeIdentity, DependencyCallableDeclarationId, ExactCallableSignature,
-    ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
-    StrongCallableDefinitionOwner,
+    CallableOwner, ConeIdentity, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId,
+    PersistentTypeId, SourceDeclarationKey, StrongCallableDefinitionOwner,
 };
 
 use crate::{
@@ -82,7 +81,6 @@ pub struct StrongExternalCallableRoot {
     callable: ExternalCallableUseId,
     role: crate::CallableRole,
     provider: ConeIdentity,
-    declaration: DependencyCallableDeclarationId,
     implementation: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
     gc_effect: crate::GcEffect,
@@ -99,10 +97,6 @@ impl StrongExternalCallableRoot {
 
     pub const fn provider(&self) -> ConeIdentity {
         self.provider
-    }
-
-    pub const fn declaration(&self) -> DependencyCallableDeclarationId {
-        self.declaration
     }
 
     pub const fn implementation(&self) -> StrongCallableDefinitionOwner {

@@ -49,7 +49,7 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
         let capability = source.capability();
         let record = scoop_mir::SelectedDependencyMirCallableV1::try_new(
             source.provider(),
-            capability.declaration(),
+            capability.direct_declaration().unwrap(),
             capability.implementation(),
             capability.signature().clone(),
         )

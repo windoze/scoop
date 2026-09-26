@@ -74,6 +74,7 @@ fn reject(
             details.children().clone(),
             order,
             details.dispatch_selections().clone(),
+            details.primary_value_constructor(),
         ),
     )
 }

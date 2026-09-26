@@ -57,7 +57,10 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expression: &hir::DefaultExpressionV1,
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
+        callables: &mut BTreeMap<
+            scoop_identity::CallableTemplateOrigin,
+            hir::ImportedCallableDeclaration,
+        >,
     ) -> Result<(), ImportedDefaultPlanError> {
         self.imported_default_core_type(expression.result_type())?;
         use hir::DefaultExpressionKindV1 as Kind;
@@ -86,7 +89,27 @@ impl Lowerer {
                 receiver
                     .as_ref()
                     .try_map(|ty| self.imported_default_core_type(ty))?;
-                self.prepare_imported_default_call(callee, callables)?;
+                self.prepare_imported_default_call(
+                    super::plan::default_callable_origin(callee)?,
+                    callables,
+                )?;
+                self.preflight_imported_default_expressions(
+                    owner, template, arguments, locals, callables,
+                )
+            }
+            Kind::StructInit {
+                constructor:
+                    hir::DefaultConstructorRefV1::Struct {
+                        declaration,
+                        owner_type,
+                    },
+                arguments,
+            } => {
+                self.imported_default_core_type(owner_type)?;
+                self.prepare_imported_default_call(
+                    scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
+                    callables,
+                )?;
                 self.preflight_imported_default_expressions(
                     owner, template, arguments, locals, callables,
                 )
@@ -136,7 +159,10 @@ impl Lowerer {
                 callee: hir::DefaultMethodCalleeV1::Callable(callee),
                 arguments,
             } => {
-                self.prepare_imported_default_call(callee, callables)?;
+                self.prepare_imported_default_call(
+                    super::plan::default_callable_origin(callee)?,
+                    callables,
+                )?;
                 self.preflight_imported_default_expression(
                     owner, template, receiver, locals, callables,
                 )?;
@@ -210,7 +236,10 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expressions: &[hir::DefaultExpressionV1],
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
+        callables: &mut BTreeMap<
+            scoop_identity::CallableTemplateOrigin,
+            hir::ImportedCallableDeclaration,
+        >,
     ) -> Result<(), ImportedDefaultPlanError> {
         for expression in expressions {
             self.preflight_imported_default_expression(
@@ -222,30 +251,22 @@ impl Lowerer {
 
     fn prepare_imported_default_call(
         &self,
-        callee: &hir::DefaultCallableRefV1,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, hir::ImportedCallableDeclaration>,
+        callee: scoop_identity::CallableTemplateOrigin,
+        callables: &mut BTreeMap<
+            scoop_identity::CallableTemplateOrigin,
+            hir::ImportedCallableDeclaration,
+        >,
     ) -> Result<(), ImportedDefaultPlanError> {
-        if callables.contains_key(callee) {
+        if callables.contains_key(&callee) {
             return Ok(());
-        }
-        if !callee.type_arguments().is_empty()
-            || matches!(
-                callee.declaration(),
-                hir::DefaultCallableDeclarationV1::GenericFunction(_)
-            )
-        {
-            return Err(ImportedDefaultPlanError::Requires {
-                requirement: ImportedCapabilityRequirement::Generic,
-                operation: "dependency default generic call",
-            });
         }
         let candidate = self
             .dependencies
             .as_ref()
             .expect("ordinary lowering carries a dependency selection plan")
-            .default_callable_candidate(callee.declaration())
+            .callable_declaration(callee)
             .map_err(|error| ImportedDefaultPlanError::Callable {
-                callee: callee.clone(),
+                callee,
                 error: error.to_string(),
             })?;
         if candidate.capability().is_none() {
@@ -254,7 +275,7 @@ impl Lowerer {
                 operation: "dependency default call",
             });
         }
-        callables.insert(callee.clone(), candidate);
+        callables.insert(callee, candidate);
         Ok(())
     }
 

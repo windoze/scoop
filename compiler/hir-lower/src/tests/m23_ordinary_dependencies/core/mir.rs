@@ -25,14 +25,14 @@ pub(super) fn check(output: &DependencyHirOutput) {
             .resolve_callable(reference)
             .expect("the output owns the selection that minted each callable use");
         assert_eq!(
-            declaration.declaration(),
+            declaration.implementation(),
             output
                 .imported_dependencies()
                 .callables()
                 .next()
                 .unwrap()
                 .capability()
-                .declaration()
+                .implementation()
         );
     }
     super::assert_core_snapshot("mir", &scoop_mir::dump(mir.module()));
@@ -46,7 +46,7 @@ fn selected(output: &DependencyHirOutput) -> SelectedExternalMirSet {
             .callables()
             .map(|selected| {
                 let capability = selected.capability();
-                let declaration = capability.declaration();
+                let declaration = capability.direct_declaration().unwrap();
                 let scoop_identity::DependencyCallableDeclarationId::Function(function) =
                     declaration
                 else {

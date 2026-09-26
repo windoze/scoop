@@ -11,7 +11,7 @@ pub(super) fn mir(
                 let capability = selected.capability();
                 scoop_mir::SelectedDependencyMirCallableV1::try_new(
                     selected.provider(),
-                    capability.declaration(),
+                    capability.direct_declaration().unwrap(),
                     capability.implementation(),
                     capability.signature().clone(),
                 )

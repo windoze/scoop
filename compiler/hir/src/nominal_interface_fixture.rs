@@ -53,6 +53,11 @@ pub(crate) fn public_record(
             hir::NominalDispatchOrderV1::empty(kind)
         },
         hir::CanonicalNominalDispatchSelectionsV1::empty(),
+        if kind == hir::PublicNominalKindV1::Struct {
+            constructors.values().first().copied()
+        } else {
+            None
+        },
     );
     hir::NominalInterfaceRecordV1::try_new(
         declaration,

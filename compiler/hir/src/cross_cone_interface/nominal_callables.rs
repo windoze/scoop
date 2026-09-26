@@ -5,6 +5,7 @@ use std::fmt;
 use scoop_identity::{
     CallableTemplateOrigin, DependencyCallableDeclarationId, Effect, ExactCallableSignature,
     GcEffect, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
+    StrongCallableDefinitionOwner,
 };
 
 use crate::{
@@ -35,21 +36,21 @@ impl NominalExactLeafClassifierV1 {
             .map(|index| self.leaves[index].1)
     }
 
-    /// Resolves an ordinary param-free direct callable's complete signature,
-    /// including an implicit nominal receiver. Implementation and ABI are
-    /// supplied by the defining provider.
+    /// Resolves a param-free callable's source signature and actual implementation.
+    /// Constructors have no receiver in their source signature; their physical
+    /// lowering signature is supplied by the defining provider.
     pub fn classify_callable(
         &self,
         callable: &CallableDeclarationRecordV1,
     ) -> Result<Option<ParamFreeNominalCallableV1>, NominalCallableClassificationError> {
-        let Some(declaration) = eligible_declaration(callable) else {
+        let Some(implementation) = eligible_declaration(callable) else {
             return Ok(None);
         };
         let Some(signature) = self.exact_signature(callable)? else {
             return Ok(None);
         };
         Ok(Some(ParamFreeNominalCallableV1 {
-            declaration,
+            implementation,
             signature,
             gc_effect: callable.effects().gc_effect(),
         }))
@@ -59,8 +60,9 @@ impl NominalExactLeafClassifierV1 {
         &self,
         callable: &CallableDeclarationRecordV1,
     ) -> Result<Option<ExactCallableSignature>, NominalCallableClassificationError> {
-        let nominal_receiver = match callable.owner() {
-            PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner)) => {
+        let nominal_receiver = match (callable.declaration(), callable.owner()) {
+            (CallableTemplateOrigin::Constructor(_), _) => None,
+            (_, PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner))) => {
                 Some(SignatureTypeKey::Nominal(owner))
             }
             _ => None,
@@ -99,7 +101,7 @@ impl NominalExactLeafClassifierV1 {
 
 fn eligible_declaration(
     callable: &CallableDeclarationRecordV1,
-) -> Option<DependencyCallableDeclarationId> {
+) -> Option<StrongCallableDefinitionOwner> {
     let direct_owner = match callable.owner() {
         PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => true,
         PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(_)) => {
@@ -116,13 +118,15 @@ fn eligible_declaration(
     }
     match callable.declaration() {
         CallableTemplateOrigin::Function(declaration) => {
-            Some(DependencyCallableDeclarationId::Function(declaration))
+            Some(StrongCallableDefinitionOwner::Function(declaration))
         }
-        CallableTemplateOrigin::Accessor(declaration) => Some(
-            DependencyCallableDeclarationId::PropertyAccessor(declaration),
-        ),
+        CallableTemplateOrigin::Accessor(declaration) => {
+            Some(StrongCallableDefinitionOwner::PropertyAccessor(declaration))
+        }
+        CallableTemplateOrigin::Constructor(declaration) => {
+            Some(StrongCallableDefinitionOwner::Constructor(declaration))
+        }
         CallableTemplateOrigin::GenericFunction(_)
-        | CallableTemplateOrigin::Constructor(_)
         | CallableTemplateOrigin::VariantConstructor(_) => None,
     }
 }
@@ -130,18 +134,29 @@ fn eligible_declaration(
 /// Resolved nominal signature of a param-free dependency callable.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParamFreeNominalCallableV1 {
-    declaration: DependencyCallableDeclarationId,
+    implementation: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
     gc_effect: GcEffect,
 }
 
 impl ParamFreeNominalCallableV1 {
-    pub const fn declaration(&self) -> DependencyCallableDeclarationId {
-        self.declaration
+    /// The existing direct-callable table stores functions and accessors.
+    /// Other definitions retain their complete M23-6 lowering records.
+    pub const fn direct_declaration(&self) -> Option<DependencyCallableDeclarationId> {
+        match self.implementation {
+            StrongCallableDefinitionOwner::Function(id) => {
+                Some(DependencyCallableDeclarationId::Function(id))
+            }
+            StrongCallableDefinitionOwner::PropertyAccessor(id) => {
+                Some(DependencyCallableDeclarationId::PropertyAccessor(id))
+            }
+            StrongCallableDefinitionOwner::Constructor(_)
+            | StrongCallableDefinitionOwner::GeneratedCallable(_) => None,
+        }
     }
 
     pub const fn implementation(&self) -> scoop_identity::StrongCallableDefinitionOwner {
-        self.declaration.implementation()
+        self.implementation
     }
 
     pub const fn signature(&self) -> &ExactCallableSignature {

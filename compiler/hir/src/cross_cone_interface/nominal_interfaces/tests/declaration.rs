@@ -15,6 +15,7 @@ fn declaration_details_reject_modality_incompatible_with_nominal_kind() {
         details.children().clone(),
         details.dispatch_order().clone(),
         details.dispatch_selections().clone(),
+        details.primary_value_constructor(),
     );
     assert_eq!(
         rebuild(&record, corrupt),
@@ -37,6 +38,7 @@ fn public_constructor_must_belong_to_the_complete_declaration() {
         details.children().clone(),
         details.dispatch_order().clone(),
         details.dispatch_selections().clone(),
+        details.primary_value_constructor(),
     );
     assert_eq!(
         rebuild(&record, corrupt),
@@ -58,6 +60,7 @@ fn public_member_must_belong_to_the_complete_declaration() {
         details.children().clone(),
         details.dispatch_order().clone(),
         details.dispatch_selections().clone(),
+        details.primary_value_constructor(),
     );
     assert_eq!(
         rebuild(&record, corrupt),
@@ -92,4 +95,24 @@ fn rebuild(
         record.source_shape().clone(),
         details,
     )
+}
+
+#[test]
+fn struct_constructor_set_requires_the_primary_declaration_reference() {
+    let record = Fixture::new().record();
+    let details = record.declaration_details();
+    let missing = NominalDeclarationDetailsV1::new(
+        details.modality(),
+        details.declared_visibility(),
+        details.constructors().clone(),
+        details.members().clone(),
+        details.children().clone(),
+        details.dispatch_order().clone(),
+        details.dispatch_selections().clone(),
+        None,
+    );
+    assert_eq!(
+        rebuild(&record, missing),
+        Err(NominalInterfaceRecordBuildError::MissingPrimaryValueConstructor)
+    );
 }

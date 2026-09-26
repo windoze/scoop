@@ -52,6 +52,24 @@ pub(super) fn select<'a>(
             ));
         }
     }
+    for callable in input.materialization().external_callable_roots() {
+        let provider = callable.provider();
+        let target = callable.implementation();
+        if section
+            .selected()
+            .record(provider, mir::MirTypeBridgeTargetV1::Callable(target))
+            .is_some()
+        {
+            roots.push(lir::LayoutAbiDependencyV1::new(
+                provider,
+                lir::LayoutAbiSemanticTargetV1::Callable(target),
+            ));
+            physical.push((
+                provider,
+                lir::ExternalStrongShapeSubjectV1::Callable(target),
+            ));
+        }
+    }
     physical.extend(section.initialization_uses().records().iter().map(|usage| {
         (
             usage.provider(),

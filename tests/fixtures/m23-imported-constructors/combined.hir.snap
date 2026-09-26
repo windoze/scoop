@@ -1,0 +1,90 @@
+Module
+  fun token(): Token <no-gc cdecl>
+    return
+      ImportedDependencyCall #1 : Token
+  fun primary(): Wide <no-gc cdecl>
+    val local0
+      ImportedDependencyCall #1 : Token
+    val local1
+      IntegerLiteral 53 : Long
+    val local2
+      IntegerLiteral 17 : Long
+    val local3
+      IntegerLiteral -29 : Long
+    val local4
+      Local $dependency.argument.2 : Long
+    val local5
+      Local $dependency.argument.3 : Long
+    val local6
+      Local $dependency.argument.1 : Long
+    val local7
+      Local $dependency.argument.0 : Token
+    return
+      ImportedDependencyCall #2 : Wide
+        Local $dependency.parameter.first : Long
+        Local $dependency.parameter.second : Long
+        Local $dependency.parameter.third : Long
+        Local $dependency.parameter.marker : Token
+  fun secondary(): Wide <no-gc cdecl>
+    val local0
+      IntegerLiteral 3 : Long
+    val local1
+      Local $dependency.argument.0 : Long
+    val local2
+      IntegerLiteral 2 : Long
+    val local3
+      FieldAccess dependency field c6d271843a3c67c8fce78131a7e0a379c1ec7598db414e971dcb452642910562 : Long
+        ImportedDependencyCall #0 : Wide
+          Local $dependency.parameter.seed : Long
+          Local $dependency.parameter.step : Long
+    val local4
+      IntegerLiteral 2 : Long
+    val local5
+      Local $dependency.argument.0 : Long
+    val local6
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local7
+      IntegerLiteral 3 : Long
+    val local8
+      Local $dependency.argument.0 : Long
+    val local9
+      Local $dependency.argument.1 : Long
+    return
+      ImportedDependencyCall #0 : Wide
+        Local $dependency.parameter.seed : Long
+        Local $dependency.parameter.step : Long
+  fun defaults(): Long <no-gc cdecl>
+    val local0
+      IntegerLiteral 3 : Long
+    val local1
+      IntegerLiteral 4 : Long
+    val local2
+      IntegerLiteral 5 : Long
+    val local3
+      Local $dependency.argument.0 : Long
+    val local4
+      Local $dependency.argument.1 : Long
+    val local5
+      Local $dependency.argument.2 : Long
+    val local6
+      ImportedDependencyCall #1 : Token
+    val local7
+      ImportedDependencyCall #2 : Wide
+        Local $dependency.parameter.first : Long
+        Local $dependency.parameter.second : Long
+        Local $dependency.parameter.third : Long
+        Local $dependency.parameter.marker : Token
+    val local8
+      Local $dependency.argument.0 : Wide
+    return
+      ImportedDependencyCall #3 : Long
+        Local $dependency.parameter.value : Wide
+  fun republished(value: Wide): Long <no-gc cdecl>
+    val local1
+      Local value : Wide
+    return
+      ImportedDependencyCall #4 : Long
+        Local $dependency.receiver : Wide
+  output library

@@ -154,8 +154,8 @@ fn top_level_getter_setter_and_update_use_two_dependency_accessors() {
                 .callables()
                 .filter(|callable| {
                     matches!(
-                        callable.capability().declaration(),
-                        scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(_)
+                        callable.capability().implementation(),
+                        scoop_identity::StrongCallableDefinitionOwner::PropertyAccessor(_)
                     )
                 })
                 .count(),

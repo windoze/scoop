@@ -78,14 +78,9 @@ pub(super) fn validate(
             ))?,
             mir::GcEffect::Managed,
         ),
-        hir::NominalSourceShapeV1::Struct(shape) => {
-            // A primary has the unique constructor key for the complete field
-            // sequence. Secondary constructors cannot reuse that signature.
-
-            let primary = parameters
-                .iter()
-                .map(|parameter| parameter.value_type())
-                .eq(shape.fields().iter().map(|field| field.value_type()));
+        hir::NominalSourceShapeV1::Struct(_) => {
+            let primary =
+                nominal.declaration_details().primary_value_constructor() == Some(declaration);
             if primary {
                 (
                     mir::MirCallableLoweringRoleV1::PrimaryValueConstructor { owner: exact },

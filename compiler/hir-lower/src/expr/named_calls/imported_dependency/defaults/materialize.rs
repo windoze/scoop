@@ -132,7 +132,26 @@ impl Lowerer {
                     .map_err(|error| {
                         ImportedDefaultMaterializationError::Plan(error.to_string())
                     })?;
-                self.imported_default_call_kind(callee, args, receiver, context)?
+                self.imported_default_call_kind(
+                    super::plan::default_callable_origin(callee).map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?,
+                    args,
+                    receiver,
+                    context,
+                )?
+            }
+            Kind::StructInit {
+                constructor: hir::DefaultConstructorRefV1::Struct { declaration, .. },
+                arguments,
+            } => {
+                let args = self.materialize_imported_default_expressions(arguments, context)?;
+                self.imported_default_call_kind(
+                    scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
+                    args,
+                    hir::SourceCallReceiver::NoReceiver,
+                    context,
+                )?
             }
             Kind::FieldAccess {
                 receiver,
@@ -167,7 +186,9 @@ impl Lowerer {
                 let mut args = vec![receiver];
                 args.extend(self.materialize_imported_default_expressions(arguments, context)?);
                 self.imported_default_call_kind(
-                    callee,
+                    super::plan::default_callable_origin(callee).map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?,
                     args,
                     hir::SourceCallReceiver::Receiver {
                         static_type: receiver_type,
@@ -301,15 +322,16 @@ impl Lowerer {
 
     fn imported_default_call_kind(
         &mut self,
-        callee: &hir::DefaultCallableRefV1,
+        callee: scoop_identity::CallableTemplateOrigin,
         args: Vec<hir::Expr>,
         receiver: hir::SourceCallReceiver<hir::TypeId>,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        let candidate =
-            context.prepared.callables.get(callee).ok_or_else(|| {
-                ImportedDefaultMaterializationError::MissingCallable(callee.clone())
-            })?;
+        let candidate = context
+            .prepared
+            .callables
+            .get(&callee)
+            .ok_or(ImportedDefaultMaterializationError::MissingCallable(callee))?;
         let callee = self
             .select_imported_callable_declaration_use(candidate.clone())
             .map_err(|error| {
@@ -346,7 +368,7 @@ pub(in super::super) enum ImportedDefaultMaterializationError {
     UnknownLocal(LocalValueSelector),
     ExpectedMaterializedLocal(LocalValueSelector),
     InvalidControlFlow(&'static str),
-    MissingCallable(hir::DefaultCallableRefV1),
+    MissingCallable(scoop_identity::CallableTemplateOrigin),
     DependencySelection(String),
     DefinitionOrigin(ImportedDefinitionOriginError),
     Plan(String),

@@ -1,0 +1,6 @@
+span=72..113
+expression=Wide(first = true, second = 2, third = 3)
+no applicable candidate for `Wide` in exact import layer:
+  - dependency constructor `Wide` has no parameter named `first`
+  - dependency constructor `Wide` has no parameter named `first`
+  - dependency constructor argument must be of type Long, found Boolean

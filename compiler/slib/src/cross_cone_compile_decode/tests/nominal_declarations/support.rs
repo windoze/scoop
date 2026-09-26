@@ -156,6 +156,7 @@ fn record(
             CanonicalNestedNominalRefsV1::try_new(children).unwrap(),
             scoop_hir::NominalDispatchOrderV1::empty(PublicNominalKindV1::Class),
             scoop_hir::CanonicalNominalDispatchSelectionsV1::empty(),
+            None,
         ),
     )
     .unwrap()

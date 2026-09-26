@@ -128,6 +128,13 @@ impl Loaded {
             .declaration(SourceNominalId::Concrete(owner))
             .unwrap();
         let details = source.declaration_details();
+        let primary = if source.kind() == PublicNominalKindV1::Struct {
+            details
+                .primary_value_constructor()
+                .or_else(|| constructors.first().copied())
+        } else {
+            None
+        };
         let constructors = CanonicalPersistentIdsV1::try_new(constructors).unwrap();
         let declaration = NominalInterfaceRecordV1::try_new(
             source.declaration(),
@@ -146,6 +153,7 @@ impl Loaded {
                 details.children().clone(),
                 details.dispatch_order().clone(),
                 details.dispatch_selections().clone(),
+                primary,
             ),
         )
         .unwrap();

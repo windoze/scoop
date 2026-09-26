@@ -4,7 +4,7 @@ use scoop_hir as hir;
 #[derive(Clone)]
 pub(super) enum ImportedCallableCandidate {
     Binding(Box<hir::ImportedDependencyCallableCandidate>),
-    Member(Box<hir::ImportedCallableDeclaration>),
+    Declaration(Box<hir::ImportedCallableDeclaration>),
 }
 
 #[derive(Clone, Copy)]
@@ -15,22 +15,33 @@ pub(super) enum NormalizedImportedIntrinsic {
 }
 
 impl ImportedCallableCandidate {
+    pub(super) fn description(&self) -> &'static str {
+        if matches!(
+            self.interface().declaration(),
+            scoop_identity::CallableTemplateOrigin::Constructor(_)
+        ) {
+            "constructor"
+        } else {
+            "function"
+        }
+    }
+
     fn source(&self) -> &dyn ImportedCallableSource {
         match self {
             Self::Binding(source) => source.as_ref(),
-            Self::Member(source) => source.as_ref(),
+            Self::Declaration(source) => source.as_ref(),
         }
     }
 
     pub(super) fn capability(&self) -> Option<&hir::ParamFreeNominalCallableV1> {
         match self {
             Self::Binding(source) => source.capability(),
-            Self::Member(source) => source.capability(),
+            Self::Declaration(source) => source.capability(),
         }
     }
 
     pub(super) fn normalized_intrinsic(&self) -> Option<NormalizedImportedIntrinsic> {
-        let Self::Member(source) = self else {
+        let Self::Declaration(source) = self else {
             return None;
         };
         let interface = source.interface();

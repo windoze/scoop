@@ -16,6 +16,8 @@ pub enum NominalInterfaceRecordBuildError {
         modality: crate::NominalInheritanceModalityV1,
     },
     UndeclaredConstructor(PersistentConstructorId),
+    MissingPrimaryValueConstructor,
+    PrimaryValueConstructorKind(PublicNominalKindV1),
     UndeclaredMember(crate::PublicMemberRefV1),
     IntrinsicBinders(crate::NominalIntrinsicBinderError),
     SourceShapeKind {
@@ -34,6 +36,12 @@ impl fmt::Display for NominalInterfaceRecordBuildError {
             Self::Modality { kind, modality } => write!(
                 formatter,
                 "{modality:?} is not a valid modality for {kind:?}"
+            ),
+            Self::MissingPrimaryValueConstructor => formatter
+                .write_str("a struct constructor set must identify its primary constructor"),
+            Self::PrimaryValueConstructorKind(kind) => write!(
+                formatter,
+                "{kind:?} cannot declare a primary value constructor"
             ),
             Self::UndeclaredConstructor(id) => write!(
                 formatter,

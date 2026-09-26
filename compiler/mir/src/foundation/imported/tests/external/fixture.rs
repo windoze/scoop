@@ -76,7 +76,7 @@ impl Fixture {
         .unwrap();
         let protocol = dependencies.initialization_cycle().unwrap();
         let selected = dependencies
-            .callable_for(self.provider, declaration)
+            .callable_for(self.provider, declaration.implementation())
             .unwrap();
         let mut module =
             ordinary_module(dependencies.callable_use(selected, GcEffect::NoGc).unwrap());

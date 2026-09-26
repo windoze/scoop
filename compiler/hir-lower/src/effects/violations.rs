@@ -366,7 +366,31 @@ impl Lowerer {
                     .as_ref()
                     .and_then(|dependencies| dependencies.resolve_callable(reference))
                     .expect("a dependency call references its committed selection");
-                if selected.capability().gc_effect() != scoop_identity::GcEffect::NoGc {
+                let primary_value_constructor = match (
+                    selected.interface().declaration(),
+                    selected.interface().owner(),
+                ) {
+                    (
+                        scoop_identity::CallableTemplateOrigin::Constructor(constructor),
+                        hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::Concrete(
+                            owner,
+                        )),
+                    ) => self
+                        .dependencies
+                        .as_ref()
+                        .and_then(|dependencies| dependencies.nominal(owner))
+                        .is_some_and(|nominal| {
+                            nominal
+                                .interface
+                                .declaration_details()
+                                .primary_value_constructor()
+                                == Some(constructor)
+                        }),
+                    _ => false,
+                };
+                if !primary_value_constructor
+                    && selected.capability().gc_effect() != scoop_identity::GcEffect::NoGc
+                {
                     out.push((
                         expr.span,
                         "managed dependency calls are not allowed in `@NoGC` code".to_string(),

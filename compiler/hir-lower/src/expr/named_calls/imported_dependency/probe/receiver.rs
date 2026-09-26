@@ -15,6 +15,21 @@ impl Lowerer {
         has_vararg: bool,
     ) -> Result<ImportedCallReceiver, Box<Lowerer>> {
         let interface = candidate.interface();
+        if matches!(
+            interface.declaration(),
+            scoop_identity::CallableTemplateOrigin::Constructor(_)
+        ) {
+            return match receiver_source {
+                ImportedDependencyCallReceiver::Implicit => Ok(ImportedCallReceiver::Absent),
+                ImportedDependencyCallReceiver::Explicit(_) => {
+                    self.error(
+                        name.span,
+                        format!("dependency constructor `{}` has no receiver", name.text),
+                    );
+                    Err(Box::new(self.clone()))
+                }
+            };
+        }
         let receiver = match interface.owner() {
             hir::PublicDeclarationOwnerV1::TopLevel => match receiver_source {
                 ImportedDependencyCallReceiver::Implicit => {

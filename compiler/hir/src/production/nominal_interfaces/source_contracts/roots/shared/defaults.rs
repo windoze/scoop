@@ -37,6 +37,10 @@ impl SourceRoots {
         }
         for reference in &references.constructors {
             let (owner, ty) = match reference.target {
+                ExportDefaultConstructorTarget::Imported { owner_type, .. } => {
+                    roots.require_field_type(export, index, owner_type)?;
+                    continue;
+                }
                 ExportDefaultConstructorTarget::Struct(id) => {
                     let application = &export.struct_constructor_applications[id];
                     (

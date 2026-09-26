@@ -1,6 +1,8 @@
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
+use scoop_identity::{
+    ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
+};
 
 #[derive(Debug)]
 pub enum CrossConeMirSelectionProjectionError {
@@ -15,15 +17,15 @@ pub enum CrossConeMirSelectionProjectionError {
     },
     MissingExport {
         provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
+        target: StrongCallableDefinitionOwner,
     },
     ImplementationMismatch {
         provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
+        target: StrongCallableDefinitionOwner,
     },
     SignatureMismatch {
         provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
+        target: StrongCallableDefinitionOwner,
     },
     Record(scoop_mir::ParamFreeMirCallableBuildError),
     Selection(scoop_mir::SelectedExternalMirSetBuildError),
@@ -42,26 +44,17 @@ impl fmt::Display for CrossConeMirSelectionProjectionError {
                 formatter,
                 "dependency HIR selection names provider {provider} outside the committed closure"
             ),
-            Self::MissingExport {
-                provider,
-                declaration,
-            } => write!(
+            Self::MissingExport { provider, target } => write!(
                 formatter,
-                "provider {provider} has no MIR export for selected callable {declaration:?}"
+                "provider {provider} has no MIR export for selected callable {target:?}"
             ),
-            Self::ImplementationMismatch {
-                provider,
-                declaration,
-            } => write!(
+            Self::ImplementationMismatch { provider, target } => write!(
                 formatter,
-                "provider {provider} changed the implementation of selected callable {declaration:?} between HIR and MIR"
+                "provider {provider} changed the implementation of selected callable {target:?} between HIR and MIR"
             ),
-            Self::SignatureMismatch {
-                provider,
-                declaration,
-            } => write!(
+            Self::SignatureMismatch { provider, target } => write!(
                 formatter,
-                "provider {provider} changed the signature of selected callable {declaration:?} between HIR and MIR"
+                "provider {provider} changed the signature of selected callable {target:?} between HIR and MIR"
             ),
             Self::Record(source) => write!(
                 formatter,

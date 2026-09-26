@@ -158,6 +158,16 @@ impl SelectedExternalLirSet {
         self.by_declaration.get(&(provider, declaration)).copied()
     }
 
+    pub fn callable_by_target(
+        &self,
+        provider: ConeIdentity,
+        target: scoop_identity::StrongCallableDefinitionOwner,
+    ) -> Option<&SelectedExternalLirCallable> {
+        self.callables.iter().find(|callable| {
+            callable.provider() == provider && callable.bridge().target() == target
+        })
+    }
+
     pub fn dependency_callables(&self) -> impl Iterator<Item = &SelectedDependencyLirCallableV1> {
         self.callables
             .iter()

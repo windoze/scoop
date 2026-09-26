@@ -138,6 +138,7 @@ pub(in super::super) fn hidden(
                     CanonicalNestedNominalRefsV1::try_new(vec![hidden]).unwrap(),
                     details.dispatch_order().clone(),
                     details.dispatch_selections().clone(),
+                    details.primary_value_constructor(),
                 ),
             )
             .unwrap()

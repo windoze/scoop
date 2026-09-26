@@ -40,17 +40,17 @@ pub enum StrongLirLoweringError {
     MissingExternalCallable {
         index: usize,
         provider: scoop_identity::ConeIdentity,
-        declaration: scoop_identity::DependencyCallableDeclarationId,
+        target: scoop_identity::StrongCallableDefinitionOwner,
     },
     ExternalCallableMismatch {
         index: usize,
         provider: scoop_identity::ConeIdentity,
-        declaration: scoop_identity::DependencyCallableDeclarationId,
+        target: scoop_identity::StrongCallableDefinitionOwner,
     },
     ExternalCallableGcEffectMismatch {
         index: usize,
         provider: scoop_identity::ConeIdentity,
-        declaration: scoop_identity::DependencyCallableDeclarationId,
+        target: scoop_identity::StrongCallableDefinitionOwner,
         mir: mir::GcEffect,
         lir: scoop_identity::GcEffect,
     },
@@ -110,28 +110,28 @@ impl fmt::Display for StrongLirLoweringError {
             Self::MissingExternalCallable {
                 index,
                 provider,
-                declaration,
+                target,
             } => write!(
                 formatter,
-                "external callable MIR callable {index} ({provider}, {declaration:?}) has no LIR authority"
+                "external callable MIR callable {index} ({provider}, {target:?}) has no LIR authority"
             ),
             Self::ExternalCallableMismatch {
                 index,
                 provider,
-                declaration,
+                target,
             } => write!(
                 formatter,
-                "external callable MIR callable {index} ({provider}, {declaration:?}) disagrees with its LIR authority"
+                "external callable MIR callable {index} ({provider}, {target:?}) disagrees with its LIR authority"
             ),
             Self::ExternalCallableGcEffectMismatch {
                 index,
                 provider,
-                declaration,
+                target,
                 mir,
                 lir,
             } => write!(
                 formatter,
-                "external callable MIR callable {index} ({provider}, {declaration:?}) has GC effect {mir:?}, but its LIR authority requires {lir:?}"
+                "external callable MIR callable {index} ({provider}, {target:?}) has GC effect {mir:?}, but its LIR authority requires {lir:?}"
             ),
             Self::MissingExternalArgumentType {
                 index,

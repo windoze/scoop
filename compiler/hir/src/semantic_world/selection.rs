@@ -8,7 +8,6 @@ use scoop_identity::{
 };
 
 use super::{DirectImportedTargetBinding, ImportedTarget};
-use crate::DefaultCallableDeclarationV1;
 
 mod catalog;
 mod error;
@@ -110,26 +109,6 @@ impl ImportedDependencySelectionPlan {
             default_templates: entry.default_templates.clone(),
             definition_sources: Arc::clone(&entry.definition_sources),
         })
-    }
-
-    /// Resolves a definition-side reference without repeating namespace lookup.
-    pub fn default_callable_candidate(
-        &self,
-        declaration: DefaultCallableDeclarationV1,
-    ) -> Result<ImportedCallableDeclaration, ImportedDependencyCandidateError> {
-        let declaration = match declaration {
-            DefaultCallableDeclarationV1::Function(id) => CallableTemplateOrigin::Function(id),
-            DefaultCallableDeclarationV1::GenericFunction(id) => {
-                CallableTemplateOrigin::GenericFunction(id)
-            }
-            DefaultCallableDeclarationV1::PropertyAccessor(id) => {
-                CallableTemplateOrigin::Accessor(id)
-            }
-            DefaultCallableDeclarationV1::Generated(_) => {
-                return Err(ImportedDependencyCandidateError::GeneratedDefaultCallable);
-            }
-        };
-        self.callable_declaration(declaration)
     }
 
     pub fn constant_candidate(

@@ -405,10 +405,7 @@ pub struct ExportDefaultCallableRef {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportDefaultCallableTarget {
     Callable(Callable),
-    /// Strong imported core callable normalized to `Callable` in the
-    /// portable default representation.
-    /// Ordinary-dependency callable normalized to `Callable` through the
-    /// exact selected dependency sidecar.
+    /// An actual imported function or accessor declaration.
     ImportedDependency(ImportedDependencyCallableUseId),
     Bound(BoundCallableRefId),
     DerivedEquality(DerivedEqualityApplicationId),
@@ -428,6 +425,10 @@ pub struct ExportDefaultConstructorRef {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportDefaultConstructorTarget {
+    Imported {
+        declaration: scoop_identity::PersistentConstructorId,
+        owner_type: TypeId,
+    },
     Struct(StructConstructorApplicationId),
     Class(ClassConstructorApplicationId),
     Variant(AppliedEnumVariantRef),

@@ -102,12 +102,33 @@ impl Lowerer {
         operator_set: bool,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
         self.probe_imported_callable_candidate(
-            ImportedCallableCandidate::Member(Box::new(candidate)),
+            ImportedCallableCandidate::Declaration(Box::new(candidate)),
             name,
             call,
             expected,
             ImportedDependencyCallReceiver::Explicit(receiver),
             operator_set,
+        )
+    }
+
+    pub(in crate::expr) fn probe_imported_constructor(
+        &self,
+        candidate: hir::ImportedCallableDeclaration,
+        call: &ast::CallExpr,
+        expected: Option<hir::TypeId>,
+    ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        self.probe_imported_callable_candidate(
+            ImportedCallableCandidate::Declaration(Box::new(candidate)),
+            &call.callee,
+            CallSite {
+                type_args: &call.type_args,
+                args: &call.args,
+                span: call.span,
+            }
+            .into(),
+            expected,
+            ImportedDependencyCallReceiver::Implicit,
+            false,
         )
     }
 
@@ -122,12 +143,13 @@ impl Lowerer {
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
         let mut state = self.clone();
         let interface = candidate.interface();
+        let kind = candidate.description();
         let expected_type_arguments = interface.type_parameters().binders().len();
         if call.type_args.len() != expected_type_arguments {
             state.error(
                 name.span,
                 format!(
-                    "dependency function `{}` expects {expected_type_arguments} type argument(s), found {}",
+                    "dependency {kind} `{}` expects {expected_type_arguments} type argument(s), found {}",
                     name.text,
                     call.type_args.len()
                 ),
@@ -150,7 +172,7 @@ impl Lowerer {
         {
             Ok(map) => map,
             Err(error) => {
-                state.imported_dependency_shape_error(name, call, error);
+                state.imported_dependency_shape_error(name, call, error, kind);
                 return Err(Box::new(state));
             }
         };
@@ -162,7 +184,7 @@ impl Lowerer {
             receiver_source,
             argument_map.has_vararg(),
         )?;
-        if matches!(candidate, ImportedCallableCandidate::Member(_)) {
+        if matches!(candidate, ImportedCallableCandidate::Declaration(_)) {
             for signature in interface
                 .parameters()
                 .parameters()
@@ -201,7 +223,7 @@ impl Lowerer {
             state.error(
                 call.span,
                 format!(
-                    "dependency function `{}` returns {}, which is not compatible with expected {}",
+                    "dependency {kind} `{}` returns {}, which is not compatible with expected {}",
                     name.text,
                     state.type_name(result_type),
                     state.type_name(expected)
@@ -229,7 +251,7 @@ impl Lowerer {
                 state.error(
                     call.arguments.span(index),
                     format!(
-                        "dependency function argument must be of type {}, found {}",
+                        "dependency {kind} argument must be of type {}, found {}",
                         state.type_name(parameter),
                         state.type_name(value.ty)
                     ),
@@ -304,10 +326,11 @@ impl Lowerer {
         name: &ast::Ident,
         call: ImportedProbeCall<'_>,
         error: ArgumentShapeFailure,
+        kind: &str,
     ) {
         self.error(
             call.span,
-            format!("dependency function `{}` {}", name.text, error.describe()),
+            format!("dependency {kind} `{}` {}", name.text, error.describe()),
         );
     }
 }

@@ -131,6 +131,7 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
             &hir_interface,
             mir_core_production.strong_callable_bridges(),
             &mir_cross_cone_bridge,
+            None,
         )
         .map_err(|source| CrossConeMirFrontValidationError::CallSites(Box::new(source)))?;
 

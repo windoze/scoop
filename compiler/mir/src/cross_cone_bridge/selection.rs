@@ -1,6 +1,8 @@
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
+use scoop_identity::{
+    ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
+};
 
 use super::{CrossConeMirBridgeSectionV1, SelectedDependencyMirCallableV1};
 mod callable;
@@ -11,7 +13,7 @@ pub use callable::{CallableRole, SelectedExternalMirCallable};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct SelectedExternalMirCallableRef {
     provider: ConeIdentity,
-    declaration: DependencyCallableDeclarationId,
+    implementation: StrongCallableDefinitionOwner,
 }
 
 impl SelectedExternalMirCallableRef {
@@ -19,8 +21,8 @@ impl SelectedExternalMirCallableRef {
         self.provider
     }
 
-    pub const fn declaration(self) -> DependencyCallableDeclarationId {
-        self.declaration
+    pub const fn implementation(self) -> StrongCallableDefinitionOwner {
+        self.implementation
     }
 }
 
@@ -67,11 +69,11 @@ impl SelectedExternalMirSet {
         )
     }
 
-    fn try_from_selections(
+    pub fn try_from_selections(
         consumer: ConeIdentity,
         mut selected: Vec<SelectedExternalMirCallable>,
     ) -> Result<Self, SelectedExternalMirSetBuildError> {
-        selected.sort_unstable_by_key(|callable| (callable.provider(), callable.declaration()));
+        selected.sort_unstable_by_key(|callable| (callable.provider(), callable.implementation()));
         if let Some(callable) = selected
             .iter()
             .find(|callable| callable.provider() == consumer)
@@ -81,12 +83,12 @@ impl SelectedExternalMirSet {
             });
         }
         if let Some(pair) = selected.windows(2).find(|pair| {
-            (pair[0].provider(), pair[0].declaration())
-                == (pair[1].provider(), pair[1].declaration())
+            (pair[0].provider(), pair[0].implementation())
+                == (pair[1].provider(), pair[1].implementation())
         }) {
             return Err(SelectedExternalMirSetBuildError::DuplicateCallable {
                 provider: pair[0].provider(),
-                declaration: pair[0].declaration(),
+                implementation: pair[0].implementation(),
             });
         }
         Ok(Self {
@@ -111,8 +113,9 @@ impl SelectedExternalMirSet {
         reference: SelectedExternalMirCallableRef,
         gc_effect: crate::GcEffect,
     ) -> Option<crate::ExternalCallableUse> {
-        self.resolve_callable(reference)
-            .map(|_| crate::ExternalCallableUse::new(reference, gc_effect))
+        self.resolve_callable(reference).map(|callable| {
+            crate::ExternalCallableUse::new(reference, callable.lowered_gc_effect(gc_effect))
+        })
     }
 
     pub fn resolve_callable(
@@ -120,9 +123,10 @@ impl SelectedExternalMirSet {
         reference: SelectedExternalMirCallableRef,
     ) -> Option<&SelectedExternalMirCallable> {
         self.callables
-            .binary_search_by_key(&(reference.provider, reference.declaration), |callable| {
-                (callable.provider(), callable.declaration())
-            })
+            .binary_search_by_key(
+                &(reference.provider, reference.implementation),
+                |callable| (callable.provider(), callable.implementation()),
+            )
             .ok()
             .map(|index| &self.callables[index])
     }
@@ -130,11 +134,11 @@ impl SelectedExternalMirSet {
     pub fn callable_for(
         &self,
         provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
+        implementation: StrongCallableDefinitionOwner,
     ) -> Option<SelectedExternalMirCallableRef> {
         let reference = SelectedExternalMirCallableRef {
             provider,
-            declaration,
+            implementation,
         };
         self.resolve_callable(reference).map(|_| reference)
     }
@@ -143,7 +147,7 @@ impl SelectedExternalMirSet {
     pub fn dependency_callables(&self) -> impl Iterator<Item = &SelectedDependencyMirCallableV1> {
         self.callables
             .iter()
-            .map(SelectedExternalMirCallable::record)
+            .filter_map(SelectedExternalMirCallable::direct_record)
     }
 
     pub fn initialization_cycle(&self) -> Option<SelectedExternalMirCallableRef> {
@@ -152,7 +156,7 @@ impl SelectedExternalMirSet {
             .find(|callable| callable.role() == CallableRole::InitializationCycle)
             .map(|callable| SelectedExternalMirCallableRef {
                 provider: callable.provider(),
-                declaration: callable.declaration(),
+                implementation: callable.implementation(),
             })
     }
 
@@ -195,7 +199,7 @@ pub enum SelectedExternalMirSetBuildError {
     },
     DuplicateCallable {
         provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
+        implementation: StrongCallableDefinitionOwner,
     },
 }
 
@@ -213,10 +217,10 @@ impl fmt::Display for SelectedExternalMirSetBuildError {
             ),
             Self::DuplicateCallable {
                 provider,
-                declaration,
+                implementation,
             } => write!(
                 formatter,
-                "external MIR selection contains duplicate callable {provider}:{declaration:?}"
+                "external MIR selection contains duplicate callable {provider}:{implementation:?}"
             ),
         }
     }

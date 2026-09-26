@@ -32,16 +32,12 @@ pub(crate) fn validate_external_callables(
     }
     let referenced = crate::external_callable::referenced_external_callables(module);
     let mut implementations = HashSet::new();
-    let mut declarations = HashSet::new();
     let mut roots = Vec::with_capacity(selected.len());
     for (callable, value) in module.meta.external_callables.iter() {
         let index = callable.into_raw().into_u32();
         let selected = selected
             .resolve_callable(value.reference())
             .ok_or(Error::ForeignExternalCallable { index })?;
-        if !declarations.insert((selected.provider(), selected.declaration())) {
-            return Err(Error::DuplicateExternalCallable { index });
-        }
         if !implementations.insert(selected.implementation()) {
             return Err(Error::DuplicateExternalImplementation {
                 implementation: selected.implementation(),
@@ -59,7 +55,6 @@ pub(crate) fn validate_external_callables(
             callable,
             role: selected.role(),
             provider: selected.provider(),
-            declaration: selected.declaration(),
             implementation: selected.implementation(),
             signature: selected.signature().clone(),
             gc_effect: value.gc_effect(),

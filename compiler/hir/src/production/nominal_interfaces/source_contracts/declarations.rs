@@ -45,6 +45,27 @@ pub(in crate::production::nominal_interfaces) fn project_required(
             visibility.into(),
             order,
             selections,
+            if let LocalNominalId::Struct(id) = local {
+                let constructors = &export.structs[id].constructors;
+                if constructors.is_empty() {
+                    None
+                } else {
+                    let primary = constructors
+                        .iter()
+                        .find(|&&constructor| {
+                            matches!(
+                                export.struct_constructors[constructor].kind,
+                                crate::StructConstructorKind::Primary
+                            )
+                        })
+                        .ok_or_else(|| {
+                            invalid("struct constructor set has no primary constructor")
+                        })?;
+                    Some(export.constructor_identities[*primary].id())
+                }
+            } else {
+                None
+            },
         )
         .map_err(invalid)?;
 
