@@ -1,0 +1,3 @@
+span=186..191
+expression=value
+dependency function argument must be of type Token, found OtherToken

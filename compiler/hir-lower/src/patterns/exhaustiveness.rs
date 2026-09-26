@@ -200,6 +200,17 @@ impl Lowerer {
 
     fn constructor_space(&mut self, ty: hir::TypeId, matrix: &Matrix) -> ConstructorSpace {
         match self.types[ty].clone() {
+            Type::ImportedStruct(structure) => {
+                ConstructorSpace::Closed(vec![Constructor::Struct {
+                    name: structure.declaration.name().to_owned(),
+                    field_names: structure
+                        .fields
+                        .iter()
+                        .map(|field| field.name.clone())
+                        .collect(),
+                    field_types: structure.fields.iter().map(|field| field.ty).collect(),
+                }])
+            }
             Type::Enum(application) => {
                 let application_value = self.enum_applications[application].clone();
                 let enum_id = application_value.template;

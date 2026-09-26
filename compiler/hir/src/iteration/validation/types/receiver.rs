@@ -173,6 +173,7 @@ impl Validator<'_> {
             | Type::Integer(_)
             | Type::Boolean
             | Type::Struct(_)
+            | Type::ImportedStruct(_)
             | Type::Enum(_)
             | Type::Tuple(_)
             | Type::Ptr(_)

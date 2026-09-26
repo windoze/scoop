@@ -1,0 +1,80 @@
+Module
+  struct Container (marker: Token, payload: Wide)
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  struct Nested (token: Token, payload: Wide)
+  struct Managed (text: String, token: Token)
+  enum CoroutineStep<Container>
+    Completed(value: Container)
+    Suspended()
+  enum CoroutineSlot<Container>
+    Empty()
+    Value(value: Container)
+  class box<Container> vtable=0 itables=0
+  generated_exact_type get0 location=class0 nominal_id=7a7fd176bf85e35b8160b64c7c3cbb747a45ee35ec2706e3b6187c9c1537a04b exact_id=2e167dc31de68862d99ebfaf18c793b9f1ca4d237c28e01d50f99ed040dcef49
+  generated_exact_type get1 location=enum0 nominal_id=e3a04c9aa894c0d2386aebe839f14cdf94007c8f378c0a42975705e67af4d763 exact_id=4da01d1e7a0ce9acb02c2772deae201c62fddcbae01a9fef83a54168a12a1a8b
+  generated_exact_type get2 location=enum1 nominal_id=d146220de627129829237c7f358388fc656817b0e0ccbf072d465a258861f37b exact_id=618c835e59fdcc36551b81ebce9fbff3a251f731fa0e82b493d0e22ae98a5a25
+  fun keepToken @fn0(value: Token) -> Token <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Token
+        Type Token
+        Local value
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.1: Token = external0 direct
+        Type Token
+        Local $dependency.parameter.value
+      return
+        Type Token
+        Local $call.1
+  fun keepWide @fn1(value: Wide) -> Wide <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $call.1: Wide = external1 direct
+        Type Wide
+        Local $dependency.parameter.value
+      return
+        Type Wide
+        Local $call.1
+  fun keepNested @fn2(value: Nested) -> Nested
+    bb0 entry
+      return
+        Type Nested
+        Local value
+  fun keepManaged @fn3(value: Managed) -> Managed
+    bb0 entry
+      val $dependency.argument.0: Managed
+        Type Managed
+        Local value
+      val $dependency.parameter.value: Managed
+        Type Managed
+        Local $dependency.argument.0
+      call $call.1: Managed = external2 direct
+        Type Managed
+        Local $dependency.parameter.value
+      return
+        Type Managed
+        Local $call.1
+  fun localStorage @fn4(value: Container) -> Container
+    bb0 entry
+      return
+        Type Container
+        Local value
+  fun ctor.Container.$c0 @fn5(marker: Token, payload: Wide) -> Container <no-gc>
+    bb0 entry
+      return
+        Type Container
+        StructInit Container
+          Type Token
+          Local marker
+          Type Wide
+          Local payload
+  coroutine_step cs0 CoroutineStep<Container> result=Container
+  coroutine_slot cl0 CoroutineSlot<Container> value=Container
+  output library

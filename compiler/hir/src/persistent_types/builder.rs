@@ -137,6 +137,9 @@ impl<'a> TypeIdentityBuilder<'a> {
                     .id(),
             )?,
             Type::Struct(application) => self.struct_application(ty, application)?,
+            Type::ImportedStruct(structure) => {
+                self.nominal_exact(ty, structure.declaration.identity.id())?
+            }
             Type::Enum(application) => self.enum_application(ty, application)?,
             Type::Class(application) => self.class_application(ty, application)?,
             Type::Interface(application) => self.interface_application(ty, application)?,

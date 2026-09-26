@@ -14,6 +14,7 @@ enum SymbolicType {
     Boolean,
     String,
     Struct(hir::StructId, Vec<SymbolicType>),
+    ImportedStruct(scoop_identity::PersistentTypeId),
     Class(hir::ClassId, Vec<SymbolicType>),
     Interface(hir::InterfaceId, Vec<SymbolicType>),
     Any,
@@ -167,6 +168,9 @@ impl Lowerer {
         bindings: &HashMap<hir::TypeParamId, SymbolicType>,
     ) -> SymbolicType {
         match &self.types[ty] {
+            hir::Type::ImportedStruct(structure) => {
+                SymbolicType::ImportedStruct(structure.declaration.identity.id())
+            }
             hir::Type::Unit => SymbolicType::Unit,
             hir::Type::Integer(kind) => SymbolicType::Integer(*kind),
             hir::Type::Boolean => SymbolicType::Boolean,

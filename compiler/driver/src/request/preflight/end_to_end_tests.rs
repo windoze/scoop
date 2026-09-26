@@ -22,6 +22,7 @@ mod executable_callables;
 mod executable_type_sites;
 mod heap_zst;
 mod image_dependencies;
+mod imported_structs;
 mod layout_exports;
 mod nominal_signatures;
 mod publication;

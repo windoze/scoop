@@ -195,7 +195,8 @@ impl Lowerer {
             Type::Ptr(pointee) => {
                 self.validate_type_alias_target_tree(pointee, span, description, visited);
             }
-            Type::Unit
+            Type::ImportedStruct(_)
+            | Type::Unit
             | Type::Integer(_)
             | Type::Boolean
             | Type::String

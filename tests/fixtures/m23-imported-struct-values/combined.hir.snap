@@ -1,0 +1,38 @@
+Module
+  typealias Payload = Wide
+  struct Container
+    field0 marker: Token
+    field1 payload: Wide
+    property0 val marker: Token getter0=storage <stored struct0-field0>
+    property1 val payload: Wide getter1=storage <stored struct0-field1>
+  fun keepToken(value: Token): Token <no-gc cdecl>
+    val local1
+      Local value : Token
+    val local2
+      Local $dependency.argument.0 : Token
+    return
+      ImportedDependencyCall #0 : Token
+        Local $dependency.parameter.value : Token
+  fun keepWide(value: Wide): Wide <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local $dependency.argument.0 : Wide
+    return
+      ImportedDependencyCall #1 : Wide
+        Local $dependency.parameter.value : Wide
+  fun keepNested(value: Nested): Nested
+    return
+      Local value : Nested
+  fun keepManaged(value: Managed): Managed
+    val local1
+      Local value : Managed
+    val local2
+      Local $dependency.argument.0 : Managed
+    return
+      ImportedDependencyCall #2 : Managed
+        Local $dependency.parameter.value : Managed
+  fun localStorage(value: Container): Container
+    return
+      Local value : Container
+  output library

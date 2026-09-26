@@ -106,33 +106,45 @@ impl Lowerer {
                         ),
                     });
                 }
-                if !visiting.insert(resolved) {
+                let fields = self.structs[id].semantic_fields().to_vec();
+                let fields = fields
+                    .into_iter()
+                    .map(|field| {
+                        (
+                            field.name,
+                            self.instantiate_ty(field.ty, &application.arguments),
+                        )
+                    })
+                    .collect();
+                self.classify_c_struct_fields(resolved, fields, path, visiting, signatures)
+            }
+            hir::Type::ImportedStruct(structure) => {
+                let hir::NominalSourceShapeV1::Struct(shape) =
+                    structure.declaration.interface.source_shape()
+                else {
+                    unreachable!("an imported struct retains a struct declaration")
+                };
+                if matches!(
+                    shape.c_layout_policy(),
+                    hir::NominalCLayoutPolicyV1::Ordinary
+                ) && !matches!(
+                    structure.declaration.c_abi,
+                    hir::NativeBoundaryCAbiV1::UInt64Field { .. }
+                ) {
                     return Err(CAbiError {
                         path,
-                        reason: "recursive by-value C layout is not finite".to_string(),
+                        reason: format!(
+                            "ordinary struct `{}` has no stable C layout",
+                            structure.declaration.name()
+                        ),
                     });
                 }
-                let fields = self.structs[id].semantic_fields().to_vec();
-                let mut deferred = false;
-                for field in fields {
-                    let field_ty = self.instantiate_ty(field.ty, &application.arguments);
-                    let mut field_path = path.clone();
-                    field_path.push(field.name);
-                    deferred |= self.classify_c_ffi_type_inner(
-                        field_ty,
-                        &[],
-                        false,
-                        field_path,
-                        visiting,
-                        signatures,
-                    )? == Classification::Deferred;
-                }
-                visiting.remove(&resolved);
-                Ok(if deferred {
-                    Classification::Deferred
-                } else {
-                    Classification::Safe
-                })
+                let fields = structure
+                    .fields
+                    .iter()
+                    .map(|field| (field.name.clone(), field.ty))
+                    .collect();
+                self.classify_c_struct_fields(resolved, fields, path, visiting, signatures)
             }
             hir::Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
@@ -224,6 +236,41 @@ impl Lowerer {
         self.classify_c_ffi_type_inner(pointee, substitution, false, path, visiting, signatures)
     }
 
+    fn classify_c_struct_fields(
+        &mut self,
+        ty: hir::TypeId,
+        fields: Vec<(String, hir::TypeId)>,
+        path: Vec<String>,
+        visiting: &mut HashSet<hir::TypeId>,
+        signatures: &mut SignatureValidation,
+    ) -> Result<Classification, CAbiError> {
+        if !visiting.insert(ty) {
+            return Err(CAbiError {
+                path,
+                reason: "recursive by-value C layout is not finite".to_owned(),
+            });
+        }
+        let mut deferred = false;
+        for (name, field) in fields {
+            let mut field_path = path.clone();
+            field_path.push(name);
+            deferred |= self.classify_c_ffi_type_inner(
+                field,
+                &[],
+                false,
+                field_path,
+                visiting,
+                signatures,
+            )? == Classification::Deferred;
+        }
+        visiting.remove(&ty);
+        Ok(if deferred {
+            Classification::Deferred
+        } else {
+            Classification::Safe
+        })
+    }
+
     fn is_zero_sized_type(
         &mut self,
         ty: hir::TypeId,
@@ -235,6 +282,15 @@ impl Lowerer {
             _ => ty,
         };
         match self.types[ty].clone() {
+            hir::Type::ImportedStruct(structure) => {
+                for field in &structure.fields {
+                    if !self.is_zero_sized_type(field.ty, &[], visiting)? {
+                        return Some(false);
+                    }
+                }
+                Some(true)
+            }
+
             hir::Type::Unit => Some(true),
             hir::Type::Integer(_)
             | hir::Type::Boolean
@@ -307,6 +363,7 @@ impl Lowerer {
             | hir::Type::Function(_)
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
+            | hir::Type::ImportedStruct(_)
             | hir::Type::Struct(_)
             | hir::Type::Enum(_)
             | hir::Type::Tuple(_) => Ok(()),

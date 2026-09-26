@@ -1,6 +1,27 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn imported_nominal_access_domain(
+        &self,
+        declaration: &hir::ImportedNominalDeclaration,
+    ) -> hir::AccessDomain {
+        match declaration
+            .interface
+            .declaration_details()
+            .declared_visibility()
+        {
+            hir::DeclaredVisibilityV1::Public => hir::AccessDomain::universal(),
+            hir::DeclaredVisibilityV1::Internal => {
+                hir::AccessDomain::from_constraints([hir::AccessConstraint::Cone(
+                    declaration.identity.key().origin(),
+                )])
+            }
+            hir::DeclaredVisibilityV1::Private | hir::DeclaredVisibilityV1::Protected => {
+                hir::AccessDomain::empty()
+            }
+        }
+    }
+
     pub(super) fn protected_scope_classes(
         &self,
         owner: Owner,
@@ -169,6 +190,9 @@ impl Lowerer {
 
     pub(crate) fn nominal_is_accessible(&self, ty: hir::TypeId) -> bool {
         let domain = match self.types[ty] {
+            hir::Type::ImportedStruct(ref structure) => {
+                Some(self.imported_nominal_access_domain(&structure.declaration))
+            }
             hir::Type::Integer(kind) => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
             }

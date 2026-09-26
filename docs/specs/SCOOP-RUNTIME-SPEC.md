@@ -1,5 +1,7 @@
 # Scoop Runtime 规范
 
+外来参数自由 struct 的源码类型引用使用依赖中实际的 typed nominal 声明及完整字段类型；名称仅用于查找和诊断。HIR 保留其完整成员、继承、构造器和字段声明，参数、结果、局部存储及嵌套字段使用同一类型。LocalConcrete/MIR 可以保存计算值表示所需的完整字段，同时保留真实定义 Cone；这些表示记录不是当前 Cone 的源码声明或机器定义。成员与构造器调用仍引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖选择取得；不能复制外来函数正文或在消费 Cone 重新发布其 Strong 定义。实际跨 Cone 类型使用无需来源凭证、工厂资格或重新认证 provider。此接通使用已有 wire 类型和布局记录，不改变 runtime C ABI 或 String 表示。
+
 共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。
 
 初始化循环异常服务是前端已解析的实际 typed 函数声明。声明以原可见性进入共有 callable 支持记录，实际 MIR body、LIR canonical ABI、导出与依赖选择均使用普通 callable 表；internal 服务不加入 public lookup。`InitializationCycle` 只表达 lowering 选择失败分支目标的语义角色，不产生来源资格、第二份 ABI 或独立 Link owner/requirement。lowering 生成的调用可以没有源码 lookup 记录；已有源码调用仍核对实际目标、provider、参数、结果与物化根，所有生成调用仍核对完整 typed 依赖和 ABI。

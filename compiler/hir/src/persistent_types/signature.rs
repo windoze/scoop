@@ -48,6 +48,9 @@ impl<'a> HirSignatureTypeMapper<'a> {
             return Err(HirSignatureTypeMappingError::RecursiveType(raw_index(ty)));
         }
         let key = match &self.inputs.types[ty] {
+            Type::ImportedStruct(structure) => {
+                SignatureTypeKey::Nominal(structure.declaration.identity.id())
+            }
             Type::Unit => SignatureTypeKey::Nominal(
                 self.inputs
                     .nominal_identities

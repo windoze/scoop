@@ -55,6 +55,8 @@ pub(super) struct TypeAliasCatalogEntry {
 
 #[derive(Debug)]
 pub(super) struct DependencyCatalog {
+    pub(super) nominals:
+        BTreeMap<scoop_identity::PersistentTypeId, Arc<super::ImportedNominalDeclaration>>,
     pub(super) direct_binding_witnesses:
         Arc<BTreeMap<crate::ExternalHirTargetV1, Vec<crate::DependencyBindingWitnessV1>>>,
     pub(super) world_brand: u64,
@@ -83,7 +85,16 @@ impl ImportedSemanticWorld<'_> {
         let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
+        let mut nominals = BTreeMap::new();
         for provider in &self.providers {
+            for declaration in super::nominals::declarations(provider)? {
+                let id = declaration.identity.id();
+                if nominals.insert(id, declaration).is_some() {
+                    return Err(ImportedDependencySelectionPlanBuildError::DuplicateNominal(
+                        id,
+                    ));
+                }
+            }
             let definition_sources = Arc::new(imported_definition_sources(provider)?);
             for callable in provider.interface().callable_interfaces().records() {
                 let declaration = callable.declaration();
@@ -220,6 +231,7 @@ impl ImportedSemanticWorld<'_> {
         let direct_callable_bindings = self.direct_callable_bindings()?;
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
+                nominals,
                 direct_binding_witnesses: Arc::new(
                     self.direct_binding_witnesses(&direct_callable_bindings),
                 ),

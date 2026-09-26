@@ -53,6 +53,10 @@ pub enum HirConstantImage {
         application: StructApplicationId,
         fields: Vec<HirConstantImage>,
     },
+    ImportedStruct {
+        ty: TypeId,
+        fields: Vec<HirConstantImage>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -12,6 +12,9 @@ pub enum Type {
     /// non-generic structs). Keeping the arguments in the type itself
     /// makes every `TypeId` structurally complete.
     Struct(StructApplicationId),
+    /// A dependency value type with its actual declaration and resolved fields.
+    /// It does not introduce a declaration into the current Cone.
+    ImportedStruct(std::sync::Arc<ImportedStructType>),
     /// A reference type declared with `class` (spec 9.1).
     /// A class application with complete host arguments (empty for a
     /// non-generic class). M14 gives generic classes the same nominal
@@ -43,6 +46,20 @@ pub enum Type {
     Param(TypeParamId),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedStructType {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub fields: Vec<ImportedStructField>,
+    pub gc_free: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedStructField {
+    pub identity: scoop_identity::PersistentFieldId,
+    pub name: String,
+    pub ty: TypeId,
+}
+
 /// Canonical structural identity of an ordinary or suspend function type.
 /// Declaration-only metadata such as parameter names/defaults is absent by
 /// construction (spec 8.1.1).
@@ -66,6 +83,9 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::String, Type::String) => true,
         (Type::Integer(x), Type::Integer(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::ImportedStruct(x), Type::ImportedStruct(y)) => {
+            x.declaration.identity.id() == y.declaration.identity.id()
+        }
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Any, Type::Any) => true,
@@ -96,6 +116,7 @@ pub(crate) fn type_name_with_params(
     params: &[TypeParamDecl],
 ) -> String {
     match &module.types[ty] {
+        Type::ImportedStruct(structure) => structure.declaration.name().to_owned(),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),

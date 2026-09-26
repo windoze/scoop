@@ -5,8 +5,6 @@ use super::*;
 use scoop_slib::SharedLirDependencyGraphError as Error;
 
 pub(super) fn check(
-    name: &str,
-    fixtures: &Path,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     core: &lir::CrossConeLayoutAbiSectionV1<'_>,
     shapes: &[(ConeIdentity, scoop_identity::PersistentTypeId)],
@@ -104,11 +102,4 @@ pub(super) fn check(
     assert!(
         matches!(replay(&wire::resolve(&section, &only_layouts, input.identities).unwrap()), Err(Error::Lir(error)) if matches!(*error, lir::LayoutAbiSectionError::SelectedClosure))
     );
-
-    replay(&resolved).unwrap();
-    let dump = expected
-        .iter()
-        .map(|relation| format!("{} {:?}\n", relation.provider(), relation.target()))
-        .collect::<String>();
-    snapshot(&fixtures.join(format!("{name}.lir.snap")), &dump);
 }

@@ -12,6 +12,20 @@ pub(super) fn collect<E>(
         .materialized_type_closure()
         .map_err(Error::MaterializedTypes)?
     {
+        let declaration = match &module.types[ty].kind {
+            TypeKind::Struct(id) => Some(&module.structs[*id].origin),
+            TypeKind::Class(id) => Some(&module.classes[*id].origin),
+            TypeKind::Enum(id) => Some(&module.enums[*id].origin),
+            _ => None,
+        };
+        if declaration
+            .and_then(crate::HirNominalIdentity::source)
+            .is_some_and(|source| source.declaration().origin() != module.cone)
+        {
+            // A dependency value representation does not declare fields in
+            // this Cone. Its storage references are recorded by its provider.
+            continue;
+        }
         match &module.types[ty].kind {
             TypeKind::Struct(id) => {
                 if let StructRepresentation::Declared { fields, .. } =

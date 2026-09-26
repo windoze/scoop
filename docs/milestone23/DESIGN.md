@@ -1,5 +1,7 @@
 # M23 系列设计：多 Cone、导入系统与 `.slib`
 
+外来参数自由 struct 的源码类型引用使用依赖中实际的 typed nominal 声明及完整字段类型；名称仅用于查找和诊断。HIR 保留其完整成员、继承、构造器和字段声明，参数、结果、局部存储及嵌套字段使用同一类型。LocalConcrete/MIR 可以保存计算值表示所需的完整字段，同时保留真实定义 Cone；这些表示记录不是当前 Cone 的源码声明或机器定义。成员与构造器调用仍引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖选择取得；不能复制外来函数正文或在消费 Cone 重新发布其 Strong 定义。实际跨 Cone 类型使用无需来源凭证、工厂资格或重新认证 provider。此接通使用已有 wire 类型和布局记录，不改变 runtime C ABI 或 String 表示。
+
 共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。
 
 core 是可由用户修改、扩展和重建的普通 library Cone。源码层面的特殊处理仅限于前端识别 `@Intrinsic`，并把它正规化为既有 typed IR，以及 desugar 通过普通声明引用使用基础库提供的类型和函数。sysroot 是默认查找位置，不是信任边界；源码目录、输出位置、相同 coordinate 或用户修改过的 core 不需要授权 token。metadata 解码、typed identity 一致性、依赖闭包、ABI、缓存失效和 slib fingerprint 使用所有 Cone 共用的规则。不得为 core 另建来源防伪、slot 授权、receipt 信任链或重复 pipeline；既有专用实现须合并或删除，旧文档的冻结条款不阻止此次清理。

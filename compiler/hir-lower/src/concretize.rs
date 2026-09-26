@@ -20,6 +20,7 @@ mod closures;
 mod constructor_slots;
 mod constructor_work;
 mod functions;
+mod imported_nominals;
 mod initialization;
 mod interfaces;
 mod nominals;
@@ -140,6 +141,7 @@ struct Concretizer<'a> {
         HashMap<(bool, Vec<concrete::TypeId>, concrete::TypeId), concrete::FunctionTypeId>,
     structs: Arena<concrete::StructDef>,
     struct_by_key: HashMap<(export::StructId, Vec<concrete::TypeId>), concrete::StructId>,
+    imported_structs: HashMap<scoop_identity::PersistentTypeId, concrete::StructId>,
     struct_type: HashMap<concrete::StructId, concrete::TypeId>,
     struct_source: HashMap<concrete::StructId, export::StructId>,
     enums: Arena<concrete::EnumDef>,
@@ -305,6 +307,7 @@ impl<'a> Concretizer<'a> {
             function_type_by_signature: HashMap::new(),
             structs: Arena::new(),
             struct_by_key: HashMap::new(),
+            imported_structs: HashMap::new(),
             struct_type: HashMap::new(),
             struct_source: HashMap::new(),
             enums: Arena::new(),

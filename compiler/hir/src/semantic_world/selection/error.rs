@@ -10,6 +10,9 @@ use crate::NominalCallableClassificationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedDependencySelectionPlanBuildError {
+    MissingNominal(scoop_identity::PersistentTypeId),
+    MissingNominalField(scoop_identity::PersistentFieldId),
+    DuplicateNominal(scoop_identity::PersistentTypeId),
     NominalClassifier(crate::NominalExactLeafClassifierBuildError),
     Classification(NominalCallableClassificationError),
     Initialization(crate::HirInitializationUseError),
@@ -45,6 +48,18 @@ pub enum ImportedDependencySelectionPlanBuildError {
 impl fmt::Display for ImportedDependencySelectionPlanBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingNominal(id) => write!(
+                formatter,
+                "dependency nominal {id} has no declaration identity"
+            ),
+            Self::MissingNominalField(id) => write!(
+                formatter,
+                "dependency field {id} has no declaration identity"
+            ),
+            Self::DuplicateNominal(id) => write!(
+                formatter,
+                "dependency nominal {id} is defined more than once"
+            ),
             Self::NominalClassifier(error) => error.fmt(formatter),
             Self::Classification(error) => error.fmt(formatter),
             Self::Initialization(error) => error.fmt(formatter),
@@ -110,7 +125,10 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             Self::Classification(error) => Some(error),
             Self::Initialization(error) => Some(error),
             Self::DirectBindingMerge { source, .. } => Some(source),
-            Self::DuplicateCallable(_)
+            Self::MissingNominal(_)
+            | Self::MissingNominalField(_)
+            | Self::DuplicateNominal(_)
+            | Self::DuplicateCallable(_)
             | Self::MissingCallableSourceName(_)
             | Self::TooManyCallables { .. }
             | Self::DuplicateConstant(_)

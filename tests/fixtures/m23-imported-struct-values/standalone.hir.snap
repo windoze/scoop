@@ -1,0 +1,20 @@
+Module
+  fun keepToken(value: Token): Token <no-gc cdecl>
+    val local1
+      Local value : Token
+    val local2
+      Local $dependency.argument.0 : Token
+    return
+      ImportedDependencyCall #0 : Token
+        Local $dependency.parameter.value : Token
+  fun keepWide(value: Wide): Wide <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local copy : Wide
+    val local3
+      Local $dependency.argument.0 : Wide
+    return
+      ImportedDependencyCall #1 : Wide
+        Local $dependency.parameter.value : Wide
+  output library

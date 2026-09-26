@@ -14,12 +14,14 @@ mod error;
 mod intrinsics;
 mod members;
 mod model;
+mod nominals;
 mod properties;
 mod routes;
 pub use error::*;
 pub use intrinsics::ImportedIntrinsicCallable;
 pub use members::*;
 pub use model::*;
+pub use nominals::ImportedNominalDeclaration;
 
 use catalog::DependencyCatalog;
 
@@ -68,6 +70,7 @@ impl ImportedDependencySelectionPlan {
     pub fn empty(consumer: ConeIdentity) -> Self {
         Self {
             catalog: Arc::new(DependencyCatalog {
+                nominals: BTreeMap::new(),
                 direct_binding_witnesses: Arc::new(BTreeMap::new()),
                 world_brand: 0,
                 consumer,

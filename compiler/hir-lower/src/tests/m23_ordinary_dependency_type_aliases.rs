@@ -160,21 +160,17 @@ fn renamed_dependency_alias_is_transparent_and_retains_both_witness_roles() {
 }
 
 #[test]
-fn dependency_alias_to_foreign_nominal_reports_the_layout_gate() {
+fn dependency_alias_resolves_the_actual_foreign_struct() {
     let provider = dependency_source(vec![
         struct_decl("Payload", Vec::new()),
         public_type_alias("PayloadAlias", ty_named("Payload")),
     ]);
     let consumer = consumer_source("PayloadAlias", "ImportedPayload");
 
-    let diagnostics = lower_alias_fixture("nominal-alias-provider", provider, consumer)
-        .expect_err("a foreign nominal alias needs the M23-6 layout capability");
-
-    assert!(diagnostics.iter().any(|diagnostic| {
-        diagnostic
-            .message
-            .contains("SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED")
-    }));
+    let output = lower_alias_fixture("nominal-alias-provider", provider, consumer)
+        .expect("a foreign struct alias resolves from its complete declaration");
+    assert_eq!(output.facade_target_name.as_deref(), Some("Payload"));
+    assert_eq!(output.selected_aliases, 1);
 }
 
 #[test]

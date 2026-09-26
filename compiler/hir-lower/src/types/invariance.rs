@@ -189,7 +189,8 @@ impl Lowerer {
             }
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::Unit
+            Type::ImportedStruct(_)
+            | Type::Unit
             | Type::Any
             | Type::Tuple(_)
             | Type::Function(_)

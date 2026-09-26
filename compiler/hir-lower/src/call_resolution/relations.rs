@@ -689,7 +689,12 @@ pub(super) fn type_contains_session_parameter(
             children
         }
         Type::Ptr(pointee) => vec![*pointee],
-        Type::Unit | Type::Integer(_) | Type::Boolean | Type::String | Type::Any => Vec::new(),
+        Type::ImportedStruct(_)
+        | Type::Unit
+        | Type::Integer(_)
+        | Type::Boolean
+        | Type::String
+        | Type::Any => Vec::new(),
     };
     children
         .into_iter()

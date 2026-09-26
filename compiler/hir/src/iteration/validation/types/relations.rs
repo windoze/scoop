@@ -81,7 +81,8 @@ impl Validator<'_> {
                         .map(|bound| bound.application),
                 );
             }
-            Type::Unit
+            Type::ImportedStruct(_)
+            | Type::Unit
             | Type::Any
             | Type::Tuple(_)
             | Type::Function(_)
@@ -308,7 +309,12 @@ impl Validator<'_> {
                     |candidate| matches!(candidate, Type::FunPtr(found) if *found == function),
                 )
             }
-            Type::Unit | Type::Integer(_) | Type::Boolean | Type::String | Type::Any => Ok(source),
+            Type::ImportedStruct(_)
+            | Type::Unit
+            | Type::Integer(_)
+            | Type::Boolean
+            | Type::String
+            | Type::Any => Ok(source),
         }
     }
 

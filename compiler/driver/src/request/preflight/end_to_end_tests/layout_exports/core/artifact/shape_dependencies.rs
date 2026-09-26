@@ -102,7 +102,7 @@ pub(super) fn check(
                 )
                 .unwrap();
                 mir_reader::check(name, &fixtures, input, &section, mir_dependency, &expected);
-                lir_reader::check(name, &fixtures, input, core_lir, &expected);
+                lir_reader::check(input, core_lir, &expected);
                 machine::check(
                     name,
                     &fixtures,

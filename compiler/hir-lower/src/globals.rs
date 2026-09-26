@@ -978,6 +978,14 @@ impl Lowerer {
 
     fn zero_constant_image(&mut self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
         match self.types[ty].clone() {
+            hir::Type::ImportedStruct(structure) => Some(hir::HirConstantImage::ImportedStruct {
+                ty,
+                fields: structure
+                    .fields
+                    .iter()
+                    .map(|field| self.zero_constant_image(field.ty))
+                    .collect::<Option<Vec<_>>>()?,
+            }),
             hir::Type::Integer(kind) => Some(hir::HirConstantImage::Integer(
                 hir::HirIntegerConstant::from_magnitude(kind, 0, false)
                     .expect("zero is representable by every integer kind"),

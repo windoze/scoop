@@ -502,6 +502,9 @@ impl Lowerer {
         dependencies: &mut Vec<(hir::TypeId, hir::AccessDomain)>,
     ) {
         let provided = match self.types[ty] {
+            hir::Type::ImportedStruct(ref structure) => {
+                Some(self.imported_nominal_access_domain(&structure.declaration))
+            }
             hir::Type::Integer(kind) => {
                 self.intrinsic_type_access_domain(hir::IntrinsicTypeKind::Integer(kind))
             }
@@ -589,7 +592,8 @@ impl Lowerer {
                 self.collect_type_dependencies(function.return_type, dependencies);
             }
             hir::Type::Ptr(pointee) => self.collect_type_dependencies(pointee, dependencies),
-            hir::Type::Unit
+            hir::Type::ImportedStruct(_)
+            | hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
             | hir::Type::String
