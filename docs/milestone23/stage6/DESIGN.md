@@ -244,6 +244,8 @@ layout profile 的共有 HIR 声明读取直接消费同一 artifact 的 identit
 
 非泛型 typealias 的声明、目标实体归属、public 可见性和外部引用在共有 HIR 声明边界检查。别名展开随后只处理实际 typed alias 目标、缺失目标及循环，不保存或查询逐边授权表，不重建依赖的 import/re-export 路径。已完成依赖的展开结果直接参与当前 Cone 的查询，共享最终 SignatureTypeKey；不能为同一别名链重复重走全部依赖。M23-6 完整 reader 保留展开结果供前端名称解析使用，生产与读取都不依赖测试专用来源工厂。
 
+`Alias(...)` 验收包含实际 provider 导出的别名、本地指向外来 nominal 的别名以及链式组合。前端在候选状态中展开实际类型，沿共有查询选中目标的构造器；命名／默认参数、ZST、大值 ABI 和下游再次发布使用相同的真实声明。源码产物由第三个 Cone 消费并链接运行，失败候选不得遗留消费记录。不新增格式字段或 runtime ABI。
+
 共有校验必须保留以下信息与约束：
 
 - identity、definition origin 和 source context 只使用同一 artifact 与依赖闭包中的完整 typed 记录。local declaration 的 key origin、词法 owner、definition subject 和 provider 一致；external 引用按实际 provider 唯一解析。SourceNominal、ExactType、Function、GenericFunction、Constructor、Property、Accessor、DispatchSlot 与不同生成实体不得混用；不得从 FQN、符号、同布局或“唯一匹配项”补身份。

@@ -5,11 +5,11 @@ use crate::constructor_resolution::ResolvedNominalConstructor;
 impl Lowerer {
     pub(super) fn named_nominal_plans(
         &mut self,
-        target: NamedCallTarget,
+        binding: &NamedCallBinding,
         call: &ast::CallExpr,
         expected: Option<TypeId>,
     ) -> Result<PreparedNominalPlans, ()> {
-        let (nominal, expected, fixed_alias) = match target {
+        let (nominal, expected, fixed_alias) = match binding.target {
             NamedCallTarget::Value(ValueTarget::Object(id)) => {
                 let ty = self.object_types[self.objects[id].object_type].canonical_type;
                 if !self.type_exposes_invoke(ty, false) {
@@ -23,7 +23,7 @@ impl Lowerer {
                     );
                     return Err(());
                 }
-                return Ok((Vec::new(), None));
+                return Ok(PreparedNominalPlans::Local(Vec::new(), None));
             }
             NamedCallTarget::Type(TopLevelTypeTarget::Nominal(nominal)) => {
                 (nominal, expected, false)
@@ -33,6 +33,9 @@ impl Lowerer {
                     .resolve_type_alias_id_reference(id, &call.callee, !call.type_args.is_empty())
                     .ok_or(())?;
                 let Some(nominal) = self.nominal_target_for_type(ty) else {
+                    if let Some(owner) = self.imported_nominal_declaration(ty) {
+                        return Ok(PreparedNominalPlans::Imported(owner));
+                    }
                     self.error(
                         call.span,
                         format!(
@@ -44,12 +47,37 @@ impl Lowerer {
                 };
                 (nominal, Some(ty), true)
             }
+            NamedCallTarget::ImportedDependency(
+                hir::ImportedTarget::Type(_) | hir::ImportedTarget::TypeAlias(_),
+            ) => {
+                let NamedCallOrigin::Dependency(binding) = &binding.origin else {
+                    unreachable!("a dependency type retains its name binding")
+                };
+                let ty = self
+                    .resolve_imported_dependency_type_target(
+                        binding,
+                        &call.callee,
+                        !call.type_args.is_empty(),
+                    )
+                    .ok_or(())?;
+                let Some(owner) = self.imported_nominal_declaration(ty) else {
+                    self.error(
+                        call.span,
+                        format!(
+                            "type `{}` does not name a constructible type",
+                            call.callee.text
+                        ),
+                    );
+                    return Err(());
+                };
+                return Ok(PreparedNominalPlans::Imported(owner));
+            }
             NamedCallTarget::Value(ValueTarget::Variant(target)) => {
                 if self.resolved_variant_style(target) == VariantStyle::Unit {
                     self.error(call.span, format!("unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses", call.callee.text, self.enums[target.enumeration()].name, call.callee.text));
                     return Err(());
                 }
-                return Ok((
+                return Ok(PreparedNominalPlans::Local(
                     vec![NominalPlan {
                         view: self
                             .nominal_constructor_view(NominalConstructorSource::Variant(target)),
@@ -59,7 +87,7 @@ impl Lowerer {
                     None,
                 ));
             }
-            _ => return Ok((Vec::new(), None)),
+            _ => return Ok(PreparedNominalPlans::Local(Vec::new(), None)),
         };
         let sources = match nominal {
             crate::NominalTarget::Struct(id) => {
@@ -72,7 +100,10 @@ impl Lowerer {
                     return Err(());
                 }
                 if Some(id) == self.ffi_ptr || Some(id) == self.ffi_fun_ptr {
-                    return Ok((Vec::new(), Some((id, expected))));
+                    return Ok(PreparedNominalPlans::Local(
+                        Vec::new(),
+                        Some((id, expected)),
+                    ));
                 }
                 if matches!(
                     self.structs[id].representation,
@@ -109,7 +140,7 @@ impl Lowerer {
                         calling: crate::defaults::SourceParameterCalling::Required,
                         ty,
                     }];
-                    return Ok((
+                    return Ok(PreparedNominalPlans::Local(
                         vec![NominalPlan {
                             view,
                             expected,
@@ -179,7 +210,7 @@ impl Lowerer {
             );
             return Err(());
         }
-        Ok((plans, None))
+        Ok(PreparedNominalPlans::Local(plans, None))
     }
 
     pub(super) fn named_nominal_expected_arguments(

@@ -9,7 +9,10 @@ struct NominalPlan {
     fixed_alias: bool,
 }
 
-type PreparedNominalPlans = (Vec<NominalPlan>, Option<(hir::StructId, Option<TypeId>)>);
+enum PreparedNominalPlans {
+    Local(Vec<NominalPlan>, Option<(hir::StructId, Option<TypeId>)>),
+    Imported(scoop_identity::PersistentTypeId),
+}
 
 impl Lowerer {
     pub(super) fn lower_named_function_partition(
@@ -24,16 +27,19 @@ impl Lowerer {
         let diagnostics_before = self.diagnostics.len();
         let mut failures = Vec::new();
         let mut intrinsics = Vec::new();
+        let mut imported = Vec::new();
         for binding in targets {
-            let target = binding.target;
             let mut preparation = self.clone();
-            match preparation.named_nominal_plans(target, call, expected) {
-                Ok((mut prepared, intrinsic)) => {
+            match preparation.named_nominal_plans(binding, call, expected) {
+                Ok(PreparedNominalPlans::Local(mut prepared, intrinsic)) => {
                     *self = preparation;
                     plans.append(&mut prepared);
                     if let Some(intrinsic) = intrinsic {
                         intrinsics.push(intrinsic);
                     }
+                }
+                Ok(PreparedNominalPlans::Imported(owner)) => {
+                    imported.push((preparation, owner));
                 }
                 Err(()) => {
                     failures.push(Box::new(preparation));
@@ -166,29 +172,36 @@ impl Lowerer {
                 Err(failure) => failures.push(failure),
             }
         }
-        for binding in targets {
-            let NamedCallTarget::ImportedDependency(hir::ImportedTarget::Type(owner)) =
-                binding.target
-            else {
-                continue;
-            };
-            let candidates = self
+        for (mut state, owner) in imported {
+            let candidates = state
                 .dependencies
                 .as_ref()
                 .expect("dependency name lookup retains its declaration catalog")
-                .constructor_candidates(owner.persistent());
+                .constructor_candidates(owner);
             let candidates = match candidates {
                 Ok(candidates) => candidates,
                 Err(error) => {
-                    self.error(
+                    state.error(
                         call.span,
                         format!("invalid dependency constructor declaration: {error}"),
                     );
-                    return Err(());
+                    failures.push(Box::new(state));
+                    continue;
                 }
             };
+            if candidates.is_empty() {
+                state.error(
+                    call.span,
+                    format!(
+                        "type `{}` does not name a constructible type",
+                        call.callee.text
+                    ),
+                );
+                failures.push(Box::new(state));
+                continue;
+            }
             for candidate in candidates {
-                match self.probe_imported_constructor(candidate, call, expected) {
+                match state.probe_imported_constructor(candidate, call, expected) {
                     Ok(probe) => applicable.push(NamedApplicable {
                         probe: NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)),
                         commit: NamedFunctionCommit::ImportedDependency,

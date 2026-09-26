@@ -10,6 +10,8 @@
 
 外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
 
+构造调用的别名展开使用既有类型解析结果，并把实际 nominal ID 交给同一构造候选查询。本地与导入 alias 均在各自候选状态内解析，只有获选调用提交该状态；失败候选不向消费集合遗留 alias 或 callable 引用。别名不新增 callable、ABI、布局或来源记录。
+
 普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。
 
 `hir/cross-cone-interface/22` 为无 namespace binding 的声明调用保留 `SourceDeclaration` reason（tag 3，只有 field 0 的 map）；既有 tag 1/2 保持。普通直接 callable 的 MIR 导出保存完整 GC effect，`mir/cross-cone-param-free-bridge/2` 的 field 1～3 保持 declaration、implementation 和 exact signature，新增 field 4（unsigned 1=Managed，2=NoGC）。旧 major 退役，profile、fingerprint 和缓存同步重建；runtime C ABI 与 String 表示不变。

@@ -32,7 +32,7 @@ fn dependency_constructors_compile_and_run_through_actual_artifacts() {
     )
     .unwrap();
 
-    for case in ["standalone", "combined"] {
+    for case in ["standalone", "combined", "aliases"] {
         let name = format!("constructors-{case}");
         let root = sysroot.path().join(&name);
         write_manifest_cone(&root, "dev.example", &name, "library", &source(case));
@@ -105,6 +105,8 @@ fn dependency_constructors_compile_and_run_through_actual_artifacts() {
         "private-constructor",
         "wrong-argument",
         "managed-constructor",
+        "generic-alias",
+        "nonconstructible-alias",
     ] {
         let root = sysroot.path().join(case);
         let source = source(case);

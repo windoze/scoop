@@ -9,3 +9,7 @@ public struct Wide(val first: Long, val second: Long, val third: Long, val marke
     @NoGC public fun sum(): Long = first + second + third
 }
 @NoGC public fun defaultWide(value: Wide = Wide(3, 4, 5)): Long = value.sum()
+
+public typealias Packet = Wide
+public typealias Marker = Token
+public typealias Scalar = Long
