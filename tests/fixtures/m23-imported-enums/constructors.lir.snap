@@ -1,0 +1,514 @@
+Module
+  enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
+  enum Flag tagged size=8 align=8 variants=()@8+0 ()@8+0
+  enum Marker tagged size=8 align=8 variants=()@8+0
+  enum Draft tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16 (i64, struct0, i64)@8+16 (i64, struct0, i64)@8+16
+  fun @scoop$1$cb$1ed3055d429d860be8365720256db3856cc024a602f8937566ce6082437eb432(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
+  block entry
+    ret param0
+  fun @scoop$1$cb$f734f6ead97629c867b82808e96b44585f9bf250683b3136028c96129409cb90(indirect<enum0 size=24 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $dependency.argument.0: enum0
+    local %1 $dependency.parameter.value: enum0
+    local %2 $call.1: i64
+    local %3 $sc.1: enum0
+  block entry
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local3
+    call no-gc-direct-target0 t0 = sig=direct0 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local3)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$7542d4da9e87a3f970505a063744899b24940458376db248f868685fa549daf9(indirect<enum1 size=8 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $result.0: i64
+    local %1 $when.1: enum1
+    local %2 $pattern.subject.2: enum1
+    local %3 $pattern.subject.3: enum1
+  block entry
+    store param0 -> local1
+    store local1 -> local2
+    t0 = variant_test e1 v0 local2 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store integer<Long>(0x0000000000000000) -> local0
+    br @pattern.merge.3
+  block pattern.else.2
+    store local1 -> local3
+    t1 = variant_test e1 v1 local3 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret local0
+  block pattern.pass.4
+    store integer<Long>(0x0000000000000001) -> local0
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
+  fun @scoop$1$cb$12cdd653121778f4aedc489ab6b187f8765168bbc422e813b269b56450218f05(indirect<enum2 size=8 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $result.1: i64
+    local %1 $when.1: enum2
+    local %2 $pattern.subject.2: enum2
+  block entry
+    store param0 -> local1
+    store local1 -> local2
+    t0 = variant_test e2 v0 local2 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store integer<Long>(0x0000000000000000) -> local0
+    br @pattern.merge.3
+  block pattern.else.2
+    unreachable
+  block pattern.merge.3
+    ret local0
+  fun @scoop$1$cb$cb366097b13ac686b072a6b3a3f262c71ca02191f26cbbec121801ab70b017b4(indirect<enum3 size=24 align=8 scan=none>) -> i64 <no-gc>
+    local %0 left: i64
+    local %1 right: i64
+    local %2 $dependency.receiver: i64
+    local %3 $dependency.argument.0: i64
+    local %4 $dependency.parameter.other: i64
+    local %5 left: i64
+    local %6 right: i64
+    local %7 $dependency.receiver: i64
+    local %8 $dependency.argument.0: i64
+    local %9 $dependency.parameter.other: i64
+    local %10 left: i64
+    local %11 right: i64
+    local %12 $dependency.receiver: i64
+    local %13 $dependency.argument.0: i64
+    local %14 $dependency.parameter.other: i64
+    local %15 $result.2: i64
+    local %16 $when.1: enum3
+    local %17 $pattern.subject.2: enum3
+    local %18 $pattern.subject.3: enum3
+    local %19 $pattern.subject.4: enum3
+    local %20 $pattern.subject.5: enum3
+  block entry
+    store param0 -> local16
+    store local16 -> local17
+    t0 = variant_test e3 v0 local17 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store integer<Long>(0x0000000000000000) -> local15
+    br @pattern.merge.3
+  block pattern.else.2
+    store local16 -> local18
+    t1 = variant_test e3 v1 local18 : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret local15
+  block pattern.pass.4
+    t2 = variant_payload_project e3 v1 f0 local18 : i64
+    store t2 -> local0
+    t3 = variant_payload_project e3 v1 f2 local18 : i64
+    store t3 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    store local3 -> local4
+    t4 = integer_Add<Long> local2, local4 : i64
+    store t4 -> local15
+    br @pattern.merge.6
+  block pattern.else.5
+    store local16 -> local19
+    t5 = variant_test e3 v2 local19 : i1
+    cbr t5 then @pattern.pass.7 else @pattern.else.8
+  block pattern.merge.6
+    br @pattern.merge.3
+  block pattern.pass.7
+    t6 = variant_payload_project e3 v2 f0 local19 : i64
+    store t6 -> local5
+    t7 = variant_payload_project e3 v2 f2 local19 : i64
+    store t7 -> local6
+    store local5 -> local7
+    store local6 -> local8
+    store local8 -> local9
+    t8 = integer_Add<Long> local7, local9 : i64
+    store t8 -> local15
+    br @pattern.merge.9
+  block pattern.else.8
+    store local16 -> local20
+    t9 = variant_test e3 v3 local20 : i1
+    cbr t9 then @pattern.pass.10 else @pattern.else.11
+  block pattern.merge.9
+    br @pattern.merge.6
+  block pattern.pass.10
+    t10 = variant_payload_project e3 v3 f0 local20 : i64
+    store t10 -> local10
+    t11 = variant_payload_project e3 v3 f2 local20 : i64
+    store t11 -> local11
+    store local10 -> local12
+    store local11 -> local13
+    store local13 -> local14
+    t12 = integer_Add<Long> local12, local14 : i64
+    store t12 -> local15
+    br @pattern.merge.12
+  block pattern.else.11
+    unreachable
+  block pattern.merge.12
+    br @pattern.merge.9
+  fun @scoop$1$cb$fc60b3ef65230f4f40865f50f29e11180113b863314de15100516439c7acad01() -> i64 <no-gc>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.argument.1: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %2 $dependency.argument.2: i64
+    local %3 $dependency.parameter.left: i64
+    local %4 $dependency.parameter.marker: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %5 $dependency.parameter.right: i64
+    local %6 named: enum0
+    local %7 $argument.0: enum0
+    local %8 $parameter.value: enum0
+    local %9 $dependency.argument.0: enum0
+    local %10 $dependency.parameter.value: enum0
+    local %11 $dependency.receiver: i64
+    local %12 $dependency.argument.0: i64
+    local %13 $dependency.parameter.other: i64
+    local %14 left: i64
+    local %15 right: i64
+    local %16 $dependency.receiver: i64
+    local %17 $dependency.argument.0: i64
+    local %18 $dependency.parameter.other: i64
+    local %19 $result.3: i64
+    local %20 difference: i64
+    local %21 $dependency.receiver: i64
+    local %22 $dependency.argument.0: i64
+    local %23 $dependency.parameter.other: i64
+    local %24 $dependency.argument.0: i64
+    local %25 $dependency.argument.1: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %26 $dependency.argument.2: i64
+    local %27 $dependency.parameter._1: i64
+    local %28 $dependency.parameter._2: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %29 $dependency.parameter._3: i64
+    local %30 $argument.0: enum3
+    local %31 $parameter.value: enum3
+    local %32 $dependency.receiver: i64
+    local %33 $dependency.argument.0: i64
+    local %34 $dependency.parameter.other: i64
+    local %35 $dependency.argument.0: i64
+    local %36 $dependency.argument.1: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %37 $dependency.argument.2: i64
+    local %38 $dependency.parameter.left: i64
+    local %39 $dependency.parameter.marker: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %40 $dependency.parameter.right: i64
+    local %41 $argument.0: enum3
+    local %42 $parameter.value: enum3
+    local %43 $dependency.receiver: i64
+    local %44 $dependency.argument.0: i64
+    local %45 $dependency.parameter.other: i64
+    local %46 $dependency.argument.0: i64
+    local %47 $dependency.parameter.left: i64
+    local %48 $dependency.parameter.marker: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %49 $dependency.default.local.2: i64
+    local %50 $dependency.default.local.3: i64
+    local %51 $dependency.default.local.4: i64
+    local %52 $dependency.parameter.right: i64
+    local %53 $argument.0: enum3
+    local %54 $parameter.value: enum3
+    local %55 $dependency.receiver: i64
+    local %56 $dependency.argument.0: i64
+    local %57 $dependency.parameter.other: i64
+    local %58 $dependency.argument.0: i64
+    local %59 $dependency.argument.1: i64
+    local %60 $dependency.parameter.left: i64
+    local %61 $dependency.parameter.marker: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %62 $dependency.parameter.right: i64
+    local %63 $argument.0: enum3
+    local %64 $parameter.value: enum3
+    local %65 $dependency.receiver: i64
+    local %66 $dependency.argument.0: i64
+    local %67 $dependency.parameter.other: i64
+    local %68 $dependency.argument.0: i64
+    local %69 $dependency.argument.1: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %70 $dependency.argument.2: i64
+    local %71 $dependency.parameter.left: i64
+    local %72 $dependency.parameter.marker: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
+    local %73 $dependency.parameter.right: i64
+    local %74 contextual: enum0
+    local %75 $dependency.argument.0: enum0
+    local %76 $dependency.parameter.value: enum0
+    local %77 $dependency.receiver: i64
+    local %78 $dependency.argument.0: i64
+    local %79 $dependency.parameter.other: i64
+    local %80 $dependency.argument.0: enum0
+    local %81 $dependency.parameter.value: enum0
+    local %82 $dependency.receiver: i64
+    local %83 $dependency.argument.0: i64
+    local %84 $dependency.parameter.other: i64
+    local %85 off: enum1
+    local %86 $argument.0: enum1
+    local %87 $parameter.value: enum1
+    local %88 $dependency.receiver: i64
+    local %89 $dependency.argument.0: i64
+    local %90 $dependency.parameter.other: i64
+    local %91 $argument.0: enum1
+    local %92 $parameter.value: enum1
+    local %93 $dependency.receiver: i64
+    local %94 $dependency.argument.0: i64
+    local %95 $dependency.parameter.other: i64
+    local %96 $argument.0: enum2
+    local %97 $parameter.value: enum2
+    local %98 $dependency.receiver: i64
+    local %99 $dependency.argument.0: i64
+    local %100 $dependency.parameter.other: i64
+    local %101 $argument.0: enum2
+    local %102 $parameter.value: enum2
+    local %103 $dependency.receiver: i64
+    local %104 $dependency.argument.0: i64
+    local %105 $dependency.parameter.other: i64
+    local %106 $when.1: enum0
+    local %107 $pattern.subject.2: enum0
+    local %108 $pattern.subject.3: enum0
+    local %109 $sc.1: enum0
+    local %110 $sc.2: enum0
+    local %111 $sc.3: enum0
+    local %112 $sc.4: enum3
+    local %113 $sc.5: enum3
+    local %114 $sc.6: enum3
+    local %115 $sc.7: enum3
+    local %116 $sc.8: enum0
+    local %117 $sc.9: enum0
+    local %118 $sc.10: enum1
+    local %119 $sc.11: enum1
+    local %120 $sc.12: enum2
+    local %121 $sc.13: enum2
+  block entry
+    store integer<Long>(0xffffffffffffffe3) -> local0
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t0 -> local1
+    store integer<Long>(0x0000000000000011) -> local2
+    store local2 -> local3
+    store local1 -> local4
+    store local0 -> local5
+    t1 = enum_wrap e0 v1 (local3, local4, local5) : enum0
+    store t1 -> local6
+    store local6 -> local7
+    store local7 -> local8
+    store local8 -> local109
+    call no-gc-indirect-target0 local110 = sig=indirect0 (sret enum0 size=24 align=8 scan=none, indirect<enum0 size=24 align=8 scan=none>) local-fn0(indirect local109)
+    store local110 -> local9
+    store local9 -> local10
+    store local10 -> local111
+    call no-gc-direct-target0 t2 = sig=direct0 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local111)
+    store t2 -> local11
+    store integer<Long>(0xfffffffffffffff4) -> local12
+    store local12 -> local13
+    t3 = integer_compare_Equal<Long> local11, local13 : i1
+    t4 = Not t3 : i1
+    cbr t4 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret integer<Long>(0x0000000000000001)
+  block if.merge.2
+    store local6 -> local106
+    store local106 -> local107
+    t5 = variant_test e0 v0 local107 : i1
+    cbr t5 then @pattern.pass.3 else @pattern.else.4
+  block pattern.pass.3
+    store integer<Long>(0x0000000000000000) -> local19
+    br @pattern.merge.5
+  block pattern.else.4
+    store local106 -> local108
+    t6 = variant_test e0 v1 local108 : i1
+    cbr t6 then @pattern.pass.6 else @pattern.else.7
+  block pattern.merge.5
+    store local19 -> local20
+    store local20 -> local21
+    store integer<Long>(0x000000000000002e) -> local22
+    store local22 -> local23
+    t7 = integer_compare_Equal<Long> local21, local23 : i1
+    t8 = Not t7 : i1
+    cbr t8 then @if.then.9 else @if.merge.10
+  block pattern.pass.6
+    t9 = variant_payload_project e0 v1 f0 local108 : i64
+    store t9 -> local14
+    t10 = variant_payload_project e0 v1 f2 local108 : i64
+    store t10 -> local15
+    store local14 -> local16
+    store local15 -> local17
+    store local17 -> local18
+    t11 = integer_Subtract<Long> local16, local18 : i64
+    store t11 -> local19
+    br @pattern.merge.8
+  block pattern.else.7
+    unreachable
+  block pattern.merge.8
+    br @pattern.merge.5
+  block if.then.9
+    ret integer<Long>(0x0000000000000002)
+  block if.merge.10
+    store integer<Long>(0x000000000000002f) -> local24
+    call no-gc-elided-zst-target1 t12 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t12 -> local25
+    store integer<Long>(0x0000000000000030) -> local26
+    store local24 -> local27
+    store local25 -> local28
+    store local26 -> local29
+    t13 = enum_wrap e3 v1 (local27, local28, local29) : enum3
+    store t13 -> local30
+    store local30 -> local31
+    store local31 -> local112
+    call no-gc-direct-target1 t14 = sig=direct1 (indirect<enum3 size=24 align=8 scan=none>) -> i64 local-fn4(indirect local112)
+    store t14 -> local32
+    store integer<Long>(0x000000000000005f) -> local33
+    store local33 -> local34
+    t15 = integer_compare_Equal<Long> local32, local34 : i1
+    t16 = Not t15 : i1
+    cbr t16 then @if.then.11 else @if.merge.12
+  block if.then.11
+    ret integer<Long>(0x0000000000000003)
+  block if.merge.12
+    store integer<Long>(0x000000000000002a) -> local35
+    call no-gc-elided-zst-target2 t17 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t17 -> local36
+    store integer<Long>(0x0000000000000035) -> local37
+    store local37 -> local38
+    store local36 -> local39
+    store local35 -> local40
+    t18 = enum_wrap e3 v2 (local38, local39, local40) : enum3
+    store t18 -> local41
+    store local41 -> local42
+    store local42 -> local113
+    call no-gc-direct-target2 t19 = sig=direct2 (indirect<enum3 size=24 align=8 scan=none>) -> i64 local-fn4(indirect local113)
+    store t19 -> local43
+    store integer<Long>(0x000000000000005f) -> local44
+    store local44 -> local45
+    t20 = integer_compare_Equal<Long> local43, local45 : i1
+    t21 = Not t20 : i1
+    cbr t21 then @if.then.13 else @if.merge.14
+  block if.then.13
+    ret integer<Long>(0x0000000000000004)
+  block if.merge.14
+    store integer<Long>(0x000000000000002f) -> local46
+    store local46 -> local47
+    call no-gc-elided-zst-target3 t22 = sig=elided-zst3 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t22 -> local48
+    store local47 -> local49
+    store integer<Long>(0x0000000000000001) -> local50
+    store local50 -> local51
+    t23 = integer_Add<Long> local49, local51 : i64
+    store t23 -> local52
+    t24 = enum_wrap e3 v3 (local47, local48, local52) : enum3
+    store t24 -> local53
+    store local53 -> local54
+    store local54 -> local114
+    call no-gc-direct-target3 t25 = sig=direct3 (indirect<enum3 size=24 align=8 scan=none>) -> i64 local-fn4(indirect local114)
+    store t25 -> local55
+    store integer<Long>(0x000000000000005f) -> local56
+    store local56 -> local57
+    t26 = integer_compare_Equal<Long> local55, local57 : i1
+    t27 = Not t26 : i1
+    cbr t27 then @if.then.15 else @if.merge.16
+  block if.then.15
+    ret integer<Long>(0x0000000000000005)
+  block if.merge.16
+    store integer<Long>(0x0000000000000030) -> local58
+    store integer<Long>(0x000000000000002f) -> local59
+    store local59 -> local60
+    call no-gc-elided-zst-target4 t28 = sig=elided-zst4 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t28 -> local61
+    store local58 -> local62
+    t29 = enum_wrap e3 v3 (local60, local61, local62) : enum3
+    store t29 -> local63
+    store local63 -> local64
+    store local64 -> local115
+    call no-gc-direct-target4 t30 = sig=direct4 (indirect<enum3 size=24 align=8 scan=none>) -> i64 local-fn4(indirect local115)
+    store t30 -> local65
+    store integer<Long>(0x000000000000005f) -> local66
+    store local66 -> local67
+    t31 = integer_compare_Equal<Long> local65, local67 : i1
+    t32 = Not t31 : i1
+    cbr t32 then @if.then.17 else @if.merge.18
+  block if.then.17
+    ret integer<Long>(0x0000000000000006)
+  block if.merge.18
+    store integer<Long>(0x0000000000000000) -> local68
+    call no-gc-elided-zst-target5 t33 = sig=elided-zst5 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t33 -> local69
+    store integer<Long>(0x0000000000000000) -> local70
+    store local68 -> local71
+    store local69 -> local72
+    store local70 -> local73
+    t34 = enum_wrap e0 v1 (local71, local72, local73) : enum0
+    store t34 -> local74
+    store local74 -> local75
+    store local75 -> local76
+    store local76 -> local116
+    call no-gc-direct-target5 t35 = sig=direct5 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local116)
+    store t35 -> local77
+    store integer<Long>(0x0000000000000000) -> local78
+    store local78 -> local79
+    t36 = integer_compare_Equal<Long> local77, local79 : i1
+    t37 = Not t36 : i1
+    cbr t37 then @if.then.19 else @if.merge.20
+  block if.then.19
+    ret integer<Long>(0x0000000000000007)
+  block if.merge.20
+    t38 = enum_wrap e0 v0 () : enum0
+    store t38 -> local80
+    store local80 -> local81
+    store local81 -> local117
+    call no-gc-direct-target6 t39 = sig=direct6 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local117)
+    store t39 -> local82
+    store integer<Long>(0x0000000000000000) -> local83
+    store local83 -> local84
+    t40 = integer_compare_Equal<Long> local82, local84 : i1
+    t41 = Not t40 : i1
+    cbr t41 then @if.then.21 else @if.merge.22
+  block if.then.21
+    ret integer<Long>(0x0000000000000008)
+  block if.merge.22
+    t42 = enum_wrap e1 v0 () : enum1
+    store t42 -> local85
+    store local85 -> local86
+    store local86 -> local87
+    store local87 -> local118
+    call no-gc-direct-target7 t43 = sig=direct7 (indirect<enum1 size=8 align=8 scan=none>) -> i64 local-fn2(indirect local118)
+    store t43 -> local88
+    store integer<Long>(0x0000000000000000) -> local89
+    store local89 -> local90
+    t44 = integer_compare_Equal<Long> local88, local90 : i1
+    t45 = Not t44 : i1
+    cbr t45 then @if.then.23 else @if.merge.24
+  block if.then.23
+    ret integer<Long>(0x0000000000000009)
+  block if.merge.24
+    t46 = enum_wrap e1 v1 () : enum1
+    store t46 -> local91
+    store local91 -> local92
+    store local92 -> local119
+    call no-gc-direct-target8 t47 = sig=direct8 (indirect<enum1 size=8 align=8 scan=none>) -> i64 local-fn2(indirect local119)
+    store t47 -> local93
+    store integer<Long>(0x0000000000000001) -> local94
+    store local94 -> local95
+    t48 = integer_compare_Equal<Long> local93, local95 : i1
+    t49 = Not t48 : i1
+    cbr t49 then @if.then.25 else @if.merge.26
+  block if.then.25
+    ret integer<Long>(0x000000000000000a)
+  block if.merge.26
+    t50 = enum_wrap e2 v0 () : enum2
+    store t50 -> local96
+    store local96 -> local97
+    store local97 -> local120
+    call no-gc-direct-target9 t51 = sig=direct9 (indirect<enum2 size=8 align=8 scan=none>) -> i64 local-fn3(indirect local120)
+    store t51 -> local98
+    store integer<Long>(0x0000000000000000) -> local99
+    store local99 -> local100
+    t52 = integer_compare_Equal<Long> local98, local100 : i1
+    t53 = Not t52 : i1
+    cbr t53 then @if.then.27 else @if.merge.28
+  block if.then.27
+    ret integer<Long>(0x000000000000000b)
+  block if.merge.28
+    t54 = enum_wrap e2 v0 () : enum2
+    store t54 -> local101
+    store local101 -> local102
+    store local102 -> local121
+    call no-gc-direct-target10 t55 = sig=direct10 (indirect<enum2 size=8 align=8 scan=none>) -> i64 local-fn3(indirect local121)
+    store t55 -> local103
+    store integer<Long>(0x0000000000000000) -> local104
+    store local104 -> local105
+    t56 = integer_compare_Equal<Long> local103, local105 : i1
+    t57 = Not t56 : i1
+    cbr t57 then @if.then.29 else @if.merge.30
+  block if.then.29
+    ret integer<Long>(0x000000000000000c)
+  block if.merge.30
+    ret integer<Long>(0x0000000000000053)
+  output library

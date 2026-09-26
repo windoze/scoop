@@ -78,6 +78,9 @@ impl ImportedDependencySelectionPlan {
             ImportedTarget::GenericFunction(id) => {
                 CallableTemplateOrigin::GenericFunction(id.persistent())
             }
+            ImportedTarget::EnumVariant(id) => {
+                CallableTemplateOrigin::VariantConstructor(id.persistent())
+            }
             target => return Err(ImportedDependencyCandidateError::NotCallable(target)),
         };
         self.callable_candidate_for_declaration(declaration, binding)

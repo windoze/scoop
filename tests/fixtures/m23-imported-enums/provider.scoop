@@ -19,3 +19,12 @@ public enum Flag { Off, On }
 
 public enum Packet { Missing, Data((Long, Token, Long), Token) }
 @NoGC public fun packet(): Packet = Packet.Data((53, Token(), 42), Token())
+
+public typealias ChoiceAlias = Choice
+public enum Marker { Only }
+public enum Draft {
+    Absent,
+    Position(Long, Token, Long),
+    Named { left: Long, marker: Token, right: Long },
+    Defaults(val left: Long, val marker: Token = Token(), val right: Long = left + 1)
+}

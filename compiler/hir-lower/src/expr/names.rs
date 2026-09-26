@@ -140,11 +140,19 @@ impl Lowerer {
                         ResolvedValueTarget::Materialized(target) => {
                             self.lower_named_value_target(name, target, expected)
                         }
+                        ResolvedValueTarget::Dependency(binding)
+                            if matches!(binding.target(), hir::ImportedTarget::EnumVariant(_)) =>
+                        {
+                            self.lower_imported_variant_binding(&binding, name)
+                        }
                         ResolvedValueTarget::Dependency(binding) => self
                             .lower_imported_dependency_property_read(&binding, None, name.span)
                             .map(|property| property.expression),
                     };
                 }
+            }
+            if let Some((owner, index)) = self.contextual_imported_variant(&name.text, expected) {
+                return self.lower_imported_unit_variant(owner, index, name);
             }
             if let Some(target) = self.contextual_variant_ref(&name.text, expected) {
                 let enumeration = target.enumeration();

@@ -146,6 +146,19 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     SourceNominalId::from_source_declaration(&key)
                         .map_err(|_| invalid(owner, "nested object value has no source nominal"))?
                 }
+                BindableEntity::EnumVariant(id) => {
+                    let scoop_hir::NominalSourceShapeV1::Enum(shape) = record.source_shape() else {
+                        return Err(invalid(owner, "variant binding requires an enum owner"));
+                    };
+                    if !shape
+                        .variants()
+                        .iter()
+                        .any(|variant| variant.variant() == id)
+                    {
+                        return Err(invalid(owner, "variant binding has no declared variant"));
+                    }
+                    continue;
+                }
                 _ => {
                     return Err(invalid(
                         owner,

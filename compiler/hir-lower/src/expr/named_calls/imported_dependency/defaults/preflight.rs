@@ -84,6 +84,12 @@ impl Lowerer {
             Kind::TupleLiteral(elements) => self.preflight_imported_default_expressions(
                 owner, template, elements, locals, callables,
             ),
+            Kind::VariantConstruct { variant, arguments } => {
+                self.imported_default_type(variant.owner_type())?;
+                self.preflight_imported_default_expressions(
+                    owner, template, arguments, locals, callables,
+                )
+            }
             Kind::Call {
                 callee,
                 arguments,
@@ -210,7 +216,6 @@ impl Lowerer {
             Kind::StructInit { .. }
             | Kind::StructConstruct { .. }
             | Kind::ClassInit { .. }
-            | Kind::VariantConstruct { .. }
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)

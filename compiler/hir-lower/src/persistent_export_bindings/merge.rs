@@ -31,17 +31,20 @@ enum DestinationOwner {
 
 type Destination = (DestinationOwner, BindingNamespace, CanonicalIdentifier);
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn merge(
     lowerer: &Lowerer,
     surface: &hir::PublicSemanticSurface,
     nominals: &hir::HirNominalIdentities,
+    enum_members: &hir::HirEnumMemberIdentities,
     object_values: &hir::HirObjectValueIdentities,
     functions: &hir::HirFunctionIdentities,
     properties: &hir::HirPropertyIdentities,
     direct: hir::HirExportBindingIdentities,
 ) -> Result<PersistentExportBindings, PersistentExportBindingIdentityError> {
     let overloads = direct_overload_signatures(surface, functions, properties);
-    let nested_owners = nested_binding_owners(lowerer, surface, nominals, object_values);
+    let nested_owners =
+        nested_binding_owners(lowerer, surface, nominals, enum_members, object_values);
     let mut candidates = Vec::with_capacity(direct.len() + lowerer.imports.reexports.len());
     for identity in direct.iter() {
         let target = identity.key().target();
@@ -236,6 +239,7 @@ fn nested_binding_owners(
     lowerer: &Lowerer,
     surface: &hir::PublicSemanticSurface,
     nominals: &hir::HirNominalIdentities,
+    enum_members: &hir::HirEnumMemberIdentities,
     object_values: &hir::HirObjectValueIdentities,
 ) -> BTreeMap<BindableEntity, DefinitionOwnerAtom> {
     let mut owners = BTreeMap::new();
@@ -244,6 +248,19 @@ fn nested_binding_owners(
     }
     for &id in &surface.enums {
         collect_nested_nominal_owner(&mut owners, &nominals[id]);
+        let owner = nominals[id]
+            .source()
+            .expect("public enum bindings retain their source declaration")
+            .definition_owner();
+        for index in 0..lowerer.enums[id].variants.len() {
+            let index = u32::try_from(index).expect("public variant indices are validated");
+            let reference = hir::EnumVariantRef::checked(&lowerer.enums, id, index)
+                .expect("the public enum contains its declared variant");
+            owners.insert(
+                BindableEntity::EnumVariant(enum_members[reference].id()),
+                owner.clone(),
+            );
+        }
     }
     for &id in &surface.classes {
         collect_nested_nominal_owner(&mut owners, &nominals[id]);

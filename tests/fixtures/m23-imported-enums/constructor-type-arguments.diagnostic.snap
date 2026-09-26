@@ -1,0 +1,3 @@
+span=92..96
+expression=Pair
+dependency constructor `Pair` expects 0 type argument(s), found 1

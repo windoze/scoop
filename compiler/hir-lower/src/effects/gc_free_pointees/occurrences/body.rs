@@ -428,6 +428,12 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
+        ExprKind::ImportedVariantConstruct { owner, args, .. } => {
+            push_type_at_expression(*owner, expression, out);
+            for argument in args {
+                collect_expr_type_occurrences(lowerer, argument, out);
+            }
+        }
         ExprKind::VariantTest { operand, variant } => {
             push_type_at_expression(
                 lowerer.enum_applications[variant.application()].canonical_type,

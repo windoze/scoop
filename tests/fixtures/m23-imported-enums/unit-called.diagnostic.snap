@@ -1,0 +1,3 @@
+span=51..60
+expression=Flag.On()
+unit variant `On` of `Flag` does not take arguments; use `On` without parentheses

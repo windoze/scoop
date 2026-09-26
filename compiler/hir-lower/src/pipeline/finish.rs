@@ -196,6 +196,7 @@ impl Lowerer {
             &self,
             &public_surface,
             &nominal_identities,
+            &enum_member_identities,
             &object_value_identities,
             &function_identities,
             &property_identities,

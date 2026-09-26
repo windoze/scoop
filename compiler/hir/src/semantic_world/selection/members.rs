@@ -108,7 +108,9 @@ impl ImportedDependencySelectionPlan {
             ImportedDependencyCandidateError::MissingCallable(declaration),
         )?;
         let name = match &entry.name {
-            CallableCatalogName::Function(name) => name,
+            CallableCatalogName::Function(name) | CallableCatalogName::VariantConstructor(name) => {
+                name
+            }
             CallableCatalogName::Accessor => {
                 &self
                     .catalog
@@ -146,11 +148,6 @@ impl ImportedDependencySelectionPlan {
                     ));
                 };
                 name
-            }
-            CallableCatalogName::VariantConstructor => {
-                return Err(ImportedDependencyCandidateError::MissingCallableSource(
-                    declaration,
-                ));
             }
         };
         Ok(ImportedCallableDeclaration {

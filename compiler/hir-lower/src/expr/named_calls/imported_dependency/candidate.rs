@@ -19,6 +19,7 @@ impl ImportedCallableCandidate {
         if matches!(
             self.interface().declaration(),
             scoop_identity::CallableTemplateOrigin::Constructor(_)
+                | scoop_identity::CallableTemplateOrigin::VariantConstructor(_)
         ) {
             "constructor"
         } else {
@@ -83,7 +84,12 @@ impl ImportedCallableCandidate {
     }
 
     pub(super) fn executable(&self) -> bool {
-        self.capability().is_some() || self.normalized_intrinsic().is_some()
+        self.capability().is_some()
+            || self.normalized_intrinsic().is_some()
+            || matches!(
+                self.interface().declaration(),
+                scoop_identity::CallableTemplateOrigin::VariantConstructor(_)
+            )
     }
 }
 

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v23_rejects_retired_pattern_constructor_references() {
+fn source_interface_v24_requires_complete_enum_namespace_bindings() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        23,
+        24,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

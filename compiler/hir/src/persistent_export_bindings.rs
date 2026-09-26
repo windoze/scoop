@@ -17,6 +17,7 @@ use crate::{
 
 mod error;
 mod surface;
+mod variants;
 pub use error::{HirExportBindingEntityKind, HirExportBindingIdentityError};
 pub use surface::HirExportBindingSurfaceValidationError;
 
@@ -34,6 +35,7 @@ pub struct HirExportBindingIdentityInputs<'a> {
     pub properties: &'a Arena<Property>,
     pub type_aliases: &'a Arena<TypeAliasDecl>,
     pub nominal_identities: &'a HirNominalIdentities,
+    pub enum_member_identities: &'a crate::HirEnumMemberIdentities,
     pub object_value_identities: &'a HirObjectValueIdentities,
     pub function_identities: &'a HirFunctionIdentities,
     pub property_identities: &'a HirPropertyIdentities,
@@ -66,6 +68,7 @@ impl HirExportBindingIdentities {
             HirExportBindingEntityKind::Enum,
             &mut records,
         )?;
+        variants::collect(&inputs, &mut records)?;
         collect_nominals(
             &inputs.surface.classes,
             inputs.classes,

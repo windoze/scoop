@@ -154,7 +154,9 @@ impl Lowerer {
             if !matches!(
                 binding.target,
                 NamedCallTarget::ImportedDependency(
-                    hir::ImportedTarget::Function(_) | hir::ImportedTarget::GenericFunction(_)
+                    hir::ImportedTarget::Function(_)
+                        | hir::ImportedTarget::GenericFunction(_)
+                        | hir::ImportedTarget::EnumVariant(_)
                 )
             ) {
                 continue;

@@ -4,6 +4,7 @@ mod arrays;
 mod ffi;
 
 mod classes;
+mod imported_variants;
 mod structs;
 mod variants;
 

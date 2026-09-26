@@ -1,0 +1,3 @@
+span=85..124
+expression=Choice.Pair(left = 1, marker = Token())
+dependency constructor `Pair` required parameter `right` has no argument

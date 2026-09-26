@@ -1,0 +1,47 @@
+package consumer.enums
+
+import dependency.enums.Choice
+import dependency.enums.ChoiceAlias as Renamed
+import dependency.enums.Flag
+import dependency.enums.Flag.On as Enabled
+import dependency.enums.Token
+import dependency.enums.Marker
+import dependency.enums.Marker.*
+import dependency.enums.Draft
+import dependency.enums.Draft.Position as Coordinates
+import dependency.enums.Draft.Defaults
+import dependency.enums.sum
+
+typealias Pick = Choice
+
+@NoGC public fun relay(value: Choice): Choice = value
+@NoGC public fun defaultScore(value: Choice = Pick.Pair(right = 31, marker = Token(), left = 11)): Long = sum(value)
+@NoGC public fun defaultFlag(value: Flag = Flag.On): Long = when (value) { Off -> 0; On -> 1 }
+@NoGC public fun defaultMarker(value: Marker = Marker.Only): Long = when (value) { Only -> 0 }
+
+@NoGC fun score(value: Draft): Long = when (value) {
+    Absent -> 0
+    Position(left, _, right) -> left + right
+    Named { left, right, .. } -> left + right
+    Defaults { left, right, .. } -> left + right
+}
+
+@NoGC public fun test(): Long {
+    val named = Renamed.Pair(right = -29, marker = Token(), left = 17)
+    if (sum(relay(named)) != -12) { return 1 }
+    val difference = when (named) { Empty -> 0; Pair { left, right, .. } -> left - right }
+    if (difference != 46) { return 2 }
+    if (score(Coordinates(47, Token(), 48)) != 95) { return 3 }
+    if (score(Draft.Named(right = 42, marker = Token(), left = 53)) != 95) { return 4 }
+    if (score(Defaults(47)) != 95) { return 5 }
+    if (score(Draft.Defaults(right = 48, left = 47)) != 95) { return 6 }
+    val contextual: Choice = Pair(left = 0, marker = Token(), right = 0)
+    if (sum(contextual) != 0) { return 7 }
+    if (sum(Choice.Empty) != 0) { return 8 }
+    val off: Flag = Off
+    if (defaultFlag(off) != 0) { return 9 }
+    if (defaultFlag(Enabled) != 1) { return 10 }
+    if (defaultMarker(Marker.Only) != 0) { return 11 }
+    if (defaultMarker(Only) != 0) { return 12 }
+    return 83
+}

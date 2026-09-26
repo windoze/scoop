@@ -39,6 +39,32 @@ impl<'a> ImportedProbeCall<'a> {
 }
 
 impl ImportedCallArguments<'_> {
+    pub(super) fn check_variant_style(
+        self,
+        style: hir::EnumSourceVariantStyleV1,
+    ) -> Result<(), ArgumentShapeFailure> {
+        let (positional, named) = match self {
+            Self::Source(arguments) => (
+                arguments
+                    .iter()
+                    .any(|argument| matches!(argument.name, ast::CallArgumentName::Positional)),
+                arguments
+                    .iter()
+                    .any(|argument| matches!(argument.name, ast::CallArgumentName::Named(_))),
+            ),
+            Self::Lowered(arguments) => (!arguments.is_empty(), false),
+        };
+        match style {
+            hir::EnumSourceVariantStyleV1::Named if positional => {
+                Err(ArgumentShapeFailure::PositionalForNamedOnly)
+            }
+            hir::EnumSourceVariantStyleV1::Positional if named => {
+                Err(ArgumentShapeFailure::NamedForPositionalOnly)
+            }
+            _ => Ok(()),
+        }
+    }
+
     pub(super) fn len(self) -> usize {
         match self {
             Self::Source(arguments) => arguments.len(),

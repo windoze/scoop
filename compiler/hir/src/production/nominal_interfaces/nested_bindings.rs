@@ -2,7 +2,7 @@ use scoop_identity::{BindableEntity, NominalDeclarationOwner};
 
 use super::{
     LocalNominalId, NominalArenaKind, NominalInterfaceBuildError,
-    NominalNestedBindingProjectionError, NominalProjection,
+    NominalNestedBindingProjectionError, NominalProjection, NominalSourceProjectionError,
 };
 use crate::CanonicalPersistentIdsV1;
 
@@ -16,6 +16,11 @@ pub(super) fn project(
 > {
     let expected_owner = local.owner();
     let mut bindings = Vec::new();
+    if let LocalNominalId::Enum(id) = local
+        && projection.export.public_surface.enums.contains(&id)
+    {
+        collect_enum_variants(projection, owner, id, &mut bindings)?;
+    }
     for &id in &projection.export.public_surface.structs {
         if projection.export.structs[id].owner == Some(expected_owner) {
             collect_nominal(projection, owner, LocalNominalId::Struct(id), &mut bindings)?;
@@ -72,6 +77,41 @@ pub(super) fn project(
             source,
         }
     })
+}
+
+fn collect_enum_variants(
+    projection: &NominalProjection<'_>,
+    owner: NominalDeclarationOwner,
+    id: crate::EnumId,
+    bindings: &mut Vec<scoop_identity::PersistentExportBindingId>,
+) -> Result<(), NominalInterfaceBuildError> {
+    let source_error = |detail| NominalInterfaceBuildError::SourceShape {
+        declaration: owner,
+        detail,
+    };
+    for index in 0..projection.export.enums[id].variants.len() {
+        let index = u32::try_from(index)
+            .map_err(|_| source_error(NominalSourceProjectionError::TooManyEnumVariants))?;
+        let identity = crate::EnumVariantRef::checked(&projection.export.enums, id, index)
+            .and_then(|reference| {
+                projection
+                    .export
+                    .enum_member_identities
+                    .get_variant(reference)
+            })
+            .ok_or_else(|| {
+                source_error(NominalSourceProjectionError::MissingEnumVariantIdentity {
+                    variant: index,
+                })
+            })?;
+        collect_target(
+            projection,
+            owner,
+            BindableEntity::EnumVariant(identity.id()),
+            bindings,
+        )?;
+    }
+    Ok(())
 }
 
 fn collect_nominal(

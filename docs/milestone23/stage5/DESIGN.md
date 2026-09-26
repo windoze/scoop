@@ -1,5 +1,7 @@
 # M23-5 设计：多 Cone 名称语义
 
+共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/24` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
+
 M23-6 版本衔接：core 与普通依赖共用实际 provider 和 typed target 查询，独立 core requirement 闭包与 CoreStrong tag 2 已退役。当前 `link-identity-closure/3` 使用实际符号和 relocation 合同；旧产物需要重建。不同消费用途复用已有记录，移除按历史表分区授予或拒绝来源资格的规则。
 
 本文的阶段范围记录 M23-5 最初交付的名称语义；格式清单与已完成的共有化按当前实现更新。M23-6 的完整类型、布局、dispatch、ABI 与清理要求见 [M23-6 设计](../stage6/DESIGN.md)。
@@ -231,7 +233,7 @@ required_manifest = [
 
 required_hir = [
   org.scoop-lang.hir/core-bootstrap-interface/3,
-  org.scoop-lang.hir/cross-cone-interface/23,
+  org.scoop-lang.hir/cross-cone-interface/24,
   org.scoop-lang.hir/identity-foundation/3,
 ]
 
@@ -265,7 +267,7 @@ validation_policy   = {
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
-| `org.scoop-lang.hir/cross-cone-interface/23` | HIR | Compile | HIR |
+| `org.scoop-lang.hir/cross-cone-interface/24` | HIR | Compile | HIR |
 | `org.scoop-lang.mir/cross-cone-param-free-bridge/2` | MIR | Compile | MIR |
 | `org.scoop-lang.lir/cross-cone-param-free-bridge/1` | LIR | Compile | LIR |
 | `org.scoop-lang.lir/cross-cone-link-closure/1` | LIR | Link | Code + LinkValidationOnly |

@@ -174,6 +174,7 @@ fn collect_integer_literal_kinds(
         hir::ExprKind::StructInit { args, .. }
         | hir::ExprKind::ClassInit { args, .. }
         | hir::ExprKind::VariantConstruct { args, .. }
+        | hir::ExprKind::ImportedVariantConstruct { args, .. }
         | hir::ExprKind::Call { args, .. } => {
             for argument in args {
                 collect_integer_literal_kinds(lowerer, argument, kinds);

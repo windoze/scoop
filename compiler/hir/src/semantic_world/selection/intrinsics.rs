@@ -12,7 +12,7 @@ pub(super) enum CallableCatalogName {
     Function(CanonicalIdentifier),
     Constructor,
     Accessor,
-    VariantConstructor,
+    VariantConstructor(CanonicalIdentifier),
 }
 
 pub(super) fn callable_catalog_name(
@@ -29,8 +29,16 @@ pub(super) fn callable_catalog_name(
             .map(|(_, key)| key),
         CallableTemplateOrigin::Constructor(_) => return Ok(CallableCatalogName::Constructor),
         CallableTemplateOrigin::Accessor(_) => return Ok(CallableCatalogName::Accessor),
-        CallableTemplateOrigin::VariantConstructor(_) => {
-            return Ok(CallableCatalogName::VariantConstructor);
+        CallableTemplateOrigin::VariantConstructor(id) => {
+            let name = foundation
+                .enum_variant_by_bytes(id.as_array())
+                .and_then(|(_, key)| key.source_name())
+                .ok_or(
+                    ImportedDependencySelectionPlanBuildError::MissingCallableSourceName(
+                        declaration,
+                    ),
+                )?;
+            return Ok(CallableCatalogName::VariantConstructor(name.clone()));
         }
     };
     match key.map(|key| key.name()) {

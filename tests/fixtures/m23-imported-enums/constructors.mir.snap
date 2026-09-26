@@ -1,0 +1,799 @@
+Module
+  struct Token ()
+  enum Choice
+    Empty()
+    Pair(left: Long, marker: Token, right: Long)
+  enum Flag
+    Off()
+    On()
+  enum Marker
+    Only()
+  enum Draft
+    Absent()
+    Position(_0: Long, _1: Token, _2: Long)
+    Named(left: Long, marker: Token, right: Long)
+    Defaults(left: Long, marker: Token, right: Long)
+  fun relay @fn0(value: Choice) -> Choice <no-gc>
+    bb0 entry
+      return
+        Type Choice
+        Local value
+  fun defaultScore @fn1(value: Choice) -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Choice
+        Type Choice
+        Local value
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $call.1: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun defaultFlag @fn2(value: Flag) -> Long <no-gc>
+    bb0 entry
+      val $when.1: Flag
+        Type Flag
+        Local value
+      val $pattern.subject.2: Flag
+        Type Flag
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Flag v0
+          Type Flag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Flag
+        Type Flag
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Flag v1
+          Type Flag
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.0
+    bb4 pattern.pass.4
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun defaultMarker @fn3(value: Marker) -> Long <no-gc>
+    bb0 entry
+      val $when.1: Marker
+        Type Marker
+        Local value
+      val $pattern.subject.2: Marker
+        Type Marker
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Marker v0
+          Type Marker
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.1
+  fun score @fn4(value: Draft) -> Long <no-gc>
+    bb0 entry
+      val $when.1: Draft
+        Type Draft
+        Local value
+      val $pattern.subject.2: Draft
+        Type Draft
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Draft v0
+          Type Draft
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.2
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Draft
+        Type Draft
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Draft v1
+          Type Draft
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.2
+    bb4 pattern.pass.4
+      val left: Long
+        Type Long
+        VariantPayloadProject Draft v1 f0
+          Type Draft
+          Local $pattern.subject.3
+      val right: Long
+        Type Long
+        VariantPayloadProject Draft v1 f2
+          Type Draft
+          Local $pattern.subject.3
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.2
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.4: Draft
+        Type Draft
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Draft v2
+          Type Draft
+          Local $pattern.subject.4
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      val left: Long
+        Type Long
+        VariantPayloadProject Draft v2 f0
+          Type Draft
+          Local $pattern.subject.4
+      val right: Long
+        Type Long
+        VariantPayloadProject Draft v2 f2
+          Type Draft
+          Local $pattern.subject.4
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.2
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.5: Draft
+        Type Draft
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Draft v3
+          Type Draft
+          Local $pattern.subject.5
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 pattern.pass.10
+      val left: Long
+        Type Long
+        VariantPayloadProject Draft v3 f0
+          Type Draft
+          Local $pattern.subject.5
+      val right: Long
+        Type Long
+        VariantPayloadProject Draft v3 f2
+          Type Draft
+          Local $pattern.subject.5
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.2
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+  fun test @fn5() -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
+      call $dependency.argument.1: Token = external0 direct
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.2
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.1
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.0
+      val named: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Long
+          Local $dependency.parameter.left
+          Type Token
+          Local $dependency.parameter.marker
+          Type Long
+          Local $dependency.parameter.right
+      val $argument.0: Choice
+        Type Choice
+        Local named
+      val $parameter.value: Choice
+        Type Choice
+        Local $argument.0
+      call $dependency.argument.0: Choice = @fn0 direct
+        Type Choice
+        Local $parameter.value
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-12 bits=0xfffffffffffffff4
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+    bb2 if.merge.2
+      val $when.1: Choice
+        Type Choice
+        Local named
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      assign $result.3
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb5
+    bb4 pattern.else.4
+      val $pattern.subject.3: Choice
+        Type Choice
+        Local $when.1
+      branch bb6 bb7
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.3
+    bb5 pattern.merge.5
+      val difference: Long
+        Type Long
+        Local $result.3
+      val $dependency.receiver: Long
+        Type Long
+        Local difference
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=46 bits=0x000000000000002e
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb6 pattern.pass.6
+      val left: Long
+        Type Long
+        VariantPayloadProject Choice v1 f0
+          Type Choice
+          Local $pattern.subject.3
+      val right: Long
+        Type Long
+        VariantPayloadProject Choice v1 f2
+          Type Choice
+          Local $pattern.subject.3
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.3
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb8
+    bb7 pattern.else.7
+      unreachable
+    bb8 pattern.merge.8
+      goto bb5
+    bb9 if.then.9
+      return
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+    bb10 if.merge.10
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=47 bits=0x000000000000002f
+      call $dependency.argument.1: Token = external0 direct
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=48 bits=0x0000000000000030
+      val $dependency.parameter._1: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter._2: Token
+        Type Token
+        Local $dependency.argument.1
+      val $dependency.parameter._3: Long
+        Type Long
+        Local $dependency.argument.2
+      val $argument.0: Draft
+        Type Draft
+        VariantConstruct Draft v1
+          Type Long
+          Local $dependency.parameter._1
+          Type Token
+          Local $dependency.parameter._2
+          Type Long
+          Local $dependency.parameter._3
+      val $parameter.value: Draft
+        Type Draft
+        Local $argument.0
+      call $dependency.receiver: Long = @fn4 direct
+        Type Draft
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=95 bits=0x000000000000005f
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb11 if.then.11
+      return
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+    bb12 if.merge.12
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      call $dependency.argument.1: Token = external0 direct
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=53 bits=0x0000000000000035
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.2
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.1
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Draft
+        Type Draft
+        VariantConstruct Draft v2
+          Type Long
+          Local $dependency.parameter.left
+          Type Token
+          Local $dependency.parameter.marker
+          Type Long
+          Local $dependency.parameter.right
+      val $parameter.value: Draft
+        Type Draft
+        Local $argument.0
+      call $dependency.receiver: Long = @fn4 direct
+        Type Draft
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=95 bits=0x000000000000005f
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb13 if.then.13
+      return
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+    bb14 if.merge.14
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=47 bits=0x000000000000002f
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.parameter.marker: Token = external0 direct
+      val $dependency.default.local.2: Long
+        Type Long
+        Local $dependency.parameter.left
+      val $dependency.default.local.3: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.default.local.4: Long
+        Type Long
+        Local $dependency.default.local.3
+      val $dependency.parameter.right: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.default.local.2
+          Type Long
+          Local $dependency.default.local.4
+      val $argument.0: Draft
+        Type Draft
+        VariantConstruct Draft v3
+          Type Long
+          Local $dependency.parameter.left
+          Type Token
+          Local $dependency.parameter.marker
+          Type Long
+          Local $dependency.parameter.right
+      val $parameter.value: Draft
+        Type Draft
+        Local $argument.0
+      call $dependency.receiver: Long = @fn4 direct
+        Type Draft
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=95 bits=0x000000000000005f
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb15 if.then.15
+      return
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+    bb16 if.merge.16
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=48 bits=0x0000000000000030
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=47 bits=0x000000000000002f
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.1
+      call $dependency.parameter.marker: Token = external0 direct
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Draft
+        Type Draft
+        VariantConstruct Draft v3
+          Type Long
+          Local $dependency.parameter.left
+          Type Token
+          Local $dependency.parameter.marker
+          Type Long
+          Local $dependency.parameter.right
+      val $parameter.value: Draft
+        Type Draft
+        Local $argument.0
+      call $dependency.receiver: Long = @fn4 direct
+        Type Draft
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=95 bits=0x000000000000005f
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb17 bb18
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb17 if.then.17
+      return
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+    bb18 if.merge.18
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $dependency.argument.1: Token = external0 direct
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.1
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.2
+      val contextual: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Long
+          Local $dependency.parameter.left
+          Type Token
+          Local $dependency.parameter.marker
+          Type Long
+          Local $dependency.parameter.right
+      val $dependency.argument.0: Choice
+        Type Choice
+        Local contextual
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb19 bb20
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb19 if.then.19
+      return
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+    bb20 if.merge.20
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb21 bb22
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb21 if.then.21
+      return
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+    bb22 if.merge.22
+      val off: Flag
+        Type Flag
+        VariantConstruct Flag v0
+      val $argument.0: Flag
+        Type Flag
+        Local off
+      val $parameter.value: Flag
+        Type Flag
+        Local $argument.0
+      call $dependency.receiver: Long = @fn2 direct
+        Type Flag
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb23 bb24
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb23 if.then.23
+      return
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+    bb24 if.merge.24
+      val $argument.0: Flag
+        Type Flag
+        VariantConstruct Flag v1
+      val $parameter.value: Flag
+        Type Flag
+        Local $argument.0
+      call $dependency.receiver: Long = @fn2 direct
+        Type Flag
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb25 bb26
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb25 if.then.25
+      return
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+    bb26 if.merge.26
+      val $argument.0: Marker
+        Type Marker
+        VariantConstruct Marker v0
+      val $parameter.value: Marker
+        Type Marker
+        Local $argument.0
+      call $dependency.receiver: Long = @fn3 direct
+        Type Marker
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb27 bb28
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb27 if.then.27
+      return
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+    bb28 if.merge.28
+      val $argument.0: Marker
+        Type Marker
+        VariantConstruct Marker v0
+      val $parameter.value: Marker
+        Type Marker
+        Local $argument.0
+      call $dependency.receiver: Long = @fn3 direct
+        Type Marker
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb29 bb30
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb29 if.then.29
+      return
+        Type Long
+        IntegerLiteral Long value=12 bits=0x000000000000000c
+    bb30 if.merge.30
+      return
+        Type Long
+        IntegerLiteral Long value=83 bits=0x0000000000000053
+  output library

@@ -117,15 +117,29 @@ impl Lowerer {
         call: &ast::CallExpr,
         expected: Option<hir::TypeId>,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
-        self.probe_imported_callable_candidate(
-            ImportedCallableCandidate::Declaration(Box::new(candidate)),
+        self.probe_imported_value_constructor(
+            candidate,
             &call.callee,
             CallSite {
                 type_args: &call.type_args,
                 args: &call.args,
                 span: call.span,
-            }
-            .into(),
+            },
+            expected,
+        )
+    }
+
+    pub(in crate::expr) fn probe_imported_value_constructor(
+        &self,
+        candidate: hir::ImportedCallableDeclaration,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        expected: Option<hir::TypeId>,
+    ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        self.probe_imported_callable_candidate(
+            ImportedCallableCandidate::Declaration(Box::new(candidate)),
+            name,
+            call.into(),
             expected,
             ImportedDependencyCallReceiver::Implicit,
             false,
@@ -166,6 +180,38 @@ impl Lowerer {
             );
             return Err(Box::new(state));
         };
+        if let scoop_identity::CallableTemplateOrigin::VariantConstructor(variant) =
+            interface.declaration()
+        {
+            let Ok(owner) = state.imported_signature_type(interface.result()) else {
+                state.imported_dependency_capability_error(
+                    &candidate,
+                    false,
+                    "dependency enum variant",
+                    call.span,
+                );
+                return Err(Box::new(state));
+            };
+            let hir::Type::ImportedEnum(enumeration) = &state.types[owner] else {
+                unreachable!("a dependency variant retains its actual enum result")
+            };
+            let variant = enumeration
+                .variants
+                .iter()
+                .find(|value| value.identity == variant)
+                .expect("the shared enum contains its declared variant");
+            if variant.style == hir::EnumSourceVariantStyleV1::Unit {
+                state.error(call.span, format!(
+                    "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
+                    name.text, enumeration.declaration.name(), name.text,
+                ));
+                return Err(Box::new(state));
+            }
+            if let Err(error) = call.arguments.check_variant_style(variant.style) {
+                state.imported_dependency_shape_error(name, call, error, kind);
+                return Err(Box::new(state));
+            }
+        }
         let argument_map = match call
             .arguments
             .map(source.parameters().parameters(), operator_set)
@@ -184,7 +230,8 @@ impl Lowerer {
             receiver_source,
             argument_map.has_vararg(),
         )?;
-        if matches!(candidate, ImportedCallableCandidate::Declaration(_)) {
+        if candidate.executable() || matches!(candidate, ImportedCallableCandidate::Declaration(_))
+        {
             for signature in interface
                 .parameters()
                 .parameters()

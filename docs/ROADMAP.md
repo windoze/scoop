@@ -1,12 +1,14 @@
 # Scoop 实现路线图
 
-M23-6 的 enum 模式验收覆盖实际跨 Cone 的 unit／payload 模式、嵌套 tuple、guard、穷尽性、类型别名和定义处默认值，并由第三个 Cone 消费后链接运行。模式与变体测试保留正文中的真实声明引用，不追加构造器访问资格；引用集合更新使用 `hir/cross-cone-interface/23`，旧 `/22` 及更早产物重建。
+共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/24` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
+
+M23-6 的 enum 模式验收覆盖实际跨 Cone 的 unit／payload 模式、嵌套 tuple、guard、穷尽性、类型别名和定义处默认值，并由第三个 Cone 消费后链接运行。模式与变体测试保留正文中的真实声明引用，不追加构造器访问资格；引用集合更新使用 `hir/cross-cone-interface/24`，旧 `/22` 及更早产物重建。
 
 canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。
 
 M23-6 的结构签名与字段验收包含实际 tuple 参数／结果、嵌套 tuple 字段、全 ZST 字段、enum tuple payload、成员／getter 及默认值的跨 Cone 编译、发布与运行。普通 callable 已生成的记录直接用于后续 MIR 组装、boxing 和 dispatch，不再生成一份重复绑定后丢弃。
 
-共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/23` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
+共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/24` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
 
 M23-6 的源码消费验收包含跨 Cone struct 主／次构造器、命名／默认参数、ZST 与大值返回 ABI 的独立及组合用例。验收需由真实源码生成 provider 产物、下游生成完整产物并完成对象链接与运行；构造器按真实 typed target 消费既有 MIR/LIR 定义。
 
@@ -246,6 +248,7 @@ Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 
 
 - 完成共有 `ValueStorageLayout`、canonical Scoop ABI、scan/TypeDescriptor、ZST payload elision、boxing/address/static token、Array/Ptr 与 C 边界；完成 param-free 跨 Cone 类型、constructor/member/object、继承、dispatch/protected 和有限 shape-support 的实际发布与消费。
 - core 作为普通 library 使用相同构建、缓存、依赖、类型查询和产物消费。完成 canonical ABI、native boundary、compiler protocol、String/初始化及 Link 路径中的专用资格清理。已完成部分核对生产调用链并复用。
+- 外来 enum 构造直接使用共有声明、参数与默认值，覆盖限定名、直接导入、别名、期望类型及第三 Cone 默认值展开；不要求额外外部机器构造函数。
 - 默认值源码位置复用共有 HIR 接口的完整正文和实际使用记录；删除为位置收集保留的旧默认值来源生产器、平行表与专用测试，不新增替代工厂。
 - 清除 compiler/slib/runtime 的通用资源预算、计费与配额，删除成本策略与 profile/fingerprint/runtime ABI 的绑定。保留实际范围、整数溢出、非法环与 GC 契约检查。
 - 清除额外来源授权、防伪、重复证明和测试专用来源工厂；默认参数、名称解析和语言规则由前端负责，IR/meta 与 reader 不再另建语言语义实现。Compile/Link 共享同一不可变语义结果；发布与 runtime 热点不反复完整重放。

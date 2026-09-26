@@ -1,0 +1,413 @@
+Module
+  typealias Pick = Choice
+  fun relay(value: Choice): Choice <no-gc cdecl>
+    return
+      Local value : Choice
+  fun defaultScore(value: Choice): Long <no-gc cdecl>
+    val local1
+      Local value : Choice
+    val local2
+      Local $dependency.argument.0 : Choice
+    return
+      ImportedDependencyCall #1 : Long
+        Local $dependency.parameter.value : Choice
+  fun defaultFlag(value: Flag): Long <no-gc cdecl>
+    when
+      Local value : Flag
+      arm dependency variant fdbb3796920ca563d5b306f063305502899806c328d8c1c3a830fe7b9d45fcf5()
+        assign $result.0
+          IntegerLiteral 0 : Long
+      arm dependency variant b02a6dd09d694ef6350d2cae40611358c8c7bfa33d57d0cf3ba148f808638f85()
+        assign $result.0
+          IntegerLiteral 1 : Long
+      impossible <pattern matrix for Flag>
+    return
+      Local $result.0 : Long
+  fun defaultMarker(value: Marker): Long <no-gc cdecl>
+    when
+      Local value : Marker
+      arm dependency variant 3e90106870e65a3d13272acac04b72982344cad5a644a733322ddcdfb8b6ffd2()
+        assign $result.1
+          IntegerLiteral 0 : Long
+      impossible <pattern matrix for Marker>
+    return
+      Local $result.1 : Long
+  fun score(value: Draft): Long <no-gc cdecl>
+    when
+      Local value : Draft
+      arm dependency variant 147e9e0b30db635637682d43485222f4bcb2892ddc2536628fc403f948de8f6c()
+        assign $result.2
+          IntegerLiteral 0 : Long
+      arm dependency variant 21d221d6badecd179caf89726165d4cfdfa347ef80e6bb337453b628a12ddb61(0: local1, 1: _, 2: local2)
+        val local3
+          Local left : Long
+        val local4
+          Local right : Long
+        val local5
+          Local $dependency.argument.0 : Long
+        assign $result.2
+          IntegerOperation long.add <no-gc> : Long
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+      arm dependency variant 0b18cb9267ef369fa619b45f0f9dfaced20a7db8098403e7541f01d31729c899(0: local6, 1: _, 2: local7)
+        val local8
+          Local left : Long
+        val local9
+          Local right : Long
+        val local10
+          Local $dependency.argument.0 : Long
+        assign $result.2
+          IntegerOperation long.add <no-gc> : Long
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+      arm dependency variant d9107d9f074b527b8253bfc0a877bf743b89f0cfd009150648f60ad5d5b365f7(0: local11, 1: _, 2: local12)
+        val local13
+          Local left : Long
+        val local14
+          Local right : Long
+        val local15
+          Local $dependency.argument.0 : Long
+        assign $result.2
+          IntegerOperation long.add <no-gc> : Long
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+      impossible <pattern matrix for Draft>
+    return
+      Local $result.2 : Long
+  fun test(): Long <no-gc cdecl>
+    val local0
+      IntegerLiteral -29 : Long
+    val local1
+      ImportedDependencyCall #0 : Token
+    val local2
+      IntegerLiteral 17 : Long
+    val local3
+      Local $dependency.argument.2 : Long
+    val local4
+      Local $dependency.argument.1 : Token
+    val local5
+      Local $dependency.argument.0 : Long
+    val local6
+      ImportedVariantConstruct Choice.Pair : Choice
+        Local $dependency.parameter.left : Long
+        Local $dependency.parameter.marker : Token
+        Local $dependency.parameter.right : Long
+    val local7
+      Local named : Choice
+    val local8
+      Local $argument.0 : Choice
+    val local9
+      Call relay : Choice
+        Local $parameter.value : Choice
+    val local10
+      Local $dependency.argument.0 : Choice
+    val local11
+      ImportedDependencyCall #1 : Long
+        Local $dependency.parameter.value : Choice
+    val local12
+      IntegerLiteral -12 : Long
+    val local13
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 1 : Long
+    when
+      Local named : Choice
+      arm dependency variant 9647f7997aec08abd539bf566642f39a7fa439bf4f85fc2c1da51f3039dd4bb0()
+        assign $result.3
+          IntegerLiteral 0 : Long
+      arm dependency variant 29eb7408dda5830ac206d17f2bca964f0c66071ac2af437d5951d88ebd039bd0(0: local14, 1: _, 2: local15)
+        val local16
+          Local left : Long
+        val local17
+          Local right : Long
+        val local18
+          Local $dependency.argument.0 : Long
+        assign $result.3
+          IntegerOperation long.sub <no-gc> : Long
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+      impossible <pattern matrix for Choice>
+    val local20
+      Local $result.3 : Long
+    val local21
+      Local difference : Long
+    val local22
+      IntegerLiteral 46 : Long
+    val local23
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 2 : Long
+    val local24
+      IntegerLiteral 47 : Long
+    val local25
+      ImportedDependencyCall #0 : Token
+    val local26
+      IntegerLiteral 48 : Long
+    val local27
+      Local $dependency.argument.0 : Long
+    val local28
+      Local $dependency.argument.1 : Token
+    val local29
+      Local $dependency.argument.2 : Long
+    val local30
+      ImportedVariantConstruct Draft.Position : Draft
+        Local $dependency.parameter._1 : Long
+        Local $dependency.parameter._2 : Token
+        Local $dependency.parameter._3 : Long
+    val local31
+      Local $argument.0 : Draft
+    val local32
+      Call score : Long
+        Local $parameter.value : Draft
+    val local33
+      IntegerLiteral 95 : Long
+    val local34
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 3 : Long
+    val local35
+      IntegerLiteral 42 : Long
+    val local36
+      ImportedDependencyCall #0 : Token
+    val local37
+      IntegerLiteral 53 : Long
+    val local38
+      Local $dependency.argument.2 : Long
+    val local39
+      Local $dependency.argument.1 : Token
+    val local40
+      Local $dependency.argument.0 : Long
+    val local41
+      ImportedVariantConstruct Draft.Named : Draft
+        Local $dependency.parameter.left : Long
+        Local $dependency.parameter.marker : Token
+        Local $dependency.parameter.right : Long
+    val local42
+      Local $argument.0 : Draft
+    val local43
+      Call score : Long
+        Local $parameter.value : Draft
+    val local44
+      IntegerLiteral 95 : Long
+    val local45
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 4 : Long
+    val local46
+      IntegerLiteral 47 : Long
+    val local47
+      Local $dependency.argument.0 : Long
+    val local48
+      ImportedDependencyCall #0 : Token
+    val local49
+      Local $dependency.parameter.left : Long
+    val local50
+      IntegerLiteral 1 : Long
+    val local51
+      Local $dependency.default.local.3 : Long
+    val local52
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.default.local.2 : Long
+        Local $dependency.default.local.4 : Long
+    val local53
+      ImportedVariantConstruct Draft.Defaults : Draft
+        Local $dependency.parameter.left : Long
+        Local $dependency.parameter.marker : Token
+        Local $dependency.parameter.right : Long
+    val local54
+      Local $argument.0 : Draft
+    val local55
+      Call score : Long
+        Local $parameter.value : Draft
+    val local56
+      IntegerLiteral 95 : Long
+    val local57
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 5 : Long
+    val local58
+      IntegerLiteral 48 : Long
+    val local59
+      IntegerLiteral 47 : Long
+    val local60
+      Local $dependency.argument.1 : Long
+    val local61
+      ImportedDependencyCall #0 : Token
+    val local62
+      Local $dependency.argument.0 : Long
+    val local63
+      ImportedVariantConstruct Draft.Defaults : Draft
+        Local $dependency.parameter.left : Long
+        Local $dependency.parameter.marker : Token
+        Local $dependency.parameter.right : Long
+    val local64
+      Local $argument.0 : Draft
+    val local65
+      Call score : Long
+        Local $parameter.value : Draft
+    val local66
+      IntegerLiteral 95 : Long
+    val local67
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 6 : Long
+    val local68
+      IntegerLiteral 0 : Long
+    val local69
+      ImportedDependencyCall #0 : Token
+    val local70
+      IntegerLiteral 0 : Long
+    val local71
+      Local $dependency.argument.0 : Long
+    val local72
+      Local $dependency.argument.1 : Token
+    val local73
+      Local $dependency.argument.2 : Long
+    val local74
+      ImportedVariantConstruct Choice.Pair : Choice
+        Local $dependency.parameter.left : Long
+        Local $dependency.parameter.marker : Token
+        Local $dependency.parameter.right : Long
+    val local75
+      Local contextual : Choice
+    val local76
+      Local $dependency.argument.0 : Choice
+    val local77
+      ImportedDependencyCall #1 : Long
+        Local $dependency.parameter.value : Choice
+    val local78
+      IntegerLiteral 0 : Long
+    val local79
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 7 : Long
+    val local80
+      ImportedVariantConstruct Choice.Empty : Choice
+    val local81
+      Local $dependency.argument.0 : Choice
+    val local82
+      ImportedDependencyCall #1 : Long
+        Local $dependency.parameter.value : Choice
+    val local83
+      IntegerLiteral 0 : Long
+    val local84
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 8 : Long
+    val local85
+      ImportedVariantConstruct Flag.Off : Flag
+    val local86
+      Local off : Flag
+    val local87
+      Local $argument.0 : Flag
+    val local88
+      Call defaultFlag : Long
+        Local $parameter.value : Flag
+    val local89
+      IntegerLiteral 0 : Long
+    val local90
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 9 : Long
+    val local91
+      ImportedVariantConstruct Flag.On : Flag
+    val local92
+      Local $argument.0 : Flag
+    val local93
+      Call defaultFlag : Long
+        Local $parameter.value : Flag
+    val local94
+      IntegerLiteral 1 : Long
+    val local95
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 10 : Long
+    val local96
+      ImportedVariantConstruct Marker.Only : Marker
+    val local97
+      Local $argument.0 : Marker
+    val local98
+      Call defaultMarker : Long
+        Local $parameter.value : Marker
+    val local99
+      IntegerLiteral 0 : Long
+    val local100
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 11 : Long
+    val local101
+      ImportedVariantConstruct Marker.Only : Marker
+    val local102
+      Local $argument.0 : Marker
+    val local103
+      Call defaultMarker : Long
+        Local $parameter.value : Marker
+    val local104
+      IntegerLiteral 0 : Long
+    val local105
+      Local $dependency.argument.0 : Long
+    if
+      Unary Not : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
+          Local $dependency.receiver : Long
+          Local $dependency.parameter.other : Long
+      return
+        IntegerLiteral 12 : Long
+    return
+      IntegerLiteral 83 : Long
+  output library

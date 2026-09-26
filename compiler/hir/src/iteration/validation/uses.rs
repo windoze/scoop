@@ -116,6 +116,7 @@ fn expression_references_any_inner(
         | ExprKind::StructConstruct { fields: values, .. }
         | ExprKind::ClassInit { args: values, .. }
         | ExprKind::VariantConstruct { args: values, .. }
+        | ExprKind::ImportedVariantConstruct { args: values, .. }
         | ExprKind::Call { args: values, .. }
         | ExprKind::ImportedDependencyCall { args: values, .. } => values
             .iter()

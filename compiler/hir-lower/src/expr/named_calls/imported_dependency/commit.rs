@@ -133,6 +133,21 @@ impl Lowerer {
             ));
         }
 
+        if let scoop_identity::CallableTemplateOrigin::VariantConstructor(variant) =
+            candidate.interface().declaration()
+        {
+            return Some(hir::Expr {
+                kind: hir::ExprKind::ImportedVariantConstruct {
+                    owner: result_type,
+                    variant,
+                    args: parameter_values,
+                },
+                ty: result_type,
+                span: call_span,
+                origin: self.expression_origin(call_span),
+            });
+        }
+
         if let Some(intrinsic) = candidate.normalized_intrinsic() {
             let receiver = receiver.expect("a resolved imported intrinsic member has a receiver");
             let kind = match intrinsic {

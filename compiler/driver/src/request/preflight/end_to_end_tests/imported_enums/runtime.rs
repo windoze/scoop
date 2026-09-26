@@ -37,7 +37,6 @@ pub(super) fn check(
     let mut enum_abi_seen = false;
     for (index, identity) in identities.iter().enumerate().skip(1) {
         let (sections, link) = closure.artifact(*identity).unwrap();
-        let mut symbols = Vec::new();
         for export in sections.lir_cross_cone_bridge().exports() {
             if let StrongCallableDefinitionOwner::Function(id) = export.target() {
                 let key = sections
@@ -67,41 +66,8 @@ pub(super) fn check(
                     }
                 }
             }
-            symbols.push(export.expected_symbol().symbol().to_string());
         }
-        symbols.extend(
-            sections
-                .lir_exports()
-                .callables()
-                .records()
-                .iter()
-                .filter(|export| {
-                    matches!(
-                        export.target(),
-                        StrongCallableDefinitionOwner::Constructor(_)
-                    )
-                })
-                .map(|export| export.definition().symbol().symbol().to_string()),
-        );
-        let mut members = Vec::new();
-        for symbol in symbols {
-            let symbol = format!("_{symbol}");
-            let definition = link
-                .defined_symbols()
-                .owners()
-                .iter()
-                .find(|owner| owner.symbol() == symbol.as_bytes())
-                .unwrap();
-            if members.contains(&definition.member()) {
-                continue;
-            }
-            members.push(definition.member());
-            let object = link
-                .final_objects()
-                .objects()
-                .iter()
-                .find(|object| object.member() == definition.member())
-                .unwrap();
+        for object in link.final_objects().objects() {
             let path = directory.join(format!("{}.o", objects.len()));
             std::fs::write(&path, object.bytes()).unwrap();
             objects.push(path);
@@ -111,9 +77,21 @@ pub(super) fn check(
     let source = directory.join("main.ll");
     let executable = directory.join("enums");
     std::fs::write(&source, harness).unwrap();
+    let archive = directory.join("enums.a");
+    let output = std::process::Command::new("ar")
+        .arg("rcs")
+        .arg(&archive)
+        .args(&objects)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "archiving actual enum objects failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let output = std::process::Command::new("cc")
         .arg(&source)
-        .args(&objects)
+        .arg(&archive)
         .arg("-o")
         .arg(&executable)
         .output()

@@ -93,6 +93,28 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
+        ExprKind::ImportedVariantConstruct {
+            owner,
+            variant,
+            args,
+        } => {
+            let Type::ImportedEnum(enumeration) = &module.types[*owner] else {
+                unreachable!("a dependency enum constructor retains its enum owner")
+            };
+            let name = &enumeration
+                .variants
+                .iter()
+                .find(|value| value.identity == *variant)
+                .expect("a dependency enum constructor retains its declared variant")
+                .name;
+            out.push_str(&format!(
+                "{pad}ImportedVariantConstruct {}.{name} : {ty}\n",
+                enumeration.declaration.name()
+            ));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
         ExprKind::VariantTest { operand, variant } => {
             let application = &module.enum_applications[variant.application()];
             let declaration = &module.enums[application.template];

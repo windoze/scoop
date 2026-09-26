@@ -7,6 +7,30 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let imported = self
+            .resolve_imported_enum_qualifier(&access.receiver)
+            .ok()?;
+        if let Some(owner) = imported {
+            let ast::FieldSelector::Name(name) = &access.selector else {
+                self.error(
+                    access.span,
+                    "an enum type requires a named variant".to_string(),
+                );
+                return None;
+            };
+            let Some(index) = self.find_imported_variant(owner, &name.text) else {
+                self.error(
+                    name.span,
+                    format!(
+                        "enum `{}` has no variant `{}`",
+                        self.type_name(owner),
+                        name.text
+                    ),
+                );
+                return None;
+            };
+            return self.lower_imported_unit_variant(owner, index, name);
+        }
         let direct_alias = match self.resolve_direct_alias_qualifier(&access.receiver) {
             Ok(alias) => alias,
             Err(()) => return None,

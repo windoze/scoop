@@ -444,6 +444,7 @@ impl Harness {
                 properties: &self.properties,
                 type_aliases: &Arena::new(),
                 nominal_identities: &nominal_identities,
+                enum_member_identities: &enum_member_identities,
                 object_value_identities: &object_value_identities,
                 function_identities: &function_identities,
                 property_identities: &property_identities,

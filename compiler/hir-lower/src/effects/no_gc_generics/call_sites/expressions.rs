@@ -83,7 +83,8 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
-            ExprKind::VariantConstruct { args, .. } => {
+            ExprKind::VariantConstruct { args, .. }
+            | ExprKind::ImportedVariantConstruct { args, .. } => {
                 for arg in args {
                     self.collect_generic_calls_in_expr(arg, out);
                 }

@@ -182,6 +182,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::StructInit { args: elements, .. }
         | hir::ExprKind::ClassInit { args: elements, .. }
         | hir::ExprKind::VariantConstruct { args: elements, .. }
+        | hir::ExprKind::ImportedVariantConstruct { args: elements, .. }
         | hir::ExprKind::Call { args: elements, .. }
         | hir::ExprKind::ImportedDependencyCall { args: elements, .. } => {
             for element in elements {

@@ -267,6 +267,12 @@ pub enum ExprKind {
         variant: AppliedEnumVariantRef,
         args: Vec<Expr>,
     },
+    /// A value constructor from a dependency's complete enum declaration.
+    ImportedVariantConstruct {
+        owner: TypeId,
+        variant: scoop_identity::PersistentEnumVariantId,
+        args: Vec<Expr>,
+    },
     VariantTest {
         operand: Box<Expr>,
         variant: AppliedEnumVariantRef,

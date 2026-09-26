@@ -286,6 +286,12 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
+        ExprKind::ImportedVariantConstruct { owner, args, .. } => {
+            out.push(*owner);
+            for argument in args {
+                collect_expr_types(lowerer, argument, out);
+            }
+        }
         ExprKind::VariantTest { operand, variant } => {
             out.push(lowerer.enum_applications[variant.application()].canonical_type);
             collect_expr_types(lowerer, operand, out);

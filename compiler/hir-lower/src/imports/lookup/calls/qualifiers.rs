@@ -28,6 +28,7 @@ enum ExpressionQualifierCandidate {
         property: Option<hir::PropertyId>,
     },
     Type(TopLevelTypeTarget),
+    DependencyType(hir::ImportedTarget),
 }
 
 impl Lowerer {
@@ -79,6 +80,11 @@ impl Lowerer {
             .into_iter()
             .map(|target| match target {
                 NamedCallTarget::Type(target) => ExpressionQualifierCandidate::Type(target),
+                NamedCallTarget::ImportedDependency(
+                    target @ (hir::ImportedTarget::Type(_)
+                    | hir::ImportedTarget::GenericType(_)
+                    | hir::ImportedTarget::TypeAlias(_)),
+                ) => ExpressionQualifierCandidate::DependencyType(target),
                 NamedCallTarget::ExtensionProperty(property) => {
                     ExpressionQualifierCandidate::ExtensionProperty {
                         origin: ExpressionQualifierValueOrigin::Core(target),
@@ -184,9 +190,16 @@ impl Lowerer {
                             .map(|binding| self.current_expression_qualifier_candidate(binding))
                             .collect::<Vec<_>>();
                         candidates.extend(layer.dependency_bindings.into_iter().map(|binding| {
-                            ExpressionQualifierCandidate::Value(
-                                ExpressionQualifierValueOrigin::Dependency(binding.target()),
-                            )
+                            match binding.target() {
+                                target @ (hir::ImportedTarget::Type(_)
+                                | hir::ImportedTarget::GenericType(_)
+                                | hir::ImportedTarget::TypeAlias(_)) => {
+                                    ExpressionQualifierCandidate::DependencyType(target)
+                                }
+                                target => ExpressionQualifierCandidate::Value(
+                                    ExpressionQualifierValueOrigin::Dependency(target),
+                                ),
+                            }
                         }));
                         LookupLayer {
                             kind: layer.kind,
@@ -211,6 +224,7 @@ impl Lowerer {
                     ExpressionQualifierCandidate::Type(target) => {
                         self.top_level_type_target_is_accessible(target)
                     }
+                    ExpressionQualifierCandidate::DependencyType(_) => true,
                 };
                 if !accessible {
                     if !inaccessible.contains(&candidate) {
@@ -234,6 +248,13 @@ impl Lowerer {
                         }
                     }
                     ExpressionQualifierCandidate::Type(target) => {
+                        let target = ExpressionQualifierTarget::Type(target);
+                        if !types.contains(&target) {
+                            types.push(target);
+                        }
+                    }
+                    ExpressionQualifierCandidate::DependencyType(target) => {
+                        let target = ExpressionQualifierTarget::DependencyType(target);
                         if !types.contains(&target) {
                             types.push(target);
                         }
@@ -274,9 +295,7 @@ impl Lowerer {
             }
             return match types.as_slice() {
                 [] => continue,
-                [target] => {
-                    ExpressionQualifierLookup::Unique(ExpressionQualifierTarget::Type(*target))
-                }
+                [target] => ExpressionQualifierLookup::Unique(*target),
                 [_, ..] => ExpressionQualifierLookup::Ambiguous,
             };
         }
@@ -295,6 +314,13 @@ impl Lowerer {
                     }
                 }
                 ExpressionQualifierCandidate::Type(target) => {
+                    let target = ExpressionQualifierTarget::Type(target);
+                    if !inaccessible_types.contains(&target) {
+                        inaccessible_types.push(target);
+                    }
+                }
+                ExpressionQualifierCandidate::DependencyType(target) => {
+                    let target = ExpressionQualifierTarget::DependencyType(target);
                     if !inaccessible_types.contains(&target) {
                         inaccessible_types.push(target);
                     }
@@ -323,9 +349,7 @@ impl Lowerer {
             ) => {
                 ExpressionQualifierLookup::Inaccessible(ExpressionQualifierTarget::Object(*object))
             }
-            ([], [target]) => {
-                ExpressionQualifierLookup::Inaccessible(ExpressionQualifierTarget::Type(*target))
-            }
+            ([], [target]) => ExpressionQualifierLookup::Inaccessible(*target),
             ([], []) => ExpressionQualifierLookup::Missing,
             _ => ExpressionQualifierLookup::Ambiguous,
         }

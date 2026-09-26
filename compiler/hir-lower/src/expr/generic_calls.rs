@@ -15,6 +15,20 @@ impl Lowerer {
         found: bool,
     ) -> Option<hir::Expr> {
         let name = &call.callee.text;
+        if let Some((owner, index)) = self.contextual_imported_variant(name, expected) {
+            return self.lower_imported_variant_construct(
+                owner,
+                index,
+                &call.callee,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
+                expected,
+            );
+        }
         if let Some(target) = self.contextual_variant_ref(name, expected) {
             match self.probe_expr_layer(|state, sink| {
                 state.lower_variant_construct(

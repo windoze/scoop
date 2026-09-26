@@ -95,7 +95,8 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let owner = match target {
-            hir::ExportDefaultConstructorTarget::Imported { owner_type, .. } => owner_type,
+            hir::ExportDefaultConstructorTarget::Imported { owner_type, .. }
+            | hir::ExportDefaultConstructorTarget::ImportedVariant { owner_type, .. } => owner_type,
             hir::ExportDefaultConstructorTarget::Struct(id) => {
                 let owner = self.lowerer.struct_constructor_applications[id].owner;
                 self.lowerer.struct_applications[owner].canonical_type

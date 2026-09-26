@@ -354,6 +354,7 @@ fn export_binding_relation_rejects_duplicate_public_surface_entries() {
             properties: &module.properties,
             type_aliases: &module.type_aliases,
             nominal_identities: &module.nominal_identities,
+            enum_member_identities: &module.enum_member_identities,
             object_value_identities: &module.object_value_identities,
             function_identities: &module.function_identities,
             property_identities: &module.property_identities,

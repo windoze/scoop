@@ -114,6 +114,17 @@ impl Lowerer {
             Kind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
                 self.materialize_imported_default_expressions(elements, context)?,
             ),
+            Kind::VariantConstruct { variant, arguments } => {
+                hir::ExprKind::ImportedVariantConstruct {
+                    owner: self
+                        .imported_default_type(variant.owner_type())
+                        .map_err(|error| {
+                            ImportedDefaultMaterializationError::Plan(error.to_string())
+                        })?,
+                    variant: variant.declaration(),
+                    args: self.materialize_imported_default_expressions(arguments, context)?,
+                }
+            }
             Kind::Local(local) => {
                 let mut value = context.locals.get(local).cloned().ok_or_else(|| {
                     ImportedDefaultMaterializationError::UnknownLocal(local.clone())
@@ -265,7 +276,6 @@ impl Lowerer {
             | Kind::StructInit { .. }
             | Kind::StructConstruct { .. }
             | Kind::ClassInit { .. }
-            | Kind::VariantConstruct { .. }
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)

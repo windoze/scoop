@@ -32,7 +32,13 @@ fn dependency_enum_values_compile_and_run_through_actual_artifacts() {
     )
     .unwrap();
 
-    for case in ["standalone", "combined", "patterns"] {
+    for case in [
+        "standalone",
+        "combined",
+        "patterns",
+        "constructors",
+        "constructor-combinations",
+    ] {
         let name = format!("enums-{case}");
         let root = sysroot.path().join(&name);
         write_manifest_cone(&root, "dev.example", &name, "library", &source(case));
@@ -70,7 +76,9 @@ fn dependency_enum_values_compile_and_run_through_actual_artifacts() {
             "dev.example",
             &downstream_name,
             "library",
-            &source(if case == "patterns" {
+            &source(if case.starts_with("constructor") {
+                "constructor-downstream"
+            } else if case == "patterns" {
                 "pattern-downstream"
             } else {
                 "downstream"
@@ -114,6 +122,15 @@ fn dependency_enum_values_compile_and_run_through_actual_artifacts() {
         "wrong-pattern-style",
         "refutable-binding",
         "guarded-coverage",
+        "unit-called",
+        "named-positional",
+        "positional-named",
+        "constructor-missing-field",
+        "constructor-duplicate-field",
+        "constructor-wrong-payload",
+        "constructor-wrong-owner",
+        "constructor-shadowed",
+        "constructor-type-arguments",
     ] {
         let root = sysroot.path().join(case);
         let source = source(case);

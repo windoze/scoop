@@ -56,6 +56,15 @@ impl Lowerer {
                 variant: self.instantiate_default_applied_enum_variant(*variant, context),
                 args: self.instantiate_default_exprs(args, context),
             },
+            hir::ExprKind::ImportedVariantConstruct {
+                owner,
+                variant,
+                args,
+            } => hir::ExprKind::ImportedVariantConstruct {
+                owner: self.instantiate_method_ty(*owner, &context.bindings),
+                variant: *variant,
+                args: self.instantiate_default_exprs(args, context),
+            },
             hir::ExprKind::VariantTest { operand, variant } => hir::ExprKind::VariantTest {
                 operand: Box::new(self.instantiate_default_expr(operand, context)),
                 variant: self.instantiate_default_applied_enum_variant(*variant, context),

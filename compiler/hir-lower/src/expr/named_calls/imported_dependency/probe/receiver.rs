@@ -18,6 +18,7 @@ impl Lowerer {
         if matches!(
             interface.declaration(),
             scoop_identity::CallableTemplateOrigin::Constructor(_)
+                | scoop_identity::CallableTemplateOrigin::VariantConstructor(_)
         ) {
             return match receiver_source {
                 ImportedDependencyCallReceiver::Implicit => Ok(ImportedCallReceiver::Absent),

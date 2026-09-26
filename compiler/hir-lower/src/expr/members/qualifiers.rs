@@ -6,7 +6,10 @@ impl Lowerer {
     /// A direct receiver spelling is still an expression name first. Keep
     /// this guard shared by every qualifier consumer so none of them can
     /// bypass a higher lexical/member value while probing a lower type.
-    fn lexical_or_member_value_blocks_type_qualifier(&self, name: &str) -> bool {
+    pub(in crate::expr) fn lexical_or_member_value_blocks_type_qualifier(
+        &self,
+        name: &str,
+    ) -> bool {
         let initializing_field = self.initialization_context.is_some() && {
             let mut state = self.clone();
             state.initializing_receiver_has_field(name)
@@ -67,7 +70,13 @@ impl Lowerer {
                             .and_then(|target| self.nominal_target_for_type(target)),
                         ExpressionQualifierLookup::Missing
                         | ExpressionQualifierLookup::Value
-                        | ExpressionQualifierLookup::Ambiguous => None,
+                        | ExpressionQualifierLookup::Ambiguous
+                        | ExpressionQualifierLookup::Unique(
+                            ExpressionQualifierTarget::DependencyType(_),
+                        )
+                        | ExpressionQualifierLookup::Inaccessible(
+                            ExpressionQualifierTarget::DependencyType(_),
+                        ) => None,
                     }
                 })
             }

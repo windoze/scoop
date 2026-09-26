@@ -6,6 +6,7 @@ use scoop_identity::{BindingTargetError, PersistentExportBindingId};
 pub enum HirExportBindingEntityKind {
     Struct,
     Enum,
+    EnumVariant,
     Class,
     Interface,
     Object,
@@ -19,6 +20,7 @@ impl fmt::Display for HirExportBindingEntityKind {
         formatter.write_str(match self {
             Self::Struct => "struct",
             Self::Enum => "enum",
+            Self::EnumVariant => "enum variant",
             Self::Class => "class",
             Self::Interface => "interface",
             Self::Object => "object",
@@ -31,6 +33,13 @@ impl fmt::Display for HirExportBindingEntityKind {
 
 #[derive(Debug)]
 pub enum HirExportBindingIdentityError {
+    TooManyEnumVariants {
+        enumeration: u32,
+    },
+    UnknownEnumVariant {
+        enumeration: u32,
+        variant: u32,
+    },
     UnknownSurfaceEntity {
         kind: HirExportBindingEntityKind,
         index: u32,
@@ -73,6 +82,18 @@ pub enum HirExportBindingIdentityError {
 impl fmt::Display for HirExportBindingIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::TooManyEnumVariants { enumeration } => {
+                write!(formatter, "public enum {enumeration} has too many variants")
+            }
+            Self::UnknownEnumVariant {
+                enumeration,
+                variant,
+            } => {
+                write!(
+                    formatter,
+                    "public enum {enumeration} has no variant identity {variant}"
+                )
+            }
             Self::UnknownSurfaceEntity { kind, index } => {
                 write!(
                     formatter,
