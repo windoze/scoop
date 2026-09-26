@@ -80,25 +80,23 @@ pub(super) fn check(
                 };
                 let exports =
                     scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
-                let projected = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-                    input,
-                    dependencies,
-                )
-                .unwrap();
+                let projected = scoop_mir_lower::lower_type_bridge_dependencies(input).unwrap();
                 let mir = mir::CrossConeMirTypeBridgeSectionV1::try_new(
-                    mir::MirTypeBridgeLocalAuthorityV1::Producer {
+                    mir::MirTypeBridgeLocalInputV1 {
                         provider: input.mir.module().cone,
-                        input: input.mir,
+
+                        production: (input.mir).production(),
                         ordinary: input.ordinary,
                     },
                     exports,
+                    scoop_mir_lower::lower_type_bridge_initialization_units(input.mir).unwrap(),
                     &[mir_dependency],
                     &projected,
                     input.identities,
                 )
                 .unwrap();
                 assert_eq!(mir.initialization_uses().records().len(), count);
-                rejections::check(input, core_input, &mir, core_mir, &projected);
+                rejections::check(input, core_input, &mir, mir_dependency);
                 let (selected, initialization) = physical::select(
                     input.mir,
                     lir_input.lir,
@@ -140,8 +138,7 @@ pub(super) fn check(
                     input_lir,
                     dependencies,
                     &exports,
-                    mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&projected)
-                        .unwrap(),
+                    &projected,
                     selected.physical_imports().records(),
                 )
                 .unwrap();

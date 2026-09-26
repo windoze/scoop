@@ -1,7 +1,6 @@
 //! Actual HIR operations select foreign helpers before machine consumption.
 
 use super::*;
-use std::convert::Infallible;
 
 mod lir_reader;
 mod lower;
@@ -65,15 +64,8 @@ pub(super) fn check(
                 };
                 let exports =
                     scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
-                let projection = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-                    input,
-                    dependencies,
-                )
-                .unwrap();
-                let uses = mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(
-                    &projection,
-                )
-                .unwrap();
+                let projection = scoop_mir_lower::lower_type_bridge_dependencies(input).unwrap();
+                let uses = &projection;
                 let mut shapes = uses
                     .iter()
                     .filter_map(|usage| match usage.target() {
@@ -96,18 +88,20 @@ pub(super) fn check(
                 expected.sort_unstable();
                 assert_eq!(shapes, expected);
                 let section = mir::CrossConeMirTypeBridgeSectionV1::try_new(
-                    mir::MirTypeBridgeLocalAuthorityV1::Producer {
+                    mir::MirTypeBridgeLocalInputV1 {
                         provider: input.mir.module().cone,
-                        input: input.mir,
+
+                        production: (input.mir).production(),
                         ordinary: input.ordinary,
                     },
                     exports,
+                    scoop_mir_lower::lower_type_bridge_initialization_units(input.mir).unwrap(),
                     &[mir_dependency],
                     &projection,
                     input.identities,
                 )
                 .unwrap();
-                mir_reader::check(name, &fixtures, input, &section, core_mir, &expected);
+                mir_reader::check(name, &fixtures, input, &section, mir_dependency, &expected);
                 lir_reader::check(name, &fixtures, input, core_lir, &expected);
                 machine::check(
                     name,

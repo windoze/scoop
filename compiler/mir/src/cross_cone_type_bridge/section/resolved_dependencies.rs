@@ -2,8 +2,7 @@
 
 use super::*;
 
-/// Identity-resolved transport, without source-use or machine capability.
-/// Graph replay borrows the same records and never manufactures a Selected ref.
+/// Parsed MIR export data and typed dependency references.
 pub struct DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
     pub(super) provider: ConeIdentity,
     pub(super) exports: MirTypeBridgeExportConstituentsV1,
@@ -39,13 +38,13 @@ impl DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
     /// Compares the entire candidate selection with independently supplied
     /// roots and all semantic edges. Source/access replay remains a separate
     /// requirement of the containing artifact closure.
-    pub fn replay_dependency_closure<E>(
+    pub fn replay_dependency_closure(
         &self,
         units: &[MirTypeBridgeInitializationUnitV1],
         dependencies: &[MirTypeBridgeDependencyViewV1<'_>],
         committed: &[MirTypeBridgeDependencyV1],
         graph: &ValidatedIdentityGraph,
-    ) -> Result<(), MirTypeBridgeSectionError<E>> {
+    ) -> Result<(), MirTypeBridgeSectionError> {
         let count = dependencies
             .len()
             .checked_add(1)

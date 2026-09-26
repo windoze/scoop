@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    expected: &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+    expected: &[mir::MirTypeBridgeDependencyV1],
 ) {
     let local = &input.hir.output().local;
     let exact = local.exact_type_identities[local.string].clone();
@@ -53,56 +53,12 @@ pub(super) fn check(
         mir::StrongExternalCallableInput::Selected(&selected),
     )
     .unwrap();
-    let types = dependencies::mir_types(&polluted, input.identities);
-    let actual = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
+    let actual = scoop_mir_lower::lower_type_bridge_dependencies(
         scoop_mir_lower::MirTypeBridgeExportInputV1 {
             mir: &polluted,
             ..input
         },
-        scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
-            types: &[&types],
-            callables: &[],
-            dispatch: &[],
-        },
     )
     .unwrap();
-    assert_eq!(
-        actual.committed_external_uses().unwrap(),
-        expected.committed_external_uses().unwrap()
-    );
-    reject_missing_shared_occurrences(input, &types);
-}
-
-fn reject_missing_shared_occurrences(
-    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    types: &mir::CanonicalParamFreeMirTypeExportsV1,
-) {
-    let public = input.public;
-    let incomplete = scoop_hir::CrossConeHirInterfaceSectionV1::new(
-        public.public_bindings().clone(),
-        public.nominal_interfaces().clone(),
-        public.callable_interfaces().clone(),
-        public.property_interfaces().clone(),
-        public.type_aliases().clone(),
-        public.source_interfaces().clone(),
-        public.default_templates().clone(),
-        public.constants().clone(),
-        public.definition_sources().clone(),
-        scoop_hir::CanonicalExternalHirReferencesV1::default(),
-    );
-    let result = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-        scoop_mir_lower::MirTypeBridgeExportInputV1 {
-            public: &incomplete,
-            ..input
-        },
-        scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
-            types: &[types],
-            callables: &[],
-            dispatch: &[],
-        },
-    );
-    assert!(matches!(
-        result,
-        Err(scoop_mir_lower::MirTypeBridgeSourceProjectionError::TypeOccurrenceInventory)
-    ));
+    assert_eq!(actual, expected);
 }

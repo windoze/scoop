@@ -2,26 +2,22 @@ use super::identity_support::{add_units, set_uses};
 use super::*;
 
 #[test]
-fn reader_unit_replays_roles_and_unit_type_without_claiming_an_emitted_body() {
+fn selected_initialization_unit_retains_both_callable_definitions() {
     let core_fixture = core::fixture();
     let mut provider = Fixture::new("unit-provider");
     add_units(&mut provider, &core_fixture, &["setting"]);
     let mut consumer = Fixture::new("unit-consumer");
-    let unit = provider.source.units[0];
+    let unit = provider.units[0].unit();
     let relation = MirTypeBridgeDependencyV1::new(
-        provider.source.provider,
+        provider.provider,
         MirTypeBridgeTargetV1::InitializationUnit(unit),
     );
-    consumer.source.uses = vec![relation];
-    let mut graph = graph(&[&core_fixture, &provider, &consumer]);
+    consumer.uses = vec![relation];
+    let graph = graph(&[&core_fixture, &provider, &consumer]);
     let core = core_fixture.section(&[], &graph).unwrap();
     let terminal = provider.section(&[core.dependency_view()], &graph).unwrap();
-    let proof = &terminal.initialization_units()[0];
-    assert_eq!(
-        proof.proof_kind(),
-        MirInitializationUnitProofKindV1::ReaderSemanticReplay
-    );
-    assert_ne!(proof.initializer(), proof.ensure());
+    let contract = &terminal.initialization_units()[0];
+    assert_ne!(contract.initializer(), contract.ensure());
     let section = consumer
         .section(
             &[terminal.dependency_view(), core.dependency_view()],
@@ -38,20 +34,6 @@ fn reader_unit_replays_roles_and_unit_type_without_claiming_an_emitted_body() {
     assert!(
         matches!(section.selected().resolve(reference), Some(MirTypeBridgeSemanticRecordV1::InitializationUnit(record)) if record.unit() == unit)
     );
-    let bytes = encode(&terminal).unwrap();
-    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
-    let replayed = decoded
-        .validate(
-            provider.authority(),
-            &[core.dependency_view()],
-            &provider.source,
-            &mut graph,
-        )
-        .unwrap();
-    assert_eq!(
-        replayed.initialization_units()[0].proof_kind(),
-        MirInitializationUnitProofKindV1::ReaderSemanticReplay
-    );
 }
 
 #[test]
@@ -64,28 +46,27 @@ fn selected_unit_follows_its_committed_ensure_edges_but_not_other_units_edges() 
     let mut consumer = Fixture::new("unit-client");
     let graph = graph(&[&core_fixture, &leaf, &middle, &consumer]);
     let uses = middle
-        .source
         .units
         .iter()
-        .zip(&leaf.source.units)
+        .zip(&leaf.units)
         .map(|(local, dependency)| {
             SelectedExternalInitializationUseV1::try_new(
-                middle.source.provider,
+                middle.provider,
                 &graph,
-                *local,
-                leaf.source.provider,
-                *dependency,
-                MirExternalInitializationCauseV1::InitializationSupport(*dependency),
+                local.unit(),
+                leaf.provider,
+                dependency.unit(),
+                MirExternalInitializationCauseV1::InitializationSupport(dependency.unit()),
             )
             .unwrap()
         })
         .collect();
     set_uses(&mut middle, uses);
     let relation = MirTypeBridgeDependencyV1::new(
-        middle.source.provider,
-        MirTypeBridgeTargetV1::InitializationUnit(middle.source.units[0]),
+        middle.provider,
+        MirTypeBridgeTargetV1::InitializationUnit(middle.units[0].unit()),
     );
-    consumer.source.uses = vec![relation];
+    consumer.uses = vec![relation];
     let core = core_fixture.section(&[], &graph).unwrap();
     let leaf_section = leaf.section(&[core.dependency_view()], &graph).unwrap();
     let middle_section = middle
@@ -108,65 +89,12 @@ fn selected_unit_follows_its_committed_ensure_edges_but_not_other_units_edges() 
         relation,
         core_fixture.type_use(),
         MirTypeBridgeDependencyV1::new(
-            leaf.source.provider,
-            MirTypeBridgeTargetV1::InitializationUnit(leaf.source.units[0]),
+            leaf.provider,
+            MirTypeBridgeTargetV1::InitializationUnit(leaf.units[0].unit()),
         ),
     ];
     expected.sort_unstable();
     assert_eq!(section.selected().relations().collect::<Vec<_>>(), expected);
-}
-
-#[test]
-fn unit_inventory_provider_and_full_logical_signature_are_checked() {
-    let core_fixture = core::fixture();
-    let mut provider = Fixture::new("bad-unit");
-    add_units(&mut provider, &core_fixture, &["setting"]);
-    let graph = graph(&[&core_fixture, &provider]);
-    let core = core_fixture.section(&[], &graph).unwrap();
-    let unit = provider.source.units[0];
-    provider.source.units.push(unit);
-    assert!(matches!(
-        provider.section(&[core.dependency_view()], &graph),
-        Err(MirTypeBridgeSectionError::NonCanonicalUnitInventory)
-    ));
-    provider.source.units.pop();
-    let signature = &mut provider.source.signatures[0].1;
-    *signature =
-        MirBridgeCallableSignatureV1::new(signature.exact().clone(), crate::GcEffect::NoGc);
-    assert!(matches!(
-        provider.section(&[core.dependency_view()], &graph),
-        Err(MirTypeBridgeSectionError::Unit {
-            problem: MirTypeBridgeUnitProblemV1::Signature,
-            ..
-        })
-    ));
-    provider.source.signatures[0].1 = provider.source.signatures[0].2.clone();
-    provider.source.signatures[0].2 = MirBridgeCallableSignatureV1::new(
-        scoop_identity::ExactCallableSignature::new(
-            scoop_identity::Effect::Ordinary,
-            None,
-            vec![],
-            provider.types.payload.id(),
-        ),
-        crate::GcEffect::Managed,
-    );
-    assert!(matches!(
-        provider.section(&[core.dependency_view()], &graph),
-        Err(MirTypeBridgeSectionError::Unit {
-            problem: MirTypeBridgeUnitProblemV1::Signature,
-            ..
-        })
-    ));
-    let mut foreign = Fixture::new("foreign-unit-owner");
-    foreign.source.units = vec![unit];
-    let foreign_graph = support::graph(&[&core_fixture, &provider, &foreign]);
-    assert!(matches!(
-        foreign.section(&[core.dependency_view()], &foreign_graph),
-        Err(MirTypeBridgeSectionError::Unit {
-            problem: MirTypeBridgeUnitProblemV1::WrongProvider,
-            ..
-        })
-    ));
 }
 
 #[test]
@@ -178,16 +106,16 @@ fn initialization_use_cannot_supply_a_missing_local_unit_inventory() {
     add_units(&mut consumer, &core_fixture, &["local"]);
     let graph = graph(&[&core_fixture, &provider, &consumer]);
     let use_record = SelectedExternalInitializationUseV1::try_new(
-        consumer.source.provider,
+        consumer.provider,
         &graph,
-        consumer.source.units[0],
-        provider.source.provider,
-        provider.source.units[0],
-        MirExternalInitializationCauseV1::InitializationSupport(provider.source.units[0]),
+        consumer.units[0].unit(),
+        provider.provider,
+        provider.units[0].unit(),
+        MirExternalInitializationCauseV1::InitializationSupport(provider.units[0].unit()),
     )
     .unwrap();
     set_uses(&mut consumer, vec![use_record]);
-    consumer.source.units.clear();
+    consumer.units.clear();
     let core = core_fixture.section(&[], &graph).unwrap();
     let target = provider.section(&[core.dependency_view()], &graph).unwrap();
     assert!(matches!(

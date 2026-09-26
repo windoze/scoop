@@ -12,7 +12,7 @@ pub enum SharedMirDependencyGraphError {
     InitializationUse(Box<mir::MirObjectBridgeError>),
     InitializationUseInventory,
     MissingInitializationUnit(scoop_identity::PersistentInitializationUnitId),
-    Mir(Box<mir::MirTypeBridgeSectionError<Infallible>>),
+    Mir(Box<mir::MirTypeBridgeSectionError>),
 }
 
 impl From<scoop_wire::WireError> for SharedMirDependencyGraphError {
@@ -21,8 +21,8 @@ impl From<scoop_wire::WireError> for SharedMirDependencyGraphError {
     }
 }
 
-impl From<mir::MirTypeBridgeSectionError<Infallible>> for SharedMirDependencyGraphError {
-    fn from(value: mir::MirTypeBridgeSectionError<Infallible>) -> Self {
+impl From<mir::MirTypeBridgeSectionError> for SharedMirDependencyGraphError {
+    fn from(value: mir::MirTypeBridgeSectionError) -> Self {
         Self::Mir(Box::new(value))
     }
 }

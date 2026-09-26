@@ -1,6 +1,6 @@
 //! Owned type replay from the same artifacts' shared HIR declarations.
 
-use std::{collections::BTreeMap, convert::Infallible};
+use std::collections::BTreeMap;
 
 use scoop_hir::{CheckedSharedTypeFoundationV1, SharedTypeMetadataV1};
 use scoop_identity::{ConeCoordinate, ConeIdentity};
@@ -69,7 +69,7 @@ impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
                 let (mut prepared, mir, lir) = artifact.prepare_mir_semantics(aliases)?;
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions)?;
-                let mir = mir.resolve_types::<Infallible>(
+                let mir = mir.resolve_types(
                     provider,
                     parts.mir_foundation,
                     reachable

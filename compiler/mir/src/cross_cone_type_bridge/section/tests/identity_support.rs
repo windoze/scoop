@@ -44,7 +44,7 @@ pub(super) fn add_function(
     fixture: &mut Fixture,
     name: &str,
 ) -> (PersistentFunctionId, ExactCallableSignature) {
-    add_function_to(&mut fixture.types, fixture.source.provider, name)
+    add_function_to(&mut fixture.types, fixture.provider, name)
 }
 pub(super) fn add_function_to(
     fixture: &mut TypeFixture,
@@ -85,7 +85,7 @@ pub(super) fn add_units(fixture: &mut Fixture, core: &Fixture, names: &[&str]) {
         .iter()
         .map(|name| {
             CborIdentityRecord::from_key(SourceDeclarationKey::property(
-                site(fixture.source.provider),
+                site(fixture.provider),
                 CanonicalIdentifier::new(name).unwrap(),
             ))
             .unwrap()
@@ -140,18 +140,35 @@ pub(super) fn add_units(fixture: &mut Fixture, core: &Fixture, names: &[&str]) {
     )
     .unwrap();
     update(&mut fixture.types, hir, mir, &[&core.types.graph]);
-    fixture.production = production(fixture.source.provider, &fixture.types.foundation);
-    fixture.source.units = units.iter().map(|unit| unit.id()).collect();
-    fixture.source.units.sort_unstable();
+    fixture.production = production(fixture.provider, &fixture.types.foundation);
     let signature = MirBridgeCallableSignatureV1::new(signature, crate::GcEffect::Managed);
-    fixture.source.signatures = units
+    fixture.units = units
         .iter()
-        .map(|unit| (unit.id(), signature.clone(), signature.clone()))
+        .map(|unit| {
+            let callable = |role| {
+                scoop_identity::PersistentGeneratedCallableId::from_key(
+                    &GeneratedCallableKey::Initialization {
+                        unit: unit.id(),
+                        role,
+                    },
+                )
+                .unwrap()
+            };
+            MirTypeBridgeInitializationUnitV1::new(
+                unit.id(),
+                callable(InitializationCallableRole::Initializer),
+                callable(InitializationCallableRole::Ensure),
+                signature.clone(),
+            )
+        })
         .collect();
+    fixture
+        .units
+        .sort_unstable_by_key(MirTypeBridgeInitializationUnitV1::unit);
 }
 pub(super) fn set_uses(fixture: &mut Fixture, records: Vec<SelectedExternalInitializationUseV1>) {
-    let source = &fixture.source.expected;
-    fixture.source.expected = MirTypeBridgeExportConstituentsV1::new(
+    let source = &fixture.exports;
+    fixture.exports = MirTypeBridgeExportConstituentsV1::new(
         source.types().clone(),
         source.callables().clone(),
         source.dispatch().clone(),

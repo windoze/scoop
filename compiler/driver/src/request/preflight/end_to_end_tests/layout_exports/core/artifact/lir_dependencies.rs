@@ -33,18 +33,16 @@ pub(super) fn check(
                 };
                 let exports =
                     scoop_mir_lower::lower_type_bridge_exports(mir_input, dependencies).unwrap();
-                let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-                    mir_input,
-                    dependencies,
-                )
-                .unwrap();
+                let source = scoop_mir_lower::lower_type_bridge_dependencies(mir_input).unwrap();
                 let mir = mir::CrossConeMirTypeBridgeSectionV1::try_new(
-                    mir::MirTypeBridgeLocalAuthorityV1::Producer {
+                    mir::MirTypeBridgeLocalInputV1 {
                         provider: mir_input.mir.module().cone,
-                        input: mir_input.mir,
+
+                        production: (mir_input.mir).production(),
                         ordinary: mir_input.ordinary,
                     },
                     exports,
+                    scoop_mir_lower::lower_type_bridge_initialization_units(mir_input.mir).unwrap(),
                     &[core_mir.dependency_view()],
                     &source,
                     mir_input.identities,
@@ -64,8 +62,7 @@ pub(super) fn check(
                     input,
                     dependencies,
                     &exports,
-                    mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&source)
-                        .unwrap(),
+                    &source,
                     &[],
                 )
                 .unwrap();

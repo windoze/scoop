@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use scoop_hir as hir;
 use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 use scoop_mir::MirTypeBridgeSectionError;
@@ -34,7 +32,7 @@ pub enum SharedMirSourceCallableValidationError {
     Dispatch(Box<crate::SharedMirDispatchValidationError>),
     Equality(Box<super::SharedMirEqualityValidationError>),
     Shared(Box<hir::SharedTypeMetadataError>),
-    MirTransport(Box<MirTypeBridgeSectionError<Infallible>>),
+    MirTransport(Box<MirTypeBridgeSectionError>),
     Classifier(hir::NominalExactLeafClassifierBuildError),
     Encoding(scoop_wire::cbor::EncodeError),
     Provider {
@@ -82,8 +80,8 @@ impl From<hir::SharedTypeMetadataError> for SharedMirSourceCallableValidationErr
         Self::Shared(Box::new(error))
     }
 }
-impl From<MirTypeBridgeSectionError<Infallible>> for SharedMirSourceCallableValidationError {
-    fn from(error: MirTypeBridgeSectionError<Infallible>) -> Self {
+impl From<MirTypeBridgeSectionError> for SharedMirSourceCallableValidationError {
+    fn from(error: MirTypeBridgeSectionError) -> Self {
         Self::MirTransport(Box::new(error))
     }
 }

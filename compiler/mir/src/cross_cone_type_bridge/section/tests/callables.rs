@@ -10,7 +10,7 @@ fn value_method(fixture: &mut Fixture) -> StrongCallableDefinitionOwner {
     let method: CborIdentityRecord<PersistentFunctionId, _> =
         CborIdentityRecord::from_key(SourceDeclarationKey::function(
             SourceDeclarationSite::new(
-                fixture.source.provider,
+                fixture.provider,
                 PackagePath::root(),
                 DefinitionOwnerChain::from_outer_to_inner(vec![DefinitionOwnerAtom::Type(
                     fixture.types.empty.id(),
@@ -40,13 +40,13 @@ fn value_method(fixture: &mut Fixture) -> StrongCallableDefinitionOwner {
     )])
     .unwrap();
     update(&mut fixture.types, hir, mir, &[]);
-    fixture.production = production(fixture.source.provider, &fixture.types.foundation);
+    fixture.production = production(fixture.provider, &fixture.types.foundation);
     let signature = MirBridgeCallableSignatureV1::new(signature, crate::GcEffect::NoGc);
     let method = ParamFreeMirCallableBindingV1::try_new(
         MirCallableBridgeAuthority {
             identities: &fixture.types.graph,
             foundation: &fixture.types.foundation,
-            types: fixture.source.expected.types(),
+            types: fixture.exports.types(),
         },
         MirCallableOriginV1::Function(method.id()),
         target,
@@ -58,7 +58,7 @@ fn value_method(fixture: &mut Fixture) -> StrongCallableDefinitionOwner {
     let callables = CanonicalMirCallableBindingsV1::try_new(vec![method]).unwrap();
     let authority = MirDispatchSchemaAuthority {
         identities: &fixture.types.graph,
-        types: fixture.source.expected.types(),
+        types: fixture.exports.types(),
         callables: &callables,
     };
     let dispatch = ParamFreeMirDispatchSchemaV1::try_new(
@@ -69,8 +69,8 @@ fn value_method(fixture: &mut Fixture) -> StrongCallableDefinitionOwner {
     )
     .unwrap();
     let dispatch = CanonicalMirDispatchSchemasV1::try_new(authority, vec![dispatch]).unwrap();
-    let previous = &fixture.source.expected;
-    fixture.source.expected = MirTypeBridgeExportConstituentsV1::new(
+    let previous = &fixture.exports;
+    fixture.exports = MirTypeBridgeExportConstituentsV1::new(
         previous.types().clone(),
         callables,
         dispatch,
@@ -78,8 +78,6 @@ fn value_method(fixture: &mut Fixture) -> StrongCallableDefinitionOwner {
         previous.shapes().clone(),
         previous.initialization_uses().clone(),
     );
-    fixture.source.callables = vec![target];
-    fixture.source.dispatch = vec![fixture.types.payload.id()];
     target
 }
 
@@ -88,15 +86,13 @@ fn value_method_selection_closes_both_signatures_and_preserves_gc_effect() {
     let mut provider = Fixture::new("method-provider");
     let target = value_method(&mut provider);
     let mut consumer = Fixture::new("method-consumer");
-    let relation = MirTypeBridgeDependencyV1::new(
-        provider.source.provider,
-        MirTypeBridgeTargetV1::Callable(target),
-    );
+    let relation =
+        MirTypeBridgeDependencyV1::new(provider.provider, MirTypeBridgeTargetV1::Callable(target));
     let dispatch_relation = MirTypeBridgeDependencyV1::new(
-        provider.source.provider,
+        provider.provider,
         MirTypeBridgeTargetV1::Dispatch(provider.types.payload.id()),
     );
-    consumer.source.uses = vec![relation, dispatch_relation];
+    consumer.uses = vec![relation, dispatch_relation];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     let section = consumer
@@ -114,23 +110,18 @@ fn value_method_selection_closes_both_signatures_and_preserves_gc_effect() {
     );
     let bytes = encode(&terminal).unwrap();
     let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
-    let replayed = decoded
-        .validate(provider.authority(), &[], &provider.source, &mut graph)
-        .unwrap();
-    assert_eq!(encode(&replayed).unwrap(), bytes);
+    let replayed = resolved_dependencies::read(&provider, decoded, &[], &mut graph).unwrap();
+    assert_eq!(replayed.exports().types(), provider.exports.types());
 }
 
 #[test]
 fn a_foundation_signature_cannot_replace_a_missing_callable_export() {
     let mut provider = Fixture::new("private-provider");
     let (function, _) = add_function(&mut provider, "private");
-    provider.production = production(provider.source.provider, &provider.types.foundation);
+    provider.production = production(provider.provider, &provider.types.foundation);
     let mut consumer = Fixture::new("private-consumer");
     let target = MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(function));
-    consumer.source.uses = vec![MirTypeBridgeDependencyV1::new(
-        provider.source.provider,
-        target,
-    )];
+    consumer.uses = vec![MirTypeBridgeDependencyV1::new(provider.provider, target)];
     let graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     assert!(

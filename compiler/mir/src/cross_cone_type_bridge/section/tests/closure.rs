@@ -14,7 +14,7 @@ fn complete_local_family_closes_without_importing_any_target() {
 fn source_shape_request_closes_all_helpers_and_resolves_terminal_records() {
     let provider = Fixture::new("provider");
     let mut consumer = Fixture::new("consumer");
-    consumer.source.uses = vec![provider.shape_use()];
+    consumer.uses = vec![provider.shape_use()];
     let graph = graph(&[&provider, &consumer]);
     let provider_section = provider.section(&[], &graph).unwrap();
     let consumer_section = consumer
@@ -23,7 +23,7 @@ fn source_shape_request_closes_all_helpers_and_resolves_terminal_records() {
     assert_eq!(consumer_section.selected().len(), 5);
     let reference = consumer_section
         .selected()
-        .reference(provider.source.provider, provider.type_use().target())
+        .reference(provider.provider, provider.type_use().target())
         .unwrap();
     assert!(
         matches!(consumer_section.selected().resolve(reference), Some(MirTypeBridgeSemanticRecordV1::Type(record)) if record.exact() == provider.types.payload.id())
@@ -60,8 +60,8 @@ fn facade_selection_preserves_the_terminal_provider() {
     let provider = Fixture::new("terminal");
     let mut facade = Fixture::new("facade");
     let mut consumer = Fixture::new("client");
-    facade.source.uses = vec![provider.type_use()];
-    consumer.source.uses = facade.source.uses.clone();
+    facade.uses = vec![provider.type_use()];
+    consumer.uses = facade.uses.clone();
     let graph = graph(&[&provider, &facade, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     let middle = facade
@@ -77,8 +77,8 @@ fn facade_selection_preserves_the_terminal_provider() {
         client.selected().relations().collect::<Vec<_>>(),
         vec![provider.type_use()]
     );
-    consumer.source.uses = vec![MirTypeBridgeDependencyV1::new(
-        facade.source.provider,
+    consumer.uses = vec![MirTypeBridgeDependencyV1::new(
+        facade.provider,
         provider.type_use().target(),
     )];
     assert!(matches!(
@@ -96,7 +96,7 @@ fn dependency_catalog_accepts_unique_providers_and_rejects_duplicate_entries() {
     let left = Fixture::new("left");
     let right = Fixture::new("right");
     let mut consumer = Fixture::new("diamond-client");
-    consumer.source.uses = vec![provider.type_use()];
+    consumer.uses = vec![provider.type_use()];
     let graph = graph(&[&provider, &left, &right, &consumer]);
     let first = provider.section(&[], &graph).unwrap();
     let second = provider.section(&[], &graph).unwrap();
@@ -128,23 +128,17 @@ fn dependency_catalog_accepts_unique_providers_and_rejects_duplicate_entries() {
 }
 
 #[test]
-fn independent_source_inventory_and_committed_use_order_are_mandatory() {
-    let mut fixture = Fixture::new("source-contract");
-    fixture.source.types.pop();
-    assert!(matches!(
-        fixture.section(&[], &fixture.types.graph),
-        Err(MirTypeBridgeSectionError::SourceJoin(_))
-    ));
+fn committed_uses_must_be_canonical_and_external() {
     let provider = Fixture::new("used");
     let mut consumer = Fixture::new("uses");
-    consumer.source.uses = vec![provider.type_use(), provider.type_use()];
+    consumer.uses = vec![provider.type_use(), provider.type_use()];
     let graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     assert!(matches!(
         consumer.section(&[terminal.dependency_view()], &graph),
         Err(MirTypeBridgeSectionError::NonCanonicalCommittedUses)
     ));
-    consumer.source.uses = vec![consumer.type_use()];
+    consumer.uses = vec![consumer.type_use()];
     assert!(matches!(
         consumer.section(&[terminal.dependency_view()], &graph),
         Err(MirTypeBridgeSectionError::SelectedCurrentProvider)

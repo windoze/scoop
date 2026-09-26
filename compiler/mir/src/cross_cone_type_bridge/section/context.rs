@@ -1,39 +1,34 @@
 use super::*;
 
-impl<'a> MirTypeBridgeLocalAuthorityV1<'a> {
-    pub(super) fn validate<E>(self) -> Result<(), MirTypeBridgeSectionError<E>> {
-        use MirTypeBridgeSectionError as Error;
-        if let Self::Producer { input, .. } = self
-            && input.module().cone != self.provider()
-        {
-            return Err(Error::ProviderContext);
-        }
-        if self.ordinary().artifact() != self.provider() {
-            return Err(Error::ProviderContext);
-        }
-        self.production()
-            .validate_for_artifact(self.provider())
-            .map_err(|_| Error::ProviderContext)?;
-        let foundation = self.foundation().as_canonical().callable_signatures();
-        let surface = self.production().strong_callable_bridges().bridges();
+/// Existing local MIR definitions used when assembling dependency references.
+#[derive(Clone, Copy)]
+pub struct MirTypeBridgeLocalInputV1<'a> {
+    pub provider: ConeIdentity,
+    pub production: &'a crate::CoreBootstrapBridgeSectionV1,
+    pub ordinary: &'a crate::CrossConeMirBridgeSectionV1,
+}
 
-        if foundation.len() != surface.len() {
-            return Err(Error::FoundationSurface);
-        }
-        for bridge in surface {
-            let actual = foundation
-                .binary_search_by(|entry| entry.subject().compare_sort_key(bridge.subject()))
-                .ok()
-                .map(|index| foundation[index].signature());
-            if actual != Some(bridge.signature()) {
-                return Err(Error::FoundationSurface);
-            }
+impl<'a> MirTypeBridgeLocalInputV1<'a> {
+    pub const fn provider(self) -> ConeIdentity {
+        self.provider
+    }
+
+    pub const fn production(self) -> &'a crate::CoreBootstrapBridgeSectionV1 {
+        self.production
+    }
+    pub const fn ordinary(self) -> &'a crate::CrossConeMirBridgeSectionV1 {
+        self.ordinary
+    }
+
+    pub(super) fn validate(self) -> Result<(), MirTypeBridgeSectionError> {
+        if self.ordinary.artifact() != self.provider {
+            return Err(MirTypeBridgeSectionError::ProviderContext);
         }
         Ok(())
     }
-    pub(super) fn legacy_callables<E>(
+    pub(super) fn legacy_callables(
         self,
-    ) -> Result<Vec<StrongCallableDefinitionOwner>, MirTypeBridgeSectionError<E>> {
+    ) -> Result<Vec<StrongCallableDefinitionOwner>, MirTypeBridgeSectionError> {
         let cycle = self
             .production()
             .strong_callable_bridges()

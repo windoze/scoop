@@ -3,7 +3,7 @@ use super::*;
 pub(super) fn check(
     input: scoop_lir_lower::LayoutAbiExportInputV1<'_>,
     dependencies: scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
-    source: &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+    source: &[mir::MirTypeBridgeDependencyV1],
     exports: &lir::LayoutAbiExportConstituentsV1,
     selected: &lir::StrongProductionDependencySelectionV2<'_>,
     uses: &[lir::StrongExternalInitializationUseV2],
@@ -54,7 +54,7 @@ pub(super) fn check(
             },
             dependencies,
             exports,
-            mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(source).unwrap(),
+            source,
             selected.physical_imports().records(),
         )
         .err()

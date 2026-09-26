@@ -1,5 +1,5 @@
 use super::*;
-use mir::{MirInitializationUnitProofKindV1, MirTypeBridgeLocalAuthorityV1};
+use mir::MirTypeBridgeLocalInputV1;
 
 pub(super) fn check<'a>(
     name: &str,
@@ -7,36 +7,16 @@ pub(super) fn check<'a>(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'a>,
     exports: mir::MirTypeBridgeExportConstituentsV1,
 ) -> mir::CrossConeMirTypeBridgeSectionV1<'a> {
-    let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-        input,
-        scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
-            types: &[],
-            callables: &[],
-            dispatch: &[],
-        },
-    )
-    .unwrap();
-    let incomplete = mir::MirTypeBridgeExportConstituentsV1::new(
-        mir::CanonicalParamFreeMirTypeExportsV1::try_new(vec![]).unwrap(),
-        exports.callables().clone(),
-        exports.dispatch().clone(),
-        exports.objects().clone(),
-        exports.shapes().clone(),
-        exports.initialization_uses().clone(),
-    );
-    assert!(matches!(
-        incomplete.validate_sources(input.mir.module().cone, input.identities, &source),
-        Err(mir::MirTypeBridgeSourceJoinError::Inventory(
-            mir::MirTypeBridgeSourceInventoryV1::Types
-        ))
-    ));
+    let source = scoop_mir_lower::lower_type_bridge_dependencies(input).unwrap();
     let section = mir::CrossConeMirTypeBridgeSectionV1::try_new(
-        MirTypeBridgeLocalAuthorityV1::Producer {
+        MirTypeBridgeLocalInputV1 {
             provider: input.mir.module().cone,
-            input: input.mir,
+
+            production: (input.mir).production(),
             ordinary: input.ordinary,
         },
         exports,
+        scoop_mir_lower::lower_type_bridge_initialization_units(input.mir).unwrap(),
         &[],
         &source,
         input.identities,
@@ -46,33 +26,41 @@ pub(super) fn check<'a>(
     let wire: mir::DecodedCrossConeMirTypeBridgeSectionV1 = decoded(&section);
     assert_eq!(encode(&wire).unwrap(), bytes);
     let mut graph = identity_graph(input.hir, input.mir, None);
+    let local = MirTypeBridgeLocalInputV1 {
+        provider: input.mir.module().cone,
+
+        production: input.mir.production(),
+        ordinary: input.ordinary,
+    };
     let replayed = wire
-        .validate(
-            MirTypeBridgeLocalAuthorityV1::Reader {
-                provider: input.mir.module().cone,
-                foundation: input.mir.foundation(),
-                production: input.mir.production(),
-                ordinary: input.ordinary,
-            },
-            &[],
-            &source,
+        .resolve_types(
+            local.provider,
+            input.mir.foundation(),
+            std::iter::empty(),
             &mut graph,
         )
+        .unwrap()
+        .resolve_callables(input.mir.foundation(), std::iter::empty(), &mut graph)
+        .unwrap()
+        .resolve_dependencies(local, &mut graph)
         .unwrap();
-    assert_eq!(encode(&replayed).unwrap(), bytes);
+    replayed
+        .replay_dependency_closure(section.initialization_units(), &[], &source, &graph)
+        .unwrap();
     assert_eq!(
         section.initialization_units().len(),
-        input.hir.output().local.module().initialization_units.len()
+        input.mir.materialization().initialization_roots().len()
     );
     assert!(section.selected().is_empty());
-    assert!(replayed.initialization_units().iter().all(|unit|
-        unit.proof_kind() == MirInitializationUnitProofKindV1::ReaderSemanticReplay
-    ));
     let mut units = Vec::new();
     for unit in section.initialization_units() {
-        let MirInitializationUnitProofKindV1::ProducerEmitted(root) = unit.proof_kind() else {
-            panic!("the producer retains the actual initialization roots")
-        };
+        let root = input
+            .mir
+            .materialization()
+            .initialization_roots()
+            .iter()
+            .find(|root| root.identity() == unit.unit())
+            .unwrap();
         let mir = input.mir.module();
         assert_eq!(unit.unit(), root.identity());
         assert_eq!(

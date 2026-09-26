@@ -4,7 +4,7 @@ use super::*;
 fn seven_field_wire_round_trips_only_after_full_closure_replay() {
     let provider = Fixture::new("wire-provider");
     let mut consumer = Fixture::new("wire-consumer");
-    consumer.source.uses = vec![provider.shape_use()];
+    consumer.uses = vec![provider.shape_use()];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     let section = consumer
@@ -14,15 +14,16 @@ fn seven_field_wire_round_trips_only_after_full_closure_replay() {
     assert_eq!(bytes[0], 0xa7);
     let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    let replayed = decoded
-        .validate(
-            consumer.authority(),
-            &[terminal.dependency_view()],
-            &consumer.source,
-            &mut graph,
-        )
+    let dependencies = [terminal.dependency_view()];
+    let replayed =
+        resolved_dependencies::read(&consumer, decoded, &dependencies, &mut graph).unwrap();
+    replayed
+        .replay_dependency_closure(&consumer.units, &dependencies, &consumer.uses, &graph)
         .unwrap();
-    assert_eq!(encode(&replayed).unwrap(), bytes);
+    assert_eq!(
+        replayed.selected_relations(),
+        section.selected().relations().collect::<Vec<_>>()
+    );
 }
 
 fn decoded_with_selected(
@@ -59,39 +60,30 @@ fn decoded_with_selected(
 fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
     let provider = Fixture::new("selected-provider");
     let mut consumer = Fixture::new("selected-consumer");
-    consumer.source.uses = vec![provider.type_use()];
+    consumer.uses = vec![provider.type_use()];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     let section = consumer
         .section(&[terminal.dependency_view()], &graph)
         .unwrap();
+    let dependencies = [terminal.dependency_view()];
     for records in [vec![], vec![provider.type_use(), provider.shape_use()]] {
+        let decoded = decoded_with_selected(&section, &records);
+        let read =
+            resolved_dependencies::read(&consumer, decoded, &dependencies, &mut graph).unwrap();
         assert!(matches!(
-            decoded_with_selected(&section, &records).validate(
-                consumer.authority(),
-                &[terminal.dependency_view()],
-                &consumer.source,
-                &mut graph
-            ),
+            read.replay_dependency_closure(&consumer.units, &dependencies, &consumer.uses, &graph),
             Err(MirTypeBridgeSectionError::SelectedClosure)
         ));
     }
+    let duplicate = decoded_with_selected(&section, &[provider.type_use(), provider.type_use()]);
     assert!(matches!(
-        decoded_with_selected(&section, &[provider.type_use(), provider.type_use()]).validate(
-            consumer.authority(),
-            &[terminal.dependency_view()],
-            &consumer.source,
-            &mut graph
-        ),
+        resolved_dependencies::read(&consumer, duplicate, &dependencies, &mut graph),
         Err(MirTypeBridgeSectionError::NonCanonicalSelected { .. })
     ));
+    let local = decoded_with_selected(&section, &[consumer.type_use()]);
     assert!(matches!(
-        decoded_with_selected(&section, &[consumer.type_use()]).validate(
-            consumer.authority(),
-            &[terminal.dependency_view()],
-            &consumer.source,
-            &mut graph
-        ),
+        resolved_dependencies::read(&consumer, local, &dependencies, &mut graph),
         Err(MirTypeBridgeSectionError::SelectedCurrentProvider)
     ));
 }

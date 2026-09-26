@@ -18,8 +18,6 @@ pub use errors::*;
 mod generated_shapes;
 mod initialization;
 pub use generated_shapes::StrongDependencyGeneratedNominalShapeRoot;
-#[cfg(test)]
-pub(crate) use initialization::initialization_test_input;
 pub use initialization::{
     StrongInitializationUnitError, StrongInitializationUnitMaterializationRoot,
 };

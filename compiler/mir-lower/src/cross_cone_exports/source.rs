@@ -1,68 +1,66 @@
-//! Independent source projection for replaying an untrusted export candidate.
+//! Dependency uses and initialization definitions from complete HIR/MIR.
 
 use super::*;
-use scoop_identity::{
-    ConeIdentity, PersistentExactTypeId, PersistentObjectValueId, PersistentTypeId,
-};
+use scoop_identity::{CallableOwner, PersistentInitializationUnitId};
 
-mod inventory;
-mod queries;
-mod units;
 mod uses;
 
-/// Expected source records produced without observing the candidate being
-/// checked. This is a source-join adapter, not a terminal section or selection.
-pub struct MirTypeBridgeSourceProjectionV1 {
-    provider: ConeIdentity,
-    expected: mir::MirTypeBridgeExportConstituentsV1,
-    inventory: inventory::Inventory,
-    units: units::InitializationContracts,
-    uses: Vec<mir::MirTypeBridgeDependencyV1>,
+pub fn lower_type_bridge_dependencies(
+    input: MirTypeBridgeExportInputV1<'_>,
+) -> Result<Vec<mir::MirTypeBridgeDependencyV1>, MirTypeBridgeUseLoweringError> {
+    uses::project(input)
 }
 
-impl MirTypeBridgeSourceProjectionV1 {
-    pub fn from_input(
-        input: MirTypeBridgeExportInputV1<'_>,
-        dependencies: MirTypeBridgeDependencyTablesV1<'_>,
-    ) -> Result<Self, MirTypeBridgeSourceProjectionError> {
-        let expected = lower_type_bridge_exports(input, dependencies)
-            .map_err(MirTypeBridgeSourceProjectionError::Production)?;
-        let inventory = inventory::Inventory::from_source(input, &expected)?;
-        let units = units::InitializationContracts::from_input(input)?;
-        let uses = uses::project(input)?;
-        Ok(Self {
-            provider: input.mir.module().cone,
-            expected,
-            inventory,
-            units,
-            uses,
-        })
+pub fn lower_type_bridge_initialization_units(
+    input: &mir::SingleConeStrongMirInput,
+) -> Result<Vec<mir::MirTypeBridgeInitializationUnitV1>, MirTypeBridgeUseLoweringError> {
+    use MirTypeBridgeUseLoweringError as Error;
+    let mut units = Vec::new();
+    scoop_wire::allocation::try_reserve(
+        &mut units,
+        input.materialization().initialization_roots().len(),
+        &WirePath::root(),
+    )?;
+    for root in input.materialization().initialization_roots() {
+        let CallableOwner::Generated(initializer) = root.initializer().implementation() else {
+            return Err(Error::InitializationDefinition(root.identity()));
+        };
+        let CallableOwner::Generated(ensure) = root.ensure().implementation() else {
+            return Err(Error::InitializationDefinition(root.identity()));
+        };
+        let definition = input
+            .production()
+            .strong_callable_bridges()
+            .get(root.ensure().implementation())
+            .ok_or(Error::InitializationDefinition(root.identity()))?;
+        units.push(mir::MirTypeBridgeInitializationUnitV1::new(
+            root.identity(),
+            initializer,
+            ensure,
+            mir::MirBridgeCallableSignatureV1::new(
+                definition.signature().clone(),
+                input.module().functions[root.ensure().function()].gc_effect,
+            ),
+        ));
     }
+    units.sort_unstable_by_key(mir::MirTypeBridgeInitializationUnitV1::unit);
+    Ok(units)
 }
 
 #[derive(Debug)]
-pub enum MirTypeBridgeSourceProjectionError {
-    Production(MirTypeBridgeExportProductionError),
+pub enum MirTypeBridgeUseLoweringError {
     Resource(WireError),
-    Shapes(mir::MirShapeSupportError),
-    MissingSource(mir::MirTypeBridgeSourceRecordV1),
-    MissingInitializationUnit(PersistentInitializationUnitId),
-    InitializationInventory,
-    MaterializedTypes(hir::MaterializedTypeClosureError),
+    InitializationDefinition(PersistentInitializationUnitId),
     SharedTypeOccurrences(Box<hir::HirDependencyTypeRelationError>),
-    TypeOccurrenceInventory,
-    ShapeOccurrenceInventory,
-    ExecutableExpressions(hir::concrete::ExecutableExpressionStructureError),
-    Identity(scoop_identity::IdentityReferenceError),
 }
-impl From<WireError> for MirTypeBridgeSourceProjectionError {
+impl From<WireError> for MirTypeBridgeUseLoweringError {
     fn from(error: WireError) -> Self {
         Self::Resource(error)
     }
 }
-impl std::fmt::Display for MirTypeBridgeSourceProjectionError {
+impl std::fmt::Display for MirTypeBridgeUseLoweringError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "cannot project the MIR type bridge source: {self:?}")
+        write!(f, "cannot lower MIR type bridge uses: {self:?}")
     }
 }
-impl std::error::Error for MirTypeBridgeSourceProjectionError {}
+impl std::error::Error for MirTypeBridgeUseLoweringError {}

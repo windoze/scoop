@@ -46,11 +46,6 @@ pub fn replay_shared_mir_dependency_graph(
 
     committed.sort_unstable();
     committed.dedup();
-    mir.replay_dependency_closure::<Infallible>(
-        units,
-        dependencies,
-        &committed,
-        source.identities,
-    )?;
+    mir.replay_dependency_closure(units, dependencies, &committed, source.identities)?;
     Ok(())
 }

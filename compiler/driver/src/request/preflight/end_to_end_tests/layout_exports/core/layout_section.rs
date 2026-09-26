@@ -5,20 +5,12 @@ pub(super) fn check(
     input: scoop_lir_lower::LayoutAbiExportInputV1<'_>,
     exports: lir::LayoutAbiExportConstituentsV1,
 ) -> lir::CrossConeLayoutAbiSectionV1<'static> {
-    let mir_source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
-        mir_input,
-        scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
-            types: &[],
-            callables: &[],
-            dispatch: &[],
-        },
-    )
-    .unwrap();
+    let mir_source = scoop_mir_lower::lower_type_bridge_dependencies(mir_input).unwrap();
     let roots = scoop_lir_lower::lower_layout_abi_dependencies(
         input,
         scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
         &exports,
-        mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&mir_source).unwrap(),
+        &mir_source,
         &[],
     )
     .unwrap();

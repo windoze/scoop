@@ -6,9 +6,7 @@ use scoop_mir_lower::{
 };
 
 mod assertions;
-mod initialization;
 mod rejections;
-mod source_projection;
 
 fn fixture(name: &str) -> (std::path::PathBuf, String) {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

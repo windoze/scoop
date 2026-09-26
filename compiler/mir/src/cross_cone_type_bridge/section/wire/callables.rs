@@ -13,7 +13,7 @@ pub struct CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
 }
 
 impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
-    pub fn resolve_callables<'a, E>(
+    pub fn resolve_callables<'a>(
         self,
         foundation: &crate::OdrFreeMirFoundation,
         dependencies: impl ExactSizeIterator<
@@ -24,8 +24,7 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
             ),
         >,
         graph: &mut ValidatedIdentityGraph,
-    ) -> Result<CallablesResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError<E>>
-    {
+    ) -> Result<CallablesResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError> {
         let count = dependencies
             .len()
             .checked_add(1)
@@ -76,12 +75,11 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
         &self.dispatch
     }
 
-    pub fn resolve_dependencies<E>(
+    pub fn resolve_dependencies(
         self,
-        authority: MirTypeBridgeLocalAuthorityV1<'_>,
+        authority: MirTypeBridgeLocalInputV1<'_>,
         graph: &mut ValidatedIdentityGraph,
-    ) -> Result<DependencyResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError<E>>
-    {
+    ) -> Result<DependencyResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError> {
         authority.validate()?;
         let provider = authority.provider();
         let initialization_uses = self.initialization_uses.validate(provider, graph)?;
@@ -103,38 +101,5 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
             legacy: authority.legacy_callables()?,
             selected,
         })
-    }
-
-    pub fn validate<'a, E>(
-        self,
-        authority: MirTypeBridgeLocalAuthorityV1<'a>,
-        dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
-        source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
-        graph: &mut ValidatedIdentityGraph,
-    ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
-        let dependencies = dependencies::complete(authority.provider(), dependencies)?;
-        self.complete(authority, dependencies, source, graph)
-    }
-
-    pub(super) fn complete<'a, E>(
-        self,
-        authority: MirTypeBridgeLocalAuthorityV1<'a>,
-        dependencies: Vec<MirTypeBridgeDependencyViewV1<'a>>,
-        source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
-        graph: &mut ValidatedIdentityGraph,
-    ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
-        let DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
-            exports, selected, ..
-        } = self.resolve_dependencies(authority, graph)?;
-        build::complete(
-            build::SectionInput {
-                authority,
-                exports,
-                dependencies,
-                selection: build::SelectionInput::Reader(selected),
-            },
-            source,
-            graph,
-        )
     }
 }

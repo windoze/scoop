@@ -23,10 +23,10 @@ pub struct SelectedDependencyMirTypeSetV1<'a> {
     entries: Vec<SelectedMirTypeEntryV1<'a>>,
 }
 impl<'a> SelectedDependencyMirTypeSetV1<'a> {
-    pub(super) fn from_closed<E>(
+    pub(super) fn from_closed(
         consumer: ConeIdentity,
         entries: Vec<SelectedMirTypeEntryV1<'a>>,
-    ) -> Result<Self, MirTypeBridgeSectionError<E>> {
+    ) -> Result<Self, MirTypeBridgeSectionError> {
         if u32::try_from(entries.len()).is_err() {
             return Err(MirTypeBridgeSectionError::ArithmeticOverflow);
         }

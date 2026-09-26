@@ -1,7 +1,4 @@
-//! Representation-neutral, identity-checked MIR type exports.
-//!
-//! This constituent table is consumed by the complete type bridge section;
-//! it does not grant import selection or production artifact eligibility.
+//! Complete representation-neutral MIR type exports and their typed references.
 
 use scoop_identity::{
     DecodedPersistentId, ExactTypeKey, GeneratedNominalKey, IdentityReferenceError,
@@ -12,6 +9,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 mod callables;
 mod dispatch;
+mod exports;
 mod facts;
 mod finite_production;
 mod lookup;
@@ -23,7 +21,6 @@ mod representation_wire;
 mod section;
 mod semantic_refs;
 mod shape_support;
-mod source_join;
 mod table;
 #[cfg(test)]
 mod tests;
@@ -32,6 +29,7 @@ mod wire;
 
 pub use callables::*;
 pub use dispatch::*;
+pub use exports::*;
 pub use facts::*;
 pub use lookup::*;
 pub use objects::*;
@@ -42,7 +40,6 @@ pub use representation_wire::DecodedMirTypeRepresentationV1;
 pub use section::*;
 pub use semantic_refs::*;
 pub use shape_support::*;
-pub use source_join::*;
 pub use table::*;
 pub use validation::MirTypeBridgeError;
 pub use wire::DecodedParamFreeMirTypeExportV1;

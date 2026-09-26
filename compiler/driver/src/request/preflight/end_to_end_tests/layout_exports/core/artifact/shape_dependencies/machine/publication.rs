@@ -45,8 +45,7 @@ pub(super) fn check<'a, 'p>(
         })
         .cloned()
         .collect::<Vec<_>>();
-    let committed =
-        mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(source.source).unwrap();
+    let committed = source.source;
     let roots = scoop_lir_lower::lower_layout_abi_dependencies(
         input,
         dependencies,

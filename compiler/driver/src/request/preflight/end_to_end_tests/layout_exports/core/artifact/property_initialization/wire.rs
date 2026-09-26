@@ -1,9 +1,9 @@
 use super::*;
-use std::convert::Infallible;
 
 pub(super) fn resolve(
+    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
-    dependencies: &[&mir::CrossConeMirTypeBridgeSectionV1<'_>],
+    dependencies: &[mir::MirTypeBridgeDependencyViewV1<'_>],
     uses: &mir::CanonicalMirExternalInitializationUsesV1,
     identities: &ValidatedIdentityGraph,
 ) -> mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
@@ -13,24 +13,33 @@ pub(super) fn resolve(
         .unwrap();
     let mut identities = pending.finish().unwrap();
     let candidate: mir::DecodedCrossConeMirTypeBridgeSectionV1 = decoded(&Uses { section, uses });
-    let authority = section.local_authority();
+    let authority = mir::MirTypeBridgeLocalInputV1 {
+        provider: input.mir.module().cone,
+
+        production: input.mir.production(),
+        ordinary: input.ordinary,
+    };
     candidate
-        .resolve_types::<Infallible>(
+        .resolve_types(
             authority.provider(),
-            authority.foundation(),
-            dependencies.iter().map(|section| section.types()),
+            input.mir.foundation(),
+            dependencies.iter().map(|section| section.exports().types()),
             &mut identities,
         )
         .unwrap()
-        .resolve_callables::<Infallible>(
-            authority.foundation(),
-            dependencies
-                .iter()
-                .map(|section| (section.types(), section.callables(), section.dispatch())),
+        .resolve_callables(
+            input.mir.foundation(),
+            dependencies.iter().map(|section| {
+                (
+                    section.exports().types(),
+                    section.exports().callables(),
+                    section.exports().dispatch(),
+                )
+            }),
             &mut identities,
         )
         .unwrap()
-        .resolve_dependencies::<Infallible>(authority, &mut identities)
+        .resolve_dependencies(authority, &mut identities)
         .unwrap()
 }
 
@@ -46,11 +55,11 @@ impl WireEncode for Uses<'_, '_> {
     ) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(7)?;
         encoder.field(1)?;
-        self.section.types().encode(encoder)?;
+        self.section.exports().types().encode(encoder)?;
         encoder.field(2)?;
-        self.section.callables().encode(encoder)?;
+        self.section.exports().callables().encode(encoder)?;
         encoder.field(3)?;
-        self.section.dispatch().encode(encoder)?;
+        self.section.exports().dispatch().encode(encoder)?;
         encoder.field(4)?;
         self.section.object_values().encode(encoder)?;
         encoder.field(5)?;

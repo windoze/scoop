@@ -1,7 +1,5 @@
 //! Shared HIR roots and complete MIR constituent dependency graph replay.
 
-use std::convert::Infallible;
-
 use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 use scoop_mir as mir;
@@ -73,10 +71,10 @@ impl<'input> LirStrongProductionReplayedCrossConeLayoutClosure<'input> {
                 } = artifact;
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions)?;
-                let mir = mir.resolve_dependencies::<Infallible>(
-                    mir::MirTypeBridgeLocalAuthorityV1::Reader {
+                let mir = mir.resolve_dependencies(
+                    mir::MirTypeBridgeLocalInputV1 {
                         provider,
-                        foundation: parts.mir_foundation,
+
                         production: parts.mir_core,
                         ordinary: parts.mir_ordinary,
                     },

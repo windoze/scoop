@@ -4,7 +4,10 @@ use scoop_identity::{ConeCoordinate, PendingIdentityValidation, SourceNominalKin
 
 pub(super) struct Fixture {
     pub types: TypeFixture,
-    pub source: Source,
+    pub provider: ConeIdentity,
+    pub exports: MirTypeBridgeExportConstituentsV1,
+    pub uses: Vec<MirTypeBridgeDependencyV1>,
+    pub units: Vec<MirTypeBridgeInitializationUnitV1>,
     pub production: crate::CoreBootstrapBridgeSectionV1,
     pub ordinary: crate::CrossConeMirBridgeSectionV1,
 }
@@ -26,7 +29,6 @@ impl Fixture {
         ])
         .unwrap();
         let exports = exports(&types, provider, table);
-        let source = Source::new(provider, vec![types.empty.id()], exports);
         let production = production(provider, &types.foundation);
         let ordinary = crate::CrossConeMirBridgeSectionV1::try_new(
             provider,
@@ -37,15 +39,18 @@ impl Fixture {
         .unwrap();
         Self {
             types,
-            source,
+            provider,
+            exports,
+            uses: Vec::new(),
+            units: Vec::new(),
             production,
             ordinary,
         }
     }
-    pub fn authority(&self) -> MirTypeBridgeLocalAuthorityV1<'_> {
-        MirTypeBridgeLocalAuthorityV1::Reader {
-            provider: self.source.provider,
-            foundation: &self.types.foundation,
+    pub fn authority(&self) -> MirTypeBridgeLocalInputV1<'_> {
+        MirTypeBridgeLocalInputV1 {
+            provider: self.provider,
+
             production: &self.production,
             ordinary: &self.ordinary,
         }
@@ -54,24 +59,25 @@ impl Fixture {
         &'a self,
         dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
         graph: &ValidatedIdentityGraph,
-    ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<&'static str>> {
+    ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError> {
         CrossConeMirTypeBridgeSectionV1::try_new(
             self.authority(),
-            self.source.exports(),
+            self.exports.clone(),
+            self.units.clone(),
             dependencies,
-            &self.source,
+            &self.uses,
             graph,
         )
     }
     pub fn type_use(&self) -> MirTypeBridgeDependencyV1 {
         MirTypeBridgeDependencyV1::new(
-            self.source.provider,
+            self.provider,
             MirTypeBridgeTargetV1::Type(self.types.payload.id()),
         )
     }
     pub fn shape_use(&self) -> MirTypeBridgeDependencyV1 {
         MirTypeBridgeDependencyV1::new(
-            self.source.provider,
+            self.provider,
             MirTypeBridgeTargetV1::ShapeSupport(self.types.empty.id()),
         )
     }
@@ -106,7 +112,7 @@ impl Fixture {
             self.types.slot_export(),
         ])
         .unwrap();
-        self.source.expected = exports(&self.types, self.source.provider, table);
+        self.exports = exports(&self.types, self.provider, table);
     }
 }
 pub(super) fn exports(

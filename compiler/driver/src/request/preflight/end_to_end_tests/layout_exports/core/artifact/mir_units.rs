@@ -29,10 +29,6 @@ pub(super) fn check(
         assert_eq!(unit.initializer(), producer.initializer());
         assert_eq!(unit.ensure(), producer.ensure());
         assert_eq!(unit.signature(), producer.signature());
-        assert_eq!(
-            unit.proof_kind(),
-            mir::MirInitializationUnitProofKindV1::ReaderSemanticReplay
-        );
     }
     if name.starts_with("shared-units-") {
         assert!(!units.is_empty());
@@ -82,10 +78,7 @@ struct Replay<'a> {
 impl Replay<'_> {
     fn run(
         &self,
-    ) -> Result<
-        Vec<mir::MirTypeBridgeInitializationUnitV1>,
-        mir::MirTypeBridgeSectionError<std::convert::Infallible>,
-    > {
+    ) -> Result<Vec<mir::MirTypeBridgeInitializationUnitV1>, mir::MirTypeBridgeSectionError> {
         mir::replay_source_initialization_units(
             self.metadata.provider,
             self.metadata.source_initialization_units(),

@@ -15,10 +15,13 @@ mod source;
 use MirTypeBridgeExportProductionError as Error;
 pub use error::MirTypeBridgeExportProductionError;
 pub use inputs::{MirTypeBridgeDependencyTablesV1, MirTypeBridgeExportInputV1};
-pub use source::{MirTypeBridgeSourceProjectionError, MirTypeBridgeSourceProjectionV1};
+pub use source::{
+    MirTypeBridgeUseLoweringError, lower_type_bridge_dependencies,
+    lower_type_bridge_initialization_units,
+};
 
 /// Produces all six local export tables. Dependency tables remain borrowed;
-/// the enclosing section still owns source and committed-use closure replay.
+/// the enclosing section joins their references with the actual dependency uses.
 pub fn lower_type_bridge_exports(
     input: MirTypeBridgeExportInputV1<'_>,
     dependencies: MirTypeBridgeDependencyTablesV1<'_>,

@@ -25,10 +25,10 @@ pub(super) struct DecodedMirTypeBridgeDependencyV1 {
     target: DecodedMirTypeBridgeTargetV1,
 }
 impl DecodedMirTypeBridgeDependencyV1 {
-    pub(super) fn resolve<E>(
+    pub(super) fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
-    ) -> Result<MirTypeBridgeDependencyV1, MirTypeBridgeSectionError<E>> {
+    ) -> Result<MirTypeBridgeDependencyV1, MirTypeBridgeSectionError> {
         Ok(MirTypeBridgeDependencyV1::new(
             graph.resolve(self.provider)?,
             self.target.resolve(graph)?,

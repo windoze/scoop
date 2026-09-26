@@ -4,10 +4,6 @@ use crate::*;
 mod support;
 use support::*;
 
-pub(crate) fn initialization_test_input() -> SingleConeStrongMirInput {
-    seal(fixture()).unwrap()
-}
-
 #[test]
 fn sealer_retains_exact_roles_from_hir_owned_source_materializations() {
     let module = fixture();

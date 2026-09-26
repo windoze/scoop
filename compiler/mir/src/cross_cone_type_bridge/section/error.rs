@@ -8,18 +8,13 @@ pub enum MirTypeBridgeUnitProblemV1 {
     GenericSource,
     DefinitionRole,
     Signature,
-    ProducerInventory,
-    ProducerRole,
 }
 
 #[derive(Debug)]
-pub enum MirTypeBridgeSectionError<E> {
+pub enum MirTypeBridgeSectionError {
     Resource(WireError),
     Identity(IdentityReferenceError),
     GeneratedIdentity(scoop_identity::GeneratedCallableIdentityError),
-    Encoding(scoop_wire::cbor::EncodeError),
-    Source(E),
-    SourceJoin(MirTypeBridgeSourceJoinError<E>),
     Type(MirTypeBridgeError),
     Callable(MirCallableBridgeError),
     Dispatch(MirDispatchSchemaError),
@@ -28,7 +23,6 @@ pub enum MirTypeBridgeSectionError<E> {
     Lookup(MirTypeBridgeLookupError),
     References(MirTypeBridgeReferenceError),
     ProviderContext,
-    FoundationSurface,
     NonCanonicalUnitInventory,
     NonCanonicalCommittedUses,
     NonCanonicalSelected {
@@ -50,7 +44,7 @@ pub enum MirTypeBridgeSectionError<E> {
 }
 macro_rules! from_error {
     ($error:ty, $variant:ident) => {
-        impl<E> From<$error> for MirTypeBridgeSectionError<E> {
+        impl From<$error> for MirTypeBridgeSectionError {
             fn from(value: $error) -> Self {
                 Self::$variant(value)
             }
@@ -63,7 +57,6 @@ from_error!(
     scoop_identity::GeneratedCallableIdentityError,
     GeneratedIdentity
 );
-from_error!(MirTypeBridgeSourceJoinError<E>, SourceJoin);
 from_error!(MirTypeBridgeError, Type);
 from_error!(MirCallableBridgeError, Callable);
 from_error!(MirDispatchSchemaError, Dispatch);
@@ -71,9 +64,9 @@ from_error!(MirObjectBridgeError, Object);
 from_error!(MirShapeSupportError, Shape);
 from_error!(MirTypeBridgeLookupError, Lookup);
 from_error!(MirTypeBridgeReferenceError, References);
-impl<E: std::fmt::Debug> std::fmt::Display for MirTypeBridgeSectionError<E> {
+impl std::fmt::Display for MirTypeBridgeSectionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "MIR type bridge section: {self:?}")
     }
 }
-impl<E: std::fmt::Debug> std::error::Error for MirTypeBridgeSectionError<E> {}
+impl std::error::Error for MirTypeBridgeSectionError {}

@@ -8,7 +8,7 @@ pub(super) fn check(
     fixtures: &Path,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
-    core: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
+    core: mir::MirTypeBridgeDependencyViewV1<'_>,
     shapes: &[(ConeIdentity, scoop_identity::PersistentTypeId)],
 ) {
     let foundation = hir::OdrFreeHirFoundation::try_new(
@@ -21,10 +21,9 @@ pub(super) fn check(
         foundation: &foundation,
         public: input.public,
     };
-    let core_resolved = wire::resolve(core, &[], &[], input.identities);
-    let dependencies = [core_resolved.dependency_view(core.initialization_units())];
+    let dependencies = [core];
     let expected = section.selected().relations().collect::<Vec<_>>();
-    let resolved = wire::resolve(section, &[core], &expected, input.identities);
+    let resolved = wire::resolve(input, section, &dependencies, &expected, input.identities);
     let replay = |candidate: &_| {
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
@@ -36,7 +35,7 @@ pub(super) fn check(
     };
     replay(&resolved).unwrap();
     for (provider, owner) in shapes {
-        let shape = core.shape_support().get(*owner).unwrap();
+        let shape = core.exports().shapes().get(*owner).unwrap();
         for target in [
             mir::MirTypeBridgeTargetV1::ShapeSupport(*owner),
             mir::MirTypeBridgeTargetV1::Type(shape.coroutine_step()),
@@ -50,7 +49,7 @@ pub(super) fn check(
                 .filter(|relation| *relation != required)
                 .collect::<Vec<_>>();
             assert!(
-                matches!(replay(&wire::resolve(section, &[core], &missing, input.identities)), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
+                matches!(replay(&wire::resolve(input, section, &dependencies, &missing, input.identities)), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
             );
         }
         if let mir::MirBoxedShapeSupportV1::Available(exact) = shape.boxed() {
@@ -61,7 +60,8 @@ pub(super) fn check(
         }
     }
     let unused = core
-        .shape_support()
+        .exports()
+        .shapes()
         .records()
         .iter()
         .map(|shape| {
@@ -76,7 +76,7 @@ pub(super) fn check(
     extra.push(unused);
     extra.sort_unstable();
     assert!(
-        matches!(replay(&wire::resolve(section, &[core], &extra, input.identities)), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
+        matches!(replay(&wire::resolve(input, section, &dependencies, &extra, input.identities)), Err(Error::Mir(error)) if matches!(*error, mir::MirTypeBridgeSectionError::SelectedClosure))
     );
 
     replay(&resolved).unwrap();

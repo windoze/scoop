@@ -3,14 +3,14 @@ use super::*;
 pub(super) fn check(
     input: scoop_lir_lower::LayoutAbiExportInputV1<'_>,
     dependencies: scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
-    mir_source: &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+    mir_source: &[mir::MirTypeBridgeDependencyV1],
 ) {
     let exports = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
     let roots = scoop_lir_lower::lower_layout_abi_dependencies(
         input,
         dependencies,
         &exports,
-        mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(mir_source).unwrap(),
+        mir_source,
         &[],
     )
     .unwrap();

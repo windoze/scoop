@@ -1,9 +1,6 @@
 //! Initialization contracts replayed from original source keys and MIR definitions.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    convert::Infallible,
-};
+use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{
     CallableOwner, CborIdentityRecord, CoreBuiltinNominal, Effect, ExactCallableSignature,
@@ -12,7 +9,7 @@ use scoop_identity::{
 
 use super::*;
 use MirTypeBridgeUnitProblemV1 as Problem;
-type Error = MirTypeBridgeSectionError<Infallible>;
+type Error = MirTypeBridgeSectionError;
 
 /// Source-only records do not imply a machine root. Every actual initialization
 /// role must resolve to an original source unit and its complete strong pair.
@@ -113,7 +110,6 @@ pub fn replay_source_initialization_units(
             initializer,
             ensure,
             signature: MirBridgeCallableSignatureV1::new(exact, crate::GcEffect::Managed),
-            proof: MirInitializationUnitProofKindV1::ReaderSemanticReplay,
         });
     }
     Ok(units)

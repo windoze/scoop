@@ -1,6 +1,6 @@
 //! Source callable replay from the same owned artifacts and provider scopes.
 
-use std::{collections::BTreeMap, convert::Infallible};
+use std::collections::BTreeMap;
 
 use scoop_hir::{CheckedSharedTypeFoundationV1, SharedTypeMetadataV1};
 use scoop_identity::{ConeCoordinate, ConeIdentity};
@@ -91,7 +91,7 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
                 } = artifact;
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions)?;
-                let mir = mir.resolve_callables::<Infallible>(
+                let mir = mir.resolve_callables(
                     parts.mir_foundation,
                     reachable.iter().map(|position| {
                         let mir = &resolved[*position].mir;

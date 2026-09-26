@@ -5,7 +5,7 @@ pub(super) struct TargetIndex {
     legacy: Vec<StrongCallableDefinitionOwner>,
 }
 impl TargetIndex {
-    pub fn build<E>(views: &[LocalView<'_>]) -> Result<Self, MirTypeBridgeSectionError<E>> {
+    pub fn build(views: &[LocalView<'_>]) -> Result<Self, MirTypeBridgeSectionError> {
         let path = WirePath::root();
         let mut rows = Vec::new();
         let mut legacy = Vec::new();
@@ -23,7 +23,7 @@ impl TargetIndex {
             view.targets(|target| {
                 scoop_wire::allocation::try_reserve(&mut rows, 1, &path)?;
                 rows.push((target, owner));
-                Ok::<_, MirTypeBridgeSectionError<E>>(())
+                Ok::<_, MirTypeBridgeSectionError>(())
             })?;
         }
 
@@ -47,10 +47,7 @@ impl TargetIndex {
         }
         Ok(Self { rows, legacy })
     }
-    pub fn owner<E>(
-        &self,
-        target: MirTypeBridgeTargetV1,
-    ) -> Result<usize, MirTypeBridgeSectionError<E>> {
+    pub fn owner(&self, target: MirTypeBridgeTargetV1) -> Result<usize, MirTypeBridgeSectionError> {
         if let MirTypeBridgeTargetV1::Callable(target) = target {
             if self.legacy.binary_search(&target).is_ok() {
                 return Err(MirTypeBridgeSectionError::OldCallablePartition(target));

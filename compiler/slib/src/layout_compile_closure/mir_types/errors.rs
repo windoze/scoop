@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use scoop_hir::{PublicNominalShapeProjectionError, SharedTypeMetadataError};
 use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentTypeId};
 use scoop_mir::{MirShapeSupportError, MirTypeBridgeSectionError};
@@ -30,7 +28,7 @@ pub enum SharedMirTypeValidationError {
     Resource(WireError),
     Shared(SharedTypeMetadataError),
     MirFront(CrossConeLayoutMirFrontValidationError),
-    MirTransport(MirTypeBridgeSectionError<Infallible>),
+    MirTransport(MirTypeBridgeSectionError),
     ShapeProjection(PublicNominalShapeProjectionError),
     Shape(MirShapeSupportError),
     ShapeProvider {
@@ -89,7 +87,7 @@ macro_rules! from_error {
 from_error!(WireError, Resource);
 from_error!(SharedTypeMetadataError, Shared);
 from_error!(CrossConeLayoutMirFrontValidationError, MirFront);
-from_error!(MirTypeBridgeSectionError<Infallible>, MirTransport);
+from_error!(MirTypeBridgeSectionError, MirTransport);
 from_error!(PublicNominalShapeProjectionError, ShapeProjection);
 from_error!(MirShapeSupportError, Shape);
 

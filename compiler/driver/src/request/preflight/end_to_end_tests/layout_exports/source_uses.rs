@@ -1,5 +1,4 @@
 use super::*;
-use mir::MirTypeBridgeSectionSourceAuthorityV1;
 
 mod independence;
 
@@ -25,7 +24,7 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
                 if name == "standalone" {
                     independence::check(input, projection);
                 }
-                let uses = projection.committed_external_uses().unwrap();
+                let uses = projection;
                 let mut names = Vec::new();
                 for usage in uses {
                     let mir::MirTypeBridgeTargetV1::Type(exact) = usage.target() else {

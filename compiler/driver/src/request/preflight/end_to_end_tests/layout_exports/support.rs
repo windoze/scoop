@@ -24,7 +24,7 @@ pub(super) fn with_inspection(
     source: &str,
     inspect: impl FnOnce(
         scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-        &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+        &[mir::MirTypeBridgeDependencyV1],
     ),
     run: impl FnOnce(
         scoop_lir_lower::LayoutAbiExportInputV1<'_>,
@@ -57,7 +57,7 @@ pub(super) fn with_pair(
     layout_provider: Option<&lir::ShapeLinkProviderV1<'_>>,
     run: impl FnOnce(
         scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-        &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+        &[mir::MirTypeBridgeDependencyV1],
         scoop_lir_lower::LayoutAbiExportInputV1<'_>,
         scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
         &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
@@ -207,13 +207,8 @@ pub(super) fn with_pair(
         dispatch: &dispatch,
     };
     let bridge = scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
-    let projected =
-        scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(input, dependencies).unwrap();
-    bridge
-        .validate_sources(mir.strong.module().cone, &graph, &projected)
-        .unwrap();
-    let uses =
-        mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&projected).unwrap();
+    let projected = scoop_mir_lower::lower_type_bridge_dependencies(input).unwrap();
+    let uses = &projected;
     assert!(!uses.is_empty());
     assert!(
         uses.iter()
@@ -225,7 +220,7 @@ pub(super) fn with_pair(
                 ))
     );
     assert_eq!(
-        mir::MirTypeBridgeSectionSourceAuthorityV1::local_initialization_units(&projected)
+        scoop_mir_lower::lower_type_bridge_initialization_units(&mir.strong)
             .unwrap()
             .len(),
         mir.strong.materialization().initialization_roots().len(),
@@ -268,8 +263,7 @@ pub(super) fn with_pair(
             input,
             dependencies,
             &scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap(),
-            mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&projected)
-                .unwrap(),
+            &projected,
             &[],
         )
         .err()

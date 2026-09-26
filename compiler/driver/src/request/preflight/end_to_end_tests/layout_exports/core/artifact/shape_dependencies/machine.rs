@@ -11,7 +11,7 @@ mod rejections;
 #[derive(Clone, Copy)]
 pub(super) struct PublicationInput<'a, 'p> {
     pub bridge: &'a mir::CrossConeMirTypeBridgeSectionV1<'p>,
-    pub source: &'a scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+    pub source: &'a [mir::MirTypeBridgeDependencyV1],
 }
 
 #[derive(Clone, Copy)]

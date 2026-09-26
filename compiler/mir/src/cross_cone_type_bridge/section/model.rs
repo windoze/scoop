@@ -2,18 +2,15 @@ use super::*;
 
 /// Complete MIR type exports and selected dependency records.
 pub struct CrossConeMirTypeBridgeSectionV1<'a> {
-    pub(super) authority: MirTypeBridgeLocalAuthorityV1<'a>,
+    pub(super) provider: ConeIdentity,
     pub(super) exports: MirTypeBridgeExportConstituentsV1,
     pub(super) units: Vec<MirTypeBridgeInitializationUnitV1>,
     pub(super) legacy_callables: Vec<StrongCallableDefinitionOwner>,
     pub(super) selected: SelectedDependencyMirTypeSetV1<'a>,
 }
 impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
-    pub const fn local_authority(&self) -> MirTypeBridgeLocalAuthorityV1<'a> {
-        self.authority
-    }
     pub const fn provider(&self) -> ConeIdentity {
-        self.authority.provider()
+        self.provider
     }
     pub const fn exports(&self) -> &MirTypeBridgeExportConstituentsV1 {
         &self.exports

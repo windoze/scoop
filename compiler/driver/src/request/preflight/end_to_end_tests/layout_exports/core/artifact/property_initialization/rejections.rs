@@ -5,8 +5,7 @@ pub(super) fn check(
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     core_input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
-    core: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
-    source: &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+    core: mir::MirTypeBridgeDependencyViewV1<'_>,
 ) {
     let foundation = hir::OdrFreeHirFoundation::try_new(
         hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap(),
@@ -28,8 +27,7 @@ pub(super) fn check(
         foundation: &core_foundation,
         public: core_input.public,
     }];
-    let resolved_core = wire::resolve(core, &[], core.initialization_uses(), input.identities);
-    let views = [resolved_core.dependency_view(core.initialization_units())];
+    let views = [core];
     let replay = |candidate: &_| {
         scoop_slib::replay_shared_mir_dependency_graph(
             metadata,
@@ -41,8 +39,9 @@ pub(super) fn check(
     };
     let records = section.initialization_uses().records();
     let valid = wire::resolve(
+        input,
         section,
-        &[core],
+        &views,
         section.initialization_uses(),
         input.identities,
     );
@@ -62,23 +61,14 @@ pub(super) fn check(
     );
     for candidate in [vec![], records[1..].to_vec(), extra] {
         let uses = mir::CanonicalMirExternalInitializationUsesV1::try_new(candidate).unwrap();
-        let exports = section.exports();
-        let candidate = mir::MirTypeBridgeExportConstituentsV1::new(
-            exports.types().clone(),
-            exports.callables().clone(),
-            exports.dispatch().clone(),
-            exports.objects().clone(),
-            exports.shapes().clone(),
-            uses.clone(),
-        );
         assert!(matches!(
-            candidate.validate_sources(section.provider(), input.identities, source,),
-            Err(mir::MirTypeBridgeSourceJoinError::Record(
-                mir::MirTypeBridgeSourceRecordV1::InitializationUses
-            ))
-        ));
-        assert!(matches!(
-            replay(&wire::resolve(section, &[core], &uses, input.identities),),
+            replay(&wire::resolve(
+                input,
+                section,
+                &views,
+                &uses,
+                input.identities
+            ),),
             Err(Error::InitializationUseInventory)
         ));
     }

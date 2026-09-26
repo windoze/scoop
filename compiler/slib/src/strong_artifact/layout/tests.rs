@@ -1,6 +1,6 @@
 mod support;
 
-use scoop_identity::{ConeCoordinate, InitializationCallableRole};
+use scoop_identity::ConeCoordinate;
 use scoop_mir::*;
 use scoop_wire::{decode_canonical, encode};
 
@@ -139,15 +139,7 @@ fn write_artifact_from_fixture(
     let graph = scoop_identity::PendingIdentityValidation::new()
         .finish()
         .unwrap();
-    let source = EmptyMirSource::new(provider);
-    let mir_type_bridge = empty_mir_type_bridge(
-        provider,
-        &mir_foundation,
-        &mir_production,
-        &mir_ordinary,
-        &source,
-        &graph,
-    );
+    let mir_type_bridge = empty_mir_type_bridge(provider, &mir_production, &mir_ordinary, &graph);
 
     if matches!(mutation, WriterMutation::ObjectBytes) {
         let record = lir.link_objects[0].record();
@@ -202,10 +194,8 @@ fn write_artifact_from_fixture(
 
 fn empty_mir_type_bridge<'a>(
     provider: scoop_identity::ConeIdentity,
-    foundation: &'a OdrFreeMirFoundation,
     production: &'a CoreBootstrapBridgeSectionV1,
     ordinary: &'a CrossConeMirBridgeSectionV1,
-    source: &EmptyMirSource,
     graph: &scoop_identity::ValidatedIdentityGraph,
 ) -> CrossConeMirTypeBridgeSectionV1<'a> {
     let types = CanonicalParamFreeMirTypeExportsV1::try_new(vec![]).unwrap();
@@ -235,103 +225,21 @@ fn empty_mir_type_bridge<'a>(
         dispatch,
         objects,
         shapes,
-        source.initialization_uses.clone(),
+        CanonicalMirExternalInitializationUsesV1::try_new(vec![]).unwrap(),
     );
     CrossConeMirTypeBridgeSectionV1::try_new(
-        MirTypeBridgeLocalAuthorityV1::Reader {
+        MirTypeBridgeLocalInputV1 {
             provider,
-            foundation,
             production,
             ordinary,
         },
         exports,
+        Vec::new(),
         &[],
-        source,
+        &[],
         graph,
     )
     .unwrap()
-}
-
-struct EmptyMirSource {
-    provider: scoop_identity::ConeIdentity,
-    initialization_uses: CanonicalMirExternalInitializationUsesV1,
-}
-
-impl EmptyMirSource {
-    fn new(provider: scoop_identity::ConeIdentity) -> Self {
-        Self {
-            provider,
-            initialization_uses: CanonicalMirExternalInitializationUsesV1::try_new(vec![]).unwrap(),
-        }
-    }
-}
-
-impl MirTypeBridgeSourceSemanticAuthorityV1<()> for EmptyMirSource {
-    fn provider(&self) -> scoop_identity::ConeIdentity {
-        self.provider
-    }
-    fn required_types(&self) -> Result<&[scoop_identity::PersistentExactTypeId], ()> {
-        Ok(&[])
-    }
-    fn required_callables(&self) -> Result<&[scoop_identity::StrongCallableDefinitionOwner], ()> {
-        Ok(&[])
-    }
-    fn required_dispatch(&self) -> Result<&[scoop_identity::PersistentExactTypeId], ()> {
-        Ok(&[])
-    }
-    fn required_objects(&self) -> Result<&[scoop_identity::PersistentObjectValueId], ()> {
-        Ok(&[])
-    }
-    fn required_source_roots(&self) -> Result<&[scoop_identity::PersistentTypeId], ()> {
-        Ok(&[])
-    }
-    fn type_source(
-        &self,
-        _: scoop_identity::PersistentExactTypeId,
-    ) -> Result<&ParamFreeMirTypeExportV1, ()> {
-        Err(())
-    }
-    fn callable_source(
-        &self,
-        _: scoop_identity::StrongCallableDefinitionOwner,
-    ) -> Result<&ParamFreeMirCallableBindingV1, ()> {
-        Err(())
-    }
-    fn dispatch_source(
-        &self,
-        _: scoop_identity::PersistentExactTypeId,
-    ) -> Result<&ParamFreeMirDispatchSchemaV1, ()> {
-        Err(())
-    }
-    fn object_source(
-        &self,
-        _: scoop_identity::PersistentObjectValueId,
-    ) -> Result<&ParamFreeMirObjectValueV1, ()> {
-        Err(())
-    }
-    fn committed_initialization_uses(
-        &self,
-    ) -> Result<&CanonicalMirExternalInitializationUsesV1, ()> {
-        Ok(&self.initialization_uses)
-    }
-}
-
-impl MirTypeBridgeSectionSourceAuthorityV1<()> for EmptyMirSource {
-    fn committed_external_uses(&self) -> Result<&[MirTypeBridgeDependencyV1], ()> {
-        Ok(&[])
-    }
-    fn local_initialization_units(
-        &self,
-    ) -> Result<&[scoop_identity::PersistentInitializationUnitId], ()> {
-        Ok(&[])
-    }
-    fn initialization_signature(
-        &self,
-        _: scoop_identity::PersistentInitializationUnitId,
-        _: InitializationCallableRole,
-    ) -> Result<&MirBridgeCallableSignatureV1, ()> {
-        Err(())
-    }
 }
 
 fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {

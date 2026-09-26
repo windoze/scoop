@@ -17,13 +17,13 @@ pub(super) struct ClosedDependency {
     pub dependency: usize,
 }
 
-pub(super) fn close<'a, E>(
+pub(super) fn close<'a>(
     local: LocalView<'_>,
     dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
     committed: &[MirTypeBridgeDependencyV1],
     graph: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
-) -> Result<Vec<SelectedMirTypeEntryV1<'a>>, MirTypeBridgeSectionError<E>> {
+) -> Result<Vec<SelectedMirTypeEntryV1<'a>>, MirTypeBridgeSectionError> {
     let closed = close_views(local, dependencies, committed, graph, types)?;
     let mut selected = reserve(closed.len())?;
     for entry in closed {
@@ -35,13 +35,13 @@ pub(super) fn close<'a, E>(
     Ok(selected)
 }
 
-pub(super) fn close_views<E>(
+pub(super) fn close_views(
     local: LocalView<'_>,
     dependencies: &[LocalView<'_>],
     committed: &[MirTypeBridgeDependencyV1],
     graph: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
-) -> Result<Vec<ClosedDependency>, MirTypeBridgeSectionError<E>> {
+) -> Result<Vec<ClosedDependency>, MirTypeBridgeSectionError> {
     let count = dependencies
         .len()
         .checked_add(1)
@@ -145,7 +145,7 @@ pub(super) fn close_views<E>(
     Ok(selected)
 }
 
-fn push<E>(pending: &mut Vec<Pending>, value: Pending) -> Result<(), MirTypeBridgeSectionError<E>> {
+fn push(pending: &mut Vec<Pending>, value: Pending) -> Result<(), MirTypeBridgeSectionError> {
     let path = WirePath::root();
 
     scoop_wire::allocation::try_reserve(pending, 1, &path)?;
