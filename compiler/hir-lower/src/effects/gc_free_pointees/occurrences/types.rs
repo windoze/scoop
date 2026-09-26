@@ -210,6 +210,12 @@ fn collect_pattern_types(lowerer: &Lowerer, pattern: &hir::Pattern, out: &mut Ve
             out.push(*subject_ty);
             collect_expr_types(lowerer, value, out);
         }
+        hir::Pattern::ImportedVariant { owner, fields, .. } => {
+            out.push(*owner);
+            for (_, field) in fields {
+                collect_pattern_types(lowerer, field, out);
+            }
+        }
         hir::Pattern::Variant {
             application,
             fields,

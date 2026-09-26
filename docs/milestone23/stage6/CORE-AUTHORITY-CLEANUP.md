@@ -1,5 +1,7 @@
 # M23-6：普通编译器职责与过度设计清理
 
+enum 模式和变体测试不是构造器调用：删除默认值引用集合中仅为这些操作保存的构造器访问记录及 reader 对该记录的要求，直接消费正文已有的实际 variant、owner 与字段引用。保留实际构造表达式的构造器关系、前端可见性和类型检查；`hir/cross-cone-interface/23` 同步语义并要求旧 `/22` 及更早产物重建，不建立替代凭证。
+
 Strong producer 的两种产物表示从完整 LIR 各计算一次类型、safepoint、immortal 与本地初始化语义，digest 与 registration 直接复用这些结果；初始化仅在 digest 身份可用后补入实际依赖定义。外部初始化引用在解析时完成 definition 与物理导入核对，后续由全局唯一的 local unit 引用表达使用归属，不保存额外 consumer 状态或重复选择核对。descriptor 和 dispatch 直接保存 LIR 中已有的外部 typed 引用，不反向重新 materialize 外部对象或再次比较完整 ABI。实体与 definition role 的匹配只查询实体种类和角色，不借用虚构的 CORE provider；实际 definition、symbol、relocation、ABI 和 GC 检查仍由各自消费边界负责。此清理保持产物字段、指纹内容和 runtime C ABI 不变。
 
 canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。字段布局消费完整存储数据，C-layout 的嵌套合同与 enum niche 的实际指针种类仍保留；删除以字段内嵌数据为由追加 layout 符号依赖并再次比较完整记录的通道。
@@ -8,7 +10,7 @@ MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产
 
 实际 HIR 调用在依赖 MIR 记录可用后完成一次调用根与逻辑签名核对，普通函数、accessor 与 constructor 共用该边界。MIR 和 LIR 的依赖集合分别从实际 typed 调用加入相应 callable 与 ABI 引用，沿共有 provider 查询消费已有定义；不得因旧函数表不含 constructor 而拒绝合法调用，也不在前置阶段和布局阶段重复核对同一调用。
 
-共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/22` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
+共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/23` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
 
 跨 Cone struct 构造器使用实际 provider 与 Strong callable target 进入共有请求内选择；其完整逻辑／物理签名来自已发布定义，不能伪装为普通函数 ID 或重建固定 core 身份。主构造器的源码 Managed 合同与实际 NoGC 值入口分别保留。Strong 外部根不重复携带 function/accessor 资格 ID，LIR 使用现有 layout/ABI 与物理 import 物化调用，并复用于 dispatch；不增加构造器专用来源工厂、授权外层或平行导出表。
 

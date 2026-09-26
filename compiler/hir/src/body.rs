@@ -191,6 +191,12 @@ pub enum Pattern {
         equality: LiteralPatternEquality,
         subject_ty: TypeId,
     },
+    ImportedVariant {
+        owner: TypeId,
+        variant: scoop_identity::PersistentEnumVariantId,
+        /// Selected payload fields in declaration order.
+        fields: Vec<(u32, Pattern)>,
+    },
     Variant {
         application: EnumApplicationId,
         /// Variant index in declaration order.

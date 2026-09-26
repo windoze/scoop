@@ -31,6 +31,26 @@ impl Concretizer<'_> {
                 },
                 subject_ty: self.lower_type(*subject_ty, substitution),
             },
+            export::Pattern::ImportedVariant {
+                owner,
+                variant,
+                fields,
+            } => {
+                let concrete_owner = self.lower_type(*owner, substitution);
+                assert_eq!(
+                    concrete_owner, expected,
+                    "the variant owner matches its subject"
+                );
+                let concrete::TypeKind::Enum(enumeration) = self.types[concrete_owner].kind else {
+                    unreachable!("an imported enum pattern has a concrete enum representation")
+                };
+                let index = self.enums[enumeration]
+                    .variants
+                    .iter()
+                    .position(|value| value.identity == *variant)
+                    .expect("the pattern retains an actual variant of its dependency enum");
+                self.lower_enum_pattern(enumeration, index as u32, fields, substitution, locals)
+            }
             export::Pattern::Variant {
                 application,
                 variant,
@@ -42,27 +62,7 @@ impl Concretizer<'_> {
                     concrete::TypeKind::Enum(concrete_enum),
                     "the checked pattern application must match its subject"
                 );
-                let variant_id = concrete::VariantId::from_raw(*variant);
-                let definition = self.enums[concrete_enum].variants[*variant as usize].clone();
-                let fields = fields
-                    .iter()
-                    .map(|(field, pattern)| {
-                        (
-                            *field,
-                            self.lower_pattern(
-                                pattern,
-                                definition.fields[*field as usize].ty,
-                                substitution,
-                                locals,
-                            ),
-                        )
-                    })
-                    .collect();
-                concrete::Pattern::Variant {
-                    enum_id: concrete_enum,
-                    variant: variant_id,
-                    fields,
-                }
+                self.lower_enum_pattern(concrete_enum, *variant, fields, substitution, locals)
             }
             export::Pattern::Tuple(patterns) => {
                 let concrete::TypeKind::Tuple(elements) = self.types[expected].kind.clone() else {
@@ -107,6 +107,36 @@ impl Concretizer<'_> {
                         .collect(),
                 }
             }
+        }
+    }
+
+    fn lower_enum_pattern(
+        &mut self,
+        enumeration: concrete::EnumId,
+        index: u32,
+        fields: &[(u32, export::Pattern)],
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::Pattern {
+        let definition = self.enums[enumeration].variants[index as usize].clone();
+        let fields = fields
+            .iter()
+            .map(|(field, pattern)| {
+                (
+                    *field,
+                    self.lower_pattern(
+                        pattern,
+                        definition.fields[*field as usize].ty,
+                        substitution,
+                        locals,
+                    ),
+                )
+            })
+            .collect();
+        concrete::Pattern::Variant {
+            enum_id: enumeration,
+            variant: concrete::VariantId::from_raw(index),
+            fields,
         }
     }
 }

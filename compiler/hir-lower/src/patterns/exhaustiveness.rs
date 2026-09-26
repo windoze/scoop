@@ -66,7 +66,7 @@ impl Lowerer {
                 subject_ty,
                 application,
             }),
-            Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
+            Type::ImportedEnum(_) | Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
                 Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty })
             }
             _ => {
@@ -370,6 +370,25 @@ impl Lowerer {
             return Some(wildcards(constructor.arity()));
         }
         match (constructor, pattern) {
+            (
+                Constructor::EnumVariant {
+                    variant: index,
+                    field_types,
+                    ..
+                },
+                hir::Pattern::ImportedVariant {
+                    owner,
+                    variant,
+                    fields,
+                },
+            ) => {
+                let Type::ImportedEnum(enumeration) = &self.types[*owner] else {
+                    unreachable!("an imported variant pattern retains its enum subject")
+                };
+                (enumeration.variants[*index as usize].identity == *variant)
+                    .then(|| normalize_fields(field_types.len(), fields))
+            }
+
             (
                 Constructor::EnumVariant {
                     variant,

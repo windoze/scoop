@@ -801,7 +801,9 @@ impl<'a> Validator<'a> {
     ) -> Check {
         match pattern {
             Pattern::Binding { local } => self.record_definition(*local, definitions),
-            Pattern::Variant { fields, .. } | Pattern::Struct { fields, .. } => {
+            Pattern::Variant { fields, .. }
+            | Pattern::ImportedVariant { fields, .. }
+            | Pattern::Struct { fields, .. } => {
                 for (_, pattern) in fields {
                     self.collect_pattern_definitions(pattern, definitions)?;
                 }

@@ -92,13 +92,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 )
             }
             DefaultExpressionKindV1::VariantTest { operand, variant } => {
-                self.push_child(
+                self.push_type(
                     pending,
-                    BodyNode::ConstructorUse {
-                        target: ConstructorTargetView::Variant(variant),
-                        origin,
-                        site: ExportDefaultReferenceOccurrenceSiteV1::Expression,
-                    },
+                    variant.owner_type(),
+                    origin,
+                    DefaultBodyProviderTypeSiteV1::EnumVariantOwner,
                 )?;
                 self.push_child(pending, BodyNode::Expression(operand))
             }

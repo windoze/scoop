@@ -34,6 +34,7 @@ use crate::{Lowerer, VariantStyle};
 mod binding;
 pub(crate) use binding::expand_irrefutable_binding_plan;
 mod exhaustiveness;
+mod imported;
 mod structure;
 
 /// Where a pattern appears (spec 4.6 / 5).
@@ -98,7 +99,17 @@ impl Lowerer {
                 // enum has a variant with the same name. `Unit` / `()` reach
                 // this stage as literal patterns and remain rejected below.
                 let unmatched_enum = if ctx.in_when {
-                    if let Type::Enum(application) = self.types[matched_ty] {
+                    if let Type::ImportedEnum(enumeration) = &self.types[matched_ty] {
+                        if let Some(variant) = enumeration
+                            .variants
+                            .iter()
+                            .position(|variant| variant.name == name.text)
+                        {
+                            return self
+                                .bare_imported_variant_pattern(name, matched_ty, variant, ctx);
+                        }
+                        Some(self.type_name(matched_ty))
+                    } else if let Type::Enum(application) = self.types[matched_ty] {
                         let enum_id = self.enum_applications[application].template;
                         if let Some(variant) = self.find_variant(enum_id, &name.text) {
                             return self.bare_variant_pattern(name, application, variant, ctx);
@@ -325,6 +336,10 @@ impl Lowerer {
                             fields,
                         })
                     }
+                    PatternTarget::ImportedVariant { owner, variant } => self
+                        .imported_positional_variant_pattern(
+                            owner, variant, elements, *rest, *span, ctx,
+                        ),
                     PatternTarget::Struct(application) => {
                         let application_value = self.struct_applications[application].clone();
                         let struct_id = application_value.template;
@@ -406,6 +421,8 @@ impl Lowerer {
                             fields,
                         })
                     }
+                    PatternTarget::ImportedVariant { owner, variant } => self
+                        .imported_named_variant_pattern(owner, variant, fields, *rest, *span, ctx),
                     PatternTarget::Struct(application) => {
                         let application_value = self.struct_applications[application].clone();
                         let struct_id = application_value.template;
@@ -458,6 +475,7 @@ impl Lowerer {
 /// type's arguments, for instantiating field types) or a struct.
 enum PatternTarget {
     Variant(hir::EnumApplicationId, u32),
+    ImportedVariant { owner: TypeId, variant: usize },
     Struct(hir::StructApplicationId),
 }
 
@@ -474,7 +492,9 @@ pub(super) fn is_irrefutable(pattern: &hir::Pattern) -> bool {
         hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => true,
         hir::Pattern::Tuple(elements) => elements.iter().all(is_irrefutable),
         hir::Pattern::Struct { fields, .. } => fields.iter().all(|(_, sub)| is_irrefutable(sub)),
-        hir::Pattern::Variant { .. } | hir::Pattern::Literal { .. } => false,
+        hir::Pattern::Variant { .. }
+        | hir::Pattern::ImportedVariant { .. }
+        | hir::Pattern::Literal { .. } => false,
     }
 }
 

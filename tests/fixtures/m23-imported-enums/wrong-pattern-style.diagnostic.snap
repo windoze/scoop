@@ -1,0 +1,3 @@
+span=130..150
+expression=Pair(left, _, right)
+variant `Pair` of `Choice` has named fields; use a named field pattern

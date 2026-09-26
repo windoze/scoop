@@ -312,6 +312,16 @@ fn collect_pattern_type_occurrences(
             }
             collect_expr_type_occurrences(lowerer, value, out);
         }
+        hir::Pattern::ImportedVariant { owner, fields, .. } => {
+            out.push(TypeOccurrence {
+                ty: *owner,
+                file,
+                span,
+            });
+            for (_, field) in fields {
+                collect_pattern_type_occurrences(lowerer, field, file, span, out);
+            }
+        }
         hir::Pattern::Variant {
             application,
             fields,

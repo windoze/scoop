@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v22_preserves_primary_value_constructor_identity() {
+fn source_interface_v23_rejects_retired_pattern_constructor_references() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        22,
+        23,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

@@ -1,0 +1,6 @@
+span=107..124
+expression=Pair { left, .. }
+refutable patterns are only allowed in `when`
+span=141..145
+expression=left
+unknown variable `left`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

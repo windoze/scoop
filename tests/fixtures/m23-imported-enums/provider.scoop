@@ -16,3 +16,6 @@ public enum Flag { Off, On }
 }
 @NoGC public fun flag(): Flag = Flag.On
 @NoGC public fun flagValue(value: Flag): Long = when (value) { Off -> 0; On -> 1 }
+
+public enum Packet { Missing, Data((Long, Token, Long), Token) }
+@NoGC public fun packet(): Packet = Packet.Data((53, Token(), 42), Token())

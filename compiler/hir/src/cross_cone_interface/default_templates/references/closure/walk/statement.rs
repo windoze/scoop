@@ -1,6 +1,4 @@
-use super::super::{
-    ConstructorTargetView, ExportDefaultReferenceOccurrenceSiteV1, FieldTargetView,
-};
+use super::super::{ExportDefaultReferenceOccurrenceSiteV1, FieldTargetView};
 use super::{BodyNode, DefaultBodyReferenceVisitorV1, ReferenceWalker, ScheduledWork};
 use crate::{
     DefaultAssignTargetV1, DefaultBodyProviderTypeSiteV1, DefaultPatternV1, DefaultPatternViewV1,
@@ -102,13 +100,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                         },
                     )?;
                 }
-                self.push_child(
+                self.push_type(
                     pending,
-                    BodyNode::ConstructorUse {
-                        target: ConstructorTargetView::Variant(variant),
-                        origin,
-                        site: ExportDefaultReferenceOccurrenceSiteV1::Pattern,
-                    },
+                    variant.owner_type(),
+                    origin,
+                    DefaultBodyProviderTypeSiteV1::PatternSubject,
                 )
             }
             DefaultPatternViewV1::Tuple { elements } => {

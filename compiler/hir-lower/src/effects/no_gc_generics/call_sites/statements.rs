@@ -115,7 +115,9 @@ impl Lowerer {
     ) {
         match pattern {
             hir::Pattern::Literal { value, .. } => self.collect_generic_calls_in_expr(value, out),
-            hir::Pattern::Variant { fields, .. } | hir::Pattern::Struct { fields, .. } => {
+            hir::Pattern::Variant { fields, .. }
+            | hir::Pattern::ImportedVariant { fields, .. }
+            | hir::Pattern::Struct { fields, .. } => {
                 for (_, pattern) in fields {
                     self.collect_generic_calls_in_pattern(pattern, out);
                 }

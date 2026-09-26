@@ -24,6 +24,15 @@ impl BodyProjection<'_, '_> {
                 self.literal_equality(*equality)?,
                 self.type_key(*subject_ty)?,
             )),
+            Pattern::ImportedVariant {
+                owner,
+                variant,
+                fields,
+            } => DefaultPatternV1::try_variant(
+                crate::DefaultEnumVariantRefV1::new(*variant, self.type_key(*owner)?),
+                self.pattern_fields(fields)?,
+            )
+            .map_err(super::super::DefaultBodyProjectionError::Pattern),
             Pattern::Variant {
                 application,
                 variant,

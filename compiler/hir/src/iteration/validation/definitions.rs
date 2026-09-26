@@ -336,7 +336,9 @@ impl Validator<'_> {
     ) -> Check {
         match pattern {
             Pattern::Binding { local } => self.insert_definition(*local, available, owners, owner),
-            Pattern::Variant { fields, .. } | Pattern::Struct { fields, .. } => {
+            Pattern::Variant { fields, .. }
+            | Pattern::ImportedVariant { fields, .. }
+            | Pattern::Struct { fields, .. } => {
                 for (_, pattern) in fields {
                     self.insert_pattern_definitions(pattern, available, owners, owner)?;
                 }
@@ -435,6 +437,8 @@ fn pattern_is_irrefutable(pattern: &Pattern) -> bool {
         Pattern::Struct { fields, .. } => fields
             .iter()
             .all(|(_, pattern)| pattern_is_irrefutable(pattern)),
-        Pattern::Variant { .. } | Pattern::Literal { .. } => false,
+        Pattern::Variant { .. } | Pattern::ImportedVariant { .. } | Pattern::Literal { .. } => {
+            false
+        }
     }
 }

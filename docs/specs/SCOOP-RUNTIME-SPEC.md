@@ -1,5 +1,7 @@
 # Scoop Runtime 规范
 
+enum 模式和变体测试继续消费实际 tag/niche、payload 布局与 GC scan 元数据；删除默认值正文外的重复构造器访问记录只影响 HIR 产物引用集合及其版本，不改变 runtime C ABI、String 表示或对象范围检查。
+
 ABI 元数据不再为每个逻辑参数保存独立 layout ID；参数与结果的完整 canonical 类型、传递方式和 GC effect 保留，结构字段的 scan 组成继续进入实际外层布局。此格式清理不改变 runtime C 调用约定、String 表示、对象范围检查、GC roots 或登记语义。
 
 跨 Cone struct 主构造器保留源码 Managed 合同与实际 NoGC 值构造入口的区别；次构造器使用其实际 lowering 签名及 GC effect。调用方按完整 MIR lowering 记录和 LIR canonical ABI 传递参数、结果及 roots，ZST 的机器消除不改变源码求值。该接入不改变现有 runtime C 调用约定、String 表示或 GC 契约。

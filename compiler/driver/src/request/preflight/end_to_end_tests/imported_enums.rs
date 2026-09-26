@@ -32,7 +32,7 @@ fn dependency_enum_values_compile_and_run_through_actual_artifacts() {
     )
     .unwrap();
 
-    for case in ["standalone", "combined"] {
+    for case in ["standalone", "combined", "patterns"] {
         let name = format!("enums-{case}");
         let root = sysroot.path().join(&name);
         write_manifest_cone(&root, "dev.example", &name, "library", &source(case));
@@ -70,7 +70,11 @@ fn dependency_enum_values_compile_and_run_through_actual_artifacts() {
             "dev.example",
             &downstream_name,
             "library",
-            &source("downstream"),
+            &source(if case == "patterns" {
+                "pattern-downstream"
+            } else {
+                "downstream"
+            }),
         );
         write_dependency_manifest(
             &downstream,
@@ -100,7 +104,17 @@ fn dependency_enum_values_compile_and_run_through_actual_artifacts() {
         );
     }
 
-    for case in ["wrong-identity", "wrong-payload", "c-abi"] {
+    for case in [
+        "wrong-identity",
+        "wrong-payload",
+        "c-abi",
+        "non-exhaustive",
+        "wrong-pattern-owner",
+        "wrong-pattern-field",
+        "wrong-pattern-style",
+        "refutable-binding",
+        "guarded-coverage",
+    ] {
         let root = sysroot.path().join(case);
         let source = source(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source);

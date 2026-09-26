@@ -407,7 +407,7 @@ impl Lowerer {
                 rest,
                 span,
             } => match self.resolve_pattern_path(path, subject.ty, *span)? {
-                PatternTarget::Variant(..) => {
+                PatternTarget::Variant(..) | PatternTarget::ImportedVariant { .. } => {
                     self.error(
                         *span,
                         "refutable patterns are only allowed in `when`".to_string(),
@@ -430,7 +430,7 @@ impl Lowerer {
                 rest,
                 span,
             } => match self.resolve_pattern_path(path, subject.ty, *span)? {
-                PatternTarget::Variant(..) => {
+                PatternTarget::Variant(..) | PatternTarget::ImportedVariant { .. } => {
                     self.error(
                         *span,
                         "refutable patterns are only allowed in `when`".to_string(),

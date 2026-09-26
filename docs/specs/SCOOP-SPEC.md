@@ -1,5 +1,7 @@
 # Scoop 语言规范
 
+enum 模式匹配与变体测试只读取已有值，不调用构造器。默认值跨 Cone 展开保留真实 variant、owner 类型及字段模式，遵循相同的可见性、类型和穷尽性规则；不得因此要求正文外再携带构造器访问资格。
+
 tuple 等结构值作为普通字段或无类型参数 callable 的参数、结果时，使用原有结构类型身份、求值与 GC 规则。声明合法性由前端检查，合法类型组合不因缺少独立 layout 或 TD 定义而被拒绝；该组合不引入新的 ODR 或程序链接能力。
 
 跨 Cone 的类型声明明确携带 struct 主构造器的真实声明引用，不能从参数形状、字段布局或 provider 身份推断。GC-free 值的主构造器可以在 `@NoGC` 代码中调用；参数、结果与局部值仍须满足 GC-free 规则，managed 次构造器仍禁止调用。产物格式与版本规则见实现规范。
@@ -1592,7 +1594,7 @@ M23-2唯一artifact profile是`org.scoop-lang.slib-profile/identity-foundation/2
 
 M23-3 的 strong-only production profile 为 `org.scoop-lang.slib-profile/single-cone-strong/2`。除三层 identity-foundation payload 外，它要求 Manifest `org.scoop-lang.manifest/single-cone-production/1`、HIR `org.scoop-lang.hir/core-bootstrap-interface/3`、MIR `org.scoop-lang.mir/core-bootstrap-bridge/1` 以及 LIR `org.scoop-lang.lir/strong-production/9`、`org.scoop-lang.lir/link-identity-closure/3`；code/runtime-image fingerprint 都必须为 `Available`，Compile 与 Link 消费边界拒绝 ODR group/member/body/symbol。foundation profile 不具备完整生产数据，不能就地升级为生产产物。发布使用同次编译的完整 typed IR 和产物汇总，不对当前产物及全部依赖再分别执行完整 Compile/Link 读取，也不增加发布凭证。M23-6 正式发布使用下述完整跨 Cone profile；ODR 仍留在 M23-7。
 
-M23-5 引入 `org.scoop-lang.slib-profile/cross-cone-semantics-strong/2` 作为多 Cone 语义产物的基线。当前该 profile 要求 HIR `org.scoop-lang.hir/cross-cone-interface/22`、MIR `org.scoop-lang.mir/cross-cone-param-free-bridge/2`、LIR `org.scoop-lang.lir/cross-cone-param-free-bridge/1` 与 Link 数据，并继续拒绝 ODR；M23-6 正式发布另包含完整类型和布局 section。共有 HIR 保存公开与必要支持声明、默认参数、常量、非泛型 alias、转导出路径及实际外部使用。名称查找按可见性枚举当前 Cone 和直接依赖；传递依赖按已经解析的 typed reference 查询。普通 callable 的声明、完整签名和 GC effect 由实际 provider 提供，final nominal 成员与顶层函数、extension 共用导出和消费规则。M23-6 的类型布局、构造器、成员、dispatch 与 protected 访问按各自语言及 ABI 规则完成；泛型物化与跨 Cone native 调用分别留在后续里程碑。格式 major 变化后旧产物与缓存需重建。
+M23-5 引入 `org.scoop-lang.slib-profile/cross-cone-semantics-strong/2` 作为多 Cone 语义产物的基线。当前该 profile 要求 HIR `org.scoop-lang.hir/cross-cone-interface/23`、MIR `org.scoop-lang.mir/cross-cone-param-free-bridge/2`、LIR `org.scoop-lang.lir/cross-cone-param-free-bridge/1` 与 Link 数据，并继续拒绝 ODR；M23-6 正式发布另包含完整类型和布局 section。共有 HIR 保存公开与必要支持声明、默认参数、常量、非泛型 alias、转导出路径及实际外部使用。名称查找按可见性枚举当前 Cone 和直接依赖；传递依赖按已经解析的 typed reference 查询。普通 callable 的声明、完整签名和 GC effect 由实际 provider 提供，final nominal 成员与顶层函数、extension 共用导出和消费规则。M23-6 的类型布局、构造器、成员、dispatch 与 protected 访问按各自语言及 ABI 规则完成；泛型物化与跨 Cone native 调用分别留在后续里程碑。格式 major 变化后旧产物与缓存需重建。
 
 M23-6 的共有 HIR 接口 `/22` 保留 struct 的实际 `@CLayout`、`@InteriorMutable`、字段、成员及调用位置。公共和支持声明使用同一源码形状；布局按实际声明和 target 计算，不按类型名称、空字段或 core 身份补出策略。完整字段与版本规则见实现规范 2.6、2.11、2.12；runtime C ABI 与 String 表示保持。
 
@@ -1600,7 +1602,7 @@ M23-6 的共有 HIR 接口 `/22` 保留 struct 的实际 `@CLayout`、`@Interior
 
 默认值依赖按定义处已解析的 typed target 保存，`DefaultDependency` 不要求消费 Cone 再取得 namespace 导入路径。定义处实际发生过的查找路径可以保留；生产器不为没有名称查找的字段、成员或支持声明补造 witness，也不保存全体依赖的第二份导入路径表。Unit、Any 与其他声明遵循同一规则。共有 reader 继续检查 provider、引用、类型、默认值正文及实际声明关系，不从这份路径信息授予调用资格。
 
-共有 HIR `cross-cone-interface/22` 明确此默认值依赖合同，保留默认值既有字段及 `SourceDeclaration` tag 3，不增加或复用 tag；`/21` 及更早版本退役，旧产物和缓存须重建。profile fingerprint 按实际 descriptor 更新，runtime C ABI、String 表示与 GC 契约保持。读取边界核对源码上下文及位置后，实例化复用同一不可变记录，保留定义位置与调用处求值位置。
+共有 HIR `cross-cone-interface/23` 明确此默认值依赖合同，保留默认值既有字段及 `SourceDeclaration` tag 3，不增加或复用 tag；`/21` 及更早版本退役，旧产物和缓存须重建。profile fingerprint 按实际 descriptor 更新，runtime C ABI、String 表示与 GC 契约保持。读取边界核对源码上下文及位置后，实例化复用同一不可变记录，保留定义位置与调用处求值位置。
 
 跨 Cone 名称、类型、成员和默认参数语义由实际声明及 typed IR 表达。独立的 foundation/declaration source transcript 及其逐层绑定结果不构成语言输入或调用资格；生产路径未使用的来源工厂、绑定包装和专用证明测试应移除。实际名称解析、可见性、默认值实例化与声明身份规则继续由对应前端实现负责。
 

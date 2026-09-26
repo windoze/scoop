@@ -231,7 +231,7 @@ required_manifest = [
 
 required_hir = [
   org.scoop-lang.hir/core-bootstrap-interface/3,
-  org.scoop-lang.hir/cross-cone-interface/22,
+  org.scoop-lang.hir/cross-cone-interface/23,
   org.scoop-lang.hir/identity-foundation/3,
 ]
 
@@ -265,7 +265,7 @@ validation_policy   = {
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
-| `org.scoop-lang.hir/cross-cone-interface/22` | HIR | Compile | HIR |
+| `org.scoop-lang.hir/cross-cone-interface/23` | HIR | Compile | HIR |
 | `org.scoop-lang.mir/cross-cone-param-free-bridge/2` | MIR | Compile | MIR |
 | `org.scoop-lang.lir/cross-cone-param-free-bridge/1` | LIR | Compile | LIR |
 | `org.scoop-lang.lir/cross-cone-link-closure/1` | LIR | Link | Code + LinkValidationOnly |

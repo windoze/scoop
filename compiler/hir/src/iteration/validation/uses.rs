@@ -90,7 +90,9 @@ fn pattern_references_any(
         Pattern::Literal { value, .. } => {
             expression_references_any_inner(module, value, locals, visiting)
         }
-        Pattern::Variant { fields, .. } | Pattern::Struct { fields, .. } => fields
+        Pattern::Variant { fields, .. }
+        | Pattern::ImportedVariant { fields, .. }
+        | Pattern::Struct { fields, .. } => fields
             .iter()
             .any(|(_, pattern)| pattern_references_any(module, pattern, locals, visiting)),
         Pattern::Tuple(elements) => elements

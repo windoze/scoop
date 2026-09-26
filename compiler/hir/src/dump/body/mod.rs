@@ -373,6 +373,15 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
         Pattern::Literal { value, .. } => {
             format!("<lit {:?}>", value.kind).chars().take(40).collect()
         }
+        Pattern::ImportedVariant {
+            variant, fields, ..
+        } => {
+            let fields = fields
+                .iter()
+                .map(|(index, pattern)| format!("{index}: {}", dump_pattern(pattern)))
+                .collect::<Vec<_>>();
+            format!("dependency variant {variant}({})", fields.join(", "))
+        }
         Pattern::Variant {
             variant, fields, ..
         } => {

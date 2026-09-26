@@ -128,7 +128,7 @@ impl Lowerer {
     }
 
     fn materialize_imported_default_pattern(
-        &self,
+        &mut self,
         pattern: &hir::DefaultPatternV1,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::Pattern, ImportedDefaultMaterializationError> {
@@ -137,9 +137,29 @@ impl Lowerer {
                 .materialized_imported_default_local(local, context)
                 .map(|local| hir::Pattern::Binding { local }),
             hir::DefaultPatternViewV1::Wildcard => Ok(hir::Pattern::Wildcard),
+            hir::DefaultPatternViewV1::Variant { variant, fields } => {
+                let owner = self.materialize_imported_default_type(variant.owner_type())?;
+                let fields = fields
+                    .iter()
+                    .map(|field| {
+                        Ok((
+                            field.declaration_index(),
+                            self.materialize_imported_default_pattern(field.pattern(), context)?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, ImportedDefaultMaterializationError>>()?;
+                Ok(hir::Pattern::ImportedVariant {
+                    owner,
+                    variant: variant.declaration(),
+                    fields,
+                })
+            }
+            hir::DefaultPatternViewV1::Tuple { elements } => elements
+                .iter()
+                .map(|element| self.materialize_imported_default_pattern(element, context))
+                .collect::<Result<Vec<_>, _>>()
+                .map(hir::Pattern::Tuple),
             hir::DefaultPatternViewV1::Literal { .. }
-            | hir::DefaultPatternViewV1::Variant { .. }
-            | hir::DefaultPatternViewV1::Tuple { .. }
             | hir::DefaultPatternViewV1::Struct { .. } => {
                 Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default pattern".to_owned(),
@@ -191,10 +211,10 @@ impl Lowerer {
                     subject_ty: self.materialize_imported_default_type(subject_type)?,
                 })
             }
-            hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { .. } => {
-                return Err(ImportedDefaultMaterializationError::Plan(
-                    "preflight admitted an unsupported dependency default enum proof".to_owned(),
-                ));
+            hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { subject_type, .. } => {
+                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
+                    subject_ty: self.materialize_imported_default_type(subject_type)?,
+                })
             }
         };
         Ok(hir::When {

@@ -45,6 +45,9 @@ impl Lowerer {
         matched_ty: TypeId,
         span: Span,
     ) -> Option<PatternTarget> {
+        if matches!(self.types[matched_ty], Type::ImportedEnum(_)) {
+            return self.resolve_imported_enum_pattern_path(path, matched_ty, span);
+        }
         match path {
             [] => match self.types[matched_ty].clone() {
                 Type::Struct(application) => Some(PatternTarget::Struct(application)),

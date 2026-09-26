@@ -49,7 +49,11 @@ impl Lowerer {
         let subject = self.lower_expr(&when.subject, &mut sink, None)?;
         if !matches!(
             self.types[subject.ty],
-            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..) | Type::Integer(_)
+            Type::Enum(..)
+                | Type::ImportedEnum(_)
+                | Type::Tuple(..)
+                | Type::Struct(..)
+                | Type::Integer(_)
         ) {
             let found = self.type_name(subject.ty);
             self.error(
@@ -108,7 +112,11 @@ impl Lowerer {
         let subject = self.lower_expr(&when.subject, &mut subject_sink, None)?;
         if !matches!(
             self.types[subject.ty],
-            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..) | Type::Integer(_)
+            Type::Enum(..)
+                | Type::ImportedEnum(_)
+                | Type::Tuple(..)
+                | Type::Struct(..)
+                | Type::Integer(_)
         ) {
             let found = self.type_name(subject.ty);
             self.error(

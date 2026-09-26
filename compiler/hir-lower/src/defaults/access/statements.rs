@@ -91,22 +91,19 @@ impl ReferenceCollector<'_> {
                 }
                 self.type_reference(*subject_ty, origin);
             }
+            hir::Pattern::ImportedVariant { owner, fields, .. } => {
+                self.type_reference(*owner, origin);
+                for (_, field) in fields {
+                    self.pattern(field, origin);
+                }
+            }
             hir::Pattern::Variant {
                 application,
-                variant,
                 fields,
+                ..
             } => {
-                let variant = hir::AppliedEnumVariantRef::checked_index(
-                    &self.lowerer.enums,
-                    &self.lowerer.enum_applications,
-                    *application,
-                    *variant,
-                )
-                .expect("a resolved pattern variant belongs to its exact application");
-                self.constructor_use(
-                    hir::ExportDefaultConstructorTarget::Variant(variant),
-                    origin,
-                );
+                let owner = self.lowerer.enum_applications[*application].canonical_type;
+                self.type_reference(owner, origin);
                 for (_, field) in fields {
                     self.pattern(field, origin);
                 }

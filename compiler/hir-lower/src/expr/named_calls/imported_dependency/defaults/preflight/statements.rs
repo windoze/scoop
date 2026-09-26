@@ -153,7 +153,7 @@ impl Lowerer {
     }
 
     fn preflight_imported_default_pattern(
-        &self,
+        &mut self,
         pattern: &hir::DefaultPatternV1,
         locals: &BTreeSet<LocalValueSelector>,
     ) -> Result<(), ImportedDefaultPlanError> {
@@ -163,9 +163,20 @@ impl Lowerer {
                 Err(ImportedDefaultPlanError::UnknownLocal(local.clone()))
             }
             hir::DefaultPatternViewV1::Wildcard => Ok(()),
+            hir::DefaultPatternViewV1::Variant { variant, fields } => {
+                self.imported_default_type(variant.owner_type())?;
+                for field in fields {
+                    self.preflight_imported_default_pattern(field.pattern(), locals)?;
+                }
+                Ok(())
+            }
+            hir::DefaultPatternViewV1::Tuple { elements } => {
+                for element in elements {
+                    self.preflight_imported_default_pattern(element, locals)?;
+                }
+                Ok(())
+            }
             hir::DefaultPatternViewV1::Literal { .. }
-            | hir::DefaultPatternViewV1::Variant { .. }
-            | hir::DefaultPatternViewV1::Tuple { .. }
             | hir::DefaultPatternViewV1::Struct { .. } => Err(ImportedDefaultPlanError::Requires {
                 requirement: ImportedCapabilityRequirement::Layout,
                 operation: "dependency default destructuring pattern",
@@ -230,11 +241,12 @@ impl Lowerer {
             | hir::DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => {
                 self.imported_default_type(subject_type).map(|_| ())
             }
-            hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { .. } => {
-                Err(ImportedDefaultPlanError::Requires {
-                    requirement: ImportedCapabilityRequirement::Layout,
-                    operation: "dependency default enum exhaustiveness proof",
-                })
+            hir::DefaultWhenFallbackViewV1::EnumPatternMatrix {
+                subject_type,
+                owner_type,
+            } => {
+                self.imported_default_type(subject_type)?;
+                self.imported_default_type(owner_type).map(|_| ())
             }
         }
     }

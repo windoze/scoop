@@ -129,7 +129,9 @@ fn patch_local_function_call_pattern(
         hir::Pattern::Literal { value, .. } => {
             patch_local_function_call_expr(value, target, captures)
         }
-        hir::Pattern::Variant { fields, .. } | hir::Pattern::Struct { fields, .. } => {
+        hir::Pattern::Variant { fields, .. }
+        | hir::Pattern::ImportedVariant { fields, .. }
+        | hir::Pattern::Struct { fields, .. } => {
             for (_, field) in fields {
                 patch_local_function_call_pattern(field, target, captures);
             }
