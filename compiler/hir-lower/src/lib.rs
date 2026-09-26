@@ -203,12 +203,7 @@ pub(crate) struct CurrentSourceDetails<'a> {
 #[derive(Clone)]
 enum CoreLoweringAuthority {
     Defined,
-    Imported(Box<ImportedCoreLoweringAuthority>),
-}
-
-#[derive(Clone)]
-struct ImportedCoreLoweringAuthority {
-    protocols: hir::ImportedCoreProtocols,
+    Imported(Box<hir::ImportedCoreProtocols>),
 }
 
 struct LoweringCompletion {

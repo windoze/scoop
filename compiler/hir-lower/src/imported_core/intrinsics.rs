@@ -25,7 +25,7 @@ impl Lowerer {
         let CoreLoweringAuthority::Imported(protocols) = &self.core else {
             return Ok(());
         };
-        let fundamental = protocols.protocols.fundamental_types();
+        let fundamental = protocols.fundamental_types();
         let identity = match kind {
             hir::IntrinsicTypeKind::Integer(kind) => fundamental.integer(kind).persistent(),
             hir::IntrinsicTypeKind::Boolean => fundamental.boolean().persistent(),

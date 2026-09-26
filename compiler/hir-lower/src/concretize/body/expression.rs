@@ -595,7 +595,7 @@ impl Concretizer<'_> {
         _locals: &[concrete::LocalId],
         ty: concrete::TypeId,
     ) -> Option<concrete::Expr> {
-        let CoreConcretizationAuthority::Defined(protocols) = self.core else {
+        let export::CoreProtocols::Defined(protocols) = self.core else {
             return None;
         };
         let export::ExprKind::Call { callee, args, .. } = &source.kind else {

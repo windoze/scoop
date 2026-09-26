@@ -551,9 +551,7 @@ impl Lowerer {
                         .expect("a missing or invalid source location core is always diagnosed"),
                 }))
             }
-            CoreLoweringAuthority::Imported(authority) => {
-                hir::CoreProtocols::Imported(Box::new(authority.protocols))
-            }
+            CoreLoweringAuthority::Imported(authority) => hir::CoreProtocols::Imported(authority),
         };
         let completion = LoweringCompletion {
             dependencies: self

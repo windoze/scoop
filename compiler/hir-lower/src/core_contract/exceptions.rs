@@ -299,7 +299,7 @@ impl Lowerer {
         match &self.core {
             CoreLoweringAuthority::Defined => self.throwable.map(|(_, ty)| ty),
             CoreLoweringAuthority::Imported(imported) => {
-                let declaration = imported.protocols.exceptions().throwable().persistent();
+                let declaration = imported.exceptions().throwable().persistent();
                 match self.imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
                     declaration,
                 )) {

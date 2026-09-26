@@ -42,7 +42,7 @@ impl Concretizer<'_> {
         }
         self.request_function(unit.initializer, Vec::new());
         self.request_function(unit.ensure, Vec::new());
-        if let CoreConcretizationAuthority::Defined(protocols) = self.core {
+        if let export::CoreProtocols::Defined(protocols) = self.core {
             self.request_function(
                 protocols.exceptions.initialization_cycle_thrower,
                 Vec::new(),
@@ -83,12 +83,12 @@ impl Concretizer<'_> {
                 }]
             };
             let cycle_thrower = match self.core {
-                CoreConcretizationAuthority::Defined(protocols) => {
+                export::CoreProtocols::Defined(protocols) => {
                     concrete::InitializationCycleThrower::Local(function(
                         protocols.exceptions.initialization_cycle_thrower,
                     ))
                 }
-                CoreConcretizationAuthority::Imported(protocols) => {
+                export::CoreProtocols::Imported(protocols) => {
                     concrete::InitializationCycleThrower::Imported(
                         protocols
                             .exceptions()

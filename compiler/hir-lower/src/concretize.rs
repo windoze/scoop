@@ -82,21 +82,6 @@ pub(crate) fn lower_output(
     )
 }
 
-#[derive(Clone, Copy)]
-enum CoreConcretizationAuthority<'a> {
-    Defined(&'a export::DefinedCoreProtocols),
-    Imported(&'a export::ImportedCoreProtocols),
-}
-
-impl<'a> CoreConcretizationAuthority<'a> {
-    fn from_module(module: &'a export::Module) -> Self {
-        match &module.core_protocols {
-            export::CoreProtocols::Defined(protocols) => Self::Defined(protocols),
-            export::CoreProtocols::Imported(protocols) => Self::Imported(protocols),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum FunctionKey {
     Free {
@@ -136,7 +121,7 @@ impl FunctionKey {
 struct Concretizer<'a> {
     source: &'a export::Module,
     automatic: AutomaticNominalRoots,
-    core: CoreConcretizationAuthority<'a>,
+    core: &'a export::CoreProtocols,
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
@@ -306,7 +291,7 @@ impl<'a> Concretizer<'a> {
         Ok(Self {
             source,
             automatic,
-            core: CoreConcretizationAuthority::from_module(source),
+            core: &source.core_protocols,
             types: Arena::new(),
             type_by_kind: HashMap::new(),
             function_types: Arena::new(),
@@ -403,7 +388,7 @@ impl<'a> Concretizer<'a> {
     fn run_with<Extra>(mut self, finish: impl FnOnce(&Self) -> Extra) -> (concrete::Module, Extra) {
         let unit = self.lower_type(self.source.unit, &[]);
         match self.core {
-            CoreConcretizationAuthority::Defined(protocols) => {
+            export::CoreProtocols::Defined(protocols) => {
                 for kind in export::IntegerKind::ALL {
                     let owner = protocols.fundamental_types.integers.owner(kind);
                     let source_type = self.source.struct_applications
@@ -412,7 +397,7 @@ impl<'a> Concretizer<'a> {
                     self.lower_type(source_type, &[]);
                 }
             }
-            CoreConcretizationAuthority::Imported(_) => {
+            export::CoreProtocols::Imported(_) => {
                 let integer_types = self
                     .source
                     .types
@@ -487,11 +472,11 @@ impl<'a> Concretizer<'a> {
         self.drain_pending_callables();
 
         let core_protocols = match self.core {
-            CoreConcretizationAuthority::Defined(protocols) => {
+            export::CoreProtocols::Defined(protocols) => {
                 self.lower_defined_core_protocols(protocols)
             }
-            CoreConcretizationAuthority::Imported(protocols) => {
-                concrete::ConcreteCoreProtocols::Imported(Box::new(protocols.clone()))
+            export::CoreProtocols::Imported(protocols) => {
+                concrete::ConcreteCoreProtocols::Imported(protocols.clone())
             }
         };
         self.finish_initialization_units();

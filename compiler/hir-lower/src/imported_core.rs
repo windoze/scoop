@@ -68,7 +68,7 @@ impl Lowerer {
         let CoreLoweringAuthority::Imported(authority) = &self.core else {
             return None;
         };
-        let fundamental = authority.protocols.fundamental_types();
+        let fundamental = authority.fundamental_types();
         Some(match self.types[ty] {
             hir::Type::Unit => fundamental.unit().persistent(),
             hir::Type::Integer(kind) => fundamental.integer(kind).persistent(),
@@ -114,7 +114,7 @@ impl Lowerer {
                     return Ok(self.any);
                 }
                 if let CoreLoweringAuthority::Imported(authority) = &self.core {
-                    let fundamental = authority.protocols.fundamental_types();
+                    let fundamental = authority.fundamental_types();
                     if let Some(kind) = hir::IntegerKind::ALL
                         .into_iter()
                         .find(|kind| *identity == fundamental.integer(*kind).persistent())

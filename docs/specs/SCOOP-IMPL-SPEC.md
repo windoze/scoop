@@ -929,7 +929,7 @@ core 可在任意普通源码目录修改、扩展和重建。manifest、构建�
 - 前端识别 intrinsic、检查语言声明与默认参数规则，并输出完整 typed operation、实际声明引用、签名、effect、visibility 和依赖关系。IR/meta crate 保存这些数据及格式、引用不变量，不再实现一套语言语义或来源授权体系。
 - canonical ABI 从实际 exact type、签名、target 与 provider 的布局计算。所有 Cone 使用同一规则，空集合自然成功；删除 CORE 验证跳过与专用空表限制。后端直接消费完整 ABI，边界核对实际调用和定义的一致性。
 - native boundary 从当前声明与普通依赖查询取得完整 nominal、字段/variant、表示及 CLayout policy；按 FFI 的 C-safe、GC-free、布局和调用约定检查。删除 TrustedCore 外来类型入口及后端固定 CORE 身份重建。
-- compiler protocol 只保留语言角色实际需要的 typed 声明引用。删除 Core/NotCore、重复 operation 投影、来源资格与凭证外层。可见性和目标身份不能由名称、相同签名或相同布局替代。
+- compiler protocol 只保留语言角色实际需要的 typed 声明引用。删除 Core/NotCore、重复 operation 投影、来源资格与凭证外层。可见性和目标身份不能由名称、相同签名或相同布局替代。Lowerer 直接保存已解析的 `ImportedCoreProtocols`，Concretizer 直接借用 Export HIR 的 `CoreProtocols`，不再建立单字段 `ImportedCoreLoweringAuthority` 或重复的 `CoreConcretizationAuthority` 投影。本地 arena 引用与外来持久声明引用保持原有类型区别；不增加 wire 字段或改变 runtime ABI。
 - String、初始化服务及其 descriptor、callable、selected 和 registration 使用共有记录。provider、symbol、ABI 与 definition 来自已解析目标；internal 服务不加入 public lookup。Link 的所有外来 strong 引用使用同一 provider/typed target 查询，不另建 core requirement 或 owner 通道。
 - 每个函数、构造器、成员、dispatch、默认值展开与初始化操作在负责该语义的 stage 完成处理。依赖集合从实际 typed 使用取得；producer 直接输出完整关系，不反复调用来源工厂重造同一对象并证明其来自同次编译。按值或继承循环局部拒绝，经 managed reference 的递归合法。
 

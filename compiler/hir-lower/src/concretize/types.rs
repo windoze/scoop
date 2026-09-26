@@ -7,14 +7,14 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::TypeId {
         match self.core {
-            CoreConcretizationAuthority::Defined(protocols) => {
+            export::CoreProtocols::Defined(protocols) => {
                 let owner = protocols.fundamental_types.integers.owner(kind);
                 let source_type = self.source.struct_applications
                     [self.source.structs[owner].self_application]
                     .canonical_type;
                 self.lower_type(source_type, substitution)
             }
-            CoreConcretizationAuthority::Imported(_) => {
+            export::CoreProtocols::Imported(_) => {
                 self.intern_type(concrete::TypeKind::Integer(kind), true)
             }
         }
@@ -156,7 +156,7 @@ impl Concretizer<'_> {
                 let value = self.source.struct_applications[application].clone();
                 if matches!(
                     self.core,
-                    CoreConcretizationAuthority::Defined(protocols)
+                    export::CoreProtocols::Defined(protocols)
                         if value.template == protocols.ffi.fun_ptr
                 ) {
                     let [function] = value.arguments.as_slice() else {

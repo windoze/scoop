@@ -381,9 +381,7 @@ impl Lowerer {
     }
 
     pub(super) fn with_imported_core(mut self, core: &hir::ImportedCoreInputs) -> Self {
-        self.core = CoreLoweringAuthority::Imported(Box::new(ImportedCoreLoweringAuthority {
-            protocols: core.protocols().clone(),
-        }));
+        self.core = CoreLoweringAuthority::Imported(Box::new(core.protocols().clone()));
         self
     }
 

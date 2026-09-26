@@ -12,11 +12,7 @@ impl Lowerer {
         let CoreLoweringAuthority::Imported(imported) = &self.core else {
             return Ok(());
         };
-        let declaration = imported
-            .protocols
-            .exceptions()
-            .class_cast_exception()
-            .persistent();
+        let declaration = imported.exceptions().class_cast_exception().persistent();
         if self.types.iter().any(|(_, ty)| {
             matches!(ty, export::Type::ImportedClass(class) if class.declaration.identity.id() == declaration)
         }) {
@@ -39,7 +35,7 @@ impl Lowerer {
 
 impl Concretizer<'_> {
     pub(super) fn lower_cast_exception_type(&mut self) {
-        let CoreConcretizationAuthority::Imported(protocols) = self.core else {
+        let export::CoreProtocols::Imported(protocols) = self.core else {
             return;
         };
         let declaration = protocols.exceptions().class_cast_exception().persistent();

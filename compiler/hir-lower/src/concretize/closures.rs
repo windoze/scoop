@@ -243,7 +243,7 @@ impl Concretizer<'_> {
             self.lower_function_type(source.native_function_type, substitution);
         let managed_function_type =
             self.lower_function_type(source.managed_function_type, substitution);
-        let CoreConcretizationAuthority::Defined(protocols) = self.core else {
+        let export::CoreProtocols::Defined(protocols) = self.core else {
             panic!("imported-core HIR must encode foreign callback support as imported targets")
         };
         assert!(protocols.foreign_callbacks.modes.contains(source.mode));
