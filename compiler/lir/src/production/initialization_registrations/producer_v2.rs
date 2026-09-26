@@ -3,11 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_identity::{ConeIdentity, PersistentInitializationUnitId};
 
 use super::{
-    StrongInitializationUnitSemanticPlan, StrongInitializationUnitSemanticPlanBuildError,
-    StrongInitializationUnitSemanticPlanSetV1, StrongInitializationUnitSemanticPlanSetV2,
+    StrongInitializationUnitSemanticPlan, StrongInitializationUnitSemanticPlanSetV1,
+    StrongInitializationUnitSemanticPlanSetV2,
 };
 use crate::{
-    InitializationDefinitionResolutionErrorV2, InitializationDependencyResolutionError, Module,
+    InitializationDefinitionResolutionErrorV2, InitializationDependencyResolutionError,
     OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongExternalInitializationUseV2,
     StrongInitializationDefinitionCatalogV2, StrongInitializationUnitDefinitionRefV2,
     StrongRegistrationIdentitySurfaceV1,
@@ -18,24 +18,22 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
     /// edge to a checked provider definition. Repeated physical uses of the
     /// same dependency (for different MIR causes) are validated before this
     /// boundary and collapse to the single dependency id carried on wire.
-    pub fn from_module(
-        module: &Module,
+    pub fn from_local_semantics(
+        local: StrongInitializationUnitSemanticPlanSetV1,
         foundation: &OdrFreeLirFoundation,
         identities: &StrongRegistrationIdentitySurfaceV1,
         digests: &StrongDigestFinalizationPlanV1,
-        selected: &crate::StrongProductionDependencySelectionV2<'_>,
         external_uses: &[StrongExternalInitializationUseV2],
     ) -> Result<Self, StrongInitializationUnitSemanticPlanV2BuildError> {
-        if module.cone != foundation.producer() {
+        let producer = local.static_storages().producer();
+        if producer != foundation.producer() {
             return Err(
                 StrongInitializationUnitSemanticPlanV2BuildError::ProducerMismatch {
-                    module: module.cone,
+                    module: producer,
                     foundation: foundation.producer(),
                 },
             );
         }
-        let local = StrongInitializationUnitSemanticPlanSetV1::from_module(module)
-            .map_err(StrongInitializationUnitSemanticPlanV2BuildError::LocalSemantics)?;
 
         let mut definitions = BTreeMap::new();
         for semantic in local.units() {
@@ -55,17 +53,6 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
             .map(|semantic| semantic.unit())
             .collect::<BTreeSet<_>>();
         for use_record in external_uses {
-            use_record
-                .validate_against(selected)
-                .map_err(StrongInitializationUnitSemanticPlanV2BuildError::ExternalUse)?;
-            if use_record.consumer() != module.cone {
-                return Err(
-                    StrongInitializationUnitSemanticPlanV2BuildError::UseConsumer {
-                        expected: module.cone,
-                        actual: use_record.consumer(),
-                    },
-                );
-            }
             if !local_units.contains(&use_record.local_unit()) {
                 return Err(
                     StrongInitializationUnitSemanticPlanV2BuildError::UnknownLocalUnit(
@@ -89,7 +76,7 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
         }
 
         let definitions = definitions.into_values().collect::<Vec<_>>();
-        let catalog = StrongInitializationDefinitionCatalogV2::new(module.cone, &definitions)
+        let catalog = StrongInitializationDefinitionCatalogV2::new(producer, &definitions)
             .map_err(StrongInitializationUnitSemanticPlanV2BuildError::Definitions)?;
         let mut units = Vec::with_capacity(local.units().len());
         for semantic in local.units() {
@@ -130,13 +117,7 @@ pub enum StrongInitializationUnitSemanticPlanV2BuildError {
         module: ConeIdentity,
         foundation: ConeIdentity,
     },
-    LocalSemantics(StrongInitializationUnitSemanticPlanBuildError),
     LocalDefinition(InitializationDefinitionResolutionErrorV2),
-    ExternalUse(crate::StrongExternalInitializationUseErrorV2),
-    UseConsumer {
-        expected: ConeIdentity,
-        actual: ConeIdentity,
-    },
     UnknownLocalUnit(PersistentInitializationUnitId),
     ConflictingDefinition {
         unit: PersistentInitializationUnitId,

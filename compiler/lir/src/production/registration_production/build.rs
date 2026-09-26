@@ -9,7 +9,7 @@ impl<
 > StrongRegistrationProductionSurface<D, C, I>
 {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn from_semantics(
+    pub fn from_semantics(
         target: crate::LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,

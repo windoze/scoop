@@ -13,80 +13,26 @@ use scoop_wire::HashError;
 
 use crate::{
     DefinitionAtomResolutionError, DigestInputRefV1, DigestNodeBuildError, DigestNodeV1,
-    EntryProductionSourceV1, Module, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
-    StrongDigestPlanBuildError, StrongImmortalObjectSemanticPlanBuildError,
-    StrongImmortalObjectSemanticPlanSetV1, StrongInitializationSchedulePlanV1,
-    StrongInitializationUnitSemanticPlanBuildError, StrongInitializationUnitSemanticPlanSet,
-    StrongInitializationUnitSemanticPlanSetV1, StrongSafepointSemanticPlanError,
-    StrongSafepointSemanticPlanSetV1, StrongTypeDescriptorSemanticPlanBuildError,
-    StrongTypeDescriptorSemanticPlanSet, StrongTypeDescriptorSemanticPlanSetV1,
+    EntryProductionSourceV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
+    StrongDigestPlanBuildError, StrongImmortalObjectSemanticPlanSetV1,
+    StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSet,
+    StrongSafepointSemanticPlanSetV1, StrongTypeDescriptorSemanticPlanSet,
 };
 
-/// Projects the only digest graph accepted by the single-Cone strong writer.
-///
-/// This function deliberately derives every node, edge, and patch from the
-/// final LIR graph and its sealed foundation. Callers cannot supply a partial
-/// graph or add an alternative digest path.
-pub(crate) fn project_strong_digest_finalization_plan(
-    module: &Module,
+/// Derives digest inputs from the same runtime semantics used for registrations.
+pub(crate) fn project_strong_digest_finalization_plan<D: Copy, C, I>(
     foundation: &OdrFreeLirFoundation,
     entry_source: &EntryProductionSourceV1,
+    safepoints: &StrongSafepointSemanticPlanSetV1,
+    types: &StrongTypeDescriptorSemanticPlanSet<D, C>,
+    immortals: &StrongImmortalObjectSemanticPlanSetV1,
+    initialization: &StrongInitializationUnitSemanticPlanSet<I>,
 ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
-    if module.cone != foundation.producer() {
-        return Err(StrongDigestProjectionError::ProducerMismatch {
-            module: module.cone,
-            foundation: foundation.producer(),
-        });
-    }
-
-    let safepoints = StrongSafepointSemanticPlanSetV1::from_module(module)
-        .map_err(StrongDigestProjectionError::Safepoints)?;
-    let types = StrongTypeDescriptorSemanticPlanSetV1::from_module(module)
-        .map_err(StrongDigestProjectionError::Types)?;
-    let immortals = StrongImmortalObjectSemanticPlanSetV1::from_module(module)
-        .map_err(StrongDigestProjectionError::ImmortalObjects)?;
-    let initialization = StrongInitializationUnitSemanticPlanSetV1::from_module(module)
-        .map_err(StrongDigestProjectionError::InitializationUnits)?;
-
     DigestGraphWriter::new(foundation).project(
-        &safepoints,
-        &types,
-        &immortals,
-        &initialization,
-        entry_source,
-    )
-}
-
-/// Projects the same digest graph while validating the V2 descriptor
-/// semantics. Initialization dependency payloads do not contribute digest
-/// inputs, so their local semantic base can be used before external unit
-/// definitions are joined to the completed digest identities.
-pub(crate) fn project_strong_digest_finalization_plan_v2(
-    module: &Module,
-    foundation: &OdrFreeLirFoundation,
-    entry_source: &EntryProductionSourceV1,
-    selected: &crate::StrongProductionDependencySelectionV2<'_>,
-) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
-    if module.cone != foundation.producer() {
-        return Err(StrongDigestProjectionError::ProducerMismatch {
-            module: module.cone,
-            foundation: foundation.producer(),
-        });
-    }
-    let safepoints = StrongSafepointSemanticPlanSetV1::from_module(module)
-        .map_err(StrongDigestProjectionError::Safepoints)?;
-    let types = crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module, selected)
-        .map_err(StrongDigestProjectionError::Types)?;
-    let immortals = StrongImmortalObjectSemanticPlanSetV1::from_module(module)
-        .map_err(StrongDigestProjectionError::ImmortalObjects)?;
-    let initialization = StrongInitializationUnitSemanticPlanSetV1::from_module(module)
-        .map_err(StrongDigestProjectionError::InitializationUnits)?;
-
-    DigestGraphWriter::new(foundation).project(
-        &safepoints,
-        &types,
-        &immortals,
-        &initialization,
+        safepoints,
+        types,
+        immortals,
+        initialization,
         entry_source,
     )
 }

@@ -2,14 +2,12 @@ use super::*;
 use scoop_identity::*;
 
 pub(super) fn replayed_provider(provider: &Provider) -> StrongProductionSectionV2 {
-    let selected = StrongProductionDependencySelectionV2::empty(provider.identity, TARGET).unwrap();
     let raw = provider
         .output
         .build_production_section_v2(
             provider.coordinate.clone(),
             &[],
             EntryProductionSourceV1::Library,
-            &selected,
             &[],
         )
         .unwrap()

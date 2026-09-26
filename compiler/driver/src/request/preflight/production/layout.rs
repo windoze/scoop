@@ -159,7 +159,6 @@ pub(super) fn assemble(
             cone.coordinate().clone(),
             &direct,
             scoop_lir_lower::lower_entry_production_source(mir.strong.production().entry_bridge()),
-            &selected_layout,
             &initialization,
         )
         .map_err(|error| Error::Registration(Box::new(error)))?;

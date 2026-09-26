@@ -112,7 +112,6 @@ pub(super) fn check(
                         lir_input.coordinates[1].clone(),
                         &[core_mir.provider()],
                         lir::EntryProductionSourceV1::Library,
-                        &selected,
                         &initialization,
                     )
                     .unwrap();

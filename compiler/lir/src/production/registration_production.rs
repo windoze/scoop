@@ -74,8 +74,9 @@ impl StrongRegistrationProductionSurfaceV1 {
     pub fn from_module(
         module: &Module,
         foundation: &OdrFreeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
-    ) -> Result<Self, StrongRegistrationProductionBuildError> {
+        entry_source: &crate::EntryProductionSourceV1,
+    ) -> Result<(StrongDigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError>
+    {
         if module.cone != foundation.producer() {
             return Err(StrongRegistrationProductionBuildError::ProducerMismatch {
                 module: module.cone,
@@ -83,8 +84,6 @@ impl StrongRegistrationProductionSurfaceV1 {
             });
         }
 
-        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
-            .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let safepoint_semantics = StrongSafepointSemanticPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::SafepointSemantics)?;
         let type_semantics = StrongTypeDescriptorSemanticPlanSetV1::from_module(module)
@@ -97,17 +96,29 @@ impl StrongRegistrationProductionSurfaceV1 {
         let callable_runtime_scans = StrongCallableRuntimeScanPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::CallableRuntimeScans)?;
 
-        Self::from_semantics(
+        let digests = crate::project_strong_digest_finalization_plan(
+            foundation,
+            entry_source,
+            &safepoint_semantics,
+            &type_semantics,
+            &immortal_semantics,
+            &initialization_semantics,
+        )
+        .map_err(StrongRegistrationProductionBuildError::Digests)?;
+        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
+            .map_err(StrongRegistrationProductionBuildError::Identities)?;
+        let registrations = Self::from_semantics(
             module.meta.target_profile,
             foundation,
-            digests,
+            &digests,
             identities,
             callable_runtime_scans,
             type_semantics,
             safepoint_semantics,
             immortal_semantics,
             initialization_semantics,
-        )
+        )?;
+        Ok((digests, registrations))
     }
 }
 
@@ -124,6 +135,7 @@ pub enum StrongRegistrationProductionBuildError {
         module: scoop_identity::ConeIdentity,
         foundation: scoop_identity::ConeIdentity,
     },
+    Digests(crate::StrongDigestProjectionError),
     Identities(StrongRegistrationIdentityBuildError),
     CallableRuntimeScans(StrongCallableRuntimeScanPlanError),
     SafepointSemantics(StrongSafepointSemanticPlanError),

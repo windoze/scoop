@@ -247,7 +247,6 @@ pub(super) fn with_pair(
             coordinate.clone(),
             &[scoop_identity::ConeIdentity::CORE],
             lir::EntryProductionSourceV1::Library,
-            &dependency_layouts,
             &[],
         )
         .unwrap();

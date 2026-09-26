@@ -127,7 +127,6 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
     let use_record =
         StrongExternalInitializationUseV2::try_new(unit, definition, &selected).unwrap();
 
-    assert_eq!(use_record.consumer(), ConeIdentity::CORE);
     assert_eq!(use_record.provider(), fixture.source.foundation.producer());
     assert_eq!(use_record.dependency_unit(), unit);
 }

@@ -67,9 +67,19 @@ pub(crate) fn inputs(corruption: Corruption) -> SemanticInputs {
         &immortal_registration,
         &static_storage,
     );
-    let registration_production =
-        StrongRegistrationProductionSurfaceV1::from_module(&module, &foundation, &digest_plan)
-            .unwrap();
+    let registration_production = StrongRegistrationProductionSurfaceV1::from_semantics(
+        module.meta.target_profile,
+        &foundation,
+        &digest_plan,
+        scoop_lir::StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan)
+            .unwrap(),
+        scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(&module).unwrap(),
+        scoop_lir::StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap(),
+        scoop_lir::StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap(),
+        scoop_lir::StrongImmortalObjectSemanticPlanSetV1::from_module(&module).unwrap(),
+        scoop_lir::StrongInitializationUnitSemanticPlanSetV1::from_module(&module).unwrap(),
+    )
+    .unwrap();
     let registration_plan = registration_production.safepoints().clone();
     let callable_registration_plan = registration_production.callables().clone();
     let type_registration_plan = registration_production.types().clone();

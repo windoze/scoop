@@ -47,13 +47,11 @@ impl Provider {
         let initialization_unit = attach_eager_initialization(&mut module, "providerValue", exact);
         super::lir_fixture::provider_protocol(&mut module, exact);
         let output = SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
-        let empty = StrongProductionDependencySelectionV2::empty(identity, TARGET).unwrap();
         let section = output
             .build_production_section_v2(
                 coordinate.clone(),
                 &[],
                 EntryProductionSourceV1::Library,
-                &empty,
                 &[],
             )
             .unwrap();

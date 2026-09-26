@@ -351,11 +351,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             scoop_identity::ConeCoordinate::reserved_core(),
             &[],
             scoop_lir::EntryProductionSourceV1::Library,
-            &scoop_lir::StrongProductionDependencySelectionV2::empty(
-                ConeIdentity::CORE,
-                scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-            )
-            .unwrap(),
             &[],
         )
         .unwrap();

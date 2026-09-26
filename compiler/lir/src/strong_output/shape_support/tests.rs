@@ -184,7 +184,6 @@ fn v2_writer_preserves_legacy_relation_bytes_for_a_final_lir_module() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let module = fixture_module(coordinate.identity().unwrap());
     let output = crate::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
-    let selected = empty_production_selection(output.foundation().producer());
     let v1 = output
         .build_production_section(
             coordinate.clone(),
@@ -197,84 +196,11 @@ fn v2_writer_preserves_legacy_relation_bytes_for_a_final_lir_module() {
             coordinate,
             &[scoop_identity::ConeIdentity::CORE],
             crate::EntryProductionSourceV1::Library,
-            &selected,
             &[],
         )
         .unwrap();
 
     assert_eq!(encode(&v2).unwrap(), encode(&v1).unwrap());
-}
-
-#[test]
-fn v2_writer_rejects_an_external_descriptor_without_selected_terminal_authority() {
-    let coordinate = ConeCoordinate::reserved_single_file();
-    let mut module = fixture_module(coordinate.identity().unwrap());
-    let provider = ConeCoordinate::new("test", "dependency", "1.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-    let exact = source_exact(&source_declaration(
-        provider,
-        "Parent",
-        SourceNominalKind::Class,
-        0,
-    ));
-    let subject = crate::ExternalStrongShapeSubjectV1::TypeDescriptor(exact);
-    let (definition_key, symbol_key) = subject.expected_definition(provider).unwrap();
-    let definition = CborIdentityRecord::from_key(definition_key).unwrap();
-    let symbol = scoop_identity::PersistentSymbolRequest::new(
-        symbol_key,
-        scoop_identity::LinkageClass::ConeStrong,
-    )
-    .unwrap();
-    let external =
-        module
-            .meta
-            .external_type_descriptors
-            .alloc(crate::ExternalTypeDescriptor::from_selection(
-                provider,
-                exact,
-                symbol,
-                definition.id(),
-            ));
-    module
-        .meta
-        .type_descriptors
-        .iter_mut()
-        .next()
-        .unwrap()
-        .1
-        .parent = Some(TypeDescriptorRef::External(external));
-
-    let output = crate::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
-    let selected = empty_production_selection(output.foundation().producer());
-    assert!(matches!(
-        output.build_production_section_v2(
-            coordinate,
-            &[scoop_identity::ConeIdentity::CORE],
-            crate::EntryProductionSourceV1::Library,
-            &selected,
-            &[],
-
-        ),
-        Err(crate::StrongProductionWriterError::Digests(
-            crate::StrongDigestProjectionError::Types(
-                crate::StrongTypeDescriptorSemanticPlanBuildError::ExternalMaterialization(
-                    crate::LayoutExternalMaterializationError::MissingDescriptor {
-                        provider: actual_provider,
-                        exact: actual_exact,
-                    }
-                )
-            )
-        )) if actual_provider == provider && actual_exact == exact
-    ));
-}
-
-fn empty_production_selection(
-    consumer: ConeIdentity,
-) -> crate::StrongProductionDependencySelectionV2<'static> {
-    crate::StrongProductionDependencySelectionV2::empty(consumer, LirTargetProfile::DARWIN_AARCH64)
-        .unwrap()
 }
 
 fn fixture_module(producer: ConeIdentity) -> Module {

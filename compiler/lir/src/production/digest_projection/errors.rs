@@ -12,10 +12,6 @@ pub enum StrongDigestProjectionError {
         entry: scoop_identity::ConeIdentity,
         foundation: scoop_identity::ConeIdentity,
     },
-    Safepoints(StrongSafepointSemanticPlanError),
-    Types(StrongTypeDescriptorSemanticPlanBuildError),
-    ImmortalObjects(StrongImmortalObjectSemanticPlanBuildError),
-    InitializationUnits(StrongInitializationUnitSemanticPlanBuildError),
     DefinitionIdentity(ObjectDefinitionIdentityError),
     MissingDefinition {
         entity: StrongDefinitionEntity,

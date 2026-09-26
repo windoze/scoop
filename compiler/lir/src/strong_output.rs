@@ -6,10 +6,8 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey};
 
 use crate::{
     EntryProductionSourceV1, Module, OdrFreeLirFoundation, OdrFreeLirFoundationProjectionError,
-    StrongDigestProjectionError, StrongProductionSectionBuildError, StrongProductionSectionV1,
-    StrongProductionSectionV2, StrongRegistrationProductionBuildError,
-    StrongRegistrationProductionSurfaceV1, project_strong_digest_finalization_plan,
-    project_strong_digest_finalization_plan_v2,
+    StrongProductionSectionBuildError, StrongProductionSectionV1, StrongProductionSectionV2,
+    StrongRegistrationProductionBuildError, StrongRegistrationProductionSurfaceV1,
 };
 
 mod shape_support;
@@ -61,13 +59,10 @@ impl SingleConeStrongLirOutput {
         direct_dependencies: &[ConeIdentity],
         entry_source: EntryProductionSourceV1,
     ) -> Result<StrongProductionSectionV1, StrongProductionWriterError> {
-        let digests =
-            project_strong_digest_finalization_plan(&self.module, &self.foundation, &entry_source)
-                .map_err(StrongProductionWriterError::Digests)?;
-        let registrations = StrongRegistrationProductionSurfaceV1::from_module(
+        let (digests, registrations) = StrongRegistrationProductionSurfaceV1::from_module(
             &self.module,
             &self.foundation,
-            &digests,
+            &entry_source,
         )
         .map_err(StrongProductionWriterError::Registrations)?;
         StrongProductionSectionV1::new(
@@ -89,21 +84,12 @@ impl SingleConeStrongLirOutput {
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
         entry_source: EntryProductionSourceV1,
-        selected: &crate::StrongProductionDependencySelectionV2<'_>,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
     ) -> Result<StrongProductionSectionV2, StrongProductionWriterError> {
-        let digests = project_strong_digest_finalization_plan_v2(
+        let (digests, registrations) = crate::StrongRegistrationProductionSurfaceV2::from_module(
             &self.module,
             &self.foundation,
             &entry_source,
-            selected,
-        )
-        .map_err(StrongProductionWriterError::Digests)?;
-        let registrations = crate::StrongRegistrationProductionSurfaceV2::from_module(
-            &self.module,
-            &self.foundation,
-            &digests,
-            selected,
             external_initialization_uses,
         )
         .map_err(StrongProductionWriterError::Registrations)?;
@@ -150,7 +136,6 @@ impl std::error::Error for SingleConeStrongLirOutputError {
 
 #[derive(Debug)]
 pub enum StrongProductionWriterError {
-    Digests(StrongDigestProjectionError),
     Registrations(StrongRegistrationProductionBuildError),
     Section(StrongProductionSectionBuildError),
 }

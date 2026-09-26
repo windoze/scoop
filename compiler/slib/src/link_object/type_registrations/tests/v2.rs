@@ -1,20 +1,14 @@
 use super::*;
 use crate::link_object::stackmap_normalization::verification::tests::support::semantic;
 use scoop_lir::{
-    StrongProductionDependencySelectionV2, StrongRegistrationIdentitySurfaceV1,
-    StrongTypeDescriptorSemanticPlanSetV2, StrongTypeRegistrationPlanSetV2,
+    StrongRegistrationIdentitySurfaceV1, StrongTypeDescriptorSemanticPlanSetV2,
+    StrongTypeRegistrationPlanSetV2,
 };
 
 fn plans(corruption: Corruption) -> StrongTypeRegistrationPlanSetV2 {
     let input = semantic::inputs(corruption);
 
-    let selected = StrongProductionDependencySelectionV2::empty(
-        input.module.cone,
-        input.module.meta.target_profile,
-    )
-    .unwrap();
-    let semantics =
-        StrongTypeDescriptorSemanticPlanSetV2::from_module(&input.module, &selected).unwrap();
+    let semantics = StrongTypeDescriptorSemanticPlanSetV2::from_module(&input.module).unwrap();
     let identities =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&input.foundation, &input.digest_plan)
             .unwrap();

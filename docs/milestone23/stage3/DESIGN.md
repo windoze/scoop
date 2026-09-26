@@ -548,220 +548,80 @@ TrustedCoreSlotLayoutV1 {
 
 sysroot布局只是默认查找策略，不进入identity。driver只由配置根和target派生source与artifact路径，不构造源码/产物slot授权对象，不读取source来授权artifact。普通消费允许仅安装core `.slib`而没有core源码；编译默认core源目录时才使用通用manifest loader。所有core与用户manifest共用同一parser，所需coordinate/kind由普通依赖locator或实际typed IR角色检查。
 
-当前manifest parser仍要求core声明`kind=library`且无dependency；这些现存限制的后续清理由core普通library工作项跟踪。默认依赖查找要求声明的coordinate与请求一致，与其他依赖使用同一检查。`@Intrinsic`由前端识别并正规化为typed IR，不依赖源码路径或resolver签发的sidecar。
+core声明`kind=library`，可以声明普通依赖；manifest解析、依赖闭包、缓存失效和下游消费与其他library共用。默认依赖查找要求声明的coordinate与请求一致，与其他依赖使用同一检查。`@Intrinsic`由前端识别并正规化为typed IR，不依赖源码路径或resolver签发的sidecar。
 
-### 7.2 bootstrap
+### 7.2 core源码构建
 
-core bootstrap执行普通manifest discovery和同一parser→HIR→MIR→LIR→object→slib pipeline，唯一差异是：
+core使用共有`SingleConeBuildRequest::build_and_publish`入口。manifest discovery、当前源码解析、
+`CurrentConeHirArtifacts`、`CurrentConeMirArtifacts`、LIR、object、`.slib`组装和原子发布与其他Cone相同。
+默认core源目录只是构建管理器可选择的输入；core可以声明其他library依赖，构建自身时不注入core self edge。
+失败不覆盖既有成功产物。`scoopc`不因默认查找位置缺失产物而隐式编译源码；构建管理器按实际依赖图安排构建。
 
-- current Cone是reserved core；
-- 不注入core self edge；
-- HIR可由typed authority接受core intrinsic declarations；
-- 输出必须是library、Manifest source form、direct dependency table为空；
-- 输出仍使用同一个`SingleConeStrongProfile`和同一双视图publish gate。
+前端识别`@Intrinsic`并检查其语言声明规则，输出完整typed operation、基础类型表示和实际声明引用。
+是否在当前Cone定义协议，或从依赖导入协议，只决定名称解析与lowering所需的数据来源，不授予后续stage额外资格。
+HIR的公共接口、必要支持声明、参数协议和默认值均从同一Export HIR产生，不为core保留清空普通声明表的投影。
+各stage经IR crate交接完整数据；没有另一路core bootstrap stage product、来源工厂或发布凭证。
 
-bootstrap失败时不保留或覆盖旧slot artifact。普通`scoopc`请求不会因slot缺失/stale而自行bootstrap；M23-4的trusted orchestration负责先显式发起bootstrap，再把成功artifact交给dependent。
+Strong物化根包含实际callable implementation、global/object/initialization、entry、MIR生成类型，以及源码
+nominal所需的有限shape-support根。LIR沿这些根计算确定性闭包，独立generic/structural ODR物化仍属于M23-7。
+计算现有source nominal或callable表示所需的嵌套tuple、pointer和generic value shape可以贡献size、align、
+字段offset与scan；这不要求额外产生独立layout symbol、TypeDescriptor或ODR定义。
 
-HIR侧source-only输入为借用`CurrentConeParsedSources`的`CoreBootstrapSources`，其构造首先检查当前Cone。
-当前driver的`TrustedCoreBootstrapHirOutput::lower`直接接收已解析源码并调用`lower_core_bootstrap`，不再经过
-绑定source/output路径的输入包装。lowerer沿原子source view建立当前core的source/provider表，以`CoreOnly`
-intrinsic策略运行；它不构造`LegacyCombinedSources`，不注入伪current-unit source，也不把core AST/text复制到
-另一个可重新配对的公开输入。没有ordinary current-unit时以canonical首个core source作为output/诊断主source。
-当前专用HIR product仍原子持有HIR、`Library`输出种类和从同一Export HIR派生的
-`CoreBootstrapInterfaceSectionV1`；任一lowering诊断或production section构造错误都不会产生partial stage成功值。
-这些专用stage product和普通pipeline的后续合并由core普通library工作项跟踪。
+每个typed identity在其实际声明层登记一次。HIR保存source与exact type，MIR保存本层生成的身份，LIR引用
+已登记的exact type并保存本层物化实体。外来nominal通过共有依赖闭包解析实际声明与表示；引用不复制provider的
+canonical声明，也不以CORE身份免除声明、origin或ABI检查。由源码声明的基础类型与普通nominal一样保存
+source origin；只有没有普通源码声明的`CoreBuiltinNominal::{Unit, Any}`使用编译器内建身份。
 
-进入MIR时，driver只暴露消费上述sealed HIR product的`lower_mir(self)`；它在同一原子操作中运行正式
-`mir-lower`、从结果构造`OdrFreeMirFoundation`并投影mandatory `CoreBootstrapBridgeSectionV1`，成功后返回
-`TrustedCoreBootstrapMirOutput`。该product拥有而不是借用前一阶段的`TrustedCoreBootstrapHirOutput`，同时私有持有
-MIR graph、ODR-free foundation、MIR production section与从HIR/MIR联合派生的
-`SingleConeStrongMaterializationPlan`；任一foundation/ODR/production/materialization-plan错误都不产生partial
-MIR stage成功值，也不存在接收裸HIR、裸MIR或单独section的driver兼容入口。
+native boundary使用共有依赖类型查询，取得实际声明kind、binder、字段、variant与C表示。前端和相应lowering
+负责C-safe、布局、effect与GC规则；reader核对格式及typed引用。不存在core外来类型白名单、固定CORE身份重建、
+缺失字段时接受空struct的恢复路径。runtime C调用约定和String实际表示保持不变。
 
-`SingleConeStrongMaterializationPlan`不是“把完整LocalConcrete/MIR图全部发射”的开关，而是LIR production入口的
-唯一root集合。它包含同一MIR foundation中的全部strong callable implementation、current Cone的source-owned
-global/object/initialization root、entry root（若有）、全部Cone-owned MIR generated nominal，以及core HIR interface派生的
-全部param-free source nominal shape-support root。构造器执行规范排序、去重、producer与output-branch一致性检查；普通调用方不能传入裸id列表，
-也不能遗漏root后取得一个较小的合法plan。该plan只存在于已封闭的stage product中，其可持久化语义分别由HIR/MIR
-section与LIR strong-production section完整重建，因此不另增一个可被wire伪造的可选section。
+### 7.3 compiler protocol与普通产物
 
-LIR production lowering消费该sealed plan并做从root出发的确定性闭包，而不是先调用完整图lowering再事后删除ODR
-record。闭包边若要求独立的generic/structural materialization，整个stage以
-`SCOOPC_CAPABILITY_ODR_UNAVAILABLE`失败且不返回partial LIR。仅用于计算source-owned strong layout/scan的嵌套
-generic value shape属于transient shape calculation：它可以贡献字段offset、size、align与ref offsets，但不得产生
-自己的persistent layout/scan/TD、ODR group/member、symbol、definition、registration或digest node。只有第7.6节
-从source nominal owner唯一派生的closed shape-support role可以成为额外strong实体。旧的
-`lir_lower::lower(&Module)`完整图production入口在接入本路径时直接删除，不保留wrapper、profile默认值或后过滤旁路。
+共有HIR production section保存output contract、direct public surface及可选的完整compiler protocol定义。
+协议记录只描述语言角色需要的typed nominal、callable、variant、签名、effect与表示关系；不使用`Core/NotCore`
+包装。普通声明、可见性、参数协议、默认值与跨Cone类型接口继续保存在共有表中，协议不复制这些表作为另一份来源证明。
 
-driver只暴露消费上述sealed MIR product的`lower_lir(self, lir_target)`；成功值
-`TrustedCoreBootstrapLirOutput`私有拥有此前的`TrustedCoreBootstrapMirOutput`、最终LIR graph与由该graph投影的
-`OdrFreeLirFoundation`。因此调用方不能把另一份MIR proof、materialization plan或foundation与LIR结果重新配对；
-capability失败或LIR foundation出现ODR record时均不产生partial stage成功值，也不存在接收裸MIR的driver入口。
-三层foundation的identity transaction同时要求每个typed identity只有一个声明层：HIR声明source/concrete exact
-type，MIR只声明本层生成的exact type，LIR不得为了描述runtime物化闭包再次复制相同`{ id, key }`。LIR
-foundation field 1因此是按`PersistentExactTypeId`严格递增、无重复的materialized exact-type引用集合；reader在
-HIR、MIR声明完成canonical-key重算后逐项解析这些引用，再重建LIR内部的物化集合。旧的LIR exact-type record
-数组不是兼容输入，直接按当前closed wire shape拒绝。
+MIR的`StrongCallableBridgeV1`保存实际implementation、exact签名和`CallableRole`。普通函数与初始化服务
+使用同一callable表；初始化角色只选择lowering需要的服务，不创建独立ABI、owner或Link requirement。
+LIR保存已有canonical ABI、calling convention、root plan、symbol与required definition。String通过共有
+TypeDescriptor引用表达本地或外来定义，provider取实际声明所属Cone，不由后端固定为CORE。
 
-普通Cone的HIR exact-type表仍声明本次语义图实际使用的完整结构key；若其中的`Nominal`或
-`NominalApplication`引用受信core声明，则HIR foundation必须另以两个严格排序、无重复的
-`core_external_source_types: [PersistentTypeId]`和
-`core_external_generic_types: [PersistentGenericTypeId]`表把这些owner登记为外部身份叶节点。两张表只允许由
-`OrdinaryHirOutput`绑定的同一`ImportedHirFoundation`机械投影：每项必须确实存在于该core foundation，且恰好覆盖
-exact-type表引用但本foundation未声明的core nominal owner；core bootstrap两表必须为空。reader先把这些typed id
-登记为不属于当前Cone、无需在本artifact重复canonical key的external authority，再重算本artifact声明的exact
-record；不得把core的`SourceDeclarationKey`复制进ordinary type表，也不得把缺失owner当成普通local声明。该
-external leaf只解决Compile identity closure，不授予lookup、layout、definition或link authority；String的物理
-authority仍唯一来自下述checked core-external TypeDescriptor bridge。旧的“让ordinary exact record引用一个完全未
-声明的owner”形态直接拒绝，不提供兼容分支。
+HIR中的`DefinedCoreProtocols`与`ImportedCoreProtocols`分别保存本地或依赖的真实角色引用。使用这些角色的
+表达式在lowering时取得明确typed target，后续stage直接消费，不按名称或FQN恢复，也不重新证明其来自core。
+协议接口的已退役字段与tag不复用，旧artifact按当前capability版本重建，不保留双轨兼容路径。
 
-ordinary source extern或callback若把受信core基础类型放入native boundary，native-boundary source witness必须由
-同一个`ImportedCoreInputs`额外机械投影，不能要求ordinary Cone复制core AST、HIR nominal declaration或一般field表。
-该投影是封闭能力：只包含八种整数与`Boolean`的零类型参数、`NotCLayout`无字段struct witness，以及`String`的
-零类型参数`Reference` witness；`Unit`继续由每个HIR foundation已有的编译器内建声明闭合。构造投影时必须按
-compiler protocol中的typed fundamental role解析同一imported foundation的source identity，验证整数/布尔确为
-无字段source struct、`String`确为source class，并按owner规范排序；不得按名称、FQN、digest前缀或目标ABI反推。
-ordinary lowering只从中挑选本次extern/callback传递闭包实际需要的record，且把对应owner同时登记进上述
-core-external typed表。一般core struct/enum、任意core generic template及其字段闭包仍以
-`native-boundary-closure-required`失败，留待M23-6的跨Cone proof。
+### 7.4 共有artifact消费与发布
 
-HIR foundation reader解析native-boundary record时，local owner仍必须由当前foundation的canonical declaration key
-重建；只有已在`core_external_source_types`登记的owner可走上述external分支，且payload必须严格是零类型参数的
-`NotCLayout`无字段struct或`Reference`，external generic owner直接拒绝。这个分支只产生依赖绑定的
-native-boundary witness，不能补出canonical declaration key或对consumer开放lookup/layout；受信构建路径还必须以
-同一core artifact的typed fundamental投影证明具体role。旧的缺key即接受、任意external shape、复制core声明和
-按名称兜底路径均不存在。
+请求将显式依赖或默认locator提供的core artifact放入普通direct dependency集合。全部输入使用相同的
+`HostArtifactLocator`、文件读取、summary、coordinate、fingerprint和依赖闭包检查。仅安装core `.slib`而
+没有源码时可以正常消费；构建和消费都不需要source slot授权。
 
-HIR foundation的definition-origin覆盖按“是否为源码声明”决定，而不是按origin Cone决定：reserved core中由源码
-声明的`String`、primitive及其他nominal与普通Cone声明一样必须且只能携带一条origin；只有编译器拥有且没有普通
-source declaration的`CoreBuiltinNominal::{Unit, Any}`从type required set排除。validator必须按这两个固定typed
-identity判断，不能把`ConeIdentity::CORE`作为整组豁免，也不能用名称或FQN回退。
+共有reader一次读取同一artifact的语义和Link section，并在实际边界检查canonical identity、类型、ABI及
+依赖引用。`ValidatedCrossConeArtifactClosure`保存供名称解析、类型查询和代码生成使用的完整结果；Compile
+与Link复用其中的语义数据。Link增加真实object、symbol、definition和relocation检查，不再完整重放语义或
+反向重建外来callable、descriptor以证明上一阶段已做过的工作。
 
-`ParsedCoreBootstrapBuildRequest::build_and_publish(self, temporary_parent, limits)`是bootstrap从parsed request到
-published artifact的唯一终态入口。它按上述顺序消费HIR、MIR、LIR与strong-profile状态，从请求自身唯一派生
-reserved core `ConeRecord { Library, Manifest }`、空dependency、固定compiler producer record、完整target以及
-`empty_core_bootstrap()` external-owner authority，再调用统一object/artifact pipeline向请求指定的
-output发布。调用方不能另传Cone、dependency、producer、output或core owner，也不能在stage之间取得裸对象
-路径或assembled bytes；任一stage、object、双视图或publish失败都只返回分层错误且不覆盖slot中的旧artifact。
+producer直接使用同次编译的完整HIR/MIR/LIR与已检查对象组装产物，原子发布核对实际写出内容。不能为了取得
+发布资格，再分别把本产物和全部依赖走一遍Compile与Link完整reader。缓存记录保留真实内容fingerprint和
+依赖关系；这些数据只承担失效、格式和一致性职责。
 
-### 7.3 core Compile capability
+### 7.5 名称解析与后续stage
 
-当前HIR/MIR section仍使用封闭`NotCore | Core`分支。core producer从实际HIR/MIR构造`Core`内容，普通producer构造`NotCore`；两者都必须保证metadata结构与typed identity一致。该分支不要求源码位置授权或固定输出slot。consumer从请求指定的artifact路径加载，校验metadata、依赖与ABI；当前`ValidatedTrustedCoreArtifact`专用接口的后续合并由core普通library工作项跟踪。
+M23-3先开放prelude消费，M23-5将普通direct dependency和re-export接入同一名称解析规则；M23-6继续扩展
+类型、成员、构造器、布局和dispatch。实际实现与验收进度在M23-6设计中记录，不把历史prelude-only接口保留为
+第二套core来源框架。
 
-`CoreHirInterfaceV1::Core`包含：
-
-- 按persistent binding id排序的普通direct-public declaration surface；
-- typed prelude binding snapshot，至少覆盖现有普通prelude function/type及`Option` variant scope；
-- well-known compiler relation与`RuntimeCoreCapability::String`的source/exact identity；
-- closed `CoreCompilerProtocolSurfaceV1`：用kind-specific persistent identity和完整source/exact
-  signature发布基础类型、`Option`、iteration、exception construction、coroutine、FFI、managed callback、
-  source-location及compiler-recognized operator/intrinsic关系；
-- 每个binding的最终typed target、signature/parameter shape、visibility/export witness和definition origin；
-- 每个target在HIR层是否满足M23-3 param-free shape约束的checked capability；callable的最终
-  `ParamFreeStrong`可用性必须再与MIR strong implementation bridge合取，不能由HIR单独授予；
-- exported param-free source nominal的shape-support obligation集合。
-
-MIR共有`StrongCallableBridgeV1`保存实际strong实现、exact签名与`CallableRole`；初始化服务由HIR的typed协议声明标记，普通调用保留Ordinary角色。不存在第二份core MIR bridge。
-`CoreLirBridgeV1`位于第9章strong production section，进一步给出每个可导入callable的canonical Scoop ABI、external calling convention、effect/root-plan、persistent symbol request和required callable-body definition；param-free shape-support definition继续由同一section的`shape_support_plan`字段唯一承载，不在callable bridge中复制第二份authority。
-
-这些record由同一`ExportHir`/MIR/LIR正式投影产生，不通过扫描名字、文件顺序或旧core arena补造。普通HIR
-把compiler protocol surface导入为`ImportedCoreProtocols`，core bootstrap则持有互斥的
-`DefinedCoreProtocols`；`hir::Module`只保存这一个closed sum。原先直接挂在module上的本地
-`option_core`/`iteration_core`/`exception_core`/`coroutine_core`/`ffi_core`/
-`foreign_callback_core`/`intrinsic_type_core`/`source_location_core`字段直接删除，不保留兼容getter或
-由普通Cone合成的本地占位声明。所有依赖core协议的HIR节点都必须在lowering时保存分支精化后的typed target；
-不能在MIR阶段再按名称恢复。`NotCore`分支编码为显式tag，不用缺section表示。
-
-### 7.4 core artifact消费
-
-请求入口把协议或默认locator提供的core artifact并入普通direct dependency集合。全部输入使用同一个
-`HostArtifactLocator`、file loader、summary、coordinate与fingerprint检查、依赖排序和实际分配错误处理。
-不存在`TrustedCoreArtifactInput`/`LoadedTrustedCoreArtifact`及其独立load/validate入口。
-
-所有依赖一次性通过共有Compile/Link closure验证并提交到同一个`SemanticIdentitySession`。需要长期引用某个
-artifact时，从共有closure取得带完整Compile、Link和publication访问的成员引用；引用保留所属closure，不能把
-不同closure的索引和视图拼接。当前core HIR/MIR/LIR协议投影只从该成员读取既有typed metadata，不重新解码bytes，
-也不另外构造core closure。core和其他依赖的缺失、重复、kind、source form、ABI与闭包错误使用同一检查和诊断。
-后续专用协议投影合并由core普通library工作项跟踪。
-
-core普通library清理后，general HIR section按实际Export HIR完整投影，删除只复制binding而清空声明表的factory。core普通callable的general MIR/LIR bridge与其他library使用同一资格、实现和ABI关系；reader不按core identity跳过export关系校验。
-
-### 7.5 M23-3 resolver边界
-
-HIR只从`ValidatedCoreInterface`构造：
-
-```text
-ImportedHirSet<CorePreludeOnly>
-```
-
-artifact Compile proof持有的完整身份图类型为`ImportedHirFoundation`，它不再沿用`ImportedHirSet`这个会把
-“已导入完整foundation”与“可供语义查找的受限集合”混淆的旧名称，也不保留类型别名。只有把同一
-foundation与`ValidatedCoreInterface`逐binding及well-known identity绑定成功后，才能投影上述
-`ImportedHirSet<CorePreludeOnly>`。正式调用只通过`ValidatedTrustedCoreArtifact::import_core_prelude`把该
-artifact自身的Compile proof与私有core interface成对投影，不暴露拆开后二次拼接的getter；来自另一
-artifact/foundation的接口即使同属reserved core也不能拼接。
-
-普通parsed请求同样不暴露裸`ValidatedTrustedCoreArtifact` getter；其`hir_input`一次性构造由hir-lower定义的
-`OrdinaryCoreOnlySources { CurrentConeParsedSources, ImportedHirSet<CorePreludeOnly> }`。该product私有持有两项
-borrow，并把生命周期绑定到产生它的同一个parsed request与semantic identity session；构造器拒绝把reserved core
-当作ordinary current Cone，hir-lower也不提供接收裸current AST后由编排层另取一个core prelude重配的入口。
-
-它只暴露prelude候选层和well-known relation，没有ordinary package/exact/star/re-export枚举API：
-
-- 省略import时的prelude lookup可选中core typed target；
-- 源码显式`import scoop.core.X`、`import scoop.core.*`与任何`public import`仍以阶段能力诊断结束；
-- generic/structural target或替换/materialization需要generic/structural/ODR能力时，报告
-  `SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE`；HIR中的`ParamFreeCandidate`若未被同一artifact的MIR bridge
-  证明为strong implementation，报告`SCOOPC_CAPABILITY_CORE_IMPLEMENTATION_UNAVAILABLE`；
-- raw prelude candidate只用于overload/type/value适用性检查；只有其私有构造的
-  `SelectedImportedCoreTarget`可进入selected set。该proof只能由candidate的
-  `select_param_free_strong`在同一`ValidatedCoreInterface`精化结果上产生；callable的
-  `ParamFreeCandidate`本身不能进入selected set，`StructuralUnavailable`、`GenericUnavailable`和缺失MIR
-  implementation分别返回上述稳定诊断，不能把raw target或persistent id直接提升；
-- HIR lowering在该proof的borrow期内构造唯一`SelectedImportedCoreSet<'core>` sidecar。它按
-  binding去重，并为callable/type/value分别分配`ImportedCoreCallableId`/
-  `ImportedCoreTypeId`/`ImportedCoreValueId`三种request-local typed id；三种id不是wire identity，
-  只能在同一sidecar内解引用到仍借用原artifact的`SelectedImportedCoreTarget`。HIR表达式与
-  type/value reference不保存裸persistent id，也不把core declaration复制进current-Cone arena。callable id进入
-  HIR表达式前还必须由其selected set绑定成`ImportedCoreCallableRef { selection-world, callable-id }`；
-  `selection-world`是不可序列化、不可由调用方构造的进程内品牌，因此两个请求即使都分配了callable index 0也不能
-  互换引用，sidecar只解析由自身品牌化的ref。Export HIR与LocalConcrete HIR分别持有不同element type的
-  imported-callable arena，call expression只保存本层arena id；concretization逐项转置并保留品牌化ref。
-  `OrdinaryHirOutput<'core>`构造时要求两张arena逐项相等且全部可由同一selected set解析，同时拒绝reserved core与
-  core shape-support materialization；未原子绑定该sidecar的裸`Output`不能进入ordinary MIR入口。selected set与
-  其中的target只借用artifact拥有的foundation/interface/strong-binding surface，不借用临时
-  `ImportedHirSet<CorePreludeOnly>`包装或其候选Vec；lowering结束后包装可以销毁，而sidecar必须继续由原artifact
-  lifetime约束并随HIR stage product进入后续投影；
-- M23-3的selected HIR callable contract尚不携带可独立验证的跨Cone `@NoGC` authority，因此普通/managed函数可
-  调用上述target，`@NoGC`函数中的imported core call在HIR阶段稳定拒绝；不得把缺失的effect proof猜成NoGC。后续若
-  开放该能力，必须先把GC effect加入HIR/MIR canonical foundation和strong bridge并做双层重放，不能只信源码属性；
-- 本阶段跨Cone callable只接受无receiver的`Effect::Ordinary`精确签名；suspend callable与带receiver的member
-  callable在MIR投影边界稳定拒绝。前者需要先把跨Cone coroutine hidden ABI与其shape-support closure纳入strong
-  bridge，后者需要先定义receiver dispatch/ownership proof，均不得借本地call lowering的结构猜测；
-- driver从共有依赖闭包投影普通HIR callable，并按实际初始化需求加入经typed bridge验证的初始化服务，
-  原子构造唯一`SelectedExternalMirSet`。每条记录拥有provider、typed declaration、implementation、signature及
-  普通调用/初始化服务角色；选择引用使用共有`SelectedExternalMirCallableId`，与实际MIR use id不同。
-  MIR集合不借用core foundation或production，不另保留core专用品牌或协议sidecar。
-  LIR初始化服务与普通调用投影后进入同一个`SelectedExternalLirSet`，使用与MIR相同的语义角色枚举；每项拥有完整
-  canonical ABI、calling convention、root plan、symbol及definition，不借用provider对象。String capability及
-  `shape_support_plan`仍通过共有foundation投影完整`ExternalTypeDescriptor`；它作为独立的Local/External描述符输入，
-  不再捆绑在core callable选择集合中；
-  普通Cone lowering据此只产生共有`TypeDescriptorRef::External`及external definition requirement，不能本地复制String
-  layout/scan/TypeDescriptor。core producer则必须产生`TypeDescriptorRef::Local`。LIR meta不保留只能指向本地arena的
-  well-known String `LayoutId`；String物理格式由封闭intrinsic representation和target ABI决定；
-- `mir-lower`返回持有完整共有选择的`DependencyMirOutput`；HIR已决定协议在本地定义还是导入。
-  输出和strong sealer使用同一个`StrongExternalCallableInput::{Unused, Selected}`校验入口，统一检查consumer、
-  完整数量、选择引用、每项至少一个direct call使用及重复implementation；初始化服务必须无receiver且使用Managed effect。
-  `Unused`仅用于没有任何外部callable的图。解析后的自有根保存在单一完整表中，旧metadata边界按角色投影，不能按provider归类；
-- `lir-lower`只有一个正式入口，接收完整`SelectedExternalLirSet`和显式String描述符输入。共有路径逐项核对
-  provider、declaration、角色、strong owner、exact signature及GC effect，再查找receiver/参数/结果的exact MIR类型，
-  由同一ABI分类器生成物理签名。成功项按MIR use-id建立到共有`ExternalCallableId`的全映射；角色仅决定旧metadata
-  origin，普通core callable不会被当作初始化服务。不存在symbol-only、普通extern或本地callable回退；
-  String测试也使用正式描述符输入，不保留仅测试可用的authority分支；
-- consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
-- package/name只参与lookup与诊断，不作为external symbol或identity fallback。
-
-M23-5把普通direct dependency surface接入同一resolver层级，M23-7开放generic core template；两者都不会改变本阶段prelude target的origin identity。
+- 名称、package、exact/star import、alias与prelude只决定候选查找；实体判等使用真实provider及类型化声明ID。
+- 候选适用性、可见性、参数协议、默认值、effect和声明规则由前端检查；选中的声明引用和完整typed表达式进入HIR。
+- 共有`SelectedExternalMirSet`保存实际provider、declaration、implementation、签名及调用角色；本地与外来实体
+  使用各自准确的typed ID，不凭同名或同布局替代身份。
+- 共有`SelectedExternalLirSet`与类型/布局依赖查询提供canonical ABI、descriptor、symbol与definition。
+  receiver、参数和结果按实际类型表示分类，`@NoGC`按真实effect判断；普通core callable不改写成初始化服务。
+- 完整MIR/LIR中的外来引用由相应arena解析。已完成且未改变的选择与布局数据直接复用，不为后续操作再生成凭证。
+- codegen发射实际provider的外部引用与relocation，不复制依赖body、TypeDescriptor、storage或helper。
+- generic ODR、multi-image startup与artifact-only program-link仍分别属于后续里程碑；本阶段完成所要求的
+  非泛型源码消费、完整产物发布及适用的链接运行。
 
 ### 7.6 param-free shape-support closure
 

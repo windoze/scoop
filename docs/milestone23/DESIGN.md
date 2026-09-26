@@ -246,7 +246,7 @@ ImportedTarget = Function { origin: PersistentFunctionId, witness: FunctionImpor
 
 `sources`说明本Cone为何有权看到该target，target的kind-specific `origin`说明它究竟是哪一个实体。普通exact/star import可使用两个source分支；`public import`的source集合必须非空且全部是`DirectDependency`，不能把`CurrentCone` binding复制成re-export。链式re-export只延长dependency witness，不改变target origin。
 
-钻石图中先按kind-specific origin id合并target，再对其所有合法source witness排序去重；不能在第一次命中时丢弃其余路径。`DirectDependency` source的canonical key为`(provider canonical coordinate, provider_identity, exported_binding persistent id, witness中的逐跳{ConeIdentity, export binding persistent id})`，`CurrentCone` source则使用persistent local binding/source identity；session-local `DirectDependencyId`、artifact加载顺序和路径长度都不参与判等。诊断选择排序后的第一条路径作主说明并可列出其余路径；re-export metadata保存完整排序后的source集合，因此删除任一路径都会确定性改变snapshot/fingerprint，而保留的另一条路径仍能继续授权。不同origin即使package/name/signature文本相同也保持不同候选并按普通重复/歧义规则处理。禁止用可任意cast的`PersistentEntityId<Kind>`或裸32-byte值绕过封闭target sum。
+钻石图中先按kind-specific origin id合并target，再对其所有合法source witness排序去重；不能在第一次命中时丢弃其余路径。`DirectDependency` source的canonical key为`(provider canonical coordinate, provider_identity, exported_binding persistent id, witness中的逐跳{ConeIdentity, export binding persistent id})`，`CurrentCone` source则使用persistent local binding/source identity；session-local `DirectDependencyId`、artifact加载顺序和路径长度都不参与判等。诊断选择排序后的第一条路径作主说明并可列出其余路径；re-export metadata保存完整排序后的source集合，因此删除任一路径都会确定性改变snapshot/fingerprint，而保留的另一条路径仍可用于名称解析。不同origin即使package/name/signature文本相同也保持不同候选并按普通重复/歧义规则处理。禁止用可任意cast的`PersistentEntityId<Kind>`或裸32-byte值绕过封闭target sum。
 
 split package允许存在，但不合并实体identity。exact selector若命中不同origin的非overloadable实体，报告含Cone coordinate的歧义；函数/extension的不同origin可形成同一候选层中的overload set，相同展开签名仍是歧义而不是偷偷按dependency顺序覆盖。`as`作用于已经唯一解析的exact selector，不能用来让一个本身歧义的selector任取其一。
 
@@ -270,7 +270,7 @@ split package允许存在，但不合并实体identity。exact selector若命中
 
 ### 2.4 re-export表面
 
-`public import`只允许最终target至少由一个direct dependency surface授权（implicit core也算direct edge），且合并后的source witness集合必须全部为`DirectDependency`；同一origin可以同时由多个direct dependency surface授权。当前Cone自己的public声明已经由普通export规则进入表面，不需要也不能经public import复制。dependency surface中的target可以本身是re-export，因此链式转发合法。
+`public import`的最终target必须可从至少一个direct dependency surface解析（implicit core也算direct edge），且合并后的source witness集合必须全部为`DirectDependency`；同一origin可以同时由多个direct dependency surface公开。当前Cone自己的public声明已经由普通export规则进入表面，不需要也不能经public import复制。dependency surface中的target可以本身是re-export，因此链式转发合法。
 
 re-export不生成wrapper、forwarder、第二个TypeDescriptor、第二个typealias target或第二份generic body。`.slib`只写：
 

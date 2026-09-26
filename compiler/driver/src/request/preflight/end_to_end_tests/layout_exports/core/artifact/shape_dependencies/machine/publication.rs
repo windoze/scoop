@@ -19,7 +19,6 @@ pub(super) fn check<'a, 'p>(
             coordinates[1].clone(),
             &[provider.layout.provider()],
             lir::EntryProductionSourceV1::Library,
-            selected,
             &[],
         )
         .unwrap();

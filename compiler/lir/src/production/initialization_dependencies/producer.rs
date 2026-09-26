@@ -5,12 +5,10 @@ use crate::{
     ExternalStrongShapeSubjectV1, ShapeLinkContractV1, StrongProductionDependencySelectionV2,
 };
 
-/// One checked final-LIR use of a dependency initialization unit. The use
-/// retains the provider's complete Strong definition and the selected
-/// physical descriptor import; callers cannot construct it from a unit id.
+/// An actual local unit and its dependency definition. Symbol/definition
+/// consistency is checked once when the physical import is resolved.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongExternalInitializationUseV2 {
-    consumer: ConeIdentity,
     local_unit: PersistentInitializationUnitId,
     dependency: StrongInitializationUnitDefinitionRefV2,
 }
@@ -21,28 +19,9 @@ impl StrongExternalInitializationUseV2 {
         dependency: StrongInitializationUnitDefinitionRefV2,
         selected: &StrongProductionDependencySelectionV2<'_>,
     ) -> Result<Self, StrongExternalInitializationUseErrorV2> {
-        let value = Self {
-            consumer: selected.consumer(),
-            local_unit,
-            dependency,
-        };
-        value.validate_against(selected)?;
-        Ok(value)
-    }
-
-    pub(crate) fn validate_against(
-        self,
-        selected: &StrongProductionDependencySelectionV2<'_>,
-    ) -> Result<(), StrongExternalInitializationUseErrorV2> {
-        if self.consumer != selected.consumer() {
-            return Err(StrongExternalInitializationUseErrorV2::ConsumerMismatch {
-                expected: self.consumer,
-                actual: selected.consumer(),
-            });
-        }
-        let provider = self.dependency.provider();
-        let unit = self.dependency.unit();
-        if self.consumer == provider {
+        let provider = dependency.provider();
+        let unit = dependency.unit();
+        if selected.consumer() == provider {
             return Err(StrongExternalInitializationUseErrorV2::CurrentProvider { provider });
         }
 
@@ -62,23 +41,22 @@ impl StrongExternalInitializationUseV2 {
             return Err(StrongExternalInitializationUseErrorV2::ContractKind { provider, unit });
         };
         if unit_projection.unit() != unit
-            || import.expected_symbol() != self.dependency.descriptor().symbol()
-            || import.required_definition() != self.dependency.descriptor().plan()
+            || import.expected_symbol() != dependency.descriptor().symbol()
+            || import.required_definition() != dependency.descriptor().plan()
         {
             return Err(StrongExternalInitializationUseErrorV2::DefinitionMismatch {
                 provider,
                 unit,
             });
         }
-        Ok(())
+        Ok(Self {
+            local_unit,
+            dependency,
+        })
     }
 
     pub const fn local_unit(self) -> PersistentInitializationUnitId {
         self.local_unit
-    }
-
-    pub const fn consumer(self) -> ConeIdentity {
-        self.consumer
     }
 
     pub const fn provider(self) -> ConeIdentity {
@@ -96,11 +74,6 @@ impl StrongExternalInitializationUseV2 {
 
 #[derive(Debug)]
 pub enum StrongExternalInitializationUseErrorV2 {
-    Resource(scoop_wire::WireError),
-    ConsumerMismatch {
-        expected: ConeIdentity,
-        actual: ConeIdentity,
-    },
     CurrentProvider {
         provider: ConeIdentity,
     },
@@ -116,12 +89,6 @@ pub enum StrongExternalInitializationUseErrorV2 {
         provider: ConeIdentity,
         unit: PersistentInitializationUnitId,
     },
-}
-
-impl From<scoop_wire::WireError> for StrongExternalInitializationUseErrorV2 {
-    fn from(error: scoop_wire::WireError) -> Self {
-        Self::Resource(error)
-    }
 }
 
 impl std::fmt::Display for StrongExternalInitializationUseErrorV2 {

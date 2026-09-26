@@ -264,7 +264,17 @@ impl ObjectDefinitionPlanKey {
         else {
             return None;
         };
-        match (entity.kind(), role) {
+        entity.primary_symbol_key(role)
+    }
+}
+
+impl StrongDefinitionEntity {
+    /// Resolves the symbol role from the entity kind, independently of its provider.
+    pub const fn primary_symbol_key(
+        self,
+        role: StrongDefinitionRole,
+    ) -> Option<PersistentSymbolKey> {
+        match (self.kind(), role) {
             (StrongDefinitionEntityKind::CallableBody(id), StrongDefinitionRole::CallableBody) => {
                 Some(PersistentSymbolKey::CallableBody(id))
             }

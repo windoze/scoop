@@ -35,54 +35,62 @@ impl StrongRegistrationProductionSurfaceV2 {
         )
     }
 
-    /// Builds the V2 registration surface from final LIR and the exact
-    /// request-local external selections used by that graph.
+    /// Computes local runtime semantics once for digests and registrations.
     pub fn from_module(
         module: &Module,
         foundation: &OdrFreeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
-        selected: &crate::StrongProductionDependencySelectionV2<'_>,
+        entry_source: &crate::EntryProductionSourceV1,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
-    ) -> Result<Self, StrongRegistrationProductionBuildError> {
+    ) -> Result<(StrongDigestFinalizationPlanV1, Self), StrongRegistrationProductionBuildError>
+    {
         if module.cone != foundation.producer() {
             return Err(StrongRegistrationProductionBuildError::ProducerMismatch {
                 module: module.cone,
                 foundation: foundation.producer(),
             });
         }
-
-        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
-            .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let safepoint_semantics = StrongSafepointSemanticPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::SafepointSemantics)?;
-        let type_semantics =
-            crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module, selected)
-                .map_err(StrongRegistrationProductionBuildError::TypeSemantics)?;
+        let type_semantics = crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module)
+            .map_err(StrongRegistrationProductionBuildError::TypeSemantics)?;
         let immortal_semantics = StrongImmortalObjectSemanticPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::ImmortalSemantics)?;
+        let local_initialization =
+            StrongInitializationUnitSemanticPlanSetV1::from_module(module)
+                .map_err(StrongRegistrationProductionBuildError::InitializationSemantics)?;
+        let digests = crate::project_strong_digest_finalization_plan(
+            foundation,
+            entry_source,
+            &safepoint_semantics,
+            &type_semantics,
+            &immortal_semantics,
+            &local_initialization,
+        )
+        .map_err(StrongRegistrationProductionBuildError::Digests)?;
+        let identities = StrongRegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
+            .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let initialization_semantics =
-            crate::StrongInitializationUnitSemanticPlanSetV2::from_module(
-                module,
+            crate::StrongInitializationUnitSemanticPlanSetV2::from_local_semantics(
+                local_initialization,
                 foundation,
                 &identities,
-                digests,
-                selected,
+                &digests,
                 external_initialization_uses,
             )
             .map_err(StrongRegistrationProductionBuildError::InitializationSemanticsV2)?;
         let callable_runtime_scans = StrongCallableRuntimeScanPlanSetV1::from_module(module)
             .map_err(StrongRegistrationProductionBuildError::CallableRuntimeScans)?;
-
-        Self::from_semantics(
+        let registrations = Self::from_semantics(
             module.meta.target_profile,
             foundation,
-            digests,
+            &digests,
             identities,
             callable_runtime_scans,
             type_semantics,
             safepoint_semantics,
             immortal_semantics,
             initialization_semantics,
-        )
+        )?;
+        Ok((digests, registrations))
     }
 }

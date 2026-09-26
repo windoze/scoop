@@ -272,15 +272,15 @@ validation_policy   = {
 
 前三条payload的完整canonical inner bytes分别成为对应layer contribution。Link closure的semantic projection（provider/target/symbol/definition，不含member/range/offset）进入Code contribution；物理use site、member range和verification index只作`LinkValidationOnly`，必须从object与semantic projection完全重算。
 
-`cross-cone-link-closure/1`不产生LIR contribution，不能被Compile reader用来补一个缺失的semantic bridge。反之Compile-only bridge不能被Link reader当作物理proof。只有同一artifact完成两种view并通过3.4 dual-view equality后，才成为可发布handle。
+`cross-cone-link-closure/1`不产生LIR contribution，不能补全缺失的semantic bridge。Compile bridge也不能替代真实object的symbol与relocation检查。Compile/Link共用同一份已检查语义，发布直接使用同次编译的完整结果，见3.4。
 
-### 3.3 旧capability不改义
+### 3.3 与M23-6共有产物的衔接
 
-- `core-bootstrap-interface/1`继续保存output contract、direct public binding inventory、prelude与well-known core协议；M23-5 general HIR section的current-owned direct binding投影必须逐byte等于该inventory，re-export不写回旧字段；
-- `core-bootstrap-bridge/1`和`strong-production/1.external_bridges`继续只描述M23-3 trusted-core consumer路径；ordinary dependency使用新arena，不能把provider identity塞入`CoreStrong { core }`字段；
-- `link-identity-closure/1`继续精确覆盖其既有intra-Cone/core/generated/native/runtime/target分区；ordinary dependency object relocation从构造时即属于新的`CrossConeStrongRelocation`分区，不进入旧closure的coverage输入；
-- object union coverage额外证明：每个raw undefined relocation恰属于旧closure或新cross-Cone closure之一，二者use site集合不相交，联合后无遗漏；
-- `single-cone-production/1`的Code计算继续使用既有通用“known Link-required contribution”入口纳入新section，不改变旧字段、tag或hash domain。
+- HIR production section保存output contract、direct public binding和语言协议的实际typed声明引用；普通声明与必要支持信息由共有HIR接口保存，不维护Core/NotCore资格分支。
+- MIR production保存entry与实际strong callable关系，普通调用和初始化服务经同一共有callable路径进入LIR。已退役的core external bridge字段不保留空表或兼容路径。
+- Link按实际provider、typed target、symbol和definition处理跨Cone引用。原有core独立requirement与owner分区已经退役；本地生成、native、runtime、target与普通跨Cone引用继续按各自实际对象用途检查。
+- 每个raw undefined relocation必须在对应的正常引用记录中有准确use site与合同；已验证的类型和ABI直接复用，不另做来源资格证明。
+- capability改变编码含义时使用当前版本并要求旧产物重建；退役字段和tag不复用。Code contribution仍由实际Link所需数据计算，不绑定预算或证明策略。
 
 ### 3.4 profile迁移与双视图
 
@@ -344,9 +344,9 @@ M23-2 HIR foundation field 16继续保存所有current-exporter的`PersistentExp
 
 - direct declaration binding的target由当前artifact声明；
 - re-export binding的`ExportBindingKey.exporter`仍是当前Cone，但target可以是dependency声明的persistent id；
-- 解析re-export key前，closure validator必须已经从terminal provider导入该target的canonical identity key；只登记raw digest而没有validated provider authority不能满足；
+- 解析re-export key前，closure validator必须已经从terminal provider导入该target的canonical identity key；只登记raw digest而没有对应provider的canonical声明不能满足；
 - re-export identity按既有`ExportBindingKey { exporter, package, namespace, name, target, role }`重算，不新增`PersistentReexportId`；
-- 同一destination/name/target但route集合变化时binding id不变、surface payload与HIR fingerprint变化。这保证route是可失效的授权证据，不错误成为实体identity。
+- 同一destination/name/target但route集合变化时binding id不变、surface payload与HIR fingerprint变化。route记录实际名称解析和依赖路径，用于诊断、re-export与缓存失效，不参与实体identity，也不承担额外授权。
 
 ### 4.4 world输出
 
@@ -665,7 +665,7 @@ PublicMemberRefV1 =
   | Property(PropertyDeclarationId)                    // tag 2
 ```
 
-前三个sum分别逐byte等同既有`NominalDeclarationOwner`、`CallableTemplateOrigin`和`PropertyOwner`编码，reader复用其decoded type与canonical identity resolver；不得重新分配tag，也不得把它们退化成`{ kind: integer, digest: bytes }`。`PublicMemberRefV1`是新增的外层kind sum。source constructor在nominal的`constructors`列出并另有callable/source interface，enum variant在`source_shape`列出且其payload constructor另有callable/source interface，nested nominal/value通过`nested_bindings`授权；这些实体都不得再重复出现在`members`。
+前三个sum分别逐byte等同既有`NominalDeclarationOwner`、`CallableTemplateOrigin`和`PropertyOwner`编码，reader复用其decoded type与canonical identity resolver；不得重新分配tag，也不得把它们退化成`{ kind: integer, digest: bytes }`。`PublicMemberRefV1`是新增的外层kind sum。source constructor在nominal的`constructors`列出并另有callable/source interface，enum variant在`source_shape`列出且其payload constructor另有callable/source interface，nested nominal/value由`nested_bindings`引用；这些实体都不得再重复出现在`members`。
 
 四类table主键与内部集合顺序固定为：
 

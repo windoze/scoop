@@ -251,17 +251,11 @@ fn check_core_layout_exports(names: &[&str]) {
         )
         .unwrap_or_else(|error| panic!("{name} MIR exports: {error}"));
         shared_accessors::check(name, mir_input, &bridge);
-        let selected = lir::StrongProductionDependencySelectionV2::empty(
-            ConeIdentity::CORE,
-            target.lir_target(),
-        )
-        .unwrap();
         let registration = lir
             .build_production_section_v2(
                 coordinates[0].clone(),
                 &[],
                 lir::EntryProductionSourceV1::Library,
-                &selected,
                 &[],
             )
             .unwrap();

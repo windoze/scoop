@@ -5,8 +5,8 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, DecodedPersistentId, DecodedStrongDefinitionEntity, GeneratedBridgeAtomId,
-    ObjectDefinitionAtomId, ObjectDefinitionPlanKey, StrongDefinitionEntity,
-    StrongDefinitionEntityKind, StrongDefinitionRole,
+    ObjectDefinitionAtomId, StrongDefinitionEntity, StrongDefinitionEntityKind,
+    StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -27,9 +27,9 @@ impl StrongDefinitionOwnerV1 {
         entity: StrongDefinitionEntity,
         role: StrongDefinitionRole,
     ) -> Result<Self, StrongDefinitionOwnerValidationError> {
-        ObjectDefinitionPlanKey::strong(ConeIdentity::CORE, entity, role).map_err(|_| {
-            StrongDefinitionOwnerValidationError::EntityRoleMismatch { entity, role }
-        })?;
+        entity
+            .primary_symbol_key(role)
+            .ok_or(StrongDefinitionOwnerValidationError::EntityRoleMismatch { entity, role })?;
         if matches!(
             entity.kind(),
             StrongDefinitionEntityKind::GeneratedBridgeAtom(_)

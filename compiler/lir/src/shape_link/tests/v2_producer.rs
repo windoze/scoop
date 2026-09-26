@@ -3,8 +3,6 @@ use scoop_wire::{decode_canonical, encode};
 
 use crate::*;
 
-mod callables;
-mod descriptors;
 mod fixture;
 mod initialization_fixture;
 mod lir_fixture;
@@ -106,7 +104,6 @@ fn exercise_dependency_production(provider: Provider) {
             consumer_coordinate.clone(),
             &[provider.identity],
             EntryProductionSourceV1::Library,
-            &selected,
             &[initialization_use],
         )
         .unwrap();

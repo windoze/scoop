@@ -349,23 +349,6 @@ pub enum StrongTypeDescriptorSemanticPlanBuildError {
         exact_type: PersistentExactTypeId,
         index: u32,
     },
-    SelectionConsumer {
-        expected: ConeIdentity,
-        actual: ConeIdentity,
-    },
-    SelectionTarget {
-        expected: LirTargetProfile,
-        actual: LirTargetProfile,
-    },
-    DescriptorSelectionMismatch {
-        provider: ConeIdentity,
-        exact: PersistentExactTypeId,
-    },
-    CallableSelectionMismatch {
-        provider: ConeIdentity,
-        target: scoop_identity::StrongCallableDefinitionOwner,
-    },
-    ExternalMaterialization(crate::LayoutExternalMaterializationError),
 }
 
 impl fmt::Display for StrongTypeDescriptorSemanticPlanBuildError {

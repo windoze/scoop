@@ -43,7 +43,6 @@ pub(super) fn check(
                 input.coordinates[1].clone(),
                 &[first.provider()],
                 lir::EntryProductionSourceV1::Library,
-                selected,
                 &candidate,
             )
             .unwrap();
