@@ -6,7 +6,7 @@ type FieldRecord = CborIdentityRecord<PersistentFieldId, FieldIdentityKey>;
 
 pub(super) struct Fields {
     identities: Vec<FieldRecord>,
-    values: Vec<Arc<lir::ExactValueLayoutV1>>,
+    values: Vec<lir::ValueLayoutConstituentV1>,
 }
 impl Fields {
     pub(super) fn inputs<'a>(&'a self) -> Result<Vec<lir::NominalLayoutFieldInputV1<'a>>> {
@@ -24,7 +24,7 @@ impl Projection<'_> {
         let mut values = self.reserve(source.len())?;
         for field in source {
             identities.push(self.identities.canonical_record(field.field)?);
-            values.push(self.value_dependency(field.value)?);
+            values.push(self.value_constituent(field.value)?);
         }
         Ok(Fields { identities, values })
     }

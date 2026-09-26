@@ -38,6 +38,7 @@ fn dependency_constructors_compile_and_run_through_actual_artifacts() {
         "aliases",
         "structural",
         "tuple-constructor",
+        "tuple-fields",
     ] {
         let name = format!("constructors-{case}");
         let root = sysroot.path().join(&name);
@@ -116,6 +117,7 @@ fn dependency_constructors_compile_and_run_through_actual_artifacts() {
         "wrong-tuple-identity",
         "wrong-tuple-arity",
         "wrong-constructor-tuple",
+        "wrong-tuple-field",
     ] {
         let root = sysroot.path().join(case);
         let source = source(case);

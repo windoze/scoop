@@ -61,11 +61,18 @@ impl Replay<'_> {
                         {
                             return Err(Error::CLayout(source.exact()));
                         }
+                        let mut dependencies = self.reserve(fields.len())?;
+                        for field in &fields {
+                            dependencies.push(self.value_dependency(field.value.exact())?);
+                        }
+                        let mut nested = self.reserve(dependencies.len())?;
+                        nested.extend(dependencies.iter().map(AsRef::as_ref));
                         lir::ExactValueLayoutV1::c_struct(
                             identity,
                             *interior_mutable,
                             &fields,
                             contract,
+                            &nested,
                             foundation,
                         )?
                     }

@@ -7,7 +7,10 @@ pub(super) fn aggregate() -> ExactLayoutExportV1 {
     let inputs: Vec<_> = fields
         .iter()
         .zip(&values)
-        .map(|(field, value)| NominalLayoutFieldInputV1 { field, value })
+        .map(|(field, value)| NominalLayoutFieldInputV1 {
+            field,
+            value: value.value(),
+        })
         .collect();
     let bound = Bound::value(exact(&owner));
     ExactValueLayoutV1::ordinary_struct(bound.identity, true, &inputs, &bound.foundation)
@@ -61,7 +64,16 @@ pub(super) fn enumeration(niche: bool) -> ExactLayoutExportV1 {
     let field_inputs: Vec<_> = fields
         .iter()
         .zip(&values)
-        .map(|(field, value)| [EnumLayoutFieldInputV1 { field, value }])
+        .map(|(field, value)| {
+            [EnumLayoutFieldInputV1 {
+                field,
+                value: value.value(),
+                pointer_kind: match value.representation().kind() {
+                    ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+                    _ => None,
+                },
+            }]
+        })
         .collect();
     let variants = [
         EnumLayoutVariantInputV1 {

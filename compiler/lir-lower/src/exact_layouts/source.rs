@@ -72,21 +72,6 @@ impl<'a> Projection<'a> {
     }
 
     pub(super) fn exact_of(&mut self, ty: &mir::Type) -> Result<PersistentExactTypeId> {
-        if !matches!(
-            ty,
-            mir::Type::Unit
-                | mir::Type::Any
-                | mir::Type::Boolean
-                | mir::Type::Integer(_)
-                | mir::Type::String
-                | mir::Type::Class(_)
-                | mir::Type::Interface(_)
-                | mir::Type::Struct(_)
-        ) && !matches!(ty, mir::Type::Enum(_, arguments) if arguments.is_empty())
-        {
-            return Err(ExactLayoutLoweringError::MissingSourceExact);
-        }
-
         if let Some(record) = self.module.meta.source_exact_types.get(ty) {
             let exact = record.identity_record().id();
             self.validate_location(ty, exact)?;

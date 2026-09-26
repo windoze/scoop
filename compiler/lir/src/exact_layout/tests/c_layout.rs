@@ -48,7 +48,10 @@ fn c_layout_record_replays_packing_and_requires_its_canonical_foundation_contrac
     let inputs: Vec<_> = fields
         .iter()
         .zip(values)
-        .map(|(field, value)| NominalLayoutFieldInputV1 { field, value })
+        .map(|(field, value)| NominalLayoutFieldInputV1 {
+            field,
+            value: value.value(),
+        })
         .collect();
     let bound = Bound::value(exact(&owner));
     let correct = contract(bound.identity.exact(), &fields, &values, 1);
@@ -58,6 +61,7 @@ fn c_layout_record_replays_packing_and_requires_its_canonical_foundation_contrac
             false,
             &inputs,
             &correct,
+            &[],
             &bound.foundation
         ),
         Err(ExactLayoutReplayError::MissingCLayout)
@@ -73,6 +77,7 @@ fn c_layout_record_replays_packing_and_requires_its_canonical_foundation_contrac
             false,
             &inputs,
             &contract,
+            &[],
             &foundation,
         );
         if success {

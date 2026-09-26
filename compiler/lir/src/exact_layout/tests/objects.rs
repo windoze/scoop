@@ -47,7 +47,7 @@ fn object_record_keeps_source_exact_and_replays_backing_fields_after_base_prefix
         ClassLayoutBaseV1::NoBase,
         &[NominalLayoutFieldInputV1 {
             field: &base_field,
-            value: &byte,
+            value: byte.value(),
         }],
         &bound.foundation,
     )
@@ -67,11 +67,11 @@ fn object_record_keeps_source_exact_and_replays_backing_fields_after_base_prefix
         &[
             NominalLayoutFieldInputV1 {
                 field: &reference,
-                value: &reference_value,
+                value: reference_value.value(),
             },
             NominalLayoutFieldInputV1 {
                 field: &marker,
-                value: &unit,
+                value: unit.value(),
             },
         ],
         &bound.foundation,
@@ -105,7 +105,7 @@ fn object_record_requires_matching_backing_key_and_generated_field_owner() {
             ClassLayoutBaseV1::NoBase,
             &[NominalLayoutFieldInputV1 {
                 field: &member,
-                value: &unit
+                value: unit.value()
             }],
             &bound.foundation,
         ),
@@ -128,7 +128,7 @@ fn object_record_requires_matching_backing_key_and_generated_field_owner() {
             ClassLayoutBaseV1::NoBase,
             &[NominalLayoutFieldInputV1 {
                 field: &wrong_member,
-                value: &unit
+                value: unit.value()
             }],
             &bound.foundation,
         ),

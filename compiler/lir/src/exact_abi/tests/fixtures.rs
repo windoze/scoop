@@ -63,7 +63,7 @@ pub(super) fn aggregate(zst: bool) -> ExactLayoutExportV1 {
     let field = field(&owner, "byte");
     let input = [NominalLayoutFieldInputV1 {
         field: &field,
-        value: &value,
+        value: value.value(),
     }];
     let bound = Bound::value(exact(&owner));
     ExactValueLayoutV1::ordinary_struct(
@@ -139,7 +139,11 @@ pub(super) fn enumeration(payload: &ExactValueLayoutV1) -> ExactLayoutExportV1 {
     .unwrap();
     let fields = [EnumLayoutFieldInputV1 {
         field: &field,
-        value: payload,
+        value: payload.value(),
+        pointer_kind: match payload.representation().kind() {
+            ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+            _ => None,
+        },
     }];
     let inputs = [
         EnumLayoutVariantInputV1 {

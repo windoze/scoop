@@ -11,7 +11,7 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 pub struct NominalLayoutFieldInputV1<'a> {
     pub field: &'a CborIdentityRecord<PersistentFieldId, FieldIdentityKey>,
-    pub value: &'a ExactValueLayoutV1,
+    pub value: &'a ValueLayoutConstituentV1,
 }
 
 pub(super) fn nominal_fields<'a>(
@@ -41,14 +41,11 @@ pub(super) fn nominal_fields_for_owner<'a>(
         if actual != owner {
             return Err(ExactLayoutReplayError::FieldOwner);
         }
-        if field.value.identity.target() != identity.target() {
+        if field.value.target() != identity.target() {
             return Err(ExactLayoutReplayError::DependencyTarget);
         }
 
-        declared.push(DeclaredFieldStorageV1::new(
-            field.field.id(),
-            &field.value.value,
-        ));
+        declared.push(DeclaredFieldStorageV1::new(field.field.id(), field.value));
     }
     Ok(declared)
 }
@@ -81,6 +78,7 @@ impl ExactValueLayoutV1 {
         interior_mutable: bool,
         fields: &[NominalLayoutFieldInputV1<'_>],
         contract: &scoop_identity::CanonicalCAbiLayoutFingerprintRecord,
+        dependencies: &[&ExactValueLayoutV1],
         foundation: &OdrFreeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(
@@ -95,12 +93,12 @@ impl ExactValueLayoutV1 {
             return Err(ExactLayoutReplayError::MissingCLayout);
         }
         let declared = nominal_fields(&identity, fields)?;
-        let mut nested = reserve(fields.len())?;
-        for field in fields {
+        let mut nested = reserve(dependencies.len())?;
+        for value in dependencies {
             if let ValueRepresentation::Struct(StructRepresentationLayoutV1 {
                 policy: StructLayoutPolicyV1::CLayout(layout),
                 ..
-            }) = &field.value.representation.0
+            }) = &value.representation.0
             {
                 nested.push(layout);
             }

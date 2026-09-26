@@ -93,7 +93,7 @@ fn nested_tuple_fields_expand_only_to_nominal_leaves() {
 }
 
 #[test]
-fn tuple_signatures_and_non_tuple_structural_fields_are_gated() {
+fn structural_fields_preserve_types_without_standalone_materialization() {
     let fixture = Fixture::new();
     let (graph, exacts) = structural_graph(&fixture);
     for exact in &exacts {
@@ -101,11 +101,14 @@ fn tuple_signatures_and_non_tuple_structural_fields_are_gated() {
         assert!(matches!(collector.exact(*exact),
             Err(MirTypeBridgeReferenceError::StructuralExecutionGate(id)) if id == *exact));
     }
-    for exact in &exacts[2..] {
+    for exact in &exacts[2..5] {
         let mut collector = collector::Collector::new(&graph);
-        assert!(matches!(collector.field(*exact),
-            Err(MirTypeBridgeReferenceError::StructuralExecutionGate(id)) if id == *exact));
+        collector.field(*exact).unwrap();
+        assert!(collector.finish().unwrap().targets().is_empty());
     }
+    let mut collector = collector::Collector::new(&graph);
+    assert!(matches!(collector.field(exacts[5]),
+        Err(MirTypeBridgeReferenceError::StructuralExecutionGate(id)) if id == exacts[5]));
 }
 
 fn structural_graph(fixture: &Fixture) -> (ValidatedIdentityGraph, Vec<PersistentExactTypeId>) {

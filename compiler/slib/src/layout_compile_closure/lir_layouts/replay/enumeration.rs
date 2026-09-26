@@ -8,7 +8,7 @@ use super::*;
 struct Variant {
     identity: CborIdentityRecord<PersistentEnumVariantId, EnumVariantIdentityKey>,
     fields: Vec<CborIdentityRecord<PersistentEnumVariantFieldId, EnumVariantFieldKey>>,
-    values: Vec<Arc<lir::ExactValueLayoutV1>>,
+    values: Vec<(lir::ValueLayoutConstituentV1, Option<lir::NichePointerKind>)>,
 }
 
 impl Replay<'_> {
@@ -23,10 +23,13 @@ impl Replay<'_> {
             let mut values = self.reserve(variant.fields.len())?;
             for field in &variant.fields {
                 fields.push(self.identities.canonical_record(field.field)?);
-                values.push(self.value_dependency(field.value)?);
+                values.push((
+                    self.value_constituent(field.value)?,
+                    self.niche_pointer_kind(field.value)?,
+                ));
             }
-            let managed = values.iter().any(|value| {
-                value.value().storage().nonzero().is_some_and(|storage| {
+            let managed = values.iter().any(|(value, _)| {
+                value.storage().nonzero().is_some_and(|storage| {
                     !matches!(storage.scan().as_ref_scan(), lir::RefScan::None)
                 })
             });
@@ -42,13 +45,13 @@ impl Replay<'_> {
         let mut fields = self.reserve(variants.len())?;
         for variant in &variants {
             let mut inputs = self.reserve(variant.fields.len())?;
-            inputs.extend(
-                variant
-                    .fields
-                    .iter()
-                    .zip(&variant.values)
-                    .map(|(field, value)| lir::EnumLayoutFieldInputV1 { field, value }),
-            );
+            inputs.extend(variant.fields.iter().zip(&variant.values).map(
+                |(field, (value, pointer_kind))| lir::EnumLayoutFieldInputV1 {
+                    field,
+                    value,
+                    pointer_kind: *pointer_kind,
+                },
+            ));
             fields.push(inputs);
         }
         let mut inputs = self.reserve(variants.len())?;

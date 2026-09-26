@@ -30,7 +30,11 @@ fn enum_replay_selects_pointer_niche_but_keeps_zst_payload_tagged() {
     for value in [unit(), managed()] {
         let fields = [EnumLayoutFieldInputV1 {
             field: &field,
-            value: &value,
+            value: value.value(),
+            pointer_kind: match value.representation().kind() {
+                ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+                _ => None,
+            },
         }];
         let variants = [
             EnumLayoutVariantInputV1 {
@@ -75,11 +79,19 @@ fn tagged_enum_combines_dedicated_slots_at_enum_relative_offsets() {
     let reference = managed();
     let first_fields = [EnumLayoutFieldInputV1 {
         field: &fields[0],
-        value: &int,
+        value: int.value(),
+        pointer_kind: match int.representation().kind() {
+            ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+            _ => None,
+        },
     }];
     let second_fields = [EnumLayoutFieldInputV1 {
         field: &fields[1],
-        value: &reference,
+        value: reference.value(),
+        pointer_kind: match reference.representation().kind() {
+            ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+            _ => None,
+        },
     }];
     let variants = [
         EnumLayoutVariantInputV1 {
@@ -131,7 +143,11 @@ fn enum_replay_rejects_wrong_variant_and_payload_identity_owners() {
     let unit = unit();
     let fields = [EnumLayoutFieldInputV1 {
         field: &wrong_field,
-        value: &unit,
+        value: unit.value(),
+        pointer_kind: match unit.representation().kind() {
+            ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+            _ => None,
+        },
     }];
     assert!(matches!(
         ExactValueLayoutV1::enumeration(
@@ -172,7 +188,11 @@ fn generated_variant_owner_is_verified_without_source_name_fallback() {
     let field = payload(some.id());
     let fields = [EnumLayoutFieldInputV1 {
         field: &field,
-        value: &value,
+        value: value.value(),
+        pointer_kind: match value.representation().kind() {
+            ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+            _ => None,
+        },
     }];
     let variants = [
         EnumLayoutVariantInputV1 {

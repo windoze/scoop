@@ -24,3 +24,14 @@ public struct TupleOps() {
     public val pair: (Long, Token, Long)
         @NoGC get() = (3, Token(), 9)
 }
+
+public struct TupleBox(val elements: (Token, (Long, Long, Long), Token))
+public struct TupleMarker(val elements: (Token, Token))
+public enum TupleChoice { Empty, Full((Long, Token, Long)) }
+@NoGC public fun tupleChoiceSum(value: (Long, Token, Long)): Long {
+    val choice = TupleChoice.Full(value)
+    return when (choice) {
+        Empty -> 0
+        Full(fields) -> fields._1 + fields._3
+    }
+}

@@ -37,7 +37,7 @@ fn empty_section_roundtrips_as_one_complete_six_field_product() {
 }
 
 #[test]
-fn nested_layout_use_selects_the_unique_terminal_record() {
+fn embedded_field_storage_does_not_require_a_layout_symbol() {
     let remote = cone("remote");
     let consumer = cone("consumer");
     let (remote_value, remote_foundation) = empty_struct(remote, "RemoteValue");
@@ -62,12 +62,7 @@ fn nested_layout_use_selects_the_unique_terminal_record() {
         &[],
     )
     .unwrap();
-    let target = LayoutAbiSemanticTargetV1::Layout(remote_layout);
-    assert!(matches!(
-        selected.selected().record(remote, target),
-        Some(LayoutAbiSemanticRecordV1::Layout(record))
-            if record == terminal.layouts().get(remote_layout).unwrap()
-    ));
+    assert!(selected.selected().is_empty());
 }
 
 #[test]
@@ -113,33 +108,6 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
     assert!(matches!(
         replayed.replay_dependency_closure(&dependencies, &[]),
         Err(LayoutAbiSectionError::SelectedClosure)
-    ));
-}
-
-#[test]
-fn closure_rejects_a_forged_embedded_layout_constituent() {
-    let remote = cone("forged-remote");
-    let consumer = cone("forged-consumer");
-    let (remote_value, remote_foundation) = empty_struct(remote, "Payload");
-    let terminal = section(
-        exports(&remote_foundation, vec![remote_value.clone().into()]),
-        &[],
-        &[],
-    )
-    .unwrap();
-    let forged = scalar_with_identity(remote, remote_value.identity().exact_record().clone());
-    let (boxed, boxed_foundation) = boxed_with_payload(consumer, &forged);
-    let dependencies = [terminal.exports()];
-    let result = section(
-        exports(&boxed_foundation, vec![boxed.into()]),
-        &dependencies,
-        &[],
-    );
-    assert!(matches!(
-        result,
-        Err(LayoutAbiSectionError::Semantic(
-            LayoutAbiSemanticClosureError::EmbeddedRecord(_)
-        ))
     ));
 }
 

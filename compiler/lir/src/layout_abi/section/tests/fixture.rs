@@ -117,49 +117,11 @@ pub(super) fn struct_with_field(
         false,
         &[crate::NominalLayoutFieldInputV1 {
             field: &field,
-            value: &external,
+            value: external.value(),
         }],
         &foundation,
     )
     .unwrap();
-    (value, foundation)
-}
-
-pub(super) fn scalar_with_identity(
-    provider: ConeIdentity,
-    exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
-) -> crate::ExactValueLayoutV1 {
-    let (identity, foundation) = bound(
-        provider,
-        exact,
-        RepresentationRole::ManagedValue,
-        ScanRole::InlineValue,
-    );
-    crate::ExactValueLayoutV1::scalar(
-        identity,
-        crate::ScalarRepresentationKindV1::Integer(crate::IntegerKind::SIGNED_8),
-        &foundation,
-    )
-    .unwrap()
-}
-
-pub(super) fn boxed_with_payload(
-    provider: ConeIdentity,
-    payload: &crate::ExactValueLayoutV1,
-) -> (crate::ExactInstanceLayoutV1, crate::OdrFreeLirFoundation) {
-    let nominal = PersistentTypeId::from_generated_key(&GeneratedNominalKey::BoxedValue {
-        payload: payload.identity().exact(),
-    })
-    .unwrap();
-    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap();
-    let (identity, foundation) = bound(
-        provider,
-        exact,
-        RepresentationRole::ManagedObject,
-        ScanRole::ManagedObject,
-    );
-    let value =
-        crate::ExactInstanceLayoutV1::boxed_payload(identity, payload, &foundation).unwrap();
     (value, foundation)
 }
 

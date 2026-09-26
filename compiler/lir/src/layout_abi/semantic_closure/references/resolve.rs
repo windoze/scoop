@@ -30,27 +30,6 @@ pub(super) fn instance_layout(
     )
 }
 
-pub(super) fn constituent(
-    value: &crate::ValueLayoutConstituentV1,
-    views: &[&LayoutAbiExportConstituentsV1],
-    index: &LayoutAbiTargetIndex,
-    pending: &mut Vec<Pending>,
-) -> Result<(), LayoutAbiSemanticClosureError> {
-    let owner = exact_target(value.layout(), None, views, index, pending)?;
-    let semantic = LayoutAbiSemanticTargetV1::Layout(value.layout());
-    let Some(candidate) = views[owner].layouts().get(value.layout()) else {
-        return Err(LayoutAbiSemanticClosureError::MissingTarget(semantic));
-    };
-    if candidate
-        .value_handle()
-        .is_some_and(|candidate| candidate.value() == value)
-    {
-        Ok(())
-    } else {
-        Err(LayoutAbiSemanticClosureError::EmbeddedRecord(semantic))
-    }
-}
-
 pub(super) fn descriptor_ref(
     reference: crate::StrongTypeDescriptorRefV2,
     current: ConeIdentity,
@@ -72,22 +51,6 @@ pub(super) fn descriptor_ref(
         pending,
     )
     .map(|_| ())
-}
-
-pub(super) fn exact_target(
-    layout: PersistentLayoutId,
-    provider: Option<ConeIdentity>,
-    views: &[&LayoutAbiExportConstituentsV1],
-    index: &LayoutAbiTargetIndex,
-    pending: &mut Vec<Pending>,
-) -> Result<usize, LayoutAbiSemanticClosureError> {
-    target(
-        LayoutAbiSemanticTargetV1::Layout(layout),
-        provider,
-        views,
-        index,
-        pending,
-    )
 }
 
 fn exact_record(

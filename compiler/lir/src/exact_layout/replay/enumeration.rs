@@ -14,7 +14,8 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 pub struct EnumLayoutFieldInputV1<'a> {
     pub field: &'a CborIdentityRecord<PersistentEnumVariantFieldId, EnumVariantFieldKey>,
-    pub value: &'a ExactValueLayoutV1,
+    pub value: &'a ValueLayoutConstituentV1,
+    pub pointer_kind: Option<NichePointerKind>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -47,7 +48,7 @@ impl ExactValueLayoutV1 {
                 for field in variant.fields {
                     fields.push(EnumVariantFieldLayoutV1 {
                         field: field.field.id(),
-                        storage: FieldStorageV1::within(&field.value.value, 0, whole)?,
+                        storage: FieldStorageV1::within(field.value, 0, whole)?,
                         access_alignment: whole.alignment(),
                     });
                 }
@@ -58,7 +59,7 @@ impl ExactValueLayoutV1 {
             }
             return finish_value(
                 identity,
-                payload.value.storage().clone(),
+                payload.storage().clone(),
                 ValueRepresentation::NicheEnum(NicheEnumRepresentationLayoutV1 {
                     pointer_kind: kind,
                     variants: placed,
@@ -83,7 +84,7 @@ impl ExactValueLayoutV1 {
                 gc_free: variant
                     .fields
                     .iter()
-                    .all(|field| !storage_scan(field.value.value.storage()).contains_reference()),
+                    .all(|field| !storage_scan(field.value.storage()).contains_reference()),
             });
         }
         let geometry = EnumStorageGeometryV1::tagged(identity.target(), &inputs)?;
@@ -94,7 +95,7 @@ impl ExactValueLayoutV1 {
                 fields.push(EnumVariantFieldLayoutV1 {
                     field: field.field.id(),
                     storage: FieldStorageV1::within(
-                        &field.value.value,
+                        field.value,
                         position.offset(),
                         geometry.storage(),
                     )?,
@@ -128,11 +129,11 @@ impl ExactValueLayoutV1 {
     }
 }
 
-fn geometry(value: &ExactValueLayoutV1) -> Result<StorageGeometryV1, ExactLayoutReplayError> {
+fn geometry(value: &ValueLayoutConstituentV1) -> Result<StorageGeometryV1, ExactLayoutReplayError> {
     Ok(StorageGeometryV1::new(
-        value.identity.target(),
-        value.value.storage().byte_size(),
-        value.value.storage().alignment().get(),
+        value.target(),
+        value.storage().byte_size(),
+        value.storage().alignment().get(),
     )?)
 }
 
@@ -172,7 +173,7 @@ fn validate_variants(
             if !fields.insert(field.field.id()) {
                 return Err(ExactLayoutReplayError::DuplicateVariantField);
             }
-            if field.value.identity.target() != identity.target() {
+            if field.value.target() != identity.target() {
                 return Err(ExactLayoutReplayError::DependencyTarget);
             }
         }
@@ -182,17 +183,16 @@ fn validate_variants(
 
 fn niche<'a>(
     variants: &[EnumLayoutVariantInputV1<'a>],
-) -> Option<(usize, NichePointerKind, &'a ExactValueLayoutV1)> {
+) -> Option<(usize, NichePointerKind, &'a ValueLayoutConstituentV1)> {
     let [first, second] = variants else {
         return None;
     };
     let (index, payload) = match (first.fields, second.fields) {
-        ([], [field]) => (1, field.value),
-        ([field], []) => (0, field.value),
+        ([], [field]) => (1, field),
+        ([field], []) => (0, field),
         _ => return None,
     };
-    match payload.representation.0 {
-        ValueRepresentation::QualifiedPointer(kind) => Some((index, kind, payload)),
-        _ => None,
-    }
+    payload
+        .pointer_kind
+        .map(|kind| (index, kind, payload.value))
 }

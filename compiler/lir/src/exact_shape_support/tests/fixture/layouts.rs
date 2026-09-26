@@ -245,7 +245,11 @@ fn helper_shape(
     .unwrap();
     let payload_field = [EnumLayoutFieldInputV1 {
         field: &field,
-        value: payload,
+        value: payload.value(),
+        pointer_kind: match payload.representation().kind() {
+            crate::ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+            _ => None,
+        },
     }];
     let empty: [EnumLayoutFieldInputV1<'_>; 0] = [];
     let fields = if payload_index == 0 {

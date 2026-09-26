@@ -96,6 +96,15 @@ impl<'a> Collector<'a> {
                 }
                 Ok(())
             }
+            // Structural pointer values use their target representation. Their
+            // pointee/signature identities do not require a physical type export.
+            ExactTypeKey::Function { .. }
+            | ExactTypeKey::RawPointer(_)
+            | ExactTypeKey::NativeFunctionPointer { .. }
+                if transient =>
+            {
+                Ok(())
+            }
             _ => Err(MirTypeBridgeReferenceError::StructuralExecutionGate(exact)),
         }
     }

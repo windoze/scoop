@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) struct Fields {
     identities: Vec<CborIdentityRecord<PersistentFieldId, FieldIdentityKey>>,
-    values: Vec<Arc<lir::ExactValueLayoutV1>>,
+    values: Vec<lir::ValueLayoutConstituentV1>,
 }
 
 impl Fields {
@@ -27,7 +27,7 @@ impl Replay<'_> {
         let mut values = self.reserve(fields.len())?;
         for field in fields {
             identities.push(self.identities.canonical_record(field.field)?);
-            values.push(self.value_dependency(field.value)?);
+            values.push(self.value_constituent(field.value)?);
         }
         Ok(Fields { identities, values })
     }

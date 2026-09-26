@@ -76,7 +76,10 @@ fn ordinary_struct_and_tuple_replay_typed_dependencies_and_field_order() {
     let inputs: Vec<_> = fields
         .iter()
         .zip(values)
-        .map(|(field, value)| NominalLayoutFieldInputV1 { field, value })
+        .map(|(field, value)| NominalLayoutFieldInputV1 {
+            field,
+            value: value.value(),
+        })
         .collect();
     let bound = Bound::value(exact(&owner));
     let structure =
@@ -141,7 +144,7 @@ fn records_reject_wrong_role_identity_kind_owner_and_missing_scan_relation() {
             false,
             &[NominalLayoutFieldInputV1 {
                 field: &foreign,
-                value: &value
+                value: value.value()
             }],
             &bound.foundation
         ),

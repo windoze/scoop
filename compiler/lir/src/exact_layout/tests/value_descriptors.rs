@@ -37,7 +37,7 @@ fn source_aggregate_descriptor_translates_payload_scan_from_same_exact_layout() 
         false,
         &[NominalLayoutFieldInputV1 {
             field: &field,
-            value: &reference,
+            value: reference.value(),
         }],
         &bound.foundation,
     )

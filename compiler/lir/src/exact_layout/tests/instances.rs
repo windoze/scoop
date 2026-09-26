@@ -34,7 +34,7 @@ fn class_record_preserves_complete_base_prefix_and_identity_bound_fields() {
         ClassLayoutBaseV1::NoBase,
         &[NominalLayoutFieldInputV1 {
             field: &base_field,
-            value: &byte,
+            value: byte.value(),
         }],
         &bound.foundation,
     )
@@ -46,7 +46,7 @@ fn class_record_preserves_complete_base_prefix_and_identity_bound_fields() {
         ClassLayoutBaseV1::Base(&base),
         &[NominalLayoutFieldInputV1 {
             field: &derived_field,
-            value: &byte,
+            value: byte.value(),
         }],
         &bound.foundation,
     )

@@ -15,6 +15,7 @@ use scoop_wire::WirePath;
 
 use super::SharedLirLayoutValidationError as Error;
 
+mod constituents;
 mod enumeration;
 mod fields;
 mod instance;
@@ -41,6 +42,7 @@ pub fn replay_shared_mir_layouts(
 
         dependencies: BTreeMap::new(),
         completed: BTreeMap::new(),
+        values: BTreeMap::new(),
         active: BTreeSet::new(),
     };
     replay.index_dependencies(dependencies)?;
@@ -84,6 +86,7 @@ struct Replay<'a> {
 
     dependencies: BTreeMap<PersistentLayoutId, &'a lir::ExactLayoutExportV1>,
     completed: BTreeMap<PersistentLayoutId, lir::ExactLayoutExportV1>,
+    values: BTreeMap<PersistentExactTypeId, lir::ValueLayoutConstituentV1>,
     active: BTreeSet<PersistentLayoutId>,
 }
 

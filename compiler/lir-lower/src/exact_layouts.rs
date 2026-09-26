@@ -1,4 +1,4 @@
-//! Mechanical replay of physical layout exports from a sealed lowering pair.
+//! Physical layout exports from complete MIR and LIR.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -11,6 +11,7 @@ use scoop_lir as lir;
 use scoop_mir as mir;
 use scoop_wire::WirePath;
 
+mod constituents;
 mod error;
 mod fields;
 mod instance;
@@ -22,10 +23,8 @@ mod value;
 pub use error::ExactLayoutLoweringError;
 type Result<T> = std::result::Result<T, ExactLayoutLoweringError>;
 
-/// Joins canonical MIR exports to their emitted layouts and descriptor instances.
-/// Local definitions outside that closure retain their Strong production proofs.
-/// The containing section separately closes HIR source,
-/// intrinsic bindings, and selected-provider authority for dependency tables.
+/// Publishes layouts and descriptors for the current materialization roots,
+/// querying complete representations from actual dependencies where needed.
 pub fn lower_exact_layout_exports(
     input: &mir::SingleConeStrongMirInput,
     output: &lir::SingleConeStrongLirOutput,
@@ -45,6 +44,7 @@ pub fn lower_exact_layout_exports(
 
         roots: BTreeMap::new(),
         completed: BTreeMap::new(),
+        values: BTreeMap::new(),
         active: BTreeSet::new(),
     };
     projection.collect_export_roots()?;
@@ -71,6 +71,7 @@ struct Projection<'a> {
 
     roots: BTreeMap<PersistentLayoutId, LayoutKey>,
     completed: BTreeMap<PersistentLayoutId, lir::ExactLayoutExportV1>,
+    values: BTreeMap<PersistentExactTypeId, lir::ValueLayoutConstituentV1>,
     active: BTreeSet<PersistentLayoutId>,
 }
 

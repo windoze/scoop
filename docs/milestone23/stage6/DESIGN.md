@@ -1,6 +1,8 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
-canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。 MIR callable 的 GC 检查沿结构类型递归使用已有 nominal facts；tuple 的完整参数、receiver 与结果按实际组成保留，不要求 nominal 导出。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。
+canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。MIR callable 的 GC 检查沿结构类型递归使用已有 nominal facts；tuple 的完整参数、receiver 与结果按实际组成保留，不要求 nominal 导出。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。
+
+字段布局以完整 `ValueLayoutConstituentV1` 传递 exact 身份、目标、存储、对齐与 scan；嵌套 tuple 从实际元素递归计算并复用结果，不要求独立 layout definition。C-layout 的嵌套合同、enum niche 的真实指针种类分别随实际表示传入。字段与实例中的布局数据是内嵌值，不构成 Link 符号引用；语义依赖图只沿实际 descriptor、dispatch、shape-support 和机器 relocation 引用闭合，读取边界继续核对完整字段身份、顺序、布局与 GC 事实。
 
 依赖默认值的 tuple 字面量与字段投影直接实例化为完整 HIR，类型沿同一共有签名查询取得。读取边界已核对的字段索引、元素类型和默认正文在实例化时直接使用，不另以 core 类型或单一 nominal 形式限制参数。
 
@@ -659,7 +661,7 @@ ExactLayoutExportV1 {
 
 `selected`是field1/2分别保存`semantic_uses`与`physical_imports`的closed product；`LayoutAbiDependencyV1`的field1/2分别保存provider与target，target按上列tag编码且payload在field1。semantic表按`(provider, target canonical bytes)`严格递增。每项provider必须不是consumer，并精确命中显式dependency closure中唯一terminal provider的对应五张表；内存中的 selected entry 保留实际 provider 的完整五表导出记录引用和本次选择索引。依赖查询直接接收共有的完整导出表；同次编译的 producer 与已读取产物使用同一数据入口，不要求 reader 重造 producer section 或来源工厂。
 
-producer 根据已提交 MIR→LIR typed selection 构造 semantic 闭包；reader 验证外部产物的相同关系。两者查询同一类实际导出记录：layout递归跟随base/field/variant/array等内嵌layout引用；descriptor跟随value/instance layout、parent/interface TD及vtable/itable；dispatch跟随interface/owner type与每个target callable ABI；callable 的完整签名不另外引入 layout 物理依赖；shape-support跟随八个role对应的layout/descriptor/helper记录。metadata-only读取保留在`semantic_uses`即可，不因此产生relocation。每个跨provider递归edge都进入真实terminal provider，依赖section中的转发selected关系不能代替terminal记录；环、同target多provider、当前Cone回指、缺失/额外关系及旧core/M23-5分区冒充新selection均拒绝。
+producer 根据已提交 MIR→LIR typed selection 构造 semantic 闭包；reader 验证外部产物的相同关系。两者查询同一类实际导出记录：layout 内嵌的 base/field/variant/array 存储数据不追加符号依赖，其完整性已在布局读取边界检查；descriptor 跟随value/instance layout、parent/interface TD及vtable/itable；dispatch跟随interface/owner type与每个target callable ABI；callable 的完整签名不另外引入 layout 物理依赖；shape-support跟随八个role对应的layout/descriptor/helper记录。metadata-only读取保留在`semantic_uses`即可，不因此产生relocation。每个跨provider递归edge都进入真实terminal provider，依赖section中的转发selected关系不能代替terminal记录；环、同target多provider、当前Cone回指、缺失/额外关系及旧core/M23-5分区冒充新selection均拒绝。
 
 两条路径在计算闭包前都完成共有跨阶段校验：生产侧将本地五张 export 表与同一次实际 MIR→LIR 输出关联，reader 将其与同 artifact 的完整 MIR type/callable/dispatch metadata、Strong production、layout/ABI 和实际 object use 关联。physical_imports 必须精确对应机器使用及必要 object/init support；五类一般 import contract 重新绑定到依赖闭包中的同一 terminal section 记录。单表构造成功或 import 已解析不能代替完整覆盖与相邻阶段一致性检查；reader 不要求另外提供编译期 source authority 或平行授权 transcript。
 

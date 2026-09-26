@@ -5,142 +5,187 @@ Module
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$0b782dfef8c43365ec55c2421512ed442963d6bcbf0c053697f686c6d01fcfae() -> sret<struct1 size=24 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$0b782dfef8c43365ec55c2421512ed442963d6bcbf0c053697f686c6d01fcfae() -> sret<struct2 size=24 align=8 scan=none> <no-gc>
     local %0 $dependency.argument.0: {i64, struct0, i64}
     local %1 $dependency.parameter.value: {i64, struct0, i64}
     local %2 fields: {i64, struct0, i64}
-    local %3 $dependency.argument.0: i64
-    local %4 $dependency.argument.1: i64
-    local %5 $dependency.argument.2: i64
-    local %6 $dependency.argument.3: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %7 $dependency.parameter.first: i64
-    local %8 $dependency.parameter.second: i64
-    local %9 $dependency.parameter.third: i64
-    local %10 $dependency.parameter.marker: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %11 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %12 $call.2: struct1
-    local %13 $sc.1: {i64, struct0, i64}
-    local %14 $sc.2: {i64, struct0, i64}
-    local %15 $sc.3: struct1
+    local %3 $dependency.argument.0: {struct0, {i64, i64, i64}, struct0}
+    local %4 $dependency.parameter.elements: {struct0, {i64, i64, i64}, struct0}
+    local %5 $dependency.argument.0: {struct0, {i64, i64, i64}, struct0}
+    local %6 $dependency.parameter.values: {struct0, {i64, i64, i64}, struct0}
+    local %7 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %8 $call.2: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %9 $call.3: struct1
+    local %10 $call.4: struct2
+    local %11 $sc.1: {i64, struct0, i64}
+    local %12 $sc.2: {i64, struct0, i64}
+    local %13 $sc.3: {struct0, {i64, i64, i64}, struct0}
+    local %14 $sc.4: struct1
+    local %15 $sc.5: {struct0, {i64, i64, i64}, struct0}
+    local %16 $sc.6: struct2
   block entry
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
-    store t0 -> local11
-    t1 = aggregate (integer<Long>(0xffffffffffffffe3), local11, integer<Long>(0x0000000000000035)) : {i64, struct0, i64}
+    store t0 -> local7
+    t1 = aggregate (integer<Long>(0xffffffffffffffe3), local7, integer<Long>(0x0000000000000035)) : {i64, struct0, i64}
     store t1 -> local0
     store local0 -> local1
-    store local1 -> local13
-    call no-gc-indirect-target0 local14 = sig=indirect0 (sret {i64, struct0, i64} size=16 align=8 scan=none, indirect<{i64, struct0, i64} size=16 align=8 scan=none>) external-fn1(indirect local13)
-    store local14 -> local2
-    store integer<Long>(0x0000000000000011) -> local3
-    t2 = extract local2, 0 : i64
-    store t2 -> local4
-    t3 = extract local2, 2 : i64
-    store t3 -> local5
-    t4 = extract local2, 1 : struct0
-    store t4 -> local6
-    store local3 -> local7
-    store local4 -> local8
-    store local5 -> local9
-    store local6 -> local10
-    call no-gc-indirect-target1 local15 = sig=indirect1 (sret struct1 size=24 align=8 scan=none, i64, i64, i64, elided-zst<struct0 size=0 align=1>) external-fn2(local7, local8, local9, elided-zst local10)
-    store local15 -> local12
-    ret local12
-  fun @scoop$1$cb$c4488ff68016fcae0a7381d424c00c15858653b4ba843e7d69d4643bea1a3a3d() -> sret<struct1 size=24 align=8 scan=none> <no-gc>
-    local %0 $dependency.receiver: struct2 <logical-zst 047a6b0a0ced213eb88041f4b06470f80beb49008466fdd3d99e5325a1d8a0f2>
-    local %1 $dependency.argument.0: {struct0, {i64, i64, i64}, struct0}
-    local %2 $dependency.parameter.value: {struct0, {i64, i64, i64}, struct0}
-    local %3 fields: {struct0, {i64, i64, i64}, struct0}
-    local %4 $dependency.argument.0: {struct0, {i64, i64, i64}, struct0}
-    local %5 $dependency.parameter.values: {struct0, {i64, i64, i64}, struct0}
-    local %6 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %7 $call.2: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %8 $call.3: struct1
-    local %9 $sc.1: {struct0, {i64, i64, i64}, struct0}
-    local %10 $sc.2: {struct0, {i64, i64, i64}, struct0}
-    local %11 $sc.3: {struct0, {i64, i64, i64}, struct0}
-    local %12 $sc.4: struct1
-  block entry
-    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct2 size=0 align=1> external-fn3()
-    store t0 -> local0
-    call no-gc-elided-zst-target1 t1 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn0()
-    store t1 -> local6
-    call no-gc-elided-zst-target2 t2 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> external-fn0()
-    store t2 -> local7
-    t3 = aggregate (integer<Long>(0x0000000000000005), integer<Long>(0x0000000000000008), integer<Long>(0x000000000000000b)) : {i64, i64, i64}
-    t4 = aggregate (local6, t3, local7) : {struct0, {i64, i64, i64}, struct0}
-    store t4 -> local1
-    store local1 -> local2
-    store local2 -> local9
-    call no-gc-indirect-target0 local10 = sig=indirect0 (sret {struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none, elided-zst<struct2 size=0 align=1>, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn4(elided-zst local0, indirect local9)
-    store local10 -> local3
+    store local1 -> local11
+    call no-gc-indirect-target0 local12 = sig=indirect0 (sret {i64, struct0, i64} size=16 align=8 scan=none, indirect<{i64, struct0, i64} size=16 align=8 scan=none>) external-fn1(indirect local11)
+    store local12 -> local2
+    call no-gc-elided-zst-target1 t2 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t2 -> local8
+    t3 = extract local2, 1 : struct0
+    t4 = extract local2, 0 : i64
+    t5 = extract local2, 2 : i64
+    t6 = aggregate (integer<Long>(0x0000000000000011), t4, t5) : {i64, i64, i64}
+    t7 = aggregate (t3, t6, local8) : {struct0, {i64, i64, i64}, struct0}
+    store t7 -> local3
     store local3 -> local4
-    store local4 -> local5
-    store local5 -> local11
-    call no-gc-indirect-target1 local12 = sig=indirect1 (sret struct1 size=24 align=8 scan=none, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn5(indirect local11)
-    store local12 -> local8
-    ret local8
-  fun @scoop$1$cb$283b9053389169f2b545bc733f47906a24302ea0fa6a74aafbdec47858d4aafc() -> i64 <no-gc>
-    local %0 $dependency.parameter.value: {i64, struct0, i64}
-    local %1 $dependency.argument.0: {i64, struct0, i64}
-    local %2 $dependency.parameter.value: {i64, struct0, i64}
-    local %3 $dependency.default.local.1: i64
-    local %4 $dependency.default.local.2: i64
-    local %5 $dependency.default.local.3: i64
-    local %6 $dependency.parameter.selected: i64
-    local %7 $dependency.receiver: i64
-    local %8 $dependency.argument.0: i64
-    local %9 $dependency.parameter.other: i64
-    local %10 $dependency.receiver: i64
-    local %11 $dependency.argument.0: i64
-    local %12 $dependency.parameter.other: i64
-    local %13 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %14 $call.2: struct2 <logical-zst 047a6b0a0ced213eb88041f4b06470f80beb49008466fdd3d99e5325a1d8a0f2>
-    local %15 $sc.1: {i64, struct0, i64}
-    local %16 $sc.2: {i64, struct0, i64}
-    local %17 $sc.3: {i64, struct0, i64}
+    store local4 -> local13
+    call no-gc-indirect-target1 local14 = sig=indirect1 (sret struct1 size=24 align=8 scan=none, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn2(indirect local13)
+    store local14 -> local9
+    t8 = extract local9, 0 : {struct0, {i64, i64, i64}, struct0}
+    store t8 -> local5
+    store local5 -> local6
+    store local6 -> local15
+    call no-gc-indirect-target2 local16 = sig=indirect2 (sret struct2 size=24 align=8 scan=none, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn3(indirect local15)
+    store local16 -> local10
+    ret local10
+  fun @scoop$1$cb$c4488ff68016fcae0a7381d424c00c15858653b4ba843e7d69d4643bea1a3a3d() -> sret<struct2 size=24 align=8 scan=none> <no-gc>
+    local %0 $dependency.argument.0: {struct0, struct0} <logical-zst 5b7b854af4e4e4b5a7bb7912c0fe13beb8ee9903c24e9d16fb6fca4fc2f67abb>
+    local %1 $dependency.parameter.elements: {struct0, struct0} <logical-zst 5b7b854af4e4e4b5a7bb7912c0fe13beb8ee9903c24e9d16fb6fca4fc2f67abb>
+    local %2 marker: {struct0, struct0} <logical-zst 5b7b854af4e4e4b5a7bb7912c0fe13beb8ee9903c24e9d16fb6fca4fc2f67abb>
+    local %3 $dependency.receiver: struct3 <logical-zst 047a6b0a0ced213eb88041f4b06470f80beb49008466fdd3d99e5325a1d8a0f2>
+    local %4 $dependency.argument.0: {struct0, {i64, i64, i64}, struct0}
+    local %5 $dependency.parameter.value: {struct0, {i64, i64, i64}, struct0}
+    local %6 fields: {struct0, {i64, i64, i64}, struct0}
+    local %7 $dependency.argument.0: {struct0, {i64, i64, i64}, struct0}
+    local %8 $dependency.parameter.values: {struct0, {i64, i64, i64}, struct0}
+    local %9 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %10 $call.2: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %11 $call.3: struct4 <logical-zst aa16dbfeb979593f4095a16b53f03d0a5a3c4447d619d80bfb625c82fc430bbf>
+    local %12 $call.4: struct2
+    local %13 $sc.1: {struct0, {i64, i64, i64}, struct0}
+    local %14 $sc.2: {struct0, {i64, i64, i64}, struct0}
+    local %15 $sc.3: {struct0, {i64, i64, i64}, struct0}
+    local %16 $sc.4: struct2
   block entry
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
-    store t0 -> local13
-    t1 = aggregate (integer<Long>(0x0000000000000003), local13, integer<Long>(0x0000000000000009)) : {i64, struct0, i64}
-    store t1 -> local0
-    store local0 -> local15
-    call no-gc-direct-target0 t2 = sig=direct0 (indirect<{i64, struct0, i64} size=16 align=8 scan=none>) -> i64 external-fn6(indirect local15)
-    store t2 -> local7
-    call no-gc-elided-zst-target1 t3 = sig=elided-zst1 () -> elided-zst<struct2 size=0 align=1> external-fn3()
-    store t3 -> local14
-    call no-gc-indirect-target0 local16 = sig=indirect0 (sret {i64, struct0, i64} size=16 align=8 scan=none, elided-zst<struct2 size=0 align=1>) external-fn7(elided-zst local14)
-    store local16 -> local1
-    store local1 -> local2
-    t4 = extract local2, 0 : i64
-    store t4 -> local3
-    t5 = extract local2, 2 : i64
-    store t5 -> local4
+    store t0 -> local9
+    call no-gc-elided-zst-target1 t1 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t1 -> local10
+    t2 = aggregate (local9, local10) : {struct0, struct0}
+    store t2 -> local0
+    store local0 -> local1
+    call no-gc-elided-zst-target2 t3 = sig=elided-zst2 (elided-zst<{struct0, struct0} size=0 align=1>) -> elided-zst<struct4 size=0 align=1> external-fn4(elided-zst local1)
+    store t3 -> local11
+    t4 = extract local11, 0 : {struct0, struct0}
+    store t4 -> local2
+    call no-gc-elided-zst-target3 t5 = sig=elided-zst3 () -> elided-zst<struct3 size=0 align=1> external-fn5()
+    store t5 -> local3
+    t6 = extract local2, 0 : struct0
+    t7 = aggregate (integer<Long>(0x0000000000000005), integer<Long>(0x0000000000000008), integer<Long>(0x000000000000000b)) : {i64, i64, i64}
+    t8 = extract local2, 1 : struct0
+    t9 = aggregate (t6, t7, t8) : {struct0, {i64, i64, i64}, struct0}
+    store t9 -> local4
     store local4 -> local5
-    t6 = integer_Add<Long> local3, local5 : i64
-    store t6 -> local6
-    store local2 -> local17
-    call no-gc-direct-target1 t7 = sig=direct1 (indirect<{i64, struct0, i64} size=16 align=8 scan=none>, i64) -> i64 external-fn8(indirect local17, local6)
-    store t7 -> local8
+    store local5 -> local13
+    call no-gc-indirect-target0 local14 = sig=indirect0 (sret {struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none, elided-zst<struct3 size=0 align=1>, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn6(elided-zst local3, indirect local13)
+    store local14 -> local6
+    store local6 -> local7
+    store local7 -> local8
+    store local8 -> local15
+    call no-gc-indirect-target1 local16 = sig=indirect1 (sret struct2 size=24 align=8 scan=none, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn3(indirect local15)
+    store local16 -> local12
+    ret local12
+  fun @scoop$1$cb$283b9053389169f2b545bc733f47906a24302ea0fa6a74aafbdec47858d4aafc() -> i64 <no-gc>
+    local %0 $dependency.argument.0: {i64, struct0, i64}
+    local %1 $dependency.parameter.value: {i64, struct0, i64}
+    local %2 $dependency.argument.0: {i64, struct0, i64}
+    local %3 $dependency.parameter.value: {i64, struct0, i64}
+    local %4 $dependency.parameter.value: {i64, struct0, i64}
+    local %5 $dependency.receiver: i64
+    local %6 $dependency.argument.0: i64
+    local %7 $dependency.parameter.other: i64
+    local %8 $dependency.argument.0: {i64, struct0, i64}
+    local %9 $dependency.parameter.value: {i64, struct0, i64}
+    local %10 $dependency.default.local.1: i64
+    local %11 $dependency.default.local.2: i64
+    local %12 $dependency.default.local.3: i64
+    local %13 $dependency.parameter.selected: i64
+    local %14 $dependency.receiver: i64
+    local %15 $dependency.argument.0: i64
+    local %16 $dependency.parameter.other: i64
+    local %17 $dependency.receiver: i64
+    local %18 $dependency.argument.0: i64
+    local %19 $dependency.parameter.other: i64
+    local %20 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %21 $call.2: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %22 $call.3: struct3 <logical-zst 047a6b0a0ced213eb88041f4b06470f80beb49008466fdd3d99e5325a1d8a0f2>
+    local %23 $sc.1: {i64, struct0, i64}
+    local %24 $sc.2: {i64, struct0, i64}
+    local %25 $sc.3: {i64, struct0, i64}
+    local %26 $sc.4: {i64, struct0, i64}
+    local %27 $sc.5: {i64, struct0, i64}
+    local %28 $sc.6: {i64, struct0, i64}
+  block entry
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t0 -> local20
+    t1 = aggregate (integer<Long>(0x0000000000000003), local20, integer<Long>(0x0000000000000009)) : {i64, struct0, i64}
+    store t1 -> local0
+    store local0 -> local1
+    store local1 -> local23
+    call no-gc-indirect-target0 local24 = sig=indirect0 (sret {i64, struct0, i64} size=16 align=8 scan=none, indirect<{i64, struct0, i64} size=16 align=8 scan=none>) external-fn1(indirect local23)
+    store local24 -> local2
+    store local2 -> local3
+    store local3 -> local25
+    call no-gc-direct-target0 t2 = sig=direct0 (indirect<{i64, struct0, i64} size=16 align=8 scan=none>) -> i64 external-fn7(indirect local25)
+    store t2 -> local5
+    call no-gc-elided-zst-target1 t3 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t3 -> local21
+    t4 = aggregate (integer<Long>(0x0000000000000003), local21, integer<Long>(0x0000000000000009)) : {i64, struct0, i64}
+    store t4 -> local4
+    store local4 -> local26
+    call no-gc-direct-target1 t5 = sig=direct1 (indirect<{i64, struct0, i64} size=16 align=8 scan=none>) -> i64 external-fn8(indirect local26)
+    store t5 -> local6
+    store local6 -> local7
+    t6 = integer_Add<Long> local5, local7 : i64
+    store t6 -> local14
+    call no-gc-elided-zst-target2 t7 = sig=elided-zst2 () -> elided-zst<struct3 size=0 align=1> external-fn5()
+    store t7 -> local22
+    call no-gc-indirect-target1 local27 = sig=indirect1 (sret {i64, struct0, i64} size=16 align=8 scan=none, elided-zst<struct3 size=0 align=1>) external-fn9(elided-zst local22)
+    store local27 -> local8
     store local8 -> local9
-    t8 = integer_Add<Long> local7, local9 : i64
+    t8 = extract local9, 0 : i64
     store t8 -> local10
-    store integer<Long>(0x000000000000000c) -> local11
+    t9 = extract local9, 2 : i64
+    store t9 -> local11
     store local11 -> local12
-    t9 = integer_Subtract<Long> local10, local12 : i64
-    ret t9
+    t10 = integer_Add<Long> local10, local12 : i64
+    store t10 -> local13
+    store local9 -> local28
+    call no-gc-direct-target2 t11 = sig=direct2 (indirect<{i64, struct0, i64} size=16 align=8 scan=none>, i64) -> i64 external-fn10(indirect local28, local13)
+    store t11 -> local15
+    store local15 -> local16
+    t12 = integer_Add<Long> local14, local16 : i64
+    store t12 -> local17
+    store integer<Long>(0x0000000000000018) -> local18
+    store local18 -> local19
+    t13 = integer_Subtract<Long> local17, local19 : i64
+    ret t13
   fun @scoop$1$cb$9fe99a54a8e9a3ce4216b4bfaec2cc9398ee6699d8dd4c347eaecc301f6a286e(indirect<{i64, struct0, i64} size=16 align=8 scan=none>) -> i64 <no-gc>
-    local %0 $dependency.receiver: struct2 <logical-zst 047a6b0a0ced213eb88041f4b06470f80beb49008466fdd3d99e5325a1d8a0f2>
+    local %0 $dependency.receiver: struct3 <logical-zst 047a6b0a0ced213eb88041f4b06470f80beb49008466fdd3d99e5325a1d8a0f2>
     local %1 $dependency.argument.0: {i64, struct0, i64}
     local %2 $dependency.parameter.value: {i64, struct0, i64}
     local %3 $call.1: i64
     local %4 $sc.1: {i64, struct0, i64}
   block entry
-    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct2 size=0 align=1> external-fn3()
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct3 size=0 align=1> external-fn5()
     store t0 -> local0
     store param0 -> local1
     store local1 -> local2
     store local2 -> local4
-    call no-gc-direct-target0 t1 = sig=direct0 (elided-zst<struct2 size=0 align=1>, indirect<{i64, struct0, i64} size=16 align=8 scan=none>) -> i64 external-fn9(elided-zst local0, indirect local4)
+    call no-gc-direct-target0 t1 = sig=direct0 (elided-zst<struct3 size=0 align=1>, indirect<{i64, struct0, i64} size=16 align=8 scan=none>) -> i64 external-fn11(elided-zst local0, indirect local4)
     store t1 -> local3
     ret local3
   output library
