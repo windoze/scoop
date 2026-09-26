@@ -367,8 +367,8 @@ pub struct ExportDefaultExpr {
     pub receiver: Option<ExportDefaultReceiver>,
     pub value_parameters: Vec<ExportDefaultValueParameter>,
     /// Direct declaration-bound dependencies of the typed template. Each
-    /// category has its own identity domain and every entry carries the
-    /// access-domain proof produced before this export entity is committed.
+    /// category has its own identity domain. Target access domains are cached
+    /// for inherited defaults whose callable domain changes.
     pub references: ExportDefaultReferences,
     pub origin: DefinitionOrigin,
 }
@@ -384,13 +384,6 @@ pub struct ExportDefaultReferences {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExportDefaultAccessWitness {
-    pub owner: ExportParameterOwner,
-    pub call_domain: CallDomain,
-    pub target_domain: AccessDomain,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallDomain {
     pub direct: EffectiveLookupDomain,
     pub slot: Option<SlotContractDomain>,
@@ -399,7 +392,7 @@ pub struct CallDomain {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultCallableRef {
     pub target: ExportDefaultCallableTarget,
-    pub witness: ExportDefaultAccessWitness,
+    pub target_domain: AccessDomain,
     pub origin: DefinitionOrigin,
 }
 
@@ -420,7 +413,7 @@ pub enum ExportDefaultCallableTarget {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultConstructorRef {
     pub target: ExportDefaultConstructorTarget,
-    pub witness: ExportDefaultAccessWitness,
+    pub target_domain: AccessDomain,
     pub origin: DefinitionOrigin,
 }
 
@@ -442,7 +435,7 @@ pub enum ExportDefaultConstructorTarget {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultTypeRef {
     pub target: ExportDefaultTypeTarget,
-    pub witness: ExportDefaultAccessWitness,
+    pub target_domain: AccessDomain,
     pub origin: DefinitionOrigin,
 }
 
@@ -456,21 +449,21 @@ pub enum ExportDefaultTypeTarget {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultGlobalRef {
     pub target: GlobalId,
-    pub witness: ExportDefaultAccessWitness,
+    pub target_domain: AccessDomain,
     pub origin: DefinitionOrigin,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultSingletonValueRef {
     pub target: SingletonValueId,
-    pub witness: ExportDefaultAccessWitness,
+    pub target_domain: AccessDomain,
     pub origin: DefinitionOrigin,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultFieldRef {
     pub target: FieldRef,
-    pub witness: ExportDefaultAccessWitness,
+    pub target_domain: AccessDomain,
     pub origin: DefinitionOrigin,
 }
 

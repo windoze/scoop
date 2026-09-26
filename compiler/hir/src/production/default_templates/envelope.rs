@@ -53,22 +53,9 @@ fn project_inner(
             },
         ),
     )?;
-    let reference_projection = references::ReferenceProjection {
-        entities,
-        source_owner: provider_owner,
-        source_domain: super::source_access::SourceCallDomain::from_owner(
-            export,
-            projected.local_owner,
-        )
-        .map_err(DefaultTemplateEnvelopeProjectionError::Provider)?,
-        target_owner: owner.declaration,
-        target_domain: super::source_access::SourceCallDomain::from_owner(export, owner.local)
-            .map_err(DefaultTemplateEnvelopeProjectionError::Provider)?,
-        target_public: callables.get(owner.declaration).is_some(),
-        binders: &projected.provider_binders,
-    };
-    let references = references::project(&reference_projection, projected.references)
-        .map_err(DefaultTemplateEnvelopeProjectionError::References)?;
+    let references =
+        references::project(entities, &projected.provider_binders, projected.references)
+            .map_err(DefaultTemplateEnvelopeProjectionError::References)?;
     ExportDefaultTemplateV1::try_new(
         key,
         projected.root,

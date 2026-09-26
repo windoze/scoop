@@ -15,7 +15,7 @@ use crate::{
     DefaultCallableReferenceResolver,
 };
 
-/// One callable target for which a default template carries an access proof.
+/// One callable target referenced by a default template.
 ///
 /// The variants mirror the definition-side HIR target categories instead of
 /// collapsing lexical wrappers or open derived equality into a source

@@ -8,8 +8,7 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::{
-    DecodedExportDefaultAccessWitnessV1, DecodedExportDefaultCallableTargetV1,
-    ExportDefaultAccessWitnessV1, ExportDefaultCallableTargetResolutionError,
+    DecodedExportDefaultCallableTargetV1, ExportDefaultCallableTargetResolutionError,
     ExportDefaultCallableTargetV1,
 };
 use crate::{
@@ -18,24 +17,18 @@ use crate::{
     DefaultFieldRefResolutionError, DefaultFieldRefV1, ExportDefinitionSourceV1,
 };
 
-/// Kind-preserving access proof for one direct binding in a default template.
+/// Typed direct binding and definition location in a default template.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExportDefaultReferenceV1<T> {
     target: T,
     definition_origin: ExportDefinitionSourceV1,
-    witness: ExportDefaultAccessWitnessV1,
 }
 
 impl<T> ExportDefaultReferenceV1<T> {
-    pub const fn new(
-        target: T,
-        definition_origin: ExportDefinitionSourceV1,
-        witness: ExportDefaultAccessWitnessV1,
-    ) -> Self {
+    pub const fn new(target: T, definition_origin: ExportDefinitionSourceV1) -> Self {
         Self {
             target,
             definition_origin,
-            witness,
         }
     }
 
@@ -46,21 +39,15 @@ impl<T> ExportDefaultReferenceV1<T> {
     pub const fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
         &self.definition_origin
     }
-
-    pub const fn witness(&self) -> &ExportDefaultAccessWitnessV1 {
-        &self.witness
-    }
 }
 
 impl<T: WireEncode> WireEncode for ExportDefaultReferenceV1<T> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.target.encode(encoder)?;
         encoder.field(2)?;
-        self.definition_origin.encode(encoder)?;
-        encoder.field(3)?;
-        self.witness.encode(encoder)
+        self.definition_origin.encode(encoder)
     }
 }
 
@@ -68,7 +55,6 @@ impl<T: WireEncode> WireEncode for ExportDefaultReferenceV1<T> {
 pub struct DecodedExportDefaultReferenceV1<T> {
     target: T,
     definition_origin: DecodedExportDefinitionSourceV1,
-    witness: DecodedExportDefaultAccessWitnessV1,
 }
 
 impl<T> DecodedExportDefaultReferenceV1<T> {
@@ -76,7 +62,6 @@ impl<T> DecodedExportDefaultReferenceV1<T> {
         self,
         resolver: &mut R,
 
-        path: &scoop_wire::WirePath,
         resolve_target: impl FnOnce(
             T,
             &mut R,
@@ -92,37 +77,26 @@ impl<T> DecodedExportDefaultReferenceV1<T> {
             .definition_origin
             .resolve(resolver)
             .map_err(ExportDefaultReferenceResolutionError::DefinitionOrigin)?;
-        let witness = self
-            .witness
-            .resolve(resolver, &path.clone().field(3))
-            .map_err(ExportDefaultReferenceResolutionError::Witness)?;
-        Ok(ExportDefaultReferenceV1::new(
-            target,
-            definition_origin,
-            witness,
-        ))
+        Ok(ExportDefaultReferenceV1::new(target, definition_origin))
     }
 }
 
 impl<T: WireEncode> WireEncode for DecodedExportDefaultReferenceV1<T> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.target.encode(encoder)?;
         encoder.field(2)?;
-        self.definition_origin.encode(encoder)?;
-        encoder.field(3)?;
-        self.witness.encode(encoder)
+        self.definition_origin.encode(encoder)
     }
 }
 
 impl<T: WireDecode> WireDecode for DecodedExportDefaultReferenceV1<T> {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             target: decoder.field(1, T::decode)?,
             definition_origin: decoder.field(2, DecodedExportDefinitionSourceV1::decode)?,
-            witness: decoder.field(3, DecodedExportDefaultAccessWitnessV1::decode)?,
         })
     }
 }
@@ -149,7 +123,6 @@ pub type DecodedExportDefaultFieldReferenceV1 =
 
 pub trait ExportDefaultReferenceResolver<E>:
     CallableDeclarationIdResolver<E>
-    + crate::SourceAccessDomainResolver<E>
     + PersistentIdResolver<ConeIdentity, Error = E>
     + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>
 {
@@ -157,7 +130,6 @@ pub trait ExportDefaultReferenceResolver<E>:
 
 impl<R, E> ExportDefaultReferenceResolver<E> for R where
     R: CallableDeclarationIdResolver<E>
-        + crate::SourceAccessDomainResolver<E>
         + PersistentIdResolver<ConeIdentity, Error = E>
         + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>
 {
@@ -201,7 +173,6 @@ impl<E: std::error::Error + 'static> std::error::Error
 pub enum ExportDefaultReferenceResolutionError<E> {
     Target(ExportDefaultReferenceTargetResolutionError<E>),
     DefinitionOrigin(SourceOriginResolutionError<E>),
-    Witness(crate::ExportDefaultAccessWitnessResolutionError<E>),
 }
 
 impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceResolutionError<E> {
@@ -211,7 +182,6 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceResolutionError<E> 
             Self::DefinitionOrigin(error) => {
                 write!(formatter, "invalid reference definition origin: {error}")
             }
-            Self::Witness(error) => write!(formatter, "invalid reference witness: {error}"),
         }
     }
 }

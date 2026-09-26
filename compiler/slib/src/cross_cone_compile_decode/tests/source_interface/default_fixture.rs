@@ -86,11 +86,7 @@ pub(super) fn fixture(case: Case) -> CallableSourceSurface {
         ],
     };
     let key = ExportDefaultTemplateKeyV1::new(fixture.owner, 0);
-    let reference = ExportDefaultReferenceV1::new(
-        ty.clone(),
-        origin.clone(),
-        ExportDefaultAccessWitnessV1::new(fixture.owner, ExportDefaultCallDomainV1::DirectPublic),
-    );
+    let reference = ExportDefaultReferenceV1::new(ty.clone(), origin.clone());
     let template = ExportDefaultTemplateV1::try_new(
         key,
         PersistentLexicalRootV1::try_from(fixture.owner).unwrap(),

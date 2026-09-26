@@ -17,12 +17,7 @@ mod property_interfaces;
 mod public_bindings;
 mod route_closure;
 mod section;
-mod source_access;
 pub use section::signature_nominal_walk::SignatureNominalWalker;
-pub use source_access::{
-    DecodedSourceAccessConstraintV1, DecodedSourceAccessDomainV1, SourceAccessConstraintV1,
-    SourceAccessDomainResolutionError, SourceAccessDomainResolver, SourceAccessDomainV1,
-};
 mod type_alias_interfaces;
 
 pub use binders::{
@@ -212,14 +207,14 @@ pub use default_templates::{
     ExportDefaultTemplateKeyV1, ExportDefaultTemplateLocalIndexError,
     ExportDefaultTemplateLookupError, ExportDefaultTemplateOriginSemanticValidationError,
     ExportDefaultTemplateResolutionError, ExportDefaultTemplateSetBuildError,
-    ExportDefaultTemplateSetEnvelopeSemanticValidationError, ExportDefaultTemplateSetIndexError,
-    ExportDefaultTemplateSetValidationError, ExportDefaultTemplateSourceClosureValidationError,
-    ExportDefaultTemplateV1, IndexedCanonicalExportDefaultTemplatesV1,
-    IndexedCanonicalTemplateValueParametersV1, IndexedDefaultAnonymousFunctionV1,
-    IndexedDefaultAppliedOptionV1, IndexedDefaultAssignTargetV1, IndexedDefaultBindingActionV1,
-    IndexedDefaultBindingLeafV1, IndexedDefaultBindingPlanV1, IndexedDefaultBindingShapeV1,
-    IndexedDefaultBindingTemporaryV1, IndexedDefaultCallableReferenceV1, IndexedDefaultCaptureV1,
-    IndexedDefaultCatchV1, IndexedDefaultExpressionV1, IndexedDefaultForIterationPlanV1,
+    ExportDefaultTemplateSetIndexError, ExportDefaultTemplateSetValidationError,
+    ExportDefaultTemplateSourceClosureValidationError, ExportDefaultTemplateV1,
+    IndexedCanonicalExportDefaultTemplatesV1, IndexedCanonicalTemplateValueParametersV1,
+    IndexedDefaultAnonymousFunctionV1, IndexedDefaultAppliedOptionV1, IndexedDefaultAssignTargetV1,
+    IndexedDefaultBindingActionV1, IndexedDefaultBindingLeafV1, IndexedDefaultBindingPlanV1,
+    IndexedDefaultBindingShapeV1, IndexedDefaultBindingTemporaryV1,
+    IndexedDefaultCallableReferenceV1, IndexedDefaultCaptureV1, IndexedDefaultCatchV1,
+    IndexedDefaultExpressionV1, IndexedDefaultForIterationPlanV1,
     IndexedDefaultIteratorConformanceV1, IndexedDefaultIteratorNextV1, IndexedDefaultLambdaV1,
     IndexedDefaultLocalFunctionV1, IndexedDefaultPatternV1, IndexedDefaultPlaceV1,
     IndexedDefaultStatementV1, IndexedDefaultTryV1, IndexedDefaultWhenArmV1,
@@ -243,25 +238,20 @@ pub use default_templates::{
     TemplateValueParameterV1,
 };
 pub use default_templates::{
-    DecodedExportDefaultAccessWitnessV1, DecodedExportDefaultCallableReferenceV1,
-    DecodedExportDefaultCallableTargetV1, DecodedExportDefaultConstructorReferenceV1,
-    DecodedExportDefaultFieldReferenceV1, DecodedExportDefaultGlobalReferenceV1,
-    DecodedExportDefaultReferenceSetV1, DecodedExportDefaultReferenceV1,
-    DecodedExportDefaultSingletonReferenceV1, DecodedExportDefaultTypeReferenceV1,
-    DefaultReferenceSemanticAuthority, ExportDefaultAccessWitnessBuildError,
-    ExportDefaultAccessWitnessResolutionError, ExportDefaultAccessWitnessV1,
-    ExportDefaultCallDomainV1, ExportDefaultCallableReferenceV1,
+    DecodedExportDefaultCallableReferenceV1, DecodedExportDefaultCallableTargetV1,
+    DecodedExportDefaultConstructorReferenceV1, DecodedExportDefaultFieldReferenceV1,
+    DecodedExportDefaultGlobalReferenceV1, DecodedExportDefaultReferenceSetV1,
+    DecodedExportDefaultReferenceV1, DecodedExportDefaultSingletonReferenceV1,
+    DecodedExportDefaultTypeReferenceV1, ExportDefaultCallableReferenceV1,
     ExportDefaultCallableTargetBuildError, ExportDefaultCallableTargetResolutionError,
     ExportDefaultCallableTargetV1, ExportDefaultConstructorReferenceV1,
     ExportDefaultFieldReferenceV1, ExportDefaultGlobalReferenceV1,
-    ExportDefaultPublicWitnessValidationError, ExportDefaultReferenceClosureValidationError,
-    ExportDefaultReferenceKindV1, ExportDefaultReferenceOccurrenceSiteV1,
-    ExportDefaultReferenceResolutionError, ExportDefaultReferenceResolver,
-    ExportDefaultReferenceSetBuildError, ExportDefaultReferenceSetSemanticValidationError,
+    ExportDefaultReferenceClosureValidationError, ExportDefaultReferenceKindV1,
+    ExportDefaultReferenceOccurrenceSiteV1, ExportDefaultReferenceResolutionError,
+    ExportDefaultReferenceResolver, ExportDefaultReferenceSetBuildError,
     ExportDefaultReferenceSetV1, ExportDefaultReferenceSetValidationError,
-    ExportDefaultReferenceTargetResolutionError, ExportDefaultReferenceTargetTypeSiteV1,
-    ExportDefaultReferenceV1, ExportDefaultReferenceValidationError,
-    ExportDefaultSingletonReferenceV1, ExportDefaultTypeReferenceV1, PublicDefaultWitnessError,
+    ExportDefaultReferenceTargetResolutionError, ExportDefaultReferenceV1,
+    ExportDefaultSingletonReferenceV1, ExportDefaultTypeReferenceV1,
     compare_default_signature_reference_targets,
 };
 pub(crate) use default_templates::{
@@ -362,8 +352,7 @@ pub use route_closure::{
 pub use section::{
     CrossConeHirExternalReferenceValidationError, CrossConeHirInterfaceIndexError,
     CrossConeHirInterfaceResolutionError, CrossConeHirInterfaceResolver,
-    CrossConeHirInterfaceSectionV1, CrossConeHirInterfaceSemanticAuthority,
-    CrossConeHirInterfaceSemanticValidationError, CrossConeHirInternalClosureValidationError,
+    CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError,
     DecodedCrossConeHirInterfaceSectionV1, ExportDefinitionSourceClosureValidationError,
     ExportDefinitionSourceUseSiteV1, ExternalHirAliasClosureValidationError,
     ExternalHirAliasUseSiteV1, ExternalHirConstTypeClosureValidationError,
@@ -383,6 +372,3 @@ pub use type_alias_interfaces::{
     TypeAliasInterfaceSetSemanticValidationError, TypeAliasInterfaceSetValidationError,
     TypeAliasTargetResolutionError, TypeAliasTargetV1,
 };
-
-#[cfg(test)]
-pub(crate) use default_templates::expression_test_support;

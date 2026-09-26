@@ -1,17 +1,8 @@
-mod access;
-mod public_access;
-pub use public_access::ExportDefaultPublicWitnessValidationError;
 mod callable_target;
 mod closure;
 mod record;
-mod semantics;
 mod set;
 
-pub use access::{
-    DecodedExportDefaultAccessWitnessV1, ExportDefaultAccessWitnessBuildError,
-    ExportDefaultAccessWitnessResolutionError, ExportDefaultAccessWitnessV1,
-    ExportDefaultCallDomainV1, PublicDefaultWitnessError,
-};
 pub use callable_target::{
     DecodedExportDefaultCallableTargetV1, ExportDefaultCallableTargetBuildError,
     ExportDefaultCallableTargetResolutionError, ExportDefaultCallableTargetV1,
@@ -32,10 +23,6 @@ pub use record::{
     ExportDefaultGlobalReferenceV1, ExportDefaultReferenceResolutionError,
     ExportDefaultReferenceResolver, ExportDefaultReferenceTargetResolutionError,
     ExportDefaultReferenceV1, ExportDefaultSingletonReferenceV1, ExportDefaultTypeReferenceV1,
-};
-pub use semantics::{
-    DefaultReferenceSemanticAuthority, ExportDefaultReferenceSetSemanticValidationError,
-    ExportDefaultReferenceTargetTypeSiteV1, ExportDefaultReferenceValidationError,
 };
 pub use set::{
     DecodedExportDefaultReferenceSetV1, ExportDefaultReferenceKindV1,

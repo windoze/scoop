@@ -1,6 +1,6 @@
 # M23-5 设计：多 Cone 名称语义
 
-共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/24` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
+共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/25` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 M23-6 版本衔接：core 与普通依赖共用实际 provider 和 typed target 查询，独立 core requirement 闭包与 CoreStrong tag 2 已退役。当前 `link-identity-closure/3` 使用实际符号和 relocation 合同；旧产物需要重建。不同消费用途复用已有记录，移除按历史表分区授予或拒绝来源资格的规则。
 
@@ -233,7 +233,7 @@ required_manifest = [
 
 required_hir = [
   org.scoop-lang.hir/core-bootstrap-interface/3,
-  org.scoop-lang.hir/cross-cone-interface/24,
+  org.scoop-lang.hir/cross-cone-interface/25,
   org.scoop-lang.hir/identity-foundation/3,
 ]
 
@@ -267,7 +267,7 @@ validation_policy   = {
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
-| `org.scoop-lang.hir/cross-cone-interface/24` | HIR | Compile | HIR |
+| `org.scoop-lang.hir/cross-cone-interface/25` | HIR | Compile | HIR |
 | `org.scoop-lang.mir/cross-cone-param-free-bridge/2` | MIR | Compile | MIR |
 | `org.scoop-lang.lir/cross-cone-param-free-bridge/1` | LIR | Compile | LIR |
 | `org.scoop-lang.lir/cross-cone-link-closure/1` | LIR | Link | Code + LinkValidationOnly |
@@ -1458,7 +1458,7 @@ ExportDefaultFieldReferenceV1 = ExportDefaultReferenceV1<DefaultFieldRefV1>
 ExportDefaultReferenceV1<T> {
     target: T,                                      // field 1
     definition_origin: ExportDefinitionSourceV1,   // field 2
-    witness: ExportDefaultAccessWitnessV1,          // field 3
+    // Field 3 is retired.
 }
 
 ExportDefaultCallableTargetV1 =
@@ -1470,22 +1470,9 @@ ExportDefaultCallableTargetV1 =
   | AnonymousFunction { body: PersistentGeneratedCallableId } // tag 6, field 1
   | CallableReference { invoke: PersistentGeneratedCallableId } // tag 7, field 1
   | FunctionAddress { declaration: DefaultCallableDeclarationV1 } // tag 8, field 1
-
-ExportDefaultAccessWitnessV1 {
-    owner: CallableDeclarationId,                  // field 1
-    call_domain: ExportDefaultCallDomainV1,        // field 2
-    target_domain: ExportDefaultTargetDomainV1,    // field 3
-}
-
-ExportDefaultCallDomainV1 =
-    DirectPublic                                   // unsigned 1
-  | DirectAndPublicSlot                            // unsigned 2
-
-ExportDefaultTargetDomainV1 =
-    Universal                                      // unsigned 1
 ```
 
-`ExportDefaultCallableTargetV1`逐variant对应定义方HIR中产生access witness的八种callable
+`ExportDefaultCallableTargetV1`逐variant对应定义方HIR中已绑定的八种callable
 target；它不从body形状猜出另一种target。`LocalFunction.declaration`只接受Function或
 GenericFunction，并由其source declaration key重放local path；三个lexical generated variant的
 persistent key必须分别具有`LambdaBody`、`AnonymousFunctionBody`或`CallableReferenceInvoke`的精确
@@ -1496,30 +1483,22 @@ constructor、field与type target保留完整applied/structural ref，因此同�
 provider-scope application不会被错误合并。tuple field是合法的structural `DefaultFieldRefV1`，不为它
 制造persistent field id。
 
-每个typed set按record的`(target, definition_origin, witness)`结构序严格递增并拒绝重复；target sum
+每个typed set按record的`(target, definition_origin)`结构序严格递增并拒绝重复；target sum
 按上述tag排序，product按字段序，persistent id按raw bytes，其余叶使用各自已冻结的canonical顺序。
-六个set彼此不合并排序，长度均必须可表示为`u32`。record与witness都使用上述精确三字段map；
+六个set彼此不合并排序，长度均必须可表示为`u32`。record使用上述精确两字段map，旧field 3退役且不复用；
 callable target的八种wire均为`{0:tag,1:payload}`。reader不得排序修复、按显示名合并target，或把
 不同definition origin的两次绑定折成一条记录。
 
-cross-Cone section只发布public callable的source interface，因此成功witness的direct call domain与
-target access domain都必为universal；承担public slot的owner还必须同时覆盖universal slot domain。
-wire据此使用两个refined leaf type，而不序列化含本地arena id的M21通用`AccessDomain`：
-`DirectPublic`对应owner callable record的`DirectOnly`，`DirectAndPublicSlot`对应`PublicSlot`，
-`Universal`由target public interface或同template lexical ownership重算。这个收窄不是省略证明：
-reader必须逐条核对witness owner等于template key owner、owner callable access精确映射到
-`call_domain`，并从target种类重建`target_domain`及调用域包含关系。foreign internal/private target、
-缺失`DefaultDependency` external route、generated key与nested-callable authority证明的direct-template或
-default-dependency root/path/role不一致、普通`Export*Id`冒充refined ref均拒绝。
+默认值引用是普通依赖索引：六类记录各保留真实 typed target 与 definition origin，正文与索引在读取边界核对一次。定义处的名称、类型、effect 与调用域覆盖规则由前端负责；继承默认值遇到类型代换或调用域扩大时检查实际变化，未变化的事实直接复用。producer 不重建访问域，reader 不再分别重放 type、value、callable 与 direct/slot 的访问证明；产物仍检查实际 provider、typed 引用、owner/binder 范围、局部值范围及跨表一致性。字段、构造器与全局值引用在共有 reader 边界对照已解析声明的实际 owner、种类和作用域；局部函数引用必须对应正文携带的声明。复用已验证的身份图与正文索引，不重新推导访问域。默认引用 record 采用两字段 map，field 1=target、field 2=definition_origin；旧 witness 的 field 3 退役且不复用。共有接口升级为 `hir/cross-cone-interface/25`，旧 `/24` 及更早产物与缓存重建，profile 与内容 fingerprint 同步更新。运行时 C ABI、String 表示及必要 GC 契约不变。
 
 reference set必须与template locals及body在优化、const folding和desugaring前直接绑定的typed引用按
 上述record identity形成双向精确闭包：缺项、多余项或错误definition origin均拒绝。body traversal
 保持source order，但最终set按canonical key去重；同一target在不同definition origin出现时是两条记录。
 expression result、显式type operand、callable/constructor/field applied owner与local record中的
 `SignatureTypeKey`都参与type reference收集；binder leaf本身不是外部实体。template-owned
-local/lambda/anonymous/callable-reference target仍携带witness，并由其lexical identity证明universal；
+local/lambda/anonymous/callable-reference target保留其真实lexical identity及所属正文关系；
 callback registration和initialization unit是相应template operation的identity，不另造第七种access
-reference domain。reader从目标public interface重算domain包含关系；reference set与body实际typed
+reference domain。reader不重建可访问域；reference set与body实际typed
 引用的规范去重集合必须完全相等，无多余项。
 
 闭包中的`definition_origin`取发生直接绑定的source site：expression内的绑定使用该expression的origin，
@@ -1780,7 +1759,7 @@ foreign ordinary lookup没有“重新计算access domain”的自由。reader�
 - target kind/role与binding key一致；
 - signature exposure/reference closure完整。
 
-成功返回`PublicDependencyLookupWitness { terminal declaration, route, public-domain proof }`。HIR candidate、property read/write、default ref和re-export各自保存适合用途的refinement，不能把“有lookup witness”转成override/default/constructor proof。
+成功返回`PublicDependencyLookupWitness { terminal declaration, route, public-domain proof }`。HIR candidate、property read/write与re-export保存真实查找关系，default ref直接保存已绑定目标及定义位置；查找结果不能代替override、默认值与构造器的前端语言检查。
 
 foreign internal/private声明没有普通lookup入口。若恶意section为它构造binding，surface validation在world commit前失败；若它只存在于provider object或未来hidden support，不影响普通lookup。`protected` record不进入本阶段general interface；合法subclass context与receiver restriction由M23-6新section一次性开放。
 
@@ -2212,7 +2191,7 @@ candidate-local失败可在resolver内部回滚selection plan并继续下一cand
 - dependency public成功，internal/private不可枚举，malicious re-export拒绝；
 - public member可见但具体use触发M23-6；protected receiver触发独立dispatch/protected诊断；
 - imported callable named/default mapping、winner-only实例化、definition/evaluation origin、default引用另一个public dependency callable；
-- default直接引用internal/private、缺refined witness或body/reference closure不等的corruption negative；
+- public default直接引用internal/private的前端错误，以及body/reference closure不等的产物格式错误；
 - alias import/re-export/chain、target change invalidation、transparent type equality、跨Cone cycle；
 - `as` alias与typealias identity严格区分。
 

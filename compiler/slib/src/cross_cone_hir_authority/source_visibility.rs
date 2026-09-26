@@ -6,15 +6,17 @@ use scoop_hir::{DeclaredVisibilityV1, NominalInterfaceRecordV1};
 use scoop_identity::{DefinitionOriginSubject, SourceDeclarationKind, SourceIdentity};
 use scoop_wire::WirePath;
 
-mod callables;
-mod declarations;
 mod relations;
-mod types;
-mod values;
 
 type Error = CrossConeHirNominalAuthorityError;
 
-use scoop_hir::SourceAccessConstraintV1 as Constraint;
+#[derive(Eq, PartialEq)]
+enum Constraint {
+    Cone(ConeIdentity),
+    File(SourceIdentity),
+    LexicalOwner(SourceNominalId),
+    SubclassesOf(SourceNominalId),
+}
 
 impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     pub(crate) fn validate_property_setter_domains(&mut self) -> Result<(), Error> {

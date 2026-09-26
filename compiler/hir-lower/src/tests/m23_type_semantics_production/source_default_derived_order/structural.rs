@@ -117,5 +117,5 @@ fn check(output: &hir::DependencyHirOutput, owner: hir::ExportParameterOwner, po
         })
         .collect::<Vec<_>>();
     assert_eq!(references.len(), 1);
-    assert!(references[0].witness.target_domain.is_universal());
+    assert!(references[0].target_domain.is_universal());
 }

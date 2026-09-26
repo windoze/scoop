@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::SignatureTypeKey;
 
 #[test]
-fn ordinary_reader_replays_default_type_access_from_published_bytes() {
+fn ordinary_reader_consumes_default_type_references_from_published_bytes() {
     let target = resolved_target().expect("default type publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_pointer_core(sysroot.path(), &target);
@@ -84,7 +84,6 @@ fn reference_kinds(templates: &[scoop_hir::ExportDefaultTemplateV1]) -> [bool; 6
         .iter()
         .flat_map(|template| template.references().types())
     {
-        assert!(reference.witness().target_domain().is_universal());
         let index = match reference.target() {
             SignatureTypeKey::Nominal(_) => 0,
             SignatureTypeKey::NominalApplication { .. } => 1,

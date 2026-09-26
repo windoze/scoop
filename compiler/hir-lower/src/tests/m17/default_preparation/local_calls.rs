@@ -44,10 +44,7 @@ fn defaults_carry_their_own_local_callables_without_requiring_external_lookup() 
             })
             .collect::<Vec<_>>();
         assert_eq!(callees.len(), 1, "{name}");
-        assert_eq!(
-            callees[0].witness.target_domain,
-            hir::AccessDomain::universal()
-        );
+        assert_eq!(callees[0].target_domain, hir::AccessDomain::universal());
         let hir::ExportDefaultCallableTarget::Callable(callee) = callees[0].target else {
             unreachable!()
         };

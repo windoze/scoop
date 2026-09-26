@@ -8,6 +8,7 @@ use super::CanonicalCrossConeHirSurfaceAuthority;
 mod declarations;
 mod errors;
 mod local_signatures;
+mod references;
 mod shapes;
 use declarations::ParameterSelection;
 pub use errors::CrossConeHirDefaultProviderContractError;
@@ -55,16 +56,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             .provider_interface(provider)
             .map_err(|error| Error::Provider(Box::new(error)))?;
 
-        if let Some(public) = self
-            .current_interface
-            .callable_interfaces()
-            .get(template.key().owner())
-        {
-            template
-                .references()
-                .validate_public_access(public)
-                .map_err(|error| Error::PublicWitness(Box::new(error)))?;
-        }
         let publisher = declarations::contract(
             self.current_interface,
             template.key().owner(),
@@ -84,8 +75,9 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             .map_err(|error| Error::Contract(Box::new(error)))?;
         view.validate_provider_types(original.shape(), shapes, path)
             .map_err(|error| Error::Envelope(Box::new(error)))?;
+        self.validate_default_reference_targets(template.references())?;
         template
-            .validate_source_reference_closure(path)
+            .validate_reference_closure(path)
             .map_err(|error| Error::ReferenceClosure(Box::new(error)))
     }
 }

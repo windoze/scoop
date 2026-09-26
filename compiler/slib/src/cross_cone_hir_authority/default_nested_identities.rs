@@ -1,6 +1,6 @@
 //! Binds actual nested descriptors to their provider's shared artifact keys.
 
-use scoop_hir::DefaultTargetIdentityQueriesV1;
+use scoop_hir::{ExportDefaultCallableTargetV1, validate_default_nested_callable_identity};
 use scoop_wire::WirePath;
 
 use super::CanonicalCrossConeHirSurfaceAuthority;
@@ -18,6 +18,15 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             let path = path.clone().index(index as u64);
             let validate = || -> Result<(), Error> {
                 let nested = template.index_nested_callables(&path)?;
+                for reference in template.references().callables() {
+                    if let ExportDefaultCallableTargetV1::LocalFunction { declaration } =
+                        reference.target()
+                    {
+                        nested
+                            .require_local_declaration(*declaration)
+                            .map_err(Error::Reference)?;
+                    }
+                }
                 for occurrence in nested.occurrences() {
                     let origin = occurrence.definition_origin();
                     let provider = origin.origin().source().cone();
@@ -31,12 +40,17 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                             .map(|entry| entry.foundation)
                             .ok_or(Error::UnreachableProvider(provider))?
                     };
-                    DefaultTargetIdentityQueriesV1::new(provider, foundation)
-                        .validate_nested_callable_identity(occurrence.descriptor(), origin, &path)
-                        .map_err(|source| Error::Occurrence {
-                            site: occurrence.site(),
-                            source: Box::new(source),
-                        })?;
+                    validate_default_nested_callable_identity(
+                        foundation,
+                        provider,
+                        occurrence.descriptor(),
+                        origin,
+                        &path,
+                    )
+                    .map_err(|source| Error::Occurrence {
+                        site: occurrence.site(),
+                        source: Box::new(source),
+                    })?;
                 }
                 Ok(())
             };

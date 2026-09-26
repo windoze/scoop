@@ -1,7 +1,6 @@
 use scoop_hir::{
-    DefaultExpressionV1, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
-    ExportDefaultCallDomainV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
-    ExportDefaultTemplateV1,
+    DefaultExpressionV1, ExportDefaultBodyV1, ExportDefaultReferenceSetV1,
+    ExportDefaultReferenceV1, ExportDefaultTemplateV1,
 };
 
 use super::*;
@@ -19,7 +18,6 @@ pub(super) fn replace(
     types.push(ExportDefaultReferenceV1::new(
         template.result().clone(),
         origin.clone(),
-        ExportDefaultAccessWitnessV1::new(current.owner, ExportDefaultCallDomainV1::DirectPublic),
     ));
     types.sort_unstable();
     types.dedup();

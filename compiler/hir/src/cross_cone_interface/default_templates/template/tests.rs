@@ -8,7 +8,6 @@ use super::super::body::expression_test_support::{Fixture, ResolutionError, Reso
 use super::*;
 use crate::{
     DefaultExpressionIndexError, DefaultExpressionKindV1, DefaultExpressionV1,
-    ExportDefaultAccessWitnessV1, ExportDefaultCallDomainV1, ExportDefaultReferenceV1,
     TemplateLocalDefinitionV1, TemplateLocalRecordV1, TemplateValueParameterV1,
 };
 
@@ -77,42 +76,6 @@ fn template_rejects_body_locals_absent_from_canonical_table() {
                 TemplateLocalLookupError::MissingSelector(fixture.local()),
             )),
         ))
-    );
-}
-
-#[test]
-fn template_rejects_reference_witnesses_owned_by_another_callable() {
-    let fixture = Fixture::new();
-    let actual = CallableTemplateOrigin::Constructor(fixture.constructor);
-    let references = ExportDefaultReferenceSetV1::try_new(
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        vec![ExportDefaultReferenceV1::new(
-            fixture.property,
-            fixture.origin(),
-            ExportDefaultAccessWitnessV1::new(actual, ExportDefaultCallDomainV1::DirectPublic),
-        )],
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-
-    assert_eq!(
-        build_template(
-            &fixture,
-            unit_body(&fixture, fixture.value_type()),
-            fixture.value_type(),
-            empty_locals(),
-            empty_value_parameters(),
-            references,
-        ),
-        Err(ExportDefaultTemplateBuildError::ReferenceOwner {
-            kind: ExportDefaultReferenceKindV1::Global,
-            index: 0,
-            expected: CallableTemplateOrigin::Function(fixture.function),
-            actual,
-        })
     );
 }
 

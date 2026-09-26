@@ -9,8 +9,6 @@ use crate::{
 
 use super::super::tests::template;
 
-mod contracts;
-
 #[test]
 fn exact_source_template_closure_is_accepted() {
     let fixture = Fixture::new();

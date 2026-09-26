@@ -7,14 +7,10 @@ mod callable_declarations;
 mod callable_source;
 mod const_value;
 mod declaration_origins;
-mod default_call_domains;
-mod default_callable_access;
 mod default_contracts;
 mod default_data_flow;
 mod default_nested_identities;
 mod default_origins;
-mod default_type_access;
-mod default_value_access;
 mod definition_source;
 mod errors;
 mod intrinsics;
@@ -29,16 +25,12 @@ mod type_alias;
 
 pub use callable_source::*;
 pub use const_value::*;
-pub use default_call_domains::CrossConeHirDefaultCallDomainError;
-pub use default_callable_access::CrossConeHirDefaultCallableAccessError;
 pub use default_contracts::{
     CrossConeHirDefaultProviderContractError, DefaultMetadataNominalError,
 };
 pub use default_data_flow::{CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError};
 pub use default_nested_identities::CrossConeHirDefaultNestedIdentityError;
 pub use default_origins::CrossConeHirDefaultRootOriginError;
-pub use default_type_access::CrossConeHirDefaultTypeAccessError;
-pub use default_value_access::CrossConeHirDefaultValueAccessError;
 pub use definition_source::*;
 pub use errors::*;
 pub use intrinsics::CrossConeIntrinsicDeclarationError;

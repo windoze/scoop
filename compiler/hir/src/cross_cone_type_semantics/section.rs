@@ -3,12 +3,10 @@
 use crate::*;
 
 mod decode;
-mod public_support;
 mod source;
 #[cfg(test)]
 mod tests;
 pub use decode::*;
-pub use public_support::*;
 pub use source::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

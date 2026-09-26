@@ -365,11 +365,9 @@ where
         .map_err(ExportDefaultReferenceSetValidationError::Resource)?;
     for (index, record) in records.into_iter().enumerate() {
         let record = record
-            .resolve_with(
-                resolver,
-                &path.clone().field(kind as u32 + 1).index(index as u64),
-                |target, resolver| resolve_target(target, resolver),
-            )
+            .resolve_with(resolver, |target, resolver| {
+                resolve_target(target, resolver)
+            })
             .map_err(|error| ExportDefaultReferenceSetValidationError::Record {
                 kind,
                 index,

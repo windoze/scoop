@@ -1,8 +1,8 @@
 use scoop_identity::{
-    CallableTemplateOrigin, ConeIdentity, DefinitionOrigin, Effect, GcEffect, LocalValueSelector,
-    NominalDeclarationOwner, NormalizedSourcePath, OptionalSignatureType, SignatureTypeKey,
-    SourceContextKey, SourceIdentity, SourceSpan, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    CallableTemplateOrigin, ConeIdentity, DefinitionOrigin, LocalValueSelector,
+    NormalizedSourcePath, OptionalSignatureType, SignatureTypeKey, SourceContextKey,
+    SourceIdentity, SourceSpan, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 use scoop_wire::WirePath;
 
@@ -11,17 +11,14 @@ use crate::cross_cone_interface::default_templates::body::expression_test_suppor
     Fixture, definition_path,
 };
 use crate::{
-    CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
-    CallableSafetyV1, CallableSourceEffectsV1, CanonicalBinderListV1, CanonicalBinderUseListV1,
-    CanonicalBooleanV1, CanonicalSourceParameterShapesV1, CanonicalTemplateLocalTableV1,
+    CanonicalBinderUseListV1, CanonicalBooleanV1, CanonicalTemplateLocalTableV1,
     CanonicalTemplateValueParametersV1, DefaultCallableReferenceTargetV1,
     DefaultCallableReferenceV1, DefaultConstructorRefV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultFieldRefV1, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
-    ExportDefaultCallableReferenceV1, ExportDefaultConstructorReferenceV1,
-    ExportDefaultFieldReferenceV1, ExportDefaultGlobalReferenceV1, ExportDefaultReferenceV1,
-    ExportDefaultSingletonReferenceV1, ExportDefaultTemplateKeyV1, ExportDefaultTypeReferenceV1,
-    OptionalTemplateReceiverV1, PersistentLexicalRootV1, PublicDeclarationOwnerV1,
-    PublicLookupAccessV1, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
+    DefaultExpressionV1, DefaultFieldRefV1, ExportDefaultBodyV1, ExportDefaultCallableReferenceV1,
+    ExportDefaultConstructorReferenceV1, ExportDefaultFieldReferenceV1,
+    ExportDefaultGlobalReferenceV1, ExportDefaultReferenceV1, ExportDefaultSingletonReferenceV1,
+    ExportDefaultTemplateKeyV1, ExportDefaultTypeReferenceV1, OptionalTemplateReceiverV1,
+    PersistentLexicalRootV1, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
 
 #[test]
@@ -92,13 +89,12 @@ fn accepts_the_exact_deduplicated_six_domain_closure() {
         vec![reference(
             ExportDefaultCallableTargetV1::Callable(fixture.callable()),
             &origin,
-            &fixture,
         )],
-        vec![reference(constructor, &origin, &fixture)],
-        vec![reference(nominal, &origin, &fixture)],
-        vec![reference(fixture.property, &origin, &fixture)],
-        vec![reference(fixture.object, &origin, &fixture)],
-        vec![reference(field, &origin, &fixture)],
+        vec![reference(constructor, &origin)],
+        vec![reference(nominal, &origin)],
+        vec![reference(fixture.property, &origin)],
+        vec![reference(fixture.object, &origin)],
+        vec![reference(field, &origin)],
     );
     let template = template(
         &fixture,
@@ -108,7 +104,7 @@ fn accepts_the_exact_deduplicated_six_domain_closure() {
         origin,
     );
 
-    assert_eq!(validate(&template, &fixture), Ok(()));
+    assert_eq!(validate(&template), Ok(()));
 }
 
 #[test]
@@ -125,7 +121,7 @@ fn rejects_missing_wrong_origin_and_extra_records() {
         Vec::new(),
         Vec::new(),
         Vec::new(),
-        vec![reference(fixture.property, &other_origin, &fixture)],
+        vec![reference(fixture.property, &other_origin)],
         Vec::new(),
         Vec::new(),
     );
@@ -139,8 +135,7 @@ fn rejects_missing_wrong_origin_and_extra_records() {
 
     assert!(matches!(
         validate(
-            &template_with_wrong_origin,
-            &fixture
+            &template_with_wrong_origin
         ),
         Err(ExportDefaultReferenceClosureValidationError::Missing {
             kind: ExportDefaultReferenceKindV1::Global,
@@ -159,7 +154,7 @@ fn rejects_missing_wrong_origin_and_extra_records() {
         Vec::new(),
         Vec::new(),
         Vec::new(),
-        vec![reference(fixture.property, &origin, &fixture)],
+        vec![reference(fixture.property, &origin)],
         Vec::new(),
         Vec::new(),
     );
@@ -172,7 +167,7 @@ fn rejects_missing_wrong_origin_and_extra_records() {
     );
 
     assert_eq!(
-        validate(&template_with_extra, &fixture),
+        validate(&template_with_extra),
         Err(ExportDefaultReferenceClosureValidationError::Extra {
             kind: ExportDefaultReferenceKindV1::Global,
             index: 0,
@@ -201,7 +196,7 @@ fn local_types_use_their_source_origin_and_binder_roots_are_not_references() {
     let references = reference_set(
         Vec::new(),
         Vec::new(),
-        vec![reference(nominal, &local_origin, &fixture)],
+        vec![reference(nominal, &local_origin)],
         Vec::new(),
         Vec::new(),
         Vec::new(),
@@ -218,7 +213,7 @@ fn local_types_use_their_source_origin_and_binder_roots_are_not_references() {
         template_origin,
     );
 
-    assert_eq!(validate(&template, &fixture), Ok(()));
+    assert_eq!(validate(&template), Ok(()));
 }
 
 #[test]
@@ -247,10 +242,9 @@ fn callable_reference_wrapper_does_not_leak_its_underlying_callable() {
                 invoke: fixture.generated,
             },
             &origin,
-            &fixture,
         )],
         Vec::new(),
-        vec![reference(nominal.clone(), &origin, &fixture)],
+        vec![reference(nominal.clone(), &origin)],
         Vec::new(),
         Vec::new(),
         Vec::new(),
@@ -267,17 +261,13 @@ fn callable_reference_wrapper_does_not_leak_its_underlying_callable() {
         origin,
     );
 
-    assert_eq!(validate(&template, &fixture), Ok(()));
+    assert_eq!(validate(&template), Ok(()));
 }
 
 fn validate(
     template: &ExportDefaultTemplateV1,
-    fixture: &Fixture,
 ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-    template.validate_reference_closure_semantics(
-        &owner_interface(CallableTemplateOrigin::Function(fixture.function), fixture),
-        &WirePath::root(),
-    )
+    template.validate_reference_closure(&WirePath::root())
 }
 
 fn body(
@@ -324,43 +314,6 @@ fn template(
     .unwrap()
 }
 
-fn owner_interface(
-    declaration: CallableTemplateOrigin,
-    fixture: &Fixture,
-) -> CallableInterfaceRecordV1 {
-    let owner = match declaration {
-        CallableTemplateOrigin::Constructor(_) => {
-            PublicDeclarationOwnerV1::Nominal(NominalDeclarationOwner::Concrete(fixture.type_id))
-        }
-        _ => PublicDeclarationOwnerV1::TopLevel,
-    };
-    CallableInterfaceRecordV1::try_new(
-        declaration,
-        owner,
-        CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
-        None,
-        CanonicalSourceParameterShapesV1::try_new(Vec::new()).unwrap(),
-        binder(),
-        effects(),
-        CallableModalityV1::Final,
-        PublicLookupAccessV1::DirectOnly,
-        crate::CanonicalPersistentIdsV1::empty(),
-    )
-    .unwrap()
-}
-
-fn effects() -> CallableSourceEffectsV1 {
-    CallableSourceEffectsV1::try_new(
-        Effect::Ordinary,
-        CallableSafetyV1::Safe,
-        GcEffect::Managed,
-        CallableImplementationV1::Scoop,
-        CallableOperatorRoleV1::None,
-        CallableInfixV1::Ordinary,
-    )
-    .unwrap()
-}
-
 #[allow(clippy::too_many_arguments)]
 fn reference_set(
     callables: Vec<ExportDefaultCallableReferenceV1>,
@@ -381,19 +334,8 @@ fn reference_set(
     .unwrap()
 }
 
-fn reference<T>(
-    target: T,
-    origin: &ExportDefinitionSourceV1,
-    fixture: &Fixture,
-) -> ExportDefaultReferenceV1<T> {
-    ExportDefaultReferenceV1::new(
-        target,
-        origin.clone(),
-        ExportDefaultAccessWitnessV1::new(
-            CallableTemplateOrigin::Function(fixture.function),
-            ExportDefaultCallDomainV1::DirectPublic,
-        ),
-    )
+fn reference<T>(target: T, origin: &ExportDefinitionSourceV1) -> ExportDefaultReferenceV1<T> {
+    ExportDefaultReferenceV1::new(target, origin.clone())
 }
 
 const fn binder() -> SignatureTypeKey {
@@ -412,5 +354,4 @@ fn origin_at(path: &str, point: u64) -> ExportDefinitionSourceV1 {
     )
 }
 
-mod source;
 mod visitor;

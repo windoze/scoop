@@ -69,18 +69,6 @@ impl<'a> HirInterfaceValidationInput<'a> {
             .validate_default_nested_identities()
             .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultNestedIdentity)?;
         authority
-            .validate_default_type_access(self.core)
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultTypeAccess)?;
-        authority
-            .validate_default_value_access()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultValueAccess)?;
-        authority
-            .validate_default_callable_access(self.core)
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultCallableAccess)?;
-        authority
-            .validate_default_call_domains()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultCallDomain)?;
-        authority
             .validate_default_local_data_flow()
             .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultDataFlow)?;
         authority

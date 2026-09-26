@@ -169,7 +169,6 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     );
     assert!(
         template.references.singleton_values[0]
-            .witness
             .target_domain
             .is_universal()
     );

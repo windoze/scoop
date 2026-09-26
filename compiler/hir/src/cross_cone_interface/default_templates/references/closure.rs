@@ -1,18 +1,16 @@
 use std::cmp::Ordering;
 use std::fmt;
 
-use scoop_identity::{
-    CallableTemplateOrigin, PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey,
-};
+use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
 use scoop_wire::{WireError, WirePath};
 
 use super::{
-    ExportDefaultAccessWitnessV1, ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1,
-    ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
+    ExportDefaultCallableTargetV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
+    ExportDefaultReferenceV1,
 };
 use crate::{
-    CallableInterfaceRecordV1, DefaultBodyProviderTypeSiteV1, DefaultConstructorRefV1,
-    DefaultFieldRefV1, ExportDefaultTemplateV1, ExportDefinitionSourceV1, PublicLookupAccessV1,
+    DefaultBodyProviderTypeSiteV1, DefaultConstructorRefV1, DefaultFieldRefV1,
+    ExportDefaultTemplateV1, ExportDefinitionSourceV1,
 };
 
 mod compare;
@@ -26,55 +24,12 @@ use compare::{CallableTargetView, ConstructorTargetView, FieldTargetView};
 use observer::ClosureObserver;
 
 impl ExportDefaultTemplateV1 {
-    /// Proves that the declared six-domain reference set is exactly the
-    /// canonical deduplicated closure of direct bindings in `locals` and
-    /// `body`.
-    ///
-    /// This pass assumes target and origin authorities are checked by the
-    /// reference-envelope pass. It still derives the witness from the owner
-    /// interface and compares the complete `(target, origin, witness)` record.
-    pub fn validate_reference_closure_semantics(
+    /// Checks that the reference index exactly matches the typed body bindings.
+    pub fn validate_reference_closure(
         &self,
-        owner_interface: &CallableInterfaceRecordV1,
-
         path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        let expected_owner = self.key().owner();
-        let actual_owner = owner_interface.declaration();
-        if actual_owner != expected_owner {
-            return Err(
-                ExportDefaultReferenceClosureValidationError::OwnerInterface {
-                    expected: expected_owner,
-                    actual: actual_owner,
-                },
-            );
-        }
-
-        let witness = ExportDefaultAccessWitnessV1::new(
-            expected_owner,
-            call_domain(owner_interface.access()),
-        );
-        self.validate_reference_closure(WitnessExpectation::Public(witness), path)
-    }
-
-    /// Checks the exact direct reference closure of any shared source default.
-    /// Target access and publisher call domains must also be replayed from the
-    /// actual provider declarations by the artifact reader.
-    pub fn validate_source_reference_closure(
-        &self,
-
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.validate_reference_closure(WitnessExpectation::SourceOwner(self.key().owner()), path)
-    }
-
-    fn validate_reference_closure(
-        &self,
-        witness: WitnessExpectation,
-
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        let mut observer = ClosureObserver::new(self.references(), witness, path)?;
+        let mut observer = ClosureObserver::new(self.references(), path)?;
         self.body().visit_direct_references(
             self.locals(),
             self.definition_origin(),
@@ -82,20 +37,6 @@ impl ExportDefaultTemplateV1 {
             path,
         )?;
         observer.finish()
-    }
-}
-
-enum WitnessExpectation {
-    Public(ExportDefaultAccessWitnessV1),
-    SourceOwner(CallableTemplateOrigin),
-}
-
-impl WitnessExpectation {
-    fn compare(&self, actual: &ExportDefaultAccessWitnessV1) -> Result<Ordering, WireError> {
-        match self {
-            Self::Public(expected) => Ok(actual.cmp(expected)),
-            Self::SourceOwner(expected) => Ok(actual.owner().cmp(expected)),
-        }
     }
 }
 
@@ -159,7 +100,6 @@ fn observe_record<T>(
     records: &[ExportDefaultReferenceV1<T>],
     seen: &mut [bool],
     origin: &ExportDefinitionSourceV1,
-    witness: &WitnessExpectation,
     kind: ExportDefaultReferenceKindV1,
     site: ExportDefaultReferenceOccurrenceSiteV1,
     mut compare_target: impl FnMut(&T, &WirePath) -> Result<Ordering, WireError>,
@@ -171,11 +111,9 @@ fn observe_record<T>(
     while start < end {
         let middle = start + (end - start) / 2;
         let record = &records[middle];
-        let witness_ordering = witness.compare(record.witness())?;
         let ordering = compare_target(record.target(), path)
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?
-            .then_with(|| record.definition_origin().cmp(origin))
-            .then(witness_ordering);
+            .then_with(|| record.definition_origin().cmp(origin));
         match ordering {
             Ordering::Less => start = middle + 1,
             Ordering::Greater => end = middle,
@@ -205,13 +143,6 @@ fn check_extras(
     Ok(())
 }
 
-const fn call_domain(access: PublicLookupAccessV1) -> ExportDefaultCallDomainV1 {
-    match access {
-        PublicLookupAccessV1::DirectOnly => ExportDefaultCallDomainV1::DirectPublic,
-        PublicLookupAccessV1::PublicSlot => ExportDefaultCallDomainV1::DirectAndPublicSlot,
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExportDefaultReferenceOccurrenceSiteV1 {
     TemplateLocalType { index: usize },
@@ -226,10 +157,6 @@ pub enum ExportDefaultReferenceOccurrenceSiteV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExportDefaultReferenceClosureValidationError {
-    OwnerInterface {
-        expected: CallableTemplateOrigin,
-        actual: CallableTemplateOrigin,
-    },
     Missing {
         kind: ExportDefaultReferenceKindV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
@@ -246,10 +173,6 @@ pub enum ExportDefaultReferenceClosureValidationError {
 impl fmt::Display for ExportDefaultReferenceClosureValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::OwnerInterface { expected, actual } => write!(
-                formatter,
-                "default-template owner {expected:?} does not match reference-closure owner interface {actual:?}"
-            ),
             Self::Missing {
                 kind,
                 site,

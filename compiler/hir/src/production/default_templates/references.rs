@@ -1,74 +1,47 @@
-//! Projection of the definition-side access-reference closure.
-
-use scoop_identity::CallableTemplateOrigin;
+//! Projection of the typed direct-reference closure.
 
 use super::entities::DefaultEntityProjector;
-use super::source_access::SourceCallDomain;
 use crate::{
-    DefaultConstructorRefV1, ExportDefaultAccessWitness, ExportDefaultAccessWitnessV1,
-    ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
-    ExportDefaultReferences, ExportHir, HirSignatureBinder, SourceAccessDomainV1,
+    DefaultConstructorRefV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
+    ExportDefaultReferences, ExportHir, HirSignatureBinder,
 };
 
-pub(super) struct ReferenceProjection<'a, 'hir> {
-    pub(super) entities: &'a DefaultEntityProjector<'hir>,
-    pub(super) source_owner: CallableTemplateOrigin,
-    pub(super) source_domain: SourceCallDomain<'hir>,
-    pub(super) target_owner: CallableTemplateOrigin,
-    pub(super) target_domain: SourceCallDomain<'hir>,
-    pub(super) target_public: bool,
-    pub(super) binders: &'a [HirSignatureBinder],
-}
-
 pub(super) fn project(
-    projection: &ReferenceProjection<'_, '_>,
+    entities: &DefaultEntityProjector<'_>,
+    binders: &[HirSignatureBinder],
     references: &ExportDefaultReferences,
 ) -> Result<ExportDefaultReferenceSetV1, super::DefaultReferenceProjectionError> {
     let mut callables = Vec::with_capacity(references.callables.len());
-    for (index, reference) in references.callables.iter().enumerate() {
-        let target = projection
-            .entities
-            .reference_callable(reference.target, projection.binders)?;
+    for reference in &references.callables {
+        let target = entities.reference_callable(reference.target, binders)?;
         callables.push(ExportDefaultReferenceV1::new(
             target,
-            origin(projection.entities.export(), reference.origin)?,
-            witness(
-                projection,
-                &reference.witness,
-                ExportDefaultReferenceKindV1::Callable,
-                index,
-            )?,
+            origin(entities.export(), reference.origin)?,
         ));
     }
 
     let mut constructors = Vec::with_capacity(references.constructors.len());
-    for (index, reference) in references.constructors.iter().enumerate() {
+    for reference in &references.constructors {
         let target = match reference.target {
             crate::ExportDefaultConstructorTarget::ImportedVariant {
                 variant,
                 owner_type,
             } => DefaultConstructorRefV1::Variant {
                 declaration: variant,
-                owner_type: projection
-                    .entities
-                    .type_key(owner_type, projection.binders)?,
+                owner_type: entities.type_key(owner_type, binders)?,
             },
             crate::ExportDefaultConstructorTarget::Imported {
                 declaration,
                 owner_type,
-            } => projection.entities.imported_constructor(
-                declaration,
-                owner_type,
-                projection.binders,
-            )?,
-            crate::ExportDefaultConstructorTarget::Struct(application) => projection
-                .entities
-                .struct_constructor(application, projection.binders)?,
-            crate::ExportDefaultConstructorTarget::Class(application) => projection
-                .entities
-                .class_constructor(application, projection.binders)?,
+            } => entities.imported_constructor(declaration, owner_type, binders)?,
+            crate::ExportDefaultConstructorTarget::Struct(application) => {
+                entities.struct_constructor(application, binders)?
+            }
+            crate::ExportDefaultConstructorTarget::Class(application) => {
+                entities.class_constructor(application, binders)?
+            }
             crate::ExportDefaultConstructorTarget::Variant(variant) => {
-                let variant = projection.entities.variant(variant, projection.binders)?;
+                let variant = entities.variant(variant, binders)?;
                 DefaultConstructorRefV1::Variant {
                     declaration: variant.declaration(),
                     owner_type: variant.owner_type().clone(),
@@ -77,73 +50,39 @@ pub(super) fn project(
         };
         constructors.push(ExportDefaultReferenceV1::new(
             target,
-            origin(projection.entities.export(), reference.origin)?,
-            witness(
-                projection,
-                &reference.witness,
-                ExportDefaultReferenceKindV1::Constructor,
-                index,
-            )?,
+            origin(entities.export(), reference.origin)?,
         ));
     }
 
     let mut types = Vec::with_capacity(references.types.len());
-    for (index, reference) in references.types.iter().enumerate() {
+    for reference in &references.types {
         types.push(ExportDefaultReferenceV1::new(
-            projection
-                .entities
-                .reference_type(reference.target, projection.binders)?,
-            origin(projection.entities.export(), reference.origin)?,
-            witness(
-                projection,
-                &reference.witness,
-                ExportDefaultReferenceKindV1::Type,
-                index,
-            )?,
+            entities.reference_type(reference.target, binders)?,
+            origin(entities.export(), reference.origin)?,
         ));
     }
 
     let mut globals = Vec::with_capacity(references.globals.len());
-    for (index, reference) in references.globals.iter().enumerate() {
+    for reference in &references.globals {
         globals.push(ExportDefaultReferenceV1::new(
-            projection.entities.global_property(reference.target)?,
-            origin(projection.entities.export(), reference.origin)?,
-            witness(
-                projection,
-                &reference.witness,
-                ExportDefaultReferenceKindV1::Global,
-                index,
-            )?,
+            entities.global_property(reference.target)?,
+            origin(entities.export(), reference.origin)?,
         ));
     }
 
     let mut singleton_values = Vec::with_capacity(references.singleton_values.len());
-    for (index, reference) in references.singleton_values.iter().enumerate() {
+    for reference in &references.singleton_values {
         singleton_values.push(ExportDefaultReferenceV1::new(
-            projection.entities.singleton_id(reference.target)?,
-            origin(projection.entities.export(), reference.origin)?,
-            witness(
-                projection,
-                &reference.witness,
-                ExportDefaultReferenceKindV1::Singleton,
-                index,
-            )?,
+            entities.singleton_id(reference.target)?,
+            origin(entities.export(), reference.origin)?,
         ));
     }
 
     let mut fields = Vec::with_capacity(references.fields.len());
-    for (index, reference) in references.fields.iter().enumerate() {
+    for reference in &references.fields {
         fields.push(ExportDefaultReferenceV1::new(
-            projection
-                .entities
-                .field(reference.target, projection.binders)?,
-            origin(projection.entities.export(), reference.origin)?,
-            witness(
-                projection,
-                &reference.witness,
-                ExportDefaultReferenceKindV1::Field,
-                index,
-            )?,
+            entities.field(reference.target, binders)?,
+            origin(entities.export(), reference.origin)?,
         ));
     }
 
@@ -167,47 +106,6 @@ pub(super) fn project(
 fn canonicalize<T: Ord>(records: &mut Vec<T>) {
     records.sort_unstable();
     records.dedup();
-}
-
-fn witness(
-    projection: &ReferenceProjection<'_, '_>,
-    witness: &ExportDefaultAccessWitness,
-    kind: ExportDefaultReferenceKindV1,
-    index: usize,
-) -> Result<ExportDefaultAccessWitnessV1, super::DefaultReferenceProjectionError> {
-    let actual = projection.entities.parameter_owner(witness.owner)?;
-    if actual != projection.source_owner {
-        return Err(super::DefaultReferenceProjectionError::Owner {
-            kind,
-            index,
-            expected: projection.source_owner,
-            actual,
-        });
-    }
-    if projection.target_public && !witness.target_domain.is_universal() {
-        return Err(super::DefaultReferenceProjectionError::RestrictedTarget { kind, index });
-    }
-    if !projection.source_domain.matches(&witness.call_domain) {
-        return Err(super::DefaultReferenceProjectionError::InvalidCallDomain { kind, index });
-    }
-    let export = projection.entities.export();
-    let direct = SourceAccessDomainV1::from_export_hir(export, projection.target_domain.direct)
-        .map_err(super::DefaultReferenceProjectionError::Access)?;
-    let slot = projection
-        .target_domain
-        .slot
-        .map(|slot| SourceAccessDomainV1::from_export_hir(export, slot))
-        .transpose()
-        .map_err(super::DefaultReferenceProjectionError::Access)?;
-    let target = SourceAccessDomainV1::from_export_hir(export, &witness.target_domain)
-        .map_err(super::DefaultReferenceProjectionError::Access)?;
-    ExportDefaultAccessWitnessV1::try_new(projection.target_owner, direct, slot, target).map_err(
-        |source| {
-            super::DefaultReferenceProjectionError::Access(
-                super::DefaultSourceAccessProductionError::SharedBuild(source),
-            )
-        },
-    )
 }
 
 fn origin(

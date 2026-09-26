@@ -1,31 +1,31 @@
 use scoop_identity::{
     CallableTemplateOrigin, CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, Effect,
-    PackagePath, PersistentPropertyId, SignatureTypeKey, SourceDeclarationKey,
-    SourceDeclarationSite,
+    PackagePath, PersistentIdResolver, PersistentPropertyId, SignatureTypeKey,
+    SourceDeclarationKey, SourceDeclarationSite,
 };
 use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::super::body::expression_test_support::{Fixture, ResolutionError, hex};
 use super::*;
-mod source_domains;
 use crate::{
     DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
     DefaultCallableDeclarationV1, DefaultConstructorRefV1, DefaultFieldRefV1,
 };
 
 #[test]
-fn access_domains_and_witness_have_fixed_wire() {
+fn direct_reference_preserves_target_and_definition_origin() {
     let fixture = Fixture::new();
-    let witness = witness(&fixture, ExportDefaultCallDomainV1::DirectPublic);
-    let bytes = encode(&witness).unwrap();
-    assert_eq!(&bytes[..2], &[0xa4, 0x01]);
-    assert!(bytes.ends_with(&[
-        0x02, 0xa2, 0x00, 0x02, 0x01, 0x80, 0x03, 0x80, 0x04, 0xa2, 0x00, 0x02, 0x01, 0x80
-    ]));
-    let decoded: DecodedExportDefaultAccessWitnessV1 = decode_canonical(&bytes).unwrap();
+    let reference = reference(fixture.property, &fixture);
+    let bytes = encode(&reference).unwrap();
+    assert_eq!(&bytes[..2], &[0xa2, 0x01]);
+    let decoded: DecodedExportDefaultGlobalReferenceV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(
-        decoded.resolve(&mut fixture.resolver(), &scoop_wire::WirePath::root()),
-        Ok(witness)
+        decoded.resolve_with(&mut fixture.resolver(), |target, resolver| {
+            resolver
+                .resolve(target)
+                .map_err(ExportDefaultReferenceTargetResolutionError::Global)
+        }),
+        Ok(reference),
     );
 }
 
@@ -82,14 +82,12 @@ fn reference_set_sorts_each_domain_and_round_trips() {
     let direct = reference(
         ExportDefaultCallableTargetV1::Callable(fixture.callable()),
         &fixture,
-        ExportDefaultCallDomainV1::DirectPublic,
     );
     let address = reference(
         ExportDefaultCallableTargetV1::FunctionAddress {
             declaration: DefaultCallableDeclarationV1::Function(fixture.function),
         },
         &fixture,
-        ExportDefaultCallDomainV1::DirectPublic,
     );
     let owner_type = SignatureTypeKey::Nominal(fixture.type_id);
     let expected = ExportDefaultReferenceSetV1::try_new(
@@ -100,30 +98,16 @@ fn reference_set_sorts_each_domain_and_round_trips() {
                 owner_type: owner_type.clone(),
             },
             &fixture,
-            ExportDefaultCallDomainV1::DirectPublic,
         )],
-        vec![reference(
-            owner_type.clone(),
-            &fixture,
-            ExportDefaultCallDomainV1::DirectPublic,
-        )],
-        vec![reference(
-            fixture.property,
-            &fixture,
-            ExportDefaultCallDomainV1::DirectPublic,
-        )],
-        vec![reference(
-            fixture.object,
-            &fixture,
-            ExportDefaultCallDomainV1::DirectPublic,
-        )],
+        vec![reference(owner_type.clone(), &fixture)],
+        vec![reference(fixture.property, &fixture)],
+        vec![reference(fixture.object, &fixture)],
         vec![reference(
             DefaultFieldRefV1::Struct {
                 declaration: fixture.field,
                 owner_type,
             },
             &fixture,
-            ExportDefaultCallDomainV1::DirectPublic,
         )],
     )
     .unwrap();
@@ -140,7 +124,6 @@ fn reference_set_rejects_duplicates_and_noncanonical_reader_order() {
     let direct = reference(
         ExportDefaultCallableTargetV1::Callable(fixture.callable()),
         &fixture,
-        ExportDefaultCallDomainV1::DirectPublic,
     );
     assert_eq!(
         ExportDefaultReferenceSetV1::try_new(
@@ -161,7 +144,6 @@ fn reference_set_rejects_duplicates_and_noncanonical_reader_order() {
             declaration: DefaultCallableDeclarationV1::Function(fixture.function),
         },
         &fixture,
-        ExportDefaultCallDomainV1::DirectPublic,
     );
     let duplicate_bytes = encode(&ReferenceSetWire {
         callables: vec![direct.clone(), direct.clone()],
@@ -200,7 +182,6 @@ fn reference_set_rejects_invalid_local_function_shape() {
             declaration: CallableTemplateOrigin::Constructor(fixture.constructor),
         },
         &fixture,
-        ExportDefaultCallDomainV1::DirectPublic,
     );
 
     assert!(matches!(
@@ -239,11 +220,7 @@ fn reference_set_reports_nested_resolution_errors() {
         Vec::new(),
         Vec::new(),
         Vec::new(),
-        vec![reference(
-            missing,
-            &fixture,
-            ExportDefaultCallDomainV1::DirectPublic,
-        )],
+        vec![reference(missing, &fixture)],
         Vec::new(),
         Vec::new(),
     )
@@ -281,30 +258,16 @@ fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
         }
     );
 
-    let mut witness = encode(&witness(&fixture, ExportDefaultCallDomainV1::DirectPublic)).unwrap();
-    witness[0] = 0xa3;
-    let error = decode_canonical::<DecodedExportDefaultAccessWitnessV1>(&witness).unwrap_err();
-    assert_eq!(
-        error.kind(),
-        &WireErrorKind::InvalidLength {
-            expected: 4,
-            actual: 3,
-        }
-    );
-
-    let global = reference(
-        fixture.property,
-        &fixture,
-        ExportDefaultCallDomainV1::DirectPublic,
-    );
+    let global = reference(fixture.property, &fixture);
     let mut record = encode(&global).unwrap();
-    record[0] = 0xa2;
+    record[0] = 0xa3;
+    record.extend([0x03, 0xa0]);
     let error = decode_canonical::<DecodedExportDefaultGlobalReferenceV1>(&record).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 3,
-            actual: 2,
+            expected: 2,
+            actual: 3,
         }
     );
 
@@ -323,22 +286,8 @@ fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
     );
 }
 
-fn reference<T>(
-    target: T,
-    fixture: &Fixture,
-    call_domain: ExportDefaultCallDomainV1,
-) -> ExportDefaultReferenceV1<T> {
-    ExportDefaultReferenceV1::new(target, fixture.origin(), witness(fixture, call_domain))
-}
-
-fn witness(
-    fixture: &Fixture,
-    call_domain: ExportDefaultCallDomainV1,
-) -> ExportDefaultAccessWitnessV1 {
-    ExportDefaultAccessWitnessV1::new(
-        CallableTemplateOrigin::Function(fixture.function),
-        call_domain,
-    )
+fn reference<T>(target: T, fixture: &Fixture) -> ExportDefaultReferenceV1<T> {
+    ExportDefaultReferenceV1::new(target, fixture.origin())
 }
 
 struct ReferenceSetWire {

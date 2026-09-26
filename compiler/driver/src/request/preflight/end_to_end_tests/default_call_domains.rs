@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn ordinary_reader_replays_default_call_domains_from_published_bytes() {
+fn ordinary_reader_preserves_inherited_default_contracts_from_published_bytes() {
     let target = resolved_target().expect("default call domain publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);

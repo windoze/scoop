@@ -3,11 +3,8 @@
 mod inventory;
 pub use inventory::*;
 
-mod default_target_subject;
-pub use default_target_subject::*;
-
-mod default_type_access;
-pub use default_type_access::*;
+mod default_nested_identity;
+pub use default_nested_identity::*;
 
 mod default_operation_types;
 pub use default_operation_types::*;

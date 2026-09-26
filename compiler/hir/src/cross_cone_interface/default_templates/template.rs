@@ -13,13 +13,12 @@ use super::{
     DecodedExportDefaultBodyV1, DecodedExportDefaultReferenceSetV1,
     DecodedExportDefaultTemplateKeyV1, DecodedOptionalTemplateReceiverV1,
     DecodedPersistentLexicalRootV1, ExportDefaultBodyIndexError, ExportDefaultBodyResolutionError,
-    ExportDefaultBodyV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
-    ExportDefaultReferenceSetValidationError, ExportDefaultTemplateKeyV1,
-    IndexedCanonicalTemplateValueParametersV1, IndexedExportDefaultBodyV1,
-    IndexedOptionalTemplateReceiverV1, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
-    TemplateLocalLookupError, TemplateLocalTableValidationError, TemplateReceiverIndexError,
-    TemplateReceiverResolutionError, TemplateValueParameterListIndexError,
-    TemplateValueParameterListValidationError,
+    ExportDefaultBodyV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceSetValidationError,
+    ExportDefaultTemplateKeyV1, IndexedCanonicalTemplateValueParametersV1,
+    IndexedExportDefaultBodyV1, IndexedOptionalTemplateReceiverV1, OptionalTemplateReceiverV1,
+    PersistentLexicalRootV1, TemplateLocalLookupError, TemplateLocalTableValidationError,
+    TemplateReceiverIndexError, TemplateReceiverResolutionError,
+    TemplateValueParameterListIndexError, TemplateValueParameterListValidationError,
 };
 use crate::{
     CanonicalBooleanV1, DecodedExportDefinitionSourceV1, DefaultStatementReferenceResolver,
@@ -81,7 +80,6 @@ impl ExportDefaultTemplateV1 {
         value_parameters
             .index_locals(&mut local_index)
             .map_err(ExportDefaultTemplateBuildError::ValueParameterLocal)?;
-        validate_reference_owners(key, &references)?;
 
         Ok(Self {
             key,
@@ -364,12 +362,6 @@ pub enum ExportDefaultTemplateBuildError {
     BodyLocal(ExportDefaultBodyIndexError<TemplateLocalLookupError>),
     ReceiverLocal(TemplateReceiverIndexError<TemplateLocalLookupError>),
     ValueParameterLocal(TemplateValueParameterListIndexError<TemplateLocalLookupError>),
-    ReferenceOwner {
-        kind: ExportDefaultReferenceKindV1,
-        index: usize,
-        expected: scoop_identity::CallableTemplateOrigin,
-        actual: scoop_identity::CallableTemplateOrigin,
-    },
 }
 
 impl fmt::Display for ExportDefaultTemplateBuildError {
@@ -386,15 +378,6 @@ impl fmt::Display for ExportDefaultTemplateBuildError {
             Self::ValueParameterLocal(error) => {
                 write!(formatter, "invalid default value-parameter local: {error}")
             }
-            Self::ReferenceOwner {
-                kind,
-                index,
-                expected,
-                actual,
-            } => write!(
-                formatter,
-                "default {kind} reference {index} has witness owner {actual:?}, expected {expected:?}"
-            ),
         }
     }
 }
@@ -483,62 +466,6 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultTemplateResolutionError<E> {
 }
 
 impl<E: std::error::Error + 'static> std::error::Error for ExportDefaultTemplateResolutionError<E> {}
-
-fn validate_reference_owners(
-    key: ExportDefaultTemplateKeyV1,
-    references: &ExportDefaultReferenceSetV1,
-) -> Result<(), ExportDefaultTemplateBuildError> {
-    let expected = key.owner();
-    validate_reference_owner(
-        references.callables(),
-        ExportDefaultReferenceKindV1::Callable,
-        expected,
-    )?;
-    validate_reference_owner(
-        references.constructors(),
-        ExportDefaultReferenceKindV1::Constructor,
-        expected,
-    )?;
-    validate_reference_owner(
-        references.types(),
-        ExportDefaultReferenceKindV1::Type,
-        expected,
-    )?;
-    validate_reference_owner(
-        references.globals(),
-        ExportDefaultReferenceKindV1::Global,
-        expected,
-    )?;
-    validate_reference_owner(
-        references.singleton_values(),
-        ExportDefaultReferenceKindV1::Singleton,
-        expected,
-    )?;
-    validate_reference_owner(
-        references.fields(),
-        ExportDefaultReferenceKindV1::Field,
-        expected,
-    )
-}
-
-fn validate_reference_owner<T>(
-    references: &[super::ExportDefaultReferenceV1<T>],
-    kind: ExportDefaultReferenceKindV1,
-    expected: scoop_identity::CallableTemplateOrigin,
-) -> Result<(), ExportDefaultTemplateBuildError> {
-    for (index, reference) in references.iter().enumerate() {
-        let actual = reference.witness().owner();
-        if actual != expected {
-            return Err(ExportDefaultTemplateBuildError::ReferenceOwner {
-                kind,
-                index,
-                expected,
-                actual,
-            });
-        }
-    }
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests;

@@ -12,7 +12,6 @@ mod statements;
 struct ReferenceCollector<'a> {
     lowerer: &'a mut Lowerer,
     references: hir::ExportDefaultReferences,
-    owner: hir::ExportParameterOwner,
     call_domain: hir::CallDomain,
     fallback_origin: hir::DefinitionOrigin,
     local_declarations: HashSet<hir::FunctionId>,
@@ -28,7 +27,6 @@ impl Lowerer {
         let mut collector = ReferenceCollector {
             lowerer: self,
             references: hir::ExportDefaultReferences::default(),
-            owner,
             call_domain,
             fallback_origin: template.origin,
             local_declarations: HashSet::new(),
@@ -49,23 +47,19 @@ impl Lowerer {
 }
 
 impl ReferenceCollector<'_> {
-    fn witness(
+    fn checked_target_domain(
         &mut self,
         target_domain: hir::AccessDomain,
         origin: hir::DefinitionOrigin,
         target_kind: &str,
-    ) -> hir::ExportDefaultAccessWitness {
+    ) -> hir::AccessDomain {
         self.lowerer.check_default_reference_access(
             &self.call_domain,
             &target_domain,
             origin,
             target_kind,
         );
-        hir::ExportDefaultAccessWitness {
-            owner: self.owner,
-            call_domain: self.call_domain.clone(),
-            target_domain,
-        }
+        target_domain
     }
 
     fn callable_domain(&self, callable: hir::Callable) -> hir::AccessDomain {
@@ -149,12 +143,12 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let target_domain = self.callable_target_domain(&target);
-        let witness = self.witness(target_domain, origin, "a callable");
+        let target_domain = self.checked_target_domain(target_domain, origin, "a callable");
         self.references
             .callables
             .push(hir::ExportDefaultCallableRef {
                 target,
-                witness,
+                target_domain,
                 origin,
             });
     }
@@ -165,12 +159,12 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let target_domain = self.lowerer.constructor_access_domain(target);
-        let witness = self.witness(target_domain, origin, "a constructor");
+        let target_domain = self.checked_target_domain(target_domain, origin, "a constructor");
         self.references
             .constructors
             .push(hir::ExportDefaultConstructorRef {
                 target,
-                witness,
+                target_domain,
                 origin,
             });
     }
@@ -180,10 +174,10 @@ impl ReferenceCollector<'_> {
             return;
         }
         let target_domain = self.lowerer.type_access_domain(target);
-        let witness = self.witness(target_domain, origin, "a type");
+        let target_domain = self.checked_target_domain(target_domain, origin, "a type");
         self.references.types.push(hir::ExportDefaultTypeRef {
             target: hir::ExportDefaultTypeTarget::Type(target),
-            witness,
+            target_domain,
             origin,
         });
     }
@@ -191,10 +185,10 @@ impl ReferenceCollector<'_> {
     pub(super) fn global(&mut self, target: hir::GlobalId, origin: hir::DefinitionOrigin) {
         let property = self.lowerer.globals[target].property;
         let target_domain = self.lowerer.properties[property].access.lookup.0.clone();
-        let witness = self.witness(target_domain, origin, "a property");
+        let target_domain = self.checked_target_domain(target_domain, origin, "a property");
         self.references.globals.push(hir::ExportDefaultGlobalRef {
             target,
-            witness,
+            target_domain,
             origin,
         });
     }
@@ -206,22 +200,22 @@ impl ReferenceCollector<'_> {
     ) {
         let object = self.lowerer.singleton_values[target].declaration;
         let target_domain = self.lowerer.objects[object].access.lookup.0.clone();
-        let witness = self.witness(target_domain, origin, "an object");
+        let target_domain = self.checked_target_domain(target_domain, origin, "an object");
         self.references
             .singleton_values
             .push(hir::ExportDefaultSingletonValueRef {
                 target,
-                witness,
+                target_domain,
                 origin,
             });
     }
 
     pub(super) fn record_field(&mut self, target: hir::FieldRef, origin: hir::DefinitionOrigin) {
         let target_domain = self.lowerer.field_access_domain(target);
-        let witness = self.witness(target_domain, origin, "a field");
+        let target_domain = self.checked_target_domain(target_domain, origin, "a field");
         self.references.fields.push(hir::ExportDefaultFieldRef {
             target,
-            witness,
+            target_domain,
             origin,
         });
     }

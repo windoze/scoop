@@ -85,19 +85,12 @@ pub(in super::super) fn fixture(
     let locals = template.locals().records().to_vec();
     let references = template.references();
     let origin = template.definition_origin().clone();
-    let witness =
-        ExportDefaultAccessWitnessV1::new(fixture.owner, ExportDefaultCallDomainV1::DirectPublic);
     let mut types = references.types().to_vec();
-    types.push(ExportDefaultReferenceV1::new(
-        function_type,
-        origin.clone(),
-        witness.clone(),
-    ));
+    types.push(ExportDefaultReferenceV1::new(function_type, origin.clone()));
     let references = ExportDefaultReferenceSetV1::try_new(
         vec![ExportDefaultReferenceV1::new(
             ExportDefaultCallableTargetV1::LocalFunction { declaration },
             origin,
-            witness,
         )],
         references.constructors().to_vec(),
         types,

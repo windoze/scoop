@@ -14,9 +14,7 @@ mod envelope;
 mod errors;
 mod locals;
 mod references;
-mod source_access;
 mod source_callable_keys;
-pub use source_access::DefaultSourceAccessProductionError;
 pub(crate) use source_callable_keys::visit_source_callable_reference_keys;
 
 pub use errors::{

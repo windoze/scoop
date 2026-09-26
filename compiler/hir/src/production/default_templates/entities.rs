@@ -1,7 +1,6 @@
 //! Stable identity projection for entities referenced by default templates.
 
 mod callables;
-mod owners;
 mod signatures;
 mod targets;
 mod values;

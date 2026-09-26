@@ -2,7 +2,7 @@ use super::*;
 use scoop_hir::{DefaultConstructorRefV1, DefaultFieldRefV1};
 
 #[test]
-fn ordinary_reader_replays_default_value_access_from_published_bytes() {
+fn ordinary_reader_consumes_default_value_references_from_published_bytes() {
     let target = resolved_target().expect("default value publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -60,7 +60,6 @@ fn ordinary_reader_replays_default_value_access_from_published_bytes() {
             globals += refs.globals().len();
             singletons += refs.singleton_values().len();
             for reference in refs.constructors() {
-                assert!(reference.witness().target_domain().is_universal());
                 constructors[match reference.target() {
                     DefaultConstructorRefV1::Struct { .. } => 0,
                     DefaultConstructorRefV1::Class { .. } => 1,
@@ -68,20 +67,11 @@ fn ordinary_reader_replays_default_value_access_from_published_bytes() {
                 }] = true;
             }
             for reference in refs.fields() {
-                assert!(reference.witness().target_domain().is_universal());
                 fields[match reference.target() {
                     DefaultFieldRefV1::Struct { .. } => 0,
                     DefaultFieldRefV1::Class { .. } => 1,
                     DefaultFieldRefV1::Tuple { .. } => 2,
                 }] = true;
-            }
-            for witness in refs
-                .globals()
-                .iter()
-                .map(|r| r.witness())
-                .chain(refs.singleton_values().iter().map(|r| r.witness()))
-            {
-                assert!(witness.target_domain().is_universal());
             }
         }
         assert!(globals > 0);

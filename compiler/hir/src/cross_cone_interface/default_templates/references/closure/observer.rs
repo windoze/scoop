@@ -12,24 +12,22 @@ use super::visitor::{
 use super::{
     ExportDefaultReferenceClosureValidationError, ExportDefaultReferenceKindV1,
     ExportDefaultReferenceOccurrenceSiteV1, ExportDefaultReferenceSetV1, ExportDefinitionSourceV1,
-    ReferenceDomains, WitnessExpectation, observe_record,
+    ReferenceDomains, observe_record,
 };
 
 pub(super) struct ClosureObserver<'a> {
-    witness: WitnessExpectation,
     domains: ReferenceDomains<'a>,
 }
 
 impl<'a> ClosureObserver<'a> {
     pub(super) fn new(
         references: &'a ExportDefaultReferenceSetV1,
-        witness: WitnessExpectation,
 
         path: &WirePath,
     ) -> Result<Self, ExportDefaultReferenceClosureValidationError> {
         let domains = ReferenceDomains::new(references, path)
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        Ok(Self { witness, domains })
+        Ok(Self { domains })
     }
 
     pub(super) fn finish(&self) -> Result<(), ExportDefaultReferenceClosureValidationError> {
@@ -48,7 +46,6 @@ impl<'a> ClosureObserver<'a> {
             self.domains.callables.records,
             &mut self.domains.callables.seen,
             origin,
-            &self.witness,
             ExportDefaultReferenceKindV1::Callable,
             site,
             |declared, path| callable_target(declared, target, path),
@@ -68,7 +65,6 @@ impl<'a> ClosureObserver<'a> {
             self.domains.constructors.records,
             &mut self.domains.constructors.seen,
             origin,
-            &self.witness,
             ExportDefaultReferenceKindV1::Constructor,
             site,
             |declared, path| constructor_target(declared, target, path),
@@ -91,7 +87,6 @@ impl<'a> ClosureObserver<'a> {
             self.domains.types.records,
             &mut self.domains.types.seen,
             origin,
-            &self.witness,
             ExportDefaultReferenceKindV1::Type,
             site,
             |declared, path| signature_type(declared, target, path),
@@ -111,7 +106,6 @@ impl<'a> ClosureObserver<'a> {
             self.domains.globals.records,
             &mut self.domains.globals.seen,
             origin,
-            &self.witness,
             ExportDefaultReferenceKindV1::Global,
             site,
             |declared, _| Ok(declared.cmp(&target)),
@@ -131,7 +125,6 @@ impl<'a> ClosureObserver<'a> {
             self.domains.singletons.records,
             &mut self.domains.singletons.seen,
             origin,
-            &self.witness,
             ExportDefaultReferenceKindV1::Singleton,
             site,
             |declared, _| Ok(declared.cmp(&target)),
@@ -151,7 +144,6 @@ impl<'a> ClosureObserver<'a> {
             self.domains.fields.records,
             &mut self.domains.fields.seen,
             origin,
-            &self.witness,
             ExportDefaultReferenceKindV1::Field,
             site,
             |declared, path| field_target(declared, target, path),

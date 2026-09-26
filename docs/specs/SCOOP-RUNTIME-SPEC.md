@@ -1,6 +1,8 @@
 # Scoop Runtime 规范
 
-共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/24` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
+默认值引用的访问证明字段退役属于 HIR 产物格式变更：`hir/cross-cone-interface/25` 要求旧 `/24` 及更早产物和缓存重建。runtime 不读取这类前端访问证明；删除它不改变 C 调用约定、String 表示、类型布局或 GC 扫描契约。
+
+共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/25` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 跨 Cone enum 构造与默认值展开只改变前端取得完整构造信息的路径。runtime 继续使用现有 tag/niche、payload、ZST 与 scan 表示；不新增外部构造服务、来源检查或 C ABI 分支。
 

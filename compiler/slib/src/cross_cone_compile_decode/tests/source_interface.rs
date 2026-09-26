@@ -24,9 +24,6 @@ use scoop_wire::encode;
 use super::*;
 use crate::cross_cone_hir_authority::CrossConeHirCallableSourceAuthorityError;
 
-mod default_access;
-mod default_call_domains;
-mod default_callable_access;
 mod default_contracts;
 mod default_data_flow;
 mod default_envelope;
@@ -34,8 +31,6 @@ mod default_fixture;
 mod default_nested_identities;
 mod default_origins;
 mod default_reference_closure;
-mod default_type_access;
-mod default_value_access;
 mod shared_source;
 mod source_providers;
 

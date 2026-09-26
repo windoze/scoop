@@ -25,12 +25,11 @@ use crate::{
     CanonicalPublicExportBindingsV1, CanonicalTemplateLocalTableV1,
     CanonicalTemplateValueParametersV1, CanonicalTypeAliasInterfacesV1, DefaultBinderRefV1,
     DefaultCallableRefV1, DefaultExpressionKindV1, DefaultExpressionV1, DependencyBindingWitnessV1,
-    ExportDefaultAccessWitnessV1, ExportDefaultBodyV1, ExportDefaultCallDomainV1,
-    ExportDefaultReferenceSetV1, ExportDefaultReferenceV1, ExportDefaultTemplateKeyV1,
-    ExportDefaultTemplateV1, ExportDefinitionSourceV1, ExternalHirReferenceRoleV1,
-    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1, ExternalHirTargetV1,
-    OptionalTemplateReceiverV1, PersistentLexicalRootV1, PublicExportBindingClosureAuthority,
-    ReexportRouteHopV1, ReexportRouteV1,
+    ExportDefaultBodyV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ExportDefinitionSourceV1,
+    ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1,
+    ExternalHirTargetV1, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
+    PublicExportBindingClosureAuthority, ReexportRouteHopV1, ReexportRouteV1,
 };
 
 #[test]
@@ -335,52 +334,34 @@ impl Fixture {
             declaration: identities.foreign_field,
             owner_type: signature(identities.foreign_nominal),
         };
-        let witness =
-            ExportDefaultAccessWitnessV1::new(owner, ExportDefaultCallDomainV1::DirectPublic);
         let references = ExportDefaultReferenceSetV1::try_new(
             vec![
                 default_reference(
                     ExportDefaultCallableTargetV1::Callable(foreign_callable),
                     &origin,
-                    &witness,
                 ),
                 default_reference(
                     ExportDefaultCallableTargetV1::Callable(local_callable),
                     &origin,
-                    &witness,
                 ),
                 default_reference(
                     ExportDefaultCallableTargetV1::DerivedEquality {
                         owner_type: foreign_signature.clone(),
                     },
                     &origin,
-                    &witness,
                 ),
             ],
-            vec![default_reference(foreign_constructor, &origin, &witness)],
-            vec![default_reference(
-                foreign_signature.clone(),
-                &origin,
-                &witness,
-            )],
-            vec![default_reference(
-                identities.foreign_property,
-                &origin,
-                &witness,
-            )],
-            vec![default_reference(
-                identities.foreign_object,
-                &origin,
-                &witness,
-            )],
+            vec![default_reference(foreign_constructor, &origin)],
+            vec![default_reference(foreign_signature.clone(), &origin)],
+            vec![default_reference(identities.foreign_property, &origin)],
+            vec![default_reference(identities.foreign_object, &origin)],
             vec![
-                default_reference(foreign_field, &origin, &witness),
+                default_reference(foreign_field, &origin),
                 default_reference(
                     DefaultFieldRefV1::Tuple {
                         declaration_index: 0,
                     },
                     &origin,
-                    &witness,
                 ),
             ],
         )
@@ -705,9 +686,8 @@ fn template(
 fn default_reference<T>(
     target: T,
     origin: &ExportDefinitionSourceV1,
-    witness: &ExportDefaultAccessWitnessV1,
 ) -> ExportDefaultReferenceV1<T> {
-    ExportDefaultReferenceV1::new(target, origin.clone(), witness.clone())
+    ExportDefaultReferenceV1::new(target, origin.clone())
 }
 
 fn external_reference(

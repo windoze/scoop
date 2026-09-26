@@ -24,7 +24,7 @@ pub(super) fn local(
 }
 
 pub(super) fn validate(
-    foundation: &DefaultTargetIdentityQueriesV1<'_>,
+    foundation: &NestedIdentityInput<'_>,
     parent: CallableTemplateOwner,
     identity: Identity,
     origin: &ExportDefinitionSourceV1,
@@ -51,7 +51,7 @@ pub(super) fn validate(
 }
 
 fn variant(
-    foundation: &DefaultTargetIdentityQueriesV1<'_>,
+    foundation: &NestedIdentityInput<'_>,
     variant: scoop_identity::PersistentEnumVariantId,
     identity: Identity,
     origin: &ExportDefinitionSourceV1,

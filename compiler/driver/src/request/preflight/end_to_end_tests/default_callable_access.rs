@@ -3,7 +3,7 @@ use scoop_hir::{DefaultBoundCallableSourceV1, ExportDefaultCallableTargetV1 as T
 use scoop_wire::WirePath;
 
 #[test]
-fn ordinary_reader_replays_default_callable_access_from_published_bytes() {
+fn ordinary_reader_consumes_default_callable_references_from_published_bytes() {
     let target = resolved_target().expect("callable access publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);

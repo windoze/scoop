@@ -209,27 +209,9 @@ impl fmt::Display for DefaultBodyProjectionError {
 impl fmt::Display for DefaultReferenceProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Access(source) => source.fmt(formatter),
             Self::Entity(source) => source.fmt(formatter),
             Self::Signature(source) => source.fmt(formatter),
             Self::DefinitionOrigin(source) => source.fmt(formatter),
-            Self::RestrictedTarget { kind, index } => write!(
-                formatter,
-                "default reference {kind:?}[{index}] targets a restricted entity"
-            ),
-            Self::Owner {
-                kind,
-                index,
-                expected,
-                actual,
-            } => write!(
-                formatter,
-                "default reference {kind:?}[{index}] is owned by {actual:?}, not {expected:?}"
-            ),
-            Self::InvalidCallDomain { kind, index } => write!(
-                formatter,
-                "default reference {kind:?}[{index}] uses the wrong call domain"
-            ),
             Self::Set(source) => source.fmt(formatter),
         }
     }

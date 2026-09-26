@@ -228,9 +228,8 @@ fn imported_core_default_projects_after_the_input_world_is_dropped() {
         .get(scoop_hir::ExportDefaultTemplateKeyV1::new(owner, 0))
         .unwrap();
     assert_eq!(template.references().callables().len(), 1);
-    let callables = scoop_hir::CanonicalCallableInterfacesV1::from_export_hir(export).unwrap();
     template
-        .validate_reference_closure_semantics(callables.get(owner).unwrap(), &WirePath::root())
+        .validate_reference_closure(&WirePath::root())
         .expect("the imported callable reference must close exactly");
 }
 

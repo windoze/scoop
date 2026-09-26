@@ -168,7 +168,7 @@ fun trace(
 
 ### 2.4 Export与失效
 
-导出callable的default template、parameter name、calling shape、definition origin及已经绑定的export-visible entity identity进入`ExportHir`，随后进入`.slib` HIR metadata。default template不携带private/internal hidden dependency closure，也不把调用方需要重新解析的名称文本作为语义输入；其body只能引用带非可选调用域覆盖证明的kind-specific export-interface reference及callable自身的interface参数。普通`ExportTypeId`/`ExportCallableId`可能还索引generic body依赖闭包中的隐藏实体，不能直接冒充这种refined reference。下游在自己的调用点通过同一个通用实例化器生成`ConcreteExpressionOrigin`；export template与concrete instance使用不同IR类型，因此前者不需要以可选字段假装已经存在evaluation origin。
+导出callable的default template、parameter name、calling shape、definition origin及已经绑定的export-visible entity identity进入`ExportHir`，随后进入`.slib` HIR metadata。default template不携带private/internal hidden dependency closure，也不把调用方需要重新解析的名称文本作为语义输入；其body直接保存已解析的kind-specific typed声明引用及callable自身的interface参数。定义处的可见性检查由前端完成，引用不携带额外调用域覆盖证明。下游在自己的调用点通过同一个通用实例化器生成`ConcreteExpressionOrigin`；export template与concrete instance使用不同IR类型，因此前者不需要以可选字段假装已经存在evaluation origin。
 
 修改参数名、default body、default绑定目标或vararg形态都会改变调用接口metadata，并使依赖Cone的HIR缓存失效。把default所引用实体的可见域收窄到不再覆盖callable调用域，是被引用声明与default声明之间的HIR错误。链接ABI仍是完整实际参数列表，不能以“machine signature没变”为由复用旧调用结果。
 
@@ -440,7 +440,7 @@ enum ExportVarargOmission {
 
 `ExportVarargParameterTypeId`索引一个由HIR原子建立的实体，其中同时包含element type和对应的精确`Array<element>`application；普通/default分支直接携带value type。consumer不从element type重新查找Array，也不会遇到一个平行`actual_type`与vararg信息不一致的组合。
 
-`ExportDefaultExpr`包含hygienic typed template body、result type、逐节点definition origin、允许的type/value parameter引用及已经绑定的export-interface references。callable、type、property/accessor等不同实体继续使用不同的ref类型，例如`ExportDefaultCallableRef`与`ExportDefaultTypeRef`；每个ref结构化携带目标export id和非可选`ExportDefaultAccessWitness`，证明目标的访问域覆盖所属callable的调用域。不存在一个无类型`ExportDefaultEntityId`，也不能直接放入可能指向generic hidden dependency的普通`ExportCallableId`/`ExportTypeId`。这些ref只能由定义处覆盖检查成功的builder产生，因此`.slib`reader只消费完备结果，不重新验证、反推或补齐可见性。
+`ExportDefaultExpr`包含hygienic typed template body、result type、逐节点definition origin、允许的type/value parameter引用及已经绑定的export-interface references。callable、type、property/accessor等不同实体继续使用不同的ref类型，例如`ExportDefaultCallableRef`与`ExportDefaultTypeRef`；每个ref携带真实typed目标和definition origin。前端在定义处完成调用域覆盖检查，并缓存目标访问域供继承导致调用域扩大时使用；不在每条引用复制owner/call domain，不序列化证明字段。不存在无类型的实体ID回退；`.slib`reader只在边界检查格式、引用和owner/binder关系，直接消费完备结果，不重建前端可见性证明。
 
 default不存在使用`Required`表达，而不是`Option<Expr>`；vararg的两种omission也不能用空Option猜。
 

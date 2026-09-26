@@ -1,9 +1,9 @@
 use scoop_hir::{
     DefaultNominalReceiverBuildError, DefaultTemplateDeclarationContractError,
     DefaultTemplateProviderParameterBuildError, DefaultTemplateProviderShapeBuildError,
-    DefaultTemplateSourceEnvelopeError, ExportDefaultTemplateKeyV1,
+    DefaultTemplateSourceEnvelopeError, ExportDefaultReferenceKindV1, ExportDefaultTemplateKeyV1,
 };
-use scoop_identity::CallableTemplateOrigin;
+use scoop_identity::{CallableTemplateOrigin, IdentityReferenceError};
 use scoop_wire::WireError;
 
 use super::DefaultMetadataNominalError;
@@ -15,7 +15,12 @@ pub enum CrossConeHirDefaultProviderContractError {
     Nominal(DefaultMetadataNominalError),
     Provider(Box<CrossConeHirNominalAuthorityError>),
     MissingDeclaration(CallableTemplateOrigin),
-    PublicWitness(Box<scoop_hir::ExportDefaultPublicWitnessValidationError>),
+    Identity(IdentityReferenceError),
+    ReferenceTarget {
+        kind: ExportDefaultReferenceKindV1,
+        index: usize,
+        reason: &'static str,
+    },
     ReferenceClosure(Box<scoop_hir::ExportDefaultReferenceClosureValidationError>),
     MissingProtocol(CallableTemplateOrigin),
     MissingDefaultParameter {
@@ -51,7 +56,14 @@ impl std::fmt::Display for CrossConeHirDefaultProviderContractError {
             Self::Resource(error) => error.fmt(f),
             Self::Nominal(error) => error.fmt(f),
             Self::Provider(error) => error.fmt(f),
-            Self::PublicWitness(error) => error.fmt(f),
+            Self::Identity(error) => error.fmt(f),
+            Self::ReferenceTarget {
+                kind,
+                index,
+                reason,
+            } => {
+                write!(f, "default {kind} reference[{index}]: {reason}")
+            }
             Self::ReferenceClosure(error) => error.fmt(f),
             Self::MissingDeclaration(declaration) => {
                 write!(f, "default provider declaration {declaration:?} is absent")
@@ -88,7 +100,7 @@ impl std::error::Error for CrossConeHirDefaultProviderContractError {
             Self::Resource(error) => Some(error),
             Self::Nominal(error) => Some(error),
             Self::Provider(error) => Some(error.as_ref()),
-            Self::PublicWitness(error) => Some(error.as_ref()),
+            Self::Identity(error) => Some(error),
             Self::ReferenceClosure(error) => Some(error.as_ref()),
             Self::Shape(error) => Some(error),
             Self::Parameter(error) => Some(error),

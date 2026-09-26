@@ -12,6 +12,30 @@ use scoop_identity::{
 };
 
 #[test]
+fn ordinary_reader_requires_a_local_function_references_body_declaration() {
+    let mut fixture = fixture(0);
+    let template = &fixture.interface.default_templates().records()[0];
+    let statements = template
+        .body()
+        .statements()
+        .iter()
+        .filter(|statement| !matches!(statement.kind(), DefaultStatementKindV1::LocalFunction(_)))
+        .cloned()
+        .collect();
+    let locals = template.locals().records().to_vec();
+    default_envelope::support::replace_contents(&mut fixture, locals, statements);
+    let bytes = fixture.artifact();
+    let mut front = declaration_front(&bytes);
+    let Err(Error::Template { source, .. }) = validate(&mut front) else {
+        panic!("a local function reference requires its body declaration")
+    };
+    assert!(matches!(
+        *source,
+        Error::Reference(DefaultSourceNestedCallableQueryError::MissingIdentity(_))
+    ));
+}
+
+#[test]
 fn ordinary_reader_checks_a_nested_descriptors_actual_owner_binder_count() {
     let fixture = fixture(4);
     assert!(matches!(

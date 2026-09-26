@@ -7,20 +7,17 @@ use crate::cross_cone_hir_authority::{
     CrossConeHirCallableSourceAuthorityError, ValidatedNominalProviderView,
 };
 pub use crate::cross_cone_hir_authority::{
-    CrossConeHirDefaultCallDomainError, CrossConeHirDefaultCallableAccessError,
     CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError,
     CrossConeHirDefaultNestedIdentityError, CrossConeHirDefaultProviderContractError,
-    CrossConeHirDefaultRootOriginError, CrossConeHirDefaultTypeAccessError,
-    CrossConeHirDefaultValueAccessError, CrossConeHirSourceInventoryError,
+    CrossConeHirDefaultRootOriginError, CrossConeHirSourceInventoryError,
     DefaultMetadataNominalError, SourceInventoryDeclaration,
 };
 
 /// One provider whose callable source-order parameter protocol is exact and
 /// whose defaults have valid root origins, source declaration contracts,
 /// provider type scopes, exact body-reference closure, nested identities,
-/// type/value/callable target access, declaration call domains and local data flow.
-/// Operation typing, unique inherited-default selection, nested ABI and
-/// reference receiver envelopes are separate semantic checks.
+/// and local data flow.
+/// Definition-side language checks are not replayed when these records are read.
 pub struct SourceInterfaceValidatedCrossConeHirFrontSections<'input>(
     pub(super) ValidatedSurfaceFront<'input>,
 );
@@ -49,10 +46,6 @@ pub enum CrossConeHirSourceInterfaceSurfaceError {
     DefaultRootOrigin(CrossConeHirDefaultRootOriginError),
     DefaultProviderContract(CrossConeHirDefaultProviderContractError),
     DefaultNestedIdentity(CrossConeHirDefaultNestedIdentityError),
-    DefaultTypeAccess(CrossConeHirDefaultTypeAccessError),
-    DefaultValueAccess(CrossConeHirDefaultValueAccessError),
-    DefaultCallableAccess(CrossConeHirDefaultCallableAccessError),
-    DefaultCallDomain(CrossConeHirDefaultCallDomainError),
     DefaultDataFlow(CrossConeHirDefaultDataFlowError),
 }
 
@@ -64,10 +57,6 @@ impl std::fmt::Display for CrossConeHirSourceInterfaceSurfaceError {
             Self::DefaultRootOrigin(error) => error.fmt(formatter),
             Self::DefaultProviderContract(error) => error.fmt(formatter),
             Self::DefaultNestedIdentity(error) => error.fmt(formatter),
-            Self::DefaultTypeAccess(error) => error.fmt(formatter),
-            Self::DefaultValueAccess(error) => error.fmt(formatter),
-            Self::DefaultCallableAccess(error) => error.fmt(formatter),
-            Self::DefaultCallDomain(error) => error.fmt(formatter),
             Self::DefaultDataFlow(error) => error.fmt(formatter),
         }
     }
@@ -81,10 +70,6 @@ impl std::error::Error for CrossConeHirSourceInterfaceSurfaceError {
             Self::DefaultRootOrigin(error) => Some(error),
             Self::DefaultProviderContract(error) => Some(error),
             Self::DefaultNestedIdentity(error) => Some(error),
-            Self::DefaultTypeAccess(error) => Some(error),
-            Self::DefaultValueAccess(error) => Some(error),
-            Self::DefaultCallableAccess(error) => Some(error),
-            Self::DefaultCallDomain(error) => Some(error),
             Self::DefaultDataFlow(error) => Some(error),
         }
     }

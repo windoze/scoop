@@ -13,10 +13,6 @@ impl CanonicalHirFoundation {
         &self.enum_variants
     }
 
-    pub(crate) fn type_source_object_value_records(&self) -> &[ObjectValueRecord] {
-        &self.object_values
-    }
-
     pub(crate) fn type_source_constructor_records(&self) -> &[ConstructorRecord] {
         &self.constructors
     }
@@ -59,9 +55,5 @@ impl CanonicalHirFoundation {
 
     pub(crate) fn type_source_initialization_records(&self) -> &[InitializationUnitRecord] {
         &self.initialization_units
-    }
-
-    pub(crate) fn type_source_dispatch_records(&self) -> &[DispatchSlotRecord] {
-        &self.dispatch_slots
     }
 }

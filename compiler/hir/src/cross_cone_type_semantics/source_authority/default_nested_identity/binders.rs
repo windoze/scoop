@@ -5,7 +5,7 @@ use scoop_identity::{CallableTemplateOwner, DefinitionOwnerAtom, PropertyOwner};
 mod owners;
 
 pub(super) fn validate(
-    foundation: &DefaultTargetIdentityQueriesV1<'_>,
+    foundation: &NestedIdentityInput<'_>,
     parent: CallableTemplateOwner,
     descriptor: DefaultSourceNestedCallableDescriptorV1<'_>,
 
@@ -39,7 +39,7 @@ pub(super) fn validate(
 }
 
 struct Arity<'a, 'f> {
-    foundation: &'a DefaultTargetIdentityQueriesV1<'f>,
+    foundation: &'a NestedIdentityInput<'f>,
     identity: Identity,
 
     path: &'a WirePath,

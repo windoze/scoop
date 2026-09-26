@@ -8,7 +8,7 @@ use crate::{
     DefaultCallableReferenceBuildError, DefaultControlFlowBuildError, DefaultExpressionBuildError,
     DefaultForIterationPlanBuildError, DefaultLexicalCallableBuildError,
     DefaultLocalFunctionBuildError, DefaultPatternBuildError, DefaultStatementBuildError,
-    ExportDefaultBodyBuildError, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetBuildError,
+    ExportDefaultBodyBuildError, ExportDefaultReferenceSetBuildError,
     ExportDefaultTemplateBuildError, ExportDefaultTemplateKeyV1,
     ExportDefaultTemplateSetBuildError, HirDefinitionSourceProjectionError,
     HirInterfaceSignatureProjectionError, TemplateLocalRecordBuildError,
@@ -127,24 +127,9 @@ pub enum DefaultBodyProjectionError {
 
 #[derive(Debug)]
 pub enum DefaultReferenceProjectionError {
-    Access(super::DefaultSourceAccessProductionError),
     Entity(DefaultEntityProjectionError),
     Signature(HirInterfaceSignatureProjectionError),
     DefinitionOrigin(HirDefinitionSourceProjectionError),
-    RestrictedTarget {
-        kind: ExportDefaultReferenceKindV1,
-        index: usize,
-    },
-    Owner {
-        kind: ExportDefaultReferenceKindV1,
-        index: usize,
-        expected: CallableTemplateOrigin,
-        actual: CallableTemplateOrigin,
-    },
-    InvalidCallDomain {
-        kind: ExportDefaultReferenceKindV1,
-        index: usize,
-    },
     Set(ExportDefaultReferenceSetBuildError),
 }
 

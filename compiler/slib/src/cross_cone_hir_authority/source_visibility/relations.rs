@@ -2,32 +2,6 @@ use super::*;
 use std::collections::BTreeSet;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
-    pub(in crate::cross_cone_hir_authority) fn source_domain_is_subset(
-        &mut self,
-        narrow: &scoop_hir::SourceAccessDomainV1,
-        wide: &scoop_hir::SourceAccessDomainV1,
-    ) -> Result<bool, Error> {
-        if narrow.is_empty() || wide.is_universal() {
-            return Ok(true);
-        }
-        if wide.is_empty() {
-            return Ok(false);
-        }
-        for required in wide.constraints() {
-            let mut covered = false;
-            for provided in narrow.constraints() {
-                if self.visibility_implies(provided, required)? {
-                    covered = true;
-                    break;
-                }
-            }
-            if !covered {
-                return Ok(false);
-            }
-        }
-        Ok(true)
-    }
-
     pub(super) fn visibility_implies(
         &mut self,
         narrow: &Constraint,

@@ -425,7 +425,7 @@ Export HIR为每个逻辑property保存：owner、name、exact/template type、r
 
 implementation representation同样是sum：stored携带backing storage与initializer，accessor-only携带getter及可能setter的`AccessorImplementation::{Body, AbstractSlot}`，delegated携带effective delegate plan/storage，const携带typed value，extern/raw携带ABI storage。explicit abstract property正规化为全部required slot都是`AbstractSlot`，interface允许Body/AbstractSlot混合；concrete owner不能残留abstract slot。只有stored可构造`BackingFieldId`，只有delegated可构造`DelegateStorageId`，只有runtime初始化variant可构造`InitializationUnitId`。
 
-visibility使用上述分离的typed domain与已经验证的kind-specific access witness。候选ref、override relation、signature exposure和M17 default reference分别携带适合自身用途的witness，不能把“曾经查到过名称”或一种domain proof当作另一种证明。Export只包含源码显式public且effective/contract允许导出的语义表面、generic template及M23所需依赖；internal/private实体不因link symbol存在而冒充export declaration。
+visibility使用上述分离的typed domain。前端分别检查候选、override、signature exposure与M17 default的实际语言规则；默认值在继承导致类型或调用域变化时检查变化，产物中的引用只保存typed目标与定义位置，不附加调用域证明。名称查找结果不能代替这些实际语言检查。Export只包含源码显式public且effective/contract允许导出的语义表面、generic template及M23所需依赖；internal/private实体不因link symbol存在而冒充export declaration。
 
 object declaration、object type、singleton value、companion relation、published root与initialization unit使用不同id。generic host companion没有host argument Vec；结构上就是owner template关联的非generic singleton。nested type保存typed owner，不把owner拼进字符串后再解析。
 

@@ -30,7 +30,7 @@ fn ordinary_reader_rejects_a_missing_body_reference_at_its_exact_occurrence() {
 }
 
 #[test]
-fn ordinary_reader_rejects_an_unused_reference_even_with_a_valid_public_witness() {
+fn ordinary_reader_rejects_an_unused_typed_reference() {
     let mut fixture = default_fixture::fixture(default_fixture::Case::Defined);
     let mut references = fixture.interface.default_templates().records()[0]
         .references()
@@ -43,7 +43,6 @@ fn ordinary_reader_rejects_an_unused_reference_even_with_a_valid_public_witness(
             [],
         )),
         reference.definition_origin().clone(),
-        reference.witness().clone(),
     ));
     references.sort_unstable();
     let extra_index = references
@@ -79,7 +78,6 @@ fn ordinary_reader_matches_reference_origins_in_addition_to_typed_targets() {
     let references = vec![ExportDefaultReferenceV1::new(
         reference.target().clone(),
         changed,
-        reference.witness().clone(),
     )];
     replace_types(&mut fixture, references);
     assert!(matches!(failure(&fixture), ClosureError::Missing {
@@ -119,4 +117,116 @@ fn replace_types(
     )
     .unwrap();
     default_fixture::replace_references(fixture, references);
+}
+
+#[test]
+fn ordinary_reader_checks_default_reference_owners_and_roles() {
+    use scoop_hir::{DefaultClassConstructorIdV1, DefaultConstructorRefV1, DefaultFieldRefV1};
+
+    let (foundation, interface, nominal, _, constructor, global, _, _) =
+        surface_fixture::nominal_surface(cone().identity(), true, true, true);
+    let bytes = cross_cone_artifact_for_with_hir_foundation(cone(), vec![], &foundation, interface);
+    let front = surface_fixture::declaration_front(&bytes);
+    let origin = ExportDefinitionSourceV1::new(
+        front
+            .foundations
+            .hir
+            .definition_origin(DefinitionOriginSubject::Type(nominal))
+            .unwrap()
+            .origin()
+            .clone(),
+    );
+    let NominalSourceShapeV1::Struct(shape) =
+        front.hir_interface.nominal_interfaces().records()[0].source_shape()
+    else {
+        panic!("fixture has a source struct")
+    };
+    let field = shape.fields()[0].field();
+    let authority = crate::cross_cone_hir_authority::CanonicalCrossConeHirSurfaceAuthority::new(
+        front.graph.identity(),
+        &front.identities,
+        &front.foundations.hir,
+        &front.hir_interface,
+        vec![],
+    );
+    let owner = SignatureTypeKey::Nominal(nominal);
+    let wrong_owner = SignatureTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id());
+    for (field_target, constructor_target, expected) in [
+        (
+            DefaultFieldRefV1::Struct {
+                declaration: field,
+                owner_type: owner.clone(),
+            },
+            DefaultConstructorRefV1::Struct {
+                declaration: constructor,
+                owner_type: owner.clone(),
+            },
+            None,
+        ),
+        (
+            DefaultFieldRefV1::Struct {
+                declaration: field,
+                owner_type: wrong_owner.clone(),
+            },
+            DefaultConstructorRefV1::Struct {
+                declaration: constructor,
+                owner_type: owner.clone(),
+            },
+            Some(ExportDefaultReferenceKindV1::Field),
+        ),
+        (
+            DefaultFieldRefV1::Class {
+                declaration: field,
+                owner_type: owner.clone(),
+            },
+            DefaultConstructorRefV1::Struct {
+                declaration: constructor,
+                owner_type: owner.clone(),
+            },
+            Some(ExportDefaultReferenceKindV1::Field),
+        ),
+        (
+            DefaultFieldRefV1::Struct {
+                declaration: field,
+                owner_type: owner.clone(),
+            },
+            DefaultConstructorRefV1::Struct {
+                declaration: constructor,
+                owner_type: wrong_owner,
+            },
+            Some(ExportDefaultReferenceKindV1::Constructor),
+        ),
+        (
+            DefaultFieldRefV1::Struct {
+                declaration: field,
+                owner_type: owner.clone(),
+            },
+            DefaultConstructorRefV1::Class {
+                declaration: DefaultClassConstructorIdV1::Source(constructor),
+                owner_type: owner,
+            },
+            Some(ExportDefaultReferenceKindV1::Constructor),
+        ),
+    ] {
+        let references = ExportDefaultReferenceSetV1::try_new(
+            vec![],
+            vec![ExportDefaultReferenceV1::new(
+                constructor_target,
+                origin.clone(),
+            )],
+            vec![],
+            vec![ExportDefaultReferenceV1::new(global, origin.clone())],
+            vec![],
+            vec![ExportDefaultReferenceV1::new(field_target, origin.clone())],
+        )
+        .unwrap();
+        let result = authority.validate_default_reference_targets(&references);
+        if let Some(expected) = expected {
+            assert!(
+                matches!(result, Err(ContractError::ReferenceTarget { kind, index: 0, .. }) if kind == expected)
+            );
+        } else {
+            result.unwrap();
+        }
+    }
 }
