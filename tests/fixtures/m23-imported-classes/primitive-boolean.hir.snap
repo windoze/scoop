@@ -1,0 +1,52 @@
+Module
+  fun primary(): Counter
+    val local0
+      Box : Any
+        BoolLiteral true : Boolean
+    val local1
+      Box : Hash
+        BoolLiteral true : Boolean
+    val local2
+      Box : Hash
+        BoolLiteral false : Boolean
+    if
+      Unbox : Boolean
+        Cast Boolean optional=false : Boolean
+          Local boxed : Any
+      val local3
+        Local yes : Hash
+      val local5
+        ImportedDependencyCall #0 interface[0] : Long
+          Local $dependency.receiver : Hash
+      val local4
+        Local no : Hash
+      val local6
+        Local $equality.lhs : Long
+      val local7
+        ImportedDependencyCall #0 interface[0] : Long
+          Local $dependency.receiver : Hash
+      val local8
+        Local $dependency.argument.0 : Long
+      val local9
+        Unary Not : Boolean
+          IntegerOperation long.equals <no-gc> : Boolean
+            Local $dependency.receiver : Long
+            Local $dependency.parameter.other : Long
+    else
+      val local9
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.0 : Boolean
+      assign $result.1
+        IntegerLiteral 21 : Long
+    else
+      assign $result.1
+        IntegerLiteral 0 : Long
+    val local11
+      Local $result.1 : Long
+    val local12
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

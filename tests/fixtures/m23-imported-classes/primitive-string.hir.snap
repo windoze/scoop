@@ -1,0 +1,53 @@
+Module
+  fun primary(): Counter
+    val local0
+      Box : ToString
+        IntegerLiteral 21 : Int
+    val local1
+      StringLiteral "21" : String
+    val local2
+      ReferenceUpcast : ToString
+        Local text : String
+    val local3
+      Local number : ToString
+    val local5
+      ImportedDependencyCall #0 interface[0] : String
+        Local $dependency.receiver : ToString
+    val local4
+      Local reference : ToString
+    val local6
+      Local $equality.lhs : String
+    val local7
+      ImportedDependencyCall #0 interface[0] : String
+        Local $dependency.receiver : ToString
+    val local8
+      Local $dependency.argument.0 : String
+    if
+      ImportedDependencyCall #1 : Boolean
+        Local $dependency.receiver : String
+        Local $dependency.parameter.other : String
+      val local9
+        Local reference : ToString
+      val local10
+        Binary RefEq : Boolean
+          Local text : String
+          ImportedDependencyCall #0 interface[0] : String
+            Local $dependency.receiver : ToString
+    else
+      val local10
+        BoolLiteral false : Boolean
+    if
+      Local $shortCircuit.0 : Boolean
+      assign $result.1
+        IntegerLiteral 21 : Long
+    else
+      assign $result.1
+        IntegerLiteral 0 : Long
+    val local12
+      Local $result.1 : Long
+    val local13
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #2 : Counter
+        Local $dependency.parameter.value : Long
+  output library

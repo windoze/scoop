@@ -60,7 +60,7 @@ pub struct StructApplication {
 #[derive(Debug, Clone)]
 pub enum StructRepresentation {
     Declared(Vec<Field>),
-    Intrinsic(IntrinsicTypeDeclaration),
+    Intrinsic(IntrinsicTypeKind),
 }
 
 impl StructRepresentation {
@@ -616,7 +616,7 @@ pub struct ClassApplication {
 #[derive(Debug, Clone)]
 pub enum ClassRepresentation {
     Declared,
-    Intrinsic(IntrinsicTypeDeclaration),
+    Intrinsic(IntrinsicTypeKind),
 }
 
 #[derive(Debug, Clone)]
@@ -788,12 +788,6 @@ pub struct StructConstructorApplication {
 pub enum ClassApplicationRepresentation {
     Declared,
     Intrinsic(IntrinsicTypeRepresentation),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct IntrinsicTypeDeclaration {
-    pub kind: IntrinsicTypeKind,
-    pub provider: IntrinsicProviderId,
 }
 
 /// Closed semantic identity of every compiler-represented nominal type.
@@ -1112,10 +1106,7 @@ mod tests {
         let intrinsic = structs.alloc(struct_declaration(
             "Intrinsic",
             intrinsic_application,
-            StructRepresentation::Intrinsic(IntrinsicTypeDeclaration {
-                kind: IntrinsicTypeKind::Boolean,
-                provider: IntrinsicProviderId::from_raw(0),
-            }),
+            StructRepresentation::Intrinsic(IntrinsicTypeKind::Boolean),
         ));
         let mut struct_applications = Arena::new();
         let declared_self = struct_applications.alloc(StructApplication {

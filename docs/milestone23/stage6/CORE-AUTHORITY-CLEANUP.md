@@ -8,6 +8,12 @@
 
 值类型装箱同样消费真实声明及其完整接口关系。普通 struct/enum 与 intrinsic 值类型不能因声明来自依赖而丢失接口或要求本地 core；实际 provider 的 boxed TD、接口表、adjust thunk 通过共有定义与 relocation 路径使用。保留真实声明 ID、接口继承、payload 布局和 GC 信息，不将其包装成来源资格或另建证明表。
 
+清除 MIR primitive 装箱对 Defined core 的依赖，复用完整 HIR 中的实际值类型声明。`IntrinsicTypeDeclaration` 中的来源编号只曾用于前端重复声明诊断，不应传至后端或由外来表示伪造；删除该包装并直接保存 typed kind，前端从当前源码上下文取得诊断位置。普通 source 文件编号、声明身份与签名继续保留。
+
+保留按实际使用建立物化闭包的规则。查询结果本身不是机器使用，不得将未使用 primitive、失败候选或未实例化默认参数批量加入布局、TD 或 Link 依赖；真实装箱与函数变型适配继续获得完整声明和接口信息。
+
+此次清理不提前开放独立 function/adapter 的 Structural ODR 发布；这类真实请求继续在 M23-6 得到能力诊断，验收不能通过改变实体归属绕过 M23-7 边界。
+
 共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/27` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 enum 模式和变体测试不是构造器调用：删除默认值引用集合中仅为这些操作保存的构造器访问记录及 reader 对该记录的要求，直接消费正文已有的实际 variant、owner 与字段引用。保留实际构造表达式的构造器关系、前端可见性和类型检查；`hir/cross-cone-interface/27` 同步语义并要求旧 `/22` 及更早产物重建，不建立替代凭证。

@@ -397,21 +397,28 @@ impl Lowerer {
     /// struct instances use the mandatory MIR→HIR provenance map.
     pub(crate) fn value_struct_source(
         &self,
-        _module: &hir::Module,
+        module: &hir::Module,
         payload: &mir::Type,
     ) -> Option<hir::StructId> {
         match payload {
-            mir::Type::Integer(kind) => Some(
-                crate::defined_protocols(&self.core_protocols)
-                    .fundamental_types
-                    .integers
-                    .owner(raise_integer_kind(*kind)),
-            ),
-            mir::Type::Boolean => Some(
-                crate::defined_protocols(&self.core_protocols)
-                    .fundamental_types
-                    .boolean,
-            ),
+            mir::Type::Integer(_) | mir::Type::Boolean => {
+                let exact = self
+                    .source_exact_types
+                    .get(payload)
+                    .expect("boxed payloads retain their HIR exact type")
+                    .identity_record()
+                    .id();
+                Some(
+                    module
+                        .structs
+                        .iter()
+                        .find_map(|(id, declaration)| {
+                            (module.exact_type_identities[declaration.canonical_type].id() == exact)
+                                .then_some(id)
+                        })
+                        .expect("primitive HIR types retain their actual struct declarations"),
+                )
+            }
             mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
             _ => None,
         }

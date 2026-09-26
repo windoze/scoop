@@ -104,9 +104,16 @@ impl Lowerer {
             Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
             )),
-            Kind::Box(operand) => hir::ExprKind::Box(Box::new(
-                self.materialize_imported_default_expression(operand, context)?,
-            )),
+            Kind::Box(operand) => {
+                let operand = self.materialize_imported_default_expression(operand, context)?;
+                self.retain_imported_box_source(operand.ty)
+                    .map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(
+                            error.diagnostic("boxed value type"),
+                        )
+                    })?;
+                hir::ExprKind::Box(Box::new(operand))
+            }
             Kind::Unbox(operand) => hir::ExprKind::Unbox(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
             )),

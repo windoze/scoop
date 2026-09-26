@@ -81,6 +81,10 @@ pub struct Module {
     /// origins. Their persistent identities live in the aligned relation.
     pub source_contexts: Arena<SourceContext>,
     pub types: Arena<Type>,
+    /// Dependency declarations behind primitive representations, with their
+    /// resolved interface types. Their definitions remain in the provider.
+    pub imported_intrinsic_types:
+        std::collections::BTreeMap<IntrinsicTypeKind, ImportedIntrinsicType>,
     /// Canonical function signatures in one-to-one correspondence with their
     /// `FunctionType::canonical_type` entries in `types`.
     pub function_types: Arena<FunctionType>,

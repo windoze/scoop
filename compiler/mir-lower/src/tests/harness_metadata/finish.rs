@@ -551,6 +551,7 @@ impl Harness {
             source_files,
             source_contexts,
             types: self.types,
+            imported_intrinsic_types: std::collections::BTreeMap::new(),
             function_types: self.function_types,
             lambdas: Arena::new(),
             anonymous_functions: Arena::new(),

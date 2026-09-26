@@ -348,6 +348,7 @@ impl Concretizer<'_> {
             }
             export::ExprKind::Box(value) => {
                 let value = self.lower_expr(value, substitution, locals);
+                self.ensure_box_source(value.ty);
                 if matches!(
                     self.types[value.ty].kind,
                     concrete::TypeKind::Unit

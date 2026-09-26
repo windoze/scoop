@@ -112,3 +112,4 @@ public struct EchoValue(val reference: Counter): ValueEcho {
     public override fun echo(value: EchoValue): EchoValue = value
 }
 public fun defaultValueReader(value: Readable = StructReader(20)): Readable = value
+public fun defaultPrimitiveHash(value: Hash = 21): Hash = value

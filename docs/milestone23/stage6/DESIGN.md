@@ -924,6 +924,12 @@ class 字段与 closure capture 的 ZST payload 读写在 MIR→LIR 阶段消除
 
 ### 9.2 box/unbox执行路径
 
+整数与 Boolean 的接口取自实际 intrinsic 类型声明，包含其普通 `ToString`、`Hash` 及用户扩展；前端完整解析后沿共有值类型表示进入后续阶段。MIR 按 payload 的 canonical 类型关联真实 struct 声明，不能通过 Defined core 协议取得额外操作资格。类型表示直接保存 typed intrinsic kind，删除来源编号包装；源码文件索引仍只用于正常源码位置与诊断。
+
+前端按需保留查询结果；具体化只为实际 Box、value receiver 和函数变型适配请求相应 primitive 表示。未使用的 arena 条目、失败候选及未求值默认模板不成为物化根；默认参数实际展开时使用相同请求路径。
+
+需要独立 Structural ODR adapter 的函数变型仍由 M23-7 开放发布；本阶段保持其 HIR/MIR 装箱输入完整，并验收明确的 ODR 能力诊断，不将此类 adapter 改成 Strong 来绕过阶段边界。
+
 外来 struct/enum 的完整 HIR 包含真实声明、字段和解析后的接口；具体化保留父接口闭包，不能将它清为空表。相互引用的类型先登记真实 ID 再完成记录，以支持接口签名引用实现者和经 class 的间接递归。装箱沿既有来源 exact type 选择实际 provider 的 boxed TD 和 dispatch 定义；消费者只保存所需表示与类型关系，不复制外来方法或生成第二套 adjust thunk。验收用真实源码和隐藏 provider 源码后的产物消费，覆盖接口默认方法、父接口、ZST、大值、含引用 payload 及 core 扩展，并链接运行普通与移动 GC。
 
 ```text

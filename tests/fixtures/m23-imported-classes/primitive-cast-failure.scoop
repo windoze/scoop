@@ -1,0 +1,12 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val signed: Int8 = 21
+    val value: Any = signed
+    try {
+        val invalid = value as UInt8
+        return Counter(0)
+    } catch (error: ClassCastException) {
+        return Counter(21)
+    }
+}

@@ -187,6 +187,7 @@ impl Concretizer<'_> {
                 | concrete::TypeKind::FunPtr(_)
         );
         if value {
+            self.ensure_box_source(receiver.ty);
             concrete::Expr {
                 kind: concrete::ExprKind::Box(Box::new(receiver)),
                 ty: target,

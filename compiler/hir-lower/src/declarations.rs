@@ -124,10 +124,7 @@ impl Lowerer {
                     decl.fields.is_omitted(),
                     decl.span,
                 );
-                hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                    kind: spec.kind,
-                    provider: self.current_intrinsic_provider(),
-                })
+                hir::StructRepresentation::Intrinsic(spec.kind)
             }
             None => hir::StructRepresentation::Declared(Vec::new()),
         };
@@ -390,10 +387,7 @@ impl Lowerer {
                         "an intrinsic class declaration cannot have a base class".to_string(),
                     );
                 }
-                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                    kind: spec.kind,
-                    provider: self.current_intrinsic_provider(),
-                })
+                hir::ClassRepresentation::Intrinsic(spec.kind)
             }
             None => hir::ClassRepresentation::Declared,
         };

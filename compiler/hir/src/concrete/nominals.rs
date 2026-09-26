@@ -91,7 +91,7 @@ pub enum StructRepresentation {
         fields: Vec<DeclaredStructField>,
     },
     Intrinsic {
-        declaration: IntrinsicTypeDeclaration,
+        declaration: IntrinsicTypeKind,
         application: IntrinsicTypeRepresentation,
     },
 }
@@ -396,7 +396,7 @@ pub enum ClassRepresentation {
         base_class: Option<ClassId>,
     },
     Intrinsic {
-        declaration: IntrinsicTypeDeclaration,
+        declaration: IntrinsicTypeKind,
         application: IntrinsicTypeRepresentation,
     },
 }

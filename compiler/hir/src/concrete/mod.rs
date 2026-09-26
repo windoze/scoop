@@ -25,9 +25,9 @@ pub use super::{
     GcEffect, HirCLayoutContract, HirCLayoutValue, HirIntegerConstant, IntegerConversion,
     IntegerDivRem, IntegerKind, IntegerOperation, IntegerOperationArity, IntegerSignedness,
     IntegerTypeCore, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId,
-    IntrinsicTypeDeclaration, IntrinsicTypeKind, LocalValueDefinitionSite, MethodModifier,
-    NoGcIntegerOperation, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind, Safety,
-    StringConstantOwner, StructAttributes, UnOp,
+    IntrinsicTypeKind, LocalValueDefinitionSite, MethodModifier, NoGcIntegerOperation,
+    OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind, Safety, StringConstantOwner,
+    StructAttributes, UnOp,
 };
 
 mod types;

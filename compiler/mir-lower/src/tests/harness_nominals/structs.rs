@@ -97,10 +97,7 @@ impl Harness {
     ) -> hir::StructId {
         let self_application =
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
-        let declaration = hir::IntrinsicTypeDeclaration {
-            kind,
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        };
+        let declaration = kind;
         let strukt = self.structs.alloc(hir::StructDecl {
             owner: None,
             name: name.to_string(),
@@ -141,10 +138,7 @@ impl Harness {
     ) -> hir::ClassId {
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
-        let declaration = hir::IntrinsicTypeDeclaration {
-            kind,
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        };
+        let declaration = kind;
         let class = self.classes.alloc(hir::ClassDecl {
             owner: None,
             modifier: hir::ClassModifier::Final,

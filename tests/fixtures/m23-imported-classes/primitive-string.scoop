@@ -1,0 +1,9 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val number: ToString = 21
+    val text: String = "21"
+    val reference: ToString = text
+    return Counter(if (number.toString() == reference.toString() &&
+        text === reference.toString()) { 21 } else { 0 })
+}

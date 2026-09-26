@@ -4,6 +4,7 @@ use super::*;
 
 mod classes;
 mod interfaces;
+mod intrinsics;
 
 impl Concretizer<'_> {
     pub(super) fn lower_imported_struct(

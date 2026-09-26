@@ -1,0 +1,101 @@
+Module
+  class Counter vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val number: ToString
+        Type ToString
+        Box
+          Type Int
+          IntegerLiteral Int value=21 bits=0x00000015
+      val text: String
+        Type String
+        StringConst @str0
+      val reference: ToString
+        Type ToString
+        Retype ToString
+          Type String
+          Local text
+      val $dependency.receiver: ToString
+        Type ToString
+        Local number
+      call $equality.lhs: String = external0 interface ToString[0]
+        Type ToString
+        Local $dependency.receiver
+      val $dependency.receiver: ToString
+        Type ToString
+        Local reference
+      val $dependency.receiver: String
+        Type String
+        Local $equality.lhs
+      call $dependency.argument.0: String = external0 interface ToString[0]
+        Type ToString
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $dependency.receiver: ToString
+        Type ToString
+        Local reference
+      call $call.2: String = external0 interface ToString[0]
+        Type ToString
+        Local $dependency.receiver
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type String
+          Local text
+          Type String
+          Local $call.2
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      goto bb6
+    bb5 if.else.5
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb6
+    bb6 if.merge.6
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.1
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  str @str0 "21"
+  output library

@@ -27,7 +27,7 @@ pub(super) fn build(
                     source.declaration(),
                     &[checked_parameter_count(&structure.type_params)?],
                     NativeBoundaryNominalShape::Intrinsic(NominalIntrinsicRepresentationV1::new(
-                        intrinsic.kind,
+                        intrinsic,
                     )),
                 )
                 .map_err(HirNativeBoundaryTypeDefinitionError::InvalidDefinition);
@@ -122,7 +122,7 @@ pub(super) fn build(
             let shape = match class.representation {
                 ClassRepresentation::Declared => NativeBoundaryNominalShape::Reference,
                 ClassRepresentation::Intrinsic(intrinsic) => NativeBoundaryNominalShape::Intrinsic(
-                    NominalIntrinsicRepresentationV1::new(intrinsic.kind),
+                    NominalIntrinsicRepresentationV1::new(intrinsic),
                 ),
             };
             NativeBoundaryTypeDefinitionRecord::new(

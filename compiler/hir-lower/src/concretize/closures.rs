@@ -215,6 +215,10 @@ impl Concretizer<'_> {
             source: self.lower_function_type(source.source, substitution),
             target: self.lower_function_type(source.target, substitution),
         };
+        self.ensure_coercion_box_sources(
+            self.function_types[value.source].canonical_type,
+            self.function_types[value.target].canonical_type,
+        );
         let id = self.function_coercions.alloc(value);
         self.coercion_by_key.insert(key, id);
         id

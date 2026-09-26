@@ -21,7 +21,7 @@ fn shared_nominal_producer_preserves_every_intrinsic_family() {
             hir::StructRepresentation::Intrinsic(intrinsic) => expected.push((
                 source_owner(&module.nominal_identities[id]),
                 declaration.name.as_str(),
-                intrinsic.kind,
+                *intrinsic,
             )),
             hir::StructRepresentation::Declared(_) if declaration.name.starts_with("Intrinsic") => {
                 let owner = source_owner(&module.nominal_identities[id]);
@@ -46,7 +46,7 @@ fn shared_nominal_producer_preserves_every_intrinsic_family() {
             hir::ClassRepresentation::Intrinsic(intrinsic) => expected.push((
                 source_owner(&module.nominal_identities[id]),
                 declaration.name.as_str(),
-                intrinsic.kind,
+                *intrinsic,
             )),
             hir::ClassRepresentation::Declared if declaration.name == "IntrinsicStringLike" => {
                 let owner = source_owner(&module.nominal_identities[id]);

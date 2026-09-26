@@ -1,0 +1,63 @@
+Module
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface RebuiltReadable
+  generated_exact_type get0 location=class3 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val value: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val boxed: Any
+        Type Any
+        Box
+          Type Long
+          Local value
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Long
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Long
+        Type Long
+        Unbox
+          Type Any
+          Local $cast.1
+      val $dependency.argument.0: Long
+        Type Long
+        Local $ub.2
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

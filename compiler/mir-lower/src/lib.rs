@@ -164,7 +164,7 @@ use structured as smir;
 use types::{
     BoxedRegistry, EnumRegistry, InterfaceRegistry, SourceExactTypeRegistry, StructRegistry, Types,
     exact_function_identity, is_boxable, is_reference_mir, lower_integer_constant,
-    lower_integer_kind, mir_type_gc_free, raise_integer_kind, remap_idx,
+    lower_integer_kind, mir_type_gc_free, remap_idx,
 };
 
 /// Lower one output-sealed LocalConcrete HIR graph whose compiler protocols

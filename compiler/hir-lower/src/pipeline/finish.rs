@@ -343,6 +343,7 @@ impl Lowerer {
             source_files,
             source_contexts: self.source_contexts,
             types: self.types,
+            imported_intrinsic_types: self.imported_intrinsic_types,
             function_types: self.function_types,
             lambdas: self.lambdas,
             anonymous_functions: self.anonymous_functions,

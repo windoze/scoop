@@ -80,9 +80,7 @@ impl Lowerer {
         let representation = intrinsic.map_or(
             hir::StructApplicationRepresentation::Declared,
             |intrinsic| {
-                hir::StructApplicationRepresentation::Intrinsic(
-                    intrinsic.kind.application(&arguments),
-                )
+                hir::StructApplicationRepresentation::Intrinsic(intrinsic.application(&arguments))
             },
         );
         let deferred_fun_ptr = matches!(
@@ -187,9 +185,7 @@ impl Lowerer {
         };
         let representation =
             intrinsic.map_or(hir::ClassApplicationRepresentation::Declared, |intrinsic| {
-                hir::ClassApplicationRepresentation::Intrinsic(
-                    intrinsic.kind.application(&arguments),
-                )
+                hir::ClassApplicationRepresentation::Intrinsic(intrinsic.application(&arguments))
             });
         let canonical_type = match &representation {
             hir::ClassApplicationRepresentation::Intrinsic(

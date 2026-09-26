@@ -94,6 +94,28 @@ fn dependency_value_interfaces_compile_and_run_through_actual_artifacts() {
 }
 
 #[test]
+fn primitive_interfaces_compile_and_run_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "primitive-any",
+            "primitive-boolean",
+            "primitive-integers",
+            "primitive-hash",
+            "primitive-string",
+            "primitive-default",
+            "primitive-core",
+            "primitive-cast-failure",
+        ],
+        &[
+            "primitive-wrong-interface",
+            "boolean-wrong-interface",
+            "primitive-variance",
+        ],
+    );
+}
+
+#[test]
 fn runtime_cast_failures_use_the_providers_default_constructor_adapter() {
     check_class_cases(
         "default",
@@ -118,6 +140,14 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         source("core-provider"),
     )
     .unwrap();
+    let types = core_source.join("src/types.scoop");
+    let original_types = std::fs::read_to_string(&types).unwrap();
+    let changed_types = original_types.replace(
+        "public struct Long : ToString, Hash {",
+        "public struct Long : ToString, Hash, RebuiltReadable {\n    public override fun read(): Long = this + stage3CoreAnswer() - 43",
+    );
+    assert_ne!(original_types, changed_types);
+    std::fs::write(types, changed_types).unwrap();
     let throwable = core_source.join("src/throwable.scoop");
     let original = std::fs::read_to_string(&throwable).unwrap();
     let replacement = source(&format!("core-cast-{cast_variant}"));
@@ -265,6 +295,22 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
         let SingleConeProductionError::Production(error) = error else {
             panic!("class errors must be diagnosed by the HIR stage");
         };
+        if *case == "primitive-variance" {
+            assert!(matches!(
+                error.cause(),
+                CurrentConeProductionFailure::Mir(CurrentConeMirStageError::Foundation(
+                    scoop_mir::OdrFreeMirFoundationProjectionError::Odr(
+                        scoop_mir::OdrFreeMirFoundationError::CallableSignatureSubject(_)
+                    )
+                ))
+            ));
+            snapshot(
+                &fixtures.join(format!("{case}.diagnostic.snap")),
+                &format!("{}\n", error.cause()),
+            );
+            assert!(!destination.exists());
+            continue;
+        }
         let CurrentConeProductionFailure::Hir(current_hir::CurrentConeHirStageError::Lowering(
             diagnostics,
         )) = error.cause()

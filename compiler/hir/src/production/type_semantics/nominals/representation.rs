@@ -53,7 +53,7 @@ pub(super) fn shape(
             }
             StructRepresentation::Intrinsic(declaration) => {
                 Ok(NominalRepresentationShapeV1::Intrinsic {
-                    representation: NominalIntrinsicRepresentationV1::new(declaration.kind),
+                    representation: NominalIntrinsicRepresentationV1::new(*declaration),
                 })
             }
         },
@@ -70,7 +70,7 @@ pub(super) fn shape(
                 }),
                 ClassRepresentation::Intrinsic(declaration) => {
                     Ok(NominalRepresentationShapeV1::Intrinsic {
-                        representation: NominalIntrinsicRepresentationV1::new(declaration.kind),
+                        representation: NominalIntrinsicRepresentationV1::new(declaration),
                     })
                 }
             }

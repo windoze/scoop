@@ -305,6 +305,10 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 
 跨 Cone 的值类型遵守同一接口关系：struct、enum 及具有 intrinsic 表示的值类型从实际声明取得其接口和父接口，赋值、参数、返回及显式转换均使用相同的子类型规则。导入不能丢弃接口关系；同名接口、同布局值类型或 provider 身份不能替代真实类型身份。
 
+整数和 Boolean 的 intrinsic 表示不固定其接口集合。前端从真实声明解析 `ToString`、`Hash` 及用户新增接口，后续阶段使用已解析的表示和声明身份；装箱不能要求该声明在当前 Cone 定义，也不能将导入的接口关系置空。intrinsic 注解的名称、类型参数和签名规则仍由前端检查。
+
+声明查询按实际类型关系和转换操作进行。类型 arena 中存在某个 primitive，或未求值的默认参数引用它，不表示当前源码已经使用其装箱或接口表示。
+
 ```
 interface Describable {
     fun describe(): String

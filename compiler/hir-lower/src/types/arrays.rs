@@ -36,24 +36,20 @@ impl Lowerer {
 
     pub(crate) fn array_class_kind(&self, class: hir::ClassId) -> Option<ArrayKind> {
         match self.classes[class].representation {
-            hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                kind: hir::IntrinsicTypeKind::Array,
-                ..
-            }) => Some(ArrayKind::Immutable),
-            hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                kind: hir::IntrinsicTypeKind::MutableArray,
-                ..
-            }) => Some(ArrayKind::Mutable),
+            hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeKind::Array) => {
+                Some(ArrayKind::Immutable)
+            }
+            hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeKind::MutableArray) => {
+                Some(ArrayKind::Mutable)
+            }
             hir::ClassRepresentation::Declared
-            | hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                kind:
-                    hir::IntrinsicTypeKind::Integer(_)
-                    | hir::IntrinsicTypeKind::Boolean
-                    | hir::IntrinsicTypeKind::String
-                    | hir::IntrinsicTypeKind::Ptr
-                    | hir::IntrinsicTypeKind::FunPtr,
-                ..
-            }) => None,
+            | hir::ClassRepresentation::Intrinsic(
+                hir::IntrinsicTypeKind::Integer(_)
+                | hir::IntrinsicTypeKind::Boolean
+                | hir::IntrinsicTypeKind::String
+                | hir::IntrinsicTypeKind::Ptr
+                | hir::IntrinsicTypeKind::FunPtr,
+            ) => None,
         }
     }
 

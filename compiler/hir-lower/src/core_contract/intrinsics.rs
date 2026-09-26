@@ -80,26 +80,24 @@ impl Lowerer {
 
     pub(crate) fn register_intrinsic_type(
         &mut self,
-        intrinsic: hir::IntrinsicTypeDeclaration,
+        kind: hir::IntrinsicTypeKind,
         owner: IntrinsicTypeOwner,
         span: Span,
     ) {
-        if let Some(&(_previous, previous_provider)) =
-            self.intrinsic_type_owners.get(&intrinsic.kind)
-        {
+        let provider = self.current_intrinsic_provider();
+        if let Some(&(_previous, previous_provider)) = self.intrinsic_type_owners.get(&kind) {
             self.error(
                 span,
                 format!(
                     "intrinsic type `{}` is already defined by provider {}; provider {} cannot define it again",
-                    intrinsic.kind.name(),
+                    kind.name(),
                     previous_provider.into_raw(),
-                    intrinsic.provider.into_raw(),
+                    provider.into_raw(),
                 ),
             );
             return;
         }
-        self.intrinsic_type_owners
-            .insert(intrinsic.kind, (owner, intrinsic.provider));
+        self.intrinsic_type_owners.insert(kind, (owner, provider));
     }
 
     pub(crate) fn validate_intrinsic_type_core(

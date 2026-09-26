@@ -53,20 +53,6 @@ pub(super) const fn lower_integer_kind(kind: hir::IntegerKind) -> mir::IntegerKi
     mir::IntegerKind::new(signedness, width)
 }
 
-pub(super) const fn raise_integer_kind(kind: mir::IntegerKind) -> hir::IntegerKind {
-    let signedness = match kind.signedness() {
-        mir::IntegerSignedness::Signed => hir::IntegerSignedness::Signed,
-        mir::IntegerSignedness::Unsigned => hir::IntegerSignedness::Unsigned,
-    };
-    let width = match kind.width() {
-        mir::IntegerWidth::W8 => hir::IntegerWidth::W8,
-        mir::IntegerWidth::W16 => hir::IntegerWidth::W16,
-        mir::IntegerWidth::W32 => hir::IntegerWidth::W32,
-        mir::IntegerWidth::W64 => hir::IntegerWidth::W64,
-    };
-    hir::IntegerKind::new(signedness, width)
-}
-
 pub(super) const fn lower_integer_constant(
     value: hir::HirIntegerConstant,
 ) -> mir::MirIntegerConstant {

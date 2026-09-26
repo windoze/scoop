@@ -2,6 +2,12 @@
 
 依赖值类型的共有声明查询必须向 HIR 提供解析后的接口类型，具体化继续保留完整接口闭包。构建相互引用的 nominal 时先登记真实声明身份与类型 ID，再完成字段、父类型和方法签名，成功输出不含未完成记录。struct/enum 的经 class 间接递归与接口方法引用实现者不会创建第二份类型；非法按值循环仍由值布局检查拒绝。MIR 装箱直接使用该接口关系，并消费实际 provider 的 boxed TD 与分派定义；本 Cone 只生成自身定义所需的 adjust thunk。
 
+具有 intrinsic 表示的依赖值类型也通过共有 nominal 查询取得实际声明及接口。HIR 保存其完整解析结果，具体化建立带原声明身份的普通 struct 表示，MIR 按 canonical 类型取得该声明，不再通过 Defined core 分支寻找整数或 Boolean 的 owner。intrinsic 类型表示直接保存 typed kind；删除只包裹 kind 与前端来源编号的 `IntrinsicTypeDeclaration`。真实 nominal 身份与必要源码位置继续由既有声明和 source 表保存，不添加替代凭证或 wire 字段。
+
+primitive 声明按需查询并在本次 HIR 中复用。只有实际 Box、值 receiver 适配及函数变型适配需要的装箱源才进入 concrete nominal 表；未使用的 primitive、失败候选和未实例化默认模板不能仅因查询或 arena 存在而成为机器物化根。默认参数实例化沿相同的完整声明查询与装箱路径处理。
+
+独立 function/adapter 的 Structural ODR 发布仍受 M23-7 能力门约束。完整 lowering 输入不代表当前 production profile 已支持该发布能力。
+
 引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/27`，旧产物与缓存重建，不改变 runtime C ABI。
 
 默认值中的参数自由 class 构造与 struct 构造共用实际 constructor 引用、参数实例化和调用选择；引用上行转换保留在正文中，实例化后继续使用相同的 typed 操作。

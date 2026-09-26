@@ -89,15 +89,15 @@ impl Lowerer {
                         .all(|(target, source)| self.is_subtype(target, source))
                     && self.is_subtype(source.return_type, target.return_type)
             }
-            (Type::Integer(kind), Type::Interface(..)) => self
+            (Type::Integer(kind), Type::Interface(..) | Type::ImportedInterface(_)) => self
                 .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::Boolean, Type::Interface(..)) => self
+            (Type::Boolean, Type::Interface(..) | Type::ImportedInterface(_)) => self
                 .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean)
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::String, Type::Interface(..)) => self
+            (Type::String, Type::Interface(..) | Type::ImportedInterface(_)) => self
                 .intrinsic_type_interfaces(hir::IntrinsicTypeKind::String)
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
@@ -126,14 +126,27 @@ impl Lowerer {
     }
 
     /// Interfaces explicitly declared by the source definition of one
-    /// compiler-represented intrinsic type.  Primitive `Type` variants do not
-    /// erase their source declaration: `intrinsic_type_owners` is the typed
-    /// declaration relation established in pass 1, and all capability checks
-    /// consume that relation instead of maintaining a second built-in list.
+    /// compiler-represented intrinsic type. Primitive `Type` variants retain
+    /// their local owner or the declaration resolved from ordinary dependency
+    /// metadata; the interface set is not built into the compiler.
     pub(crate) fn intrinsic_type_interfaces(
         &mut self,
         kind: hir::IntrinsicTypeKind,
     ) -> Vec<TypeId> {
+        if let Err(error) = self.resolve_imported_intrinsic_type(kind) {
+            self.diagnostics.push(ast::Diagnostic::without_span(
+                ast::DiagnosticSeverity::Error,
+                self.current_file,
+                error.diagnostic(&format!(
+                    "interfaces of intrinsic type `{}`",
+                    kind.source_name()
+                )),
+            ));
+            return Vec::new();
+        }
+        if let Some(source) = self.imported_intrinsic_types.get(&kind) {
+            return source.interfaces.clone();
+        }
         let Some(&(owner, _provider)) = self.intrinsic_type_owners.get(&kind) else {
             // A missing intrinsic owner is diagnosed by the core-contract
             // validator and prevents HIR output.  During recovery there is no

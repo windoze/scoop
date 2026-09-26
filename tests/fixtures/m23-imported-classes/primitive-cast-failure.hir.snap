@@ -1,0 +1,28 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 21 : Int8
+    val local1
+      Box : Any
+        Local signed : Int8
+    try
+      val local2
+        Unbox : UInt8
+          Cast UInt8 optional=false : UInt8
+            Local value : Any
+      val local3
+        IntegerLiteral 0 : Long
+      val local4
+        Local $dependency.argument.0 : Long
+      return
+        ImportedDependencyCall #0 : Counter
+          Local $dependency.parameter.value : Long
+    catch error: ClassCastException
+      val local6
+        IntegerLiteral 21 : Long
+      val local7
+        Local $dependency.argument.0 : Long
+      return
+        ImportedDependencyCall #0 : Counter
+          Local $dependency.parameter.value : Long
+  output library

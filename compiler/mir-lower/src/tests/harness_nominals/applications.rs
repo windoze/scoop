@@ -177,7 +177,7 @@ impl Harness {
         let representation = match self.classes[template].representation {
             hir::ClassRepresentation::Declared => hir::ClassApplicationRepresentation::Declared,
             hir::ClassRepresentation::Intrinsic(declaration) => {
-                hir::ClassApplicationRepresentation::Intrinsic(declaration.kind.application(&key.1))
+                hir::ClassApplicationRepresentation::Intrinsic(declaration.application(&key.1))
             }
         };
         let application = self.class_applications.alloc(hir::ClassApplication {

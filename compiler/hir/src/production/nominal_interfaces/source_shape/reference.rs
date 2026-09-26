@@ -13,7 +13,7 @@ pub(in crate::production::nominal_interfaces) fn class_shape(
                 .map(NominalSourceShapeV1::Class)
         }
         crate::ClassRepresentation::Intrinsic(intrinsic) => Ok(NominalSourceShapeV1::Intrinsic(
-            crate::NominalIntrinsicRepresentationV1::new(intrinsic.kind),
+            crate::NominalIntrinsicRepresentationV1::new(*intrinsic),
         )),
     }
 }

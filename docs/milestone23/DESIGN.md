@@ -8,6 +8,12 @@ M23-6 的外来非泛型接口/class 调用直接使用共有声明及 provider 
 
 值类型通过同一声明查询保留其真实接口关系与父接口，装箱使用 provider 已发布的 boxed TD、接口表和 adjust thunk。struct、enum、ZST 及含引用 payload 的下游调用沿相同路径处理，core 的新增值类型与其他 library Cone 一致。intrinsic 表示不丢弃原声明的接口信息，也不要求在当前 Cone 重建 core 定义。
 
+primitive 的完整声明与接口从共有 nominal 查询进入 HIR；具体化和 MIR 按 canonical 类型及真实 nominal 身份使用表示。`IntrinsicTypeDeclaration` 的 kind/provider 编号包装退役，类型表示直接持有 typed kind，诊断所需源码位置留在原 source 表。该调整不改变持久身份、wire/profile 或 runtime C ABI，也不建立新的来源工厂。
+
+共有查询结果按需复用，实际装箱、receiver 和函数变型适配才物化所需 primitive 声明；不能把完整 primitive arena、查询缓存或未实例化默认值整体变成机器依赖根。
+
+独立 function/adapter 的 Structural ODR 发布仍留 M23-7；M23-6 保持完整 lowering 并报告现有能力诊断，不扩大 Strong 的含义。
+
 共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/27` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 默认值正文中的 enum 模式和变体测试保存真实 variant 与 owner 类型，引用集合不重复记录构造器使用；只有实际构造表达式保存构造器访问引用。共有 producer、reader 与默认值实例化沿同一 typed 正文消费，`hir/cross-cone-interface/27` 同步该引用集合语义并要求旧 `/22` 及更早产物重建，不改变 runtime ABI。

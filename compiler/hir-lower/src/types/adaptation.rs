@@ -61,6 +61,7 @@ impl Lowerer {
             return expr;
         }
         let span = expr.span;
+        self.retain_boxing_sources(expr.ty, target, span);
         if let (Type::Function(source), Type::Function(target_type)) =
             (self.types[expr.ty].clone(), self.types[target].clone())
         {
@@ -102,6 +103,31 @@ impl Lowerer {
                 span,
                 origin: self.expression_origin(span),
             }
+        }
+    }
+
+    fn retain_boxing_sources(&mut self, source: TypeId, target: TypeId, span: ast::Span) {
+        if self.types_equal(source, target) {
+            return;
+        }
+        if let (Type::Function(source), Type::Function(target)) =
+            (self.types[source].clone(), self.types[target].clone())
+        {
+            let source = self.function_types[source].clone();
+            let target = self.function_types[target].clone();
+            for (source, target) in source
+                .parameter_types
+                .into_iter()
+                .zip(target.parameter_types)
+            {
+                self.retain_boxing_sources(target, source, span);
+            }
+            self.retain_boxing_sources(source.return_type, target.return_type, span);
+        } else if self.is_value_ty(source)
+            && self.is_ref_ty(target)
+            && let Err(error) = self.retain_imported_box_source(source)
+        {
+            self.error(span, error.diagnostic("boxed value type"));
         }
     }
 }

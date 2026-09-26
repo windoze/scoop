@@ -53,6 +53,12 @@ pub enum Type {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedIntrinsicType {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub interfaces: Vec<TypeId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedStructType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub fields: Vec<ImportedNominalField>,

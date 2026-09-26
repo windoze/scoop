@@ -124,7 +124,7 @@ pub(super) fn struct_shape(
 ) -> Result<NominalSourceShapeV1, NominalInterfaceBuildError> {
     if let crate::StructRepresentation::Intrinsic(intrinsic) = &declaration.representation {
         return Ok(NominalSourceShapeV1::Intrinsic(
-            crate::NominalIntrinsicRepresentationV1::new(intrinsic.kind),
+            crate::NominalIntrinsicRepresentationV1::new(*intrinsic),
         ));
     }
     let mut fields = Vec::with_capacity(declaration.semantic_fields().len());
