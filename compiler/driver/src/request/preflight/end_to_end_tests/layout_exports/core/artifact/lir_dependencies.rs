@@ -8,6 +8,7 @@ pub(super) mod reader;
 
 pub(super) fn check(
     core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
+    core_direct: &mir::CrossConeMirBridgeSectionV1,
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core_lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
@@ -29,6 +30,7 @@ pub(super) fn check(
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                     types: &[core_mir.types()],
                     callables: &[core_mir.callables()],
+                    direct_callables: &[core_direct],
                     dispatch: &[core_mir.dispatch()],
                 };
                 let exports =
@@ -55,6 +57,7 @@ pub(super) fn check(
                 let dependencies = scoop_lir_lower::LayoutAbiExportDependenciesV1 {
                     layouts: &[core_lir.layouts()],
                     callables: &[core_lir.callables()],
+                    direct_callables: &[core_lir.exports().direct_callables()],
                 };
                 let exports =
                     scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();

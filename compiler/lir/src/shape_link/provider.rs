@@ -4,7 +4,6 @@ use super::{ExternalShapeLinkImportV1, ShapeLinkContractV1, ShapeLinkError};
 use crate::*;
 
 pub(super) mod contracts;
-mod legacy;
 mod support;
 mod types;
 
@@ -84,7 +83,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
         if consumer == self.provider() {
             return Err(ShapeLinkError::LocalImport);
         }
-        self.reject_legacy(subject)?;
         let physical = StrongShapeDefinitionRefV1::from_foundation(subject, self.parts.foundation)?;
 
         let plan = self

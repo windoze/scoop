@@ -17,6 +17,7 @@ pub struct MirTypeBridgeExportInputV1<'a> {
 pub struct MirTypeBridgeDependencyTablesV1<'a> {
     pub types: &'a [&'a mir::CanonicalParamFreeMirTypeExportsV1],
     pub callables: &'a [&'a mir::CanonicalMirCallableBindingsV1],
+    pub direct_callables: &'a [&'a mir::CrossConeMirBridgeSectionV1],
     pub dispatch: &'a [&'a mir::CanonicalMirDispatchSchemasV1],
 }
 

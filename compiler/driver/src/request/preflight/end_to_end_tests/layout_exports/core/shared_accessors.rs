@@ -21,15 +21,15 @@ pub(super) fn check(
             ("AccessorBase.$get$protectedStorage", false),
             ("AccessorBase.$set$protectedStorage", false),
             ("AccessorBase.$get$protectedBody", true),
-            ("AccessorBase.$get$hidden", false),
+            ("AccessorBase.$get$hidden", true),
             ("AccessorBase.$get$mixed", false),
-            ("AccessorBase.$set$mixed", false),
+            ("AccessorBase.$set$mixed", true),
             ("AccessorImpl.$get$slot", true),
             ("AccessorImpl.$set$slot", true),
             ("AccessorObject.$get$objectStorage", false),
             ("AccessorObject.$get$computed", true),
-            ("$get$accessorGlobal", false),
-            ("$set$accessorGlobal", false),
+            ("$get$accessorGlobal", true),
+            ("$set$accessorGlobal", true),
         ],
         _ => return,
     };
@@ -37,13 +37,21 @@ pub(super) fn check(
         .callables()
         .entries()
         .iter()
-        .map(|binding| {
+        .map(|binding| binding.implementation())
+        .chain(
+            input
+                .ordinary
+                .exports()
+                .iter()
+                .map(|record| record.implementation()),
+        )
+        .map(|implementation| {
             let root = input
                 .mir
                 .materialization()
                 .callable_roots()
                 .iter()
-                .find(|root| root.implementation() == binding.implementation().callable_owner())
+                .find(|root| root.implementation() == implementation.callable_owner())
                 .unwrap();
             input.mir.module().functions[root.function()].name.as_str()
         })

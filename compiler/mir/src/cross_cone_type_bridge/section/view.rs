@@ -6,7 +6,7 @@ pub struct MirTypeBridgeDependencyViewV1<'a> {
     pub(super) provider: ConeIdentity,
     pub(super) exports: &'a MirTypeBridgeExportConstituentsV1,
     pub(super) units: &'a [MirTypeBridgeInitializationUnitV1],
-    pub(super) legacy: &'a [StrongCallableDefinitionOwner],
+    pub(super) direct: &'a crate::CrossConeMirBridgeSectionV1,
 }
 pub(super) type LocalView<'a> = MirTypeBridgeDependencyViewV1<'a>;
 impl<'a> LocalView<'a> {
@@ -16,6 +16,10 @@ impl<'a> LocalView<'a> {
 
     pub const fn exports(self) -> &'a MirTypeBridgeExportConstituentsV1 {
         self.exports
+    }
+
+    pub const fn direct_callables(self) -> &'a crate::CrossConeMirBridgeSectionV1 {
+        self.direct
     }
 
     pub(super) fn record(
@@ -32,6 +36,21 @@ impl<'a> LocalView<'a> {
                 .exports
                 .callables()
                 .get(target)
+                .map(MirCallableRecordRefV1::Lowered)
+                .or_else(|| {
+                    let declaration = match target {
+                        StrongCallableDefinitionOwner::Function(id) => {
+                            scoop_identity::DependencyCallableDeclarationId::Function(id)
+                        }
+                        StrongCallableDefinitionOwner::PropertyAccessor(id) => {
+                            scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(id)
+                        }
+                        _ => return None,
+                    };
+                    self.direct
+                        .export(declaration)
+                        .map(MirCallableRecordRefV1::Direct)
+                })
                 .map(MirTypeBridgeSemanticRecordV1::Callable),
             MirTypeBridgeTargetV1::Dispatch(owner) => self
                 .exports
@@ -87,7 +106,7 @@ impl CrossConeMirTypeBridgeSectionV1<'_> {
             provider: self.provider(),
             exports: &self.exports,
             units: &self.units,
-            legacy: &self.legacy_callables,
+            direct: &self.direct_callables,
         }
     }
 }

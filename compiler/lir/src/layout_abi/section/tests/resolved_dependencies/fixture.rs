@@ -68,7 +68,7 @@ impl Fixture {
             .unwrap()
             .validate_descriptors(local.descriptors())
             .unwrap()
-            .validate_shape_support(local.shape_support())
+            .validate_shape_support(local.shape_support(), local.direct_callables())
             .unwrap();
         assert_eq!(encode(&exports).unwrap(), bytes);
         let mut pending = PendingIdentityValidation::new();

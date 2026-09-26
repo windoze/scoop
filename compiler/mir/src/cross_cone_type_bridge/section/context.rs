@@ -26,19 +26,4 @@ impl<'a> MirTypeBridgeLocalInputV1<'a> {
         }
         Ok(())
     }
-    pub(super) fn legacy_callables(
-        self,
-    ) -> Result<Vec<StrongCallableDefinitionOwner>, MirTypeBridgeSectionError> {
-        let mut targets = reserve(self.ordinary().exports().len())?;
-        targets.extend(
-            self.ordinary()
-                .exports()
-                .iter()
-                .map(|record| record.implementation()),
-        );
-
-        targets.sort_unstable();
-
-        Ok(targets)
-    }
 }

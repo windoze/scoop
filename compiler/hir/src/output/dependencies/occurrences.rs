@@ -13,7 +13,7 @@ use concrete::{ExecutableExpressionOccurrence, ExecutableExpressionPosition};
 pub struct CommittedDependencyCallOccurrence<'a> {
     occurrence: ExecutableExpressionOccurrence<'a>,
     callee: concrete::ImportedDependencyCallableUseId,
-    binding: &'a DirectImportedTargetBinding,
+    binding: Option<&'a DirectImportedTargetBinding>,
     callable: &'a SelectedImportedDependencyCallable,
     arguments: &'a [concrete::Expr],
     receiver: crate::SourceCallReceiver<concrete::TypeId>,
@@ -30,7 +30,7 @@ impl<'a> CommittedDependencyCallOccurrence<'a> {
     pub const fn origin(self) -> ConcreteExpressionOrigin {
         self.occurrence.expression.origin
     }
-    pub const fn binding(self) -> &'a DirectImportedTargetBinding {
+    pub const fn binding(self) -> Option<&'a DirectImportedTargetBinding> {
         self.binding
     }
     pub const fn callable(self) -> &'a SelectedImportedDependencyCallable {
@@ -92,14 +92,11 @@ pub(super) fn visit<'a>(
             let callable = selected
                 .resolve_callable(reference)
                 .ok_or(DependencyCallOccurrenceError::UnselectedUse(position))?;
-            if !binding.is_selected_subset(callable.binding())? {
-                return Err(DependencyCallOccurrenceError::Binding(position));
-            }
             validate_origins(output.export.module(), occurrence)?;
             visitor(CommittedDependencyCallOccurrence {
                 occurrence,
                 callee: *callee,
-                binding,
+                binding: binding.as_deref(),
                 callable,
                 arguments: args,
                 receiver: *receiver,
@@ -159,7 +156,6 @@ pub enum DependencyCallOccurrenceError {
     Structure(concrete::ExecutableExpressionStructureError),
     MissingUse(ExecutableExpressionPosition),
     UnselectedUse(ExecutableExpressionPosition),
-    Binding(ExecutableExpressionPosition),
     ForeignEvaluation(ExecutableExpressionPosition),
     Origin {
         position: ExecutableExpressionPosition,

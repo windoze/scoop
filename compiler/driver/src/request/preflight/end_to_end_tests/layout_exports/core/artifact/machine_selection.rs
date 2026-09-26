@@ -20,6 +20,13 @@ pub(super) fn empty_exports(
         foundation,
     )
     .unwrap();
-    LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shapes)
-        .unwrap()
+    LayoutAbiExportConstituentsV1::try_new(
+        layouts,
+        descriptors,
+        dispatch,
+        callables,
+        shapes,
+        CrossConeLirBridgeSectionV1::try_new(foundation, vec![], vec![]).unwrap(),
+    )
+    .unwrap()
 }

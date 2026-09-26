@@ -91,6 +91,10 @@ fn derive_exports(
                 classified.declaration(),
                 classified.implementation(),
                 classified.signature().clone(),
+                match classified.gc_effect() {
+                    scoop_identity::GcEffect::Managed => scoop_mir::GcEffect::Managed,
+                    scoop_identity::GcEffect::NoGc => scoop_mir::GcEffect::NoGc,
+                },
             )
             .map_err(|source| CrossConeMirBridgeLoweringError::Export {
                 declaration: classified.declaration(),

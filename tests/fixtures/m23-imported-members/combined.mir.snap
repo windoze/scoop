@@ -1,0 +1,126 @@
+Module
+  struct Container (marker: Token, payload: Wide)
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  struct Managed (text: String, token: Token)
+  enum CoroutineStep<Container>
+    Completed(value: Container)
+    Suspended()
+  enum CoroutineSlot<Container>
+    Empty()
+    Value(value: Container)
+  class box<Container> vtable=0 itables=0
+  generated_exact_type get0 location=class0 nominal_id=7ce5eafa037f6bbe48e6c66b781227452ae10dec0a4fe7238210109ddb6368a7 exact_id=6e9fc0b55d0036205d4764185969e9f3b7a0525b358d497e63cf7de755f51fd3
+  generated_exact_type get1 location=enum0 nominal_id=1b4e6980ac9d708daea26f90bb4c17f7887fe9917b449fd6bd6a2f6aaf9859b6 exact_id=b58fe1ae7e24c35c433788e97bdf18b41b5b051e86fd77d59743c1b02687a4c6
+  generated_exact_type get2 location=enum1 nominal_id=de86e488f18e0fdc0a8ad03b84786e4f61b41bc7966a3fc6f96c461a64af010d exact_id=cb9609ffe154eabcb49be9213c93f090e4a203f24ba3c85720d5f2f8ef7d33ad
+  fun keepToken @fn0(value: Token) -> Token <no-gc>
+    bb0 entry
+      val $dependency.receiver: Token
+        Type Token
+        Local value
+      val $dependency.parameter.other: Token
+        Type Token
+        Local $dependency.receiver
+      call $call.1: Token = external0 direct
+        Type Token
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.other
+      return
+        Type Token
+        Local $call.1
+  fun keepWide @fn1(value: Wide) -> Wide <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call copy: Wide = external1 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.receiver: Wide
+        Type Wide
+        Local copy
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $dependency.argument.0: Wide = external1 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $call.1: Wide = external2 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      return
+        Type Wide
+        Local $call.1
+  fun total @fn2(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.delta: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $dependency.receiver: Long = external3 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.delta
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun keepManaged @fn3(value: Managed) -> Managed
+    bb0 entry
+      val $dependency.receiver: Managed
+        Type Managed
+        Local value
+      val $dependency.parameter.other: Managed
+        Type Managed
+        Local $dependency.receiver
+      call $call.1: Managed = external4 direct
+        Type Managed
+        Local $dependency.receiver
+        Type Managed
+        Local $dependency.parameter.other
+      return
+        Type Managed
+        Local $call.1
+  fun ctor.Container.$c0 @fn4(marker: Token, payload: Wide) -> Container <no-gc>
+    bb0 entry
+      return
+        Type Container
+        StructInit Container
+          Type Token
+          Local marker
+          Type Wide
+          Local payload
+  coroutine_step cs0 CoroutineStep<Container> result=Container
+  coroutine_slot cl0 CoroutineSlot<Container> value=Container
+  output library

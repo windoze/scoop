@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check(
     name: &str,
-    input: scoop_slib::OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'_>,
+    input: scoop_slib::LirExportsValidatedCrossConeLayoutClosure<'_>,
     units: &[mir::MirTypeBridgeInitializationUnitV1],
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {

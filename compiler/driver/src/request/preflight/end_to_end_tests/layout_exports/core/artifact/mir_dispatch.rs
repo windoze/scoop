@@ -14,11 +14,15 @@ pub(super) fn check(
     name: &str,
     source: hir::CheckedSharedTypeFoundationV1<'_>,
     foundation: &mir::OdrFreeMirFoundation,
+    ordinary: &mir::CrossConeMirBridgeSectionV1,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
 ) {
     let replay = Replay {
         source,
         foundation,
+        ordinary,
+        callables: mir::MirTypeBridgeCallableIndexV1::try_new(&[section.callables()], &[ordinary])
+            .unwrap(),
         section,
     };
     replay
@@ -57,6 +61,8 @@ pub(super) fn check(
 struct Replay<'a> {
     source: hir::CheckedSharedTypeFoundationV1<'a>,
     foundation: &'a mir::OdrFreeMirFoundation,
+    ordinary: &'a mir::CrossConeMirBridgeSectionV1,
+    callables: mir::MirTypeBridgeCallableIndexV1<'a>,
     section: &'a mir::CrossConeMirTypeBridgeSectionV1<'a>,
 }
 
@@ -66,13 +72,20 @@ impl Replay<'_> {
         dispatch: &mir::CanonicalMirDispatchSchemasV1,
         callables: &mir::CanonicalMirCallableBindingsV1,
     ) -> Result<(), Error> {
-        scoop_slib::validate_shared_mir_dispatch(self.source, &[], callables, &[], dispatch)
+        scoop_slib::validate_shared_mir_dispatch(
+            self.source,
+            &[],
+            callables,
+            &[],
+            &[self.ordinary],
+            dispatch,
+        )
     }
     fn authority(&self) -> mir::MirDispatchSchemaAuthority<'_> {
         mir::MirDispatchSchemaAuthority {
             identities: self.source.metadata().identities,
             types: self.section.types(),
-            callables: self.section.callables(),
+            callables: &self.callables,
         }
     }
     fn reject(&self, records: Vec<mir::ParamFreeMirDispatchSchemaV1>) -> Error {

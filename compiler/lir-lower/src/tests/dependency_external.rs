@@ -208,8 +208,13 @@ fn dependency_mir_bridge(
         .unwrap()
         .signature()
         .clone();
-    let export =
-        mir::ParamFreeMirCallableExportV1::try_new(declaration, implementation, signature).unwrap();
+    let export = mir::ParamFreeMirCallableExportV1::try_new(
+        declaration,
+        implementation,
+        signature,
+        input.module().functions[local.function()].gc_effect,
+    )
+    .unwrap();
     let selected = if include_selected {
         input
             .materialization()

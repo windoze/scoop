@@ -54,6 +54,7 @@ fn initialization_function_uses_the_ordinary_callable_abi_export() {
         scoop_identity::DependencyCallableDeclarationId::Function(cycle_definition),
         target,
         exact.clone(),
+        scoop_mir::GcEffect::Managed,
     )
     .unwrap();
     let mir_bridge = mir::CrossConeMirBridgeSectionV1::try_new(

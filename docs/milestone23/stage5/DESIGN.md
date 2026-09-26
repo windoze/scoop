@@ -1,8 +1,8 @@
 # M23-5 设计：多 Cone 名称语义
 
-2026-09-23 Link 迁移说明：本文的 core requirement 独立闭包、CoreStrong tag 2 与 link-identity-closure/1 是历史格式。M23-6 已迁入共有 provider/typed owner 分类，最终 requirement 使用 tag 8、对象指纹 target 使用 tag 13，当前 capability 为 /2；旧格式拒绝并重建，具体合同见实现规范 2.11 与 stage6 设计。其他原有 capability/subject 用途仍互斥且联合覆盖完整 relocation，不按 provider 名称分类。
+M23-6 版本衔接：core 与普通依赖共用实际 provider 和 typed target 查询，独立 core requirement 闭包与 CoreStrong tag 2 已退役。当前 `link-identity-closure/3` 使用实际符号和 relocation 合同；旧产物需要重建。不同消费用途复用已有记录，移除按历史表分区授予或拒绝来源资格的规则。
 
-版本衔接：本设计中的 profile 清单记录 M23-5 冻结时的版本；M23-6 的 HIR identity-foundation 已升级为 `/2`，完整当前 inventory 与退役字段规则见 `../stage6/DESIGN.md`。
+本文的阶段范围记录 M23-5 最初交付的名称语义；格式清单与已完成的共有化按当前实现更新。M23-6 的完整类型、布局、dispatch、ABI 与清理要求见 [M23-6 设计](../stage6/DESIGN.md)。
 
 2026-09-22 当前callable生产约定：LIR初始化服务、普通调用桥和通用layout/ABI发布共用实际callable关联：从typed StrongCallableDefinitionOwner取得同一MIR strong记录、实际物化root与对应LIR body，并核对exact签名。普通调用与初始化调用使用同一canonical ABI投影，统一检查GC effect、calling convention及逻辑参数数量，再构造完整CallableAbiRecordV1；初始化角色额外限定function、ordinary、无receiver。通用layout/ABI复用同一完整typed记录，检查实际layout与physical关系，不重复查找MIR/LIR函数，也不累计查询成本。投影失败返回携带typed target的共有错误，不按core名称或symbol字符串补目标。此批合并生产实现，不改变角色外层wire和public可见性。
 
@@ -34,16 +34,16 @@ M23-5 第一次让普通 dependency 成为**语言名称来源**，但 artifact 
 4. `public import` 同时建立当前文件import与当前Cone re-export binding。每个target必须至少有一个source且全部source都是validated direct-dependency route；current-Cone、internal、private、protected或仅support可达target都不能被提升。re-export保留最终origin identity，不生成wrapper、storage、TypeDescriptor、body或第二个alias target；
 5. public star在当前Cone编译时展开为逐binding snapshot。下游只读取已解析snapshot，不重新执行上游glob。任一target非法时整条`public import ...*`失败，不发布部分snapshot；
 6. foreign public declaration和current declaration投影成同一种typed view，M16/M18仍逐候选执行shape filter、applicability与MSC。`.slib`来源、route长度、dependency顺序与“本地优先”都不是新的tie-break；
-7. 跨Cone普通lookup只有`PublicDependencyLookupWitness`这一条成功证明。foreign internal/private实体没有可构造的lookup witness；它们即使因上游实现、object或future generic support出现在closure中，也不能进入import/member候选。protected inheritance surface在M23-6前不开放；
+7. 跨 Cone 名称查找按声明可见性和实际依赖关系进行。import 路径记录解析事实；它不授予额外机器调用资格。private/internal 支持声明可因实现需要保存在产物中，公开查找仍遵守语言规则，protected 访问按 M23-6 的接收者和继承上下文检查；
 8. exported default继续是定义方已完成名称解析和overload选择的hygienic typed template。consumer只做type/value substitution与evaluation-origin构造，不按本地import或re-export重新解析。re-export引用同一template，不复制body；
 9. non-generic typealias保留自己的persistent alias identity、visibility与target。跨Cone import/re-export保留alias binding；使用时由一个bounded、memoized的closure-wide expander透明展开。alias identity不因target变化而改变，但HIR fingerprint必须改变；
 10. M23-5 的 executable external-use成功子集严格限定为：public `const val`的core-closed常量值，以及非generic、non-suspend、non-extern的top-level function、top-level property accessor或top-level extension function/property accessor，其完整exact签名只含trusted core已经由M23-3证明的param-free ABI leaf。consumer只发typed undefined requirement，不重发provider body或任何Strong definition；
 11. 名称解析本身可以成功指向class/struct/enum/interface/object、constructor/member、generic declaration或任意公开property；但一旦具体使用需要foreign nominal layout/scan/TypeDescriptor、constructor/materialization、member/virtual dispatch、receiver-dependent protected access、function-value representation、generic application或native provider，就在HIR winner commit前以对应阶段的唯一能力诊断失败，不产生`LocalConcreteHir`残片；
 12. 本阶段新增`cross-cone-semantics-strong/2` artifact profile，以及HIR general interface、MIR/LIR param-free bridge和Link-only cross-Cone use closure四条capability。M23-3的`single-cone-strong/2`仍可被旧reader识别，但不能进入M23-5 build；trusted core、prebuilt与cache artifact必须按新profile重建；
-13. M23-3既有`core-bootstrap-interface/1`、`core-bootstrap-bridge/1`、`strong-production/1`与`link-identity-closure/1`字节和语义不变。ordinary dependency callable不伪装成`CoreStrong`；它在新的LIR semantic arena与新的Link-only physical-use closure中形成互斥分区，Code fingerprint通过既有known Link-required extension contribution机制覆盖该分区；
+13. ordinary callable、初始化服务与布局相关 callable 按实际 typed target 取得定义、ABI 和 relocation；core 使用同一查询与发布路径。每个定义只保留一份记录，dispatch 可以引用普通导出；
 14. HIR layer在M23 v1继续保守纳入全部direct dependency HIR fingerprint；MIR/LIR也继续沿用全部direct dependency对应层fingerprint作为cache安全基线。`LookupObservationSet`和`SelectedExternalSet`本阶段完整产生并测试，但不用于减少cache edge，避免negative lookup、star snapshot或re-export变化被错误复用；
-15. 每个成功artifact仍必须从最终bytes分别通过Compile与Link view，并在closure级证明所有ordinary external callable requirement精确命中route终点provider的strong definition。任一wire、route、visibility、bridge、object use或fingerprint关系不一致均原子失败；
-16. M23-4的locator、DAG、source snapshot、cache store、child protocol和canonical调度不重写。production child不再因“存在non-core dependency”无条件失败，而是在完整semantic closure通过后按本文能力矩阵编译；parent仍在发布cache前重新执行双view与closure验证。
+15. reader 在实际 Compile/Link 消费边界检查相应格式、类型、引用、ABI 与符号。发布复用同次编译的完整结果与已经检查的依赖；损坏产物仍拒绝，不为发布重新执行两次完整闭包读取；
+16. locator、依赖 DAG、source snapshot、cache 和 child protocol 沿用共有构建规则。child 直接编译完整依赖目录中的源码；parent 发布缓存时检查请求、内容 fingerprint 和实际产物记录，复用已经确认的编译结果。
 
 核心不变量是：
 
@@ -207,7 +207,7 @@ WorldProviderRole = Current
 - `Current`可按M21 access domain枚举本Cone声明；
 - `Direct`可枚举其public binding surface并产生`PublicDependencyLookupWitness`；
 - `Support`只能按已经持有的kind-specific persistent ref取回声明/definition，不提供package、name、member或prelude枚举API；
-- implicit core是`Direct`，同时额外持有trusted-core capability；ordinary direct artifact不能构造该marker；
+- 默认查找到的 core 是普通直接依赖；sysroot 只提供默认位置，不附加来源 marker 或资格；
 - 一个Cone对当前root恰有一个role。既是多条路径的support时合并路径；只要存在direct edge即规范化为`Direct`，但仍保留全部graph path用于诊断和fingerprint验证。
 
 公开API不提供`role -> bool`后再调用统一枚举器；只有`DirectProviderView`实现`public_bindings()`，`SupportProviderView`只有typed lookup方法，从类型上阻止误枚举。
@@ -230,14 +230,14 @@ required_manifest = [
 ]
 
 required_hir = [
-  org.scoop-lang.hir/core-bootstrap-interface/1,
-  org.scoop-lang.hir/cross-cone-interface/1,
-  org.scoop-lang.hir/identity-foundation/1,
+  org.scoop-lang.hir/core-bootstrap-interface/3,
+  org.scoop-lang.hir/cross-cone-interface/20,
+  org.scoop-lang.hir/identity-foundation/3,
 ]
 
 required_mir = [
   org.scoop-lang.mir/core-bootstrap-bridge/1,
-  org.scoop-lang.mir/cross-cone-param-free-bridge/1,
+  org.scoop-lang.mir/cross-cone-param-free-bridge/2,
   org.scoop-lang.mir/identity-foundation/1,
 ]
 
@@ -245,8 +245,8 @@ required_lir = [
   org.scoop-lang.lir/cross-cone-link-closure/1,
   org.scoop-lang.lir/cross-cone-param-free-bridge/1,
   org.scoop-lang.lir/identity-foundation/1,
-  org.scoop-lang.lir/link-identity-closure/1,
-  org.scoop-lang.lir/strong-production/1,
+  org.scoop-lang.lir/link-identity-closure/3,
+  org.scoop-lang.lir/strong-production/9,
 ]
 
 code_requirement    = MustBeAvailable
@@ -265,8 +265,8 @@ validation_policy   = {
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
-| `org.scoop-lang.hir/cross-cone-interface/1` | HIR | Compile | HIR |
-| `org.scoop-lang.mir/cross-cone-param-free-bridge/1` | MIR | Compile | MIR |
+| `org.scoop-lang.hir/cross-cone-interface/20` | HIR | Compile | HIR |
+| `org.scoop-lang.mir/cross-cone-param-free-bridge/2` | MIR | Compile | MIR |
 | `org.scoop-lang.lir/cross-cone-param-free-bridge/1` | LIR | Compile | LIR |
 | `org.scoop-lang.lir/cross-cone-link-closure/1` | LIR | Link | Code + LinkValidationOnly |
 
@@ -1903,7 +1903,7 @@ HIR set覆盖re-export/signature/default/alias/const/concrete winner；MIR/LIR s
 
 ### 12.1 payload
 
-`org.scoop-lang.mir/cross-cone-param-free-bridge/1`：
+`org.scoop-lang.mir/cross-cone-param-free-bridge/2`：
 
 ```text
 CrossConeMirBridgeSectionV1 {
@@ -1915,6 +1915,7 @@ ParamFreeMirCallableExportV1 {
     declaration: DependencyCallableDeclarationId, // field 1
     implementation: StrongCallableDefinitionOwner, // field 2
     signature: ExactCallableSignature,              // field 3
+    gc_effect: Managed | NoGC,                      // field 4, unsigned 1 | 2
 }
 
 SelectedDependencyMirCallableV1 {
@@ -1925,19 +1926,19 @@ SelectedDependencyMirCallableV1 {
 }
 ```
 
-ordinary Cone的`exports`精确等于本Cone public interface中满足1.5前3项和exact signature classifier的最大集合；re-export target不复制export bridge。core的此表为空并继续使用既有core bridge，避免同一authority两份真源。
+所有 Cone 的 `exports` 保存共有声明中有实际 MIR body 的参数自由直接 callable，包含普通 final 成员的隐式 receiver；re-export 不复制定义，core 使用同一规则。M23-6 的 `/2` 补全实际 GC effect，dispatch 与 boxing 按 typed implementation 借用该记录及类型关联 callable，不要求来源资格或重复导出；旧 `/1` 产物与缓存重建。
 
-`selected`精确等于LocalConcrete `DependencyExternal` use去重集合。closure validator在terminal provider的`exports`中逐项匹配；provider必须是support closure成员且HIR selected route可达。signature/implementation任一不一致即artifact invalid，不从body symbol反推。
+`selected`精确等于LocalConcrete `DependencyExternal` use去重集合。closure validator在terminal provider的`exports`中逐项匹配；provider 必须可经实际依赖到达；HIR 调用保留完整 typed 声明、receiver 与参数，实际经过 import 查找时另保存该路径。signature、implementation 或 GC effect 不一致即产物无效，不从 body symbol 或同名推导声明身份。
 
 ### 12.2 MIR lowering
 
 MIR call target新增：
 
 ```text
-MirCallee::DependencyStrong(ImportedDependencyMirCallableId)
+MirCallee::ExternalCallable(ExternalCallableUseId)
 ```
 
-它携带effect-refined call semantics，不是native call。Managed调用保持普通managed safepoint/exception edge，NoGc保持NoGc；调用方参数和返回已经是exact core-closed值。MIR不读取export binding、default template或alias。
+它携带effect-refined call semantics，不是native call。Managed调用保持普通managed safepoint/exception edge，NoGc保持NoGc；调用方参数和返回已经具有完整 exact type，arena use 引用实际 provider 和 typed callable 声明。MIR不读取export binding、default template或alias。
 
 ## 13. LIR semantic bridge与Link closure
 

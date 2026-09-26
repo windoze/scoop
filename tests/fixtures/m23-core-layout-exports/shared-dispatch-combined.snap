@@ -8,49 +8,20 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=230 descriptors=115 dispatch=155 callables=77 shapes=33
+layouts=230 descriptors=115 dispatch=155 callables=48 shapes=33
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable Boolean.equals: OrdinaryManaged receiver=true args=["Direct(1)", "Direct(1)"] result=Direct(1)
-callable Boolean.hash: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable Boolean.toString: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable Int.hash: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable Int.toString: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable Int16.hash: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable Int16.toString: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable Int8.hash: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable Int8.toString: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable Long.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable Long.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable SharedDispatchBase.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable SharedDispatchBase.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedDispatchDefault.token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable SharedDispatchLeft.echo: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedDispatchMutable.$get$value: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable SharedDispatchMutable.$set$value: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
-callable SharedDispatchMutableImpl.$get$value: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable SharedDispatchMutableImpl.$set$value: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
-callable SharedDispatchObject.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
-callable SharedDispatchObject.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedDispatchRoot.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
 callable SharedDispatchRoot.echo: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable SharedDispatchRoot.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
-callable SharedDispatchValue.$get$token: OrdinaryManaged receiver=true args=["Zst(0)"] result=Zst(0)
-callable SharedDispatchValue.run: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Zst(0)
-callable SharedDispatchValue.spare: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Zst(0)
-callable String.equals: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(1)
-callable String.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable String.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable UInt.hash: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable UInt.toString: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable UInt16.hash: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable UInt16.toString: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable UInt8.hash: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable UInt8.toString: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable ULong.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable ULong.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SharedDispatchToken.$c5: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SharedDispatchValue.$c6: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.SourceLocation.$c7: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)"] result=Indirect(40)

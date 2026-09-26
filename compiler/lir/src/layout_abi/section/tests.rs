@@ -28,7 +28,7 @@ fn empty_section_roundtrips_as_one_complete_six_field_product() {
         .unwrap()
         .validate_descriptors(expected.descriptors())
         .unwrap()
-        .validate_shape_support(expected.shape_support())
+        .validate_shape_support(expected.shape_support(), expected.direct_callables())
         .unwrap()
         .resolve_dependencies(&mut identities)
         .unwrap();
@@ -102,7 +102,7 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
         .unwrap()
         .validate_descriptors(expected.descriptors())
         .unwrap()
-        .validate_shape_support(expected.shape_support())
+        .validate_shape_support(expected.shape_support(), expected.direct_callables())
         .unwrap()
         .resolve_dependencies(&mut identities)
         .unwrap();

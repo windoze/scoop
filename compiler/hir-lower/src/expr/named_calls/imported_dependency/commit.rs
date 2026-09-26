@@ -170,14 +170,19 @@ impl Lowerer {
                 origin: self.expression_origin(call_span),
             });
         }
-        let ImportedCallableCandidate::Binding(candidate) = candidate else {
-            unreachable!("a successful member probe has a complete frontend normalization")
-        };
         let mut args = Vec::with_capacity(parameter_values.len() + usize::from(receiver.is_some()));
         args.extend(receiver);
         args.extend(parameter_values);
 
-        let (callee, binding) = match self.select_imported_dependency_callable_use(*candidate) {
+        let selected = match candidate {
+            ImportedCallableCandidate::Binding(candidate) => self
+                .select_imported_dependency_callable_use(*candidate)
+                .map(|(callee, binding)| (callee, Some(binding))),
+            ImportedCallableCandidate::Member(candidate) => self
+                .select_imported_member_callable_use(*candidate)
+                .map(|callee| (callee, None)),
+        };
+        let (callee, binding) = match selected {
             Ok(selected) => selected,
             Err(error) => {
                 self.error(

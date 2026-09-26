@@ -36,7 +36,6 @@ pub enum MirTypeBridgeSectionError {
     DuplicateTarget(MirTypeBridgeTargetV1),
     MissingTarget(MirTypeBridgeDependencyV1),
     MissingDependency(MirTypeBridgeTargetV1),
-    OldCallablePartition(StrongCallableDefinitionOwner),
     SelectedCurrentProvider,
     SelectedClosure,
     ArithmeticOverflow,

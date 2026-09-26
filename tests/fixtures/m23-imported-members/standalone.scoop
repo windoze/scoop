@@ -1,0 +1,8 @@
+package consumer.members
+
+import dependency.members.Token
+import dependency.members.Wide
+
+@NoGC public fun keepToken(value: Token): Token = value.sameToken(value)
+@NoGC public fun keepWide(value: Wide): Wide = value.copyWide(value)
+@NoGC public fun total(value: Wide): Long = value.total(7)

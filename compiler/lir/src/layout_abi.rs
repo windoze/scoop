@@ -57,6 +57,8 @@ pub enum LayoutAbiSemanticClosureError {
     ArithmeticOverflow,
     DuplicateTarget(LayoutAbiSemanticTargetV1),
     MissingTarget(LayoutAbiSemanticTargetV1),
+    MissingValueLayout(PersistentExactTypeId),
+    DuplicateValueLayout(PersistentExactTypeId),
     Provider {
         target: LayoutAbiSemanticTargetV1,
         expected: ConeIdentity,

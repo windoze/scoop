@@ -6,7 +6,7 @@ use super::*;
 pub struct DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
     pub(super) provider: ConeIdentity,
     pub(super) exports: MirTypeBridgeExportConstituentsV1,
-    pub(super) legacy: Vec<StrongCallableDefinitionOwner>,
+    pub(super) direct: crate::CrossConeMirBridgeSectionV1,
     pub(super) selected: Vec<MirTypeBridgeDependencyV1>,
 }
 
@@ -31,7 +31,7 @@ impl DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
             provider: self.provider,
             exports: &self.exports,
             units,
-            legacy: &self.legacy,
+            direct: &self.direct,
         }
     }
 

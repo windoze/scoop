@@ -22,6 +22,9 @@ pub(super) fn enqueue(
         LayoutAbiSemanticRecordV1::Callable(record) => {
             records::callable(record, views, index, pending)
         }
+        LayoutAbiSemanticRecordV1::DirectCallable(record) => {
+            records::direct_callable(record, views, index, pending)
+        }
         LayoutAbiSemanticRecordV1::ShapeSupport(record) => {
             records::shape_support(record, views, index, pending)
         }

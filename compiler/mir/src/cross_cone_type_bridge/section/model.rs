@@ -5,7 +5,7 @@ pub struct CrossConeMirTypeBridgeSectionV1<'a> {
     pub(super) provider: ConeIdentity,
     pub(super) exports: MirTypeBridgeExportConstituentsV1,
     pub(super) units: Vec<MirTypeBridgeInitializationUnitV1>,
-    pub(super) legacy_callables: Vec<StrongCallableDefinitionOwner>,
+    pub(super) direct_callables: crate::CrossConeMirBridgeSectionV1,
     pub(super) selected: SelectedDependencyMirTypeSetV1<'a>,
 }
 impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
@@ -45,7 +45,7 @@ impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
 #[derive(Clone, Copy)]
 pub enum MirTypeBridgeSemanticRecordV1<'a> {
     Type(&'a ParamFreeMirTypeExportV1),
-    Callable(&'a ParamFreeMirCallableBindingV1),
+    Callable(MirCallableRecordRefV1<'a>),
     Dispatch(&'a ParamFreeMirDispatchSchemaV1),
     Object(&'a ParamFreeMirObjectValueV1),
     ShapeSupport(&'a ParamFreeMirShapeSupportV1),

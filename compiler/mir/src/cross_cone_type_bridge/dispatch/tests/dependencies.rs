@@ -52,8 +52,11 @@ impl Tables {
         MirTypeBridgeTypeIndexV1::try_new(&[&self.local_types, &self.dependency_types]).unwrap()
     }
     fn callables(&self) -> MirTypeBridgeCallableIndexV1<'_> {
-        MirTypeBridgeCallableIndexV1::try_new(&[&self.local_callables, &self.dependency_callables])
-            .unwrap()
+        MirTypeBridgeCallableIndexV1::try_new(
+            &[&self.local_callables, &self.dependency_callables],
+            &[],
+        )
+        .unwrap()
     }
 }
 
@@ -174,10 +177,10 @@ fn repeated_dependency_authority_is_not_silently_merged() {
     let tables = Tables::new(&fixture);
     let (types, callables) = (tables.types(), tables.callables());
     assert!(matches!(
-        MirTypeBridgeCallableIndexV1::try_new(&[
-            &tables.dependency_callables,
-            &tables.dependency_callables
-        ],),
+        MirTypeBridgeCallableIndexV1::try_new(
+            &[&tables.dependency_callables, &tables.dependency_callables],
+            &[]
+        ),
         Err(MirTypeBridgeLookupError::DuplicateCallable { .. })
     ));
     assert!(matches!(

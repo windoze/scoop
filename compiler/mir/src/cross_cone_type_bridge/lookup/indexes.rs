@@ -22,7 +22,6 @@ macro_rules! borrowed_index {
                 for table in tables {
                     records.extend(table.$records());
                 }
-                for _ in 0..usize::BITS - count.max(1).saturating_sub(1).leading_zeros() {}
                 records.sort_unstable_by_key(|record| record.$key_fn());
 
                 if let Some(pair) = records
@@ -61,17 +60,6 @@ borrowed_index!(
     exact,
     DuplicateType,
     exact
-);
-borrowed_index!(
-    MirTypeBridgeCallableIndexV1,
-    MirTypeBridgeCallableLookupV1,
-    CanonicalMirCallableBindingsV1,
-    ParamFreeMirCallableBindingV1,
-    StrongCallableDefinitionOwner,
-    entries,
-    implementation,
-    DuplicateCallable,
-    target
 );
 borrowed_index!(
     MirTypeBridgeSchemaIndexV1,

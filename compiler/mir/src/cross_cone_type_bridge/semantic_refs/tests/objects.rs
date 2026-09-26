@@ -81,7 +81,7 @@ fn object_ensure_collects_logical_unit_type_and_unit_role() {
     let fixture = Fixture::new();
     let object = fixture.object(1);
     let references = MirTypeBridgeSemanticReferencesV1::of_callable(
-        fixture.callables.get(object.ensure()).unwrap(),
+        MirCallableRecordRefV1::Lowered(fixture.callables.get(object.ensure()).unwrap()),
         &fixture.graph,
     )
     .unwrap();

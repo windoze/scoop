@@ -19,7 +19,6 @@ fn replay_joins_schema_physical_slot_callable_abi_and_definition() {
     assert_eq!(record.role(), ExactDispatchRoleV1::Vtable);
     assert_eq!(record.entries()[0].position().into_u32(), 0);
     assert_eq!(record.entries()[0].slot(), fixture.slot);
-    assert_eq!(record.entries()[0].callable_abi(), &fixture.abi);
     assert_eq!(
         record.entries()[0].abi(),
         StrongTypeDispatchCallableRefV2::Local(fixture.abi.definition().semantic_id())

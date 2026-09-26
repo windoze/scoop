@@ -36,7 +36,10 @@ pub(super) fn validate_call_sites(
     let mut has_runtime_call = false;
     for (site, record) in sites.records().iter().enumerate() {
         match record.reason() {
-            crate::HirDependencyCallReasonV1::SourceBinding(_) if selected => {
+            crate::HirDependencyCallReasonV1::SourceBinding(_)
+            | crate::HirDependencyCallReasonV1::SourceDeclaration
+                if selected =>
+            {
                 has_source_call = true
             }
             crate::HirDependencyCallReasonV1::CastFailure { .. } if runtime => {

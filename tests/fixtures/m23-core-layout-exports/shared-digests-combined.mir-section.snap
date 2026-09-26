@@ -1,4 +1,4 @@
-types=89 callables=52 dispatch=25 objects=2 shapes=24 units=3 selected=0
+types=89 callables=29 dispatch=25 objects=2 shapes=24 units=3 selected=0
 unit companion:SharedDigestOwner.Companion: Ordinary Managed
 unit object:SharedDigestService: Ordinary Managed
 unit top-level:sharedDigestCached: Ordinary Managed

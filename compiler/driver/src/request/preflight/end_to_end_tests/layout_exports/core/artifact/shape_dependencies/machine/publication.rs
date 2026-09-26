@@ -23,10 +23,17 @@ pub(super) fn check<'a, 'p>(
             &[],
         )
         .unwrap();
+    let ordinary = scoop_lir_lower::lower_cross_cone_bridge_section(
+        source_input.mir,
+        source_input.ordinary,
+        output,
+    )
+    .unwrap();
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {
         mir: source_input.mir,
         lir: output,
         bridge: source.bridge.exports(),
+        ordinary: &ordinary,
         registration: &registration,
         identities: source_input.identities,
         coordinates,
@@ -34,6 +41,7 @@ pub(super) fn check<'a, 'p>(
     let dependencies = scoop_lir_lower::LayoutAbiExportDependenciesV1 {
         layouts: &[provider.layout.layouts()],
         callables: &[provider.layout.callables()],
+        direct_callables: &[provider.layout.direct_callables()],
     };
     let exports = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
     let imports = selected.physical_imports().records().to_vec();

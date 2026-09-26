@@ -10,7 +10,9 @@ pub(super) fn collect(
     let mut uses = Vec::new();
     occurrences::visit(output, selected, |call| {
         let target = ExternalHirTargetV1::Callable(call.callable().interface().declaration());
-        append(&mut uses, target, call.binding())?;
+        if let Some(binding) = call.binding() {
+            append(&mut uses, target, binding)?;
+        }
         Ok(())
     })?;
     for constant in selected.constants() {

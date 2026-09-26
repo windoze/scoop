@@ -60,6 +60,7 @@ impl<'input> LirCallableAbisValidatedCrossConeLayoutClosure<'input> {
                 let reachable = transitive_positions(position, &dependency_positions)?;
                 let mut layouts = Vec::new();
                 let mut callables = Vec::new();
+                let mut direct_callables = Vec::new();
                 scoop_wire::allocation::try_reserve(
                     &mut layouts,
                     reachable.len(),
@@ -73,6 +74,7 @@ impl<'input> LirCallableAbisValidatedCrossConeLayoutClosure<'input> {
                 for &position in &reachable {
                     layouts.push(complete[position].layouts());
                     callables.push(complete[position].callable_abis());
+                    direct_callables.push(complete[position].lir_cross_cone_bridge());
                 }
                 let expected = replay_shared_mir_dispatch(
                     target.target(),
@@ -81,8 +83,10 @@ impl<'input> LirCallableAbisValidatedCrossConeLayoutClosure<'input> {
                     SharedLirDispatchAbiInputsV1 {
                         local_layouts: layout.layouts(),
                         local_callables: layout.callables(),
+                        local_direct_callables: &ordinary,
                         dependency_layouts: &layouts,
                         dependency_callables: &callables,
+                        dependency_direct_callables: &direct_callables,
                     },
                     parts.lir_foundation,
                 )?;

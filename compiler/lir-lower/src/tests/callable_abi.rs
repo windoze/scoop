@@ -169,6 +169,14 @@ fn mir_bridge(
         DependencyCallableDeclarationId::Function(function),
         target,
         signature.clone(),
+        input.module().functions[input
+            .materialization()
+            .callable_roots()
+            .iter()
+            .find(|root| root.implementation() == target.callable_owner())
+            .unwrap()
+            .function()]
+        .gc_effect,
     )
     .unwrap();
     mir::CrossConeMirBridgeSectionV1::try_new(

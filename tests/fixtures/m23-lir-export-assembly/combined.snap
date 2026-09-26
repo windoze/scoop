@@ -1,4 +1,4 @@
-layouts=62 descriptors=31 dispatch=36 callables=24 shapes=9
+layouts=62 descriptors=31 dispatch=36 callables=21 shapes=9
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable Base.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
@@ -9,10 +9,7 @@ callable Contract.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] r
 callable Contract.echo: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable Contract.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable Pair.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
-callable Registry.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
 callable Token.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
-callable Value.$get$token: OrdinaryManaged receiver=true args=["Zst(0)"] result=Zst(0)
-callable Value.run: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Zst(0)
 callable ctor.Pair.$c1: OrdinaryNoGc receiver=false args=["Zst(0)", "Zst(0)"] result=Zst(0)
 callable ctor.Pair.$c2: OrdinaryNoGc receiver=false args=[] result=Zst(0)
 callable ctor.Token.$c0: OrdinaryNoGc receiver=false args=[] result=Zst(0)

@@ -23,7 +23,7 @@ pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 19)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 20)
         .expect("built-in capability id is valid")
 }
 
@@ -32,7 +32,8 @@ pub fn mir_core_bootstrap_bridge_capability() -> CapabilityId {
 }
 
 pub fn mir_cross_cone_param_free_bridge_capability() -> CapabilityId {
-    known_capability("org.scoop-lang.mir", "cross-cone-param-free-bridge")
+    CapabilityId::new("org.scoop-lang.mir", "cross-cone-param-free-bridge", 2)
+        .expect("built-in capability id is valid")
 }
 
 pub fn lir_cross_cone_param_free_bridge_capability() -> CapabilityId {

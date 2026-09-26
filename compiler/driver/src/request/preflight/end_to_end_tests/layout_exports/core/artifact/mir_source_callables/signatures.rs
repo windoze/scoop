@@ -1,5 +1,4 @@
 use super::*;
-use scoop_identity::Effect;
 
 pub(super) fn check(replay: &Replay<'_, '_>) {
     for binding in replay
@@ -30,21 +29,18 @@ pub(super) fn check(replay: &Replay<'_, '_>) {
         return;
     };
     let declaration = Declaration::Function(keep);
-    let binding = replay
-        .section
-        .callables()
-        .get(declaration.implementation())
-        .unwrap();
-    let signature = binding.semantic_signature();
+    let binding = replay.ordinary.export(declaration).unwrap();
+    let signature = binding.bridge_signature();
     assert_eq!(signature.gc_effect(), mir::GcEffect::NoGc);
-    let role = *binding.lowering_role();
-    let changed = replay.binding(
-        binding,
-        mir::MirBridgeCallableSignatureV1::new(signature.exact().clone(), mir::GcEffect::Managed),
-        role,
-    );
     component(
-        replay.reject(replay.ordinary, replay.replace(changed)),
+        reject_ordinary_signature(
+            replay,
+            declaration,
+            &mir::MirBridgeCallableSignatureV1::new(
+                signature.exact().clone(),
+                mir::GcEffect::Managed,
+            ),
+        ),
         Component::GcEffect,
         declaration,
     );
@@ -88,23 +84,13 @@ pub(super) fn check(replay: &Replay<'_, '_>) {
                 other,
             ),
         ),
-        (
-            Component::Execution,
-            ExactCallableSignature::new(
-                Effect::Suspend,
-                receiver,
-                exact.parameters().to_vec(),
-                exact.result(),
-            ),
-        ),
     ] {
-        let changed = replay.binding(
-            binding,
-            mir::MirBridgeCallableSignatureV1::new(changed, mir::GcEffect::NoGc),
-            role,
-        );
         component(
-            replay.reject(replay.ordinary, replay.replace(changed)),
+            reject_ordinary_signature(
+                replay,
+                declaration,
+                &mir::MirBridgeCallableSignatureV1::new(changed, mir::GcEffect::NoGc),
+            ),
             expected,
             declaration,
         );
@@ -131,11 +117,28 @@ fn ordinary_signature(replay: &Replay<'_, '_>) {
         exact.parameters().to_vec(),
         other,
     );
-    let foundation = replay.changed_foundation(declaration.implementation(), &changed);
+    component(
+        reject_ordinary_signature(
+            replay,
+            declaration,
+            &mir::MirBridgeCallableSignatureV1::new(changed, original.gc_effect()),
+        ),
+        Component::Result,
+        declaration,
+    );
+}
+
+fn reject_ordinary_signature(
+    replay: &Replay<'_, '_>,
+    declaration: Declaration,
+    signature: &mir::MirBridgeCallableSignatureV1,
+) -> Error {
+    let foundation = replay.changed_foundation(declaration.implementation(), signature.exact());
     let changed = mir::ParamFreeMirCallableExportV1::try_new(
         declaration,
         declaration.implementation(),
-        changed,
+        signature.exact().clone(),
+        signature.gc_effect(),
     )
     .unwrap();
     let records = replay
@@ -157,9 +160,5 @@ fn ordinary_signature(replay: &Replay<'_, '_>) {
         replay.ordinary.selected().to_vec(),
     )
     .unwrap();
-    component(
-        replay.reject(&ordinary, replay.section.callables().entries().to_vec()),
-        Component::Result,
-        declaration,
-    );
+    replay.reject(&ordinary, replay.section.callables().entries().to_vec())
 }

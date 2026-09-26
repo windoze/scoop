@@ -43,36 +43,3 @@ fn shape_link_dispatch_and_callable_contracts_keep_signature_gc_slots_and_adapta
     let raw: DecodedShapeLinkContractV1 = decode_canonical(&changed).unwrap();
     assert!(raw.validate_against(&dispatch).is_err());
 }
-
-#[test]
-fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch() {
-    use crate::*;
-    use scoop_identity::{
-        ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
-    };
-    let fixture = DirectFixture::new(1);
-    let StrongCallableDefinitionOwner::Function(function) = fixture.target else {
-        panic!("source function fixture");
-    };
-    let export = ParamFreeLirCallableExportV1::new(
-        ConeIdentity::SINGLE_FILE,
-        DependencyCallableDeclarationId::Function(function),
-        fixture.target,
-        fixture.abi.canonical_signature().clone(),
-        fixture.abi.calling_convention(),
-        ExternalCallableRootPlan::ManagedStatepoint,
-    )
-    .unwrap();
-    let ordinary =
-        CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, vec![export], Vec::new())
-            .unwrap();
-    let callable = ExternalStrongShapeSubjectV1::Callable(fixture.target);
-    assert!(
-        matches!(ShapeLinkProviderV1::reject_legacy_subject(&ordinary, callable), Err(ShapeLinkError::LegacyPartition(actual)) if actual == callable)
-    );
-    ShapeLinkProviderV1::reject_legacy_subject(
-        &ordinary,
-        ExternalStrongShapeSubjectV1::DispatchTable(fixture.vtable.identity_record().id()),
-    )
-    .unwrap();
-}

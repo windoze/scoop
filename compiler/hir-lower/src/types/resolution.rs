@@ -406,7 +406,7 @@ impl Lowerer {
     fn resolve_type_ref_unchecked(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         match &ty_ref.kind {
             ast::TypeRefKind::Unit => {
-                if let Some(declaration) = self.imported_core_builtin_declaration(self.unit)
+                if let Some(declaration) = self.imported_nominal_declaration(self.unit)
                     && !self.retain_builtin_alias_target_binding("Unit", declaration, ty_ref.span)
                 {
                     return None;
@@ -724,7 +724,7 @@ impl Lowerer {
                     }
                 };
                 if let Some(ty) = resolved
-                    && let Some(declaration) = self.imported_core_builtin_declaration(ty)
+                    && let Some(declaration) = self.imported_nominal_declaration(ty)
                     && !self.retain_builtin_alias_target_binding(&name.text, declaration, name.span)
                 {
                     return None;

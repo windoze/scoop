@@ -23,6 +23,7 @@ pub struct LayoutAbiExportInputV1<'a> {
     pub mir: &'a mir::SingleConeStrongMirInput,
     pub lir: &'a lir::SingleConeStrongLirOutput,
     pub bridge: &'a mir::MirTypeBridgeExportConstituentsV1,
+    pub ordinary: &'a lir::CrossConeLirBridgeSectionV1,
     pub registration: &'a lir::StrongProductionSectionV2,
     pub identities: &'a ValidatedIdentityGraph,
     pub coordinates: &'a [ConeCoordinate],
@@ -32,6 +33,7 @@ pub struct LayoutAbiExportInputV1<'a> {
 pub struct LayoutAbiExportDependenciesV1<'a> {
     pub layouts: &'a [&'a lir::CanonicalExactLayoutExportsV1],
     pub callables: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
+    pub direct_callables: &'a [&'a lir::CrossConeLirBridgeSectionV1],
 }
 
 /// Replays all five physical export inventories. The enclosing section still
@@ -64,7 +66,7 @@ pub fn lower_layout_abi_exports(
     let callables = callables::lower(input, &lookup)?;
     let diagnostics = ExactTypeDiagnosticCatalog::try_new(input.identities, input.coordinates)?;
     let descriptors = descriptors::lower(input, &layouts, &diagnostics)?;
-    let dispatch = dispatch::lower(input, &lookup, &callables, dependencies.callables)?;
+    let dispatch = dispatch::lower(input, &lookup, &callables, dependencies)?;
     let roots = input.lir.shape_support().roots();
     let mut sources = reserve(roots.len())?;
     for root in roots {
@@ -82,6 +84,7 @@ pub fn lower_layout_abi_exports(
         dispatch,
         callables,
         shapes,
+        input.ordinary.clone(),
     )?)
 }
 

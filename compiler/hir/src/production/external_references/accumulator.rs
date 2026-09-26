@@ -188,12 +188,13 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
             let pending = self
                 .observe_pending(target, role)?
                 .ok_or(Error::CurrentWitnessTarget { target, role })?;
-            for source in call.binding().sources() {
-                pending
-                    .witnesses
-                    .insert(source.witness().dependency().clone());
+            if let Some(binding) = call.binding() {
+                for source in binding.sources() {
+                    pending
+                        .witnesses
+                        .insert(source.witness().dependency().clone());
+                }
             }
-            pending.witnessed_roles.insert(role);
 
             scoop_wire::allocation::try_reserve(&mut pending.call_sites, 1, &path)
                 .map_err(Error::Resource)?;

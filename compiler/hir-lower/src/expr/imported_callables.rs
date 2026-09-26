@@ -26,16 +26,37 @@ impl Lowerer {
             .as_mut()
             .expect("ordinary lowering carries a dependency selection plan")
             .select_callable(candidate)?;
+        Ok((
+            self.intern_imported_dependency_callable_use(reference),
+            binding,
+        ))
+    }
+
+    pub(crate) fn select_imported_member_callable_use(
+        &mut self,
+        candidate: hir::ImportedMemberCallableCandidate,
+    ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
+        let reference = self
+            .dependencies
+            .as_mut()
+            .expect("ordinary lowering carries a dependency selection plan")
+            .select_member_callable(candidate)?;
+        Ok(self.intern_imported_dependency_callable_use(reference))
+    }
+
+    fn intern_imported_dependency_callable_use(
+        &mut self,
+        reference: hir::ImportedDependencyCallableRef,
+    ) -> hir::ImportedDependencyCallableUseId {
         let existing = self
             .imported_dependency_callables
             .iter()
             .find_map(|(id, use_)| (use_.reference() == reference).then_some(id));
-        let callee = match existing {
+        match existing {
             Some(existing) => existing,
             None => self
                 .imported_dependency_callables
                 .alloc(hir::ImportedDependencyCallableUse::new(reference)),
-        };
-        Ok((callee, binding))
+        }
     }
 }

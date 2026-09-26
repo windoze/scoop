@@ -1,0 +1,16 @@
+package consumer.members
+
+import dependency.members.Token
+import dependency.members.Wide
+import dependency.members.Managed
+
+public typealias Payload = Wide
+public struct Container(val marker: Token, val payload: Payload)
+
+@NoGC public fun keepToken(value: Token): Token = value.sameToken()
+@NoGC public fun keepWide(value: Payload): Wide {
+    val copy = value.copyWide(other = value)
+    return value + copy.copyWide()
+}
+@NoGC public fun total(value: Payload): Long = value.total() + 7
+public fun keepManaged(value: Managed): Managed = value.sameManaged()

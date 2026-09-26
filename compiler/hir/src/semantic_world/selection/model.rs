@@ -223,7 +223,6 @@ pub struct ImportedDependencyCallableRef {
 /// Complete HIR input for one selected dependency callable.
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyCallable {
-    pub(super) binding: DirectImportedTargetBinding,
     pub(super) provider: ConeIdentity,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
@@ -253,10 +252,6 @@ impl SelectedImportedDependencyCallable {
 
     pub const fn capability(&self) -> &ParamFreeNominalCallableV1 {
         &self.capability
-    }
-
-    pub const fn binding(&self) -> &DirectImportedTargetBinding {
-        &self.binding
     }
 }
 

@@ -146,8 +146,16 @@ impl Fixture {
             )])
             .unwrap();
         let mir_foundation = OdrFreeMirFoundation::try_new(mir_foundation).unwrap();
-        let mir_export =
-            ParamFreeMirCallableExportV1::try_new(declaration, target, signature.clone()).unwrap();
+        let mir_export = ParamFreeMirCallableExportV1::try_new(
+            declaration,
+            target,
+            signature.clone(),
+            match gc_effect {
+                GcEffect::Managed => scoop_mir::GcEffect::Managed,
+                GcEffect::NoGc => scoop_mir::GcEffect::NoGc,
+            },
+        )
+        .unwrap();
         let mir = CrossConeMirBridgeSectionV1::try_new(
             artifact,
             &mir_foundation,

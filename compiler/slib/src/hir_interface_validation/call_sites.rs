@@ -21,7 +21,8 @@ impl HirInterfaceValidationInput<'_> {
             for site in reference.call_sites().records() {
                 self.executable_origin(site.position(), site.origin(), dependencies)?;
                 match site.reason() {
-                    HirDependencyCallReasonV1::SourceBinding(_) => {
+                    HirDependencyCallReasonV1::SourceBinding(_)
+                    | HirDependencyCallReasonV1::SourceDeclaration => {
                         let provider = dependencies
                             .iter()
                             .find(|provider| provider.identity == reference.origin())

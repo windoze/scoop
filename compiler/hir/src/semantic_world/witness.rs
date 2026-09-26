@@ -154,34 +154,6 @@ impl DirectImportedTargetBinding {
         self.sources.len()
     }
 
-    pub(crate) fn is_selected_subset(
-        &self,
-        selected: &Self,
-    ) -> Result<bool, scoop_wire::WireError> {
-        if self.binding_target != selected.binding_target
-            || self.target != selected.target
-            || self.conflict != selected.conflict
-        {
-            return Ok(false);
-        }
-        for source in &self.sources {
-            let Ok(position) = selected
-                .sources
-                .binary_search_by(|candidate| candidate.canonical_cmp(source))
-            else {
-                return Ok(false);
-            };
-            let expected = &selected.sources[position];
-            if source.exported_binding != expected.exported_binding
-                || source.certificate != expected.certificate
-                || source.witness.terminal_declaration != expected.witness.terminal_declaration
-            {
-                return Ok(false);
-            }
-        }
-        Ok(true)
-    }
-
     pub fn try_merge(&mut self, other: Self) -> Result<(), DirectImportedTargetMergeError> {
         if self.binding_target != other.binding_target {
             return Err(DirectImportedTargetMergeError::BindingTargetMismatch);

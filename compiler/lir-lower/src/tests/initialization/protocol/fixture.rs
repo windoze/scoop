@@ -70,8 +70,13 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
 
     let target = scoop_identity::StrongCallableDefinitionOwner::Function(definition);
     let declaration = scoop_identity::DependencyCallableDeclarationId::Function(definition);
-    let export =
-        mir::ParamFreeMirCallableExportV1::try_new(declaration, target, exact.clone()).unwrap();
+    let export = mir::ParamFreeMirCallableExportV1::try_new(
+        declaration,
+        target,
+        exact.clone(),
+        scoop_mir::GcEffect::Managed,
+    )
+    .unwrap();
     let bridge = mir::CrossConeMirBridgeSectionV1::try_new(
         provider,
         core_input.foundation(),

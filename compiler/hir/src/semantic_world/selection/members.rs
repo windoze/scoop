@@ -14,7 +14,7 @@ use super::{
 use crate::{
     CallableInterfaceRecordV1, CallableOperatorRoleV1, CallableSourceInterfaceV1,
     ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ExportDefinitionSourceV1,
-    PublicDeclarationOwnerV1, SourceNominalId,
+    ParamFreeNominalCallableV1, PublicDeclarationOwnerV1, SourceNominalId,
 };
 
 /// Common source metadata used while probing and materializing a call.
@@ -61,6 +61,7 @@ pub enum ImportedMemberLookup<'a> {
 pub struct ImportedMemberCallableCandidate {
     name: CanonicalIdentifier,
     interface: CallableInterfaceRecordV1,
+    capability: Option<ParamFreeNominalCallableV1>,
     source: CallableSourceInterfaceV1,
     defaults: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     definition_sources: Arc<ImportedDependencyDefinitionSources>,
@@ -69,6 +70,10 @@ pub struct ImportedMemberCallableCandidate {
 impl ImportedMemberCallableCandidate {
     pub fn name(&self) -> &str {
         self.name.as_str()
+    }
+
+    pub const fn capability(&self) -> Option<&ParamFreeNominalCallableV1> {
+        self.capability.as_ref()
     }
 }
 
@@ -124,6 +129,7 @@ impl ImportedDependencySelectionPlan {
             candidates.push(ImportedMemberCallableCandidate {
                 name: name.clone(),
                 interface: entry.interface.clone(),
+                capability: entry.capability.clone(),
                 source,
                 defaults: entry.default_templates.clone(),
                 definition_sources: Arc::clone(&entry.definition_sources),

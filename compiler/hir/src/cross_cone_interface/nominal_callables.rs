@@ -7,7 +7,10 @@ use scoop_identity::{
     GcEffect, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
 };
 
-use crate::{CallableDeclarationRecordV1, CallableImplementationV1, PublicDeclarationOwnerV1};
+use crate::{
+    CallableDeclarationRecordV1, CallableImplementationV1, CallableModalityV1,
+    PublicDeclarationOwnerV1, SourceNominalId,
+};
 
 mod leaves;
 
@@ -32,8 +35,9 @@ impl NominalExactLeafClassifierV1 {
             .map(|index| self.leaves[index].1)
     }
 
-    /// Resolves the signature of an ordinary param-free top-level callable or
-    /// extension. This does not establish its implementation or ABI.
+    /// Resolves an ordinary param-free direct callable's complete signature,
+    /// including an implicit nominal receiver. Implementation and ABI are
+    /// supplied by the defining provider.
     pub fn classify_callable(
         &self,
         callable: &CallableDeclarationRecordV1,
@@ -55,7 +59,13 @@ impl NominalExactLeafClassifierV1 {
         &self,
         callable: &CallableDeclarationRecordV1,
     ) -> Result<Option<ExactCallableSignature>, NominalCallableClassificationError> {
-        let receiver = match callable.receiver() {
+        let nominal_receiver = match callable.owner() {
+            PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(owner)) => {
+                Some(SignatureTypeKey::Nominal(owner))
+            }
+            _ => None,
+        };
+        let receiver = match nominal_receiver.as_ref().or_else(|| callable.receiver()) {
             Some(receiver) => match self.classify(receiver) {
                 Some(exact) => Some(exact),
                 None => return Ok(None),
@@ -90,10 +100,15 @@ impl NominalExactLeafClassifierV1 {
 fn eligible_declaration(
     callable: &CallableDeclarationRecordV1,
 ) -> Option<DependencyCallableDeclarationId> {
-    if !matches!(
-        callable.owner(),
-        PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension
-    ) || !callable.type_parameters().is_empty()
+    let direct_owner = match callable.owner() {
+        PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => true,
+        PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(_)) => {
+            callable.modality() == CallableModalityV1::Final
+        }
+        PublicDeclarationOwnerV1::Nominal(SourceNominalId::GenericTemplate(_)) => false,
+    };
+    if !direct_owner
+        || !callable.type_parameters().is_empty()
         || callable.effects().execution() != Effect::Ordinary
         || callable.effects().implementation() != CallableImplementationV1::Scoop
     {

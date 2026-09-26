@@ -7,7 +7,7 @@ mod section;
 mod shared_accessors;
 
 #[test]
-fn ordinary_library_omits_only_source_only_machine_signatures() {
+fn ordinary_library_exports_members_with_available_machine_signatures() {
     let target = resolved_target().expect("layout exports require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -26,7 +26,15 @@ fn ordinary_library_omits_only_source_only_machine_signatures() {
                 .callables()
                 .records()
                 .iter()
-                .map(|callable| assertions::callable_name(input, callable.target()))
+                .map(|callable| callable.target())
+                .chain(
+                    result
+                        .direct_callables()
+                        .exports()
+                        .iter()
+                        .map(|callable| callable.target()),
+                )
+                .map(|target| assertions::callable_name(input, target))
                 .collect::<Vec<_>>();
             assert!(names.contains(&"Published.ready"));
             assert!(!names.contains(&"Published.deferred"));
@@ -238,6 +246,7 @@ fn check_core_layout_exports(names: &[&str]) {
             scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                 types: &[],
                 callables: &[],
+                direct_callables: &[],
                 dispatch: &[],
             },
         )
@@ -257,10 +266,14 @@ fn check_core_layout_exports(names: &[&str]) {
                 &[],
             )
             .unwrap();
+        let ordinary =
+            scoop_lir_lower::lower_cross_cone_bridge_section(&mir.strong, &mir.public, &lir)
+                .unwrap();
         let input = scoop_lir_lower::LayoutAbiExportInputV1 {
             mir: &mir.strong,
             lir: &lir,
             bridge: &bridge,
+            ordinary: &ordinary,
             registration: &registration,
             identities: &identities,
             coordinates: &coordinates,

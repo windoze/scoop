@@ -12,8 +12,10 @@ pub(super) fn check(
     let inputs = SharedLirDispatchAbiInputsV1 {
         local_layouts: expected.layouts(),
         local_callables: expected.callables(),
+        local_direct_callables: input.ordinary,
         dependency_layouts: dependencies.layouts,
         dependency_callables: dependencies.callables,
+        dependency_direct_callables: dependencies.direct_callables,
     };
     let dispatch = replay(input, inputs).unwrap();
     assert_eq!(&dispatch, expected.dispatch());
@@ -100,8 +102,10 @@ pub(super) fn probe(
     let inputs = SharedLirDispatchAbiInputsV1 {
         local_layouts: expected.layouts(),
         local_callables: expected.callables(),
+        local_direct_callables: input.ordinary,
         dependency_layouts: &[],
         dependency_callables: &[],
+        dependency_direct_callables: &[],
     };
     corruption::check(input, expected, inputs);
 }

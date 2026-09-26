@@ -55,10 +55,24 @@ pub(super) fn check(
             .collect(),
     )
     .unwrap();
-    assert!(
-        matches!(replay(input, SharedLirDispatchAbiInputsV1 { local_callables: &callables, ..abis }),
-        Err(Error::MissingCallable(target)) if target == missing)
-    );
+    let direct_callables = lir::CrossConeLirBridgeSectionV1::try_new(
+        input.lir.foundation(),
+        input
+            .ordinary
+            .exports()
+            .iter()
+            .filter(|record| record.target() != missing)
+            .cloned()
+            .collect(),
+        input.ordinary.selected().to_vec(),
+    )
+    .unwrap();
+    assert!(matches!(replay(input, SharedLirDispatchAbiInputsV1 {
+            local_callables: &callables,
+            local_direct_callables: &direct_callables,
+            ..abis
+        }),
+        Err(Error::MissingCallable(target)) if target == missing));
 
     let receiver = records
         .iter()

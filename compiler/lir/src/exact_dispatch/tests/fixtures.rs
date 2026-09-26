@@ -101,7 +101,7 @@ impl DirectFixture {
                 target: self.target,
                 receiver: ExactDispatchReceiverAdaptationV1::Identity,
             },
-            abi: &self.abi,
+            abi: (&self.abi).into(),
             slot_receiver_layout: None,
         }
     }
@@ -118,7 +118,7 @@ impl DirectFixture {
                 target: self.target,
                 receiver: ExactDispatchReceiverAdaptationV1::ReferenceDispatch,
             },
-            abi: &self.abi,
+            abi: (&self.abi).into(),
             slot_receiver_layout: layout,
         }
     }

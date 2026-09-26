@@ -102,7 +102,7 @@ impl MirDispatchSchemaAuthority<'_> {
     fn callable(
         &self,
         target: StrongCallableDefinitionOwner,
-    ) -> Result<&ParamFreeMirCallableBindingV1, MirDispatchSchemaError> {
+    ) -> Result<MirCallableRecordRefV1<'_>, MirDispatchSchemaError> {
         self.callables
             .get(target)
             .ok_or(MirDispatchSchemaError::MissingCallable { target })
@@ -176,7 +176,8 @@ impl MirDispatchSchemaAuthority<'_> {
                 self.direct_receiver(owner, entry, target.lowered_signature(), receiver)?;
             }
             MirDispatchImplementationV1::AdjustThunkTarget(_) => {
-                let (semantic_target, generated) = match (target.lowering_role(), target.origin()) {
+                let origin = target.origin();
+                let (semantic_target, generated) = match (target.lowering_role(), origin.as_ref()) {
                     (
                         MirCallableLoweringRoleV1::DispatchAdjust { target }
                         | MirCallableLoweringRoleV1::BoxingAdjust { target },

@@ -1,0 +1,70 @@
+Module
+  typealias Payload = Wide
+  struct Container
+    field0 marker: Token
+    field1 payload: Wide
+    property0 val marker: Token getter0=storage <stored struct0-field0>
+    property1 val payload: Wide getter1=storage <stored struct0-field1>
+  fun keepToken(value: Token): Token <no-gc cdecl>
+    val local1
+      Local value : Token
+    val local2
+      Local $dependency.receiver : Token
+    return
+      ImportedDependencyCall #0 : Token
+        Local $dependency.receiver : Token
+        Local $dependency.parameter.other : Token
+  fun keepWide(value: Wide): Wide <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local value : Wide
+    val local3
+      Local $dependency.argument.0 : Wide
+    val local4
+      ImportedDependencyCall #1 : Wide
+        Local $dependency.receiver : Wide
+        Local $dependency.parameter.other : Wide
+    val local7
+      Local value : Wide
+    val local5
+      Local copy : Wide
+    val local6
+      Local $dependency.receiver : Wide
+    val local8
+      ImportedDependencyCall #1 : Wide
+        Local $dependency.receiver : Wide
+        Local $dependency.parameter.other : Wide
+    val local9
+      Local $dependency.argument.0 : Wide
+    return
+      ImportedDependencyCall #2 : Wide
+        Local $dependency.receiver : Wide
+        Local $dependency.parameter.other : Wide
+  fun total(value: Wide): Long <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      IntegerLiteral 0 : Long
+    val local3
+      ImportedDependencyCall #3 : Long
+        Local $dependency.receiver : Wide
+        Local $dependency.parameter.delta : Long
+    val local4
+      IntegerLiteral 7 : Long
+    val local5
+      Local $dependency.argument.0 : Long
+    return
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+  fun keepManaged(value: Managed): Managed
+    val local1
+      Local value : Managed
+    val local2
+      Local $dependency.receiver : Managed
+    return
+      ImportedDependencyCall #4 : Managed
+        Local $dependency.receiver : Managed
+        Local $dependency.parameter.other : Managed
+  output library

@@ -436,7 +436,7 @@ impl Concretizer<'_> {
             } => concrete::ExprKind::ImportedDependencyCall {
                 receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
                 callee: self.imported_dependency_callable_map[callee],
-                binding: std::sync::Arc::clone(binding),
+                binding: binding.clone(),
                 args: args
                     .iter()
                     .map(|argument| self.lower_expr(argument, substitution, locals))

@@ -4,7 +4,8 @@ use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 use super::{
-    LirLayoutsValidatedCrossConeLayoutClosure, LirLayoutsValidatedCrossConeLayoutSections,
+    OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
+    OrdinaryLirBridgeValidatedCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
@@ -30,7 +31,7 @@ pub type LirCallableAbisValidatedCrossConeLayoutClosure<'input> =
         lir::CallablesResolvedCrossConeLayoutAbiSectionV1,
     >;
 
-impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
+impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
     pub fn validate_lir_callable_abis(
         self,
     ) -> Result<
@@ -49,7 +50,7 @@ impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedLirCallableAbiValidationError> {
-                let LirLayoutsValidatedCrossConeLayoutSections {
+                let OrdinaryLirBridgeValidatedCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     units,

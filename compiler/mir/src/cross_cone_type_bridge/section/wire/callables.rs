@@ -16,6 +16,7 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
     pub fn resolve_callables<'a>(
         self,
         foundation: &crate::OdrFreeMirFoundation,
+        direct_callables: &[&crate::CrossConeMirBridgeSectionV1],
         dependencies: impl ExactSizeIterator<
             Item = (
                 &'a CanonicalParamFreeMirTypeExportsV1,
@@ -42,7 +43,8 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
         let callables = self.callables.validate(graph, foundation, &index)?;
         let object_values = self.object_values.validate(graph, &index, &callables)?;
         callable_tables.push(&callables);
-        let callable_index = MirTypeBridgeCallableIndexV1::try_new(&callable_tables)?;
+        let callable_index =
+            MirTypeBridgeCallableIndexV1::try_new(&callable_tables, direct_callables)?;
         let dispatch =
             self.dispatch
                 .validate_with_dependencies(graph, &index, &callable_index, &schemas)?;
@@ -98,7 +100,7 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
                 self.shape_support,
                 initialization_uses,
             ),
-            legacy: authority.legacy_callables()?,
+            direct: authority.ordinary.clone(),
             selected,
         })
     }

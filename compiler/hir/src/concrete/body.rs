@@ -303,7 +303,7 @@ pub enum ExprKind {
     },
     ImportedDependencyCall {
         callee: ImportedDependencyCallableUseId,
-        binding: std::sync::Arc<crate::DirectImportedTargetBinding>,
+        binding: Option<std::sync::Arc<crate::DirectImportedTargetBinding>>,
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,
     },

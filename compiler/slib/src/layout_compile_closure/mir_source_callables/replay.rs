@@ -12,6 +12,7 @@ pub(super) fn validate_sources(
     let mut units = Vec::new();
     let mut checked: Vec<CheckedSharedTypeFoundationV1<'_>> = Vec::new();
     let mut checked_callables: Vec<&CanonicalMirCallableBindingsV1> = Vec::new();
+    let mut checked_direct_callables: Vec<&scoop_mir::CrossConeMirBridgeSectionV1> = Vec::new();
     for (position, artifact) in artifacts.iter_mut().enumerate() {
         let provider = artifact.prepared.provider();
         let parts = artifact.prepared.semantic_parts();
@@ -74,6 +75,13 @@ pub(super) fn validate_sources(
                 &dependencies,
                 artifact.mir.callables(),
                 &dependency_callables,
+                &std::iter::once(parts.mir_ordinary)
+                    .chain(
+                        reachable
+                            .iter()
+                            .map(|position| checked_direct_callables[*position]),
+                    )
+                    .collect::<Vec<_>>(),
                 artifact.mir.dispatch(),
             )
             .map_err(|error| Error::Dispatch(Box::new(error)))?;
@@ -102,6 +110,7 @@ pub(super) fn validate_sources(
         units.push(initialization);
         checked.push(source);
         checked_callables.push(artifact.mir.callables());
+        checked_direct_callables.push(parts.mir_ordinary);
     }
     Ok(units)
 }

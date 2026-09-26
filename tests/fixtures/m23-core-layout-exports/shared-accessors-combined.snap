@@ -8,40 +8,14 @@ source-only descriptor Exception
 source-only descriptor IllegalStateException
 source-only descriptor IndexOutOfBoundsException
 source-only descriptor UnwrapException
-layouts=158 descriptors=79 dispatch=100 callables=53 shapes=22
+layouts=158 descriptors=79 dispatch=100 callables=27 shapes=22
 callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
 callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
-callable AccessorBase.$get$protectedBody: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
-callable AccessorImpl.$get$slot: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
-callable AccessorImpl.$set$slot: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(4)"] result=UnitVoid
-callable AccessorObject.$get$computed: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable AccessorView.$get$defaulted: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable AccessorView.$get$slot: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(4)
 callable AccessorView.$set$slot: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(4)"] result=UnitVoid
-callable Boolean.equals: OrdinaryManaged receiver=true args=["Direct(1)", "Direct(1)"] result=Direct(1)
-callable Boolean.hash: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable Boolean.toString: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
 callable Hash.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable Int.hash: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable Int.toString: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable Int16.hash: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable Int16.toString: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable Int8.hash: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable Int8.toString: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable Long.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable Long.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable String.equals: OrdinaryManaged receiver=true args=["Direct(8)", "Direct(8)"] result=Direct(1)
-callable String.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable String.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ToString.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable UInt.hash: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable UInt.toString: OrdinaryManaged receiver=true args=["Direct(4)"] result=Direct(8)
-callable UInt16.hash: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable UInt16.toString: OrdinaryManaged receiver=true args=["Direct(2)"] result=Direct(8)
-callable UInt8.hash: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable UInt8.toString: OrdinaryManaged receiver=true args=["Direct(1)"] result=Direct(8)
-callable ULong.hash: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
-callable ULong.toString: OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)
 callable ctor.SourceLocation.$c5: OrdinaryNoGc receiver=false args=["Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)", "Direct(8)"] result=Indirect(40)
 callable init.Throwable.$c13: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
 callable thunk<Boolean> Hash.hash(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Direct(8)

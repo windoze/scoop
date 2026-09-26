@@ -51,7 +51,7 @@ pub(super) fn validate_section_relations(
                 },
             );
         };
-        if expected.signature() != &export.signature {
+        if expected.signature() != export.signature() {
             return Err(CrossConeMirBridgeRelationError::ExportSignatureMismatch {
                 index,
                 implementation: export.implementation,

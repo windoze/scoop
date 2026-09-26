@@ -12,6 +12,13 @@ impl LayoutAbiTargetIndex {
         let path = WirePath::root();
         let mut owners = HashMap::new();
         for (owner, view) in views.iter().enumerate() {
+            for record in view.direct_callables().exports() {
+                let target = LayoutAbiSemanticTargetV1::Callable(record.target());
+                scoop_wire::allocation::try_reserve_map(&mut owners, 1, &path)?;
+                if owners.insert(target, owner).is_some() {
+                    return Err(LayoutAbiSemanticClosureError::DuplicateTarget(target));
+                }
+            }
             view.visit_targets(|target| {
                 if owners.contains_key(&target) {
                     return Err(LayoutAbiSemanticClosureError::DuplicateTarget(target));

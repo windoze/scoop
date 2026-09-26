@@ -14,8 +14,10 @@ mod schemas;
 pub struct SharedLirDispatchAbiInputsV1<'a> {
     pub local_layouts: &'a lir::CanonicalExactLayoutExportsV1,
     pub local_callables: &'a lir::CanonicalExactCallableAbiExportsV1,
+    pub local_direct_callables: &'a lir::CrossConeLirBridgeSectionV1,
     pub dependency_layouts: &'a [&'a lir::CanonicalExactLayoutExportsV1],
     pub dependency_callables: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
+    pub dependency_direct_callables: &'a [&'a lir::CrossConeLirBridgeSectionV1],
 }
 
 /// Derives the complete dispatch inventory from checked MIR representation

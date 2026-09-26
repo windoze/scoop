@@ -27,7 +27,8 @@ impl Graph<'_> {
                     .get(&reference.origin())
                     .ok_or(Error::MissingProvider(reference.origin()))?;
                 match call.reason() {
-                    crate::HirDependencyCallReasonV1::SourceBinding(_) => {
+                    crate::HirDependencyCallReasonV1::SourceBinding(_)
+                    | crate::HirDependencyCallReasonV1::SourceDeclaration => {
                         let metadata = provider.metadata;
                         let source = call
                             .validate_source_signature(reference.target(), metadata)

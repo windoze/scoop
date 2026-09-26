@@ -85,7 +85,8 @@ impl CanonicalExternalHirReferencesV1 {
         for reference in self.records() {
             for call in reference.call_sites().records() {
                 let (roles, exact): (&[_], _) = match call.reason() {
-                    crate::HirDependencyCallReasonV1::SourceBinding(_) => {
+                    crate::HirDependencyCallReasonV1::SourceBinding(_)
+                    | crate::HirDependencyCallReasonV1::SourceDeclaration => {
                         (&[HirExpressionTypeRoleV1::Value], call.result())
                     }
                     crate::HirDependencyCallReasonV1::CastFailure { checked_type } => (

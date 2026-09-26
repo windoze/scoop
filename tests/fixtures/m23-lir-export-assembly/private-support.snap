@@ -1,5 +1,4 @@
-layouts=18 descriptors=9 dispatch=9 callables=4 shapes=2
-callable Exposed.echo: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+layouts=18 descriptors=9 dispatch=9 callables=3 shapes=2
 callable ctor.Deep.$c0: OrdinaryNoGc receiver=false args=["Direct(1)"] result=Indirect(1)
 callable ctor.Hidden.$c1: OrdinaryNoGc receiver=false args=["Indirect(1)"] result=Indirect(1)
 callable ctor.Token.$c2: OrdinaryNoGc receiver=false args=[] result=Zst(0)

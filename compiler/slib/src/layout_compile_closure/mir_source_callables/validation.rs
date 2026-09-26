@@ -77,6 +77,11 @@ pub fn validate_shared_mir_source_callables(
             inheritance,
             binding.signature(),
         )?;
+        let gc = match source.effects().gc_effect() {
+            scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
+            scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
+        };
+        Error::require(declaration, Component::GcEffect, binding.gc_effect() == gc)?;
     }
     for (&declaration, &source) in &expected {
         Error::require(

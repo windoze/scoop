@@ -4,12 +4,20 @@ pub(super) fn project<'a>(
     slots: &[mir::MirDispatchEntryV1],
     layouts: &'a lookup::Layouts<'_>,
     callables: &'a lir::CanonicalExactCallableAbiExportsV1,
-    dependencies: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
+    ordinary: &'a lir::CrossConeLirBridgeSectionV1,
+    dependencies: LayoutAbiExportDependenciesV1<'a>,
 ) -> Result<Vec<lir::ExactDispatchEntryInputV1<'a>>, Error> {
     let mut entries = reserve(slots.len())?;
     for slot in slots {
         let implementation = implementation(slot.implementation());
-        let abi = lookup::callable(implementation.target(), callables, dependencies)?;
+        let abi = lookup::callable(
+            implementation.target(),
+            callables,
+            dependencies.callables,
+            ordinary,
+            dependencies.direct_callables,
+            layouts,
+        )?;
         let signature = slot.signature();
         let receiver = match implementation.receiver_adaptation() {
             lir::ExactDispatchReceiverAdaptationV1::Identity => None,

@@ -80,6 +80,10 @@ pub(super) fn assemble(
                 .iter()
                 .map(|d| d.mir_type_bridge().exports().callables())
                 .collect::<Vec<_>>(),
+            direct_callables: &dependencies
+                .iter()
+                .map(|d| d.mir_cross_cone_bridge())
+                .collect::<Vec<_>>(),
             dispatch: &dependencies
                 .iter()
                 .map(|d| d.mir_type_bridge().exports().dispatch())
@@ -164,6 +168,7 @@ pub(super) fn assemble(
         mir: &mir.strong,
         lir: &lir,
         bridge: mir_section.exports(),
+        ordinary: &lir_public,
         registration: &registration,
         identities: &identities,
         coordinates: &coordinates,
@@ -179,6 +184,10 @@ pub(super) fn assemble(
     let export_dependencies = scoop_lir_lower::LayoutAbiExportDependenciesV1 {
         layouts: &dependency_layouts,
         callables: &dependency_callables,
+        direct_callables: &dependencies
+            .iter()
+            .map(|d| d.lir_exports().direct_callables())
+            .collect::<Vec<_>>(),
     };
     let exports = scoop_lir_lower::lower_layout_abi_exports(input, export_dependencies)
         .map_err(Error::LayoutExports)?;

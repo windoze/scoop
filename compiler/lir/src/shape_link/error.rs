@@ -12,7 +12,6 @@ pub enum ShapeLinkError {
     Subject(crate::ExternalShapeSubjectResolutionError),
     MissingProvider(ConeIdentity),
     MissingSubject(ExternalStrongShapeSubjectV1),
-    LegacyPartition(ExternalStrongShapeSubjectV1),
     SupportRelation(ExternalStrongShapeSubjectV1),
     DefinitionRelation(ExternalStrongShapeSubjectV1),
     ConsumerDefinition(PersistentSymbolRequest),

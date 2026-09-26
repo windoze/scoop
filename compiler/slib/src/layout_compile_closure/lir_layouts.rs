@@ -27,11 +27,13 @@ pub type LirLayoutsValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
         lir::LayoutsResolvedCrossConeLayoutAbiSectionV1,
+        lir::DecodedCrossConeLirBridgeSectionV1,
     >;
 pub type LirLayoutsValidatedCrossConeLayoutClosure<'input> =
     LirConstituentsValidatedCrossConeLayoutClosure<
         'input,
         lir::LayoutsResolvedCrossConeLayoutAbiSectionV1,
+        lir::DecodedCrossConeLirBridgeSectionV1,
     >;
 
 impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {

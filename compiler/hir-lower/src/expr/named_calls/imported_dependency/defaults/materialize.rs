@@ -276,7 +276,7 @@ impl Lowerer {
             })?;
         Ok(hir::ExprKind::ImportedDependencyCall {
             callee,
-            binding,
+            binding: Some(binding),
             args,
             receiver,
         })

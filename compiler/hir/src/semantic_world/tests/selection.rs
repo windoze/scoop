@@ -87,18 +87,6 @@ fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
         callable.capability().declaration().implementation(),
         callable.capability().implementation()
     );
-    assert_eq!(
-        callable
-            .binding()
-            .sources()
-            .next()
-            .unwrap()
-            .witness()
-            .route()
-            .terminal()
-            .binding(),
-        provider.binding
-    );
 }
 
 #[test]

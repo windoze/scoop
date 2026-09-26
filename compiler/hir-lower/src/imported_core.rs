@@ -47,10 +47,10 @@ impl Lowerer {
         true
     }
 
-    pub(crate) fn imported_core_builtin_declaration(
-        &self,
-        ty: hir::TypeId,
-    ) -> Option<PersistentTypeId> {
+    pub(crate) fn imported_nominal_declaration(&self, ty: hir::TypeId) -> Option<PersistentTypeId> {
+        if let hir::Type::ImportedStruct(ty) = &self.types[ty] {
+            return Some(ty.declaration.identity.id());
+        }
         let CoreLoweringAuthority::Imported(authority) = &self.core else {
             return None;
         };

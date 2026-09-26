@@ -11,31 +11,68 @@ impl<'a> ShapeLinkProviderV1<'a> {
 
         Ok(match subject {
             Subject::Callable(target) => {
-                let record = self
-                    .parts
-                    .callables
-                    .get(target)
-                    .ok_or(ShapeLinkError::MissingSubject(subject))?;
-
+                let (signature, calling_convention, protocol, body) = match (
+                    self.parts.callables.get(target),
+                    self.parts.ordinary.export_for_target(target),
+                ) {
+                    (Some(record), None) => {
+                        if record.physical_definition() != physical {
+                            return Err(ShapeLinkError::DefinitionRelation(subject));
+                        }
+                        (
+                            record.canonical_signature(),
+                            record.calling_convention(),
+                            record.call_protocol(),
+                            record.definition().semantic_id(),
+                        )
+                    }
+                    (None, Some(record)) => {
+                        let scoop_identity::PersistentSymbolKey::CallableBody(body) =
+                            record.expected_symbol().key()
+                        else {
+                            return Err(ShapeLinkError::DefinitionRelation(subject));
+                        };
+                        if record.required_definition() != physical.definition()
+                            || record.expected_symbol() != physical.symbol()
+                        {
+                            return Err(ShapeLinkError::DefinitionRelation(subject));
+                        }
+                        let protocol = match record.root_plan() {
+                            crate::ExternalCallableRootPlan::ManagedStatepoint => {
+                                crate::ExactCallableProtocolV1::OrdinaryManaged
+                            }
+                            crate::ExternalCallableRootPlan::NoGc => {
+                                crate::ExactCallableProtocolV1::OrdinaryNoGc
+                            }
+                        };
+                        (
+                            record.abi_signature(),
+                            record.calling_convention(),
+                            protocol,
+                            body,
+                        )
+                    }
+                    (Some(_), Some(_)) => return Err(ShapeLinkError::DefinitionRelation(subject)),
+                    (None, None) => return Err(ShapeLinkError::MissingSubject(subject)),
+                };
                 let registration = self
                     .parts
                     .production
                     .callable_registrations()
                     .registrations()
                     .iter()
-                    .find(|registration| registration.body() == record.definition().semantic_id())
+                    .find(|registration| registration.body() == body)
                     .ok_or(ShapeLinkError::DefinitionRelation(subject))?;
-                if record.physical_definition() != physical
-                    || registration.body_definition_plan() != physical.definition()
+                if registration.body_definition_plan() != physical.definition()
                     || registration.entry_symbol() != physical.symbol()
                     || registration.body_primary_atom() != physical.primary()
                 {
                     return Err(ShapeLinkError::DefinitionRelation(subject));
                 }
                 ShapeLinkContractV1::CallableAbi {
-                    canonical_signature: record.canonical_signature().clone(),
-                    calling_convention: record.calling_convention(),
-                    protocol: record.call_protocol(),
+                    canonical_signature: signature.clone(),
+                    calling_convention,
+                    protocol,
                 }
             }
             Subject::Layout(layout) => {

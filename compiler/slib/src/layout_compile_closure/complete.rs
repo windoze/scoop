@@ -25,11 +25,11 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
             .validate_mir_types()?
             .validate_source_callables()?
             .validate_lir_layouts()?
+            .validate_ordinary_lir_bridges()?
             .validate_lir_callable_abis()?
             .validate_lir_dispatch()?
             .validate_lir_descriptors()?
             .validate_lir_shape_support()?
-            .validate_ordinary_lir_bridges()?
             .replay_lir_strong_production()?
             .replay_mir_dependency_graph()?
             .replay_lir_dependency_graph()?)

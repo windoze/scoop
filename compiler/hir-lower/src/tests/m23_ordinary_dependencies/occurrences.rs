@@ -49,10 +49,10 @@ fn actual_dependency_call_occurrences_keep_shared_targets_and_distinct_origins()
             }
             "routes" => {
                 assert_eq!(calls.len(), 3);
-                assert_eq!(calls[0].callable().binding().source_count(), 2);
                 let route = |index: usize| {
                     calls[index]
                         .binding()
+                        .expect("source import route")
                         .sources()
                         .next()
                         .unwrap()
@@ -62,7 +62,13 @@ fn actual_dependency_call_occurrences_keep_shared_targets_and_distinct_origins()
                 };
                 assert_eq!(route(0), route(2));
                 assert_ne!(route(0), route(1));
-                assert!(calls.iter().all(|call| call.binding().source_count() == 1));
+                assert!(
+                    calls.iter().all(|call| call
+                        .binding()
+                        .expect("source import route")
+                        .source_count()
+                        == 1)
+                );
             }
             "combined" => {
                 let defaults = calls
@@ -137,6 +143,7 @@ fn render(
             .source_context_names(origin.evaluation.context);
         let hops = call
             .binding()
+            .expect("source import route")
             .sources()
             .map(|source| source.witness().route().hops().len().to_string())
             .collect::<Vec<_>>()

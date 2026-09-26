@@ -31,6 +31,7 @@ pub(super) fn fixture() -> Fixture {
                 DependencyCallableDeclarationId::Function(cycle),
                 StrongCallableDefinitionOwner::Function(cycle),
                 signature,
+                crate::GcEffect::Managed,
             )
             .unwrap(),
         ],
@@ -77,7 +78,7 @@ fn core_shape_selection_uses_the_common_table_and_round_trips() {
 }
 
 #[test]
-fn ordinary_callable_exports_cannot_be_selected_in_the_type_partition() {
+fn ordinary_callable_exports_resolve_through_shared_typed_targets() {
     let core_provider = fixture();
     let mut ordinary = Fixture::new("ordinary-provider");
     let (function, signature) = add_function(&mut ordinary, "ordinary");
@@ -90,16 +91,17 @@ fn ordinary_callable_exports_cannot_be_selected_in_the_type_partition() {
                 DependencyCallableDeclarationId::Function(function),
                 StrongCallableDefinitionOwner::Function(function),
                 signature,
+                crate::GcEffect::Managed,
             )
             .unwrap(),
         ],
         vec![],
     )
     .unwrap();
-    let mut consumer = Fixture::new("partition-client");
+    let mut consumer = Fixture::new("callable-client");
     let graph = graph(&[&core_provider, &ordinary, &consumer]);
     let core = core_provider.section(&[], &graph).unwrap();
-    let old = ordinary.section(&[], &graph).unwrap();
+    let direct = ordinary.section(&[], &graph).unwrap();
     let bridge = core_provider
         .production
         .strong_callable_bridges()
@@ -116,9 +118,20 @@ fn ordinary_callable_exports_cannot_be_selected_in_the_type_partition() {
             provider,
             MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(target)),
         )];
-        assert!(
-            matches!(consumer.section(&[core.dependency_view(), old.dependency_view()], &graph), Err(MirTypeBridgeSectionError::OldCallablePartition(actual)) if actual == StrongCallableDefinitionOwner::Function(target))
+        let section = consumer
+            .section(&[core.dependency_view(), direct.dependency_view()], &graph)
+            .unwrap();
+        let Some(MirTypeBridgeSemanticRecordV1::Callable(record)) = section.selected().record(
+            provider,
+            MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(target)),
+        ) else {
+            panic!("ordinary declaration resolves to its complete callable record")
+        };
+        assert_eq!(
+            record.implementation(),
+            StrongCallableDefinitionOwner::Function(target)
         );
+        assert_eq!(record.semantic_signature(), record.lowered_signature());
     }
 }
 

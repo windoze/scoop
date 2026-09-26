@@ -16,6 +16,7 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
     pub fn validate_shape_support(
         self,
         expected: &crate::CanonicalParamFreeShapeSupportExportsV1,
+        ordinary: &crate::CrossConeLirBridgeSectionV1,
     ) -> Result<ExportsResolvedCrossConeLayoutAbiSectionV1, LayoutAbiSectionError> {
         if self.layouts.provider() != expected.provider() {
             return Err(LayoutAbiExportConstituentsError::Provider.into());
@@ -30,6 +31,7 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
             self.dispatch,
             self.callables,
             shapes,
+            ordinary.clone(),
         )?;
         Ok(ExportsResolvedCrossConeLayoutAbiSectionV1 {
             exports,

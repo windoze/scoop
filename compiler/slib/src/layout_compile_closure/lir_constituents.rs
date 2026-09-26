@@ -11,7 +11,7 @@ use crate::layout_compile_decode::PreparedCrossConeLayoutMirSections;
 pub struct LirConstituentsValidatedCrossConeLayoutSections<
     'input,
     L,
-    O = lir::DecodedCrossConeLirBridgeSectionV1,
+    O = lir::CrossConeLirBridgeSectionV1,
     S = lir::DecodedStrongProductionSectionV2,
     M = mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
 > {
@@ -26,7 +26,7 @@ pub struct LirConstituentsValidatedCrossConeLayoutSections<
 pub struct LirConstituentsValidatedCrossConeLayoutClosure<
     'input,
     L,
-    O = lir::DecodedCrossConeLirBridgeSectionV1,
+    O = lir::CrossConeLirBridgeSectionV1,
     S = lir::DecodedStrongProductionSectionV2,
     M = mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
 > {

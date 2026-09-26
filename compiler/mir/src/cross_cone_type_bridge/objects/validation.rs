@@ -108,7 +108,7 @@ impl MirObjectBridgeAuthority<'_> {
             .callables
             .get(ensure)
             .ok_or(MirObjectBridgeError::MissingEnsure { target: ensure })?;
-        if !matches!(binding.origin(), MirCallableOriginV1::Generated { role: GeneratedCallableKey::Initialization { unit: owner, role: InitializationCallableRole::Ensure }, .. } if *owner == unit)
+        if !matches!(binding.origin().as_ref(), MirCallableOriginV1::Generated { role: GeneratedCallableKey::Initialization { unit: owner, role: InitializationCallableRole::Ensure }, .. } if *owner == unit)
             || binding.lowering_role() != &(MirCallableLoweringRoleV1::ObjectEnsure { unit })
         {
             return Err(MirObjectBridgeError::EnsureIdentity);

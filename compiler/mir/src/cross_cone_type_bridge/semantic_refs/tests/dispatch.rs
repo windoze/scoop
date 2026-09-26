@@ -28,7 +28,7 @@ fn boxed_default_preserves_payload_and_both_interface_receivers() {
     let fixture = Fixture::new();
     let target = StrongCallableDefinitionOwner::GeneratedCallable(fixture.boxing[3].id());
     let references = MirTypeBridgeSemanticReferencesV1::of_callable(
-        fixture.callables.get(target).unwrap(),
+        MirCallableRecordRefV1::Lowered(fixture.callables.get(target).unwrap()),
         &fixture.graph,
     )
     .unwrap();

@@ -32,8 +32,8 @@ pub(super) fn combine<const N: usize>(
         };
         if let Some(old) = declaration.and_then(|declaration| ordinary.export(declaration)) {
             if old.implementation() != record.implementation()
-                || old.signature() != record.semantic_signature().exact()
-                || old.signature() != record.lowered_signature().exact()
+                || old.bridge_signature() != record.semantic_signature()
+                || old.bridge_signature() != record.lowered_signature()
             {
                 return Err(Error::OrdinaryCallableMismatch(record.implementation()));
             }

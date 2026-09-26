@@ -51,8 +51,15 @@ pub(super) fn exports(
         foundation,
     )
     .unwrap();
-    LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shape_support)
-        .unwrap()
+    LayoutAbiExportConstituentsV1::try_new(
+        layouts,
+        descriptors,
+        dispatch,
+        callables,
+        shape_support,
+        crate::CrossConeLirBridgeSectionV1::try_new(foundation, Vec::new(), Vec::new()).unwrap(),
+    )
+    .unwrap()
 }
 
 pub(super) fn section<'a>(

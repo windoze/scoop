@@ -27,7 +27,9 @@ pub(super) fn check(
     reject(&extra);
 
     let named = |name| {
-        records
+        expected
+            .direct_callables()
+            .exports()
             .iter()
             .find(|record| assertions::callable_name(input, record.target()) == name)
             .unwrap()
@@ -35,34 +37,49 @@ pub(super) fn check(
     let value = named("SharedAbiEmpty.wide");
     let donor = named("SharedAbiEmpty.drop");
     assert!(matches!(
-        value.canonical_signature().arguments()[1],
+        value.abi_signature().arguments()[1],
         scoop_identity::ScoopAbiArgument::Indirect(_)
     ));
     assert!(matches!(
-        value.canonical_signature().result(),
+        value.abi_signature().result(),
         scoop_identity::ScoopAbiReturn::Indirect(_)
     ));
     assert_eq!(
-        donor.canonical_signature().result(),
+        donor.abi_signature().result(),
         scoop_identity::ScoopAbiReturn::UnitVoid
     );
     let empty = named("SharedAbiEmpty.empty");
-    let parameters = empty.layout_dependencies().parameters();
+    let parameters = empty.abi_signature().signature().parameters();
     assert_eq!(parameters.len(), 2);
     assert_eq!(parameters[0], parameters[1]);
     assert!(
         empty
-            .canonical_signature()
+            .abi_signature()
             .arguments()
             .iter()
             .all(|argument| matches!(argument, scoop_identity::ScoopAbiArgument::ElidedZst(_)))
     );
     assert!(matches!(
-        empty.canonical_signature().result(),
+        empty.abi_signature().result(),
         scoop_identity::ScoopAbiReturn::ElidedZst(_)
     ));
-    assert_ne!(value.canonical_signature(), donor.canonical_signature());
-    assert_ne!(value.call_protocol(), donor.call_protocol());
+    assert_ne!(value.abi_signature(), donor.abi_signature());
+    assert_ne!(value.root_plan(), donor.root_plan());
+    let donor = records
+        .iter()
+        .find(|record| {
+            record.canonical_signature().result() == scoop_identity::ScoopAbiReturn::UnitVoid
+        })
+        .unwrap();
+    let value = records
+        .iter()
+        .find(|record| {
+            matches!(
+                record.canonical_signature().result(),
+                scoop_identity::ScoopAbiReturn::Indirect(_)
+            ) && record.call_protocol() != donor.call_protocol()
+        })
+        .unwrap();
     for component in [
         Component::Signature,
         Component::Protocol,
@@ -74,7 +91,7 @@ pub(super) fn check(
             donor,
             component,
         });
-        assert!(decoded.validate_against(value).is_err());
+        assert!(decoded.validate_against(value).is_err(), "{component:?}");
     }
     let exact = donor.layout_dependencies().result().identity().exact();
     let layouts = lir::CanonicalExactLayoutExportsV1::try_new(
@@ -106,7 +123,7 @@ impl WireEncode for Rows<'_> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Component {
     Signature,
     Protocol,

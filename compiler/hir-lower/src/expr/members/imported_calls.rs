@@ -55,7 +55,7 @@ impl Lowerer {
         expected: Option<TypeId>,
         required: RequiredCallableModifiers,
     ) -> Result<ImportedDependencyCallProbe, ImportedMemberSelectionFailure> {
-        let Some(owner) = self.imported_core_builtin_declaration(receiver.ty()) else {
+        let Some(owner) = self.imported_nominal_declaration(receiver.ty()) else {
             return Err(ImportedMemberSelectionFailure::NoApplicable(None));
         };
         let Some(dependencies) = &self.dependencies else {

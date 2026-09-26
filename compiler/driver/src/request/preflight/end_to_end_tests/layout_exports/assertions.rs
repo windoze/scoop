@@ -88,8 +88,19 @@ pub(super) fn contents(
 pub(super) fn zero_sized_abi(result: &lir::LayoutAbiExportConstituentsV1) {
     let mut elided_inputs = 0;
     let mut elided_results = 0;
-    for callable in result.callables().records() {
-        let signature = callable.canonical_signature();
+    for signature in result
+        .callables()
+        .records()
+        .iter()
+        .map(|callable| callable.canonical_signature())
+        .chain(
+            result
+                .direct_callables()
+                .exports()
+                .iter()
+                .map(|callable| callable.abi_signature()),
+        )
+    {
         elided_inputs += signature
             .arguments()
             .iter()

@@ -76,6 +76,7 @@ fn produce(
         MirTypeBridgeDependencyTablesV1 {
             types,
             callables: &[],
+            direct_callables: &[],
             dispatch: &[],
         },
     )

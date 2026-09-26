@@ -99,8 +99,8 @@ fn ordinary_wire_replay_rejects_missing_extra_and_changed_gc_records() {
     ] {
         let candidate = CrossConeLirBridgeSectionV1 {
             artifact: fixture.producer,
-            exports,
-            selected: vec![],
+            exports: exports.into(),
+            selected: vec![].into(),
         };
         assert!(matches!(
             decode(&candidate).validate_against(expected.clone()),
@@ -132,16 +132,16 @@ fn ordinary_wire_replay_rejects_selected_order_and_missing_dependency_uses() {
         CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, vec![fixture.export()], selected)
             .unwrap();
     let mut reversed = expected.clone();
-    reversed.selected.reverse();
+    std::sync::Arc::make_mut(&mut reversed.selected).reverse();
     assert!(
         decode(&reversed)
             .validate_against(expected.clone())
             .is_err()
     );
     let mut missing = expected.clone();
-    missing.selected.pop();
+    missing.selected = missing.selected[..missing.selected.len() - 1].into();
     assert!(decode(&missing).validate_against(expected.clone()).is_err());
     let mut duplicate = expected.clone();
-    duplicate.selected[1] = duplicate.selected[0].clone();
+    std::sync::Arc::make_mut(&mut duplicate.selected)[1] = expected.selected[0].clone();
     assert!(decode(&duplicate).validate_against(expected).is_err());
 }

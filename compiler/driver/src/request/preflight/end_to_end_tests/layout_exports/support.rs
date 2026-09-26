@@ -211,6 +211,7 @@ pub(super) fn with_pair(
     let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
         types: &[&types],
         callables: &mir_callables,
+        direct_callables: &[front.mir_cross_cone_bridge()],
         dispatch: &dispatch,
     };
     let bridge = scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
@@ -251,10 +252,13 @@ pub(super) fn with_pair(
             &[],
         )
         .unwrap();
+    let ordinary =
+        scoop_lir_lower::lower_cross_cone_bridge_section(&mir.strong, &mir.public, &lir).unwrap();
     let input = scoop_lir_lower::LayoutAbiExportInputV1 {
         mir: &mir.strong,
         lir: &lir,
         bridge: &bridge,
+        ordinary: &ordinary,
         registration: &registration,
         identities: &graph,
         coordinates: &coordinates,
@@ -262,6 +266,7 @@ pub(super) fn with_pair(
     let dependencies = scoop_lir_lower::LayoutAbiExportDependenciesV1 {
         layouts: &[&layouts],
         callables: &lir_callables,
+        direct_callables: &[layout.direct_callables()],
     };
     if bridge.initialization_uses().records().is_empty() {
         source_contracts::check(

@@ -178,8 +178,8 @@ impl WireEncode for SelectedDependencyLirCallableV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeLirBridgeSectionV1 {
     artifact: ConeIdentity,
-    exports: Vec<ParamFreeLirCallableExportV1>,
-    selected: Vec<SelectedDependencyLirCallableV1>,
+    exports: std::sync::Arc<[ParamFreeLirCallableExportV1]>,
+    selected: std::sync::Arc<[SelectedDependencyLirCallableV1]>,
 }
 
 impl CrossConeLirBridgeSectionV1 {
@@ -193,8 +193,8 @@ impl CrossConeLirBridgeSectionV1 {
             .map_err(CrossConeLirBridgeBuildError::Relation)?;
         Ok(Self {
             artifact: foundation.producer(),
-            exports,
-            selected,
+            exports: exports.into(),
+            selected: selected.into(),
         })
     }
 
@@ -221,6 +221,22 @@ impl CrossConeLirBridgeSectionV1 {
             .binary_search_by_key(&declaration, ParamFreeLirCallableExportV1::declaration)
             .ok()
             .map(|index| &self.exports[index])
+    }
+
+    pub fn export_for_target(
+        &self,
+        target: StrongCallableDefinitionOwner,
+    ) -> Option<&ParamFreeLirCallableExportV1> {
+        let declaration = match target {
+            StrongCallableDefinitionOwner::Function(id) => {
+                DependencyCallableDeclarationId::Function(id)
+            }
+            StrongCallableDefinitionOwner::PropertyAccessor(id) => {
+                DependencyCallableDeclarationId::PropertyAccessor(id)
+            }
+            _ => return None,
+        };
+        self.export(declaration)
     }
 }
 

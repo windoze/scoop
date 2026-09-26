@@ -150,19 +150,20 @@ fn boxing_target(replay: &Replay<'_>) {
     let owner = replay.owner("SharedDispatchValue");
     let original = replay.section.callables().entries().iter().find(|binding| matches!(binding.origin(), mir::MirCallableOriginV1::Generated { role: GeneratedCallableKey::BoxingAdjust { payload, .. }, .. } if *payload == owner) && binding.semantic_signature().exact().receiver().into_option() == Some(owner) && binding.semantic_signature().exact().parameters().len() == 1).unwrap();
     let spare = replay
-        .section
-        .callables()
-        .entries()
+        .ordinary
+        .exports()
         .iter()
         .find_map(|binding| {
-            let mir::MirCallableOriginV1::Function(id) = binding.origin() else {
+            let scoop_identity::DependencyCallableDeclarationId::Function(id) =
+                binding.declaration()
+            else {
                 return None;
             };
             let key = replay
                 .source
                 .metadata()
                 .identities
-                .canonical_key::<_, SourceDeclarationKey>(*id)
+                .canonical_key::<_, SourceDeclarationKey>(id)
                 .unwrap();
             matches!(key.name(), DeclarationName::Named(name) if name.as_str() == "spare")
                 .then_some(binding.implementation())
@@ -197,9 +198,11 @@ fn boxing_target(replay: &Replay<'_>) {
             .collect(),
     )
     .unwrap();
+    let index =
+        mir::MirTypeBridgeCallableIndexV1::try_new(&[&callables], &[replay.ordinary]).unwrap();
     let dispatch = mir::CanonicalMirDispatchSchemasV1::try_new(
         mir::MirDispatchSchemaAuthority {
-            callables: &callables,
+            callables: &index,
             ..replay.authority()
         },
         replay.section.dispatch().records().to_vec(),

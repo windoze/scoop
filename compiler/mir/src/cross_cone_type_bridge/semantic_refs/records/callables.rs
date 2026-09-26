@@ -2,12 +2,14 @@ use super::*;
 
 impl MirTypeBridgeSemanticReferencesV1 {
     pub fn of_callable(
-        record: &ParamFreeMirCallableBindingV1,
+        record: MirCallableRecordRefV1<'_>,
         graph: &ValidatedIdentityGraph,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
         let mut collector = Collector::new(graph);
         collector.signature(record.semantic_signature())?;
-        collector.signature(record.lowered_signature())?;
+        if record.lowered_signature() != record.semantic_signature() {
+            collector.signature(record.lowered_signature())?;
+        }
         match *record.lowering_role() {
             MirCallableLoweringRoleV1::ClassInitializer { owner }
             | MirCallableLoweringRoleV1::ValueConstructor { owner }
@@ -24,7 +26,7 @@ impl MirTypeBridgeSemanticReferencesV1 {
             MirCallableLoweringRoleV1::PureVirtualTrap { slot } => collector.slot(slot)?,
             MirCallableLoweringRoleV1::Ordinary | MirCallableLoweringRoleV1::Accessor => {}
         }
-        if let MirCallableOriginV1::Generated { role, .. } = record.origin() {
+        if let MirCallableOriginV1::Generated { role, .. } = record.origin().as_ref() {
             match role {
                 GeneratedCallableKey::Initialization { unit, .. } => {
                     collector.push(MirTypeBridgeTargetV1::InitializationUnit(*unit))?;

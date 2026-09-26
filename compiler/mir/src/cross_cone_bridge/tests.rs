@@ -60,6 +60,7 @@ fn callable_records_reject_mismatched_implementation_and_suspend() {
             declaration,
             StrongCallableDefinitionOwner::Function(fixture.foreign_function.id()),
             fixture.signature.clone(),
+            crate::GcEffect::Managed,
         ),
         Err(ParamFreeMirCallableBuildError::ImplementationMismatch { .. })
     ));
@@ -73,6 +74,7 @@ fn callable_records_reject_mismatched_implementation_and_suspend() {
                 Vec::new(),
                 fixture.signature.result(),
             ),
+            crate::GcEffect::Managed,
         ),
         Err(ParamFreeMirCallableBuildError::Suspend { declaration })
     );
@@ -161,6 +163,7 @@ fn bridge_replays_each_export_signature_from_the_mir_foundation() {
         DependencyCallableDeclarationId::Function(fixture.local_function.id()),
         StrongCallableDefinitionOwner::Function(fixture.local_function.id()),
         wrong_signature,
+        crate::GcEffect::Managed,
     )
     .unwrap();
     assert!(matches!(
@@ -199,8 +202,8 @@ fn reader_rejects_noncanonical_and_duplicate_tables() {
 
     let duplicate = CrossConeMirBridgeSectionV1 {
         artifact: fixture.artifact,
-        exports: Vec::new(),
-        selected: vec![first.clone(), first],
+        exports: Vec::new().into(),
+        selected: vec![first.clone(), first].into(),
     };
     let decoded = decode(&duplicate);
     let (mut identities, foundation) = fixture.validated_foundation();
@@ -286,6 +289,7 @@ impl Fixture {
             DependencyCallableDeclarationId::Function(self.local_function.id()),
             StrongCallableDefinitionOwner::Function(self.local_function.id()),
             self.signature.clone(),
+            crate::GcEffect::Managed,
         )
         .unwrap()
     }

@@ -73,7 +73,8 @@ impl HirDependencyCallSiteV1 {
             HirDependencyCallReasonV1::CastFailure { .. } if !arguments.is_empty() => {
                 Err(HirDependencyCallSiteBuildError::RuntimeArguments)
             }
-            HirDependencyCallReasonV1::CastFailure { .. } => Ok(()),
+            HirDependencyCallReasonV1::CastFailure { .. }
+            | HirDependencyCallReasonV1::SourceDeclaration => Ok(()),
         }?;
         Ok(Self {
             position,
@@ -108,7 +109,8 @@ impl HirDependencyCallSiteV1 {
     pub fn witness_indices(&self) -> &[u32] {
         match &self.reason {
             HirDependencyCallReasonV1::SourceBinding(indices) => indices,
-            HirDependencyCallReasonV1::CastFailure { .. } => &[],
+            HirDependencyCallReasonV1::CastFailure { .. }
+            | HirDependencyCallReasonV1::SourceDeclaration => &[],
         }
     }
 

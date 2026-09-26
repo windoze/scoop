@@ -1,0 +1,61 @@
+Module
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  fun keepToken @fn0(value: Token) -> Token <no-gc>
+    bb0 entry
+      val $dependency.receiver: Token
+        Type Token
+        Local value
+      val $dependency.argument.0: Token
+        Type Token
+        Local value
+      val $dependency.parameter.other: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.1: Token = external0 direct
+        Type Token
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.other
+      return
+        Type Token
+        Local $call.1
+  fun keepWide @fn1(value: Wide) -> Wide <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $call.1: Wide = external1 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      return
+        Type Wide
+        Local $call.1
+  fun total @fn2(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.delta: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.1: Long = external2 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.delta
+      return
+        Type Long
+        Local $call.1
+  output library

@@ -66,10 +66,58 @@ pub(super) fn dispatch(
         )?;
     }
     for entry in record.entries() {
-        callable(entry.callable_abi(), views, index, pending)?;
+        let provider = match entry.abi() {
+            crate::StrongTypeDispatchCallableRefV2::Local(_) => views[owner].provider(),
+            crate::StrongTypeDispatchCallableRefV2::DependencyExternal { provider, .. } => provider,
+            crate::StrongTypeDispatchCallableRefV2::Runtime(_) => continue,
+        };
+        target(
+            LayoutAbiSemanticTargetV1::Callable(entry.implementation().target()),
+            Some(provider),
+            views,
+            index,
+            pending,
+        )?;
         if let Some(layout) = entry.slot_receiver_layout() {
             value_layout(layout, views, index, pending)?;
         }
+    }
+    Ok(())
+}
+
+pub(super) fn direct_callable(
+    record: &crate::ParamFreeLirCallableExportV1,
+    views: &[&LayoutAbiExportConstituentsV1],
+    index: &LayoutAbiTargetIndex,
+    pending: &mut Vec<Pending>,
+) -> Result<(), LayoutAbiSemanticClosureError> {
+    let signature = record.abi_signature().signature();
+    for exact in signature
+        .receiver()
+        .into_option()
+        .into_iter()
+        .chain(signature.parameters().iter().copied())
+        .chain(std::iter::once(signature.result()))
+    {
+        let mut found = None;
+        for view in views {
+            if let Some(layout) = view
+                .layouts()
+                .find_exact_role(exact, scoop_identity::RepresentationRole::ManagedValue)
+            {
+                if found.replace(layout).is_some() {
+                    return Err(LayoutAbiSemanticClosureError::DuplicateValueLayout(exact));
+                }
+            }
+        }
+        let layout = found.ok_or(LayoutAbiSemanticClosureError::MissingValueLayout(exact))?;
+        target(
+            LayoutAbiSemanticTargetV1::Layout(layout.identity().layout()),
+            Some(layout.identity().physical_definition().provider()),
+            views,
+            index,
+            pending,
+        )?;
     }
     Ok(())
 }

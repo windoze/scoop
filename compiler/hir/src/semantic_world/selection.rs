@@ -212,7 +212,21 @@ impl ImportedDependencySelectionPlan {
         &mut self,
         candidate: ImportedDependencyCallableCandidate,
     ) -> Result<ImportedDependencyCallableRef, ImportedDependencySelectionError> {
-        let id = candidate.interface.declaration();
+        self.select_callable_declaration(candidate.interface.declaration())
+    }
+
+    pub fn select_member_callable(
+        &mut self,
+        candidate: ImportedMemberCallableCandidate,
+    ) -> Result<ImportedDependencyCallableRef, ImportedDependencySelectionError> {
+        use crate::ImportedCallableSource;
+        self.select_callable_declaration(candidate.interface().declaration())
+    }
+
+    fn select_callable_declaration(
+        &mut self,
+        id: CallableTemplateOrigin,
+    ) -> Result<ImportedDependencyCallableRef, ImportedDependencySelectionError> {
         let entry = self
             .catalog
             .callables
@@ -220,27 +234,18 @@ impl ImportedDependencySelectionPlan {
             .ok_or(ImportedDependencySelectionError::MissingCallable(id))?;
         let Some(capability) = entry.capability.clone() else {
             return Err(ImportedDependencySelectionError::CapabilityUnavailable {
-                target: candidate.target(),
+                declaration: id,
             });
         };
-        if let Some(selected) = self.callables.get_mut(&id) {
-            selected
-                .binding
-                .try_merge(candidate.binding)
-                .map_err(ImportedDependencySelectionError::RouteMerge)?;
-        } else {
-            self.callables.insert(
-                id,
-                SelectedImportedDependencyCallable {
-                    binding: candidate.binding,
-                    provider: entry.provider,
-                    interface: entry.interface.clone(),
-                    source: entry.source.clone(),
-                    initialization_unit: entry.initialization_unit,
-                    capability,
-                },
-            );
-        }
+        self.callables
+            .entry(id)
+            .or_insert_with(|| SelectedImportedDependencyCallable {
+                provider: entry.provider,
+                interface: entry.interface.clone(),
+                source: entry.source.clone(),
+                initialization_unit: entry.initialization_unit,
+                capability,
+            });
         Ok(ImportedDependencyCallableRef { callable: id })
     }
 

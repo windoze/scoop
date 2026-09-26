@@ -155,8 +155,8 @@ impl DecodedCrossConeLirBridgeSectionV1 {
             .map_err(CrossConeLirBridgeValidationError::Relation)?;
         let expected = CrossConeLirBridgeSectionV1 {
             artifact: producer,
-            exports,
-            selected,
+            exports: exports.into(),
+            selected: selected.into(),
         };
         let expected_bytes =
             encode(&expected).map_err(CrossConeLirBridgeValidationError::Encode)?;

@@ -41,7 +41,7 @@ fn with_dispatch<R>(
             input, types, graph, &index, &callables,
         )
         .unwrap();
-        let bindings = MirTypeBridgeCallableIndexV1::try_new(&[&callables, &boxing]).unwrap();
+        let bindings = MirTypeBridgeCallableIndexV1::try_new(&[&callables, &boxing], &[]).unwrap();
         let authority = MirDispatchSchemaAuthority {
             identities: graph,
             types: &index,

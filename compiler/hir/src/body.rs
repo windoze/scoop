@@ -405,9 +405,9 @@ pub enum ExprKind {
     /// Its typed arena use resolves through the output's selected declarations.
     ImportedDependencyCall {
         callee: ImportedDependencyCallableUseId,
-        /// The exact winning lookup routes for this occurrence. The shared
-        /// callable handle may also be reached through other bindings.
-        binding: std::sync::Arc<DirectImportedTargetBinding>,
+        /// Namespace lookup routes when this occurrence used an import.
+        /// A member is resolved directly from its nominal declaration.
+        binding: Option<std::sync::Arc<DirectImportedTargetBinding>>,
         args: Vec<Expr>,
         receiver: crate::SourceCallReceiver<TypeId>,
     },

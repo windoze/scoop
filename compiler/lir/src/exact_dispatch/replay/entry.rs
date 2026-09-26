@@ -14,22 +14,21 @@ pub(super) fn replay(
     if input.abi.target_profile() != target {
         return Err(ExactDispatchError::AbiTargetProfile(target_owner));
     }
-    if input.abi.physical_definition().provider() == foundation.producer() {
+    if input.abi.calling_convention() != crate::CallingConvention::Cdecl {
+        return Err(ExactDispatchError::AbiSignature(target_owner));
+    }
+    if input.abi.provider() == foundation.producer() {
         let expected = StrongShapeDefinitionRefV1::from_foundation(
             ExternalStrongShapeSubjectV1::Callable(target_owner),
             foundation,
         )?;
-        if input.abi.physical_definition() != expected {
+        if !input.abi.matches_definition(expected) {
             return Err(ExactDispatchError::AbiDefinition(target_owner));
         }
     }
     let slot_receiver_layout = super::signature::validate(input, target)?;
-    let body = input.abi.definition().semantic_id();
-    let abi = abi_reference(
-        input.abi.physical_definition().provider(),
-        foundation.producer(),
-        body,
-    );
+    let body = input.abi.body()?;
+    let abi = abi_reference(input.abi.provider(), foundation.producer(), body);
 
     Ok(ExactDispatchEntryV1::from_parts(
         ExactDispatchEntryPartsV1 {
@@ -38,7 +37,6 @@ pub(super) fn replay(
             slot_signature: input.slot_signature.clone(),
             implementation: input.implementation,
             abi,
-            callable_abi: input.abi.clone(),
             slot_receiver_layout,
         },
     ))

@@ -202,6 +202,14 @@ pub(in crate::link_object::layout_link_closure) fn exports(
         foundation,
     )
     .unwrap();
-    LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, support)
-        .unwrap()
+    LayoutAbiExportConstituentsV1::try_new(
+        layouts,
+        descriptors,
+        dispatch,
+        callables,
+        support,
+        scoop_lir::CrossConeLirBridgeSectionV1::try_new(foundation, Vec::new(), Vec::new())
+            .unwrap(),
+    )
+    .unwrap()
 }

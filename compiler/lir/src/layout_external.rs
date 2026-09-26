@@ -218,12 +218,9 @@ fn materialize_dispatch_callable<'a>(
 ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
     validate_provider(selected, provider)?;
 
-    let LayoutAbiSemanticRecordV1::Callable(record) = selected
+    let record = selected
         .semantic_record(provider, LayoutAbiSemanticTargetV1::Callable(target))
-        .ok_or(LayoutExternalMaterializationError::MissingCallable { provider, target })?
-    else {
-        return Err(LayoutExternalMaterializationError::CallableKind(target));
-    };
+        .ok_or(LayoutExternalMaterializationError::MissingCallable { provider, target })?;
     let import = physical_import(
         selected,
         provider,
@@ -236,6 +233,22 @@ fn materialize_dispatch_callable<'a>(
     } = import.contract()
     else {
         return Err(LayoutExternalMaterializationError::CallableContract(target));
+    };
+    let record = match record {
+        LayoutAbiSemanticRecordV1::DirectCallable(record) => {
+            let gc = protocol.gc_effect();
+            if canonical_signature != record.abi_signature()
+                || *calling_convention != record.calling_convention()
+                || gc != record.root_plan().canonical_gc_effect()
+                || import.expected_symbol() != record.expected_symbol()
+                || import.required_definition() != record.required_definition()
+            {
+                return Err(LayoutExternalMaterializationError::CallableContract(target));
+            }
+            return ExternalCallable::from_layout_direct(provider, record, signature);
+        }
+        LayoutAbiSemanticRecordV1::Callable(record) => record,
+        _ => return Err(LayoutExternalMaterializationError::CallableKind(target)),
     };
     if canonical_signature != record.canonical_signature()
         || *calling_convention != record.calling_convention()
@@ -303,6 +316,7 @@ pub enum LayoutExternalMaterializationError {
         subject: ExternalStrongShapeSubjectV1,
     },
     CallableAbi(crate::ExactCallablePhysicalAbiError),
+    DirectCallableAbi(crate::ExternalCallableBuildError),
 }
 
 impl From<scoop_wire::WireError> for LayoutExternalMaterializationError {

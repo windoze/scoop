@@ -207,6 +207,7 @@ fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
             &foundation,
         )
         .unwrap(),
+        crate::CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap(),
     )
     .unwrap();
     crate::CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()

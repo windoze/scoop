@@ -231,7 +231,7 @@ pub enum ImportedDependencySelectionError {
     MissingCallable(CallableTemplateOrigin),
     MissingConstant(PersistentPropertyId),
     MissingTypeAlias(scoop_identity::PersistentTypeAliasId),
-    CapabilityUnavailable { target: ImportedTarget },
+    CapabilityUnavailable { declaration: CallableTemplateOrigin },
     ConstantCapabilityUnavailable { target: ImportedTarget },
     RouteMerge(DirectImportedTargetMergeError),
 }
@@ -251,9 +251,9 @@ impl fmt::Display for ImportedDependencySelectionError {
                 formatter,
                 "selected type alias {id} is absent from the dependency catalog"
             ),
-            Self::CapabilityUnavailable { target } => write!(
+            Self::CapabilityUnavailable { declaration } => write!(
                 formatter,
-                "imported callable {target:?} has no executable param-free nominal bridge"
+                "imported callable {declaration:?} has no executable param-free nominal bridge"
             ),
             Self::ConstantCapabilityUnavailable { target } => write!(
                 formatter,

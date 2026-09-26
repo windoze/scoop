@@ -59,41 +59,7 @@ fn core_and_ordinary_plans_preserve_the_actual_definition_provider() {
                 .unwrap();
             assert_eq!(replayed, plan);
             assert_eq!(encode(&replayed).unwrap(), bytes);
-            assert_shape_link_partition_allows(&fixture, closure);
         }
-    }
-}
-
-fn assert_shape_link_partition_allows(fixture: &Fixture, closure: &ParamFreeShapeSupportClosureV1) {
-    use crate::{
-        CrossConeLirBridgeSectionV1, ExternalStrongShapeSubjectV1 as Subject, ShapeLinkProviderV1,
-    };
-    let ordinary =
-        CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, Vec::new(), Vec::new()).unwrap();
-    let roles = closure.roles();
-    let mut subjects = vec![
-        Subject::Layout(roles.value_layout().available().unwrap().semantic_id()),
-        Subject::Scan(roles.ref_scan().available().unwrap().semantic_id()),
-        Subject::TypeDescriptor(roles.type_descriptor().available().unwrap().semantic_id()),
-        Subject::TypeRegistration(roles.type_registration().available().unwrap().semantic_id()),
-    ];
-    for helper in [
-        roles.boxed_value(),
-        roles.coroutine_step(),
-        roles.coroutine_slot(),
-    ]
-    .into_iter()
-    .filter_map(ShapeSupportAvailabilityV1::available)
-    {
-        subjects.extend([
-            Subject::Layout(helper.layout().semantic_id()),
-            Subject::Scan(helper.scan().semantic_id()),
-            Subject::TypeDescriptor(helper.descriptor().semantic_id()),
-            Subject::TypeRegistration(helper.registration().semantic_id()),
-        ]);
-    }
-    for subject in subjects {
-        ShapeLinkProviderV1::reject_legacy_subject(&ordinary, subject).unwrap();
     }
 }
 

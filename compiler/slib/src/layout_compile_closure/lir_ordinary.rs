@@ -4,7 +4,7 @@ use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 use super::{
-    LirExportsValidatedCrossConeLayoutClosure, LirExportsValidatedCrossConeLayoutSections,
+    LirLayoutsValidatedCrossConeLayoutClosure, LirLayoutsValidatedCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
@@ -20,17 +20,17 @@ pub use replay::{SharedOrdinaryLirBridgeDependenciesV1, replay_shared_ordinary_l
 pub type OrdinaryLirBridgeValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
-        lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
+        lir::LayoutsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
     >;
 pub type OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> =
     LirConstituentsValidatedCrossConeLayoutClosure<
         'input,
-        lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
+        lir::LayoutsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
     >;
 
-impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
+impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
     pub fn validate_ordinary_lir_bridges(
         self,
     ) -> Result<
@@ -50,7 +50,7 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedOrdinaryLirBridgeValidationError> {
-                let LirExportsValidatedCrossConeLayoutSections {
+                let LirLayoutsValidatedCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     units,
@@ -69,7 +69,7 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
                 scoop_wire::allocation::try_reserve(&mut metadata, reachable.len(), &path)?;
                 for position in reachable {
                     let dependency = &complete[position];
-                    layouts.push(dependency.lir_exports().layouts());
+                    layouts.push(dependency.layout.layouts());
                     callables.push(dependency.lir_cross_cone_bridge());
                     metadata.push(dependency.prepared.shared_metadata());
                 }
@@ -82,7 +82,7 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
                         public: parts.hir_interface,
                     },
                     parts.mir_ordinary,
-                    layout.exports().layouts(),
+                    layout.layouts(),
                     SharedOrdinaryLirBridgeDependenciesV1 {
                         metadata: &metadata,
                         layouts: &layouts,

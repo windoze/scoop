@@ -82,6 +82,13 @@ fn exports(fixture: &Fixture, descriptor: bool, dispatch: bool) -> LayoutAbiExpo
         foundation,
     )
     .unwrap();
-    LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shapes)
-        .unwrap()
+    LayoutAbiExportConstituentsV1::try_new(
+        layouts,
+        descriptors,
+        dispatch,
+        callables,
+        shapes,
+        crate::CrossConeLirBridgeSectionV1::try_new(foundation, Vec::new(), Vec::new()).unwrap(),
+    )
+    .unwrap()
 }

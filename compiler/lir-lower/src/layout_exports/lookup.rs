@@ -49,6 +49,14 @@ pub(super) fn validate_dependencies(
             return Err(Error::DuplicateProvider(origin));
         }
     }
+    for table in dependencies.direct_callables {
+        if table.artifact() == provider {
+            return Err(Error::Provider);
+        }
+        if !providers.insert((2, table.artifact())) {
+            return Err(Error::DuplicateProvider(table.artifact()));
+        }
+    }
     Ok(())
 }
 
@@ -56,14 +64,34 @@ pub(super) fn callable<'a>(
     target: StrongCallableDefinitionOwner,
     local: &'a lir::CanonicalExactCallableAbiExportsV1,
     dependencies: &'a [&'a lir::CanonicalExactCallableAbiExportsV1],
-) -> Result<&'a lir::ExactCallableAbiExportV1, Error> {
+    direct: &'a lir::CrossConeLirBridgeSectionV1,
+    direct_dependencies: &'a [&'a lir::CrossConeLirBridgeSectionV1],
+    layouts: &'a Layouts<'_>,
+) -> Result<lir::DispatchCallableAbiV1<'a>, Error> {
     let mut found = None;
     for table in std::iter::once(local).chain(dependencies.iter().copied()) {
         if let Some(record) = table.get(target) {
             if found.is_some() {
                 return Err(Error::AmbiguousCallable(target));
             }
-            found = Some(record);
+            found = Some(lir::DispatchCallableAbiV1::Exact(record));
+        }
+    }
+    for table in std::iter::once(direct).chain(direct_dependencies.iter().copied()) {
+        if let Some(record) = table.export_for_target(target) {
+            if found.is_some() {
+                return Err(Error::AmbiguousCallable(target));
+            }
+            let receiver = match record.abi_signature().signature().receiver().into_option() {
+                Some(exact) => lir::CallableAbiReceiverInputV1::Receiver(layouts.value(exact)?),
+                None => lir::CallableAbiReceiverInputV1::NoReceiver,
+            };
+            found = Some(lir::DispatchCallableAbiV1::Direct {
+                provider: table.artifact(),
+                target: local.target(),
+                record,
+                receiver,
+            });
         }
     }
     found.ok_or(Error::MissingCallable(target))

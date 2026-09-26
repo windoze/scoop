@@ -19,7 +19,7 @@ pub(in super::super::super) fn resolve(
         .unwrap()
         .validate_descriptors(layout.descriptors())
         .unwrap()
-        .validate_shape_support(layout.shape_support())
+        .validate_shape_support(layout.shape_support(), layout.exports().direct_callables())
         .unwrap()
         .resolve_dependencies(&mut identities)
 }
@@ -46,6 +46,7 @@ pub(in super::super::super) fn empty_exports(
         lir::CanonicalExactDispatchExportsV1::try_new(target, &foundation, vec![]).unwrap(),
         lir::CanonicalExactCallableAbiExportsV1::try_new(target, &foundation, vec![]).unwrap(),
         shapes,
+        lir::CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![]).unwrap(),
     )
     .unwrap()
 }

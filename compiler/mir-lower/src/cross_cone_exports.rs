@@ -59,7 +59,8 @@ pub fn lower_type_bridge_exports(
     .into_parts();
     let source_tables = with_local(&source_callables, dependencies.callables)?;
     let source_index =
-        mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables).map_err(Error::Lookup)?;
+        mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables, dependencies.direct_callables)
+            .map_err(Error::Lookup)?;
     let boxing = mir::CanonicalMirCallableBindingsV1::from_boxing_adjusts(
         input.mir,
         &types,
@@ -87,8 +88,10 @@ pub fn lower_type_bridge_exports(
         input.ordinary,
     )?;
     let callable_tables = with_local(&callables, dependencies.callables)?;
+    let direct_tables = with_local(input.ordinary, dependencies.direct_callables)?;
     let callable_index =
-        mir::MirTypeBridgeCallableIndexV1::try_new(&callable_tables).map_err(Error::Lookup)?;
+        mir::MirTypeBridgeCallableIndexV1::try_new(&callable_tables, &direct_tables)
+            .map_err(Error::Lookup)?;
     let dispatch = crate::lower_dispatch_schemas(
         input.source,
         input.mir,

@@ -1,7 +1,7 @@
 use super::*;
 
-/// The five canonical local inventories owned by one complete layout/ABI
-/// section. Their constructors retain the underlying physical replay proofs.
+/// Complete local layout exports and the shared ordinary callable inventory.
+/// Ordinary records remain encoded only in their own section.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LayoutAbiExportConstituentsV1 {
     layouts: crate::CanonicalExactLayoutExportsV1,
@@ -9,6 +9,7 @@ pub struct LayoutAbiExportConstituentsV1 {
     dispatch: crate::CanonicalExactDispatchExportsV1,
     callables: crate::CanonicalExactCallableAbiExportsV1,
     shape_support: crate::CanonicalParamFreeShapeSupportExportsV1,
+    direct_callables: crate::CrossConeLirBridgeSectionV1,
 }
 
 impl LayoutAbiExportConstituentsV1 {
@@ -18,6 +19,7 @@ impl LayoutAbiExportConstituentsV1 {
         dispatch: crate::CanonicalExactDispatchExportsV1,
         callables: crate::CanonicalExactCallableAbiExportsV1,
         shape_support: crate::CanonicalParamFreeShapeSupportExportsV1,
+        direct_callables: crate::CrossConeLirBridgeSectionV1,
     ) -> Result<Self, LayoutAbiExportConstituentsError> {
         let provider = layouts.provider();
         if [
@@ -25,6 +27,7 @@ impl LayoutAbiExportConstituentsV1 {
             dispatch.provider(),
             callables.provider(),
             shape_support.provider(),
+            direct_callables.artifact(),
         ]
         .into_iter()
         .any(|actual| actual != provider)
@@ -49,6 +52,7 @@ impl LayoutAbiExportConstituentsV1 {
             dispatch,
             callables,
             shape_support,
+            direct_callables,
         })
     }
 
@@ -80,6 +84,10 @@ impl LayoutAbiExportConstituentsV1 {
         &self.shape_support
     }
 
+    pub const fn direct_callables(&self) -> &crate::CrossConeLirBridgeSectionV1 {
+        &self.direct_callables
+    }
+
     pub fn record(
         &self,
         target: LayoutAbiSemanticTargetV1,
@@ -100,7 +108,12 @@ impl LayoutAbiExportConstituentsV1 {
             LayoutAbiSemanticTargetV1::Callable(target) => self
                 .callables
                 .get(target)
-                .map(LayoutAbiSemanticRecordV1::Callable),
+                .map(LayoutAbiSemanticRecordV1::Callable)
+                .or_else(|| {
+                    self.direct_callables
+                        .export_for_target(target)
+                        .map(LayoutAbiSemanticRecordV1::DirectCallable)
+                }),
             LayoutAbiSemanticTargetV1::ShapeSupport(source) => self
                 .shape_support
                 .get(source)
@@ -141,6 +154,7 @@ pub enum LayoutAbiSemanticRecordV1<'a> {
     Descriptor(&'a crate::ExactDescriptorExportV1),
     Dispatch(&'a crate::ExactDispatchExportV1),
     Callable(&'a crate::ExactCallableAbiExportV1),
+    DirectCallable(&'a crate::ParamFreeLirCallableExportV1),
     ShapeSupport(&'a crate::ParamFreeShapeSupportExportV1),
 }
 

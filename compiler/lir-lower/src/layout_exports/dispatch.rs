@@ -7,7 +7,7 @@ pub(super) fn lower(
     input: LayoutAbiExportInputV1<'_>,
     layouts: &lookup::Layouts<'_>,
     callables: &lir::CanonicalExactCallableAbiExportsV1,
-    dependencies: &[&lir::CanonicalExactCallableAbiExportsV1],
+    dependencies: LayoutAbiExportDependenciesV1<'_>,
 ) -> Result<lir::CanonicalExactDispatchExportsV1, Error> {
     let output = input.lir;
     let descriptors = &output.module().meta.type_descriptors;
@@ -27,7 +27,7 @@ pub(super) fn lower(
         }
         let schema = schemas::for_owner(input.bridge, owner)?;
         let slots = schema.vtable();
-        let entries = entries::project(slots, layouts, callables, dependencies)?;
+        let entries = entries::project(slots, layouts, callables, input.ordinary, dependencies)?;
         records.push(replay(input, (&descriptor.vtable).into(), &entries)?);
         for table in &descriptor.itables {
             let key = table.identity_record().key();
@@ -37,7 +37,8 @@ pub(super) fn lower(
             let slots = schema
                 .interface(interface)
                 .ok_or(Error::MissingInterface(table.identity_record().id()))?;
-            let entries = entries::project(slots, layouts, callables, dependencies)?;
+            let entries =
+                entries::project(slots, layouts, callables, input.ordinary, dependencies)?;
             records.push(replay(input, table.into(), &entries)?);
         }
     }

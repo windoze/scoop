@@ -107,13 +107,13 @@ fn staged_shape_replay_retains_all_exports_and_checks_provider_before_selection(
     };
     let changed = empty_exports(cone("different-shapes-stage"));
     assert!(matches!(
-        decode().validate_shape_support(changed.shape_support()),
+        decode().validate_shape_support(changed.shape_support(), changed.direct_callables()),
         Err(LayoutAbiSectionError::Exports(
             LayoutAbiExportConstituentsError::Provider
         ))
     ));
     let checked = decode()
-        .validate_shape_support(expected.shape_support())
+        .validate_shape_support(expected.shape_support(), expected.direct_callables())
         .unwrap();
     assert_eq!(checked.exports(), &expected);
     assert_eq!(encode(&checked).unwrap(), bytes);

@@ -180,7 +180,7 @@ impl Lowerer {
         Some(hir::Expr {
             kind: hir::ExprKind::ImportedDependencyCall {
                 callee,
-                binding,
+                binding: Some(binding),
                 args,
                 receiver,
             },

@@ -272,7 +272,7 @@ impl Lowerer {
             } => hir::ExprKind::ImportedDependencyCall {
                 receiver: receiver.map(|ty| self.instantiate_method_ty(ty, &context.bindings)),
                 callee: *callee,
-                binding: std::sync::Arc::clone(binding),
+                binding: binding.clone(),
                 args: self.instantiate_default_exprs(args, context),
             },
             hir::ExprKind::LocalFunctionCall {

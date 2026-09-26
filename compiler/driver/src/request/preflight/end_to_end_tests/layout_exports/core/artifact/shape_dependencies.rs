@@ -60,6 +60,7 @@ pub(super) fn check(
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                     types: &[mir_exports.types()],
                     callables: &[mir_exports.callables()],
+                    direct_callables: &[semantic.mir_cross_cone_bridge()],
                     dispatch: &[mir_exports.dispatch()],
                 };
                 let exports =

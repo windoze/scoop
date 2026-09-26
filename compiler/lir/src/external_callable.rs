@@ -43,6 +43,20 @@ impl ExternalCallable {
         signature: ScoopAbiSignature,
     ) -> Result<Self, ExternalCallableBuildError> {
         let bridge = selected.bridge();
+        Self::from_direct(
+            selected.provider(),
+            bridge,
+            signature,
+            ExternalCallableOrigin::Legacy(bridge.declaration()),
+        )
+    }
+
+    fn from_direct(
+        provider: ConeIdentity,
+        bridge: &crate::ParamFreeLirCallableExportV1,
+        signature: ScoopAbiSignature,
+        origin: ExternalCallableOrigin,
+    ) -> Result<Self, ExternalCallableBuildError> {
         validate_signature(bridge.abi_signature(), &signature, bridge.root_plan())?;
         if signature.calling_convention() != bridge.calling_convention() {
             return Err(ExternalCallableBuildError::CallingConventionMismatch {
@@ -53,8 +67,8 @@ impl ExternalCallable {
         let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(bridge.target()))
             .map_err(ExternalCallableBuildError::Identity)?;
         Ok(Self {
-            origin: ExternalCallableOrigin::Legacy(bridge.declaration()),
-            provider: selected.provider(),
+            origin,
+            provider,
             target: bridge.target(),
             body,
             canonical_signature: bridge.abi_signature().clone(),
@@ -64,6 +78,20 @@ impl ExternalCallable {
             expected_symbol: bridge.expected_symbol(),
             required_definition: bridge.required_definition(),
         })
+    }
+
+    pub(crate) fn from_layout_direct(
+        provider: ConeIdentity,
+        record: &crate::ParamFreeLirCallableExportV1,
+        signature: ScoopAbiSignature,
+    ) -> Result<Self, crate::LayoutExternalMaterializationError> {
+        Self::from_direct(
+            provider,
+            record,
+            signature,
+            ExternalCallableOrigin::LayoutV1,
+        )
+        .map_err(crate::LayoutExternalMaterializationError::DirectCallableAbi)
     }
 
     pub(crate) fn from_layout_v1(
@@ -190,7 +218,7 @@ fn protocol_effect(protocol: crate::ExactCallableProtocolV1) -> GcEffect {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExternalCallableBuildError {
     AbiArgumentCount {
         expected: usize,

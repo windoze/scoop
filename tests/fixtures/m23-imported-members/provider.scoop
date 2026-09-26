@@ -1,0 +1,16 @@
+package dependency.members
+
+public struct Token() {
+    @NoGC public fun sameToken(other: Token = this): Token = other
+}
+
+public struct Wide(val first: Long, val second: Long, val third: Long) {
+    @NoGC public fun copyWide(other: Wide = this): Wide = other
+    @NoGC public fun total(delta: Long = 0): Long = first + second + third + delta
+    @NoGC public operator fun plus(other: Wide): Wide = other
+    @NoGC private fun hidden(): Long = first
+}
+
+public struct Managed(val text: String, val token: Token) {
+    public fun sameManaged(other: Managed = this): Managed = other
+}

@@ -1,0 +1,101 @@
+Module
+  enum CoroutineStep<Container> tagged size=32 align=8 variants=(struct0)@8+24 ()@8+0
+  enum CoroutineSlot<Container> tagged size=32 align=8 variants=()@8+0 (struct0)@8+24
+  fun @scoop$1$cb$1833e06ad24609ae1e03d15925a7030ad2f04c38df019849194e81097d234076(elided-zst<struct1 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> <no-gc>
+    local %0 $dependency.receiver: struct1 <logical-zst 817645497e0130d85238097850d6109cc6085eae4c92ef2d8d5dccdcf6bd95e9>
+    local %1 $dependency.parameter.other: struct1 <logical-zst 817645497e0130d85238097850d6109cc6085eae4c92ef2d8d5dccdcf6bd95e9>
+    local %2 $call.1: struct1 <logical-zst 817645497e0130d85238097850d6109cc6085eae4c92ef2d8d5dccdcf6bd95e9>
+  block entry
+    store param0 -> local0
+    store local0 -> local1
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 (elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> external-fn0(elided-zst local0, elided-zst local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$7553e5d9a26d3681375b368432ab759bd2a58a4f019f7912d1f1d0a8e0084e1e(indirect<struct2 size=24 align=8 scan=none>) -> sret<struct2 size=24 align=8 scan=none> <no-gc>
+    local %0 $dependency.receiver: struct2
+    local %1 $dependency.argument.0: struct2
+    local %2 $dependency.parameter.other: struct2
+    local %3 copy: struct2
+    local %4 $dependency.receiver: struct2
+    local %5 $dependency.parameter.other: struct2
+    local %6 $dependency.receiver: struct2
+    local %7 $dependency.argument.0: struct2
+    local %8 $dependency.parameter.other: struct2
+    local %9 $call.1: struct2
+    local %10 $sc.1: struct2
+    local %11 $sc.2: struct2
+    local %12 $sc.3: struct2
+    local %13 $sc.4: struct2
+    local %14 $sc.5: struct2
+    local %15 $sc.6: struct2
+    local %16 $sc.7: struct2
+    local %17 $sc.8: struct2
+    local %18 $sc.9: struct2
+  block entry
+    store param0 -> local0
+    store param0 -> local1
+    store local1 -> local2
+    store local0 -> local10
+    store local2 -> local11
+    call no-gc-indirect-target0 local12 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local10, indirect local11)
+    store local12 -> local3
+    store param0 -> local6
+    store local3 -> local4
+    store local4 -> local5
+    store local4 -> local13
+    store local5 -> local14
+    call no-gc-indirect-target1 local15 = sig=indirect1 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local13, indirect local14)
+    store local15 -> local7
+    store local7 -> local8
+    store local6 -> local16
+    store local8 -> local17
+    call no-gc-indirect-target2 local18 = sig=indirect2 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn2(indirect local16, indirect local17)
+    store local18 -> local9
+    ret local9
+  fun @scoop$1$cb$c82e7c45fb615195874eb5baf3952b11d991837e01245fa81e9a9cecf3c79947(indirect<struct2 size=24 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $dependency.receiver: struct2
+    local %1 $dependency.parameter.delta: i64
+    local %2 $dependency.receiver: i64
+    local %3 $dependency.argument.0: i64
+    local %4 $dependency.parameter.other: i64
+    local %5 $sc.1: struct2
+  block entry
+    store param0 -> local0
+    store integer<Long>(0x0000000000000000) -> local1
+    store local0 -> local5
+    call no-gc-direct-target0 t0 = sig=direct0 (indirect<struct2 size=24 align=8 scan=none>, i64) -> i64 external-fn3(indirect local5, local1)
+    store t0 -> local2
+    store integer<Long>(0x0000000000000007) -> local3
+    store local3 -> local4
+    t1 = integer_Add<Long> local2, local4 : i64
+    ret t1
+  fun @scoop$1$cb$cf168d409d4a94415495b8ac0c3598671130fb3fcc524b6b8c4e893df1a54520(indirect<struct3 size=8 align=8 scan=refs[0]>) -> sret<struct3 size=8 align=8 scan=refs[0]>
+    local %0 $dependency.receiver: struct3
+    local %1 $dependency.parameter.other: struct3
+    local %2 $call.1: struct3
+    local %3 $sc.1: struct3
+    local %4 $sc.2: struct3
+    local %5 $sc.3: struct3
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:struct3@0]
+    store param0 -> local0
+    store local0 -> local1
+    store local0 -> local3
+    store local1 -> local4
+    call managed-indirect-target0 sp<managed-call:0> live=[local3:struct3@0, local4:struct3@0] local5 = sig=indirect0 (sret struct3 size=8 align=8 scan=refs[0], indirect<struct3 size=8 align=8 scan=refs[0]>, indirect<struct3 size=8 align=8 scan=refs[0]>) external-fn4(indirect local3, indirect local4)
+    store local5 -> local2
+    ret local2
+  fun @scoop$1$cb$8483e4f2834ccb885240057638a79d4f3c9f6e56ca6810c939d4d97b7e58617b(elided-zst<struct1 size=0 align=1>, indirect<struct2 size=24 align=8 scan=none>) -> sret<struct0 size=24 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct0
+    ret t0
+  td td0 g(r=00000006;i=7ce5eafa037f6bbe48e6c66b781227452ae10dec0a4fe7238210109ddb6368a7) @scoop$1$td$6e9fc0b55d0036205d4764185969e9f3b7a0525b358d497e63cf7de755f51fd3 type-id=3398501912072603113 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=dev.example%3Amembers-combined%3A0.1.0;p=consumer.members;o=-;k=S;x=Container) @scoop$1$td$4bfb4a882439e8818c1c6960cdd008cbe2fb2698336c8f1a18dba2bc27869534 type-id=12636181455725850172 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td2 g(r=00000005;i=1b4e6980ac9d708daea26f90bb4c17f7887fe9917b449fd6bd6a2f6aaf9859b6) @scoop$1$td$b58fe1ae7e24c35c433788e97bdf18b41b5b051e86fd77d59743c1b02687a4c6 type-id=4937119442757537830 shape=BoxedValue minimum-size=48 align=8 parent=none vtable=[] itables=[]
+  td td3 g(r=00000007;i=de86e488f18e0fdc0a8ad03b84786e4f61b41bc7966a3fc6f96c461a64af010d) @scoop$1$td$cb9609ffe154eabcb49be9213c93f090e4a203f24ba3c85720d5f2f8ef7d33ad type-id=442344637510022002 shape=BoxedValue minimum-size=48 align=8 parent=none vtable=[] itables=[]
+  layout Container size=24 align=8 refs=[]
+  layout CoroutineStep<Container> size=32 align=8 enum-scan=none
+  layout CoroutineSlot<Container> size=32 align=8 enum-scan=none
+  layout box<Container> value size=8 align=8 refs=[0]
+  layout box<Container> size=40 align=8 refs=[]
+  output library

@@ -62,6 +62,8 @@ fn layout_abi(fixture: &ProviderFixture) -> CrossConeLayoutAbiSectionV1<'static>
         fixture.dispatch.clone(),
         callables,
         shape_support,
+        CrossConeLirBridgeSectionV1::try_new(&fixture.source.foundation, Vec::new(), Vec::new())
+            .unwrap(),
     )
     .unwrap();
     CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()

@@ -23,7 +23,11 @@ impl HirDependencyCallSiteV1 {
     ) -> Result<&'a CallableDeclarationRecordV1, HirDependencyCallSignatureError> {
         use HirDependencyCallSignatureError as Error;
 
-        if !matches!(self.reason(), HirDependencyCallReasonV1::SourceBinding(_)) {
+        if !matches!(
+            self.reason(),
+            HirDependencyCallReasonV1::SourceBinding(_)
+                | HirDependencyCallReasonV1::SourceDeclaration
+        ) {
             return Err(Error::Reason);
         }
         let ExternalHirTargetV1::Callable(

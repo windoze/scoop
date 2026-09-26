@@ -39,7 +39,7 @@ impl Replay<'_, '_> {
     pub(super) fn binding(
         &self,
         target: StrongCallableDefinitionOwner,
-    ) -> Result<&mir::ParamFreeMirCallableBindingV1, Error> {
+    ) -> Result<mir::MirCallableRecordRefV1<'_>, Error> {
         self.callables
             .get(target)
             .ok_or(Error::MissingCallable(target))
@@ -103,7 +103,7 @@ impl Replay<'_, '_> {
             owner,
             slot,
             Component::CallableOrigin,
-            binding.origin()
+            binding.origin().as_ref()
                 == &mir::MirCallableOriginV1::Generated {
                     callable,
                     role: key,

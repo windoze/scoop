@@ -1,9 +1,11 @@
 //! Complete physical dispatch-table records.
 //!
 //! A record joins one validated MIR dispatch schema to the emitted LIR table,
-//! exact callable ABI exports, and the Strong table definition. The containing
-//! section remains responsible for source authority and selected dependency
-//! closure.
+//! callable ABI exports, and the Strong table definition. The containing
+//! section resolves actual typed dependency references.
+
+mod callables;
+pub use callables::DispatchCallableAbiV1;
 
 mod error;
 pub use error::*;

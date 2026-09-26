@@ -53,6 +53,7 @@ fn bridge_cannot_export_a_callable_absent_from_the_public_hir_surface() {
         fixture.declaration,
         fixture.declaration.implementation(),
         fixture.signature.clone(),
+        scoop_mir::GcEffect::Managed,
     )
     .unwrap();
     let bridge = CrossConeMirBridgeSectionV1::try_new(

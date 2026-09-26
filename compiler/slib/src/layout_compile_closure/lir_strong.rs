@@ -4,8 +4,7 @@ use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 use super::{
-    OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
-    OrdinaryLirBridgeValidatedCrossConeLayoutSections,
+    LirExportsValidatedCrossConeLayoutClosure, LirExportsValidatedCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
@@ -35,7 +34,7 @@ pub type LirStrongProductionReplayedCrossConeLayoutClosure<'input> =
         lir::StrongProductionSectionV2,
     >;
 
-impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
+impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
     pub fn replay_lir_strong_production(
         self,
     ) -> Result<
@@ -55,7 +54,7 @@ impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedLirStrongProductionError> {
-                let OrdinaryLirBridgeValidatedCrossConeLayoutSections {
+                let LirExportsValidatedCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     units,

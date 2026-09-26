@@ -24,6 +24,7 @@ pub(super) struct DecodedParamFreeMirCallableExportV1 {
     declaration: DecodedDependencyCallableDeclarationId,
     implementation: DecodedStrongCallableDefinitionOwner,
     signature: DecodedExactCallableSignature,
+    gc_effect: crate::GcEffect,
 }
 
 impl DecodedParamFreeMirCallableExportV1 {
@@ -43,30 +44,49 @@ impl DecodedParamFreeMirCallableExportV1 {
             .signature
             .resolve(identities)
             .map_err(ParamFreeMirCallableResolutionError::Signature)?;
-        ParamFreeMirCallableExportV1::try_new(declaration, implementation, signature)
-            .map_err(ParamFreeMirCallableResolutionError::Shape)
+        ParamFreeMirCallableExportV1::try_new(
+            declaration,
+            implementation,
+            signature,
+            self.gc_effect,
+        )
+        .map_err(ParamFreeMirCallableResolutionError::Shape)
     }
 }
 
 impl WireEncode for DecodedParamFreeMirCallableExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
         self.implementation.encode(encoder)?;
         encoder.field(3)?;
-        self.signature.encode(encoder)
+        self.signature.encode(encoder)?;
+        encoder.field(4)?;
+        encoder.unsigned(match self.gc_effect {
+            crate::GcEffect::Managed => 1,
+            crate::GcEffect::NoGc => 2,
+        })
     }
 }
 
 impl WireDecode for DecodedParamFreeMirCallableExportV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(4)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedDependencyCallableDeclarationId::decode)?,
             implementation: decoder.field(2, DecodedStrongCallableDefinitionOwner::decode)?,
             signature: decoder.field(3, DecodedExactCallableSignature::decode)?,
+            gc_effect: decoder.field(4, |decoder| match decoder.unsigned()? {
+                1 => Ok(crate::GcEffect::Managed),
+                2 => Ok(crate::GcEffect::NoGc),
+                tag => Err(WireError::new(
+                    scoop_wire::WireErrorKind::UnknownTag { tag },
+                    decoder.path().clone(),
+                    Some(decoder.position()),
+                )),
+            })?,
         })
     }
 }
@@ -154,8 +174,8 @@ impl DecodedCrossConeMirBridgeSectionV1 {
             .map_err(CrossConeMirBridgeValidationError::Relation)?;
         Ok(CrossConeMirBridgeSectionV1 {
             artifact,
-            exports,
-            selected,
+            exports: exports.into(),
+            selected: selected.into(),
         })
     }
 }

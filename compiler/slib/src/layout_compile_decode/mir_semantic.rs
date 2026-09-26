@@ -126,6 +126,10 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
 }
 
 impl PreparedCrossConeLayoutMirSections<'_> {
+    pub(crate) fn direct_callables(&self) -> &scoop_mir::CrossConeMirBridgeSectionV1 {
+        &self.mir_ordinary
+    }
+
     pub(crate) fn link_sections(&self) -> Option<&crate::DecodedCrossConeLayoutLinkOnlySections> {
         self.view.link()
     }

@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 
 use crate::{
-    ExactCallableAbiExportV1, ExactValueLayoutV1, LirTargetProfile, StrongShapeDefinitionRefV1,
+    DispatchCallableAbiV1, ExactValueLayoutV1, LirTargetProfile, StrongShapeDefinitionRefV1,
     StrongShapeDefinitionV1, StrongTypeDispatchCallableRefV2,
 };
 
@@ -101,7 +101,7 @@ pub struct ExactDispatchEntryInputV1<'a> {
     pub slot: PersistentDispatchSlotId,
     pub slot_signature: ExactDispatchSlotSignatureV1,
     pub implementation: ExactDispatchImplementationV1,
-    pub abi: &'a ExactCallableAbiExportV1,
+    pub abi: DispatchCallableAbiV1<'a>,
     pub slot_receiver_layout: Option<&'a crate::ExactLayoutExportV1>,
 }
 
@@ -112,7 +112,6 @@ pub struct ExactDispatchEntryV1 {
     slot_signature: ExactDispatchSlotSignatureV1,
     implementation: ExactDispatchImplementationV1,
     abi: StrongTypeDispatchCallableRefV2,
-    callable_abi: ExactCallableAbiExportV1,
     slot_receiver_layout: Option<Arc<ExactValueLayoutV1>>,
 }
 
@@ -124,7 +123,6 @@ impl ExactDispatchEntryV1 {
             slot_signature: parts.slot_signature,
             implementation: parts.implementation,
             abi: parts.abi,
-            callable_abi: parts.callable_abi,
             slot_receiver_layout: parts.slot_receiver_layout,
         }
     }
@@ -149,10 +147,6 @@ impl ExactDispatchEntryV1 {
         self.abi
     }
 
-    pub const fn callable_abi(&self) -> &ExactCallableAbiExportV1 {
-        &self.callable_abi
-    }
-
     pub fn slot_receiver_layout(&self) -> Option<&ExactValueLayoutV1> {
         self.slot_receiver_layout.as_deref()
     }
@@ -164,7 +158,6 @@ pub(super) struct ExactDispatchEntryPartsV1 {
     pub slot_signature: ExactDispatchSlotSignatureV1,
     pub implementation: ExactDispatchImplementationV1,
     pub abi: StrongTypeDispatchCallableRefV2,
-    pub callable_abi: ExactCallableAbiExportV1,
     pub slot_receiver_layout: Option<Arc<ExactValueLayoutV1>>,
 }
 

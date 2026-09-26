@@ -58,7 +58,7 @@ fn call_reasons_reject_legacy_arrays_and_unknown_tags() {
 }
 
 #[test]
-fn runtime_reason_and_reference_role_cannot_impersonate_an_ordinary_call() {
+fn call_reason_must_match_its_reference_role() {
     let fixture = Fixture::new();
     let site = cast(&fixture);
     let make = |role, witnesses| {
@@ -81,7 +81,7 @@ fn runtime_reason_and_reference_role_cannot_impersonate_an_ordinary_call() {
     assert_eq!(
         make(
             ExternalHirReferenceRoleV1::ConcreteSelectedUse,
-            fixture.witnesses()
+            crate::CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap()
         ),
         Err(ExternalHirReferenceBuildError::CallReason { site: 0 })
     );

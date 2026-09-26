@@ -47,7 +47,6 @@ fn evaluated_defaults_select_one_callable_without_unused_source_routes() {
     let routes = lower(&source("routes"));
     let executed = routes.executable_dependency_callables().unwrap();
     assert_eq!(executed.len(), 1);
-    assert_eq!(executed[0].callable().binding().source_count(), 2);
     let actual = routes.concrete_dependency_witness_uses();
     assert_eq!(actual.len(), 1);
     assert_eq!(actual[0].witness().route().hops().len(), 1);

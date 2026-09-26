@@ -51,7 +51,11 @@ fn validate_export_relation(
         let declaration = eligible.declaration();
         let export = find_export(actual, declaration)
             .ok_or(CrossConeMirClosureRelationError::MissingMaximalExport { declaration })?;
-        if export.signature() != eligible.signature() {
+        let expected_gc = match eligible.gc_effect() {
+            scoop_identity::GcEffect::Managed => scoop_mir::GcEffect::Managed,
+            scoop_identity::GcEffect::NoGc => scoop_mir::GcEffect::NoGc,
+        };
+        if export.signature() != eligible.signature() || export.gc_effect() != expected_gc {
             return Err(CrossConeMirClosureRelationError::ExportSignatureMismatch { declaration });
         }
     }

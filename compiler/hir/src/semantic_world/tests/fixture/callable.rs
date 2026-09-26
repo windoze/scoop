@@ -1,8 +1,8 @@
 use scoop_identity::{
     BindableEntity, BindingTarget, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord,
     ConeCoordinate, DeclarationScope, DefinitionOwnerChain, Effect, ExportBindingKey, GcEffect,
-    PackagePath, PersistentExportBindingId, PersistentFunctionId, SignatureTypeKey,
-    SourceDeclarationKey, SourceDeclarationSite,
+    PackagePath, PersistentFunctionId, SignatureTypeKey, SourceDeclarationKey,
+    SourceDeclarationSite,
 };
 
 use super::*;
@@ -18,7 +18,6 @@ pub(crate) struct CallableProviderFixture {
     pub(crate) foundation: CanonicalHirFoundation,
     pub(crate) interface: CrossConeHirInterfaceSectionV1,
     pub(crate) function: PersistentFunctionId,
-    pub(crate) binding: PersistentExportBindingId,
 }
 
 impl CallableProviderFixture {
@@ -105,7 +104,6 @@ impl CallableProviderFixture {
             foundation,
             interface,
             function: declaration_function(declaration),
-            binding: binding.id(),
         }
     }
 

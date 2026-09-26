@@ -194,6 +194,7 @@ fn provider_layout_section(
         dispatch.clone(),
         callables.clone(),
         shape_support,
+        CrossConeLirBridgeSectionV1::try_new(output.foundation(), Vec::new(), Vec::new()).unwrap(),
     )
     .unwrap();
     CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()
@@ -238,7 +239,7 @@ pub(super) fn consumer_layout_section<'a>(
             target: provider.callable,
             receiver: ExactDispatchReceiverAdaptationV1::Identity,
         },
-        abi: &provider.callables.records()[0],
+        abi: (&provider.callables.records()[0]).into(),
         slot_receiver_layout: None,
     };
     let expected = StrongTypeDispatchCallableRefV2::DependencyExternal {
@@ -294,6 +295,7 @@ pub(super) fn consumer_layout_section<'a>(
         dispatch,
         callables,
         shape_support,
+        CrossConeLirBridgeSectionV1::try_new(output.foundation(), Vec::new(), Vec::new()).unwrap(),
     )
     .unwrap();
     CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &[]).unwrap()

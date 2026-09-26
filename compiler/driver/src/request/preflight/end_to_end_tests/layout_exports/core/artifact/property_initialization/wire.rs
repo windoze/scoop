@@ -19,6 +19,13 @@ pub(super) fn resolve(
         production: input.mir.production(),
         ordinary: input.ordinary,
     };
+    let direct = std::iter::once(input.ordinary)
+        .chain(
+            dependencies
+                .iter()
+                .map(|section| section.direct_callables()),
+        )
+        .collect::<Vec<_>>();
     candidate
         .resolve_types(
             authority.provider(),
@@ -29,6 +36,7 @@ pub(super) fn resolve(
         .unwrap()
         .resolve_callables(
             input.mir.foundation(),
+            &direct,
             dependencies.iter().map(|section| {
                 (
                     section.exports().types(),

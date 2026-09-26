@@ -49,7 +49,7 @@ impl<'a> Context<'a> {
     pub fn callable(
         &self,
         target: StrongCallableDefinitionOwner,
-    ) -> Result<&mir::ParamFreeMirCallableBindingV1, Error> {
+    ) -> Result<mir::MirCallableRecordRefV1<'_>, Error> {
         self.authority
             .callables
             .get(target)

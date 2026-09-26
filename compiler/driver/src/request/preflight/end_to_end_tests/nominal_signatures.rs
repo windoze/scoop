@@ -53,11 +53,10 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
             .callable_interfaces()
             .records()
             .iter()
+            .filter(|callable| callable.owner() == scoop_hir::PublicDeclarationOwnerV1::TopLevel)
             .filter_map(|callable| classifier.classify_callable(callable).unwrap())
             .collect::<Vec<_>>();
         assert_eq!(expected.len(), 2);
-        assert_eq!(production.mir_cross_cone().exports().len(), expected.len());
-        assert_eq!(production.lir_cross_cone().exports().len(), expected.len());
         let mut rows = Vec::new();
         for signature in expected {
             let mir = production

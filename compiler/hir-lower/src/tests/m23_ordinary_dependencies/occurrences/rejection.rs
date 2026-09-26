@@ -54,25 +54,6 @@ fn error(
 }
 
 #[test]
-fn repeated_target_does_not_hide_a_foreign_winner_binding() {
-    let foreign = lower(&fixture("routes"));
-    let call = foreign.committed_dependency_call_occurrences().unwrap()[1];
-    let binding = std::sync::Arc::new(call.binding().clone());
-    let failure = change(lower(&fixture("standalone")), |module| {
-        let hir::concrete::ExprKind::ImportedDependencyCall {
-            binding: actual, ..
-        } = &mut second_call(module).kind
-        else {
-            unreachable!()
-        };
-        *actual = binding;
-    });
-    assert!(
-        matches!(error(failure), hir::DependencyCallOccurrenceError::Binding(position) if position.expression_index == 1)
-    );
-}
-
-#[test]
 fn repeated_target_does_not_hide_invalid_definition_or_evaluation_origin() {
     for definition in [false, true] {
         let failure = change(lower(&fixture("standalone")), |module| {

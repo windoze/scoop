@@ -72,8 +72,9 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
     );
     assert_eq!(
         witness.witness(),
-        selected
+        output.committed_dependency_call_occurrences().unwrap()[0]
             .binding()
+            .expect("the source call uses an imported name")
             .sources()
             .next()
             .unwrap()

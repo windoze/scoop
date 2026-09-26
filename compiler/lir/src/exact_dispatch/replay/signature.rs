@@ -52,10 +52,10 @@ pub(super) fn validate(
             let Some(slot_layout) = slot_layout.value_handle() else {
                 return Err(ExactDispatchError::ReceiverLayout(owner));
             };
-            let Some(target_layout) = input.abi.layout_dependencies().receiver().value() else {
+            let Some(target_layout) = input.abi.receiver_layout()? else {
                 return Err(ExactDispatchError::ReceiverLayout(owner));
             };
-            if !managed_reference(&slot_layout) || !managed_reference(target_layout) {
+            if !managed_reference(&slot_layout) || !managed_reference(&target_layout) {
                 return Err(ExactDispatchError::ReceiverLayout(owner));
             }
             Ok(Some(slot_layout))

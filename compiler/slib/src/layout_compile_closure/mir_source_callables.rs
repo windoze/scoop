@@ -91,8 +91,16 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
                 } = artifact;
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions)?;
+                let direct_callables = std::iter::once(parts.mir_ordinary)
+                    .chain(
+                        reachable
+                            .iter()
+                            .map(|position| resolved[*position].prepared.direct_callables()),
+                    )
+                    .collect::<Vec<_>>();
                 let mir = mir.resolve_callables(
                     parts.mir_foundation,
+                    &direct_callables,
                     reachable.iter().map(|position| {
                         let mir = &resolved[*position].mir;
                         (mir.types(), mir.callables(), mir.dispatch())

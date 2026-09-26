@@ -23,6 +23,7 @@ pub fn validate_shared_mir_dispatch(
     dependencies: &[hir::CheckedSharedTypeFoundationV1<'_>],
     callables: &mir::CanonicalMirCallableBindingsV1,
     dependency_callables: &[&mir::CanonicalMirCallableBindingsV1],
+    direct_callables: &[&mir::CrossConeMirBridgeSectionV1],
     dispatch: &mir::CanonicalMirDispatchSchemasV1,
 ) -> Result<(), Error> {
     let mut tables = Vec::new();
@@ -33,7 +34,7 @@ pub fn validate_shared_mir_dispatch(
     )?;
     tables.push(callables);
     tables.extend_from_slice(dependency_callables);
-    let index = mir::MirTypeBridgeCallableIndexV1::try_new(&tables)?;
+    let index = mir::MirTypeBridgeCallableIndexV1::try_new(&tables, direct_callables)?;
     source.with_inheritance_graph(dependencies, |graph| {
         let mut replay = Replay {
             graph,

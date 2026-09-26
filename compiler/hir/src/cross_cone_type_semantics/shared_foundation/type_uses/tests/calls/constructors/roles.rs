@@ -38,12 +38,20 @@ fn shared_source_and_runtime_calls_of_one_constructor_keep_both_reasons() {
         ExternalHirReferenceRoleV1::RuntimeOperationDependency,
     ])
     .unwrap();
-    let make = |calls| {
+    let make = |calls: Vec<HirDependencyCallSiteV1>| {
+        let witnesses = if calls
+            .iter()
+            .any(|site| matches!(site.reason(), HirDependencyCallReasonV1::SourceBinding(_)))
+        {
+            reference.witnesses().clone()
+        } else {
+            crate::CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap()
+        };
         ExternalHirReferenceV1::try_new(
             reference.origin(),
             reference.target(),
             roles.clone(),
-            reference.witnesses().clone(),
+            witnesses,
             CanonicalHirDependencyCallSitesV1::try_new(calls).unwrap(),
             Default::default(),
         )

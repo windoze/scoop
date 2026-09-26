@@ -62,6 +62,7 @@ fn missing_ordinary_source(
             scoop_identity::DependencyCallableDeclarationId::Function(function),
             scoop_identity::StrongCallableDefinitionOwner::Function(function),
             signature,
+            scoop_mir::GcEffect::Managed,
         )
         .unwrap(),
     );

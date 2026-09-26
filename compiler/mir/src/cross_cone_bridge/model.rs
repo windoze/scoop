@@ -18,7 +18,7 @@ use super::validation::{
 pub struct ParamFreeMirCallableExportV1 {
     pub(super) declaration: DependencyCallableDeclarationId,
     pub(super) implementation: StrongCallableDefinitionOwner,
-    pub(super) signature: ExactCallableSignature,
+    pub(super) signature: crate::MirBridgeCallableSignatureV1,
 }
 
 impl ParamFreeMirCallableExportV1 {
@@ -26,12 +26,13 @@ impl ParamFreeMirCallableExportV1 {
         declaration: DependencyCallableDeclarationId,
         implementation: StrongCallableDefinitionOwner,
         signature: ExactCallableSignature,
+        gc_effect: crate::GcEffect,
     ) -> Result<Self, ParamFreeMirCallableBuildError> {
         validate_callable_shape(declaration, implementation, &signature)?;
         Ok(Self {
             declaration,
             implementation,
-            signature,
+            signature: crate::MirBridgeCallableSignatureV1::new(signature, gc_effect),
         })
     }
 
@@ -44,19 +45,32 @@ impl ParamFreeMirCallableExportV1 {
     }
 
     pub const fn signature(&self) -> &ExactCallableSignature {
+        self.signature.exact()
+    }
+
+    pub const fn bridge_signature(&self) -> &crate::MirBridgeCallableSignatureV1 {
         &self.signature
+    }
+
+    pub const fn gc_effect(&self) -> crate::GcEffect {
+        self.signature.gc_effect()
     }
 }
 
 impl WireEncode for ParamFreeMirCallableExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
         self.implementation.encode(encoder)?;
         encoder.field(3)?;
-        self.signature.encode(encoder)
+        self.signature().encode(encoder)?;
+        encoder.field(4)?;
+        encoder.unsigned(match self.gc_effect() {
+            crate::GcEffect::Managed => 1,
+            crate::GcEffect::NoGc => 2,
+        })
     }
 }
 
@@ -124,8 +138,8 @@ impl WireEncode for SelectedDependencyMirCallableV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeMirBridgeSectionV1 {
     pub(super) artifact: ConeIdentity,
-    pub(super) exports: Vec<ParamFreeMirCallableExportV1>,
-    pub(super) selected: Vec<SelectedDependencyMirCallableV1>,
+    pub(super) exports: std::sync::Arc<[ParamFreeMirCallableExportV1]>,
+    pub(super) selected: std::sync::Arc<[SelectedDependencyMirCallableV1]>,
 }
 
 impl CrossConeMirBridgeSectionV1 {
@@ -149,8 +163,8 @@ impl CrossConeMirBridgeSectionV1 {
             .map_err(CrossConeMirBridgeBuildError::Relation)?;
         Ok(Self {
             artifact,
-            exports,
-            selected,
+            exports: exports.into(),
+            selected: selected.into(),
         })
     }
 

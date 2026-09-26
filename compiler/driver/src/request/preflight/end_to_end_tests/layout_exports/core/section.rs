@@ -40,7 +40,12 @@ pub(super) fn check<'a>(
             &mut graph,
         )
         .unwrap()
-        .resolve_callables(input.mir.foundation(), std::iter::empty(), &mut graph)
+        .resolve_callables(
+            input.mir.foundation(),
+            &[input.ordinary],
+            std::iter::empty(),
+            &mut graph,
+        )
         .unwrap()
         .resolve_dependencies(local, &mut graph)
         .unwrap();

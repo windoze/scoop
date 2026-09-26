@@ -23,13 +23,12 @@ impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
         }
         let dependencies = dependencies::complete(provider, dependencies)?;
         let types = dependencies::types(exports.types(), &dependencies)?;
-        let legacy_callables = local.legacy_callables()?;
         let entries = closure::close(
             LocalView {
                 provider,
                 exports: &exports,
                 units: &units,
-                legacy: &legacy_callables,
+                direct: local.ordinary,
             },
             &dependencies,
             committed,
@@ -41,7 +40,7 @@ impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
             provider,
             exports,
             units,
-            legacy_callables,
+            direct_callables: local.ordinary.clone(),
             selected,
         })
     }

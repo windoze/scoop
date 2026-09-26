@@ -17,6 +17,13 @@ pub(super) fn read(
     dependencies: &[MirTypeBridgeDependencyViewV1<'_>],
     graph: &mut ValidatedIdentityGraph,
 ) -> Result<DependencyResolvedCrossConeMirTypeBridgeSectionV1, MirTypeBridgeSectionError> {
+    let direct = std::iter::once(fixture.authority().ordinary)
+        .chain(
+            dependencies
+                .iter()
+                .map(|section| section.direct_callables()),
+        )
+        .collect::<Vec<_>>();
     decoded
         .resolve_types(
             fixture.provider,
@@ -26,6 +33,7 @@ pub(super) fn read(
         )?
         .resolve_callables(
             &fixture.types.foundation,
+            &direct,
             dependencies.iter().map(|section| {
                 (
                     section.exports().types(),

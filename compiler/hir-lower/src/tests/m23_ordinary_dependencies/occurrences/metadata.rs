@@ -44,6 +44,7 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                     assert_eq!(site.arguments().len(), actual.arguments().len());
                     let mut routes = actual
                         .binding()
+                        .expect("source import route")
                         .sources()
                         .map(|source| source.witness().dependency())
                         .collect::<Vec<_>>();

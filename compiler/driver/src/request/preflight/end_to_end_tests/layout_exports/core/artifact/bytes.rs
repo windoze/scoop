@@ -96,7 +96,7 @@ pub(super) fn check(
     super::mir_source_callables::check(name, checked[0], mir_foundation, ordinary, mir);
     super::mir_constructors::check(name, checked[0], mir_foundation, mir);
     super::mir_objects::check(name, checked[0], mir);
-    super::mir_dispatch::check(name, checked[0], mir_foundation, mir);
+    super::mir_dispatch::check(name, checked[0], mir_foundation, ordinary, mir);
     super::mir_equality::check(name, checked[0], mir_foundation, strong, mir);
     let units = super::mir_units::check(name, checked[0], mir_foundation, strong, mir);
     if name == "base" {

@@ -4,17 +4,17 @@ use scoop_wire::WirePath;
 use super::ExternalHirReferenceProductionError;
 use crate::{
     CanonicalDependencyBindingWitnessesV1, CommittedDependencyCallOccurrence, DependencyHirOutput,
-    DirectImportedTargetBinding, HirDependencyCallSiteV1,
+    DirectImportedTargetBinding, HirDependencyCallReasonV1, HirDependencyCallSiteV1,
 };
 
 pub(super) enum PendingCallSite<'a> {
-    Bound {
+    Source {
         position: crate::concrete::ExecutableExpressionPosition,
         origin: ConcreteExpressionOrigin,
         arguments: Vec<PersistentExactTypeId>,
         result: PersistentExactTypeId,
         receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
-        binding: &'a DirectImportedTargetBinding,
+        binding: Option<&'a DirectImportedTargetBinding>,
     },
     Runtime(HirDependencyCallSiteV1),
 }
@@ -56,7 +56,7 @@ pub(super) fn project<'a, E>(
             .map(|identity| identity.id())
             .ok_or(Error::ExpressionType { position, ty })
     })?;
-    Ok(PendingCallSite::Bound {
+    Ok(PendingCallSite::Source {
         position,
         origin,
         arguments,
@@ -73,7 +73,7 @@ impl PendingCallSite<'_> {
     ) -> Result<HirDependencyCallSiteV1, ExternalHirReferenceProductionError<E>> {
         use ExternalHirReferenceProductionError as Error;
         let (position, origin, arguments, result, receiver, binding) = match self {
-            Self::Bound {
+            Self::Source {
                 position,
                 origin,
                 arguments,
@@ -82,6 +82,17 @@ impl PendingCallSite<'_> {
                 binding,
             } => (position, origin, arguments, result, receiver, binding),
             Self::Runtime(site) => return Ok(site),
+        };
+        let Some(binding) = binding else {
+            return HirDependencyCallSiteV1::try_new_with_reason(
+                position,
+                origin,
+                arguments,
+                result,
+                HirDependencyCallReasonV1::SourceDeclaration,
+                receiver,
+            )
+            .map_err(Error::CallSite);
         };
         let path = WirePath::root();
         let mut indices = Vec::new();
