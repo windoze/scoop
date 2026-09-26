@@ -135,7 +135,8 @@ pub(super) fn check(
     }
     assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     closure
-        .with_replayed_physical_imports(|physical| {
+        .replay_physical_imports()
+        .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             let current = physical.artifact(layout.provider()).unwrap();
             assert_eq!(current.lir_exports(), layout.exports());
@@ -144,7 +145,8 @@ pub(super) fn check(
         })
         .unwrap();
     read_link(core, artifact)
-        .with_replayed_physical_imports(|physical| {
+        .replay_physical_imports()
+        .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             for current in physical.dependency_first() {
                 assert!(current.link_sections().is_some());

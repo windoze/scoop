@@ -18,7 +18,7 @@ pub struct StrongProductionDependencySelectionV2<'a> {
     target: crate::LirTargetProfile,
     dependencies: Vec<&'a CrossConeLayoutAbiSectionV1<'a>>,
     semantic: Vec<LayoutAbiDependencyV1>,
-    physical: CanonicalExternalShapeLinkImportsV1<'a>,
+    physical: CanonicalExternalShapeLinkImportsV1,
 }
 
 impl<'a> StrongProductionDependencySelectionV2<'a> {
@@ -39,7 +39,7 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
         consumer: ConeIdentity,
         target: crate::LirTargetProfile,
         dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-        physical_imports: Vec<ExternalShapeLinkImportV1<'a>>,
+        physical_imports: Vec<ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
         let dependencies = super::section::dependencies::complete(consumer, target, dependencies)?;
@@ -104,7 +104,7 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
         self.target
     }
 
-    pub const fn physical_imports(&self) -> &CanonicalExternalShapeLinkImportsV1<'a> {
+    pub const fn physical_imports(&self) -> &CanonicalExternalShapeLinkImportsV1 {
         &self.physical
     }
 

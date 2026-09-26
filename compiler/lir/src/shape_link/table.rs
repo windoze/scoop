@@ -8,15 +8,15 @@ use super::{DecodedExternalShapeLinkImportV1, ExternalShapeLinkImportV1, ShapeLi
 mod replay;
 
 #[derive(Debug)]
-pub struct CanonicalExternalShapeLinkImportsV1<'a> {
-    records: Vec<ExternalShapeLinkImportV1<'a>>,
+pub struct CanonicalExternalShapeLinkImportsV1 {
+    records: Vec<ExternalShapeLinkImportV1>,
 }
 
-impl<'a> CanonicalExternalShapeLinkImportsV1<'a> {
+impl CanonicalExternalShapeLinkImportsV1 {
     /// Only the complete closure may choose the actual-use subset. Every
     /// input record has already replayed its provider and support relation.
     pub(crate) fn from_checked(
-        records: Vec<ExternalShapeLinkImportV1<'a>>,
+        records: Vec<ExternalShapeLinkImportV1>,
     ) -> Result<Self, ShapeLinkError> {
         let path = WirePath::root();
 
@@ -40,7 +40,7 @@ impl<'a> CanonicalExternalShapeLinkImportsV1<'a> {
         records.extend(keyed.into_iter().map(|(_, record)| record));
         Ok(Self { records })
     }
-    pub fn records(&self) -> &[ExternalShapeLinkImportV1<'a>] {
+    pub fn records(&self) -> &[ExternalShapeLinkImportV1] {
         &self.records
     }
 }
@@ -51,10 +51,10 @@ pub struct DecodedCanonicalExternalShapeLinkImportsV1 {
 }
 
 impl DecodedCanonicalExternalShapeLinkImportsV1 {
-    pub fn validate_against<'a>(
+    pub fn validate_against(
         self,
-        expected: &CanonicalExternalShapeLinkImportsV1<'a>,
-    ) -> Result<CanonicalExternalShapeLinkImportsV1<'a>, ShapeLinkError> {
+        expected: &CanonicalExternalShapeLinkImportsV1,
+    ) -> Result<CanonicalExternalShapeLinkImportsV1, ShapeLinkError> {
         let path = WirePath::root();
 
         if self.records.len() != expected.records.len() {
@@ -72,11 +72,11 @@ impl DecodedCanonicalExternalShapeLinkImportsV1 {
         let mut records = Vec::new();
         scoop_wire::allocation::try_reserve(&mut records, expected.records.len(), &path)?;
         records.extend_from_slice(&expected.records);
-        CanonicalExternalShapeLinkImportsV1::from_checked(records)
+        Ok(CanonicalExternalShapeLinkImportsV1 { records })
     }
 }
 
-impl WireEncode for CanonicalExternalShapeLinkImportsV1<'_> {
+impl WireEncode for CanonicalExternalShapeLinkImportsV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         sequence(encoder, &self.records)
     }

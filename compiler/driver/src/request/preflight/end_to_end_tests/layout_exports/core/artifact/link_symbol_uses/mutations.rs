@@ -1,7 +1,7 @@
 use super::super::link_archive;
 use super::*;
 
-pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> Vec<(Failure, Mutation)> {
+pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> Vec<(Failure, Mutation)> {
     let mut cases = Vec::new();
     let mut projection = |failure| cases.push((failure, Mutation::Projection(failure)));
     assert!(!proof.defined_symbols().owners().is_empty());
@@ -80,7 +80,6 @@ pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> Vec<(Fa
             .or_else(|| {
                 objects
                     .generated_objects()
-                    .iter()
                     .find(|object| object.member() == binding.source_member())
                     .map(|object| object.bytes())
             })

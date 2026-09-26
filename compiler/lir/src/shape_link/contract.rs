@@ -1,4 +1,4 @@
-//! Closed semantic contracts borrowed from complete provider records.
+//! Complete semantic contracts selected from actual provider records.
 use scoop_identity::{CanonicalScoopAbiFunctionSignature, PersistentLayoutId, ScanRole};
 
 use crate::{
@@ -12,37 +12,37 @@ mod validate;
 mod wire;
 pub use decoded::DecodedShapeLinkContractV1;
 
-/// Semantic data alone does not grant a physical import or selected handle.
-#[derive(Clone, Copy, Debug)]
-pub enum ShapeLinkContractV1<'a> {
+/// Typed data required by one external physical import.
+#[derive(Clone, Debug)]
+pub enum ShapeLinkContractV1 {
     CallableAbi {
-        canonical_signature: &'a CanonicalScoopAbiFunctionSignature,
+        canonical_signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: CallingConvention,
         protocol: ExactCallableProtocolV1,
     },
     Layout {
-        record: &'a ExactLayoutExportV1,
+        record: ExactLayoutExportV1,
     },
     Scan {
         layout: PersistentLayoutId,
         role: ScanRole,
-        canonical_scan: &'a RefScan,
+        canonical_scan: RefScan,
     },
     Type {
-        descriptor_projection: &'a ExactDescriptorExportV1,
+        descriptor_projection: ExactDescriptorExportV1,
     },
     Dispatch {
-        table_projection: &'a ExactDispatchExportV1,
+        table_projection: ExactDispatchExportV1,
     },
     StaticStorage {
-        storage_projection: &'a StrongStaticStorageSemanticPlanV1,
+        storage_projection: StrongStaticStorageSemanticPlanV1,
     },
     Initialization {
-        unit_projection: &'a StrongInitializationUnitSemanticPlanV2,
+        unit_projection: StrongInitializationUnitSemanticPlanV2,
     },
 }
 
-impl ShapeLinkContractV1<'_> {
+impl ShapeLinkContractV1 {
     pub const fn tag(&self) -> u32 {
         match self {
             Self::CallableAbi { .. } => 1,

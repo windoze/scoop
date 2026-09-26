@@ -6,7 +6,7 @@ pub(super) fn check<'a>(
     consumer: ConeIdentity,
     definitions: &StrongObjectSymbolSurfaceV1,
     support: &fixtures::UnitSupport<'a>,
-    expected: &CanonicalExternalShapeLinkImportsV1<'a>,
+    expected: &CanonicalExternalShapeLinkImportsV1,
 ) {
     let rows = expected.records();
     let replay = |rows: &[&dyn WireEncode]| {

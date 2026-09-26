@@ -6,11 +6,13 @@ fn shape_link_layout_and_scan_contracts_round_trip_without_post_definition() {
         crate::exact_layout::tests::integer("Word", IntegerKind::SIGNED_64).into();
     let scan = RefScan::None;
     for contract in [
-        ShapeLinkContractV1::Layout { record: &record },
+        ShapeLinkContractV1::Layout {
+            record: record.clone(),
+        },
         ShapeLinkContractV1::Scan {
             layout: record.identity().layout(),
             role: ScanRole::InlineValue,
-            canonical_scan: &scan,
+            canonical_scan: scan.clone(),
         },
     ] {
         let bytes = encode(&contract).unwrap();
@@ -55,7 +57,9 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
         subject: ExternalStrongShapeSubjectV1::Layout(first.identity().layout()),
         expected_symbol: physical.symbol(),
         required_definition: physical.definition(),
-        contract: ShapeLinkContractV1::Layout { record: &first },
+        contract: ShapeLinkContractV1::Layout {
+            record: first.clone(),
+        },
     };
     assert!(matches!(
         import.validate_semantic_against(&layouts, &callables, &descriptors, &dispatch),
@@ -66,7 +70,7 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
     import.contract = ShapeLinkContractV1::Scan {
         layout: first.identity().layout(),
         role: ScanRole::InlineValue,
-        canonical_scan: &invalid_scan,
+        canonical_scan: invalid_scan.clone(),
     };
     assert!(matches!(
         import.validate_semantic_against(&layouts, &callables, &descriptors, &dispatch),
@@ -77,7 +81,7 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
     let expected = ShapeLinkContractV1::Scan {
         layout: first.identity().layout(),
         role: ScanRole::InlineValue,
-        canonical_scan: &RefScan::None,
+        canonical_scan: RefScan::None,
     };
     assert!(matches!(
         raw.validate_against(&expected),

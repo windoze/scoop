@@ -13,7 +13,7 @@ impl DecodedCanonicalExternalShapeLinkImportsV1 {
         providers: &[ShapeLinkProviderV1<'a>],
         support: &dyn ShapeLinkSupportLookupV1<'a>,
         identities: &mut ValidatedIdentityGraph,
-    ) -> Result<CanonicalExternalShapeLinkImportsV1<'a>, ShapeLinkError> {
+    ) -> Result<CanonicalExternalShapeLinkImportsV1, ShapeLinkError> {
         let path = WirePath::root();
 
         let mut records = Vec::new();
@@ -43,6 +43,6 @@ impl DecodedCanonicalExternalShapeLinkImportsV1 {
             actual.validate_against(&expected)?;
             records.push(expected);
         }
-        CanonicalExternalShapeLinkImportsV1::from_checked(records)
+        Ok(CanonicalExternalShapeLinkImportsV1 { records })
     }
 }

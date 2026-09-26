@@ -11,12 +11,12 @@ use scoop_identity::{
     StrongCallableDefinitionOwner,
 };
 
-pub(super) struct SharedSupport<'q, 'a, 'input> {
+pub(super) struct SharedSupport<'q, 'a> {
     pub consumer: &'q mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
-    pub dependencies: &'q [&'a PhysicalImportsReplayedCrossConeLayoutSections<'input, 'a>],
+    pub dependencies: &'q [&'a PhysicalImportsReplayedCrossConeLayoutSections],
 }
 
-impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
+impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a> {
     fn support_source(
         &self,
         provider: ConeIdentity,
@@ -98,7 +98,7 @@ impl<'a> ShapeLinkSupportLookupV1<'a> for SharedSupport<'_, 'a, '_> {
     }
 }
 
-impl SharedSupport<'_, '_, '_> {
+impl SharedSupport<'_, '_> {
     fn selected(&self, provider: ConeIdentity, target: Target) -> Result<bool, Error> {
         let selected = self.consumer.selected_relations();
 
@@ -124,7 +124,7 @@ impl SharedSupport<'_, '_, '_> {
 
     fn singleton(
         &self,
-        terminal: &PhysicalImportsReplayedCrossConeLayoutSections<'_, '_>,
+        terminal: &PhysicalImportsReplayedCrossConeLayoutSections,
         proof: &mir::MirTypeBridgeInitializationUnitV1,
     ) -> Result<bool, Error> {
         let objects = terminal.mir.exports().objects().records();

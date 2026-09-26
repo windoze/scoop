@@ -18,7 +18,7 @@ use symbols::ImportSymbolIndex;
 #[derive(Debug)]
 pub struct VerifiedExternalShapeRequirementClosureV1<'a> {
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
-    imports: &'a CanonicalExternalShapeLinkImportsV1<'a>,
+    imports: &'a CanonicalExternalShapeLinkImportsV1,
     requirements: Vec<ExternalShapeUndefinedUseV1>,
     remaining: Vec<&'a StrongRelocationBindingV1>,
 }
@@ -33,7 +33,7 @@ impl<'a> VerifiedExternalShapeRequirementClosureV1<'a> {
     pub const fn legacy_closure(&self) -> &'a VerifiedCrossConeStrongRequirementClosureV1 {
         self.legacy
     }
-    pub const fn semantic_imports(&self) -> &'a CanonicalExternalShapeLinkImportsV1<'a> {
+    pub const fn semantic_imports(&self) -> &'a CanonicalExternalShapeLinkImportsV1 {
         self.imports
     }
     pub fn requirements(&self) -> &[ExternalShapeUndefinedUseV1] {
@@ -55,7 +55,7 @@ pub fn verify_external_shape_requirements_v1<'a>(
 /// replayed the complete physical imports. This does not grant source access.
 pub fn verify_replayed_external_shape_requirements_v1<'a>(
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
-    layout: &'a scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1<'a>,
+    layout: &'a scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1,
 ) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
     verify_import_requirements(
         legacy,
@@ -67,7 +67,7 @@ pub fn verify_replayed_external_shape_requirements_v1<'a>(
 fn verify_import_requirements<'a>(
     legacy: &'a VerifiedCrossConeStrongRequirementClosureV1,
     consumer: ConeIdentity,
-    imports: &'a CanonicalExternalShapeLinkImportsV1<'a>,
+    imports: &'a CanonicalExternalShapeLinkImportsV1,
 ) -> Result<VerifiedExternalShapeRequirementClosureV1<'a>, LayoutLinkClosureError> {
     if legacy.producer() != consumer {
         return Err(LayoutLinkClosureError::ConsumerMismatch {

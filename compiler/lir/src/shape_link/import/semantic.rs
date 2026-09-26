@@ -6,7 +6,7 @@ use crate::{
 };
 use scoop_identity::ScanRole;
 
-impl ExternalShapeLinkImportV1<'_> {
+impl ExternalShapeLinkImportV1 {
     pub(crate) fn semantic_target(
         &self,
         layouts: &CanonicalExactLayoutExportsV1,
@@ -41,7 +41,7 @@ impl ExternalShapeLinkImportV1<'_> {
                     .get(target)
                     .ok_or(ShapeLinkError::MissingSubject(self.subject))?;
                 ShapeLinkContractV1::CallableAbi {
-                    canonical_signature: record.canonical_signature(),
+                    canonical_signature: record.canonical_signature().clone(),
                     calling_convention: record.calling_convention(),
                     protocol: record.call_protocol(),
                 }
@@ -49,7 +49,8 @@ impl ExternalShapeLinkImportV1<'_> {
             Subject::Layout(id) => ShapeLinkContractV1::Layout {
                 record: layouts
                     .get(id)
-                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?
+                    .clone(),
             },
             Subject::Scan(id) => {
                 let record = layouts
@@ -76,20 +77,22 @@ impl ExternalShapeLinkImportV1<'_> {
                 ShapeLinkContractV1::Scan {
                     layout: record.identity().layout(),
                     role,
-                    canonical_scan,
+                    canonical_scan: canonical_scan.clone(),
                 }
             }
             Subject::TypeDescriptor(id) | Subject::TypeRegistration(id) => {
                 ShapeLinkContractV1::Type {
                     descriptor_projection: descriptors
                         .get(id)
-                        .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
+                        .ok_or(ShapeLinkError::MissingSubject(self.subject))?
+                        .clone(),
                 }
             }
             Subject::DispatchTable(id) => ShapeLinkContractV1::Dispatch {
                 table_projection: dispatch
                     .get(id)
-                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?,
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?
+                    .clone(),
             },
             Subject::StaticStorage(_)
             | Subject::StaticStorageRegistration(_)

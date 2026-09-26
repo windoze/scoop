@@ -95,10 +95,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for NoDependencies {
     fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
         Ok(&[])
     }
-    fn validate_physical_imports(
-        &self,
-        imports: &[ExternalShapeLinkImportV1<'_>],
-    ) -> Result<(), ()> {
+    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
         imports.is_empty().then_some(()).ok_or(())
     }
 }

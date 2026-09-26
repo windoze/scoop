@@ -13,9 +13,9 @@ pub(crate) use verification::replay;
 /// Complete object-content checks for one artifact. Undefined-use partitions,
 /// dependency fingerprints and final Code identity still require replay.
 #[derive(Debug)]
-pub struct ReplayedLayoutLinkObjectContentsV1<'input> {
+pub struct ReplayedLayoutLinkObjectContentsV1 {
     objects: VerifiedNormalizedProvisionalScoopLirObjectSetV1,
-    generated: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
+    generated: Vec<(crate::SlibMemberId, Vec<u8>)>,
     safepoints: VerifiedStrongSafepointRegistrationSetV1,
     callables: VerifiedStrongCallableRegistrationSetV1,
     types: VerifiedStrongTypeRegistrationSetV2,
@@ -24,7 +24,7 @@ pub struct ReplayedLayoutLinkObjectContentsV1<'input> {
     initializations: VerifiedStrongInitializationRegistrationSetV2,
 }
 
-impl<'input> ReplayedLayoutLinkObjectContentsV1<'input> {
+impl ReplayedLayoutLinkObjectContentsV1 {
     pub const fn provider(&self) -> scoop_identity::ConeIdentity {
         self.safepoints.producer()
     }
@@ -33,8 +33,12 @@ impl<'input> ReplayedLayoutLinkObjectContentsV1<'input> {
         &self.objects
     }
 
-    pub fn generated_objects(&self) -> &[GeneratedCBridgeObjectCandidateV1<'input>] {
-        &self.generated
+    pub fn generated_objects(
+        &self,
+    ) -> impl ExactSizeIterator<Item = GeneratedCBridgeObjectCandidateV1<'_>> {
+        self.generated
+            .iter()
+            .map(|(member, bytes)| GeneratedCBridgeObjectCandidateV1::new(*member, bytes))
     }
 
     pub const fn patch_sites(&self) -> &VerifiedScoopLirDigestPatchSiteSetV1 {

@@ -29,7 +29,9 @@ pub use decode::CrossConeLayoutCompileSectionDecodeError;
 pub use hir_resolution::CrossConeLayoutHirResolutionError;
 pub(crate) use lir_semantic::DecodedCrossConeLayoutLirCandidates;
 pub use mir_semantic::CrossConeLayoutMirFrontValidationError;
-pub(crate) use mir_semantic::{PreparedCrossConeLayoutMirSections, PreparedLayoutMirSemanticParts};
+pub(crate) use mir_semantic::{
+    LayoutSemanticSections, PreparedCrossConeLayoutMirSections, PreparedLayoutMirSemanticParts,
+};
 
 /// Canonically decoded payloads from one exact
 /// `cross-cone-layout-strong/1` Compile or Link view.

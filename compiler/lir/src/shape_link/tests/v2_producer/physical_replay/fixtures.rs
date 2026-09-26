@@ -136,7 +136,7 @@ pub(super) fn imports<'a>(
     consumer: ConeIdentity,
     definitions: &StrongObjectSymbolSurfaceV1,
     support: &UnitSupport<'a>,
-) -> CanonicalExternalShapeLinkImportsV1<'a> {
+) -> CanonicalExternalShapeLinkImportsV1 {
     let exports = provider.layout_section();
     let layout = &exports.layouts().records()[0];
     let unit = provider

@@ -14,6 +14,8 @@ use scoop_mir::{
 };
 
 mod materializations;
+mod owned;
+pub(crate) use owned::LayoutSemanticSections;
 
 use super::HirProductionValidatedCrossConeLayoutSections;
 use crate::{

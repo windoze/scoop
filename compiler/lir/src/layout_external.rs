@@ -114,7 +114,7 @@ trait MaterializationSelection<'a> {
         provider: ConeIdentity,
         target: LayoutAbiSemanticTargetV1,
     ) -> Option<LayoutAbiSemanticRecordV1<'a>>;
-    fn physical_imports(&'a self) -> &'a crate::CanonicalExternalShapeLinkImportsV1<'a>;
+    fn physical_imports(&'a self) -> &'a crate::CanonicalExternalShapeLinkImportsV1;
 }
 
 impl<'a> MaterializationSelection<'a> for SelectedDependencyLayoutAbiSetV1<'a> {
@@ -131,7 +131,7 @@ impl<'a> MaterializationSelection<'a> for SelectedDependencyLayoutAbiSetV1<'a> {
             .and_then(|reference| self.resolve(reference))
     }
 
-    fn physical_imports(&'a self) -> &'a crate::CanonicalExternalShapeLinkImportsV1<'a> {
+    fn physical_imports(&'a self) -> &'a crate::CanonicalExternalShapeLinkImportsV1 {
         self.physical_imports()
     }
 }
@@ -149,7 +149,7 @@ impl<'a> MaterializationSelection<'a> for StrongProductionDependencySelectionV2<
         self.semantic_record(provider, target)
     }
 
-    fn physical_imports(&'a self) -> &'a crate::CanonicalExternalShapeLinkImportsV1<'a> {
+    fn physical_imports(&'a self) -> &'a crate::CanonicalExternalShapeLinkImportsV1 {
         self.physical_imports()
     }
 }
@@ -194,7 +194,7 @@ fn materialize_type_descriptor<'a>(
             exact,
         ));
     };
-    if *descriptor_projection != record
+    if descriptor_projection != record
         || import.expected_symbol() != record.physical_definition().symbol()
         || import.required_definition() != record.physical_definition().definition()
     {
@@ -238,7 +238,7 @@ fn materialize_dispatch_callable<'a>(
     else {
         return Err(LayoutExternalMaterializationError::CallableContract(target));
     };
-    if *canonical_signature != record.canonical_signature()
+    if canonical_signature != record.canonical_signature()
         || *calling_convention != record.calling_convention()
         || *protocol != record.call_protocol()
         || import.expected_symbol() != record.physical_definition().symbol()
@@ -260,7 +260,7 @@ fn physical_import<'a>(
     selected: &'a impl MaterializationSelection<'a>,
     provider: ConeIdentity,
     subject: ExternalStrongShapeSubjectV1,
-) -> Result<&'a crate::ExternalShapeLinkImportV1<'a>, LayoutExternalMaterializationError> {
+) -> Result<&'a crate::ExternalShapeLinkImportV1, LayoutExternalMaterializationError> {
     selected
         .physical_imports()
         .records()

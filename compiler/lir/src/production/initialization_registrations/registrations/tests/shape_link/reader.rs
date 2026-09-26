@@ -11,10 +11,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
         Ok(&[])
     }
 
-    fn validate_physical_imports(
-        &self,
-        imports: &[ExternalShapeLinkImportV1<'_>],
-    ) -> Result<(), ()> {
+    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
         if imports.is_empty() { Ok(()) } else { Err(()) }
     }
 }

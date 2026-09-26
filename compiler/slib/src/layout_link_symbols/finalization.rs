@@ -6,9 +6,9 @@ use crate::StrongLinkObjectFinalizationError as FinalError;
 mod registrations;
 
 pub(super) fn replay(
-    objects: &ReplayedLayoutLinkObjectContentsV1<'_>,
+    objects: &ReplayedLayoutLinkObjectContentsV1,
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-    input: &ReplayInputs<'_, '_>,
+    input: &ReplayInputs<'_>,
 ) -> Result<VerifiedEntryPatchSetV2, LayoutLinkSymbolUseError> {
     let candidates = objects.objects().candidates();
     let registrations = registrations::replay(objects, undefined, &candidates)?;

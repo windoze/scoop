@@ -7,7 +7,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         subject: ExternalStrongShapeSubjectV1,
         physical: StrongShapeDefinitionRefV1,
         support: &dyn ShapeLinkSupportLookupV1<'a>,
-    ) -> Result<ShapeLinkContractV1<'a>, ShapeLinkError> {
+    ) -> Result<ShapeLinkContractV1, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;
         let source = support
             .support_source(self.provider(), subject)?
@@ -27,7 +27,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
             .find(|registration| registration.semantic().unit() == unit.unit())
             .ok_or(ShapeLinkError::SupportRelation(subject))?;
         // The hook names a relation, not a replacement payload. The contract
-        // always borrows the actual provider's complete V2 semantic plan.
+        // uses the actual provider's complete V2 semantic plan.
 
         if unit != registration.semantic() {
             return Err(ShapeLinkError::SupportRelation(subject));
@@ -59,7 +59,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                     return Err(ShapeLinkError::DefinitionRelation(subject));
                 }
                 Ok(ShapeLinkContractV1::Initialization {
-                    unit_projection: registration.semantic(),
+                    unit_projection: registration.semantic().clone(),
                 })
             }
             (
@@ -100,7 +100,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                     return Err(ShapeLinkError::DefinitionRelation(subject));
                 }
                 Ok(ShapeLinkContractV1::StaticStorage {
-                    storage_projection: registration.semantic(),
+                    storage_projection: registration.semantic().clone(),
                 })
             }
             _ => Err(ShapeLinkError::SupportRelation(subject)),

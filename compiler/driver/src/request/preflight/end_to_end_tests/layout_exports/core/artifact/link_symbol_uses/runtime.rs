@@ -20,7 +20,7 @@ pub(super) enum RuntimeMutation {
 
 pub(super) fn inspect(
     artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>,
+    proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
 ) -> String {
     let payloads = link_archive::payloads(artifact);
     let finalized = proof.final_objects();
@@ -43,7 +43,7 @@ pub(super) fn inspect(
     )
 }
 
-pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> Vec<RuntimeMutation> {
+pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> Vec<RuntimeMutation> {
     let mut by_role = BTreeMap::new();
     for patch in proof.object_contents().patch_sites().sites() {
         by_role.entry(patch.semantic_field_role()).or_insert(*patch);
@@ -58,7 +58,7 @@ pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> Vec<Run
     cases
 }
 
-fn body_mutation(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> RuntimeMutation {
+fn body_mutation(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> RuntimeMutation {
     for candidate in proof.object_contents().objects().objects() {
         let file = object::File::parse(candidate.final_bytes()).unwrap();
         for section in file

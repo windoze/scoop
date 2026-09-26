@@ -23,7 +23,7 @@ impl lir::LayoutAbiSectionSourceAuthorityV1<&'static str> for GraphFixture<'_> {
     }
     fn validate_physical_imports(
         &self,
-        imports: &[lir::ExternalShapeLinkImportV1<'_>],
+        imports: &[lir::ExternalShapeLinkImportV1],
     ) -> Result<(), &'static str> {
         if imports.is_empty() {
             Ok(())

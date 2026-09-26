@@ -44,7 +44,7 @@ pub(super) fn check(
     let mut cases = BTreeMap::new();
     let mut bridge_providers = Vec::new();
     let mut dump = String::new();
-    reader::read_link(core, artifact).with_replayed_link_object_contents(profile, |closure| {
+    reader::read_link(core, artifact).replay_link_object_contents(profile).map(|closure| {
         assert_eq!(closure.dependency_first().len(), 2);
         for (physical, proof) in closure.dependency_first() {
             assert_eq!(proof.provider(), physical.identity());
@@ -52,7 +52,7 @@ pub(super) fn check(
             let source = if proof.provider() == closure.physical_imports().current() { artifact } else { core };
             assert_eq!(closure.artifact(proof.provider()).unwrap().0.identity(), proof.provider());
             check_objects(source, proof);
-            if !proof.generated_objects().is_empty() { bridge_providers.push(proof.provider()); }
+            if proof.generated_objects().len() != 0 { bridge_providers.push(proof.provider()); }
             let strong = physical.lir_strong_production();
             assert_eq!(proof.callables().plan(), strong.callable_registrations());
             assert_eq!(proof.types().plan(), strong.type_registrations());
@@ -114,7 +114,7 @@ pub(super) fn check(
 
 fn check_objects(
     source: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    proof: &slib::ReplayedLayoutLinkObjectContentsV1<'_>,
+    proof: &slib::ReplayedLayoutLinkObjectContentsV1,
 ) {
     let payloads = super::link_archive::payloads(source);
     for object in proof.objects().objects() {

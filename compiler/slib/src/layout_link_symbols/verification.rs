@@ -1,11 +1,11 @@
 use super::*;
 
-pub(crate) struct ReplayInputs<'a, 'contract> {
+pub(crate) struct ReplayInputs<'a> {
     pub link: &'a crate::DecodedCrossConeLayoutLinkOnlySections,
     pub foundation: &'a lir::OdrFreeLirFoundation,
     pub strong: &'a lir::StrongProductionSectionV2,
     pub ordinary: &'a lir::CrossConeLirBridgeSectionV1,
-    pub layout: &'a lir::PhysicalImportsReplayedLayoutAbiSectionV1<'contract>,
+    pub layout: &'a lir::PhysicalImportsReplayedLayoutAbiSectionV1,
     pub selection: lir::ValidatedLirTargetSelection,
     pub profile: &'a lir::CBridgeToolchainProfileV1,
     pub manifest: &'a crate::BootstrapManifest,
@@ -13,15 +13,13 @@ pub(crate) struct ReplayInputs<'a, 'contract> {
     pub hir_foundation: &'a scoop_hir::OdrFreeHirFoundation,
 }
 
-pub(crate) fn replay<'input, 'a, 'contract: 'a>(
-    objects: ReplayedLayoutLinkObjectContentsV1<'input>,
-    input: ReplayInputs<'_, '_>,
-    previous: &[ReplayedLayoutLinkSymbolUsesV1<'input>],
-    previous_layouts: impl Iterator<
-        Item = &'a lir::PhysicalImportsReplayedLayoutAbiSectionV1<'contract>,
-    >,
+pub(crate) fn replay<'a>(
+    objects: ReplayedLayoutLinkObjectContentsV1,
+    input: ReplayInputs<'_>,
+    previous: &[ReplayedLayoutLinkSymbolUsesV1],
+    previous_layouts: impl Iterator<Item = &'a lir::PhysicalImportsReplayedLayoutAbiSectionV1>,
     reachable: &[usize],
-) -> Result<ReplayedLayoutLinkSymbolUsesV1<'input>, LayoutLinkSymbolUseError> {
+) -> Result<ReplayedLayoutLinkSymbolUsesV1, LayoutLinkSymbolUseError> {
     let closure = objects.patch_sites().builtins().strong_relocations();
 
     let defined = CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(closure)?;
@@ -89,7 +87,7 @@ pub(crate) fn replay<'input, 'a, 'contract: 'a>(
 }
 
 fn dependency_owners(
-    previous: &[ReplayedLayoutLinkSymbolUsesV1<'_>],
+    previous: &[ReplayedLayoutLinkSymbolUsesV1],
     reachable: &[usize],
 ) -> Result<Vec<CanonicalDefinedLinkSymbolOwnerSetV1>, WireError> {
     let path = WirePath::root();

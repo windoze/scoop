@@ -67,7 +67,7 @@ impl WireEncode for Rows<'_> {
 }
 
 pub(super) struct ReplacedField<'a> {
-    pub original: &'a ExternalShapeLinkImportV1<'a>,
+    pub original: &'a ExternalShapeLinkImportV1,
     pub index: u32,
     pub replacement: &'a dyn WireEncode,
 }

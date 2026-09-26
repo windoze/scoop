@@ -11,7 +11,7 @@ use crate::{CanonicalDefinedLinkSymbolOwnerSetV1, LinkDefinitionOwnerV1, StrongD
 
 pub(super) fn validate(
     consumer: &CrossConeLayoutTerminalArtifactV1<'_>,
-    import: &ExternalShapeLinkImportV1<'_>,
+    import: &ExternalShapeLinkImportV1,
     terminal: &CrossConeLayoutTerminalArtifactV1<'_>,
     artifacts: &[CrossConeLayoutTerminalArtifactV1<'_>],
 ) -> Result<(), CrossConeLayoutTerminalValidationError> {
@@ -27,7 +27,7 @@ pub(super) fn validate(
 pub(super) fn validate_sets<'a>(
     consumer: ConeIdentity,
     target: scoop_lir::LirTargetProfile,
-    import: &ExternalShapeLinkImportV1<'_>,
+    import: &ExternalShapeLinkImportV1,
     terminal: &CanonicalDefinedLinkSymbolOwnerSetV1,
     artifacts: impl Iterator<Item = &'a CanonicalDefinedLinkSymbolOwnerSetV1>,
 ) -> Result<(), CrossConeLayoutTerminalValidationError> {
@@ -65,7 +65,7 @@ pub(super) fn validate_sets<'a>(
 
 pub(super) fn reject_foreign_owners<'a>(
     consumer: ConeIdentity,
-    import: &ExternalShapeLinkImportV1<'_>,
+    import: &ExternalShapeLinkImportV1,
     artifacts: impl Iterator<Item = &'a CanonicalDefinedLinkSymbolOwnerSetV1>,
     name: &[u8],
     symbol: PersistentSymbolRequest,

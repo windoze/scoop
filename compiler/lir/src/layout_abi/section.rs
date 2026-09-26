@@ -31,7 +31,7 @@ impl<'a> CrossConeLayoutAbiSectionV1<'a> {
     pub fn try_new<E>(
         exports: LayoutAbiExportConstituentsV1,
         dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1<'a>>,
+        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
         build::producer(exports, dependencies, physical_imports, source)

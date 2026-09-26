@@ -3,11 +3,9 @@ use super::*;
 use object::read::macho::{MachHeader as _, Segment as _};
 use object::{Endianness, Object as _, ObjectSection as _, macho};
 
-pub(super) fn cases(
-    proof: &slib::ReplayedLayoutLinkObjectContentsV1<'_>,
-) -> Vec<(Failure, Mutation)> {
+pub(super) fn cases(proof: &slib::ReplayedLayoutLinkObjectContentsV1) -> Vec<(Failure, Mutation)> {
     let mut cases = Vec::new();
-    if let Some(bridge) = proof.generated_objects().first() {
+    if let Some(bridge) = proof.generated_objects().next() {
         cases.push((
             Failure::CBridgeEnvelope,
             Mutation::Object {

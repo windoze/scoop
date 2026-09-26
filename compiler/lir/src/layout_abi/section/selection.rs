@@ -20,7 +20,7 @@ pub struct SelectedDependencyLayoutAbiSetV1<'a> {
     target: crate::LirTargetProfile,
     brand: LayoutAbiSelectionBrand,
     semantic: Vec<SelectedLayoutAbiEntryV1<'a>>,
-    physical: crate::CanonicalExternalShapeLinkImportsV1<'a>,
+    physical: crate::CanonicalExternalShapeLinkImportsV1,
 }
 
 impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
@@ -28,7 +28,7 @@ impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
         consumer: ConeIdentity,
         target: crate::LirTargetProfile,
         semantic: Vec<SelectedLayoutAbiEntryV1<'a>>,
-        physical: crate::CanonicalExternalShapeLinkImportsV1<'a>,
+        physical: crate::CanonicalExternalShapeLinkImportsV1,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
         if u32::try_from(semantic.len()).is_err() {
             return Err(LayoutAbiSectionError::Semantic(
@@ -71,7 +71,7 @@ impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
         self.semantic.iter().map(|entry| entry.relation)
     }
 
-    pub const fn physical_imports(&self) -> &crate::CanonicalExternalShapeLinkImportsV1<'a> {
+    pub const fn physical_imports(&self) -> &crate::CanonicalExternalShapeLinkImportsV1 {
         &self.physical
     }
 

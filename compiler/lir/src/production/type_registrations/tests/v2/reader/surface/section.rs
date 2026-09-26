@@ -190,7 +190,7 @@ impl crate::LayoutAbiSectionSourceAuthorityV1<()> for EmptyLayoutSource {
 
     fn validate_physical_imports(
         &self,
-        imports: &[crate::ExternalShapeLinkImportV1<'_>],
+        imports: &[crate::ExternalShapeLinkImportV1],
     ) -> Result<(), ()> {
         imports.is_empty().then_some(()).ok_or(())
     }

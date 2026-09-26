@@ -15,7 +15,8 @@ pub(in super::super) fn check_link(
     let current = source.identity();
     let expected = source.semantic_fingerprints().code();
     artifact_reader::read_link(provider, artifact)
-        .with_replayed_link_symbol_uses(profile, |closure| {
+        .replay_link_symbol_uses(profile)
+        .map(|closure| {
             assert_eq!(closure.dependency_first().len(), 2);
             let (physical, proof) = closure.artifact(current).unwrap();
             assert_eq!(physical.identity(), proof.provider());

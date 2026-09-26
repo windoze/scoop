@@ -364,7 +364,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
         Ok(&[])
     }
 
-    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1<'_>]) -> Result<(), ()> {
+    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
         Ok(())
     }
 }

@@ -19,7 +19,7 @@ impl DecodedCrossConeLayoutAbiSectionV1 {
         self,
         expected: &LayoutAbiExportConstituentsV1,
         dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1<'a>>,
+        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
@@ -65,7 +65,7 @@ impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
         self,
         expected: &LayoutAbiExportConstituentsV1,
         dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1<'a>>,
+        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
@@ -122,7 +122,7 @@ impl CallablesResolvedCrossConeLayoutAbiSectionV1 {
         self,
         expected: &LayoutAbiExportConstituentsV1,
         dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-        physical_imports: Vec<crate::ExternalShapeLinkImportV1<'a>>,
+        physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {

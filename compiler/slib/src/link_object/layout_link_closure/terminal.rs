@@ -159,7 +159,7 @@ pub fn validate_cross_cone_layout_terminal_closure_v1<'closure, 'artifact>(
 
 fn validate_import(
     consumer: &CrossConeLayoutTerminalArtifactV1<'_>,
-    import: &ExternalShapeLinkImportV1<'_>,
+    import: &ExternalShapeLinkImportV1,
     terminal: &CrossConeLayoutTerminalArtifactV1<'_>,
     artifacts: &[CrossConeLayoutTerminalArtifactV1<'_>],
 ) -> Result<(), CrossConeLayoutTerminalValidationError> {
@@ -196,8 +196,8 @@ fn validate_import(
 
 fn validate_header(
     consumer: ConeIdentity,
-    actual: &ExternalShapeLinkImportV1<'_>,
-    expected: &ExternalShapeLinkImportV1<'_>,
+    actual: &ExternalShapeLinkImportV1,
+    expected: &ExternalShapeLinkImportV1,
 ) -> Result<(), CrossConeLayoutTerminalValidationError> {
     if actual.expected_symbol() != expected.expected_symbol() {
         return Err(CrossConeLayoutTerminalValidationError::SymbolMismatch {
@@ -218,7 +218,7 @@ fn validate_header(
 
 fn import_context(
     consumer: ConeIdentity,
-    import: &ExternalShapeLinkImportV1<'_>,
+    import: &ExternalShapeLinkImportV1,
 ) -> Box<CrossConeLayoutTerminalImportContextV1> {
     Box::new(CrossConeLayoutTerminalImportContextV1::new(
         consumer,

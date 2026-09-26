@@ -19,7 +19,7 @@ pub struct DecodedExternalShapeLinkImportV1 {
 impl DecodedExternalShapeLinkImportV1 {
     pub fn validate_against(
         self,
-        expected: &ExternalShapeLinkImportV1<'_>,
+        expected: &ExternalShapeLinkImportV1,
     ) -> Result<(), ShapeLinkError> {
         if self.provider.verify(expected.provider()).is_err()
             || self

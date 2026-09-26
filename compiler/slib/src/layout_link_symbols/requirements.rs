@@ -1,8 +1,8 @@
 use super::*;
 
 pub(super) fn complete(
-    objects: &ReplayedLayoutLinkObjectContentsV1<'_>,
-    input: &ReplayInputs<'_, '_>,
+    objects: &ReplayedLayoutLinkObjectContentsV1,
+    input: &ReplayInputs<'_>,
     native: &lir::CanonicalNativeExternalRequirementSurfaceV1,
     shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
 ) -> Result<FinalizedLayoutUndefinedSymbolRequirementPartitionsV1, LayoutLinkSymbolUseError> {

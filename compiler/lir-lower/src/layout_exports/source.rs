@@ -87,7 +87,7 @@ impl lir::LayoutAbiSectionSourceAuthorityV1<Error> for LayoutAbiSourceProjection
 
     fn validate_physical_imports(
         &self,
-        imports: &[lir::ExternalShapeLinkImportV1<'_>],
+        imports: &[lir::ExternalShapeLinkImportV1],
     ) -> Result<(), Error> {
         physical::validate(&self.physical, imports)
     }

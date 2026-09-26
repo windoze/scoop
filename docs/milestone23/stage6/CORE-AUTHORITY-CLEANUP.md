@@ -40,6 +40,8 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 
 已完成产物拥有完整 manifest、typed IR 和对象信息；构建、缓存与消费路径共享这一结果，访问 Compile/Link 数据直接借用，不重新解码或重放闭包。依赖顺序、边和产物只保存一份，不以用途凭证包装两套重复状态。
 
+layout reader 的外部形状合同保留选中记录的完整 typed 数据，读取结果直接拥有 section 和 Link 信息，不依赖临时 arena 或高阶回调。依赖查询期间的正常借用保留；不能用借用生命周期或只读回调额外限制已经完整的编译数据。
+
 Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。
 
 发布复用同次编译结果及已检查依赖，不对当前产物和全依赖分别重开 Compile/Link 并完整重演。临时文件写入、同步与回读只用于确认实际写入内容，成功才原子替换。

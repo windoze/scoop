@@ -38,7 +38,8 @@ pub(super) fn check(
         )
     };
     let error = shared
-        .with_replayed_link_symbol_uses(profile, |_| panic!("invalid Code escaped"))
+        .replay_link_symbol_uses(profile)
+        .map(|_| panic!("invalid Code escaped"))
         .unwrap_err();
     assert_eq!(error.provider, reader::open_link(source).identity());
     let slib::SharedLirPhysicalError::LinkSymbolUses(error) = *error.source else {

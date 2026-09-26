@@ -6,11 +6,10 @@ pub(crate) struct LayoutPublicationParts<'a> {
     pub manifest: &'a crate::BootstrapManifest,
 }
 
-impl PhysicalImportsReplayedCrossConeLayoutSections<'_, '_> {
-    pub(crate) fn publication_parts(&mut self) -> LayoutPublicationParts<'_> {
-        let parts = self.prepared.semantic_parts();
+impl PhysicalImportsReplayedCrossConeLayoutSections {
+    pub(crate) fn publication_parts(&self) -> LayoutPublicationParts<'_> {
         LayoutPublicationParts {
-            manifest: parts.manifest,
+            manifest: self.manifest(),
         }
     }
 }

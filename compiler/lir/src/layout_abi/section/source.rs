@@ -9,6 +9,6 @@ pub trait LayoutAbiSectionSourceAuthorityV1<E> {
 
     fn validate_physical_imports(
         &self,
-        imports: &[crate::ExternalShapeLinkImportV1<'_>],
+        imports: &[crate::ExternalShapeLinkImportV1],
     ) -> Result<(), E>;
 }

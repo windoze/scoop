@@ -143,7 +143,7 @@ impl Provider {
         }
     }
 
-    pub fn import(&self, consumer: ConeIdentity) -> ExternalShapeLinkImportV1<'_> {
+    pub fn import(&self, consumer: ConeIdentity) -> ExternalShapeLinkImportV1 {
         let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: &self.foundation,
             production: &self.production,
@@ -236,10 +236,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
     fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
         Ok(&self.roots)
     }
-    fn validate_physical_imports(
-        &self,
-        imports: &[ExternalShapeLinkImportV1<'_>],
-    ) -> Result<(), ()> {
+    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
         (imports.len() == self.imports.len()
             && imports
                 .iter()

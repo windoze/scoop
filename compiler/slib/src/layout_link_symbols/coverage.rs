@@ -6,7 +6,7 @@ pub(super) fn replay(
     finalized: VerifiedEntryPatchSetV2,
     ordinary: &VerifiedCrossConeStrongRequirementClosureV1,
     shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
-    input: &ReplayInputs<'_, '_>,
+    input: &ReplayInputs<'_>,
 ) -> Result<
     (
         VerifiedCodeLinkObjectMemberSetV2,

@@ -34,7 +34,8 @@ pub(super) fn check(
         changed,
     );
     let error = shared
-        .with_replayed_link_symbol_uses(profile, |_| panic!("partial runtime replay escaped"))
+        .replay_link_symbol_uses(profile)
+        .map(|_| panic!("partial runtime replay escaped"))
         .unwrap_err();
     assert_eq!(error.provider, reader::open_link(artifact).identity());
     let slib::SharedLirPhysicalError::LinkSymbolUses(source) = *error.source else {

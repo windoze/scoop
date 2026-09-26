@@ -11,7 +11,7 @@ pub(super) struct ImportSymbolIndex {
 
 impl ImportSymbolIndex {
     pub(super) fn new(
-        imports: &CanonicalExternalShapeLinkImportsV1<'_>,
+        imports: &CanonicalExternalShapeLinkImportsV1,
         target: LirTargetProfile,
     ) -> Result<Self, LayoutLinkClosureError> {
         Self::from_requests(

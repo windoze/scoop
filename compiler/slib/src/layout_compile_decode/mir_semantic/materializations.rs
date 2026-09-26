@@ -12,8 +12,7 @@ impl<'input> PreparedCrossConeLayoutMirSections<'input> {
         &mut self,
         strong: &scoop_lir::StrongProductionSectionV2,
         profile: &scoop_lir::CBridgeToolchainProfileV1,
-    ) -> Result<crate::ReplayedLayoutLinkObjectContentsV1<'input>, crate::SharedLirPhysicalError>
-    {
+    ) -> Result<crate::ReplayedLayoutLinkObjectContentsV1, crate::SharedLirPhysicalError> {
         let link = self
             .view
             .link()

@@ -15,11 +15,10 @@ mod verification;
 pub use errors::LayoutLinkSymbolUseError;
 pub(crate) use verification::{ReplayInputs, replay};
 
-/// Owned symbols, final objects and a recomputed Code identity. Complete source
-/// relations remain necessary before this can become a qualified artifact.
+/// Complete symbols, final objects and the verified Code identity.
 #[derive(Debug)]
-pub struct ReplayedLayoutLinkSymbolUsesV1<'input> {
-    objects: ReplayedLayoutLinkObjectContentsV1<'input>,
+pub struct ReplayedLayoutLinkSymbolUsesV1 {
+    objects: ReplayedLayoutLinkObjectContentsV1,
     defined: CanonicalDefinedLinkSymbolOwnerSetV1,
     native: lir::CanonicalNativeExternalRequirementSurfaceV1,
     undefined: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
@@ -28,7 +27,7 @@ pub struct ReplayedLayoutLinkSymbolUsesV1<'input> {
     production: crate::SingleConeProductionCodeProjectionV1,
 }
 
-impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
+impl ReplayedLayoutLinkSymbolUsesV1 {
     pub const fn code_fingerprint(&self) -> crate::CodeFingerprint {
         self.code
     }
@@ -41,7 +40,7 @@ impl<'input> ReplayedLayoutLinkSymbolUsesV1<'input> {
         self.objects.provider()
     }
 
-    pub const fn object_contents(&self) -> &ReplayedLayoutLinkObjectContentsV1<'input> {
+    pub const fn object_contents(&self) -> &ReplayedLayoutLinkObjectContentsV1 {
         &self.objects
     }
 

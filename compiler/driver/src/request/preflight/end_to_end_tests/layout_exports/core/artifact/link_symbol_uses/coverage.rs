@@ -30,19 +30,14 @@ enum Case {
     EntryBranch,
 }
 
-pub(super) fn inspect(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> String {
+pub(super) fn inspect(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> String {
     let objects = proof.object_contents();
     let mut members = objects
         .objects()
         .objects()
         .iter()
         .map(|object| object.member())
-        .chain(
-            objects
-                .generated_objects()
-                .iter()
-                .map(|object| object.member()),
-        )
+        .chain(objects.generated_objects().map(|object| object.member()))
         .collect::<Vec<_>>();
     members.sort_unstable();
     assert_eq!(

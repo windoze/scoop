@@ -7,7 +7,7 @@ use scoop_identity::ConeIdentity;
 #[derive(Clone, Copy)]
 pub(in crate::production::strong_section::replay::layout_join) enum Selection<'s, 'p> {
     Complete(&'s SelectedDependencyLayoutAbiSetV1<'p>),
-    Replayed(&'s PhysicalImportsReplayedLayoutAbiSectionV1<'p>),
+    Replayed(&'s PhysicalImportsReplayedLayoutAbiSectionV1),
 }
 
 impl<'s, 'p> Selection<'s, 'p> {
@@ -32,7 +32,7 @@ impl<'s, 'p> Selection<'s, 'p> {
         }
     }
 
-    pub(super) fn physical(self) -> &'s CanonicalExternalShapeLinkImportsV1<'p> {
+    pub(super) fn physical(self) -> &'s CanonicalExternalShapeLinkImportsV1 {
         match self {
             Self::Complete(value) => value.physical_imports(),
             Self::Replayed(value) => value.physical_imports(),

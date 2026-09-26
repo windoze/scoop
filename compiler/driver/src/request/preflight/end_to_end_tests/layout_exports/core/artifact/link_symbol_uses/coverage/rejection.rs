@@ -40,9 +40,8 @@ pub(super) fn check(
         )
     };
     let error = shared
-        .with_replayed_link_symbol_uses(profile, |_| {
-            panic!("partial final object coverage escaped")
-        })
+        .replay_link_symbol_uses(profile)
+        .map(|_| panic!("partial final object coverage escaped"))
         .unwrap_err();
     assert_eq!(error.provider, reader::open_link(source).identity());
     let slib::SharedLirPhysicalError::LinkSymbolUses(source) = *error.source else {

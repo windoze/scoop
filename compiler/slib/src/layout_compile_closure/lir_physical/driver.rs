@@ -1,20 +1,26 @@
 use super::*;
 
+type PhysicalInput<'input> = LirConstituentsValidatedCrossConeLayoutSections<
+    'input,
+    lir::PhysicalImportsReplayedLayoutAbiSectionV1,
+    lir::CrossConeLirBridgeSectionV1,
+    lir::StrongProductionSectionV2,
+    mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
+>;
+
 impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
-    pub(super) fn with_replayed_physical<R, O>(
+    pub(super) fn replay_physical<O>(
         self,
         mut replay_objects: impl FnMut(
-            &mut PhysicalImportsReplayedCrossConeLayoutSections<'input, '_>,
+            &mut PhysicalInput<'input>,
             &[usize],
             &[O],
-            &[&PhysicalImportsReplayedCrossConeLayoutSections<'input, '_>],
+            &[PhysicalImportsReplayedCrossConeLayoutSections],
         ) -> Result<O, SharedLirPhysicalError>,
-        use_checked: impl for<'checked> FnOnce(
-            PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input>,
-            Vec<O>,
-        ) -> R,
-    ) -> Result<R, CrossConeLayoutLirPhysicalError> {
-        let arena = Arena::new();
+    ) -> Result<
+        (PhysicalImportsReplayedCrossConeLayoutClosure, Vec<O>),
+        CrossConeLayoutLirPhysicalError,
+    > {
         let mut complete = Vec::new();
         let mut objects = Vec::new();
         for (position, artifact) in self.dependency_first.into_iter().enumerate() {
@@ -36,7 +42,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     reachable.len(),
                     &WirePath::root(),
                 )?;
-                dependencies.extend(reachable.iter().map(|&index| complete[index]));
+                dependencies.extend(reachable.iter().map(|&index| &complete[index]));
                 let layout =
                     replay::physical(layout, &strong, &mir, &dependencies, parts.identities)?;
                 strong.validate_layout_selection(&layout)?;
@@ -47,7 +53,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
 
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 scoop_wire::allocation::try_reserve_count(&mut objects, 1, &WirePath::root())?;
-                let mut artifact = PhysicalImportsReplayedCrossConeLayoutSections {
+                let mut artifact = PhysicalInput {
                     prepared,
                     mir,
                     units,
@@ -56,6 +62,22 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     layout,
                 };
                 let object = replay_objects(&mut artifact, &reachable, &objects, &complete)?;
+                let PhysicalInput {
+                    prepared,
+                    mir,
+                    units,
+                    strong,
+                    ordinary,
+                    layout,
+                } = artifact;
+                let artifact = PhysicalImportsReplayedCrossConeLayoutSections {
+                    semantic: prepared.into_semantics(),
+                    mir,
+                    units,
+                    strong,
+                    ordinary,
+                    layout,
+                };
                 Ok((artifact, object))
             };
             let (artifact, object) =
@@ -63,10 +85,10 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     provider,
                     source: Box::new(source),
                 })?;
-            complete.push(&*arena.alloc(artifact));
+            complete.push(artifact);
             objects.push(object);
         }
-        Ok(use_checked(
+        Ok((
             PhysicalImportsReplayedCrossConeLayoutClosure {
                 current: self.current,
                 target: self.target,

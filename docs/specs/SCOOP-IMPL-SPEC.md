@@ -827,6 +827,8 @@ core 可在任意普通源码目录修改、扩展和重建。manifest、构建�
 
 完整 Compile/Link 读取结果拥有所需 manifest、typed IR 和对象信息，生命周期不依附原始解码借用。构建图、缓存命中和已完成节点共享这些完整结果；查询视图直接借用已保存数据，不为一次 accessor 再创建 session、重开原始字节或重放依赖闭包。一个依赖集合只保留一份顺序、边和产物表，Compile/Link 从同一集合读取各自数据，不设置用途凭证或复制两套状态。
 
+layout reader 按依赖顺序返回实际 section 和 Link 对象结果，外部形状合同保存选中 provider 的完整 typed 数据。临时查询可以借用依赖记录，但返回结果不依赖内部 arena 或高阶回调的生命周期；后续编译直接保留并查询这些结果，不重开产物来恢复同一合同。wire 仍保存相同的 provider、typed subject、definition、symbol 与语义字段，读取边界核对它们与实际依赖相符。
+
 共有 reader 在一个 envelope 上解码语义 section 和 Link 专用 section。身份图、canonical foundation 和 Strong production 经对应语义边界检查后共享保留；Link 直接使用它们验证 materialization、对象、符号和 relocation，不再次解码 HIR/MIR/LIR 或重建外来 bridge。独立输入的产物仍需完成各项检查；Compile 数据不能替代尚未读取和验证的 Link 对象。
 
 Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。

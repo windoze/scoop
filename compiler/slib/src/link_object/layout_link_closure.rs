@@ -72,7 +72,7 @@ impl<'a> CrossConeLayoutLinkClosureSectionV1<'a> {
     pub const fn consumer(&self) -> ConeIdentity {
         self.closure.producer()
     }
-    pub const fn semantic_imports(&self) -> &'a CanonicalExternalShapeLinkImportsV1<'a> {
+    pub const fn semantic_imports(&self) -> &'a CanonicalExternalShapeLinkImportsV1 {
         self.closure.semantic_imports()
     }
     pub fn requirements(&self) -> &'a [ExternalShapeUndefinedUseV1] {

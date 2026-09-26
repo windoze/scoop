@@ -4,10 +4,7 @@ use super::*;
 use crate::shape_link::ShapeLinkError;
 
 impl DecodedShapeLinkContractV1 {
-    pub fn validate_against(
-        self,
-        expected: &ShapeLinkContractV1<'_>,
-    ) -> Result<(), ShapeLinkError> {
+    pub fn validate_against(self, expected: &ShapeLinkContractV1) -> Result<(), ShapeLinkError> {
         let path = WirePath::root();
 
         match (self, expected) {
@@ -28,7 +25,7 @@ impl DecodedShapeLinkContractV1 {
                 }
 
                 let actual = encode_canonical_temporary(&canonical_signature, &path)?;
-                let wanted = encode_canonical_temporary(*expected_signature, &path)?;
+                let wanted = encode_canonical_temporary(expected_signature, &path)?;
 
                 if actual != wanted {
                     return Err(ShapeLinkError::Contract);
@@ -53,7 +50,7 @@ impl DecodedShapeLinkContractV1 {
                     return Err(ShapeLinkError::Contract);
                 }
                 let checked = canonical_scan.validate()?;
-                if checked.as_ref_scan() != *expected_scan {
+                if checked.as_ref_scan() != expected_scan {
                     return Err(ShapeLinkError::Contract);
                 }
             }
@@ -73,7 +70,7 @@ impl DecodedShapeLinkContractV1 {
             (
                 Self::Initialization(actual),
                 ShapeLinkContractV1::Initialization { unit_projection },
-            ) => actual.validate_against(*unit_projection)?,
+            ) => actual.validate_against(unit_projection)?,
             _ => return Err(ShapeLinkError::Contract),
         }
         Ok(())

@@ -20,7 +20,7 @@ pub(super) fn check(
         open_link(provider).into_shared_sections().unwrap(),
         link.into_shared_sections().unwrap(),
     );
-    let error = shared.with_replayed_physical_imports(|_| ()).unwrap_err();
+    let error = shared.replay_physical_imports().map(|_| ()).unwrap_err();
     assert_eq!(error.provider, layout.provider());
     assert!(matches!(
         *error.source,

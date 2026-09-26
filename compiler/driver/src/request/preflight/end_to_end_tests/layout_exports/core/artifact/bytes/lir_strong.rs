@@ -70,7 +70,8 @@ pub(super) fn check(
             .is_empty()
     );
     dependencies
-        .with_replayed_physical_imports(|physical| {
+        .replay_physical_imports()
+        .map(|physical| {
             assert_eq!(physical.current(), ConeIdentity::CORE);
             assert_eq!(physical.dependency_first().count(), 1);
             let current = physical.artifact(ConeIdentity::CORE).unwrap();

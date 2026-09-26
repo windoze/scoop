@@ -75,7 +75,7 @@ impl Source {
         provider: &ShapeLinkProviderV1<'a>,
         consumer: ConeIdentity,
         definitions: &StrongObjectSymbolSurfaceV1,
-    ) -> Vec<ExternalShapeLinkImportV1<'a>> {
+    ) -> Vec<ExternalShapeLinkImportV1> {
         self.physical
             .iter()
             .map(|(_, subject)| {
@@ -135,10 +135,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
         Ok(&self.roots)
     }
 
-    fn validate_physical_imports(
-        &self,
-        imports: &[ExternalShapeLinkImportV1<'_>],
-    ) -> Result<(), ()> {
+    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
         let actual = imports
             .iter()
             .map(|import| (import.provider(), import.subject()))

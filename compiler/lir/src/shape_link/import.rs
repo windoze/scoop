@@ -10,17 +10,17 @@ pub(super) use semantic::semantic_target;
 
 /// A provider-bound semantic import. Actual relocation coverage and selection
 /// remain obligations of the containing Link/Compile closure.
-#[derive(Clone, Copy, Debug)]
-pub struct ExternalShapeLinkImportV1<'a> {
+#[derive(Clone, Debug)]
+pub struct ExternalShapeLinkImportV1 {
     pub(super) provider: ConeIdentity,
     pub(super) subject: ExternalStrongShapeSubjectV1,
     pub(super) expected_symbol: PersistentSymbolRequest,
     pub(super) required_definition: ObjectDefinitionPlanId,
-    pub(super) contract: ShapeLinkContractV1<'a>,
+    pub(super) contract: ShapeLinkContractV1,
 }
 
-impl<'a> ExternalShapeLinkImportV1<'a> {
-    pub fn replay(
+impl ExternalShapeLinkImportV1 {
+    pub fn replay<'a>(
         provider: &ShapeLinkProviderV1<'a>,
         subject: ExternalStrongShapeSubjectV1,
         consumer: ConeIdentity,
@@ -41,12 +41,12 @@ impl<'a> ExternalShapeLinkImportV1<'a> {
     pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
         self.required_definition
     }
-    pub const fn contract(&self) -> &ShapeLinkContractV1<'a> {
+    pub const fn contract(&self) -> &ShapeLinkContractV1 {
         &self.contract
     }
 }
 
-impl WireEncode for ExternalShapeLinkImportV1<'_> {
+impl WireEncode for ExternalShapeLinkImportV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         encoder.map(5)?;
         field(encoder, 1, &self.provider)?;

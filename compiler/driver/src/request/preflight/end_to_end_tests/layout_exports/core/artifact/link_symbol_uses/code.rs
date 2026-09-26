@@ -23,7 +23,7 @@ enum Case {
 
 pub(super) fn inspect(
     artifact: &slib::AssembledCrossConeLayoutStrongArtifactV1,
-    proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>,
+    proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
 ) -> String {
     let expected = reader::open_link(artifact)
         .into_shared_sections()

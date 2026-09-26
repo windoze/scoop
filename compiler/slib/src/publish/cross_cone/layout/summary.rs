@@ -5,7 +5,7 @@ use crate::{ReplayedLayoutLinkSymbolUsesV1, layout_compile_closure::LayoutPublic
 
 pub(super) fn capture(
     parts: LayoutPublicationParts<'_>,
-    link: &ReplayedLayoutLinkSymbolUsesV1<'_>,
+    link: &ReplayedLayoutLinkSymbolUsesV1,
     target: ValidatedLirTargetSelection,
 ) -> PublishableCrossConeArtifact {
     let manifest = parts.manifest;

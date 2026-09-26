@@ -3,7 +3,7 @@ use crate::StrongLinkRegistrationDependencyFingerprintError as DependencyError;
 use crate::StrongLinkRegistrationLeafFingerprintError as LeafError;
 
 pub(super) fn replay(
-    objects: &ReplayedLayoutLinkObjectContentsV1<'_>,
+    objects: &ReplayedLayoutLinkObjectContentsV1,
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     candidates: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongRegistrationPatchSetV2, LayoutLinkSymbolUseError> {

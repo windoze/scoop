@@ -222,7 +222,8 @@ pub(super) fn check(
                     ("link", reader::read_link(core_artifact, &artifact)),
                 ] {
                     closure
-                        .with_replayed_physical_imports(|physical| {
+                        .replay_physical_imports()
+                        .map(|physical| {
                             let current = physical.artifact(mir.provider()).unwrap();
                             assert_eq!(current.link_sections().is_some(), view == "link");
                             assert_eq!(

@@ -88,7 +88,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         consumer: ConeIdentity,
         consumer_definitions: &StrongObjectSymbolSurfaceV1,
         support: &dyn ShapeLinkSupportLookupV1<'a>,
-    ) -> Result<ExternalShapeLinkImportV1<'a>, ShapeLinkError> {
+    ) -> Result<ExternalShapeLinkImportV1, ShapeLinkError> {
         if consumer == self.provider() {
             return Err(ShapeLinkError::LocalImport);
         }
@@ -125,12 +125,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
             required_definition: physical.definition(),
             contract,
         };
-        import.validate_semantic_against(
-            self.parts.layouts,
-            self.parts.callables,
-            self.parts.descriptors,
-            self.parts.dispatch,
-        )?;
         Ok(import)
     }
 }

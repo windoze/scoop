@@ -6,7 +6,7 @@ pub(crate) fn replay<'input>(
     foundation: &lir::OdrFreeLirFoundation,
     strong: &lir::StrongProductionSectionV2,
     profile: &lir::CBridgeToolchainProfileV1,
-) -> Result<ReplayedLayoutLinkObjectContentsV1<'input>, crate::SharedLirPhysicalError> {
+) -> Result<ReplayedLayoutLinkObjectContentsV1, crate::SharedLirPhysicalError> {
     let partition = lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(foundation)
         .map_err(crate::StrongLinkMaterializationError::ProducerUnits)?;
     let wire = link.link_identity_closure_wire();

@@ -299,10 +299,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for ProductionSelectionSource {
         Ok(&self.roots)
     }
 
-    fn validate_physical_imports(
-        &self,
-        imports: &[ExternalShapeLinkImportV1<'_>],
-    ) -> Result<(), ()> {
+    fn validate_physical_imports(&self, imports: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
         let actual = imports
             .iter()
             .map(|record| (record.provider(), record.subject()))

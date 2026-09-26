@@ -2,36 +2,19 @@ use super::*;
 use crate::{ReplayedLayoutLinkSymbolUsesV1, layout_link_symbols};
 
 /// Symbol uses and provider owners from the same owned physical replay.
-pub struct LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'input> {
-    physical: PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input>,
-    symbols: Vec<ReplayedLayoutLinkSymbolUsesV1<'input>>,
+pub struct LinkSymbolsReplayedCrossConeLayoutClosure {
+    physical: PhysicalImportsReplayedCrossConeLayoutClosure,
+    symbols: Vec<ReplayedLayoutLinkSymbolUsesV1>,
 }
 
 impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
-    pub fn with_replayed_link_symbol_uses<R>(
+    pub fn replay_link_symbol_uses(
         self,
         profile: &lir::CBridgeToolchainProfileV1,
-        use_checked: impl for<'checked> FnOnce(
-            LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'input>,
-        ) -> R,
-    ) -> Result<R, CrossConeLayoutLirPhysicalError> {
-        self.with_replayed_link_symbol_uses_and(profile, |_, _| Ok(()), use_checked)
-    }
-
-    pub(crate) fn with_replayed_link_symbol_uses_and<R>(
-        self,
-        profile: &lir::CBridgeToolchainProfileV1,
-        mut project: impl FnMut(
-            &mut PhysicalImportsReplayedCrossConeLayoutSections<'input, '_>,
-            &ReplayedLayoutLinkSymbolUsesV1<'input>,
-        ) -> Result<(), SharedLirPhysicalError>,
-        use_checked: impl for<'checked> FnOnce(
-            LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'input>,
-        ) -> R,
-    ) -> Result<R, CrossConeLayoutLirPhysicalError> {
+    ) -> Result<LinkSymbolsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError> {
         let selection = self.target;
-        self.with_replayed_physical(
-            |artifact, reachable, previous, physical| {
+        let (physical, symbols) =
+            self.replay_physical(|artifact, reachable, previous, physical| {
                 let objects = artifact
                     .prepared
                     .replay_link_object_contents(&artifact.strong, profile)?;
@@ -58,20 +41,14 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     physical.iter().map(|artifact| &artifact.layout),
                     reachable,
                 )?;
-                project(artifact, &symbols)?;
                 Ok(symbols)
-            },
-            |physical, symbols| {
-                use_checked(LinkSymbolsReplayedCrossConeLayoutClosure { physical, symbols })
-            },
-        )
+            })?;
+        Ok(LinkSymbolsReplayedCrossConeLayoutClosure { physical, symbols })
     }
 }
 
-impl<'checked, 'input> LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'input> {
-    pub const fn physical_imports(
-        &self,
-    ) -> &PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input> {
+impl LinkSymbolsReplayedCrossConeLayoutClosure {
+    pub const fn physical_imports(&self) -> &PhysicalImportsReplayedCrossConeLayoutClosure {
         &self.physical
     }
 
@@ -79,8 +56,8 @@ impl<'checked, 'input> LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'inpu
         &self,
     ) -> impl ExactSizeIterator<
         Item = (
-            &'checked PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked>,
-            &ReplayedLayoutLinkSymbolUsesV1<'input>,
+            &PhysicalImportsReplayedCrossConeLayoutSections,
+            &ReplayedLayoutLinkSymbolUsesV1,
         ),
     > {
         self.physical.dependency_first().zip(&self.symbols)
@@ -90,12 +67,12 @@ impl<'checked, 'input> LinkSymbolsReplayedCrossConeLayoutClosure<'checked, 'inpu
         &self,
         provider: ConeIdentity,
     ) -> Option<(
-        &'checked PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked>,
-        &ReplayedLayoutLinkSymbolUsesV1<'input>,
+        &PhysicalImportsReplayedCrossConeLayoutSections,
+        &ReplayedLayoutLinkSymbolUsesV1,
     )> {
         self.physical
             .positions
             .get(&provider)
-            .map(|&index| (self.physical.artifacts[index], &self.symbols[index]))
+            .map(|&index| (&self.physical.artifacts[index], &self.symbols[index]))
     }
 }

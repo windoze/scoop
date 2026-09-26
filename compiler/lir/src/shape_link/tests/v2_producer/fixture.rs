@@ -242,7 +242,7 @@ pub(super) fn consumer_layout_section<'a>(
     registrations: &StrongRegistrationProductionSurfaceV2,
     provider: &'a Provider,
     dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-    imports: Vec<ExternalShapeLinkImportV1<'a>>,
+    imports: Vec<ExternalShapeLinkImportV1>,
 ) -> CrossConeLayoutAbiSectionV1<'a> {
     let source = nominal(output.foundation().producer(), "Child");
     let exact_record = exact(&source);

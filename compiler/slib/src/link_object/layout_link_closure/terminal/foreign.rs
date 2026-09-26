@@ -5,7 +5,7 @@ use super::*;
 pub(crate) fn reject_layout_foreign_strong_owners_v1<'a>(
     consumer: ConeIdentity,
     target: scoop_lir::LirTargetProfile,
-    imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1<'_>,
+    imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1,
     owners: impl Iterator<Item = &'a CanonicalDefinedLinkSymbolOwnerSetV1> + Clone,
 ) -> Result<(), CrossConeLayoutTerminalValidationError> {
     for import in imports.records() {

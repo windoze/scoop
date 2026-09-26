@@ -1,11 +1,10 @@
-//! Shared physical replay borrows actual dependencies inside one owned scope.
+//! Complete physical imports retained with their dependency sections.
 
 use scoop_identity::ConeIdentity;
 use scoop_lir as lir;
 use scoop_mir as mir;
 use scoop_wire::WirePath;
 use std::{collections::BTreeMap, convert::Infallible};
-use typed_arena::Arena;
 
 use super::{
     LirDependencyGraphReplayedCrossConeLayoutClosure,
@@ -14,6 +13,7 @@ use super::{
 };
 use crate::dependency_reachability::transitive_positions;
 
+mod accessors;
 mod driver;
 mod errors;
 mod objects;
@@ -26,44 +26,40 @@ pub use objects::LinkObjectsReplayedCrossConeLayoutClosure;
 pub(crate) use publication::LayoutPublicationParts;
 pub use symbols::LinkSymbolsReplayedCrossConeLayoutClosure;
 
-pub type PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked> =
-    LirConstituentsValidatedCrossConeLayoutSections<
-        'input,
-        lir::PhysicalImportsReplayedLayoutAbiSectionV1<'checked>,
-        lir::CrossConeLirBridgeSectionV1,
-        lir::StrongProductionSectionV2,
-        mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
-    >;
+pub struct PhysicalImportsReplayedCrossConeLayoutSections {
+    semantic: crate::layout_compile_decode::LayoutSemanticSections,
+    mir: mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
+    units: Vec<mir::MirTypeBridgeInitializationUnitV1>,
+    strong: lir::StrongProductionSectionV2,
+    ordinary: lir::CrossConeLirBridgeSectionV1,
+    layout: lir::PhysicalImportsReplayedLayoutAbiSectionV1,
+}
 
 /// Read-only physical joins; Link consumption additionally checks object uses.
-pub struct PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input> {
+pub struct PhysicalImportsReplayedCrossConeLayoutClosure {
     current: ConeIdentity,
     target: lir::ValidatedLirTargetSelection,
     direct: Vec<ConeIdentity>,
-    artifacts: Vec<&'checked PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked>>,
+    artifacts: Vec<PhysicalImportsReplayedCrossConeLayoutSections>,
     positions: BTreeMap<ConeIdentity, usize>,
 }
 
 impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
-    pub fn with_replayed_physical_imports<R>(
+    pub fn replay_physical_imports(
         self,
-        use_checked: impl for<'checked> FnOnce(
-            PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input>,
-        ) -> R,
-    ) -> Result<R, CrossConeLayoutLirPhysicalError> {
-        self.with_replayed_physical(
-            |artifact, _, _, _| {
-                artifact
-                    .prepared
-                    .validate_link_materializations()
-                    .map_err(SharedLirPhysicalError::from)
-            },
-            |physical, _: Vec<()>| use_checked(physical),
-        )
+    ) -> Result<PhysicalImportsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError>
+    {
+        self.replay_physical(|artifact, _, _, _| {
+            artifact
+                .prepared
+                .validate_link_materializations()
+                .map_err(SharedLirPhysicalError::from)
+        })
+        .map(|(physical, _)| physical)
     }
 }
 
-impl<'checked, 'input> PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input> {
+impl PhysicalImportsReplayedCrossConeLayoutClosure {
     pub const fn current(&self) -> ConeIdentity {
         self.current
     }
@@ -75,26 +71,24 @@ impl<'checked, 'input> PhysicalImportsReplayedCrossConeLayoutClosure<'checked, '
     }
     pub fn dependency_first(
         &self,
-    ) -> impl ExactSizeIterator<
-        Item = &'checked PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked>,
-    > + '_ {
-        self.artifacts.iter().copied()
+    ) -> impl ExactSizeIterator<Item = &PhysicalImportsReplayedCrossConeLayoutSections> + '_ {
+        self.artifacts.iter()
     }
     pub fn artifact(
         &self,
         provider: ConeIdentity,
-    ) -> Option<&'checked PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked>> {
+    ) -> Option<&PhysicalImportsReplayedCrossConeLayoutSections> {
         self.positions
             .get(&provider)
-            .map(|&index| self.artifacts[index])
+            .map(|&index| &self.artifacts[index])
     }
 }
 
-impl<'checked> PhysicalImportsReplayedCrossConeLayoutSections<'_, 'checked> {
+impl PhysicalImportsReplayedCrossConeLayoutSections {
     pub fn lir_exports(&self) -> &lir::LayoutAbiExportConstituentsV1 {
         self.layout.exports()
     }
-    pub fn lir_physical_imports(&self) -> &lir::CanonicalExternalShapeLinkImportsV1<'checked> {
+    pub fn lir_physical_imports(&self) -> &lir::CanonicalExternalShapeLinkImportsV1 {
         self.layout.physical_imports()
     }
     pub fn lir_strong_production(&self) -> &lir::StrongProductionSectionV2 {

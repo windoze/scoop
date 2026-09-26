@@ -23,7 +23,7 @@ impl StrongProductionSectionV2 {
 
     pub fn validate_layout_selection(
         &self,
-        layout: &crate::PhysicalImportsReplayedLayoutAbiSectionV1<'_>,
+        layout: &crate::PhysicalImportsReplayedLayoutAbiSectionV1,
     ) -> Result<(), StrongProductionLayoutJoinError> {
         local::validate(self, layout.exports())?;
         selected::validate(self, selected::Selection::Replayed(layout))

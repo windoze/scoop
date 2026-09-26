@@ -74,7 +74,8 @@ fn reject(
         )
     };
     let error = shared
-        .with_replayed_link_symbol_uses(profile, |_| panic!("partial symbol-use closure escaped"))
+        .replay_link_symbol_uses(profile)
+        .map(|_| panic!("partial symbol-use closure escaped"))
         .unwrap_err();
     assert_eq!(error.provider, reader::open_link(source).identity());
     let slib::SharedLirPhysicalError::LinkSymbolUses(source) = *error.source else {
@@ -126,7 +127,8 @@ pub(super) fn views(
         ),
     ] {
         let error = input
-            .with_replayed_link_symbol_uses(profile, |_| panic!("Compile symbols accepted"))
+            .replay_link_symbol_uses(profile)
+            .map(|_| panic!("Compile symbols accepted"))
             .unwrap_err();
         assert_eq!(error.provider, provider);
         assert!(

@@ -3,7 +3,7 @@ use scoop_wire::{Encoder, WireEncode};
 use super::*;
 use crate::shape_link::wire::{EncodeResult, field};
 
-impl WireEncode for ShapeLinkContractV1<'_> {
+impl WireEncode for ShapeLinkContractV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         encoder.map(
             if matches!(self, Self::CallableAbi { .. } | Self::Scan { .. }) {
@@ -20,7 +20,7 @@ impl WireEncode for ShapeLinkContractV1<'_> {
                 calling_convention,
                 protocol,
             } => {
-                field(encoder, 1, *canonical_signature)?;
+                field(encoder, 1, canonical_signature)?;
                 field(encoder, 2, calling_convention)?;
                 field(encoder, 3, protocol)
             }

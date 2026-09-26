@@ -204,7 +204,7 @@ pub(super) fn changed_layout_section(provider: &Provider) -> CrossConeLayoutAbiS
         }
         fn validate_physical_imports(
             &self,
-            imports: &[ExternalShapeLinkImportV1<'_>],
+            imports: &[ExternalShapeLinkImportV1],
         ) -> Result<(), ()> {
             imports.is_empty().then_some(()).ok_or(())
         }

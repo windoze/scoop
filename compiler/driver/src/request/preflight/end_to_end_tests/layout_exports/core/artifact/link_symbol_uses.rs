@@ -50,11 +50,30 @@ pub(super) fn check(
     let mut runtime_cases = Vec::new();
     let mut coverage_dump = String::new();
     let mut code_dump = String::new();
-    reader::read_link(core, artifact)
-        .with_replayed_link_symbol_uses(profile, |closure| {
+    let complete = {
+        let snapshots = [core.as_bytes().to_vec(), artifact.as_bytes().to_vec()];
+        let mut sections = snapshots.iter().map(|bytes| {
+            slib::DecodedSlibEnvelope::open(bytes, artifact.target_selection())
+                .unwrap()
+                .validate_graph()
+                .unwrap()
+                .decode_cross_cone_layout_link_sections()
+                .unwrap()
+                .into_shared_sections()
+                .unwrap()
+        });
+        let core = sections.next().unwrap();
+        let current = sections.next().unwrap();
+        reader::read_sections(core, current).replay_link_symbol_uses(profile)
+    };
+    // The complete result remains usable after both raw archive buffers are dropped.
+    complete
+        .map(|closure| {
             assert_eq!(closure.dependency_first().len(), 2);
             for (physical, proof) in closure.dependency_first() {
                 assert_eq!(physical.identity(), proof.provider());
+                assert_eq!(physical.manifest().cone().identity(), physical.identity());
+                assert_eq!(physical.lir_foundation().producer(), physical.identity());
                 assert_eq!(
                     closure.artifact(proof.provider()).unwrap().1.provider(),
                     proof.provider()

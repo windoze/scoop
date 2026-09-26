@@ -2,37 +2,27 @@ use super::*;
 use crate::ReplayedLayoutLinkObjectContentsV1;
 
 /// Object replay and physical imports from one owned, dependency-first read.
-/// This state cannot publish code or bypass the remaining source/use joins.
-pub struct LinkObjectsReplayedCrossConeLayoutClosure<'checked, 'input> {
-    physical: PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input>,
-    objects: Vec<ReplayedLayoutLinkObjectContentsV1<'input>>,
+pub struct LinkObjectsReplayedCrossConeLayoutClosure {
+    physical: PhysicalImportsReplayedCrossConeLayoutClosure,
+    objects: Vec<ReplayedLayoutLinkObjectContentsV1>,
 }
 
 impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
-    pub fn with_replayed_link_object_contents<R>(
+    pub fn replay_link_object_contents(
         self,
         profile: &lir::CBridgeToolchainProfileV1,
-        use_checked: impl for<'checked> FnOnce(
-            LinkObjectsReplayedCrossConeLayoutClosure<'checked, 'input>,
-        ) -> R,
-    ) -> Result<R, CrossConeLayoutLirPhysicalError> {
-        self.with_replayed_physical(
-            |artifact, _, _, _| {
-                artifact
-                    .prepared
-                    .replay_link_object_contents(&artifact.strong, profile)
-            },
-            |physical, objects| {
-                use_checked(LinkObjectsReplayedCrossConeLayoutClosure { physical, objects })
-            },
-        )
+    ) -> Result<LinkObjectsReplayedCrossConeLayoutClosure, CrossConeLayoutLirPhysicalError> {
+        let (physical, objects) = self.replay_physical(|artifact, _, _, _| {
+            artifact
+                .prepared
+                .replay_link_object_contents(&artifact.strong, profile)
+        })?;
+        Ok(LinkObjectsReplayedCrossConeLayoutClosure { physical, objects })
     }
 }
 
-impl<'checked, 'input> LinkObjectsReplayedCrossConeLayoutClosure<'checked, 'input> {
-    pub const fn physical_imports(
-        &self,
-    ) -> &PhysicalImportsReplayedCrossConeLayoutClosure<'checked, 'input> {
+impl LinkObjectsReplayedCrossConeLayoutClosure {
+    pub const fn physical_imports(&self) -> &PhysicalImportsReplayedCrossConeLayoutClosure {
         &self.physical
     }
 
@@ -40,8 +30,8 @@ impl<'checked, 'input> LinkObjectsReplayedCrossConeLayoutClosure<'checked, 'inpu
         &self,
     ) -> impl ExactSizeIterator<
         Item = (
-            &'checked PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked>,
-            &ReplayedLayoutLinkObjectContentsV1<'input>,
+            &PhysicalImportsReplayedCrossConeLayoutSections,
+            &ReplayedLayoutLinkObjectContentsV1,
         ),
     > {
         self.physical.dependency_first().zip(&self.objects)
@@ -51,12 +41,12 @@ impl<'checked, 'input> LinkObjectsReplayedCrossConeLayoutClosure<'checked, 'inpu
         &self,
         provider: ConeIdentity,
     ) -> Option<(
-        &'checked PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked>,
-        &ReplayedLayoutLinkObjectContentsV1<'input>,
+        &PhysicalImportsReplayedCrossConeLayoutSections,
+        &ReplayedLayoutLinkObjectContentsV1,
     )> {
         self.physical
             .positions
             .get(&provider)
-            .map(|&index| (self.physical.artifacts[index], &self.objects[index]))
+            .map(|&index| (&self.physical.artifacts[index], &self.objects[index]))
     }
 }

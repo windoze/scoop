@@ -8,7 +8,7 @@ pub(super) enum SelectionInput {
 pub(super) fn producer<'a, E>(
     exports: LayoutAbiExportConstituentsV1,
     dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-    physical_imports: Vec<crate::ExternalShapeLinkImportV1<'a>>,
+    physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
     source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
 ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
     let dependencies =
@@ -27,7 +27,7 @@ pub(super) fn producer<'a, E>(
 pub(super) fn complete<'a, E>(
     exports: LayoutAbiExportConstituentsV1,
     dependencies: Vec<&'a CrossConeLayoutAbiSectionV1<'a>>,
-    physical_imports: crate::CanonicalExternalShapeLinkImportsV1<'a>,
+    physical_imports: crate::CanonicalExternalShapeLinkImportsV1,
     selection: SelectionInput,
     source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
 ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
@@ -116,7 +116,7 @@ fn validate_physical<E>(
     consumer: ConeIdentity,
     dependencies: &[&CrossConeLayoutAbiSectionV1<'_>],
     semantic: &[SelectedLayoutAbiEntryV1<'_>],
-    physical: &crate::CanonicalExternalShapeLinkImportsV1<'_>,
+    physical: &crate::CanonicalExternalShapeLinkImportsV1,
 ) -> Result<(), LayoutAbiSectionError<E>> {
     for import in physical.records() {
         if import.provider() == consumer {

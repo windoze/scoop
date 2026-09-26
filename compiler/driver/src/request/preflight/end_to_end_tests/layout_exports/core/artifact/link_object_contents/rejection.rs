@@ -54,7 +54,8 @@ pub(super) fn mutation(
         )
     };
     let error = shared
-        .with_replayed_link_object_contents(profile, |_| panic!("partial object closure escaped"))
+        .replay_link_object_contents(profile)
+        .map(|_| panic!("partial object closure escaped"))
         .unwrap_err();
     assert_eq!(error.provider, provider);
     let slib::SharedLirPhysicalError::LinkObjectContents(source) = *error.source else {
@@ -117,7 +118,8 @@ pub(super) fn views_and_profile(
         ),
     ] {
         let error = shared
-            .with_replayed_link_object_contents(profile, |_| panic!("Compile objects accepted"))
+            .replay_link_object_contents(profile)
+            .map(|_| panic!("Compile objects accepted"))
             .unwrap_err();
         assert_eq!(error.provider, provider);
         assert!(
@@ -139,7 +141,8 @@ pub(super) fn views_and_profile(
     .unwrap();
     assert_ne!(wrong.fingerprint(), profile.fingerprint());
     let error = reader::read_link(core, artifact)
-        .with_replayed_link_object_contents(&wrong, |_| panic!("wrong C profile accepted"))
+        .replay_link_object_contents(&wrong)
+        .map(|_| panic!("wrong C profile accepted"))
         .unwrap_err();
     assert_eq!(error.provider, bridge_provider);
     assert!(

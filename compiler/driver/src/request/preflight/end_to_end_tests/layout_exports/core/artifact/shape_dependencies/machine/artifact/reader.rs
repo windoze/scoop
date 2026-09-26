@@ -72,7 +72,8 @@ pub(super) fn check(
         expected.len(),
     );
     closure
-        .with_replayed_physical_imports(|physical| {
+        .replay_physical_imports()
+        .map(|physical| {
             let current = physical.artifact(layout.provider()).unwrap();
             assert_eq!(current.lir_exports(), layout.exports());
             let imports = current.lir_physical_imports();

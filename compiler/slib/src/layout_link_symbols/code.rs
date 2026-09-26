@@ -9,7 +9,7 @@ pub(super) fn replay(
     defined: &CanonicalDefinedLinkSymbolOwnerSetV1,
     native: &lir::CanonicalNativeExternalRequirementSurfaceV1,
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-    input: &ReplayInputs<'_, '_>,
+    input: &ReplayInputs<'_>,
 ) -> Result<
     (
         crate::CodeFingerprint,

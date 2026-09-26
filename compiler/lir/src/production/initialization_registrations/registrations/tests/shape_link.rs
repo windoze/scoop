@@ -174,7 +174,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
         Ok(&[])
     }
 
-    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1<'_>]) -> Result<(), ()> {
+    fn validate_physical_imports(&self, _: &[ExternalShapeLinkImportV1]) -> Result<(), ()> {
         Ok(())
     }
 }
@@ -182,7 +182,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
 fn layout_section<'a>(
     exports: LayoutAbiExportConstituentsV1,
     dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
-    imports: Vec<ExternalShapeLinkImportV1<'a>>,
+    imports: Vec<ExternalShapeLinkImportV1>,
 ) -> CrossConeLayoutAbiSectionV1<'a> {
     CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &LayoutSource).unwrap()
 }

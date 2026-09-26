@@ -45,26 +45,19 @@ pub fn validate_publishable_cross_cone_layout_artifact(
     .map_err(|source| Error::Semantic {
         source: Box::new(source),
     })?;
-    let mut publication = None;
-    semantic
-        .with_replayed_link_symbol_uses_and(
-            c_bridge_profile,
-            |artifact, symbols| {
-                if symbols.provider() == current {
-                    publication = Some(summary::capture(
-                        artifact.publication_parts(),
-                        symbols,
-                        target,
-                    ));
-                }
-                Ok(())
-            },
-            |_| (),
-        )
+    let complete = semantic
+        .replay_link_symbol_uses(c_bridge_profile)
         .map_err(|source| Error::Physical {
             source: Box::new(source),
         })?;
-    publication.ok_or(Error::MissingCurrentArtifact)
+    let (artifact, symbols) = complete
+        .artifact(current)
+        .ok_or(Error::MissingCurrentArtifact)?;
+    Ok(summary::capture(
+        artifact.publication_parts(),
+        symbols,
+        target,
+    ))
 }
 
 /// Atomically publishes the final archive after its shared validation succeeds.

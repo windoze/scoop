@@ -17,7 +17,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for Source {
 
     fn validate_physical_imports(
         &self,
-        imports: &[crate::ExternalShapeLinkImportV1<'_>],
+        imports: &[crate::ExternalShapeLinkImportV1],
     ) -> Result<(), ()> {
         if imports.is_empty() { Ok(()) } else { Err(()) }
     }

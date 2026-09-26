@@ -7,7 +7,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         subject: ExternalStrongShapeSubjectV1,
         physical: StrongShapeDefinitionRefV1,
         support: &dyn ShapeLinkSupportLookupV1<'a>,
-    ) -> Result<ShapeLinkContractV1<'a>, ShapeLinkError> {
+    ) -> Result<ShapeLinkContractV1, ShapeLinkError> {
         use ExternalStrongShapeSubjectV1 as Subject;
 
         Ok(match subject {
@@ -34,7 +34,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                     return Err(ShapeLinkError::DefinitionRelation(subject));
                 }
                 ShapeLinkContractV1::CallableAbi {
-                    canonical_signature: record.canonical_signature(),
+                    canonical_signature: record.canonical_signature().clone(),
                     calling_convention: record.calling_convention(),
                     protocol: record.call_protocol(),
                 }
@@ -48,7 +48,9 @@ impl<'a> ShapeLinkProviderV1<'a> {
                 if record.identity().physical_definition() != physical {
                     return Err(ShapeLinkError::DefinitionRelation(subject));
                 }
-                ShapeLinkContractV1::Layout { record }
+                ShapeLinkContractV1::Layout {
+                    record: record.clone(),
+                }
             }
             Subject::Scan(scan) => {
                 let binding = self
@@ -87,16 +89,16 @@ impl<'a> ShapeLinkProviderV1<'a> {
                 ShapeLinkContractV1::Scan {
                     layout: record.identity().layout(),
                     role: binding.key().role(),
-                    canonical_scan,
+                    canonical_scan: canonical_scan.clone(),
                 }
             }
             Subject::TypeDescriptor(exact) | Subject::TypeRegistration(exact) => {
                 ShapeLinkContractV1::Type {
-                    descriptor_projection: self.descriptor(exact, subject, physical)?,
+                    descriptor_projection: self.descriptor(exact, subject, physical)?.clone(),
                 }
             }
             Subject::DispatchTable(table) => ShapeLinkContractV1::Dispatch {
-                table_projection: self.dispatch(table, physical)?,
+                table_projection: self.dispatch(table, physical)?.clone(),
             },
             Subject::StaticStorage(_)
             | Subject::StaticStorageRegistration(_)

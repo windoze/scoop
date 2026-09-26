@@ -22,11 +22,14 @@ fn shape_link_canonical_table_sorts_real_imports_and_rejects_duplicate_or_wire_o
     });
     let table = CanonicalExternalShapeLinkImportsV1::from_checked(imports.to_vec()).unwrap();
     let reversed =
-        CanonicalExternalShapeLinkImportsV1::from_checked(imports.into_iter().rev().collect())
+        CanonicalExternalShapeLinkImportsV1::from_checked(imports.iter().cloned().rev().collect())
             .unwrap();
     assert_eq!(encode(&table).unwrap(), encode(&reversed).unwrap());
     assert!(matches!(
-        CanonicalExternalShapeLinkImportsV1::from_checked(vec![imports[0], imports[0]]),
+        CanonicalExternalShapeLinkImportsV1::from_checked(vec![
+            imports[0].clone(),
+            imports[0].clone()
+        ]),
         Err(ShapeLinkError::Duplicate { .. })
     ));
     let bytes = encode(&table).unwrap();

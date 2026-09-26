@@ -6,7 +6,7 @@ pub(super) fn replay<'input>(
     patches: VerifiedScoopLirDigestPatchSiteSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     strong: &lir::StrongProductionSectionV2,
-) -> Result<ReplayedLayoutLinkObjectContentsV1<'input>, LayoutLinkObjectContentsError> {
+) -> Result<ReplayedLayoutLinkObjectContentsV1, LayoutLinkObjectContentsError> {
     let candidates = objects.candidates();
 
     macro_rules! verify {
@@ -35,9 +35,18 @@ pub(super) fn replay<'input>(
     let plan = strong.safepoint_registrations();
     let safepoints =
         verify_strong_safepoint_registrations_v1(stackmaps, patches, plan.clone(), &candidates)?;
+    let path = scoop_wire::WirePath::root();
+    let mut generated_bytes = Vec::new();
+    scoop_wire::allocation::try_reserve(&mut generated_bytes, generated.len(), &path)?;
+    for object in generated {
+        let mut bytes = Vec::new();
+        scoop_wire::allocation::try_reserve(&mut bytes, object.bytes().len(), &path)?;
+        bytes.extend_from_slice(object.bytes());
+        generated_bytes.push((object.member(), bytes));
+    }
     Ok(ReplayedLayoutLinkObjectContentsV1 {
         objects,
-        generated,
+        generated: generated_bytes,
         safepoints,
         callables,
         types,

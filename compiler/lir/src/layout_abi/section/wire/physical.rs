@@ -1,14 +1,13 @@
-//! Terminal physical contracts, still without complete source/use authority.
+//! Complete physical contracts resolved against actual dependency records.
 
 use super::*;
 use crate::{CanonicalExternalShapeLinkImportsV1, ShapeLinkProviderV1, ShapeLinkSupportLookupV1};
 
-/// Owns the original exports and borrows only checked terminal contracts. No
-/// encoder or conversion grants a complete section or a branded selected ref.
-pub struct PhysicalImportsReplayedLayoutAbiSectionV1<'a> {
+/// Owns the exports, selected relations and resolved physical contracts.
+pub struct PhysicalImportsReplayedLayoutAbiSectionV1 {
     exports: LayoutAbiExportConstituentsV1,
     semantic: Vec<LayoutAbiDependencyV1>,
-    physical: CanonicalExternalShapeLinkImportsV1<'a>,
+    physical: CanonicalExternalShapeLinkImportsV1,
 }
 
 impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
@@ -18,7 +17,7 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
         dependencies: &[ShapeLinkProviderV1<'a>],
         support: &dyn ShapeLinkSupportLookupV1<'a>,
         identities: &mut ValidatedIdentityGraph,
-    ) -> Result<PhysicalImportsReplayedLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
+    ) -> Result<PhysicalImportsReplayedLayoutAbiSectionV1, LayoutAbiSectionError<E>> {
         let path = WirePath::root();
         let mut providers = std::collections::HashSet::new();
 
@@ -64,14 +63,14 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
     }
 }
 
-impl<'a> PhysicalImportsReplayedLayoutAbiSectionV1<'a> {
+impl PhysicalImportsReplayedLayoutAbiSectionV1 {
     pub const fn exports(&self) -> &LayoutAbiExportConstituentsV1 {
         &self.exports
     }
     pub fn selected_relations(&self) -> &[LayoutAbiDependencyV1] {
         &self.semantic
     }
-    pub const fn physical_imports(&self) -> &CanonicalExternalShapeLinkImportsV1<'a> {
+    pub const fn physical_imports(&self) -> &CanonicalExternalShapeLinkImportsV1 {
         &self.physical
     }
 }

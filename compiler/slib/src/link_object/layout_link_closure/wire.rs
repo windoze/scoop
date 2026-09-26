@@ -100,7 +100,7 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
     /// sections. Actual relocation and object coverage remain separate checks.
     pub fn validate_physical_imports_against(
         &self,
-        imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1<'_>,
+        imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1,
     ) -> Result<(), LayoutLinkClosureError> {
         if !same_bytes(&self.semantic_imports, imports)? {
             return Err(LayoutLinkClosureError::SemanticImports(

@@ -3,7 +3,7 @@
 use super::*;
 
 pub fn verify_replayed_layout_strong_owners_v1(
-    layout: &scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1<'_>,
+    layout: &scoop_lir::PhysicalImportsReplayedLayoutAbiSectionV1,
     current: &CanonicalDefinedLinkSymbolOwnerSetV1,
     dependencies: &[CanonicalDefinedLinkSymbolOwnerSetV1],
 ) -> Result<(), CrossConeLayoutTerminalValidationError> {

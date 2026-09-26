@@ -62,7 +62,7 @@ fn reject(
     provider: ConeIdentity,
     failure: Failure,
 ) {
-    let error = shared.with_replayed_physical_imports(|_| ()).unwrap_err();
+    let error = shared.replay_physical_imports().map(|_| ()).unwrap_err();
     assert_eq!(error.provider, provider);
     let slib::SharedLirPhysicalError::LinkMaterializations(error) = *error.source else {
         panic!("expected Link materialization failure: {error:?}");

@@ -2,7 +2,7 @@ use super::*;
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
-pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> (usize, [usize; 7]) {
+pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> (usize, [usize; 7]) {
     let strong = proof
         .object_contents()
         .patch_sites()
@@ -66,7 +66,7 @@ pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>) -> (usize,
 pub(super) fn dump(
     output: &mut String,
     current: bool,
-    proof: &slib::ReplayedLayoutLinkSymbolUsesV1<'_>,
+    proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
     uses: usize,
     categories: [usize; 7],
 ) {

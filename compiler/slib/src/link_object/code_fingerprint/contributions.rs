@@ -70,7 +70,7 @@ impl CanonicalKnownLinkExtensionCodeContributionSetV1 {
     /// semantic import projections are included under their owning capability.
     pub(crate) fn from_cross_cone_layout_semantic_imports(
         callable_imports: &CrossConeLinkSemanticImportSetV1,
-        shape_imports: &CanonicalExternalShapeLinkImportsV1<'_>,
+        shape_imports: &CanonicalExternalShapeLinkImportsV1,
     ) -> Result<Self, scoop_wire::cbor::EncodeError> {
         let mut contributions = vec![
             KnownLinkExtensionCodeContributionV1 {

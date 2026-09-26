@@ -1534,6 +1534,8 @@ Link 追加对象格式、definition/patch 范围、符号归属、typed require
 
 产物读取按明确边界完成检查并保留结果：envelope 验证长度、目录、版本和内容 hash；共有 HIR/MIR/LIR 解码验证格式、typed 引用与跨层关系；Link 在该结果上追加对象范围、符号、relocation、registration 和 Code/runtime fingerprint 检查。同一字节快照及其依赖不分别执行两轮完整 Compile、Link 语义重放。发布复用同次编译的完整 IR、已检查依赖与最终对象，写入后只核对实际写入内容，再原子替换目标。外部新输入仍须经过对应读取边界；结果改变时重新检查受影响部分。
 
+layout reader 直接返回拥有 section、所选外部形状合同和 Link 对象的结果，供后续编译保留与查询；不以内部 arena 或高阶回调包装已完成数据的使用资格。查询仍按实际 provider 和 typed 目标解析合同，沿用原有格式与 ABI。
+
 Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。
 
 删除 `SlibDecodeCostModelV1`、`BudgetMeter`、累计 heap/node/edge/owned-byte/work 以及 closure 级配额。解码、查询、排序、哈希、复制和分配不逐项计费；这些策略不属于 profile、fingerprint 或 runtime ABI。普通内容 fingerprint 和缓存记录继续使用。错误保留 artifact、section 与 field/index 位置，失败不提交部分 IR 或半注册实体。

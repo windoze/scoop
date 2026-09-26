@@ -5,7 +5,7 @@ fn shape_link_descriptor_and_registration_share_one_complete_semantic_contract()
     let fixture = Fixture::new();
     let record = fixture.replay(fixture.semantic()).unwrap();
     let contract = ShapeLinkContractV1::Type {
-        descriptor_projection: &record,
+        descriptor_projection: record.clone(),
     };
     for subject in [
         ExternalStrongShapeSubjectV1::TypeDescriptor(fixture.exact()),

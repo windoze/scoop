@@ -12,7 +12,8 @@ pub(super) fn check(
 ) -> String {
     let provider_wire = open_link(provider);
     let dump = read_link(provider, artifact)
-        .with_replayed_physical_imports(|physical| {
+        .replay_physical_imports()
+        .map(|physical| {
             assert_eq!(physical.dependency_first().count(), 2);
             assert_eq!(physical.direct_providers(), &[provider_wire.identity()]);
             for original in [&provider_wire, original] {

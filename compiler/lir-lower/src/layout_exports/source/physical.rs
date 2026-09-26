@@ -91,7 +91,7 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
 
 pub(super) fn validate(
     expected: &[RequiredImport],
-    actual: &[lir::ExternalShapeLinkImportV1<'_>],
+    actual: &[lir::ExternalShapeLinkImportV1],
 ) -> Result<(), Error> {
     if actual.len() != expected.len() {
         return Err(Error::PhysicalInventory);
