@@ -97,6 +97,7 @@ impl Lowerer {
                 self.collect_pointee_parameters(function.return_type, visiting, out);
             }
             hir::Type::ImportedStruct(_)
+            | hir::Type::ImportedEnum(_)
             | hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean

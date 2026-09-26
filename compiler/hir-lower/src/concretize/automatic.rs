@@ -42,6 +42,7 @@ impl Concretizer<'_> {
     pub(super) fn automatic_type(&self, ty: export::TypeId) -> bool {
         match &self.source.types[ty] {
             export::Type::ImportedStruct(_)
+            | export::Type::ImportedEnum(_)
             | export::Type::Unit
             | export::Type::Integer(_)
             | export::Type::Boolean

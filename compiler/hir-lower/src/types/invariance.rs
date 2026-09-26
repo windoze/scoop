@@ -190,6 +190,7 @@ impl Lowerer {
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
             Type::ImportedStruct(_)
+            | Type::ImportedEnum(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)

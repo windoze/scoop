@@ -194,6 +194,7 @@ impl Lowerer {
             // not stored inline and therefore do not make parameters layout
             // relevant.
             Type::ImportedStruct(_)
+            | Type::ImportedEnum(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean
@@ -257,6 +258,7 @@ impl Lowerer {
                 }
             }
             Type::ImportedStruct(_)
+            | Type::ImportedEnum(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean

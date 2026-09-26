@@ -146,6 +146,10 @@ impl Lowerer {
                     .collect();
                 self.classify_c_struct_fields(resolved, fields, path, visiting, signatures)
             }
+            hir::Type::ImportedEnum(_) => Err(CAbiError {
+                path,
+                reason: "enum types have no M12 C ABI representation".to_string(),
+            }),
             hir::Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
                 if Some(application.template) != self.option_enumeration()
@@ -301,7 +305,8 @@ impl Lowerer {
             | hir::Type::Function(_)
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
-            | hir::Type::Enum(_) => Some(false),
+            | hir::Type::Enum(_)
+            | hir::Type::ImportedEnum(_) => Some(false),
             hir::Type::Param(_) => None,
             hir::Type::Tuple(elements) => {
                 for element in elements {
@@ -364,6 +369,7 @@ impl Lowerer {
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
             | hir::Type::ImportedStruct(_)
+            | hir::Type::ImportedEnum(_)
             | hir::Type::Struct(_)
             | hir::Type::Enum(_)
             | hir::Type::Tuple(_) => Ok(()),

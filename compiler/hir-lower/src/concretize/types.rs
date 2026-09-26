@@ -149,6 +149,7 @@ impl Concretizer<'_> {
             export::Type::Boolean => self.intern_type(concrete::TypeKind::Boolean, true),
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
             export::Type::ImportedStruct(structure) => self.lower_imported_struct(&structure),
+            export::Type::ImportedEnum(enumeration) => self.lower_imported_enum(&enumeration),
             export::Type::Struct(application) => {
                 let value = self.source.struct_applications[application].clone();
                 if matches!(

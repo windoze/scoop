@@ -51,6 +51,9 @@ impl<'a> HirSignatureTypeMapper<'a> {
             Type::ImportedStruct(structure) => {
                 SignatureTypeKey::Nominal(structure.declaration.identity.id())
             }
+            Type::ImportedEnum(structure) => {
+                SignatureTypeKey::Nominal(structure.declaration.identity.id())
+            }
             Type::Unit => SignatureTypeKey::Nominal(
                 self.inputs
                     .nominal_identities

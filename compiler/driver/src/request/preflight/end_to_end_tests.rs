@@ -23,6 +23,7 @@ mod executable_type_sites;
 mod heap_zst;
 mod image_dependencies;
 mod imported_constructors;
+mod imported_enums;
 mod imported_members;
 mod imported_structs;
 mod layout_exports;

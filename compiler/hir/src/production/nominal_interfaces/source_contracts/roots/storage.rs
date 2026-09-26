@@ -61,6 +61,16 @@ impl Roots {
             None => return Err(invalid("storage type has no source nominal identity")),
         }
         let children = match &export.types[ty] {
+            Type::ImportedEnum(enumeration) => {
+                for field in enumeration
+                    .variants
+                    .iter()
+                    .flat_map(|variant| &variant.fields)
+                {
+                    self.require_field_type(export, index, field.ty)?;
+                }
+                return Ok(());
+            }
             Type::ImportedStruct(structure) => {
                 for field in &structure.fields {
                     self.require_field_type(export, index, field.ty)?;

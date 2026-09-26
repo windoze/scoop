@@ -1,0 +1,8 @@
+span=56..142
+expression=@Extern(lib = "fixture_native", name = "echo_choice")
+fun cEcho(value: Choice): Choice
+extern parameter is not ABI-safe: cEcho.parameter1: enum types have no M12 C ABI representation
+span=56..142
+expression=@Extern(lib = "fixture_native", name = "echo_choice")
+fun cEcho(value: Choice): Choice
+extern return type is not ABI-safe: cEcho.return: enum types have no M12 C ABI representation

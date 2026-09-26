@@ -1,0 +1,90 @@
+Module
+  enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
+  fun @scoop$1$cb$7c9c88540439da2266ce32cd59a73bae09f9537be819f7bbfee7598622a44d53(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
+  block entry
+    ret param0
+  fun @scoop$1$cb$b9cfa55f8007eb87231497da8ca49ef1c85bbd899fa2a577bbbc22daf8bcae3f() -> i64 <no-gc>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.argument.1: i64
+    local %2 $dependency.parameter.left: i64
+    local %3 $dependency.parameter.right: i64
+    local %4 $argument.0: enum0
+    local %5 $parameter.value: enum0
+    local %6 $dependency.argument.0: enum0
+    local %7 $dependency.parameter.value: enum0
+    local %8 $dependency.argument.0: i64
+    local %9 $dependency.argument.1: i64
+    local %10 $dependency.parameter.left: i64
+    local %11 $dependency.parameter.right: i64
+    local %12 $argument.0: enum0
+    local %13 $parameter.value: enum0
+    local %14 $dependency.argument.0: enum0
+    local %15 $dependency.parameter.value: enum0
+    local %16 $dependency.receiver: i64
+    local %17 $dependency.argument.0: i64
+    local %18 $dependency.parameter.other: i64
+    local %19 $argument.0: enum0
+    local %20 $parameter.value: enum0
+    local %21 $dependency.argument.0: enum0
+    local %22 $dependency.parameter.value: enum0
+    local %23 $dependency.receiver: i64
+    local %24 $dependency.argument.0: i64
+    local %25 $dependency.parameter.other: i64
+    local %26 $sc.1: enum0
+    local %27 $sc.2: enum0
+    local %28 $sc.3: enum0
+    local %29 $sc.4: enum0
+    local %30 $sc.5: enum0
+    local %31 $sc.6: enum0
+    local %32 $sc.7: enum0
+    local %33 $sc.8: enum0
+    local %34 $sc.9: enum0
+    local %35 $sc.10: enum0
+    local %36 $sc.11: enum0
+    local %37 $sc.12: enum0
+  block entry
+    store integer<Long>(0x0000000000000011) -> local0
+    store integer<Long>(0xffffffffffffffe3) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call no-gc-indirect-target0 local26 = sig=indirect0 (sret enum0 size=24 align=8 scan=none, i64, i64) external-fn0(local2, local3)
+    store local26 -> local4
+    store local4 -> local5
+    store local5 -> local27
+    call no-gc-indirect-target1 local28 = sig=indirect1 (sret enum0 size=24 align=8 scan=none, indirect<enum0 size=24 align=8 scan=none>) local-fn0(indirect local27)
+    store local28 -> local6
+    store local6 -> local7
+    store local7 -> local29
+    call no-gc-direct-target0 t0 = sig=direct0 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local29)
+    store t0 -> local16
+    store integer<Long>(0x0000000000000035) -> local8
+    store integer<Long>(0x000000000000002a) -> local9
+    store local8 -> local10
+    store local9 -> local11
+    call no-gc-indirect-target2 local30 = sig=indirect2 (sret enum0 size=24 align=8 scan=none, i64, i64) external-fn0(local10, local11)
+    store local30 -> local12
+    store local12 -> local13
+    store local13 -> local31
+    call no-gc-indirect-target3 local32 = sig=indirect3 (sret enum0 size=24 align=8 scan=none, indirect<enum0 size=24 align=8 scan=none>) local-fn0(indirect local31)
+    store local32 -> local14
+    store local14 -> local15
+    store local15 -> local33
+    call no-gc-direct-target1 t1 = sig=direct1 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local33)
+    store t1 -> local17
+    store local17 -> local18
+    t2 = integer_Add<Long> local16, local18 : i64
+    store t2 -> local23
+    call no-gc-indirect-target4 local34 = sig=indirect4 (sret enum0 size=24 align=8 scan=none) external-fn2()
+    store local34 -> local19
+    store local19 -> local20
+    store local20 -> local35
+    call no-gc-indirect-target5 local36 = sig=indirect5 (sret enum0 size=24 align=8 scan=none, indirect<enum0 size=24 align=8 scan=none>) local-fn0(indirect local35)
+    store local36 -> local21
+    store local21 -> local22
+    store local22 -> local37
+    call no-gc-direct-target2 t3 = sig=direct2 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local37)
+    store t3 -> local24
+    store local24 -> local25
+    t4 = integer_Add<Long> local23, local25 : i64
+    ret t4
+  output library

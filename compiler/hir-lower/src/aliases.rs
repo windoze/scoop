@@ -359,6 +359,7 @@ impl Lowerer {
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
             Type::ImportedStruct(_)
+            | Type::ImportedEnum(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)

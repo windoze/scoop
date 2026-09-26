@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use scoop_identity::{
-    CborIdentityRecord, DeclarationName, FieldIdentityView, PersistentTypeId, SourceDeclarationKey,
+    CborIdentityRecord, DeclarationName, EnumVariantFieldSelector, FieldIdentityView,
+    PersistentTypeId, SourceDeclarationKey,
 };
 
 use super::{ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError};
@@ -14,7 +15,14 @@ pub struct ImportedNominalDeclaration {
     pub identity: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
     pub interface: NominalInterfaceRecordV1,
     pub field_names: Vec<String>,
+    pub variant_names: Vec<ImportedEnumVariantNames>,
     pub c_abi: NativeBoundaryCAbiV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ImportedEnumVariantNames {
+    pub name: String,
+    pub fields: Vec<String>,
 }
 
 impl ImportedNominalDeclaration {
@@ -84,10 +92,46 @@ pub(super) fn declarations(
                 .map_or(NativeBoundaryCAbiV1::SourceRepresentation, |record| {
                     record.c_abi()
                 });
+            let variant_names = match interface.source_shape() {
+                crate::NominalSourceShapeV1::Enum(shape) => shape
+                    .variants()
+                    .iter()
+                    .map(|variant| {
+                        let (_, key) = canonical
+                            .enum_variant_by_bytes(variant.variant().as_array())
+                            .ok_or(Error::MissingEnumVariant(variant.variant()))?;
+                        let name = key
+                            .source_name()
+                            .ok_or(Error::MissingEnumVariant(variant.variant()))?
+                            .as_str()
+                            .to_owned();
+                        let fields = variant
+                            .fields()
+                            .iter()
+                            .map(|field| {
+                                let (_, key) = canonical
+                                    .enum_variant_field_by_bytes(field.field().as_array())
+                                    .ok_or(Error::MissingEnumField(field.field()))?;
+                                Ok(match key.selector() {
+                                    EnumVariantFieldSelector::Named(name) => {
+                                        name.as_str().to_owned()
+                                    }
+                                    EnumVariantFieldSelector::Positional { declaration_index } => {
+                                        format!("_{declaration_index}")
+                                    }
+                                })
+                            })
+                            .collect::<Result<Vec<_>, Error>>()?;
+                        Ok(ImportedEnumVariantNames { name, fields })
+                    })
+                    .collect::<Result<Vec<_>, Error>>()?,
+                _ => Vec::new(),
+            };
             Ok(Arc::new(ImportedNominalDeclaration {
                 identity,
                 interface: interface.clone(),
                 field_names,
+                variant_names,
                 c_abi,
             }))
         })

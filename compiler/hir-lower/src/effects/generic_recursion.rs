@@ -14,7 +14,7 @@ enum SymbolicType {
     Boolean,
     String,
     Struct(hir::StructId, Vec<SymbolicType>),
-    ImportedStruct(scoop_identity::PersistentTypeId),
+    ImportedNominal(scoop_identity::PersistentTypeId),
     Class(hir::ClassId, Vec<SymbolicType>),
     Interface(hir::InterfaceId, Vec<SymbolicType>),
     Any,
@@ -169,7 +169,10 @@ impl Lowerer {
     ) -> SymbolicType {
         match &self.types[ty] {
             hir::Type::ImportedStruct(structure) => {
-                SymbolicType::ImportedStruct(structure.declaration.identity.id())
+                SymbolicType::ImportedNominal(structure.declaration.identity.id())
+            }
+            hir::Type::ImportedEnum(structure) => {
+                SymbolicType::ImportedNominal(structure.declaration.identity.id())
             }
             hir::Type::Unit => SymbolicType::Unit,
             hir::Type::Integer(kind) => SymbolicType::Integer(*kind),

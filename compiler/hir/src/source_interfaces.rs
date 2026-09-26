@@ -190,6 +190,7 @@ impl Module {
     fn source_context_type_name(&self, ty: TypeId) -> String {
         match self.types[ty] {
             Type::ImportedStruct(ref structure) => structure.declaration.name().to_owned(),
+            Type::ImportedEnum(ref structure) => structure.declaration.name().to_owned(),
             Type::Struct(application) => self.structs
                 [self.struct_applications[application].template]
                 .name

@@ -211,6 +211,33 @@ impl Lowerer {
                     field_types: structure.fields.iter().map(|field| field.ty).collect(),
                 }])
             }
+            Type::ImportedEnum(enumeration) => ConstructorSpace::Closed(
+                enumeration
+                    .variants
+                    .iter()
+                    .enumerate()
+                    .map(|(index, variant)| Constructor::EnumVariant {
+                        variant: index as u32,
+                        name: variant.name.clone(),
+                        style: match variant.style {
+                            hir::EnumSourceVariantStyleV1::Unit => hir::VariantStyle::Unit,
+                            hir::EnumSourceVariantStyleV1::Positional => {
+                                hir::VariantStyle::Positional
+                            }
+                            hir::EnumSourceVariantStyleV1::Named => hir::VariantStyle::Named,
+                            hir::EnumSourceVariantStyleV1::Constructor => {
+                                hir::VariantStyle::Constructor
+                            }
+                        },
+                        field_names: variant
+                            .fields
+                            .iter()
+                            .map(|field| field.name.clone())
+                            .collect(),
+                        field_types: variant.fields.iter().map(|field| field.ty).collect(),
+                    })
+                    .collect(),
+            ),
             Type::Enum(application) => {
                 let application_value = self.enum_applications[application].clone();
                 let enum_id = application_value.template;

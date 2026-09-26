@@ -1,5 +1,9 @@
 # Scoop 实现大纲
 
+组合值的 ZST 判定必须包含其实际外来字段：本地 tuple/struct 不能因字段事实保存在依赖表中就默认字段非零。producer 从完整 concrete 值表示取得依赖字段的 ZST 结果并在本次投影内复用；依赖事实仍保留实际 provider 引用，不复制为本地定义。
+
+跨 Cone 非泛型 enum 的参数、结果与嵌套值表示由共有依赖声明查询解析。HIR 保留实际 nominal、variant、payload field 身份及完整字段类型；concretization 仅建立消费者使用的值表示，定义与 dispatch 仍引用实际 provider。variant 次序、payload offset、tag/niche、GC scan 与 canonical ABI 使用既有 enum 布局算法，不从名称或相同布局恢复身份，也不为值传递增加来源资格表。验收使用源码产物中返回并再次传入的 enum，覆盖独立 tagged 值及 tuple/ZST 组合。
+
 Strong producer 的两种产物表示从完整 LIR 各计算一次类型、safepoint、immortal 与本地初始化语义，digest 与 registration 直接复用这些结果；初始化仅在 digest 身份可用后补入实际依赖定义。外部初始化引用在解析时完成 definition 与物理导入核对，后续由全局唯一的 local unit 引用表达使用归属，不保存额外 consumer 状态或重复选择核对。descriptor 和 dispatch 直接保存 LIR 中已有的外部 typed 引用，不反向重新 materialize 外部对象或再次比较完整 ABI。实体与 definition role 的匹配只查询实体种类和角色，不借用虚构的 CORE provider；实际 definition、symbol、relocation、ABI 和 GC 检查仍由各自消费边界负责。此清理保持产物字段、指纹内容和 runtime C ABI 不变。
 
 canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。MIR callable 的 GC 检查沿结构类型递归使用已有 nominal facts；tuple 的完整参数、receiver 与结果按实际组成保留，不要求 nominal 导出。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。

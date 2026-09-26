@@ -239,6 +239,7 @@ impl Lowerer {
                 }
             }
             Type::ImportedStruct(_)
+            | Type::ImportedEnum(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)
@@ -292,6 +293,7 @@ impl Lowerer {
     pub(crate) fn is_value_ty(&self, ty: TypeId) -> bool {
         match self.types[ty] {
             Type::ImportedStruct(_)
+            | Type::ImportedEnum(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean

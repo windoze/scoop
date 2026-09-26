@@ -67,6 +67,7 @@ fn type_name(
 ) -> String {
     match &types[ty] {
         Type::ImportedStruct(structure) => structure.declaration.name().to_owned(),
+        Type::ImportedEnum(structure) => structure.declaration.name().to_owned(),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),

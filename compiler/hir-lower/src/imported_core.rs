@@ -1,4 +1,6 @@
-//! Imported-core prelude candidates and committed HIR uses.
+//! Prelude references and shared dependency signature types.
+
+mod nominals;
 
 use scoop_ast::Span;
 use scoop_hir as hir;
@@ -51,6 +53,9 @@ impl Lowerer {
         if let hir::Type::ImportedStruct(ty) = &self.types[ty] {
             return Some(ty.declaration.identity.id());
         }
+        if let hir::Type::ImportedEnum(ty) = &self.types[ty] {
+            return Some(ty.declaration.identity.id());
+        }
         let CoreLoweringAuthority::Imported(authority) = &self.core else {
             return None;
         };
@@ -64,6 +69,7 @@ impl Lowerer {
                 .identity_record()
                 .id(),
             hir::Type::ImportedStruct(_)
+            | hir::Type::ImportedEnum(_)
             | hir::Type::Struct(_)
             | hir::Type::Class(_)
             | hir::Type::Interface(_)
@@ -111,7 +117,7 @@ impl Lowerer {
                         return Ok(self.string);
                     }
                 }
-                self.imported_struct_type(*identity)
+                self.imported_nominal_type(*identity)
             }
             SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
                 Err(ImportedSignatureTypeError::Generic)
@@ -159,50 +165,5 @@ impl Lowerer {
                 Ok(self.intern_type(hir::Type::FunPtr(function)))
             }
         }
-    }
-
-    fn imported_struct_type(
-        &mut self,
-        identity: PersistentTypeId,
-    ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
-        if let Some((id, _)) = self.types.iter().find(|(_, ty)| {
-            matches!(ty, hir::Type::ImportedStruct(ty) if ty.declaration.identity.id() == identity)
-        }) {
-            return Ok(id);
-        }
-        let declaration = self
-            .dependencies
-            .as_ref()
-            .and_then(|dependencies| dependencies.nominal(identity))
-            .cloned()
-            .ok_or(ImportedSignatureTypeError::Structural)?;
-        let hir::NominalSourceShapeV1::Struct(shape) = declaration.interface.source_shape() else {
-            return Err(ImportedSignatureTypeError::Structural);
-        };
-        for parent in declaration.interface.exact_supertypes().values() {
-            self.imported_signature_type(parent)?;
-        }
-        let fields = shape
-            .fields()
-            .iter()
-            .zip(&declaration.field_names)
-            .map(|(field, name)| {
-                Ok(hir::ImportedStructField {
-                    identity: field.field(),
-                    name: name.clone(),
-                    ty: self.imported_signature_type(field.value_type())?,
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let gc_free = fields.iter().all(|field| self.is_gc_free(field.ty));
-        Ok(
-            self.intern_type(hir::Type::ImportedStruct(std::sync::Arc::new(
-                hir::ImportedStructType {
-                    declaration,
-                    fields,
-                    gc_free,
-                },
-            ))),
-        )
     }
 }

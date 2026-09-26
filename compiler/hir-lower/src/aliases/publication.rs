@@ -196,6 +196,7 @@ impl Lowerer {
                 self.validate_type_alias_target_tree(pointee, span, description, visited);
             }
             Type::ImportedStruct(_)
+            | Type::ImportedEnum(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean

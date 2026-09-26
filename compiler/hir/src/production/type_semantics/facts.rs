@@ -86,6 +86,7 @@ fn project<'a>(
         shapes: BTreeMap::new(),
         dependency_facts: BTreeMap::new(),
         active: BTreeSet::new(),
+        zero_sized_values: BTreeMap::new(),
     };
     for exact in root_exacts {
         projector.visit_exact(*exact, true)?;
@@ -110,6 +111,7 @@ struct FactProjector<'a> {
     shapes: BTreeMap<PersistentExactTypeId, ExactTypeFactShapeV1>,
     dependency_facts: BTreeMap<PersistentExactTypeId, TypeSectionDependencyFactV1>,
     active: BTreeSet<PersistentExactTypeId>,
+    zero_sized_values: BTreeMap<PersistentExactTypeId, bool>,
 }
 
 impl FactProjector<'_> {
@@ -160,7 +162,10 @@ impl FactProjector<'_> {
             ExactTypeFactShapeV1::Reference => ExactTypeKindV1::Reference,
             ExactTypeFactShapeV1::OrdinaryStruct { fields }
             | ExactTypeFactShapeV1::Tuple { elements: fields } => {
-                let zero = fields.iter().all(|field| self.is_zero_sized(*field));
+                let mut zero = true;
+                for field in fields {
+                    zero &= self.is_zero_sized(*field)?;
+                }
                 ExactTypeKindV1::Value {
                     zst: if zero {
                         ZstStatus::ZeroSized
@@ -196,17 +201,53 @@ impl FactProjector<'_> {
             .ok_or(Error::MissingExactIdentity)
     }
 
-    fn is_zero_sized(&self, exact: PersistentExactTypeId) -> bool {
-        self.local_facts.get(&exact).is_some_and(|fact| {
-            fact.kind()
+    fn is_zero_sized(&mut self, exact: PersistentExactTypeId) -> Result<bool, Error> {
+        if let Some(fact) = self.local_facts.get(&exact) {
+            return Ok(fact.kind()
                 == ExactTypeKindV1::Value {
                     zst: ZstStatus::ZeroSized,
-                }
-        }) || self
+                });
+        }
+        if let Some(zero) = self.zero_sized_values.get(&exact) {
+            return Ok(*zero);
+        }
+        let ty = self
             .local
             .exact_type_identities
             .type_for_identity(exact)
-            .is_some_and(|ty| matches!(self.local.types[ty].kind, concrete::TypeKind::Unit))
+            .ok_or(Error::MissingConcreteType(exact))?;
+        if !self.active.insert(exact) {
+            return Err(Error::InvalidFact {
+                exact,
+                reason: "recursive by-value type".into(),
+            });
+        }
+        let zero = match &self.local.types[ty].kind {
+            concrete::TypeKind::Unit => true,
+            concrete::TypeKind::Tuple(elements) => {
+                let mut zero = true;
+                for element in elements {
+                    zero &= self.is_zero_sized(self.exact(*element)?)?;
+                }
+                zero
+            }
+            concrete::TypeKind::Struct(id) => match &self.local.structs[*id].representation {
+                concrete::StructRepresentation::Declared {
+                    attributes, fields, ..
+                } if attributes.c_layout.is_none() => {
+                    let mut zero = true;
+                    for field in fields {
+                        zero &= self.is_zero_sized(self.exact(field.ty)?)?;
+                    }
+                    zero
+                }
+                _ => false,
+            },
+            _ => false,
+        };
+        self.active.remove(&exact);
+        self.zero_sized_values.insert(exact, zero);
+        Ok(zero)
     }
 }
 

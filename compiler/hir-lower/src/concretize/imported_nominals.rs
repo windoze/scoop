@@ -76,4 +76,62 @@ impl Concretizer<'_> {
         self.struct_type.insert(id, ty);
         ty
     }
+
+    pub(super) fn lower_imported_enum(
+        &mut self,
+        source: &export::ImportedEnumType,
+    ) -> concrete::TypeId {
+        let declaration = &source.declaration;
+        let identity = declaration.identity.id();
+        if let Some(id) = self.imported_enums.get(&identity) {
+            return self.enum_type[id];
+        }
+        let variants = source
+            .variants
+            .iter()
+            .map(|variant| {
+                let fields: Vec<_> = variant
+                    .fields
+                    .iter()
+                    .map(|field| concrete::VariantField {
+                        identity: field.identity,
+                        name: field.name.clone(),
+                        ty: self.lower_type(field.ty, &[]),
+                    })
+                    .collect();
+                concrete::Variant {
+                    identity: variant.identity,
+                    name: variant.name.clone(),
+                    gc_free: fields.iter().all(|field| self.types[field.ty].gc_free),
+                    fields,
+                }
+            })
+            .collect();
+        let id = concrete::EnumId::from_raw(
+            u32::try_from(self.enums.len())
+                .expect("concrete enum ids fit in u32")
+                .into(),
+        );
+        let ty = self.intern_type(concrete::TypeKind::Enum(id), source.gc_free);
+        let allocated = self.enums.alloc(concrete::EnumDef {
+            origin: export::HirNominalIdentity::Source(export::HirSourceNominalIdentity::Concrete(
+                declaration.identity.clone(),
+            )),
+            canonical_type: ty,
+            name: declaration.name().to_owned(),
+            owner: None,
+            type_arguments: Vec::new(),
+            gc_free: source.gc_free,
+            variants,
+            // Callable and dispatch definitions remain in the provider.
+            interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            span: scoop_ast::Span::new(0, 0),
+        });
+        assert_eq!(allocated, id);
+        self.imported_enums.insert(identity, id);
+        self.enum_type.insert(id, ty);
+        ty
+    }
 }

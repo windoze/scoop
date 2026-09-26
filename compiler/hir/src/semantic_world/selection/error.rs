@@ -12,6 +12,8 @@ use crate::NominalCallableClassificationError;
 pub enum ImportedDependencySelectionPlanBuildError {
     MissingNominal(scoop_identity::PersistentTypeId),
     MissingNominalField(scoop_identity::PersistentFieldId),
+    MissingEnumVariant(scoop_identity::PersistentEnumVariantId),
+    MissingEnumField(scoop_identity::PersistentEnumVariantFieldId),
     DuplicateNominal(scoop_identity::PersistentTypeId),
     NominalClassifier(crate::NominalExactLeafClassifierBuildError),
     Classification(NominalCallableClassificationError),
@@ -43,6 +45,14 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
             Self::MissingNominalField(id) => write!(
                 formatter,
                 "dependency field {id} has no declaration identity"
+            ),
+            Self::MissingEnumVariant(id) => write!(
+                formatter,
+                "dependency enum variant {id} has no source declaration"
+            ),
+            Self::MissingEnumField(id) => write!(
+                formatter,
+                "dependency enum payload field {id} has no declaration identity"
             ),
             Self::DuplicateNominal(id) => write!(
                 formatter,
@@ -99,6 +109,8 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             Self::Initialization(error) => Some(error),
             Self::MissingNominal(_)
             | Self::MissingNominalField(_)
+            | Self::MissingEnumVariant(_)
+            | Self::MissingEnumField(_)
             | Self::DuplicateNominal(_)
             | Self::DuplicateCallable(_)
             | Self::MissingCallableSourceName(_)

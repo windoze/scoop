@@ -52,6 +52,7 @@ impl Lowerer {
     ) -> Option<HashSet<hir::TypeParamId>> {
         match &self.types[ty] {
             hir::Type::ImportedStruct(structure) => structure.gc_free.then(HashSet::new),
+            hir::Type::ImportedEnum(structure) => structure.gc_free.then(HashSet::new),
             hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
