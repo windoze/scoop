@@ -113,7 +113,7 @@ pub(super) fn select<'a>(
     StrongProductionDependencySelectionV2::try_new(
         input.module().cone,
         layout.target_profile(),
-        &[layout],
+        &[layout.exports()],
         source.imports(provider, input.module().cone, &definitions),
         &source,
     )

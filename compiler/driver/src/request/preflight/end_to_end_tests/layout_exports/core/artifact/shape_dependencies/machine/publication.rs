@@ -97,7 +97,7 @@ pub(super) fn check<'a, 'p>(
             public: source_input.public,
         },
         &decoded,
-        &[provider.layout.exports()],
+        &[provider.layout],
     )
     .unwrap();
     let production = registration.validate_layout_abi(&section).unwrap();

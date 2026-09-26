@@ -177,8 +177,13 @@ impl Provider {
             LayoutAbiSemanticTargetV1::Layout(self.layout),
         ));
         source.imports.push(encode(&import).unwrap());
-        CrossConeLayoutAbiSectionV1::try_new(exports, &[&self.section], vec![import], &source)
-            .unwrap()
+        CrossConeLayoutAbiSectionV1::try_new(
+            exports,
+            &[self.section.exports()],
+            vec![import],
+            &source,
+        )
+        .unwrap()
     }
 }
 

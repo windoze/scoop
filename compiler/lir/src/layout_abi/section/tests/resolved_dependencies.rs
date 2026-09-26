@@ -20,10 +20,15 @@ fn owned_lir_dependency_graph_replays_explicit_roots_and_transitive_fields() {
     ));
 
     let leaf = section(fixture.leaf.clone(), &[], &Source::default()).unwrap();
-    let middle = section(fixture.middle.clone(), &[&leaf], &Source::default()).unwrap();
+    let middle = section(
+        fixture.middle.clone(),
+        &[leaf.exports()],
+        &Source::default(),
+    )
+    .unwrap();
     let complete = section(
         fixture.local.clone(),
-        &[&middle],
+        &[middle.exports(), leaf.exports()],
         &Source(vec![fixture.middle_use()]),
     )
     .unwrap();

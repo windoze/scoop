@@ -68,7 +68,7 @@ pub(super) fn check(
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(
                     exports,
-                    &[core_lir],
+                    &[core_lir.exports()],
                     vec![],
                     &source,
                 )

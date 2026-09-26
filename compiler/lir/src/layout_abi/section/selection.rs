@@ -12,7 +12,7 @@ pub struct SelectedDependencyLayoutAbiRefV1 {
 
 pub(super) struct SelectedLayoutAbiEntryV1<'a> {
     pub relation: LayoutAbiDependencyV1,
-    pub terminal: &'a CrossConeLayoutAbiSectionV1<'a>,
+    pub terminal: &'a LayoutAbiExportConstituentsV1,
 }
 
 pub struct SelectedDependencyLayoutAbiSetV1<'a> {

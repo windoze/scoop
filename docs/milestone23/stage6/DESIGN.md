@@ -550,7 +550,7 @@ MIR object value 与两个初始化 callable 的 reader 校验直接读取同一
 
 ## 6. LIR：完整 layout 与 scan
 
-### 6.1 section 与 authority
+### 6.1 section 与依赖查询
 
 ```text
 CrossConeLayoutAbiSectionV1 {
@@ -591,11 +591,13 @@ ExactLayoutExportV1 {
 }
 ```
 
-`selected`是field1/2分别保存`semantic_uses`与`physical_imports`的closed product；`LayoutAbiDependencyV1`的field1/2分别保存provider与target，target按上列tag编码且payload在field1。semantic表按`(provider, target canonical bytes)`严格递增。每项provider必须不是consumer，并精确命中显式dependency closure中唯一terminal provider的对应五张表；内存中的selected entry保留该terminal section引用和request-local brand，不能由wire relation、裸id或单张constituent table直接构造。
+`selected`是field1/2分别保存`semantic_uses`与`physical_imports`的closed product；`LayoutAbiDependencyV1`的field1/2分别保存provider与target，target按上列tag编码且payload在field1。semantic表按`(provider, target canonical bytes)`严格递增。每项provider必须不是consumer，并精确命中显式dependency closure中唯一terminal provider的对应五张表；内存中的 selected entry 保留实际 provider 的完整五表导出记录引用和本次选择索引。依赖查询直接接收共有的完整导出表；同次编译的 producer 与已读取产物使用同一数据入口，不要求 reader 重造 producer section 或来源工厂。
 
-producer与reader都从同一份已提交MIR→LIR typed selection和完整本地LIR记录独立重算semantic闭包：layout递归跟随base/field/variant/array等内嵌layout引用；descriptor跟随value/instance layout、parent/interface TD及vtable/itable；dispatch跟随interface/owner type与每个target callable ABI；callable跟随receiver/parameter/result layout；shape-support跟随八个role对应的layout/descriptor/helper记录。metadata-only读取保留在`semantic_uses`即可，不因此产生relocation。每个跨provider递归edge都进入真实terminal provider，依赖section中的转发selected关系不能代替terminal记录；环、同target多provider、当前Cone回指、缺失/额外关系及旧core/M23-5分区冒充新selection均拒绝。
+producer 根据已提交 MIR→LIR typed selection 构造 semantic 闭包；reader 验证外部产物的相同关系。两者查询同一类实际导出记录：layout递归跟随base/field/variant/array等内嵌layout引用；descriptor跟随value/instance layout、parent/interface TD及vtable/itable；dispatch跟随interface/owner type与每个target callable ABI；callable跟随receiver/parameter/result layout；shape-support跟随八个role对应的layout/descriptor/helper记录。metadata-only读取保留在`semantic_uses`即可，不因此产生relocation。每个跨provider递归edge都进入真实terminal provider，依赖section中的转发selected关系不能代替terminal记录；环、同target多provider、当前Cone回指、缺失/额外关系及旧core/M23-5分区冒充新selection均拒绝。
 
 两条路径在计算闭包前都完成共有跨阶段校验：生产侧将本地五张 export 表与同一次实际 MIR→LIR 输出关联，reader 将其与同 artifact 的完整 MIR type/callable/dispatch metadata、Strong production、layout/ABI 和实际 object use 关联。physical_imports 必须精确对应机器使用及必要 object/init support；五类一般 import contract 重新绑定到依赖闭包中的同一 terminal section 记录。单表构造成功或 import 已解析不能代替完整覆盖与相邻阶段一致性检查；reader 不要求另外提供编译期 source authority 或平行授权 transcript。
+
+LIR section 不再保存一份 producer section 组成的递归依赖图。driver 从已解析构建图提供真实可达 provider 的完整导出表集合；选择入口检查 provider 唯一性、target 和所需 typed 目标，布局关系闭包只遍历实际引用。manifest 的依赖环检测仍由共有图边界负责，不在每次选择中重走相同的 section 图或累计遍历深度。Strong V2 的预先选择与最终 section 使用相同目录，读取结果可直接参与 downstream lowering、registration 和发布。
 
 `physical_imports`就是11.2定义的canonical semantic-import projection，按`(provider, subject canonical bytes)`严格递增且唯一。它由实际machine use、strong-production/6引用及已授权object/init support独立收集，再与对应terminal semantic记录、Strong definition及旧分区逐项join；semantic use可以没有physical import，physical import不能只有symbol或definition而没有完整semantic/support authority。该数组与Link section field1及Code contribution逐byte相等，selected的brand和terminal引用不编码。
 

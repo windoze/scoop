@@ -17,7 +17,7 @@ pub(super) struct PublicationInput<'a, 'p> {
 #[derive(Clone, Copy)]
 pub(super) struct Provider<'a, 'p> {
     pub view: &'a lir::ShapeLinkProviderV1<'p>,
-    pub layout: &'a lir::CrossConeLayoutAbiSectionV1<'p>,
+    pub layout: &'a lir::LayoutAbiExportConstituentsV1,
     pub target: &'a scoop_toolchain::ResolvedTargetProfile,
     pub string: PersistentExactTypeId,
     pub artifact: &'a scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,

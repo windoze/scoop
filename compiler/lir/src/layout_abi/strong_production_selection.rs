@@ -1,13 +1,12 @@
 use scoop_identity::ConeIdentity;
-use scoop_wire::WirePath;
 
 use super::{
-    CrossConeLayoutAbiSectionV1, LayoutAbiDependencyV1, LayoutAbiSectionError,
+    LayoutAbiDependencyV1, LayoutAbiExportConstituentsV1, LayoutAbiSectionError,
     LayoutAbiSectionSourceAuthorityV1, LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1,
 };
 use crate::{CanonicalExternalShapeLinkImportsV1, ExternalShapeLinkImportV1};
 
-/// Pre-section dependency authority for the Strong V2 writer.
+/// Actual dependency export records selected for the Strong V2 writer.
 ///
 /// This selection is deliberately independent of the consumer's local
 /// layout/ABI exports. It can therefore materialize final-LIR external
@@ -16,7 +15,7 @@ use crate::{CanonicalExternalShapeLinkImportsV1, ExternalShapeLinkImportV1};
 pub struct StrongProductionDependencySelectionV2<'a> {
     consumer: ConeIdentity,
     target: crate::LirTargetProfile,
-    dependencies: Vec<&'a CrossConeLayoutAbiSectionV1<'a>>,
+    dependencies: Vec<&'a LayoutAbiExportConstituentsV1>,
     semantic: Vec<LayoutAbiDependencyV1>,
     physical: CanonicalExternalShapeLinkImportsV1,
 }
@@ -38,7 +37,7 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
     pub fn try_new<E>(
         consumer: ConeIdentity,
         target: crate::LirTargetProfile,
-        dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+        dependencies: &[&'a LayoutAbiExportConstituentsV1],
         physical_imports: Vec<ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
@@ -50,15 +49,7 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
         let roots = source
             .committed_semantic_roots()
             .map_err(LayoutAbiSectionError::Source)?;
-        let mut dependency_exports = Vec::new();
-        scoop_wire::allocation::try_reserve(
-            &mut dependency_exports,
-            dependencies.len(),
-            &WirePath::root(),
-        )?;
-        dependency_exports.extend(dependencies.iter().map(|section| &section.exports));
-        let semantic =
-            super::semantic_closure::close_external(consumer, &dependency_exports, roots)?;
+        let semantic = super::semantic_closure::close_external(consumer, &dependencies, roots)?;
 
         for import in physical.records() {
             if import.provider() == consumer {
@@ -126,7 +117,7 @@ impl<'a> StrongProductionDependencySelectionV2<'a> {
 
 fn semantic_target(
     subject: crate::ExternalStrongShapeSubjectV1,
-    terminal: &CrossConeLayoutAbiSectionV1<'_>,
+    terminal: &LayoutAbiExportConstituentsV1,
 ) -> Result<Option<LayoutAbiSemanticTargetV1>, crate::ExternalStrongShapeSubjectV1> {
     use crate::ExternalStrongShapeSubjectV1 as Subject;
     Ok(match subject {

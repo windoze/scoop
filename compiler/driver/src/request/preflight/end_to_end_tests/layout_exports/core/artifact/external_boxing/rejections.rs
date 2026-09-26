@@ -72,7 +72,7 @@ pub(super) fn check(
     let unqualified = StrongProductionDependencySelectionV2::try_new(
         selected.consumer(),
         selected.target_profile(),
-        &[layout],
+        &[layout.exports()],
         descriptor_imports,
         &descriptor_only,
     )
@@ -112,7 +112,7 @@ pub(super) fn check(
     let incomplete = StrongProductionDependencySelectionV2::try_new(
         selected.consumer(),
         selected.target_profile(),
-        &[layout],
+        &[layout.exports()],
         retained_imports,
         &missing_import,
     )
@@ -140,7 +140,7 @@ pub(super) fn reference_shape(
     let selected = StrongProductionDependencySelectionV2::try_new(
         consumer,
         layout.target_profile(),
-        &[layout],
+        &[layout.exports()],
         Vec::new(),
         &source,
     )

@@ -95,18 +95,10 @@ pub(super) fn check(
         input.ordinary,
     );
     if name == "base" {
-        shape_dependencies::check(lir, &ordinary, mir_section, layout, &artifact, target);
+        shape_dependencies::check(mir_section, layout, &artifact, target);
         lir_dependencies::check(&artifact, mir_section, layout);
     }
     if name == "property-initialization-provider" {
-        property_initialization::check(
-            directory,
-            target,
-            input,
-            lir,
-            mir_section,
-            layout,
-            &artifact,
-        );
+        property_initialization::check(directory, target, input, mir_section, layout, &artifact);
     }
 }

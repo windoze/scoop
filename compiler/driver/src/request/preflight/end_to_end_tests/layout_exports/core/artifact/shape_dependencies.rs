@@ -7,36 +7,36 @@ mod lir_reader;
 mod lower;
 mod machine;
 mod mir_reader;
-pub(super) mod provider;
 
 pub(super) fn check(
-    producer: &lir::SingleConeStrongLirOutput,
-    ordinary: &lir::CrossConeLirBridgeSectionV1,
     core_mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core_lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
     artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
     target: &scoop_toolchain::ResolvedTargetProfile,
 ) {
-    let prepared = provider::objects(producer, core_lir, target);
-    let published = super::lir_dependencies::reader::open(artifact);
-    assert_eq!(
-        encode(prepared.foundation.as_canonical()).unwrap(),
-        encode(published.lir_foundation_wire()).unwrap(),
-    );
-    let owners = [
-        scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
-            prepared.patch_sites.builtins().strong_relocations(),
-        )
-        .unwrap(),
-    ];
+    let read = scoop_slib::read_cross_cone_layout_artifact_closure(
+        scoop_slib::CrossConeArtifactClosureInput::completed(
+            core_lir.provider(),
+            target.lir_target_selection(),
+            vec![],
+            vec![],
+            artifact.as_bytes(),
+        ),
+        target.c_bridge_toolchain().profile(),
+    )
+    .unwrap();
+    let (semantic, link) = read.artifact(core_lir.provider()).unwrap();
+    let provider_exports = semantic.lir_exports();
+    assert_eq!(provider_exports, core_lir.exports());
+    let owners = [link.defined_symbols().clone()];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
-        foundation: &prepared.foundation,
-        production: &prepared.production,
-        ordinary,
-        layouts: core_lir.layouts(),
-        callables: core_lir.callables(),
-        descriptors: core_lir.descriptors(),
-        dispatch: core_lir.dispatch(),
+        foundation: semantic.lir_foundation(),
+        production: semantic.lir_strong_production(),
+        ordinary: semantic.lir_cross_cone_bridge(),
+        layouts: provider_exports.layouts(),
+        callables: provider_exports.callables(),
+        descriptors: provider_exports.descriptors(),
+        dispatch: provider_exports.dispatch(),
     })
     .unwrap();
     let sysroot = tempfile::tempdir().unwrap();
@@ -113,7 +113,7 @@ pub(super) fn check(
                     &expected,
                     machine::Provider {
                         view: &provider,
-                        layout: core_lir,
+                        layout: provider_exports,
                         target,
                         artifact,
                         owners: &owners,
@@ -137,10 +137,6 @@ pub(super) fn check(
         );
     }
     assert_eq!(core_lir.target_profile(), target.lir_target());
-    assert_eq!(
-        encode(&prepared.production).unwrap(),
-        encode(published.lir_strong_production_wire()).unwrap(),
-    );
 }
 
 fn source_named(

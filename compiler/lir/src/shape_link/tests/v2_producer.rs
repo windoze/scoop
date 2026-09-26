@@ -59,7 +59,7 @@ fn exercise_dependency_production(provider: Provider) {
     )
     .unwrap();
     let terminal = provider.layout_section();
-    let dependencies = [&terminal];
+    let dependencies = [terminal.exports()];
     let source = ProductionSelectionSource::new(
         vec![
             LayoutAbiDependencyV1::new(
@@ -239,7 +239,7 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
     )
     .unwrap();
     let terminal = provider.layout_section();
-    let dependencies = [&terminal];
+    let dependencies = [terminal.exports()];
     let source = ProductionSelectionSource::new(
         vec![LayoutAbiDependencyV1::new(
             provider.identity,

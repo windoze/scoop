@@ -53,9 +53,13 @@ pub(super) fn check(
         exports: &exports,
         roots: &roots,
     };
-    let section =
-        lir::CrossConeLayoutAbiSectionV1::try_new(exports.clone(), &[core], vec![], &source)
-            .unwrap();
+    let section = lir::CrossConeLayoutAbiSectionV1::try_new(
+        exports.clone(),
+        &[core.exports()],
+        vec![],
+        &source,
+    )
+    .unwrap();
     let expected = section.selected().semantic_relations().collect::<Vec<_>>();
     let resolved = wire::resolve(&section, &expected, input.identities).unwrap();
     let replay = |candidate: &_| {

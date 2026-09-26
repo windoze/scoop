@@ -23,14 +23,13 @@ pub use wire::{
 /// terminal semantic records and checked physical imports.
 pub struct CrossConeLayoutAbiSectionV1<'a> {
     pub(super) exports: LayoutAbiExportConstituentsV1,
-    pub(super) dependencies: Vec<&'a CrossConeLayoutAbiSectionV1<'a>>,
     pub(super) selected: SelectedDependencyLayoutAbiSetV1<'a>,
 }
 
 impl<'a> CrossConeLayoutAbiSectionV1<'a> {
     pub fn try_new<E>(
         exports: LayoutAbiExportConstituentsV1,
-        dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+        dependencies: &[&'a LayoutAbiExportConstituentsV1],
         physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
@@ -71,13 +70,6 @@ impl<'a> CrossConeLayoutAbiSectionV1<'a> {
 
     pub const fn selected(&self) -> &SelectedDependencyLayoutAbiSetV1<'a> {
         &self.selected
-    }
-
-    pub(super) fn record(
-        &self,
-        target: LayoutAbiSemanticTargetV1,
-    ) -> Option<LayoutAbiSemanticRecordV1<'_>> {
-        self.exports.record(target)
     }
 }
 

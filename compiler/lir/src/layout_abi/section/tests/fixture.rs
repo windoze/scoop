@@ -77,7 +77,7 @@ pub(super) fn exports(
 
 pub(super) fn section<'a>(
     exports: LayoutAbiExportConstituentsV1,
-    dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+    dependencies: &[&'a LayoutAbiExportConstituentsV1],
     source: &Source,
 ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<()>> {
     CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, Vec::new(), source)

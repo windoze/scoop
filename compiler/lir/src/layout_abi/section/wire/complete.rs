@@ -5,7 +5,7 @@ impl ExportsResolvedCrossConeLayoutAbiSectionV1 {
     pub fn validate<'a, E>(
         self,
         expected: &LayoutAbiExportConstituentsV1,
-        dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+        dependencies: &[&'a LayoutAbiExportConstituentsV1],
         physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
         source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
         identities: &mut ValidatedIdentityGraph,

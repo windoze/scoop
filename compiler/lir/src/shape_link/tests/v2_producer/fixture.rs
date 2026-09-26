@@ -241,7 +241,7 @@ pub(super) fn consumer_layout_section<'a>(
     output: &SingleConeStrongLirOutput,
     registrations: &StrongRegistrationProductionSurfaceV2,
     provider: &'a Provider,
-    dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+    dependencies: &[&'a LayoutAbiExportConstituentsV1],
     imports: Vec<ExternalShapeLinkImportV1>,
 ) -> CrossConeLayoutAbiSectionV1<'a> {
     let source = nominal(output.foundation().producer(), "Child");

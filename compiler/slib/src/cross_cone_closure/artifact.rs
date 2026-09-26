@@ -27,11 +27,11 @@ use definition::validate_terminal_definitions;
 /// Borrowed final bytes for one dependency closure and, optionally, its
 /// completed current artifact.
 pub struct CrossConeArtifactClosureInput<'input> {
-    current: ConeIdentity,
-    target: ValidatedLirTargetSelection,
-    direct: Vec<ConeIdentity>,
-    dependency_first: Vec<&'input [u8]>,
-    current_artifact: Option<&'input [u8]>,
+    pub(crate) current: ConeIdentity,
+    pub(crate) target: ValidatedLirTargetSelection,
+    pub(crate) direct: Vec<ConeIdentity>,
+    pub(crate) dependency_first: Vec<&'input [u8]>,
+    pub(crate) current_artifact: Option<&'input [u8]>,
 }
 
 impl<'input> CrossConeArtifactClosureInput<'input> {

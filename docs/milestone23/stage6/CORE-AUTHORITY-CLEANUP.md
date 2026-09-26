@@ -28,6 +28,8 @@
 
 String、初始化服务及 descriptor、callable、selected、registration 接入共有记录。删除固定 CORE provider、专用 bridge、独立授权及 core requirement/owner/proof 通道。所有外来 strong 引用按实际 provider 和 typed target 查询 definition、ABI、symbol 与 relocation；GC 登记与初始化依赖仍完整。runtime/native/target 的不同调用契约保持，用途分区互斥且完整覆盖实际 undefined relocation。
 
+未来 program descriptor 中的历史 C 字段 `core_image` 同样表示 String 声明的实际 provider，不再要求 reserved core coordinate。保持既有 C struct 布局、String 表示与 kind 常量；普通 core 修改或扩展不自动改变 runtime ABI。M23-8 的 startup 实现继续留在后续里程碑。
+
 ### 2.5 通用资源预算与计费
 
 删除 `BudgetMeter`、累计 usage、logical heap/work、节点/边/复制字节和逐操作收费的参数、接口、错误、版本字段及专用测试。不保留改名后的 meter、unlimited 或空壳。
@@ -41,6 +43,8 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 已完成产物拥有完整 manifest、typed IR 和对象信息；构建、缓存与消费路径共享这一结果，访问 Compile/Link 数据直接借用，不重新解码或重放闭包。依赖顺序、边和产物只保存一份，不以用途凭证包装两套重复状态。
 
 layout reader 的外部形状合同保留选中记录的完整 typed 数据，读取结果直接拥有 section 和 Link 信息，不依赖临时 arena 或高阶回调。依赖查询期间的正常借用保留；不能用借用生命周期或只读回调额外限制已经完整的编译数据。
+
+LIR 的依赖选择直接查询实际 provider 的完整 layout/ABI 五表导出记录。构建图提供可达 provider 集合，同次编译与产物 reader 使用同一入口；不要求从读取结果重造 producer section，不保存重复的递归 section 依赖图。选择仍检查 typed 目标、provider、target 和真实引用闭包，manifest 依赖环与语言布局环保留在各自职责边界。
 
 Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。
 

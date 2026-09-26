@@ -41,7 +41,7 @@ pub(super) fn select<'a>(
     output: &lir::SingleConeStrongLirOutput,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     provider: &lir::ShapeLinkProviderV1<'a>,
-    layout: &'a lir::CrossConeLayoutAbiSectionV1<'a>,
+    layout: &'a lir::LayoutAbiExportConstituentsV1,
     production: &'a lir::StrongProductionSectionV2,
 ) -> (
     lir::StrongProductionDependencySelectionV2<'a>,

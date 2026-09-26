@@ -1536,6 +1536,8 @@ Link 追加对象格式、definition/patch 范围、符号归属、typed require
 
 layout reader 直接返回拥有 section、所选外部形状合同和 Link 对象的结果，供后续编译保留与查询；不以内部 arena 或高阶回调包装已完成数据的使用资格。查询仍按实际 provider 和 typed 目标解析合同，沿用原有格式与 ABI。
 
+LIR 的依赖选择直接查询实际 provider 的完整 layout/ABI 五表导出记录。构建图提供可达 provider 集合，同次编译与产物 reader 使用同一入口；不要求从读取结果重造 producer section，不保存重复的递归 section 依赖图。选择仍检查 typed 目标、provider、target 和真实引用闭包，manifest 依赖环与语言布局环保留在各自职责边界。
+
 Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。
 
 删除 `SlibDecodeCostModelV1`、`BudgetMeter`、累计 heap/node/edge/owned-byte/work 以及 closure 级配额。解码、查询、排序、哈希、复制和分配不逐项计费；这些策略不属于 profile、fingerprint 或 runtime ABI。普通内容 fingerprint 和缓存记录继续使用。错误保留 artifact、section 与 field/index 位置，失败不提交部分 IR 或半注册实体。
@@ -2264,7 +2266,7 @@ RootEntryKey = {
 }
 
 RuntimeCoreBindingsKey = {
-    core_image = ConeIdentity,
+    core_image = ConeIdentity, // Actual String declaration provider
     string_capability_id = SCOOP_CORE_STRING_CAPABILITY_ID_V1,
     string_type_id,
     string_type_registration = PersistentExactTypeId,
@@ -2273,7 +2275,7 @@ RuntimeCoreBindingsKey = {
 }
 ```
 
-link verifier与runtime都先把entry的`failure_root`/`gateway`及core的`core_image`/`string_type`四个pointer解析到对应kind-specific id，并验证gateway body、producer与core image的owner关系，再编码key。final-program builder把已经验证的core String `Scan` digest逐byte复制到`RuntimeCoreBindingsV1.string_scan_fingerprint`，这不是新的digest node或新的hash domain。Graph hash stream按同一encoder依次为domain byte span `scoop-program-graph-v1`、runtime ABI、target profile、root Cone identity、按伪代码声明序的`RootEntryKey`、`RuntimeCoreBindingsKey`，最后是带count的canonical-topological `{ConeIdentity, RuntimeImageFingerprint}` product sequence；其SHA-256即`GraphFingerprint`。它不属于任何Cone的`DigestFinalizationPlan`，由final-program builder在program slot为全零时唯一计算/写入，再由link verifier/runtime重算。只排除program record中的`graph_fingerprint`自身，不排除entry/core内已经完成的上游digest。Rust producer/finalizer/link verifier与C runtime共享至少包含空/全variant/边界长度的逐byteencoder与digest golden vectors；code变化由`CodeFingerprint`、`ArtifactFingerprint`与最终link key覆盖，不与runtime image fingerprint或program graph建立自引用。
+link verifier与runtime都先把entry的`failure_root`/`gateway`及 String binding 的 `core_image`/`string_type` 四个 pointer 解析到对应 kind-specific id，并验证 gateway body、producer 与实际 String provider image 的定义关系，再编码key。final-program builder 把实际 String provider 的已验证 `Scan` digest 逐 byte 复制到`RuntimeCoreBindingsV1.string_scan_fingerprint`，这不是新的digest node或新的hash domain。Graph hash stream按同一encoder依次为domain byte span `scoop-program-graph-v1`、runtime ABI、target profile、root Cone identity、按伪代码声明序的`RootEntryKey`、`RuntimeCoreBindingsKey`，最后是带count的canonical-topological `{ConeIdentity, RuntimeImageFingerprint}` product sequence；其SHA-256即`GraphFingerprint`。它不属于任何Cone的`DigestFinalizationPlan`，由final-program builder在program slot为全零时唯一计算/写入，再由link verifier/runtime重算。只排除program record中的`graph_fingerprint`自身，不排除entry/core内已经完成的上游digest。Rust producer/finalizer/link verifier与C runtime共享至少包含空/全variant/边界长度的逐byteencoder与digest golden vectors；code变化由`CodeFingerprint`、`ArtifactFingerprint`与最终link key覆盖，不与runtime image fingerprint或program graph建立自引用。
 
 每个Cone image descriptor symbol由其`ConeIdentity`mangle且为hidden strong symbol；相同Cone在钻石图只允许一个artifact instance。image必须携带完整canonical coordinate，runtime重新验证第1.1节grammar、重算`ConeIdentity`，并以coordinate bytes验证同层排序；coordinate因此是ABI验证/排序输入，不只是诊断字符串。generic ODR member不产生额外伪Cone image。
 
@@ -2291,9 +2293,9 @@ IR中schedule必须是封闭`InitializationSchedule::{EagerStartup { gateway }, 
 
 init descriptor的普通`storage`也必须是owner绑定的`InitializationValueStorageRef`，其persistent storage key包含该unit及property/published-object role；不能指向另一个unit的合法storage registration。两个不同unit不得共享该registration或allocation range，`storage`与本unit的`failure_root`也必须不同；唯一例外仍是同一ODR unit经完整record验证后的重复引用。该关系由LIR类型保证，并由link verifier/runtime的`storage id/address -> initialization unit`反向map防御性重验。
 
-`ScoopRuntimeCoreBindingsV1`只包含C runtime主动使用的能力。前端解析得到的 String 角色以完整 typed exact/layout 引用经共有 HIR/LIR metadata 提供，关联实际 provider，不通过专用 core 来源资格包装；linker必须证明binding中的`string_type_id`精确等于该well-known relation重算出的`PersistentExactTypeId`，不能用另一个同布局core class替代。共享ABI header中的v1 capability-kind常量严格按6.1 encoder计算为`SHA-256(ByteSpan("scoop-runtime-core-capability-v1") || ByteSpan("String")) = d69647675041ab4e7a2550b9a5a27b49741c08b30ab07b259d998e606f218b77`，并以上述`SCOOP_CORE_STRING_CAPABILITY_ID_V1[32]`字节数组声明；final-program builder和C runtime直接使用这32 bytes参与Graph key/golden，不以C字符串NUL、host endian或symbol地址重算。该常量只标识versioned String capability kind，不单独编码runtime ABI；Graph已把`runtime_abi`作为独立必需输入，core声明/契约变化必须反映在其typed relation与runtime ABI中。
+`ScoopRuntimeCoreBindingsV1`只包含C runtime主动使用的能力。前端解析得到的 String 角色以完整 typed exact/layout 引用经共有 HIR/LIR metadata 提供，关联实际 provider，不通过专用 core 来源资格包装；linker必须证明binding中的`string_type_id`精确等于该well-known relation重算出的`PersistentExactTypeId`，不能用另一个同布局 class 替代。共享ABI header中的v1 capability-kind常量严格按6.1 encoder计算为`SHA-256(ByteSpan("scoop-runtime-core-capability-v1") || ByteSpan("String")) = d69647675041ab4e7a2550b9a5a27b49741c08b30ab07b259d998e606f218b77`，并以上述`SCOOP_CORE_STRING_CAPABILITY_ID_V1[32]`字节数组声明；final-program builder和C runtime直接使用这32 bytes参与Graph key/golden，不以C字符串NUL、host endian或symbol地址重算。该常量只标识versioned String capability kind，不单独编码runtime ABI；Graph已把`runtime_abi`作为独立必需输入，普通声明变更反映在其 typed relation 与内容 fingerprint 中；只有实际 C 表示或调用契约变化才按正常规则修订 runtime ABI。
 
-String binding还必须指向reserved core image**自身producer表**中的type registration，`string_type_id == string_type->registration.semantic_id`且其TD地址相同；runtime逐项要求`sizeof(ScoopObjectHeader) == object_header_size == 16`、`offsetof(ScoopString, len) == string_length_offset == 16`、`offsetof(ScoopString, data) == string_bytes_offset == string_minimum_size == 24`、alignment为8，且TD shape为`InlineBytes { minimum_size/inline_offset: 24, instance_alignment: 8, inline_size/stride/alignment: 1 }`、两个scan均为None并匹配fingerprint。这样String分配不会只因拿到“某个看似可用的TD指针”就越界。compiler生成代码继续使用普通typed external refs，这个表不是运行期名称服务。
+String binding 必须指向实际声明 provider image 的 producer 表中的 type registration；历史 C 字段 `core_image` 不要求固定 CORE identity 或 coordinate。`string_type_id == string_type->registration.semantic_id`且其TD地址相同；runtime逐项要求`sizeof(ScoopObjectHeader) == object_header_size == 16`、`offsetof(ScoopString, len) == string_length_offset == 16`、`offsetof(ScoopString, data) == string_bytes_offset == string_minimum_size == 24`、alignment为8，且TD shape为`InlineBytes { minimum_size/inline_offset: 24, instance_alignment: 8, inline_size/stride/alignment: 1 }`、两个scan均为None并匹配fingerprint。这样String分配不会只因拿到“某个看似可用的TD指针”就越界。compiler生成代码继续使用普通typed external refs，这个表不是运行期名称服务。
 
 ### 6.2 启动注册阶段
 

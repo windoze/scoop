@@ -7,7 +7,7 @@ pub(super) enum SelectionInput {
 
 pub(super) fn producer<'a, E>(
     exports: LayoutAbiExportConstituentsV1,
-    dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+    dependencies: &[&'a LayoutAbiExportConstituentsV1],
     physical_imports: Vec<crate::ExternalShapeLinkImportV1>,
     source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
 ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
@@ -26,7 +26,7 @@ pub(super) fn producer<'a, E>(
 
 pub(super) fn complete<'a, E>(
     exports: LayoutAbiExportConstituentsV1,
-    dependencies: Vec<&'a CrossConeLayoutAbiSectionV1<'a>>,
+    dependencies: Vec<&'a LayoutAbiExportConstituentsV1>,
     physical_imports: crate::CanonicalExternalShapeLinkImportsV1,
     selection: SelectionInput,
     source: &impl LayoutAbiSectionSourceAuthorityV1<E>,
@@ -48,9 +48,7 @@ pub(super) fn complete<'a, E>(
     let roots = source
         .committed_semantic_roots()
         .map_err(LayoutAbiSectionError::Source)?;
-    let mut dependency_exports = reserve(dependencies.len())?;
-    dependency_exports.extend(dependencies.iter().map(|section| &section.exports));
-    let relations = close_selection(&exports, &dependency_exports, roots, candidate)?;
+    let relations = close_selection(&exports, &dependencies, roots, candidate)?;
     let mut semantic = reserve(relations.len())?;
     for relation in relations {
         let terminal = dependencies
@@ -74,11 +72,7 @@ pub(super) fn complete<'a, E>(
         semantic,
         physical_imports,
     )?;
-    Ok(CrossConeLayoutAbiSectionV1 {
-        exports,
-        dependencies,
-        selected,
-    })
+    Ok(CrossConeLayoutAbiSectionV1 { exports, selected })
 }
 
 pub(super) fn close_selection<E>(
@@ -114,7 +108,7 @@ pub(super) fn validate_selected_records<E>(
 
 fn validate_physical<E>(
     consumer: ConeIdentity,
-    dependencies: &[&CrossConeLayoutAbiSectionV1<'_>],
+    dependencies: &[&LayoutAbiExportConstituentsV1],
     semantic: &[SelectedLayoutAbiEntryV1<'_>],
     physical: &crate::CanonicalExternalShapeLinkImportsV1,
 ) -> Result<(), LayoutAbiSectionError<E>> {

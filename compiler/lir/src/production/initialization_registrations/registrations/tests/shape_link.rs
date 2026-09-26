@@ -138,7 +138,7 @@ fn selected_initialization_import_materializes_a_typed_external_use() {
         &[],
         Vec::new(),
     );
-    let dependencies = [&terminal];
+    let dependencies = [terminal.exports()];
     let selected = StrongProductionDependencySelectionV2::try_new(
         ConeIdentity::CORE,
         TARGET,
@@ -181,7 +181,7 @@ impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
 
 fn layout_section<'a>(
     exports: LayoutAbiExportConstituentsV1,
-    dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+    dependencies: &[&'a LayoutAbiExportConstituentsV1],
     imports: Vec<ExternalShapeLinkImportV1>,
 ) -> CrossConeLayoutAbiSectionV1<'a> {
     CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &LayoutSource).unwrap()

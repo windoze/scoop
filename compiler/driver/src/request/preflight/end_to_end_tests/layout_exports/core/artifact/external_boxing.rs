@@ -53,14 +53,14 @@ pub(super) fn check(
     let selected = lir::StrongProductionDependencySelectionV2::try_new(
         module.cone,
         module.meta.target_profile,
-        &[layout],
+        &[layout.exports()],
         imports.clone(),
         &source,
     )
     .unwrap();
     let complete = lir::CrossConeLayoutAbiSectionV1::try_new(
         selection::empty_exports(&foundation, module.meta.target_profile),
-        &[layout],
+        &[layout.exports()],
         imports,
         &source,
     )

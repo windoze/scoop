@@ -44,7 +44,7 @@ fn nested_layout_use_selects_the_unique_terminal_record() {
         "remote",
         terminal.layouts().get(remote_layout).unwrap(),
     );
-    let dependencies = [&terminal];
+    let dependencies = [terminal.exports()];
     let selected = section(
         exports(&local_foundation, vec![local_value.into()]),
         &dependencies,
@@ -87,7 +87,7 @@ fn reader_recomputes_selected_semantics_instead_of_trusting_wire() {
     let target = LayoutAbiSemanticTargetV1::Layout(remote_layout);
     let roots = Source(vec![LayoutAbiDependencyV1::new(remote, target)]);
     let expected = empty_exports(consumer);
-    let dependencies = [&terminal];
+    let dependencies = [terminal.exports()];
     let section = section(expected.clone(), &dependencies, &roots).unwrap();
     let bytes = encode(&section).unwrap();
     let decoded: DecodedCrossConeLayoutAbiSectionV1 = decode_canonical(&bytes).unwrap();
@@ -132,7 +132,7 @@ fn closure_rejects_a_forged_embedded_layout_constituent() {
     .unwrap();
     let forged = scalar_with_identity(remote, remote_value.identity().exact_record().clone());
     let (boxed, boxed_foundation) = boxed_with_payload(consumer, &forged);
-    let dependencies = [&terminal];
+    let dependencies = [terminal.exports()];
     let result = section(
         exports(&boxed_foundation, vec![boxed.into()]),
         &dependencies,
@@ -159,7 +159,7 @@ fn source_roots_must_be_canonical_and_external() {
     .unwrap();
     let consumer = cone("root-consumer");
     let relation = LayoutAbiDependencyV1::new(provider, target);
-    let dependencies = [&terminal];
+    let dependencies = [terminal.exports()];
     let duplicate = Source(vec![relation, relation]);
     assert!(matches!(
         section(empty_exports(consumer), &dependencies, &duplicate),
