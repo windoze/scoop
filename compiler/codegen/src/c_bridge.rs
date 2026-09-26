@@ -52,6 +52,7 @@ impl GeneratedCBridgeSourceSetV1 {
 pub fn render_c_bridge_source_set(
     input: &scoop_lir::SingleConeStrongLirOutput,
 ) -> Result<GeneratedCBridgeSourceSetV1, CodegenError> {
+    validation::validate_module(input.module())?;
     render_source_set(input.module(), input.foundation())
 }
 
@@ -69,7 +70,6 @@ fn render_source_set(
     module: &Module,
     foundation: &scoop_lir::OdrFreeLirFoundation,
 ) -> Result<GeneratedCBridgeSourceSetV1, CodegenError> {
-    validation::validate_module(module)?;
     let plan = scoop_lir::GeneratedBridgePlanSetV1::from_odr_free_foundation(foundation).map_err(
         |error| CodegenError(format!("cannot plan generated C bridge sources: {error}")),
     )?;

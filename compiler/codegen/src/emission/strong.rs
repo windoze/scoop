@@ -283,7 +283,11 @@ fn validate_object_set_input(
     profile: ValidatedBackendProfile,
 ) -> Result<(), CodegenError> {
     validation::validate_module(input.module())?;
-    profile.validate_lir_target_profile(input.module().meta.target_profile)
+    profile.validate_lir_target_profile(input.module().meta.target_profile)?;
+    if let scoop_lir::LirOutput::Executable { entry } = input.module().output {
+        validation::validate_executable_entry(input.module(), entry)?;
+    }
+    Ok(())
 }
 
 fn validate_production_binding(
@@ -328,9 +332,8 @@ pub fn render_llvm_ir_members(
     entry_source: scoop_lir::EntryProductionSourceV1,
     profile: ValidatedBackendProfile,
 ) -> Result<Vec<RenderedStrongObjectModuleV1>, CodegenError> {
+    validate_object_set_input(input, profile)?;
     let module = input.module();
-    validation::validate_module(module)?;
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
     let production = input
         .build_production_section(coordinate.clone(), direct_dependencies, entry_source)
         .map_err(|error| {

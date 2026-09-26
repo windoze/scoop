@@ -16,9 +16,6 @@ fn prepare_non_callable_strong_llvm_module<
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
 ) -> Result<(LlvmModule<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
-    if let scoop_lir::LirOutput::Executable { entry } = module.output {
-        validation::validate_executable_entry(module, entry)?;
-    }
     let (llvm, runtime_metadata) = emit_llvm_module_with_surface(
         context,
         module,
@@ -56,9 +53,6 @@ fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     expected_safepoints: &statepoint::ExpectedSafepoints,
     body: scoop_lir::PersistentCallableBodyId,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
-    if let scoop_lir::LirOutput::Executable { entry } = module.output {
-        validation::validate_executable_entry(module, entry)?;
-    }
     let (llvm, ()) = emit_llvm_module_with_surface(
         context,
         module,
@@ -179,6 +173,7 @@ impl StrongObjectEmissionSelection {
     }
 }
 
+// Every caller has checked this immutable module at its emission entry.
 fn emit_llvm_module_with_surface<'ctx, R>(
     context: &'ctx Context,
     module: &Module,
@@ -194,8 +189,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         GlobalValue<'ctx>,
     ) -> Result<(R, Vec<GlobalValue<'ctx>>), CodegenError>,
 ) -> Result<(LlvmModule<'ctx>, R), CodegenError> {
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
-    validation::validate_module(module)?;
     let managed_address_space = profile.managed_address_space_contract();
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
@@ -581,6 +574,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     profile: ValidatedBackendProfile,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
     validation::validate_module(module)?;
+    profile.validate_lir_target_profile(module.meta.target_profile)?;
     if !module.initialization_units.is_empty() {
         return Err(CodegenError(
             "initialization units require a sealed strong production section".to_string(),
