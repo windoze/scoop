@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn generic_class_constructor_members_and_concrete_instances_are_complete() {
+fn generic_class_constructors_and_used_members_have_complete_instances() {
     let output = lower_user_output(file(vec![
         generic_class(
             "Box",
@@ -64,7 +64,6 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
             && instance.type_arguments.len() == 1
             && instance.declared_fields().len() == 1
             && instance.declared_fields()[0].ty == instance.type_arguments[0]
-            && instance.methods.len() == 1
     }));
     assert!(instances.iter().any(|instance| {
         matches!(
@@ -78,6 +77,18 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
             hir::concrete::TypeKind::String
         )
     }));
+    let getters = output
+        .local
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name == "Box.get")
+        .map(|(_, function)| function)
+        .collect::<Vec<_>>();
+    assert_eq!(getters.len(), 1, "only Box<Int>.get has an actual call");
+    assert!(matches!(
+        output.local.types[getters[0].return_ty].kind,
+        hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
+    ));
 }
 
 #[test]

@@ -1,3 +1,3 @@
 AccessorCell.computed: Public getter=Body setter=None lookup=true
-AccessorCell.mixed: Public getter=Storage setter=Some(Body) lookup=true
-AccessorCell.stored: Public getter=Storage setter=Some(Storage) lookup=true
+AccessorCell.mixed: Public getter=Body setter=Some(Body) lookup=true
+AccessorCell.stored: Public getter=Body setter=Some(Body) lookup=true

@@ -1,0 +1,3 @@
+span=64..75
+expression=Counter(21)
+cannot throw value of type Counter: not a subtype of Throwable

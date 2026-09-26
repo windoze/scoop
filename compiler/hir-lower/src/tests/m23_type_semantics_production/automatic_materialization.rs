@@ -113,6 +113,12 @@ fn actual_local_uses_request_complete_source_only_instances() {
                 .iter()
                 .any(|(_, function)| function.name == "DeferredWrapper.read")
         );
+        assert!(
+            local
+                .functions
+                .iter()
+                .any(|(_, function)| function.name == "DeferredAccessorBox.$get$value")
+        );
         assert!(output.output().local.materialization().roots().is_empty());
     });
 }

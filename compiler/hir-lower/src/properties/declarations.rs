@@ -124,8 +124,7 @@ impl Lowerer {
                 ..
             })
         );
-        let exported_storage = matches!(backing, Some(hir::PropertyBacking::TopLevelGlobal { .. }))
-            && Self::declaration_is_exported(&access);
+        let exported_storage = backing.is_some() && Self::declaration_is_exported(&access);
         if matches!(declaration.body, ast::PropertyBodySyntax::Delegated { .. }) {
             return Some(self.allocate_delegated_property_accessors(
                 property,

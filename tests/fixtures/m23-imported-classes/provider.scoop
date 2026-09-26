@@ -57,3 +57,6 @@ public fun valueReader(): ValueReader = ValueReaderImpl()
 public interface OtherReadable {
     public fun read(): Long
 }
+
+public fun throwValue(value: Throwable) { throw value }
+public fun throwDefault(value: Throwable = RebuiltFailure(21)) { throw value }

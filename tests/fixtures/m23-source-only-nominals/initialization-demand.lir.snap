@@ -13,11 +13,25 @@ Module
   enum CoroutineStep<DeferredHost.ReadyFactory> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<DeferredHost.ReadyFactory> niche(kind=managed,payload_variant=1)
   fun @scoop$1$cb$c400a7550b4c4c8434c8ae70d86d5633a53b8ab697758b6249cbca6616c4d5f5(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn1(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$b0f1fcd9594e5731b96ec0febb66eb3a852ecba748af24c96c3ed91ce677e644(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
   fun @scoop$1$cb$e39f2b00ca5ee4c46a1d79675186d8c577710643ff01acf20abd26ce16e3dbbb(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn3(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$69ca5811234f7bbd6a28ef18994d50e71661bfbe9c14256a822db8905771de5c(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
@@ -28,7 +42,7 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
-    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn9(local0)
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn11(local0)
     t1 = aggregate () : {}
     global_store global1, local0
     ret
@@ -74,7 +88,7 @@ Module
   block try.end.10
     br @if.merge.3
   block try.body.11
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
     store local7 -> local1
@@ -117,7 +131,7 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
-    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local0)
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn12(local0)
     t1 = aggregate () : {}
     global_store global2, local0
     ret
@@ -163,7 +177,7 @@ Module
   block try.end.10
     br @if.merge.3
   block try.body.11
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
     store local7 -> local1
@@ -205,7 +219,7 @@ Module
     local %1 $call.1: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn3()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn5()
     t0 = aggregate () : {}
     t1 = global_load global1 : ptr<managed>
     store t1 -> local0
@@ -255,7 +269,7 @@ Module
   block try.end.10
     br @if.merge.3
   block try.body.11
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn8() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
     store local7 -> local1
@@ -295,7 +309,7 @@ Module
   fun @scoop$1$cb$f88a5dc796932042014bfcbf9a6449c8fed8e4d1d653a0711daf6d756818f0dd() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn7()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn9()
     t0 = aggregate () : {}
     t1 = global_load global0 : i32
     ret t1
@@ -306,11 +320,11 @@ Module
     local %3 $dependency.parameter.other: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 () local-fn5()
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 () local-fn7()
     t0 = aggregate () : {}
     t1 = global_load global2 : ptr<managed>
     store t1 -> local0
-    call managed-direct-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 local-fn1(local0)
+    call managed-direct-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 local-fn2(local0)
     store t2 -> local1
     store integer<Int>(0x00000001) -> local2
     store local2 -> local3
@@ -325,7 +339,7 @@ Module
   fun @scoop$1$cb$77ddf4b270c37bc8ff23e461da27e656a5c8d5261368aa127d559b8c33ebe46f() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn7() normal @success unwind @failure
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn9() normal @success unwind @failure
     br @success
   block success
     ret integer<UInt>(0x00000000)

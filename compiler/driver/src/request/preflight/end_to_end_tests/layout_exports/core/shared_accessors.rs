@@ -7,10 +7,10 @@ pub(super) fn check(
 ) {
     let cases: &[(&str, bool)] = match name {
         "shared-accessors-standalone" => &[
-            ("AccessorCell.$get$stored", false),
-            ("AccessorCell.$set$stored", false),
+            ("AccessorCell.$get$stored", true),
+            ("AccessorCell.$set$stored", true),
             ("AccessorCell.$get$computed", true),
-            ("AccessorCell.$get$mixed", false),
+            ("AccessorCell.$get$mixed", true),
             ("AccessorCell.$set$mixed", true),
         ],
         "shared-accessors-combined" => &[
@@ -22,11 +22,11 @@ pub(super) fn check(
             ("AccessorBase.$set$protectedStorage", false),
             ("AccessorBase.$get$protectedBody", true),
             ("AccessorBase.$get$hidden", true),
-            ("AccessorBase.$get$mixed", false),
+            ("AccessorBase.$get$mixed", true),
             ("AccessorBase.$set$mixed", true),
             ("AccessorImpl.$get$slot", true),
             ("AccessorImpl.$set$slot", true),
-            ("AccessorObject.$get$objectStorage", false),
+            ("AccessorObject.$get$objectStorage", true),
             ("AccessorObject.$get$computed", true),
             ("$get$accessorGlobal", true),
             ("$set$accessorGlobal", true),

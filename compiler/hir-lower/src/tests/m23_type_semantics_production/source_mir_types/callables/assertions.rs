@@ -132,6 +132,7 @@ pub(super) fn combined(
         "Again.$get$abstractValue",
         "Registry.$get$value",
         "Registry.$set$value",
+        "Registry.$get$direct",
     ] {
         assert!(
             dump.contains(&format!("{name}:")),
@@ -139,7 +140,6 @@ pub(super) fn combined(
         );
     }
     assert!(!dump.contains("Base.secret:"));
-    assert!(!dump.contains("Registry.$get$direct:"));
     let secret = input
         .module()
         .functions

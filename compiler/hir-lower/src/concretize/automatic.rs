@@ -86,15 +86,17 @@ impl Concretizer<'_> {
     pub(super) fn automatic_method(&self, function: export::FunctionId) -> bool {
         let function = &self.source.functions[function];
         let receiver = function.method.expect("nominal members have a receiver");
-        // A non-automatic owner can only have been requested by a concrete use.
-        // Its ordinary members retain that actual instantiation's substitutions.
-        !self.automatic_type(receiver.owner)
-            || (!function.is_suspend
-                && function
-                    .params
-                    .iter()
-                    .all(|param| self.automatic_type(param.ty))
-                && self.automatic_type(function.return_ty))
+        // Signatures may request a source-only owner's representation. Direct
+        // members need an actual call; dispatch members belong to its tables.
+        if !self.automatic_type(receiver.owner) {
+            return !matches!(receiver.dispatch, export::MethodDispatch::Direct);
+        }
+        !function.is_suspend
+            && function
+                .params
+                .iter()
+                .all(|param| self.automatic_type(param.ty))
+            && self.automatic_type(function.return_ty)
     }
 
     pub(super) fn automatic_class_constructor(

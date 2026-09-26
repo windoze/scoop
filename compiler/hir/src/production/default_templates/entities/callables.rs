@@ -152,10 +152,12 @@ impl DefaultEntityProjector<'_> {
                     owner_type: source_type,
                 })
             }
-            crate::Type::Class(_) => Ok(crate::DefaultConstructorRefV1::Class {
-                declaration: crate::DefaultClassConstructorIdV1::Source(declaration),
-                owner_type: source_type,
-            }),
+            crate::Type::Class(_) | crate::Type::ImportedClass(_) => {
+                Ok(crate::DefaultConstructorRefV1::Class {
+                    declaration: crate::DefaultClassConstructorIdV1::Source(declaration),
+                    owner_type: source_type,
+                })
+            }
             _ => Err(super::super::DefaultEntityProjectionError::CallableKind(
                 scoop_identity::CallableTemplateOrigin::Constructor(declaration),
             )),

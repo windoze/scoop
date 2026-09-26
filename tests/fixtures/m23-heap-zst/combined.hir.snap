@@ -7,18 +7,18 @@ Module
     property1 val second: HeapEmpty getter1=storage <stored struct1-field1>
   class HeapCell(empty: HeapEmpty)
     field0 property2: HeapEmpty
-    property2 var empty: HeapEmpty getter2=storage setter0=storage <stored field0 init=parameter2>
+    property2 var empty: HeapEmpty getter2=body(HeapCell.$get$empty) setter0=body(HeapCell.$set$empty) <stored field0 init=parameter2>
   open class HeapBase(first: HeapEmpty)
     field1 property3: HeapEmpty
-    property3 var first: HeapEmpty getter3=storage setter1=storage <stored field1 init=parameter3>
+    property3 var first: HeapEmpty getter3=body(HeapBase.$get$first) setter1=body(HeapBase.$set$first) <stored field1 init=parameter3>
   class HeapDerived(number: Int, pair: HeapPair)
     field2 property4: Int
     field3 property5: HeapPair
-    property4 var number: Int getter4=storage setter2=storage <stored field2 init=parameter4>
-    property5 var pair: HeapPair getter5=storage setter3=storage <stored field3 init=parameter5>
+    property4 var number: Int getter4=body(HeapDerived.$get$number) setter2=body(HeapDerived.$set$number) <stored field2 init=parameter4>
+    property5 var pair: HeapPair getter5=body(HeapDerived.$get$pair) setter3=body(HeapDerived.$set$pair) <stored field3 init=parameter5>
   object HeapSingleton <object0 type0 value0 root0 init0>
     field4 property6: HeapEmpty
-    property6 var empty: HeapEmpty getter6=storage setter4=storage <stored field4 init=expression>
+    property6 var empty: HeapEmpty getter6=body(HeapSingleton.$get$empty) setter4=body(HeapSingleton.$set$empty) <stored field4 init=expression>
   property7 var heapEffects: Int getter7=body($get$heapEffects) setter5=body($set$heapEffects) <stored global0 image>
   var heapEffects: Int <global0 managed>
   fun $init$body$0(): Unit
@@ -84,36 +84,36 @@ Module
     val local17
       Lambda lambda3 invoke=$lambda.3 captures=1 : () -> HeapEmpty
         capture changing binding24 : HeapCell
-    assign .field
+    MethodCall HeapCell.$set$empty : Unit
       Local changing : HeapCell
       Call heapEmptySource : HeapEmpty
-    assign .field
+    MethodCall HeapDerived.$set$pair : Unit
       CallableCall function_type2 : HeapDerived
         Local readReference : () -> HeapDerived
       CallableCall function_type1 : HeapPair
         Local readPair : () -> HeapPair
-    assign .field
+    MethodCall HeapBase.$set$first : Unit
       Local derived : HeapDerived
       CallableCall function_type0 : HeapEmpty
         Local readEmpty : () -> HeapEmpty
-    assign .field
+    MethodCall HeapSingleton.$set$empty : Unit
       SingletonValue HeapSingleton : HeapSingleton
       CallableCall function_type0 : HeapEmpty
         Local readChanging : () -> HeapEmpty
     val local18
-      FieldAccess class field number : Int
+      MethodCall HeapDerived.$get$number : Int
         Local derived : HeapDerived
     val local19
       Call $get$heapEffects : Int
     val local20
       Local $dependency.argument.0 : Int
-    assign .field
+    MethodCall HeapDerived.$set$number : Unit
       Local derived : HeapDerived
       IntegerOperation int.add <no-gc> : Int
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
     return
-      FieldAccess class field empty : HeapEmpty
+      MethodCall HeapSingleton.$get$empty : HeapEmpty
         SingletonValue HeapSingleton : HeapSingleton
   fun $get$heapEffects(): Int
     return

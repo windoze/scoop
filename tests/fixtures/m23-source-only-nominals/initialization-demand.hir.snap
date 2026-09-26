@@ -3,10 +3,10 @@ Module
   object DeferredRegistry : DeferredSuspend <object0 type0 value0 root0 init0>
   object ReadyRegistry <object1 type1 value1 root1 init1>
     field0 property0: Int
-    property0 val count: Int getter0=storage <stored field0 init=expression>
+    property0 val count: Int getter0=body(ReadyRegistry.$get$count) <stored field0 init=expression>
   companion object DeferredHost.ReadyFactory <object2 type2 value2 root2 init2 companion0>
     field1 property1: Int
-    property1 val seed: Int getter1=storage <stored field1 init=expression>
+    property1 val seed: Int getter1=body(DeferredHost.ReadyFactory.$get$seed) <stored field1 init=expression>
   interface DeferredSuspend
     suspend fun fetch(): Int
   property2 val eager: Int getter2=body($get$eager) <stored global0 init3>

@@ -1,0 +1,158 @@
+Module
+  class Throwable vtable=0 itables=0
+  class RebuiltFailure vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      var code: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb10 bb11
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.receiver: Long
+        Type Long
+        Local code
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign code
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      val $dependency.argument.0: Long
+        Type Long
+        Local code
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+    bb8 try.body.8 unwind bb1
+      val $dependency.default.local.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.default.local.1: Long
+        Type Long
+        Local $dependency.default.local.0
+      assign $new.1
+        Type RebuiltFailure
+        ClassAlloc RebuiltFailure
+      call external0 direct
+        Type RebuiltFailure
+        Local $new.1
+        Type Long
+        Local $dependency.default.local.1
+      val $dependency.parameter.value: Throwable
+        Type Throwable
+        Retype Throwable
+          Type RebuiltFailure
+          Local $new.1
+      call external1 direct
+        Type Throwable
+        Local $dependency.parameter.value
+      goto bb9
+    bb9 scope.9
+      val $dependency.receiver: Long
+        Type Long
+        Local code
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign code
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb7
+    bb10 try.catch.10
+      val error: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          CaughtException
+      goto bb12
+    bb11 try.next.11 unwind bb5
+      val $dependency.receiver: Long
+        Type Long
+        Local code
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign code
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      rethrow unwind bb5
+    bb12 scope.12 unwind bb3
+      assign code
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      end_catch
+      goto bb13
+    bb13 scope.13
+      val $dependency.receiver: Long
+        Type Long
+        Local code
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign code
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb7
+  output library

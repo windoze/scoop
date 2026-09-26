@@ -26,7 +26,7 @@ fn some_none_and_nullable_annotations() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -153,7 +153,7 @@ fn safe_field_access_desugars_to_hidden_locals() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -281,7 +281,7 @@ fn elvis_desugars_to_hidden_locals() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

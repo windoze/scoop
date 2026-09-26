@@ -53,12 +53,23 @@ fn ordinary_reader_consumes_default_value_references_from_published_bytes() {
         assert_eq!(templates.len(), expected_templates, "{case}");
         let mut constructors = [false; 3];
         let mut fields = [false; 3];
+        let mut accessors = false;
         let mut globals = 0;
         let mut singletons = 0;
         for template in templates {
             let refs = template.references();
             globals += refs.globals().len();
             singletons += refs.singleton_values().len();
+            accessors |= refs.callables().iter().any(|reference| {
+                matches!(
+                    reference.target(),
+                    scoop_hir::ExportDefaultCallableTargetV1::Callable(callable)
+                        if matches!(
+                            callable.declaration(),
+                            scoop_hir::DefaultCallableDeclarationV1::PropertyAccessor(_)
+                        )
+                )
+            });
             for reference in refs.constructors() {
                 constructors[match reference.target() {
                     DefaultConstructorRefV1::Struct { .. } => 0,
@@ -80,7 +91,11 @@ fn ordinary_reader_consumes_default_value_references_from_published_bytes() {
                 constructors.into_iter().all(|seen| seen),
                 "{constructors:?}"
             );
-            assert!(fields.into_iter().all(|seen| seen), "{fields:?}");
+            assert_eq!(fields, [true, false, true]);
+            assert!(
+                accessors,
+                "exported class properties use their real getters"
+            );
             assert!(singletons > 0);
         }
     }

@@ -28,7 +28,7 @@ fn expression_body_and_parameters() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -171,7 +171,7 @@ fn return_with_unit_value_is_a_bare_return() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

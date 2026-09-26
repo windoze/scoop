@@ -8,7 +8,7 @@ use scoop_identity::{
 fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstract_overrides() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-core-layout-exports");
-    for (case, count) in [("standalone", 2), ("combined", 11)] {
+    for (case, count) in [("standalone", 2), ("combined", 12)] {
         let source =
             std::fs::read_to_string(directory.join(format!("shared-callables-{case}.scoop")))
                 .unwrap();
@@ -32,7 +32,7 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
             let ordinary =
                 hir::select_ordinary_source_callables(provider, &public, &classifier, &identities)
                     .unwrap();
-            assert_eq!(ordinary.len(), if case == "standalone" { 3 } else { 10 });
+            assert_eq!(ordinary.len(), if case == "standalone" { 3 } else { 11 });
             let mut rows = Vec::new();
             for source in public.callable_interfaces().all_declarations() {
                 let (key, included, old) = match source.declaration() {

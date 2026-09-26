@@ -7,13 +7,18 @@ Module
   init1 object:Holder lazy storage=@scoop$1$ss$8e9ffe386ceadb83688cb808a9d3a5fbb1eb7bd4339b4ab984b0b76c29e17422 failure=@scoop$1$ss$7ace7b9085d39fb8c560a4e44defd9eb0187976ef4570e6eb163a9434b9b681c initializer=@scoop$1$cb$7e9534e5f7484c3184a07ebb37703a506ce44e29d5d7a1e54d28dbe8c6b6fa0f ensure=@scoop$1$cb$1aa0a1ea770e3a8a66d99f5f79f5307a17895866b38fd2b5c8626baf2004d15e deps=[]
   enum CoroutineStep<Holder> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Holder> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$89fa26dbd649e720b5d2e802c1d5d1ff029b14bc9cc346d9ca049aa5c6a92762(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : ptr<managed>
+    ret t0
   fun @scoop$1$cb$7e9534e5f7484c3184a07ebb37703a506ce44e29d5d7a1e54d28dbe8c6b6fa0f() -> void
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
-    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn7(local0)
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn8(local0)
     t1 = aggregate () : {}
     global_store global1, local0
     ret
@@ -59,7 +64,7 @@ Module
   block try.end.10
     br @if.merge.3
   block try.body.11
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
     store local7 -> local1
@@ -97,18 +102,20 @@ Module
   block throw.normal.2
     unreachable
   fun @scoop$1$cb$ab24b7b41275f46e0b1a565e0d833f96ec10a332240ca3cca3ce723acaa242b5() -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn1()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn2()
     t0 = aggregate () : {}
     t1 = global_load global1 : ptr<managed>
-    t2 = heap_load t1 +16 : ptr<managed>
-    ret t2
+    call managed-direct-target0 sp<managed-call:1> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn0(t1)
+    store t2 -> local0
+    ret local0
   fun @scoop$1$cb$d1ac8818a14948637ab3158f27e969353f31497ee421981e05527157552240ce() -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn6()
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn7()
     store t0 -> local0
     ret local0
   fun @scoop$1$cb$e0c1bca8a4ffe949603748cae3eedfa15ad477a8ab56c8ff32d70d4bf1c68f5e() -> void
@@ -161,7 +168,7 @@ Module
   block try.end.10
     br @if.merge.3
   block try.body.11
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn5() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
     store local7 -> local1
@@ -201,7 +208,7 @@ Module
   fun @scoop$1$cb$0f88a4f27f39944d09a0c28e2f580758b6148514379114fd32c3224bb5a7dd23() -> ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn5()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn6()
     t0 = aggregate () : {}
     t1 = global_load global0 : ptr<managed>
     ret t1
@@ -216,7 +223,7 @@ Module
   fun @scoop$1$cb$9c149a171c41060c632b993a1129cff24ec75e02fe8e955a4b012be44657d884() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn5() normal @success unwind @failure
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn6() normal @success unwind @failure
     br @success
   block success
     ret integer<UInt>(0x00000000)

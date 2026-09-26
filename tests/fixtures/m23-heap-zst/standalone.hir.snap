@@ -2,7 +2,7 @@ Module
   struct HeapEmpty
   class HeapCell(empty: HeapEmpty)
     field0 property0: HeapEmpty
-    property0 var empty: HeapEmpty getter0=storage setter0=storage <stored field0 init=parameter0>
+    property0 var empty: HeapEmpty getter0=body(HeapCell.$get$empty) setter0=body(HeapCell.$set$empty) <stored field0 init=parameter0>
   fun heapEmptySource(): HeapEmpty
     return
       StructInit HeapEmpty : HeapEmpty
@@ -17,10 +17,10 @@ Module
   fun heapFieldRoundtrip(): HeapEmpty
     val local0
       Call heapCellSource : HeapCell
-    assign .field
+    MethodCall HeapCell.$set$empty : Unit
       Local cell : HeapCell
       Call heapEmptySource : HeapEmpty
     return
-      FieldAccess class field empty : HeapEmpty
+      MethodCall HeapCell.$get$empty : HeapEmpty
         Local cell : HeapCell
   output library

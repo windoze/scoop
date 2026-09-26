@@ -293,12 +293,27 @@ impl Lowerer {
         self.throwable = Some(candidate);
     }
 
-    /// The `Throwable` reference type of `scoop.core`, when validated.
-    /// `throw` / catch lowering skips its subtype check when this is
-    /// `None` (the misconfigured core was already diagnosed, so the
-    /// module is rejected anyway).
-    pub(crate) fn throwable_ty(&self) -> Option<TypeId> {
-        self.throwable.map(|(_, ty)| ty)
+    /// Resolves the actual exception root through the ordinary type query.
+    /// Missing declarations record a diagnostic before lowering can continue.
+    pub(crate) fn throwable_ty(&mut self, span: Span) -> Option<TypeId> {
+        match &self.core {
+            CoreLoweringAuthority::Defined => self.throwable.map(|(_, ty)| ty),
+            CoreLoweringAuthority::Imported(imported) => {
+                let declaration = imported.protocols.exceptions().throwable().persistent();
+                match self.imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
+                    declaration,
+                )) {
+                    Ok(ty) => Some(ty),
+                    Err(error) => {
+                        self.error(
+                            span,
+                            format!("cannot resolve Throwable dependency type: {error:?}"),
+                        );
+                        None
+                    }
+                }
+            }
+        }
     }
 
     fn check_compiler_exception_safety(

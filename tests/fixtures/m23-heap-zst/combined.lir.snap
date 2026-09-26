@@ -15,13 +15,59 @@ Module
   enum CoroutineSlot<HeapSingleton> niche(kind=managed,payload_variant=1)
   enum CoroutineStep<HeapBase> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<HeapBase> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$74d437d8abb04af3d9f2459b3fb17e71a4e62250dd9859013e09dd4e2c661e96(ptr<managed>) -> elided-zst<struct0 size=0 align=1>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = zst_value exact=938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35 align 1 : struct0
+    ret t0
+  fun @scoop$1$cb$62f29625d1595bfe989a443698c63202bd62040f6fd3c8ecf6865cad61a13c8f(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$41f8f03a8d6373b2bba3207bbc8bf208df774653bb0dfa3b412be069da56b4bf(ptr<managed>) -> elided-zst<struct0 size=0 align=1>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = zst_value exact=938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35 align 1 : struct0
+    ret t0
+  fun @scoop$1$cb$710e1403cb39393eb5bceb0a66b5403fefc340a70fc7b87c35d5e8f2f1901e43(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$dd6095433949b1291a9ea03dde5178f5dc2ac3ec085b07430969ab315e14aed1(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
+    ret t0
+  fun @scoop$1$cb$842676b16732046127cda4244ea3e69ecf23dfb3d165d82c724d829be9cfc803(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$6e6af70444ebd222a84a5a70e7f967027e655a2330155f1d834a50a14e384be4(ptr<managed>) -> elided-zst<struct1 size=0 align=1>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = zst_value exact=e7f858497233e93db6436698f5e29c11e1ee70b7f0f4c3574633ced7565e4c03 align 1 : struct1
+    ret t0
+  fun @scoop$1$cb$76c3c0bd2318033bd577ff04afeb31d232fb18c46754084493c4a758ab6096ec(ptr<managed>, elided-zst<struct1 size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$f59eb5e7338d08fbe7b5a651014fea7601aea722849a41c49c72764d73955158(ptr<managed>) -> elided-zst<struct0 size=0 align=1>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = zst_value exact=938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35 align 1 : struct0
+    ret t0
+  fun @scoop$1$cb$39ca6a22c68bcdc7c3920e0bc853d7d82dd630e31d4239ab212addadf54de23e(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
   fun @scoop$1$cb$c52b4475474700e914226b92ae809f74ad8c5605fb0b139b7f36fb9669568f7f() -> void
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(16)))
     store t0 -> local0
-    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn13(local0)
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn23(local0)
     t1 = aggregate () : {}
     global_store global1, local0
     ret
@@ -67,7 +113,7 @@ Module
   block try.end.10
     br @if.merge.3
   block try.body.11
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn10() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
     store local7 -> local1
@@ -111,14 +157,14 @@ Module
     local %3 $call.1: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 local-fn4()
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 local-fn14()
     store t0 -> local0
     store integer<Int>(0x00000001) -> local1
     store local1 -> local2
     t1 = integer_Add<Int> local0, local2 : i32
-    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn5(t1)
+    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn15(t1)
     t2 = aggregate () : {}
-    call no-gc-elided-zst-target0 t3 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn14()
+    call no-gc-elided-zst-target0 t3 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn24()
     store t3 -> local3
     ret local3
   fun @scoop$1$cb$b946e863e94bc20c476467134b7d5099443cd24b26f1b001255c17a256cd012a() -> elided-zst<struct0 size=0 align=1>
@@ -150,16 +196,17 @@ Module
     local %25 $call.5: struct1 <logical-zst e7f858497233e93db6436698f5e29c11e1ee70b7f0f4c3574633ced7565e4c03>
     local %26 $call.6: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
     local %27 $call.7: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
+    local %28 $call.8: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
   block entry
-    poll managed-void-target4 sp<managed-poll:0> live=[]
-    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn2()
+    poll managed-void-target9 sp<managed-poll:0> live=[]
+    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn12()
     store t0 -> local0
     store local0 -> local1
-    call no-gc-elided-zst-target0 t1 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> local-fn14()
+    call no-gc-elided-zst-target0 t1 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> local-fn24()
     store t1 -> local2
     store local1 -> local3
     store local2 -> local4
-    call no-gc-elided-zst-target1 t2 = sig=elided-zst2 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> local-fn15(elided-zst local3, elided-zst local4)
+    call no-gc-elided-zst-target1 t2 = sig=elided-zst2 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> local-fn25(elided-zst local3, elided-zst local4)
     store t2 -> local5
     store integer<Int>(0x00000007) -> local6
     store local5 -> local7
@@ -167,14 +214,14 @@ Module
     store local7 -> local9
     call managed-direct-target0 sp<managed-call:1> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t3 -> local21
-    call managed-void-target0 sp<managed-call:2> live=[local21:ptr<managed>@0] sig=void0 (ptr<managed>, i32, elided-zst<struct1 size=0 align=1>) local-fn12(local21, local8, elided-zst local9)
+    call managed-void-target0 sp<managed-call:2> live=[local21:ptr<managed>@0] sig=void0 (ptr<managed>, i32, elided-zst<struct1 size=0 align=1>) local-fn22(local21, local8, elided-zst local9)
     t4 = aggregate () : {}
     store local21 -> local10
     store local0 -> local11
     store local11 -> local12
     call managed-direct-target1 sp<managed-call:3> live=[local10:ptr<managed>@0] t5 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
     store t5 -> local22
-    call managed-void-target1 sp<managed-call:4> live=[local10:ptr<managed>@0, local22:ptr<managed>@0] sig=void1 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn10(local22, elided-zst local12)
+    call managed-void-target1 sp<managed-call:4> live=[local10:ptr<managed>@0, local22:ptr<managed>@0] sig=void1 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn20(local22, elided-zst local12)
     t6 = aggregate () : {}
     store local22 -> local13
     call managed-direct-target2 sp<managed-call:5> live=[local10:ptr<managed>@0, local13:ptr<managed>@0] t7 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
@@ -195,31 +242,41 @@ Module
     heap_store t13 +16 t14
     heap_store t13 +24 local13
     store t13 -> local17
-    call managed-elided-zst-target1 sp<managed-call:9> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0] t15 = sig=elided-zst3 () -> elided-zst<struct0 size=0 align=1> local-fn2()
+    call managed-elided-zst-target1 sp<managed-call:9> live=[local10:ptr<managed>@0, local13:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0] t15 = sig=elided-zst3 () -> elided-zst<struct0 size=0 align=1> local-fn12()
     store t15 -> local23
-    call managed-direct-target6 sp<managed-call:10> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0] t16 = sig=direct6 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local16(local16)
-    store t16 -> local24
-    call managed-elided-zst-target2 sp<managed-call:11> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0] t17 = sig=elided-zst4 (ptr<managed>) -> elided-zst<struct1 size=0 align=1> dispatch[Closure:2] local15(local15)
-    store t17 -> local25
-    call managed-elided-zst-target3 sp<managed-call:12> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local17:ptr<managed>@0] t18 = sig=elided-zst5 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Closure:2] local14(local14)
-    store t18 -> local26
-    call managed-void-target2 sp<managed-call:13> live=[local10:ptr<managed>@0, local17:ptr<managed>@0] sig=void2 () local-fn1()
+    call managed-void-target2 sp<managed-call:10> live=[local10:ptr<managed>@0, local13:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0] sig=void2 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn1(local13, elided-zst local23)
+    t16 = aggregate () : {}
+    call managed-direct-target6 sp<managed-call:11> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local16:ptr<managed>@0, local17:ptr<managed>@0] t17 = sig=direct6 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local16(local16)
+    store t17 -> local24
+    call managed-elided-zst-target2 sp<managed-call:12> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local24:ptr<managed>@0] t18 = sig=elided-zst4 (ptr<managed>) -> elided-zst<struct1 size=0 align=1> dispatch[Closure:2] local15(local15)
+    store t18 -> local25
+    call managed-void-target3 sp<managed-call:13> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local17:ptr<managed>@0, local24:ptr<managed>@0] sig=void3 (ptr<managed>, elided-zst<struct1 size=0 align=1>) local-fn7(local24, elided-zst local25)
     t19 = aggregate () : {}
-    call managed-elided-zst-target4 sp<managed-call:14> live=[local10:ptr<managed>@0, local17:ptr<managed>@0] t20 = sig=elided-zst6 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Closure:2] local17(local17)
-    store t20 -> local27
-    t21 = global_load global1 : ptr<managed>
-    t22 = heap_load local10 +16 : i32
-    store t22 -> local18
-    call managed-direct-target7 sp<managed-call:15> live=[local10:ptr<managed>@0] t23 = sig=direct7 () -> i32 local-fn4()
-    store t23 -> local19
-    store local19 -> local20
-    t24 = integer_Add<Int> local18, local20 : i32
-    heap_store local10 +16 t24
-    call managed-void-target3 sp<managed-call:16> live=[] sig=void3 () local-fn1()
+    call managed-elided-zst-target3 sp<managed-call:14> live=[local10:ptr<managed>@0, local14:ptr<managed>@0, local17:ptr<managed>@0] t20 = sig=elided-zst5 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Closure:2] local14(local14)
+    store t20 -> local26
+    call managed-void-target4 sp<managed-call:15> live=[local10:ptr<managed>@0, local17:ptr<managed>@0] sig=void4 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn3(local10, elided-zst local26)
+    t21 = aggregate () : {}
+    call managed-void-target5 sp<managed-call:16> live=[local10:ptr<managed>@0, local17:ptr<managed>@0] sig=void5 () local-fn11()
+    t22 = aggregate () : {}
+    call managed-elided-zst-target4 sp<managed-call:17> live=[local10:ptr<managed>@0, local17:ptr<managed>@0] t23 = sig=elided-zst6 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Closure:2] local17(local17)
+    store t23 -> local27
+    t24 = global_load global1 : ptr<managed>
+    call managed-void-target6 sp<managed-call:18> live=[local10:ptr<managed>@0, t24:ptr<managed>@0] sig=void6 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn9(t24, elided-zst local27)
     t25 = aggregate () : {}
-    t26 = global_load global1 : ptr<managed>
-    t27 = zst_value exact=938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35 align 1 : struct0
-    ret t27
+    call managed-direct-target7 sp<managed-call:19> live=[local10:ptr<managed>@0] t26 = sig=direct7 (ptr<managed>) -> i32 local-fn4(local10)
+    store t26 -> local18
+    call managed-direct-target8 sp<managed-call:20> live=[local10:ptr<managed>@0] t27 = sig=direct8 () -> i32 local-fn14()
+    store t27 -> local19
+    store local19 -> local20
+    t28 = integer_Add<Int> local18, local20 : i32
+    call managed-void-target7 sp<managed-call:21> live=[local10:ptr<managed>@0] sig=void7 (ptr<managed>, i32) local-fn5(local10, t28)
+    t29 = aggregate () : {}
+    call managed-void-target8 sp<managed-call:22> live=[] sig=void8 () local-fn11()
+    t30 = aggregate () : {}
+    t31 = global_load global1 : ptr<managed>
+    call managed-elided-zst-target5 sp<managed-call:23> live=[t31:ptr<managed>@0] t32 = sig=elided-zst7 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn8(t31)
+    store t32 -> local28
+    ret local28
   fun @scoop$1$cb$245a5fd490a3d1225706ea675cab36851a1292d34fa69dd0494911631da2450e() -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -246,11 +303,13 @@ Module
     t0 = heap_load param0 +24 : ptr<managed>
     ret t0
   fun @scoop$1$cb$8cbddfde1f7928231abb5ab7ee3d4252114fa1a5a846c7aaaed0798021db280f(ptr<managed>) -> elided-zst<struct0 size=0 align=1>
+    local %0 $call.1: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
-    t1 = zst_value exact=938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35 align 1 : struct0
-    ret t1
+    call managed-elided-zst-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=elided-zst0 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn0(t0)
+    store t1 -> local0
+    ret local0
   fun @scoop$1$cb$7b82fff85b2b18ec35cc0ce50cf1c4394346dcb181982440fbd702959420e469(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -264,10 +323,10 @@ Module
     local %1 $parameter.first: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn14()
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn24()
     store t0 -> local0
     store local0 -> local1
-    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn11(param0, elided-zst local1)
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn21(param0, elided-zst local1)
     t1 = aggregate () : {}
     heap_store param0 +16 param1
     ret
@@ -275,7 +334,7 @@ Module
     local %0 $call.1: struct0 <logical-zst 938a873e3c388b352ece7d1d9e422bcebbe52ae3878b12b19f79d1cd4e415c35>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn2()
+    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn12()
     store t0 -> local0
     ret
   fun @scoop$1$cb$5aa96324bbd8ef11e50696351aaa8a3a8d6b703a569cd549f6ecbcd6c1e89bf9() -> elided-zst<struct0 size=0 align=1> <no-gc>

@@ -6,10 +6,10 @@ Module
     Present(value: T0)
   class AccessCell<T>(stored: T0)
     field0 property1: T0
-    property1 val stored: T0 getter1=storage <stored field0 init=parameter1>
+    property1 val stored: T0 getter1=body(AccessCell.$get$stored) <stored field0 init=parameter1>
   object AccessRegistry <object0 type0 value0 root0 init0>
     field1 property2: Int
-    property2 val seed: Int getter2=storage <stored field1 init=expression>
+    property2 val seed: Int getter2=body(AccessRegistry.$get$seed) <stored field1 init=expression>
   property3 var ACCESS_GLOBAL: Int getter3=storage setter0=storage <native-storage global0>
   var ACCESS_GLOBAL: Int <global0 global>
   fun $init$body$0(): Unit

@@ -5,9 +5,9 @@ Module
   global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   global4 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
   global5 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
-  init0 top-level:eager eager global0 initializer=@fn6 ensure=@fn7 failure=3 deps=[1]
-  init1 object:ReadyRegistry singleton lazy global1 initializer=@fn2 ensure=@fn3 failure=4 deps=[2]
-  init2 companion:DeferredHost.ReadyFactory singleton lazy global2 initializer=@fn4 ensure=@fn5 failure=5 deps=[]
+  init0 top-level:eager eager global0 initializer=@fn8 ensure=@fn9 failure=3 deps=[1]
+  init1 object:ReadyRegistry singleton lazy global1 initializer=@fn4 ensure=@fn5 failure=4 deps=[2]
+  init2 companion:DeferredHost.ReadyFactory singleton lazy global2 initializer=@fn6 ensure=@fn7 failure=5 deps=[]
   enum CoroutineStep<ReadyRegistry>
     Completed(value: ReadyRegistry)
     Suspended()
@@ -28,145 +28,51 @@ Module
   generated_exact_type get3 location=enum2 nominal_id=dd4056c46f6a26679f782d0d852ae38c08c82fb336d613c250c4e62fd4146979 exact_id=d23f96fe229d643f44f428b41e6a43d34d650b9906b53d6dd3dd4a100b292c73
   fun ReadyRegistry.read @fn0(this: ReadyRegistry) -> Int
     bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type ReadyRegistry
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun ReadyRegistry.$get$count @fn1(this: ReadyRegistry) -> Int
+    bb0 entry
       return
         Type Int
         FieldAccess 0
           Type ReadyRegistry
           Local this
-  fun DeferredHost.ReadyFactory.read @fn1(this: DeferredHost.ReadyFactory) -> Int
+  fun DeferredHost.ReadyFactory.read @fn2(this: DeferredHost.ReadyFactory) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type DeferredHost.ReadyFactory
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun DeferredHost.ReadyFactory.$get$seed @fn3(this: DeferredHost.ReadyFactory) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type DeferredHost.ReadyFactory
           Local this
-  fun $init$body$1 @fn2() -> Unit
+  fun $init$body$1 @fn4() -> Unit
     bb0 entry
       assign $new.1
         Type ReadyRegistry
         ClassAlloc ReadyRegistry
-      call @fn9 direct
+      call @fn11 direct
         Type ReadyRegistry
         Local $new.1
       global_assign $singleton$ReadyRegistry
         Type ReadyRegistry
         Local $new.1
       return
-  fun $init$ensure$1 @fn3() -> Unit
+  fun $init$ensure$1 @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 object:ReadyRegistry
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn2 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 object:ReadyRegistry
-      goto bb10
-    bb12 try.catch.12
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          CaughtException
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call $init.materialized: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        Local $init.caught
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 object:ReadyRegistry
-        Type Any
-        Local $init.materialized
-      throw unwind bb6
-        Type Any
-        Local $init.materialized
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 object:ReadyRegistry
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 object:ReadyRegistry
-      call external0 direct
-        Type String
-        Local $init.message
-      unreachable
-    bb19 if.merge.19
-      unreachable
-  fun $init$body$2 @fn4() -> Unit
-    bb0 entry
-      assign $new.1
-        Type DeferredHost.ReadyFactory
-        ClassAlloc DeferredHost.ReadyFactory
-      call @fn10 direct
-        Type DeferredHost.ReadyFactory
-        Local $new.1
-      global_assign $singleton$ReadyFactory
-        Type DeferredHost.ReadyFactory
-        Local $new.1
-      return
-  fun $init$ensure$2 @fn5() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:DeferredHost.ReadyFactory
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -210,6 +116,116 @@ Module
       call @fn4 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
+        InitializationUnitAddress init1 object:ReadyRegistry
+      goto bb10
+    bb12 try.catch.12
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          CaughtException
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call $init.materialized: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:ReadyRegistry
+        Type Any
+        Local $init.materialized
+      throw unwind bb6
+        Type Any
+        Local $init.materialized
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:ReadyRegistry
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:ReadyRegistry
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$2 @fn6() -> Unit
+    bb0 entry
+      assign $new.1
+        Type DeferredHost.ReadyFactory
+        ClassAlloc DeferredHost.ReadyFactory
+      call @fn12 direct
+        Type DeferredHost.ReadyFactory
+        Local $new.1
+      global_assign $singleton$ReadyFactory
+        Type DeferredHost.ReadyFactory
+        Local $new.1
+      return
+  fun $init$ensure$2 @fn7() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:DeferredHost.ReadyFactory
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn6 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
         InitializationUnitAddress init2 companion:DeferredHost.ReadyFactory
       goto bb10
     bb12 try.catch.12
@@ -260,9 +276,9 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$3 @fn6() -> Unit
+  fun $init$body$3 @fn8() -> Unit
     bb0 entry
-      call @fn3 direct
+      call @fn5 direct
       val $receiver: ReadyRegistry
         Type ReadyRegistry
         GlobalRead $singleton$ReadyRegistry
@@ -273,7 +289,7 @@ Module
         Type Int
         Local $call.1
       return
-  fun $init$ensure$3 @fn7() -> Unit
+  fun $init$ensure$3 @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -318,7 +334,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn6 direct
+      call @fn8 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:eager
@@ -371,19 +387,19 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$eager @fn8() -> Int
+  fun $get$eager @fn10() -> Int
     bb0 entry
-      call @fn7 direct
+      call @fn9 direct
       return
         Type Int
         GlobalRead eager
-  fun init.ReadyRegistry.$c2 @fn9(this: ReadyRegistry) -> Unit
+  fun init.ReadyRegistry.$c2 @fn11(this: ReadyRegistry) -> Unit
     bb0 entry
-      call @fn5 direct
+      call @fn7 direct
       val $receiver: DeferredHost.ReadyFactory
         Type DeferredHost.ReadyFactory
         GlobalRead $singleton$ReadyFactory
-      call $dependency.receiver: Int = @fn1 direct
+      call $dependency.receiver: Int = @fn2 direct
         Type DeferredHost.ReadyFactory
         Local $receiver
       val $dependency.argument.0: Int
@@ -402,7 +418,7 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
-  fun init.DeferredHost.ReadyFactory.$c3 @fn10(this: DeferredHost.ReadyFactory) -> Unit
+  fun init.DeferredHost.ReadyFactory.$c3 @fn12(this: DeferredHost.ReadyFactory) -> Unit
     bb0 entry
       field_set 0
         Type DeferredHost.ReadyFactory

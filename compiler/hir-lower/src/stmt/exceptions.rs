@@ -20,15 +20,14 @@ impl Lowerer {
     ) -> Option<hir::StatementKind> {
         let mut sink = Vec::new();
         let value = self.lower_expr(expr, &mut sink, None)?;
-        if let Some(throwable) = self.throwable_ty() {
-            if !self.is_subtype(value.ty, throwable) {
-                let found = self.type_name(value.ty);
-                self.error(
-                    expr.span(),
-                    format!("cannot throw value of type {found}: not a subtype of Throwable"),
-                );
-                return None;
-            }
+        let throwable = self.throwable_ty(expr.span())?;
+        if !self.is_subtype(value.ty, throwable) {
+            let found = self.type_name(value.ty);
+            self.error(
+                expr.span(),
+                format!("cannot throw value of type {found}: not a subtype of Throwable"),
+            );
+            return None;
         }
         // The operand is evaluated right before the `throw`, so
         // desugaring statements belong before it.
@@ -51,15 +50,16 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&catch.ty) else {
                 continue; // diagnostic already recorded
             };
-            if let Some(throwable) = self.throwable_ty() {
-                if !self.is_subtype(ty, throwable) {
-                    let found = self.type_name(ty);
-                    self.error(
-                        catch.ty.span,
-                        format!("catch parameter type {found} is not a subtype of Throwable"),
-                    );
-                    continue;
-                }
+            let Some(throwable) = self.throwable_ty(catch.ty.span) else {
+                continue;
+            };
+            if !self.is_subtype(ty, throwable) {
+                let found = self.type_name(ty);
+                self.error(
+                    catch.ty.span,
+                    format!("catch parameter type {found} is not a subtype of Throwable"),
+                );
+                continue;
             }
             // Shadowing: an earlier catch whose type covers this one
             // (supertype or equal) makes it unreachable.
@@ -112,9 +112,8 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&catch.ty) else {
                 continue;
             };
-            if let Some(throwable) = self.throwable_ty()
-                && !self.is_subtype(ty, throwable)
-            {
+            let throwable = self.throwable_ty(catch.ty.span)?;
+            if !self.is_subtype(ty, throwable) {
                 let found = self.type_name(ty);
                 self.error(
                     catch.ty.span,

@@ -1,5 +1,7 @@
 target=Nominal(Concrete(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))) position=ExecutableExpressionPosition { root: CallableMaterialization { template: Constructor(PersistentConstructorId([59, 198, 214, 249, 219, 190, 98, 152, 152, 171, 206, 34, 122, 63, 104, 129, 202, 82, 187, 194, 5, 24, 203, 215, 222, 191, 160, 69, 153, 210, 154, 214])), context: NoSubstitution }, expression_index: 1 } role=Value exact=ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868 foreign_definition=false
+target=Nominal(Concrete(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))) position=ExecutableExpressionPosition { root: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([103, 193, 139, 122, 113, 144, 136, 178, 167, 40, 38, 2, 239, 191, 214, 87, 231, 39, 221, 242, 57, 116, 165, 78, 244, 167, 226, 170, 38, 1, 172, 106])), context: NoSubstitution }, expression_index: 0 } role=Value exact=ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868 foreign_definition=false
 declaration=CallableSignature(CallableMaterialization { template: Constructor(PersistentConstructorId([193, 147, 227, 68, 16, 26, 82, 33, 24, 123, 127, 132, 20, 214, 244, 54, 159, 54, 229, 23, 186, 62, 76, 15, 111, 67, 63, 9, 21, 19, 59, 204])), context: NoSubstitution }, Parameter(1)) exact=ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+declaration=CallableSignature(CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([103, 193, 139, 122, 113, 144, 136, 178, 167, 40, 38, 2, 239, 191, 214, 87, 231, 39, 221, 242, 57, 116, 165, 78, 244, 167, 226, 170, 38, 1, 172, 106])), context: NoSubstitution }, Result) exact=ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 declaration=LocalValue(PersistentLocalValueId([131, 136, 83, 117, 83, 98, 56, 10, 158, 216, 126, 54, 64, 211, 144, 139, 221, 59, 196, 86, 205, 82, 132, 202, 18, 44, 243, 33, 211, 91, 72, 213])) exact=ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 declaration=FieldStorage(PersistentFieldId([90, 233, 98, 81, 7, 63, 255, 146, 99, 229, 201, 30, 14, 94, 210, 102, 80, 79, 104, 178, 62, 81, 157, 219, 12, 232, 114, 234, 137, 127, 73, 33])) exact=ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 declaration=FieldStorage(PersistentFieldId([188, 80, 23, 163, 189, 204, 205, 57, 116, 76, 140, 60, 168, 196, 89, 206, 245, 23, 210, 78, 145, 112, 39, 5, 162, 189, 86, 194, 70, 169, 133, 98])) exact=ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
@@ -19,7 +21,7 @@ declaration=CallableSignature(CallableMaterialization { template: Generated(Pers
 declaration=CallableSignature(CallableMaterialization { template: Generated(PersistentGeneratedCallableId([46, 184, 83, 135, 192, 12, 249, 132, 193, 171, 138, 58, 5, 103, 151, 106, 156, 65, 238, 89, 136, 233, 234, 98, 138, 190, 171, 230, 212, 95, 44, 250])), context: NoSubstitution }, Result) exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc
 declaration=ConstructorInitializerResult(CallableMaterialization { template: Constructor(PersistentConstructorId([40, 24, 47, 170, 159, 42, 67, 97, 214, 121, 127, 194, 16, 5, 198, 158, 89, 125, 46, 180, 140, 11, 222, 113, 17, 194, 56, 46, 7, 32, 31, 225])), context: NoSubstitution }) exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc
 declaration=ConstructorInitializerResult(CallableMaterialization { template: Constructor(PersistentConstructorId([59, 198, 214, 249, 219, 190, 98, 152, 152, 171, 206, 34, 122, 63, 104, 129, 202, 82, 187, 194, 5, 24, 203, 215, 222, 191, 160, 69, 153, 210, 154, 214])), context: NoSubstitution }) exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc
-signature_sites=6
+signature_sites=7
 local_sites=2
 backing_sites=1
 delegate_sites=0
@@ -27,7 +29,7 @@ field_sites=4
 variant_field_sites=1
 initializer_result_sites=2
 cycle_message_sites=1
-type_sites=4
+type_sites=5
 foreign_definitions=0
 MIR selected=1
 LIR selected=1

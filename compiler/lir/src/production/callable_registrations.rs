@@ -148,11 +148,12 @@ impl StrongCallableRegistrationPlanSetV1 {
                 })
                 .map(|atom| atom.id())
                 .collect::<Vec<_>>();
-            let expected_atoms = callable
+            let mut expected_atoms = callable
                 .atoms()
                 .iter()
                 .map(StrongCallableRuntimeScanAtomV1::atom)
                 .collect::<Vec<_>>();
+            expected_atoms.sort_unstable();
             if actual != expected_atoms {
                 return Err(
                     StrongCallableRegistrationPlanBuildError::RuntimeScanAtomSet {

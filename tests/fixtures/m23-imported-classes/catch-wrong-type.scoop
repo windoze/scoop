@@ -1,0 +1,5 @@
+import dependency.classes.Counter
+
+public fun invalid() {
+    try { throw Throwable() } catch (error: Counter) { }
+}

@@ -7,7 +7,7 @@ fn formal_publication_preserves_accessor_source_forms_in_both_artifact_views() {
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
-    for (case, expected) in [("standalone", [3, 0, 2, 0]), ("combined", [9, 1, 10, 2])] {
+    for (case, expected) in [("standalone", [0, 0, 5, 0]), ("combined", [2, 1, 17, 2])] {
         let source =
             std::fs::read_to_string(fixtures.join(format!("shared-accessors-{case}.scoop")))
                 .unwrap();

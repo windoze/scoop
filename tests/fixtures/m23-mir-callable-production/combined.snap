@@ -13,5 +13,6 @@ Contract.get: trap receiver=true parameters=1 Managed
 Impl.$get$token: accessor receiver=true parameters=0 Managed
 Impl.get: ordinary receiver=true parameters=1 Managed
 Impl.pass: ordinary receiver=true parameters=1 Managed
+Registry.$get$direct: accessor receiver=true parameters=0 Managed
 Registry.$get$value: accessor receiver=true parameters=0 Managed
 Registry.$set$value: accessor receiver=true parameters=1 Managed

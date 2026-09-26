@@ -5,7 +5,7 @@ Module
   class DomainCases()
     field1 property1: Int
     field2 property2: Int
-    property1 var visible: Int getter1=storage setter1=body(DomainCases.$set$visible) <stored field1 init=expression>
+    property1 var visible: Int getter1=body(DomainCases.$get$visible) setter1=body(DomainCases.$set$visible) <stored field1 init=expression>
     property2 var narrower: Int getter2=storage setter2=body(DomainCases.$set$narrower) <stored field2 init=expression>
   open class GenericBase<T>()
   class GenericOwner<T>()
@@ -28,7 +28,7 @@ Module
     property8 var guarded: Int getter8=storage setter7=body(DomainCases.ProtectedOwner.$set$guarded) <stored field8 init=expression>
   object Registry : AccessBase <object0 type0 value0 root0 init0>
     field9 property9: Int
-    property9 var visible: Int getter9=storage setter8=body(Registry.$set$visible) <stored field9 init=expression>
+    property9 var visible: Int getter9=body(Registry.$get$visible) setter8=body(Registry.$set$visible) <stored field9 init=expression>
   fun $init$body$0(): Unit
     assign singleton-root#0
       ClassInit Registry : Registry

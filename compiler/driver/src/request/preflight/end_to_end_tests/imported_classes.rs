@@ -66,6 +66,9 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
 
     let runtime = runtime::build(&target, &sysroot.path().join("runtime"));
     for case in [
+        "exception-statement",
+        "exception-expression",
+        "exception-default",
         "standalone",
         "combined",
         "aliases",
@@ -150,6 +153,11 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
         "abstract-constructor",
         "interface-wrong-identity",
         "interface-wrong-argument",
+        "throw-wrong-type",
+        "throw-wrong-identity",
+        "catch-wrong-type",
+        "catch-expression-wrong-type",
+        "catch-unreachable",
     ] {
         let root = sysroot.path().join(case);
         let source = source(case);
