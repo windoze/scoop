@@ -1,5 +1,5 @@
 //! Winner-only selection and local literal materialization for dependency
-//! constants. The selected proof retains the public route while the HIR body
+//! constants. The selected record retains the import route while the HIR body
 //! contains only an ordinary literal in the consumer's local id domain.
 
 use scoop_ast::Span;

@@ -14,12 +14,6 @@ impl ImportedDependencySelectionPlan {
             }
             target => return Err(ImportedDependencyCandidateError::NotProperty(target)),
         };
-        if binding
-            .sources()
-            .any(|source| source.immediate_provider().brand() != self.catalog.world_brand)
-        {
-            return Err(ImportedDependencyCandidateError::ForeignWorld);
-        }
         let entry = self
             .catalog
             .properties
@@ -37,7 +31,6 @@ impl ImportedDependencySelectionPlan {
             );
         }
         Ok(ImportedDependencyPropertyCandidate {
-            projection: self.catalog.projection,
             binding: binding.clone(),
             certificate: entry.certificate.clone(),
             interface: entry.interface.clone(),
@@ -49,10 +42,11 @@ impl ImportedDependencySelectionPlan {
         property: &ImportedDependencyPropertyCandidate,
         accessor: ImportedDependencyPropertyAccessorKind,
     ) -> Result<ImportedDependencyCallableCandidate, ImportedDependencyCandidateError> {
-        if property.projection != self.catalog.projection {
-            return Err(ImportedDependencyCandidateError::ForeignProjection);
-        }
-        let capability = property.interface.capability();
+        let declaration = property.interface.declaration();
+        let entry = self.catalog.properties.get(&declaration).ok_or(
+            ImportedDependencyCandidateError::MissingProperty(declaration),
+        )?;
+        let capability = entry.interface.capability();
         let accessor = match accessor {
             ImportedDependencyPropertyAccessorKind::Getter => capability.getter(),
             ImportedDependencyPropertyAccessorKind::Setter => {

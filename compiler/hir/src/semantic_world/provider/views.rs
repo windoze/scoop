@@ -1,10 +1,11 @@
 use scoop_identity::{
-    CallableTemplateOrigin, PersistentEnumVariantId, PersistentExportBindingId, PersistentId,
-    PersistentObjectValueId, PersistentPropertyId, PersistentTypeAliasId, PropertyOwner,
+    CallableTemplateOrigin, ConeIdentity, PersistentEnumVariantId, PersistentExportBindingId,
+    PersistentId, PersistentObjectValueId, PersistentPropertyId, PersistentTypeAliasId,
+    PropertyOwner,
 };
 
 use super::super::{import_callable_id, import_nominal_id, import_property_id};
-use super::{ImportedProvider, ImportedProviderCertificate, WorldConeId};
+use super::{ImportedProvider, ImportedProviderCertificate};
 use crate::semantic_world::DirectDependencyImportSource;
 use crate::{
     CallableSourceInterfaceV1, ExportBindingSourceV1, ExportConstValueV1,
@@ -13,12 +14,11 @@ use crate::{
     ImportedProperty, ImportedTarget, ImportedTypeAlias, NominalSourceShapeV1, SourceNominalId,
 };
 
-/// One imported public binding with both persistent and session-local
-/// identities. The source remains the already validated declared/re-export
-/// proof from the provider artifact.
+/// One public binding with its typed declaration and actual provider.
+/// The source records the declaration or re-export path in the artifact.
 #[derive(Clone)]
 pub struct ImportedPublicBinding<'input> {
-    pub(super) provider: WorldConeId,
+    pub(super) provider: ConeIdentity,
     pub(super) identity: ImportedHirId<PersistentExportBindingId>,
     pub(super) key: &'input scoop_identity::ExportBindingKey,
     pub(super) target: ImportedTarget,
@@ -28,7 +28,7 @@ pub struct ImportedPublicBinding<'input> {
 }
 
 impl<'input> ImportedPublicBinding<'input> {
-    pub const fn provider(&self) -> WorldConeId {
+    pub const fn provider(&self) -> ConeIdentity {
         self.provider
     }
 
@@ -64,8 +64,8 @@ pub struct ImportedTypedProviderView<'world, 'input> {
 }
 
 impl<'world, 'input> ImportedTypedProviderView<'world, 'input> {
-    pub const fn id(self) -> WorldConeId {
-        self.provider.id()
+    pub const fn id(self) -> ConeIdentity {
+        self.provider.identity()
     }
 
     pub const fn certificate(self) -> &'world ImportedProviderCertificate {
@@ -205,8 +205,8 @@ pub struct DirectProviderView<'world, 'input> {
 }
 
 impl<'world, 'input> DirectProviderView<'world, 'input> {
-    pub const fn id(self) -> WorldConeId {
-        self.provider.id()
+    pub const fn id(self) -> ConeIdentity {
+        self.provider.identity()
     }
 
     pub const fn certificate(self) -> &'world ImportedProviderCertificate {
@@ -235,8 +235,8 @@ pub struct SupportProviderView<'world, 'input> {
 }
 
 impl<'world, 'input> SupportProviderView<'world, 'input> {
-    pub const fn id(self) -> WorldConeId {
-        self.provider.id()
+    pub const fn id(self) -> ConeIdentity {
+        self.provider.identity()
     }
 
     pub const fn certificate(self) -> &'world ImportedProviderCertificate {

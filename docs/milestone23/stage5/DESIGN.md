@@ -29,7 +29,7 @@
 M23-5 第一次让普通 dependency 成为**语言名称来源**，但 artifact 在内存中存在不等于其全部内容都可枚举。完成本阶段后：
 
 1. `scoopc` 在解析当前源码前，把 M23-4 已经验证的 direct/support `ValidatedArtifactClosure<Compile>` 重新收窄成一个原子、只读的 `ValidatedCrossConeSemanticClosure`。只有 manifest direct dependency（含 implicit trusted core）的 public binding 可进入普通 lookup；transitive support artifact 只供 typed reference、re-export route、default、alias与后续stage精确取回，永不因已加载而成为候选；
-2. `SemanticWorld` 同时保存 session-local `WorldConeId` 与 persistent `ConeIdentity`，所有外部实体按 kind-specific persistent id intern。FQN、package、link symbol、artifact枚举顺序或arena index都不能补猜identity；
+2. `SemanticWorld` 的 provider 直接使用实际 `ConeIdentity`，所有外部实体按 kind-specific persistent id intern；候选与选择集合使用真实类型化声明 ID，不另建 world/projection/selection 品牌或局部编号映射。FQN、package、link symbol、artifact 枚举顺序或 arena index 都不能补猜 identity；
 3. exact/star/`as` import沿 M23-1 冻结的候选层接入 direct dependency surface。split package只合并namespace视图，不合并实体；同一typed origin经重复import或diamond route到达时合并target并union全部canonical source witness，不同origin保持不同候选；
 4. `public import` 同时建立当前文件import与当前Cone re-export binding。每个target必须至少有一个source且全部source都是validated direct-dependency route；current-Cone、internal、private、protected或仅support可达target都不能被提升。re-export保留最终origin identity，不生成wrapper、storage、TypeDescriptor、body或第二个alias target；
 5. public star在当前Cone编译时展开为逐binding snapshot。下游只读取已解析snapshot，不重新执行上游glob。任一target非法时整条`public import ...*`失败，不发布部分snapshot；
@@ -1701,13 +1701,12 @@ ImportedTargetBinding {
 ImportBindingSource =
     CurrentCone { binding: PersistentLocalBindingId,
                   witness: LocalImportWitness }
-  | DirectDependency { immediate_provider: WorldConeId,
-                       provider_identity: ConeIdentity,
+  | DirectDependency { provider_identity: ConeIdentity,
                        route: ReexportRouteV1,
                        witness: PublicDependencyLookupWitness }
 ```
 
-`ImportedTarget`继续是type/function/property/object/typealias/variant等kind-specific closed sum。sources按persistent内容排序；`WorldConeId`只作session handle，不进入判等/wire。target先按kind-specific origin id合并，再union sources；不同kind不能cast。
+`ImportedTarget`继续是type/function/property/object/typealias/variant等kind-specific closed sum。sources 按实际 provider、binding 和 route 的 persistent 内容排序，不另设带品牌的会话 provider handle。target先按kind-specific origin id合并，再union sources；不同kind不能cast。
 
 ### 7.3 exact/star与冲突
 
@@ -1859,15 +1858,15 @@ CrossConeCapability =
 
 ### 11.1 read-only world
 
-`CurrentConeSemanticWorld`由imported world加current declaration overlay组成。world构造完成后只读；candidate probing使用cloneable selection plan，只有winner commit产生branded ref：
+`CurrentConeSemanticWorld` 由 imported world 加 current declaration overlay 组成。world 构造完成后只读；candidate probing 使用可克隆的选择集合，winner commit 保留实际类型化声明引用：
 
 ```text
 ImportedSelectionPlan
-  -> SelectedImportedHirSet<'world>
+  -> SelectedImportedDependencySet
   -> LocalConcrete external arenas + CrossConeUseSet
 ```
 
-不同world/selection的ref在类型上不可混用；不能保存borrowed artifact view越过reopen closure。selected sidecar拥有重开所需的artifact identity/fingerprint certificate。
+选择集合按实际 callable、property、type-alias ID 查找完整接口和 provider。引用合法性由实体种类与当前目录中的声明关系决定，不增加 world/selection 品牌。接口拥有需要的数据，不通过 artifact 重开凭证延长借用或重新取得操作资格；普通依赖坐标和 fingerprint 仅用于定位、诊断与缓存失效。
 
 ### 11.2 LocalConcrete形状
 
@@ -1876,11 +1875,10 @@ ImportedSelectionPlan
 ```text
 ConcreteCallableTarget =
     Local(LocalConcreteCallableId)
-  | CoreExternal(ImportedCoreCallableUseId)
   | DependencyExternal(ImportedDependencyCallableUseId)
 ```
 
-`DependencyExternal`只由`ParamFreeCoreClosedCallable`builder构造，非可选地保存terminal provider、strong owner、exact signature、GC root plan与route proof sidecar。表达式仍有完整concrete type、ordered arguments和definition/evaluation origin；没有name、default id、route text或candidate set。
+`DependencyExternal` 使用实际被选中的类型化声明；共有选择记录保存真实 provider、implementation、exact signature 与 GC effect，LIR 使用完整 canonical ABI 和 root plan。表达式保留完整 concrete type、ordered arguments、definition/evaluation origin 及实际源码查找路径，不增加 core 来源资格或独立 proof sidecar。
 
 const读取在LocalConcrete中已经是ordinary literal/constant materialization，不保留external property/storage id。typealias完全消失为target type，但`CrossConeUseSet`保留alias semantic edge供dump/fingerprint验证。
 

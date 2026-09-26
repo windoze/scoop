@@ -3,9 +3,8 @@
 /// Export-HIR use of one callable committed through the ordinary-dependency
 /// selection transaction.
 ///
-/// The reference retains the transaction brand. The closed ordinary output
-/// resolves it against its owned selected set before any later stage may
-/// consume the graph.
+/// The reference names the actual typed declaration. The complete output
+/// owns its selected interface for subsequent stages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ImportedDependencyCallableUse {
     reference: crate::ImportedDependencyCallableRef,

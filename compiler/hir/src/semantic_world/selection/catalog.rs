@@ -7,10 +7,8 @@ use scoop_identity::{
 };
 
 use super::{
-    DependencyProjectionId, DependencySelectionId, ImportedDependencyCallableId,
-    ImportedDependencyConstantId, ImportedDependencyDefinitionSources,
-    ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError,
-    ImportedDependencyTypeAliasId, NEXT_PROJECTION, NEXT_SELECTION, next_id,
+    ImportedDependencyDefinitionSources, ImportedDependencySelectionPlan,
+    ImportedDependencySelectionPlanBuildError,
 };
 use crate::semantic_world::{DirectImportedTargetBinding, ImportedProvider, ImportedSemanticWorld};
 use crate::{
@@ -59,16 +57,11 @@ pub(super) struct DependencyCatalog {
         BTreeMap<scoop_identity::PersistentTypeId, Arc<super::ImportedNominalDeclaration>>,
     pub(super) direct_binding_witnesses:
         Arc<BTreeMap<crate::ExternalHirTargetV1, Vec<crate::DependencyBindingWitnessV1>>>,
-    pub(super) world_brand: u64,
     pub(super) consumer: ConeIdentity,
-    pub(super) projection: DependencyProjectionId,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
-    pub(super) callable_ids: BTreeMap<CallableTemplateOrigin, ImportedDependencyCallableId>,
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
-    pub(super) constant_ids: BTreeMap<PersistentPropertyId, ImportedDependencyConstantId>,
     pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
-    pub(super) type_alias_ids: BTreeMap<PersistentTypeAliasId, ImportedDependencyTypeAliasId>,
     pub(super) direct_callable_bindings:
         BTreeMap<CallableTemplateOrigin, DirectImportedTargetBinding>,
 }
@@ -80,7 +73,6 @@ impl ImportedSemanticWorld<'_> {
         let classifier = self
             .nominal_exact_leaf_classifier(&CanonicalNominalInterfacesV1::default())
             .map_err(ImportedDependencySelectionPlanBuildError::NominalClassifier)?;
-        let projection = DependencyProjectionId(next_id(&NEXT_PROJECTION, "dependency projection"));
         let mut callables = BTreeMap::new();
         let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
@@ -186,48 +178,6 @@ impl ImportedSemanticWorld<'_> {
                 }
             }
         }
-        let callable_ids = callables
-            .keys()
-            .copied()
-            .enumerate()
-            .map(|(index, declaration)| {
-                u32::try_from(index)
-                    .map(|index| (declaration, ImportedDependencyCallableId(index)))
-                    .map_err(
-                        |_| ImportedDependencySelectionPlanBuildError::TooManyCallables {
-                            count: callables.len(),
-                        },
-                    )
-            })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
-        let constant_ids = constants
-            .keys()
-            .copied()
-            .enumerate()
-            .map(|(index, property)| {
-                u32::try_from(index)
-                    .map(|index| (property, ImportedDependencyConstantId(index)))
-                    .map_err(
-                        |_| ImportedDependencySelectionPlanBuildError::TooManyConstants {
-                            count: constants.len(),
-                        },
-                    )
-            })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
-        let type_alias_ids = type_aliases
-            .keys()
-            .copied()
-            .enumerate()
-            .map(|(index, alias)| {
-                u32::try_from(index)
-                    .map(|index| (alias, ImportedDependencyTypeAliasId(index)))
-                    .map_err(
-                        |_| ImportedDependencySelectionPlanBuildError::TooManyTypeAliases {
-                            count: type_aliases.len(),
-                        },
-                    )
-            })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
         let direct_callable_bindings = self.direct_callable_bindings()?;
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
@@ -235,19 +185,13 @@ impl ImportedSemanticWorld<'_> {
                 direct_binding_witnesses: Arc::new(
                     self.direct_binding_witnesses(&direct_callable_bindings),
                 ),
-                world_brand: self.brand,
                 consumer: self.current,
-                projection,
                 callables,
-                callable_ids,
                 properties,
                 constants,
-                constant_ids,
                 type_aliases,
-                type_alias_ids,
                 direct_callable_bindings,
             }),
-            selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),
             type_aliases: BTreeMap::new(),
@@ -262,9 +206,9 @@ impl ImportedSemanticWorld<'_> {
     > {
         let mut bindings = BTreeMap::new();
         for provider in self
-            .direct
+            .providers
             .iter()
-            .map(|provider| &self.providers[provider.index()])
+            .filter(|provider| provider.is_direct())
         {
             for binding in provider.public_bindings() {
                 let declarations = direct_binding_callable_declarations(provider, binding.target());

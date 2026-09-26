@@ -7,8 +7,6 @@ use scoop_identity::{
 
 use crate::SourceNominalId;
 
-use super::WorldConeId;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportedSemanticEntityId {
     Nominal(SourceNominalId),
@@ -32,15 +30,13 @@ pub enum ImportedSemanticWorldBuildError {
         foundation: ConeIdentity,
     },
     DuplicateProvider(ConeIdentity),
-    ProviderCountOverflow,
-    WorldBrandExhausted,
     MissingEntityIdentity {
         provider: ConeIdentity,
         entity: ImportedSemanticEntityId,
     },
     DuplicateEntityAuthority {
         entity: ImportedSemanticEntityId,
-        first: WorldConeId,
+        first: ConeIdentity,
         second: ConeIdentity,
     },
     MissingAliasExpansion {
@@ -106,12 +102,6 @@ impl fmt::Display for ImportedSemanticWorldBuildError {
                     "provider {identity} occurs more than once in the world"
                 )
             }
-            Self::ProviderCountOverflow => {
-                formatter.write_str("the imported provider count exceeds the world id range")
-            }
-            Self::WorldBrandExhausted => {
-                formatter.write_str("the process exhausted imported semantic world brands")
-            }
             Self::MissingEntityIdentity { provider, entity } => write!(
                 formatter,
                 "provider {provider} has an interface record without imported identity {entity:?}"
@@ -122,7 +112,7 @@ impl fmt::Display for ImportedSemanticWorldBuildError {
                 second,
             } => write!(
                 formatter,
-                "semantic entity {entity:?} is owned by both world provider {first:?} and Cone {second}"
+                "semantic entity {entity:?} is owned by both Cone {first} and Cone {second}"
             ),
             Self::MissingAliasExpansion { provider, alias } => write!(
                 formatter,

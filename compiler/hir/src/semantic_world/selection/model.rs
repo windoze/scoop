@@ -3,8 +3,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use scoop_identity::{
-    ConeIdentity, PersistentExactTypeId, PersistentSourceContextId, SignatureTypeKey,
-    SourceContextKey, SourceIdentity,
+    CallableTemplateOrigin, ConeIdentity, PersistentExactTypeId, PersistentPropertyId,
+    PersistentSourceContextId, PersistentTypeAliasId, SignatureTypeKey, SourceContextKey,
+    SourceIdentity,
 };
 
 use crate::{
@@ -13,21 +14,6 @@ use crate::{
     ImportedProviderCertificate, ImportedTarget, ParamFreeNominalCallableV1,
     PropertyInterfaceRecordV1, SourceRecord, TypeAliasInterfaceRecordV1,
 };
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(super) struct DependencyProjectionId(pub(super) u64);
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(super) struct DependencySelectionId(pub(super) u64);
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(super) struct ImportedDependencyCallableId(pub(super) u32);
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(super) struct ImportedDependencyConstantId(pub(super) u32);
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(super) struct ImportedDependencyTypeAliasId(pub(super) u32);
 
 #[derive(Clone, Debug)]
 pub(super) struct ImportedDependencyDefinitionSources {
@@ -48,8 +34,8 @@ impl ImportedDependencyDefinitionSources {
     }
 }
 
-/// Authenticated provider source metadata needed to preserve the definition
-/// side of an inlined dependency expression.
+/// Source metadata needed to preserve the definition side of an inlined
+/// dependency expression.
 #[derive(Clone, Copy, Debug)]
 pub struct ImportedDependencyDefinitionSource<'a> {
     record: &'a SourceRecord,
@@ -67,13 +53,10 @@ impl<'a> ImportedDependencyDefinitionSource<'a> {
 }
 
 /// An owned source-level callable candidate obtained through one direct
-/// dependency binding. It can outlive the borrowed artifact views used to
-/// build the semantic world, but it can only be committed by a clone of the
-/// exact selection plan that minted it.
+/// dependency binding. It owns the interface needed by lowering after the
+/// borrowed artifact views have been released.
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyCallableCandidate {
-    pub(super) projection: DependencyProjectionId,
-    pub(super) callable: ImportedDependencyCallableId,
     pub(super) binding: DirectImportedTargetBinding,
     pub(super) certificate: ImportedProviderCertificate,
     pub(super) interface: CallableInterfaceRecordV1,
@@ -128,11 +111,9 @@ impl ImportedDependencyCallableCandidate {
 }
 
 /// An owned public constant candidate reached through one direct dependency
-/// binding. Its exact type is present only for the M23-5 core-closed subset.
+/// binding. Its exact type is present when the value can be materialized.
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyConstantCandidate {
-    pub(super) projection: DependencyProjectionId,
-    pub(super) constant: ImportedDependencyConstantId,
     pub(super) binding: DirectImportedTargetBinding,
     pub(super) certificate: ImportedProviderCertificate,
     pub(super) record: ExportConstValueV1,
@@ -145,7 +126,6 @@ pub struct ImportedDependencyConstantCandidate {
 /// mistaken for a callable declaration or a provider storage identity.
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyPropertyCandidate {
-    pub(super) projection: DependencyProjectionId,
     pub(super) binding: DirectImportedTargetBinding,
     pub(super) certificate: ImportedProviderCertificate,
     pub(super) interface: PropertyInterfaceRecordV1,
@@ -157,8 +137,6 @@ pub struct ImportedDependencyPropertyCandidate {
 /// was built.
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyTypeAliasCandidate {
-    pub(super) projection: DependencyProjectionId,
-    pub(super) alias: ImportedDependencyTypeAliasId,
     pub(super) binding: DirectImportedTargetBinding,
     pub(super) certificate: ImportedProviderCertificate,
     pub(super) interface: TypeAliasInterfaceRecordV1,
@@ -252,14 +230,13 @@ impl ImportedDependencyConstantCandidate {
     }
 }
 
-/// Request-local reference to one committed dependency callable.
+/// Typed reference to one selected dependency callable.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ImportedDependencyCallableRef {
-    pub(super) selection: DependencySelectionId,
-    pub(super) callable: ImportedDependencyCallableId,
+    pub(super) callable: CallableTemplateOrigin,
 }
 
-/// Complete HIR-side proof for one committed dependency callable.
+/// Complete HIR input for one selected dependency callable.
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyCallable {
     pub(super) binding: DirectImportedTargetBinding,
@@ -303,7 +280,7 @@ impl SelectedImportedDependencyCallable {
     }
 }
 
-/// Complete HIR-side proof for one inlined dependency constant.
+/// Complete HIR input for one inlined dependency constant.
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyConstant {
     pub(super) binding: DirectImportedTargetBinding,
@@ -334,21 +311,19 @@ impl SelectedImportedDependencyConstant {
     }
 }
 
-/// Request-local reference to one committed dependency constant proof.
+/// Typed reference to one selected dependency constant.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ImportedDependencyConstantRef {
-    pub(super) selection: DependencySelectionId,
-    pub(super) constant: ImportedDependencyConstantId,
+    pub(super) constant: PersistentPropertyId,
 }
 
-/// Request-local reference to one committed transparent dependency alias.
+/// Typed reference to one selected transparent dependency alias.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ImportedDependencyTypeAliasRef {
-    pub(super) selection: DependencySelectionId,
-    pub(super) alias: ImportedDependencyTypeAliasId,
+    pub(super) alias: PersistentTypeAliasId,
 }
 
-/// Complete HIR-side proof for one committed dependency type alias.
+/// Complete HIR input for one selected dependency type alias.
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyTypeAlias {
     pub(super) binding: DirectImportedTargetBinding,
@@ -379,20 +354,16 @@ impl SelectedImportedDependencyTypeAlias {
     }
 }
 
-/// Canonical request-local sidecar that owns all selected HIR dependency
-/// proofs and artifact reopen certificates.
+/// The selected declarations, interfaces, and import paths required by the
+/// current HIR output.
 #[derive(Debug)]
 pub struct SelectedImportedDependencySet {
     pub(super) direct_binding_witnesses:
         Arc<BTreeMap<crate::ExternalHirTargetV1, Vec<crate::DependencyBindingWitnessV1>>>,
     pub(super) consumer: ConeIdentity,
-    pub(super) selection: DependencySelectionId,
-    pub(super) callables:
-        BTreeMap<ImportedDependencyCallableId, SelectedImportedDependencyCallable>,
-    pub(super) constants:
-        BTreeMap<ImportedDependencyConstantId, SelectedImportedDependencyConstant>,
-    pub(super) type_aliases:
-        BTreeMap<ImportedDependencyTypeAliasId, SelectedImportedDependencyTypeAlias>,
+    pub(super) callables: BTreeMap<CallableTemplateOrigin, SelectedImportedDependencyCallable>,
+    pub(super) constants: BTreeMap<PersistentPropertyId, SelectedImportedDependencyConstant>,
+    pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, SelectedImportedDependencyTypeAlias>,
 }
 
 impl SelectedImportedDependencySet {
@@ -414,9 +385,7 @@ impl SelectedImportedDependencySet {
         &self,
         reference: ImportedDependencyCallableRef,
     ) -> Option<&SelectedImportedDependencyCallable> {
-        (reference.selection == self.selection)
-            .then(|| self.callables.get(&reference.callable))
-            .flatten()
+        self.callables.get(&reference.callable)
     }
 
     pub fn callables(
@@ -429,9 +398,7 @@ impl SelectedImportedDependencySet {
         &self,
         reference: ImportedDependencyConstantRef,
     ) -> Option<&SelectedImportedDependencyConstant> {
-        (reference.selection == self.selection)
-            .then(|| self.constants.get(&reference.constant))
-            .flatten()
+        self.constants.get(&reference.constant)
     }
 
     pub fn constants(
@@ -444,9 +411,7 @@ impl SelectedImportedDependencySet {
         &self,
         reference: ImportedDependencyTypeAliasRef,
     ) -> Option<&SelectedImportedDependencyTypeAlias> {
-        (reference.selection == self.selection)
-            .then(|| self.type_aliases.get(&reference.alias))
-            .flatten()
+        self.type_aliases.get(&reference.alias)
     }
 
     pub fn type_aliases(

@@ -2,9 +2,10 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use scoop_identity::{CallableTemplateOrigin, ConeIdentity};
+use scoop_identity::{
+    CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, PersistentTypeAliasId,
+};
 
 use super::{DirectImportedTargetBinding, ImportedTarget};
 use crate::DefaultCallableDeclarationV1;
@@ -25,17 +26,6 @@ pub use nominals::ImportedNominalDeclaration;
 
 use catalog::DependencyCatalog;
 
-static NEXT_PROJECTION: AtomicU64 = AtomicU64::new(1);
-static NEXT_SELECTION: AtomicU64 = AtomicU64::new(1);
-
-fn next_id(counter: &AtomicU64, domain: &'static str) -> u64 {
-    counter
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-            current.checked_add(1)
-        })
-        .unwrap_or_else(|_| panic!("the {domain} id space is exhausted"))
-}
-
 /// A cloneable, lifetime-free transaction for dependency selections.
 ///
 /// Lowering probes clone this value. Dropping a failed probe drops its
@@ -44,10 +34,9 @@ fn next_id(counter: &AtomicU64, domain: &'static str) -> u64 {
 #[derive(Clone, Debug)]
 pub struct ImportedDependencySelectionPlan {
     catalog: Arc<DependencyCatalog>,
-    selection: DependencySelectionId,
-    callables: BTreeMap<ImportedDependencyCallableId, SelectedImportedDependencyCallable>,
-    constants: BTreeMap<ImportedDependencyConstantId, SelectedImportedDependencyConstant>,
-    type_aliases: BTreeMap<ImportedDependencyTypeAliasId, SelectedImportedDependencyTypeAlias>,
+    callables: BTreeMap<CallableTemplateOrigin, SelectedImportedDependencyCallable>,
+    constants: BTreeMap<PersistentPropertyId, SelectedImportedDependencyConstant>,
+    type_aliases: BTreeMap<PersistentTypeAliasId, SelectedImportedDependencyTypeAlias>,
 }
 
 impl ImportedDependencySelectionPlan {
@@ -64,30 +53,20 @@ impl ImportedDependencySelectionPlan {
         })
     }
 
-    /// Starts an empty transaction for an ordinary core-only request.
-    /// No callable candidate can be minted from this plan.
+    /// Starts an empty selection set for a request without imported declarations.
     #[doc(hidden)]
     pub fn empty(consumer: ConeIdentity) -> Self {
         Self {
             catalog: Arc::new(DependencyCatalog {
                 nominals: BTreeMap::new(),
                 direct_binding_witnesses: Arc::new(BTreeMap::new()),
-                world_brand: 0,
                 consumer,
-                projection: DependencyProjectionId(next_id(
-                    &NEXT_PROJECTION,
-                    "dependency projection",
-                )),
                 callables: BTreeMap::new(),
-                callable_ids: BTreeMap::new(),
                 properties: BTreeMap::new(),
                 constants: BTreeMap::new(),
-                constant_ids: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
-                type_alias_ids: BTreeMap::new(),
                 direct_callable_bindings: BTreeMap::new(),
             }),
-            selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),
             type_aliases: BTreeMap::new(),
@@ -113,20 +92,9 @@ impl ImportedDependencySelectionPlan {
         declaration: CallableTemplateOrigin,
         binding: &DirectImportedTargetBinding,
     ) -> Result<ImportedDependencyCallableCandidate, ImportedDependencyCandidateError> {
-        if binding
-            .sources()
-            .any(|source| source.immediate_provider().brand() != self.catalog.world_brand)
-        {
-            return Err(ImportedDependencyCandidateError::ForeignWorld);
-        }
         let entry = self.catalog.callables.get(&declaration).ok_or(
             ImportedDependencyCandidateError::MissingCallable(declaration),
         )?;
-        let callable = *self
-            .catalog
-            .callable_ids
-            .get(&declaration)
-            .expect("every dependency callable snapshot has one stable id");
         if binding.sources().any(|source| {
             source.witness().terminal_declaration() != binding.target()
                 || source.witness().route().terminal().exporter() != entry.certificate.identity()
@@ -137,8 +105,6 @@ impl ImportedDependencySelectionPlan {
             });
         }
         Ok(ImportedDependencyCallableCandidate {
-            projection: self.catalog.projection,
-            callable,
             binding: binding.clone(),
             certificate: entry.certificate.clone(),
             interface: entry.interface.clone(),
@@ -151,8 +117,8 @@ impl ImportedDependencySelectionPlan {
 
     /// Resolves a callable referenced by a validated dependency default
     /// template through the direct dependency surface. The template reference
-    /// itself supplies definition-side access authority; this lookup supplies
-    /// the consumer-side route witness retained by the selected set.
+    /// identifies the definition-side target; this lookup retains the
+    /// consumer-side import path in the selected set.
     pub fn default_callable_candidate(
         &self,
         declaration: DefaultCallableDeclarationV1,
@@ -185,22 +151,11 @@ impl ImportedDependencySelectionPlan {
             ImportedTarget::Property(id) => id.persistent(),
             target => return Err(ImportedDependencyCandidateError::NotConstant(target)),
         };
-        if binding
-            .sources()
-            .any(|source| source.immediate_provider().brand() != self.catalog.world_brand)
-        {
-            return Err(ImportedDependencyCandidateError::ForeignWorld);
-        }
         let entry = self
             .catalog
             .constants
             .get(&property)
             .ok_or(ImportedDependencyCandidateError::MissingConstant(property))?;
-        let constant = *self
-            .catalog
-            .constant_ids
-            .get(&property)
-            .expect("every dependency constant snapshot has one stable id");
         if binding.sources().any(|source| {
             source.witness().terminal_declaration() != binding.target()
                 || source.witness().route().terminal().exporter() != entry.certificate.identity()
@@ -213,8 +168,6 @@ impl ImportedDependencySelectionPlan {
             );
         }
         Ok(ImportedDependencyConstantCandidate {
-            projection: self.catalog.projection,
-            constant,
             binding: binding.clone(),
             certificate: entry.certificate.clone(),
             record: entry.record.clone(),
@@ -231,22 +184,11 @@ impl ImportedDependencySelectionPlan {
             ImportedTarget::TypeAlias(id) => id.persistent(),
             target => return Err(ImportedDependencyCandidateError::NotTypeAlias(target)),
         };
-        if binding
-            .sources()
-            .any(|source| source.immediate_provider().brand() != self.catalog.world_brand)
-        {
-            return Err(ImportedDependencyCandidateError::ForeignWorld);
-        }
         let entry = self
             .catalog
             .type_aliases
             .get(&alias)
             .ok_or(ImportedDependencyCandidateError::MissingTypeAlias(alias))?;
-        let selected_id = *self
-            .catalog
-            .type_alias_ids
-            .get(&alias)
-            .expect("every dependency type-alias snapshot has one stable id");
         if binding.sources().any(|source| {
             source.witness().terminal_declaration() != binding.target()
                 || source.witness().route().terminal().exporter() != entry.certificate.identity()
@@ -259,8 +201,6 @@ impl ImportedDependencySelectionPlan {
             );
         }
         Ok(ImportedDependencyTypeAliasCandidate {
-            projection: self.catalog.projection,
-            alias: selected_id,
             binding: binding.clone(),
             certificate: entry.certificate.clone(),
             interface: entry.interface.clone(),
@@ -272,23 +212,18 @@ impl ImportedDependencySelectionPlan {
         &mut self,
         candidate: ImportedDependencyCallableCandidate,
     ) -> Result<ImportedDependencyCallableRef, ImportedDependencySelectionError> {
-        if candidate.projection != self.catalog.projection {
-            return Err(ImportedDependencySelectionError::ForeignProjection);
-        }
-        let Some(capability) = candidate.capability.clone() else {
+        let id = candidate.interface.declaration();
+        let entry = self
+            .catalog
+            .callables
+            .get(&id)
+            .ok_or(ImportedDependencySelectionError::MissingCallable(id))?;
+        let Some(capability) = entry.capability.clone() else {
             return Err(ImportedDependencySelectionError::CapabilityUnavailable {
                 target: candidate.target(),
             });
         };
-        let id = candidate.callable;
-        let initialization_unit =
-            self.catalog.callables[&candidate.interface.declaration()].initialization_unit;
         if let Some(selected) = self.callables.get_mut(&id) {
-            if selected.provider() != candidate.provider()
-                || selected.capability.declaration() != capability.declaration()
-            {
-                return Err(ImportedDependencySelectionError::ForeignProjection);
-            }
             selected
                 .binding
                 .try_merge(candidate.binding)
@@ -298,42 +233,35 @@ impl ImportedDependencySelectionPlan {
                 id,
                 SelectedImportedDependencyCallable {
                     binding: candidate.binding,
-                    certificate: candidate.certificate,
-                    interface: candidate.interface,
-                    source: candidate.source,
-                    initialization_unit,
+                    certificate: entry.certificate.clone(),
+                    interface: entry.interface.clone(),
+                    source: entry.source.clone(),
+                    initialization_unit: entry.initialization_unit,
                     capability,
                 },
             );
         }
-        Ok(ImportedDependencyCallableRef {
-            selection: self.selection,
-            callable: id,
-        })
+        Ok(ImportedDependencyCallableRef { callable: id })
     }
 
     pub fn select_constant(
         &mut self,
         candidate: ImportedDependencyConstantCandidate,
     ) -> Result<ImportedDependencyConstantRef, ImportedDependencySelectionError> {
-        if candidate.projection != self.catalog.projection {
-            return Err(ImportedDependencySelectionError::ForeignProjection);
-        }
-        let Some(exact_type) = candidate.exact_type else {
+        let id = candidate.record.property();
+        let entry = self
+            .catalog
+            .constants
+            .get(&id)
+            .ok_or(ImportedDependencySelectionError::MissingConstant(id))?;
+        let Some(exact_type) = entry.exact_type else {
             return Err(
                 ImportedDependencySelectionError::ConstantCapabilityUnavailable {
                     target: candidate.target(),
                 },
             );
         };
-        let id = candidate.constant;
         if let Some(selected) = self.constants.get_mut(&id) {
-            if selected.provider() != candidate.provider()
-                || selected.record.property() != candidate.record.property()
-                || selected.exact_type != exact_type
-            {
-                return Err(ImportedDependencySelectionError::ForeignProjection);
-            }
             selected
                 .binding
                 .try_merge(candidate.binding)
@@ -343,33 +271,26 @@ impl ImportedDependencySelectionPlan {
                 id,
                 SelectedImportedDependencyConstant {
                     binding: candidate.binding,
-                    certificate: candidate.certificate,
-                    record: candidate.record,
+                    certificate: entry.certificate.clone(),
+                    record: entry.record.clone(),
                     exact_type,
                 },
             );
         }
-        Ok(ImportedDependencyConstantRef {
-            selection: self.selection,
-            constant: id,
-        })
+        Ok(ImportedDependencyConstantRef { constant: id })
     }
 
     pub fn select_type_alias(
         &mut self,
         candidate: ImportedDependencyTypeAliasCandidate,
     ) -> Result<ImportedDependencyTypeAliasRef, ImportedDependencySelectionError> {
-        if candidate.projection != self.catalog.projection {
-            return Err(ImportedDependencySelectionError::ForeignProjection);
-        }
-        let id = candidate.alias;
+        let id = candidate.interface.alias();
+        let entry = self
+            .catalog
+            .type_aliases
+            .get(&id)
+            .ok_or(ImportedDependencySelectionError::MissingTypeAlias(id))?;
         if let Some(selected) = self.type_aliases.get_mut(&id) {
-            if selected.provider() != candidate.provider()
-                || selected.interface.alias() != candidate.interface.alias()
-                || selected.expansion != candidate.expansion
-            {
-                return Err(ImportedDependencySelectionError::ForeignProjection);
-            }
             selected
                 .binding
                 .try_merge(candidate.binding)
@@ -379,16 +300,13 @@ impl ImportedDependencySelectionPlan {
                 id,
                 SelectedImportedDependencyTypeAlias {
                     binding: candidate.binding,
-                    certificate: candidate.certificate,
-                    interface: candidate.interface,
-                    expansion: candidate.expansion,
+                    certificate: entry.certificate.clone(),
+                    interface: entry.interface.clone(),
+                    expansion: entry.expansion.clone(),
                 },
             );
         }
-        Ok(ImportedDependencyTypeAliasRef {
-            selection: self.selection,
-            alias: id,
-        })
+        Ok(ImportedDependencyTypeAliasRef { alias: id })
     }
 
     /// Resolves a reference already committed in this transaction.
@@ -399,25 +317,20 @@ impl ImportedDependencySelectionPlan {
         &self,
         reference: ImportedDependencyCallableRef,
     ) -> Option<&SelectedImportedDependencyCallable> {
-        (reference.selection == self.selection)
-            .then(|| self.callables.get(&reference.callable))
-            .flatten()
+        self.callables.get(&reference.callable)
     }
 
     pub fn resolve_type_alias(
         &self,
         reference: ImportedDependencyTypeAliasRef,
     ) -> Option<&SelectedImportedDependencyTypeAlias> {
-        (reference.selection == self.selection)
-            .then(|| self.type_aliases.get(&reference.alias))
-            .flatten()
+        self.type_aliases.get(&reference.alias)
     }
 
     pub fn finish(self) -> SelectedImportedDependencySet {
         SelectedImportedDependencySet {
             direct_binding_witnesses: self.catalog.direct_binding_witnesses.clone(),
             consumer: self.catalog.consumer,
-            selection: self.selection,
             callables: self.callables,
             constants: self.constants,
             type_aliases: self.type_aliases,

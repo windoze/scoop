@@ -102,7 +102,7 @@ fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
 }
 
 #[test]
-fn selection_rejects_semantic_only_and_foreign_projection_candidates() {
+fn selection_rejects_semantic_only_callables() {
     let core = ProviderFixture::empty(ConeCoordinate::reserved_core());
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
     let provider = CallableProviderFixture::new(
@@ -135,7 +135,6 @@ fn selection_rejects_semantic_only_and_foreign_projection_candidates() {
     )
     .unwrap();
     let mut first = world.dependency_selection_plan().unwrap();
-    let mut second = world.dependency_selection_plan().unwrap();
     let binding = world
         .resolve_direct_exact(&identifiers(&["demo", "raw"]), BindingNamespace::Value)
         .unwrap()
@@ -147,14 +146,10 @@ fn selection_rejects_semantic_only_and_foreign_projection_candidates() {
 
     assert!(candidate.capability().is_none());
     assert!(matches!(
-        first.select_callable(candidate.clone()),
+        first.select_callable(candidate),
         Err(ImportedDependencySelectionError::CapabilityUnavailable { .. })
     ));
     assert_eq!(first.selected_callable_count(), 0);
-    assert_eq!(
-        second.select_callable(candidate),
-        Err(ImportedDependencySelectionError::ForeignProjection)
-    );
 }
 
 #[test]

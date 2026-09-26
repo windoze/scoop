@@ -5,7 +5,6 @@
 //! bindings; it can only answer exact, kind-specific persistent-id queries.
 
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use scoop_identity::ConeIdentity;
 
@@ -34,16 +33,13 @@ use entities::ImportedEntityIndex;
 use namespace::build_direct_package_index;
 use provider::{ImportedProvider, ProviderSeed};
 
-static NEXT_WORLD_BRAND: AtomicU64 = AtomicU64::new(1);
-
 /// Immutable semantic projection of one validated dependency closure.
 pub struct ImportedSemanticWorld<'input> {
-    brand: u64,
     current: ConeIdentity,
     providers: Vec<ImportedProvider<'input>>,
     positions: BTreeMap<ConeIdentity, usize>,
-    direct: Vec<WorldConeId>,
-    support: Vec<WorldConeId>,
+    direct: Vec<ConeIdentity>,
+    support: Vec<ConeIdentity>,
     entities: ImportedEntityIndex,
     direct_packages: DirectPackageIndex,
 }
@@ -58,7 +54,6 @@ impl<'input> ImportedSemanticWorld<'input> {
         direct: Vec<DirectImportedProviderInput<'input>>,
         support: Vec<SupportImportedProviderInput<'input>>,
     ) -> Result<Self, ImportedSemanticWorldBuildError> {
-        let brand = next_world_brand()?;
         let seeds = ProviderSeed::canonicalize(current, direct, support)?;
         let mut providers = Vec::with_capacity(seeds.len());
         let mut positions = BTreeMap::new();
@@ -66,28 +61,24 @@ impl<'input> ImportedSemanticWorld<'input> {
         let mut support_ids = Vec::new();
 
         for (index, seed) in seeds.into_iter().enumerate() {
-            let index = u32::try_from(index)
-                .map_err(|_| ImportedSemanticWorldBuildError::ProviderCountOverflow)?;
-            let id = WorldConeId::new(brand, index);
             let identity = seed.certificate().identity();
-            positions.insert(identity, index as usize);
+            positions.insert(identity, index);
             match seed.role() {
-                provider::ProviderSeedRole::Direct => direct_ids.push(id),
-                provider::ProviderSeedRole::Support => support_ids.push(id),
+                provider::ProviderSeedRole::Direct => direct_ids.push(identity),
+                provider::ProviderSeedRole::Support => support_ids.push(identity),
             }
-            providers.push(ImportedProvider::new(id, seed));
+            providers.push(ImportedProvider::new(seed));
         }
 
-        direct_ids.sort_unstable_by_key(|id| providers[id.index()].identity());
-        support_ids.sort_unstable_by_key(|id| providers[id.index()].identity());
+        direct_ids.sort_unstable();
+        support_ids.sort_unstable();
         let entities = ImportedEntityIndex::build(&providers)?;
         for provider in &mut providers {
             provider.build_public_bindings(&entities)?;
         }
-        let direct_packages = build_direct_package_index(brand, &providers, &direct_ids);
+        let direct_packages = build_direct_package_index(&providers);
 
         Ok(Self {
-            brand,
             current,
             providers,
             positions,
@@ -138,7 +129,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         &self,
     ) -> impl ExactSizeIterator<Item = DirectProviderView<'_, 'input>> {
         self.direct.iter().map(|id| DirectProviderView {
-            provider: &self.providers[id.index()],
+            provider: &self.providers[self.positions[id]],
         })
     }
 
@@ -146,7 +137,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         &self,
     ) -> impl ExactSizeIterator<Item = SupportProviderView<'_, 'input>> {
         self.support.iter().map(|id| SupportProviderView {
-            provider: &self.providers[id.index()],
+            provider: &self.providers[self.positions[id]],
         })
     }
 
@@ -158,7 +149,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         let provider = self
             .entities
             .nominal_provider(declaration)
-            .and_then(|id| self.provider_by_id(id))?;
+            .and_then(|id| self.provider(id))?;
         ImportedTypedProviderView { provider }.nominal(declaration)
     }
 
@@ -169,7 +160,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         let provider = self
             .entities
             .callable_provider(declaration)
-            .and_then(|id| self.provider_by_id(id))?;
+            .and_then(|id| self.provider(id))?;
         ImportedTypedProviderView { provider }.callable(declaration)
     }
 
@@ -180,7 +171,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         let provider = self
             .entities
             .property_provider(declaration)
-            .and_then(|id| self.provider_by_id(id))?;
+            .and_then(|id| self.provider(id))?;
         ImportedTypedProviderView { provider }.property(declaration)
     }
 
@@ -191,7 +182,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         let provider = self
             .entities
             .alias_provider(alias)
-            .and_then(|id| self.provider_by_id(id))?;
+            .and_then(|id| self.provider(id))?;
         ImportedTypedProviderView { provider }.type_alias(alias)
     }
 
@@ -202,7 +193,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         let provider = self
             .entities
             .object_value_provider(value)
-            .and_then(|id| self.provider_by_id(id))?;
+            .and_then(|id| self.provider(id))?;
         ImportedTypedProviderView { provider }.object_value(value)
     }
 
@@ -213,7 +204,7 @@ impl<'input> ImportedSemanticWorld<'input> {
         let provider = self
             .entities
             .enum_variant_provider(variant)
-            .and_then(|id| self.provider_by_id(id))?;
+            .and_then(|id| self.provider(id))?;
         ImportedTypedProviderView { provider }.enum_variant(variant)
     }
 
@@ -222,20 +213,6 @@ impl<'input> ImportedSemanticWorld<'input> {
             .get(&identity)
             .map(|position| &self.providers[*position])
     }
-
-    fn provider_by_id(&self, id: WorldConeId) -> Option<&ImportedProvider<'input>> {
-        (id.brand() == self.brand)
-            .then(|| self.providers.get(id.index()))
-            .flatten()
-    }
-}
-
-fn next_world_brand() -> Result<u64, ImportedSemanticWorldBuildError> {
-    NEXT_WORLD_BRAND
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |brand| {
-            brand.checked_add(1)
-        })
-        .map_err(|_| ImportedSemanticWorldBuildError::WorldBrandExhausted)
 }
 
 #[cfg(test)]

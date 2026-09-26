@@ -18,18 +18,9 @@ pub enum ImportedDependencySelectionPlanBuildError {
     Initialization(crate::HirInitializationUseError),
     DuplicateCallable(CallableTemplateOrigin),
     MissingCallableSourceName(CallableTemplateOrigin),
-    TooManyCallables {
-        count: usize,
-    },
     DuplicateConstant(PersistentPropertyId),
     DuplicateProperty(PropertyOwner),
     DuplicateTypeAlias(scoop_identity::PersistentTypeAliasId),
-    TooManyConstants {
-        count: usize,
-    },
-    TooManyTypeAliases {
-        count: usize,
-    },
     MissingTypeAliasExpansion(scoop_identity::PersistentTypeAliasId),
     MissingDefinitionSource {
         provider: ConeIdentity,
@@ -71,10 +62,6 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency callable {declaration:?} has no canonical function source name"
             ),
-            Self::TooManyCallables { count } => write!(
-                formatter,
-                "dependency semantic world contains {count} callables, exceeding the u32 id domain"
-            ),
             Self::DuplicateConstant(property) => write!(
                 formatter,
                 "dependency semantic world contains duplicate constant {property:?}"
@@ -86,14 +73,6 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
             Self::DuplicateTypeAlias(alias) => write!(
                 formatter,
                 "dependency semantic world contains duplicate type alias {alias:?}"
-            ),
-            Self::TooManyConstants { count } => write!(
-                formatter,
-                "dependency semantic world contains {count} constants, exceeding the u32 id domain"
-            ),
-            Self::TooManyTypeAliases { count } => write!(
-                formatter,
-                "dependency semantic world contains {count} type aliases, exceeding the u32 id domain"
             ),
             Self::MissingTypeAliasExpansion(alias) => write!(
                 formatter,
@@ -130,12 +109,9 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             | Self::DuplicateNominal(_)
             | Self::DuplicateCallable(_)
             | Self::MissingCallableSourceName(_)
-            | Self::TooManyCallables { .. }
             | Self::DuplicateConstant(_)
             | Self::DuplicateProperty(_)
             | Self::DuplicateTypeAlias(_)
-            | Self::TooManyConstants { .. }
-            | Self::TooManyTypeAliases { .. }
             | Self::MissingTypeAliasExpansion(_)
             | Self::MissingDefinitionSource { .. }
             | Self::MissingDefinitionContext { .. } => None,
@@ -149,8 +125,6 @@ pub enum ImportedDependencyCandidateError {
     NotConstant(ImportedTarget),
     NotProperty(ImportedTarget),
     NotTypeAlias(ImportedTarget),
-    ForeignWorld,
-    ForeignProjection,
     MissingCallable(CallableTemplateOrigin),
     MissingCallableSource(CallableTemplateOrigin),
     MissingConstant(PersistentPropertyId),
@@ -192,12 +166,6 @@ impl fmt::Display for ImportedDependencyCandidateError {
             }
             Self::NotTypeAlias(target) => {
                 write!(formatter, "imported target {target:?} is not a type alias")
-            }
-            Self::ForeignWorld => {
-                formatter.write_str("imported binding belongs to another semantic world")
-            }
-            Self::ForeignProjection => {
-                formatter.write_str("imported property belongs to another dependency projection")
             }
             Self::MissingCallableSource(declaration) => write!(
                 formatter,
@@ -260,7 +228,9 @@ impl std::error::Error for ImportedDependencyCandidateError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedDependencySelectionError {
-    ForeignProjection,
+    MissingCallable(CallableTemplateOrigin),
+    MissingConstant(PersistentPropertyId),
+    MissingTypeAlias(scoop_identity::PersistentTypeAliasId),
     CapabilityUnavailable { target: ImportedTarget },
     ConstantCapabilityUnavailable { target: ImportedTarget },
     RouteMerge(DirectImportedTargetMergeError),
@@ -269,9 +239,18 @@ pub enum ImportedDependencySelectionError {
 impl fmt::Display for ImportedDependencySelectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ForeignProjection => {
-                formatter.write_str("dependency candidate belongs to another projection")
-            }
+            Self::MissingCallable(id) => write!(
+                formatter,
+                "selected callable {id:?} is absent from the dependency catalog"
+            ),
+            Self::MissingConstant(id) => write!(
+                formatter,
+                "selected constant {id} is absent from the dependency catalog"
+            ),
+            Self::MissingTypeAlias(id) => write!(
+                formatter,
+                "selected type alias {id} is absent from the dependency catalog"
+            ),
             Self::CapabilityUnavailable { target } => write!(
                 formatter,
                 "imported callable {target:?} has no executable param-free nominal bridge"
@@ -292,7 +271,9 @@ impl std::error::Error for ImportedDependencySelectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::RouteMerge(error) => Some(error),
-            Self::ForeignProjection
+            Self::MissingCallable(_)
+            | Self::MissingConstant(_)
+            | Self::MissingTypeAlias(_)
             | Self::CapabilityUnavailable { .. }
             | Self::ConstantCapabilityUnavailable { .. } => None,
         }

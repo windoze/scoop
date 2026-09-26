@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_identity::{BindingNamespace, CanonicalIdentifier, PackagePath};
+use scoop_identity::{BindingNamespace, CanonicalIdentifier, ConeIdentity, PackagePath};
 
 use super::{
     DirectNamespaceLookupError, ImportedNominal, ImportedPublicBinding, ImportedSemanticWorld,
-    WorldConeId, provider::ImportedProvider,
+    provider::ImportedProvider,
 };
 use crate::SourceNominalId;
 
@@ -14,13 +14,13 @@ use group::{named_groups, non_empty_group};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct BindingLocator {
-    provider: WorldConeId,
+    provider: ConeIdentity,
     binding: usize,
 }
 
 #[derive(Clone, Debug)]
 struct DirectPackageContribution {
-    provider: WorldConeId,
+    provider: ConeIdentity,
     bindings: Vec<BindingLocator>,
 }
 
@@ -33,7 +33,6 @@ struct DirectPackageEntry {
 /// only. Support providers are absent even though their exact typed entities
 /// remain available to route/static-owner traversal.
 pub struct DirectPackageIndex {
-    brand: u64,
     entries: BTreeMap<PackagePath, DirectPackageEntry>,
 }
 
@@ -86,14 +85,10 @@ impl<'index> DirectPackageMatch<'index> {
     }
 }
 
-pub(super) fn build_direct_package_index(
-    brand: u64,
-    providers: &[ImportedProvider<'_>],
-    direct: &[WorldConeId],
-) -> DirectPackageIndex {
-    let mut pending = BTreeMap::<PackagePath, BTreeMap<WorldConeId, Vec<BindingLocator>>>::new();
-    for provider_id in direct {
-        let provider = &providers[provider_id.index()];
+pub(super) fn build_direct_package_index(providers: &[ImportedProvider<'_>]) -> DirectPackageIndex {
+    let mut pending = BTreeMap::<PackagePath, BTreeMap<ConeIdentity, Vec<BindingLocator>>>::new();
+    for provider in providers.iter().filter(|provider| provider.is_direct()) {
+        let provider_id = provider.identity();
         for (binding_index, binding) in provider.public_bindings().iter().enumerate() {
             if !provider.is_package_binding(binding.identity().persistent()) {
                 continue;
@@ -101,10 +96,10 @@ pub(super) fn build_direct_package_index(
             pending
                 .entry(binding.key().package().clone())
                 .or_default()
-                .entry(*provider_id)
+                .entry(provider_id)
                 .or_default()
                 .push(BindingLocator {
-                    provider: *provider_id,
+                    provider: provider_id,
                     binding: binding_index,
                 });
         }
@@ -119,7 +114,7 @@ pub(super) fn build_direct_package_index(
             (path, DirectPackageEntry { contributions })
         })
         .collect();
-    DirectPackageIndex { brand, entries }
+    DirectPackageIndex { entries }
 }
 
 /// Direct package namespace selected by longest-prefix lookup.
@@ -138,7 +133,7 @@ impl<'world, 'input> DirectPackageView<'world, 'input> {
         self.entry.contributions.len()
     }
 
-    pub fn provider_ids(&self) -> impl ExactSizeIterator<Item = WorldConeId> + '_ {
+    pub fn provider_ids(&self) -> impl ExactSizeIterator<Item = ConeIdentity> + '_ {
         self.entry
             .contributions
             .iter()
@@ -183,7 +178,7 @@ impl<'world, 'input> DirectPackageView<'world, 'input> {
     /// exactly its own routes when another layer provides the same entity.
     pub fn snapshot_filtered(
         &self,
-        include: impl Fn(WorldConeId) -> bool,
+        include: impl Fn(ConeIdentity) -> bool,
     ) -> Vec<DirectNamedPublicBindingGroup> {
         named_groups(
             self.bindings()
@@ -209,7 +204,7 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
         let owner = self.owner();
         let provider = self
             .world
-            .provider_by_id(owner.provider())
+            .provider(owner.provider())
             .expect("the nominal provider belongs to this world");
         owner
             .record()
@@ -226,7 +221,7 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
         name: &str,
     ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
         let owner = self.owner();
-        let provider = self.world.provider_by_id(owner.provider())?;
+        let provider = self.world.provider(owner.provider())?;
         non_empty_group(
             owner
                 .record()
@@ -273,9 +268,6 @@ impl<'world, 'input> DirectNamespaceView<'world, 'input> {
 
 impl<'input> ImportedSemanticWorld<'input> {
     pub fn direct_package(&self, path: &PackagePath) -> Option<DirectPackageView<'_, 'input>> {
-        if self.direct_packages.brand != self.brand {
-            return None;
-        }
         let (path, entry) = self.direct_packages.entries.get_key_value(path)?;
         Some(DirectPackageView {
             world: self,
@@ -426,8 +418,7 @@ impl<'input> ImportedSemanticWorld<'input> {
     }
 
     fn binding(&self, locator: BindingLocator) -> Option<&ImportedPublicBinding<'input>> {
-        self.provider_by_id(locator.provider)?
-            .binding(locator.binding)
+        self.provider(locator.provider)?.binding(locator.binding)
     }
 }
 

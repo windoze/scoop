@@ -402,8 +402,7 @@ pub enum ExprKind {
         receiver: crate::SourceCallReceiver<TypeId>,
     },
     /// Direct call to a callable selected from a dependency artifact.
-    /// Its branded arena use resolves only through this output's dependency
-    /// selection sidecar.
+    /// Its typed arena use resolves through the output's selected declarations.
     ImportedDependencyCall {
         callee: ImportedDependencyCallableUseId,
         /// The exact winning lookup routes for this occurrence. The shared

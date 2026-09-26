@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
 
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, PersistentExportBindingId, SemanticOriginFingerprint,
@@ -13,8 +12,8 @@ use crate::{
 mod views;
 pub use views::*;
 
-/// Session certificate retained with every imported provider. It owns the
-/// data needed to re-open the same artifact after HIR candidate selection.
+/// Provider coordinates and content fingerprint retained for dependency
+/// lookup, diagnostics, and cache invalidation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImportedProviderCertificate {
     coordinate: ConeCoordinate,
@@ -79,37 +78,6 @@ macro_rules! provider_input {
 
 provider_input!(DirectImportedProviderInput);
 provider_input!(SupportImportedProviderInput);
-
-/// Opaque, process-local provider handle. Its world brand prevents handles
-/// from one imported closure from being accepted by another.
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct WorldConeId {
-    brand: u64,
-    index: u32,
-}
-
-impl WorldConeId {
-    pub(super) const fn new(brand: u64, index: u32) -> Self {
-        Self { brand, index }
-    }
-
-    pub(super) const fn brand(self) -> u64 {
-        self.brand
-    }
-
-    pub(super) const fn index(self) -> usize {
-        self.index as usize
-    }
-}
-
-impl fmt::Debug for WorldConeId {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("WorldConeId")
-            .field("index", &self.index)
-            .finish_non_exhaustive()
-    }
-}
 
 pub(super) enum ProviderSeed<'input> {
     Direct(DirectImportedProviderInput<'input>),
@@ -197,7 +165,6 @@ impl<'input> ProviderSeed<'input> {
 }
 
 pub(super) struct ImportedProvider<'input> {
-    id: WorldConeId,
     role: ProviderSeedRole,
     certificate: ImportedProviderCertificate,
     foundation: &'input ImportedHirFoundation,
@@ -209,7 +176,7 @@ pub(super) struct ImportedProvider<'input> {
 }
 
 impl<'input> ImportedProvider<'input> {
-    pub(super) fn new(id: WorldConeId, seed: ProviderSeed<'input>) -> Self {
+    pub(super) fn new(seed: ProviderSeed<'input>) -> Self {
         let role = seed.role();
         let (certificate, foundation, interface, alias_expansions) = match seed {
             ProviderSeed::Direct(input) => (
@@ -232,7 +199,6 @@ impl<'input> ImportedProvider<'input> {
             .flat_map(|record| record.nested_bindings().values().iter().copied())
             .collect();
         Self {
-            id,
             role,
             certificate,
             foundation,
@@ -276,7 +242,7 @@ impl<'input> ImportedProvider<'input> {
             )?;
             positions.insert(binding, bindings.len());
             bindings.push(ImportedPublicBinding {
-                provider: self.id,
+                provider,
                 identity,
                 key,
                 target,
@@ -284,7 +250,6 @@ impl<'input> ImportedProvider<'input> {
                 source: record.source(),
                 lookup_sources: if self.is_direct() {
                     DirectDependencyImportSource::from_validated_binding(
-                        self.id,
                         &self.certificate,
                         identity,
                         target,
@@ -315,10 +280,6 @@ impl<'input> ImportedProvider<'input> {
         self.public_bindings = bindings;
         self.binding_positions = positions;
         Ok(())
-    }
-
-    pub(super) const fn id(&self) -> WorldConeId {
-        self.id
     }
 
     pub(super) const fn identity(&self) -> ConeIdentity {

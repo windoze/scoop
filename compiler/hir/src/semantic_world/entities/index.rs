@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{
-    BindableEntity, CallableTemplateOrigin, DuplicateSignatureKey, OptionalSignatureType,
-    PersistentEnumVariantId, PersistentObjectValueId, PersistentTypeAliasId, PropertyOwner,
+    BindableEntity, CallableTemplateOrigin, ConeIdentity, DuplicateSignatureKey,
+    OptionalSignatureType, PersistentEnumVariantId, PersistentObjectValueId, PersistentTypeAliasId,
+    PropertyOwner,
 };
 
 use super::{
@@ -11,21 +12,21 @@ use super::{
 };
 use crate::{
     ImportedSemanticEntityId, ImportedSemanticWorldBuildError, NominalSourceShapeV1,
-    SourceNominalId, WorldConeId, semantic_world::provider::ImportedProvider,
+    SourceNominalId, semantic_world::provider::ImportedProvider,
 };
 
 pub(in crate::semantic_world) struct ImportedEntityIndex {
-    nominals: BTreeMap<SourceNominalId, WorldConeId>,
-    callables: BTreeMap<CallableTemplateOrigin, WorldConeId>,
-    properties: BTreeMap<PropertyOwner, WorldConeId>,
-    aliases: BTreeMap<PersistentTypeAliasId, WorldConeId>,
-    object_values: BTreeMap<PersistentObjectValueId, WorldConeId>,
-    enum_variants: BTreeMap<PersistentEnumVariantId, WorldConeId>,
+    nominals: BTreeMap<SourceNominalId, ConeIdentity>,
+    callables: BTreeMap<CallableTemplateOrigin, ConeIdentity>,
+    properties: BTreeMap<PropertyOwner, ConeIdentity>,
+    aliases: BTreeMap<PersistentTypeAliasId, ConeIdentity>,
+    object_values: BTreeMap<PersistentObjectValueId, ConeIdentity>,
+    enum_variants: BTreeMap<PersistentEnumVariantId, ConeIdentity>,
     targets: BTreeMap<BindableEntity, ImportedTargetEntry>,
 }
 
 struct ImportedTargetEntry {
-    provider: WorldConeId,
+    provider: ConeIdentity,
     target: ImportedTarget,
     conflict: ImportedBindingConflictKey,
 }
@@ -312,7 +313,7 @@ impl ImportedEntityIndex {
         if let Some(first) = self.targets.insert(
             persistent,
             ImportedTargetEntry {
-                provider: provider.id(),
+                provider: provider.identity(),
                 target: imported,
                 conflict,
             },
@@ -345,53 +346,53 @@ impl ImportedEntityIndex {
     pub(in crate::semantic_world) fn nominal_provider(
         &self,
         id: SourceNominalId,
-    ) -> Option<WorldConeId> {
+    ) -> Option<ConeIdentity> {
         self.nominals.get(&id).copied()
     }
 
     pub(in crate::semantic_world) fn callable_provider(
         &self,
         id: CallableTemplateOrigin,
-    ) -> Option<WorldConeId> {
+    ) -> Option<ConeIdentity> {
         self.callables.get(&id).copied()
     }
 
     pub(in crate::semantic_world) fn property_provider(
         &self,
         id: PropertyOwner,
-    ) -> Option<WorldConeId> {
+    ) -> Option<ConeIdentity> {
         self.properties.get(&id).copied()
     }
 
     pub(in crate::semantic_world) fn alias_provider(
         &self,
         id: PersistentTypeAliasId,
-    ) -> Option<WorldConeId> {
+    ) -> Option<ConeIdentity> {
         self.aliases.get(&id).copied()
     }
 
     pub(in crate::semantic_world) fn object_value_provider(
         &self,
         id: PersistentObjectValueId,
-    ) -> Option<WorldConeId> {
+    ) -> Option<ConeIdentity> {
         self.object_values.get(&id).copied()
     }
 
     pub(in crate::semantic_world) fn enum_variant_provider(
         &self,
         id: PersistentEnumVariantId,
-    ) -> Option<WorldConeId> {
+    ) -> Option<ConeIdentity> {
         self.enum_variants.get(&id).copied()
     }
 }
 
 fn insert_unique<I: Ord>(
-    map: &mut BTreeMap<I, WorldConeId>,
+    map: &mut BTreeMap<I, ConeIdentity>,
     id: I,
     provider: &ImportedProvider<'_>,
     entity: ImportedSemanticEntityId,
 ) -> Result<(), ImportedSemanticWorldBuildError> {
-    if let Some(first) = map.insert(id, provider.id()) {
+    if let Some(first) = map.insert(id, provider.identity()) {
         return Err(ImportedSemanticWorldBuildError::DuplicateEntityAuthority {
             entity,
             first,

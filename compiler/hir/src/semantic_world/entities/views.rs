@@ -1,22 +1,24 @@
-use scoop_identity::{PersistentEnumVariantId, PersistentObjectValueId, PersistentTypeAliasId};
+use scoop_identity::{
+    ConeIdentity, PersistentEnumVariantId, PersistentObjectValueId, PersistentTypeAliasId,
+};
 
 use super::{
     ImportedCallableDeclarationId, ImportedPropertyDeclarationId, ImportedSourceNominalId,
 };
 use crate::{
     CallableInterfaceRecordV1, EnumSourceVariantV1, ImportedHirId, NominalInterfaceRecordV1,
-    PropertyInterfaceRecordV1, TypeAliasExpansionV1, TypeAliasInterfaceRecordV1, WorldConeId,
+    PropertyInterfaceRecordV1, TypeAliasExpansionV1, TypeAliasInterfaceRecordV1,
 };
 
 #[derive(Clone, Copy)]
 pub struct ImportedNominal<'input> {
-    pub(in crate::semantic_world) provider: WorldConeId,
+    pub(in crate::semantic_world) provider: ConeIdentity,
     pub(in crate::semantic_world) declaration: ImportedSourceNominalId,
     pub(in crate::semantic_world) record: &'input NominalInterfaceRecordV1,
 }
 
 impl<'input> ImportedNominal<'input> {
-    pub const fn provider(self) -> WorldConeId {
+    pub const fn provider(self) -> ConeIdentity {
         self.provider
     }
 
@@ -31,13 +33,13 @@ impl<'input> ImportedNominal<'input> {
 
 #[derive(Clone, Copy)]
 pub struct ImportedCallable<'input> {
-    pub(in crate::semantic_world) provider: WorldConeId,
+    pub(in crate::semantic_world) provider: ConeIdentity,
     pub(in crate::semantic_world) declaration: ImportedCallableDeclarationId,
     pub(in crate::semantic_world) record: &'input CallableInterfaceRecordV1,
 }
 
 impl<'input> ImportedCallable<'input> {
-    pub const fn provider(self) -> WorldConeId {
+    pub const fn provider(self) -> ConeIdentity {
         self.provider
     }
 
@@ -52,13 +54,13 @@ impl<'input> ImportedCallable<'input> {
 
 #[derive(Clone, Copy)]
 pub struct ImportedProperty<'input> {
-    pub(in crate::semantic_world) provider: WorldConeId,
+    pub(in crate::semantic_world) provider: ConeIdentity,
     pub(in crate::semantic_world) declaration: ImportedPropertyDeclarationId,
     pub(in crate::semantic_world) record: &'input PropertyInterfaceRecordV1,
 }
 
 impl<'input> ImportedProperty<'input> {
-    pub const fn provider(self) -> WorldConeId {
+    pub const fn provider(self) -> ConeIdentity {
         self.provider
     }
 
@@ -73,14 +75,14 @@ impl<'input> ImportedProperty<'input> {
 
 #[derive(Clone, Copy)]
 pub struct ImportedTypeAlias<'input> {
-    pub(in crate::semantic_world) provider: WorldConeId,
+    pub(in crate::semantic_world) provider: ConeIdentity,
     pub(in crate::semantic_world) identity: ImportedHirId<PersistentTypeAliasId>,
     pub(in crate::semantic_world) record: &'input TypeAliasInterfaceRecordV1,
     pub(in crate::semantic_world) expansion: &'input TypeAliasExpansionV1,
 }
 
 impl<'input> ImportedTypeAlias<'input> {
-    pub const fn provider(self) -> WorldConeId {
+    pub const fn provider(self) -> ConeIdentity {
         self.provider
     }
 
@@ -99,14 +101,14 @@ impl<'input> ImportedTypeAlias<'input> {
 
 #[derive(Clone, Copy)]
 pub struct ImportedObjectValue<'input> {
-    pub(in crate::semantic_world) provider: WorldConeId,
+    pub(in crate::semantic_world) provider: ConeIdentity,
     pub(in crate::semantic_world) identity: ImportedHirId<PersistentObjectValueId>,
     pub(in crate::semantic_world) owner: ImportedSourceNominalId,
     pub(in crate::semantic_world) owner_record: &'input NominalInterfaceRecordV1,
 }
 
 impl<'input> ImportedObjectValue<'input> {
-    pub const fn provider(self) -> WorldConeId {
+    pub const fn provider(self) -> ConeIdentity {
         self.provider
     }
 
@@ -125,7 +127,7 @@ impl<'input> ImportedObjectValue<'input> {
 
 #[derive(Clone, Copy)]
 pub struct ImportedEnumVariant<'input> {
-    pub(in crate::semantic_world) provider: WorldConeId,
+    pub(in crate::semantic_world) provider: ConeIdentity,
     pub(in crate::semantic_world) identity: ImportedHirId<PersistentEnumVariantId>,
     pub(in crate::semantic_world) owner: ImportedSourceNominalId,
     pub(in crate::semantic_world) owner_record: &'input NominalInterfaceRecordV1,
@@ -133,7 +135,7 @@ pub struct ImportedEnumVariant<'input> {
 }
 
 impl<'input> ImportedEnumVariant<'input> {
-    pub const fn provider(self) -> WorldConeId {
+    pub const fn provider(self) -> ConeIdentity {
         self.provider
     }
 

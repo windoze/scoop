@@ -3,17 +3,14 @@ use std::fmt;
 
 use scoop_identity::{BindingTarget, ConeIdentity, PersistentExportBindingId};
 
-use super::{ImportedBindingConflictKey, ImportedProviderCertificate, ImportedTarget, WorldConeId};
+use super::{ImportedBindingConflictKey, ImportedProviderCertificate, ImportedTarget};
 use crate::{
     DependencyBindingWitnessV1, ExportBindingSourceV1, ImportedHirId, ReexportRouteBuildError,
     ReexportRouteHopV1, ReexportRouteV1,
 };
 
-/// Opaque proof that one imported target is reachable through a validated
-/// public binding of a direct dependency.
-///
-/// Construction stays inside the semantic world so a typed entity obtained
-/// only from a support provider cannot be promoted into ordinary lookup.
+/// The typed declaration and re-export route used by public name lookup.
+/// Support-only declarations remain outside the direct package namespace.
 #[derive(Clone, Debug)]
 pub struct PublicDependencyLookupWitness {
     terminal_declaration: ImportedTarget,
@@ -36,22 +33,16 @@ impl PublicDependencyLookupWitness {
 
 /// One canonical direct-dependency source for an imported target.
 ///
-/// The session-local provider handle is deliberately excluded from canonical
-/// ordering. The retained certificate supplies stable coordinate and
-/// fingerprint information for diagnostics and later artifact reopening.
+/// The provider metadata retains coordinates and a content fingerprint.
+/// Canonical ordering uses the actual provider, binding, and re-export route.
 #[derive(Clone, Debug)]
 pub struct DirectDependencyImportSource {
-    immediate_provider: WorldConeId,
     certificate: ImportedProviderCertificate,
     exported_binding: ImportedHirId<PersistentExportBindingId>,
     witness: PublicDependencyLookupWitness,
 }
 
 impl DirectDependencyImportSource {
-    pub const fn immediate_provider(&self) -> WorldConeId {
-        self.immediate_provider
-    }
-
     pub const fn provider_identity(&self) -> ConeIdentity {
         self.certificate.identity()
     }
@@ -69,7 +60,6 @@ impl DirectDependencyImportSource {
     }
 
     pub(super) fn from_validated_binding(
-        immediate_provider: WorldConeId,
         certificate: &ImportedProviderCertificate,
         exported_binding: ImportedHirId<PersistentExportBindingId>,
         target: ImportedTarget,
@@ -101,7 +91,6 @@ impl DirectDependencyImportSource {
         Ok(routes
             .into_iter()
             .map(|route| Self {
-                immediate_provider,
                 certificate: certificate.clone(),
                 exported_binding,
                 witness: PublicDependencyLookupWitness {
@@ -134,7 +123,7 @@ fn coordinate_key(certificate: &ImportedProviderCertificate) -> (&str, &str, &st
     (coordinate.group(), coordinate.name(), coordinate.version())
 }
 
-/// One typed target together with every direct source that authorizes it.
+/// One typed target together with the direct import routes used to find it.
 /// The private source vector is always non-empty and canonical.
 #[derive(Clone, Debug)]
 pub struct DirectImportedTargetBinding {
@@ -183,8 +172,7 @@ impl DirectImportedTargetBinding {
                 return Ok(false);
             };
             let expected = &selected.sources[position];
-            if source.immediate_provider != expected.immediate_provider
-                || source.exported_binding != expected.exported_binding
+            if source.exported_binding != expected.exported_binding
                 || source.certificate != expected.certificate
                 || source.witness.terminal_declaration != expected.witness.terminal_declaration
             {
