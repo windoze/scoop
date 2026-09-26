@@ -6,16 +6,16 @@ use scoop_mir::MirCallableLoweringRoleV1;
 
 pub(super) fn actual(
     output: &hir::DependencyHirOutput,
-    source: &hir::CrossConeTypeSemanticsSectionV1,
+    public: &hir::CrossConeHirInterfaceSectionV1,
     input: &scoop_mir::SingleConeStrongMirInput,
     bindings: &CanonicalMirCallableBindingsV1,
 ) {
-    let constructors = source
-        .inheritance()
-        .records()
-        .iter()
-        .flat_map(|record| record.constructors().records())
-        .collect::<Vec<_>>();
+    let constructors = hir::select_param_free_source_constructors(
+        output.output().export.cone,
+        public,
+        &source_inventory::identity_closure(output),
+    )
+    .unwrap();
     assert_eq!(bindings.entries().len(), constructors.len());
     let local = output.output().local.module();
     if let Some(private) = source_dispatch::owners(output).get("Private") {
@@ -133,13 +133,7 @@ pub(super) fn actual(
         .source_callable_materializations
         .iter()
         .filter_map(|record| match record.materialization().template() {
-            CallableTemplateOwner::Constructor(id)
-                if !constructors
-                    .iter()
-                    .any(|constructor| constructor.declaration() == id) =>
-            {
-                Some(id)
-            }
+            CallableTemplateOwner::Constructor(id) if !constructors.contains_key(&id) => Some(id),
             _ => None,
         })
         .collect();
@@ -154,7 +148,7 @@ pub(super) fn actual(
 
 pub(super) fn dump(
     output: &hir::DependencyHirOutput,
-    source: &hir::CrossConeTypeSemanticsSectionV1,
+    public: &hir::CrossConeHirInterfaceSectionV1,
     bindings: &CanonicalMirCallableBindingsV1,
 ) -> String {
     let owners = source_dispatch::owners(output);
@@ -190,14 +184,10 @@ pub(super) fn dump(
             }
             _ => unreachable!(),
         };
-        let access = source
-            .inheritance()
-            .records()
-            .iter()
-            .find_map(|record| record.constructors().get(id))
+        let access = public
+            .callable_interfaces()
+            .declaration(scoop_identity::CallableTemplateOrigin::Constructor(id))
             .unwrap()
-            .source()
-            .declaration_access()
             .declared_visibility();
         lines.push(format!(
             "{owner}({parameters}): {access:?} {:?} => {role} {:?}\n",

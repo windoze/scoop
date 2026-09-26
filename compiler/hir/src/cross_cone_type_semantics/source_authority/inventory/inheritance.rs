@@ -1,61 +1,37 @@
 //! Inheritance declarations used while assembling the complete type section.
 
 use super::*;
-use crate::{
-    CanonicalInheritanceSlotSchemasV1, CanonicalPersistentIdsV1,
-    CanonicalProtectedDeclarationRefsV1, ProtectedDeclarationRefV1,
-};
-use scoop_identity::{PersistentConstructorId, PersistentExactTypeId};
+use crate::{CanonicalInheritanceSlotSchemasV1, CanonicalProtectedDeclarationRefsV1};
+use scoop_identity::PersistentExactTypeId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceInheritanceInventoryV1 {
     owner: PersistentExactTypeId,
-    constructors: CanonicalPersistentIdsV1<PersistentConstructorId>,
     protected_members: CanonicalProtectedDeclarationRefsV1,
     slot_schemas: CanonicalInheritanceSlotSchemasV1,
 }
 
 impl SourceInheritanceInventoryV1 {
-    pub fn try_new(
+    pub const fn new(
         owner: PersistentExactTypeId,
-        constructors: CanonicalPersistentIdsV1<PersistentConstructorId>,
         protected_members: CanonicalProtectedDeclarationRefsV1,
         slot_schemas: CanonicalInheritanceSlotSchemasV1,
-    ) -> Result<Self, SourceInventoryError> {
-        let result = Self {
+    ) -> Self {
+        Self {
             owner,
-            constructors,
             protected_members,
             slot_schemas,
-        };
-        result.validate()?;
-        Ok(result)
+        }
     }
 
     pub const fn owner(&self) -> PersistentExactTypeId {
         self.owner
-    }
-    pub const fn constructors(&self) -> &CanonicalPersistentIdsV1<PersistentConstructorId> {
-        &self.constructors
     }
     pub const fn protected_members(&self) -> &CanonicalProtectedDeclarationRefsV1 {
         &self.protected_members
     }
     pub const fn slot_schemas(&self) -> &CanonicalInheritanceSlotSchemasV1 {
         &self.slot_schemas
-    }
-
-    fn validate(&self) -> Result<(), SourceInventoryError> {
-        for member in self.protected_members.values() {
-            if let ProtectedDeclarationRefV1::Constructor(constructor) = member {
-                return Err(SourceInventoryError::ConstructorInMembers {
-                    owner: self.owner,
-                    constructor: *constructor,
-                });
-            }
-        }
-
-        Ok(())
     }
 }
 

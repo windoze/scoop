@@ -29,7 +29,6 @@ pub(super) fn check(
         *schema = InheritanceSlotSchemaV1::try_new(schema.role(), slots).unwrap();
         *record = NominalInheritanceInterfaceV1::try_new(
             record.edges().clone(),
-            record.constructors().clone(),
             record.slots().clone(),
             record.protected_members().clone(),
             CanonicalInheritanceSlotSchemasV1::try_new(schemas).unwrap(),

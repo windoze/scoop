@@ -28,7 +28,11 @@ MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产
 
 本次来源框架清理覆盖所有 Cone：旧 HIR foundation/declaration transcript 及逐层 `Bound*` 包装只由测试工厂消费，应删除相关构造器、编码器、绑定链和专用测试。保留 `source_authority` 中仍被生产调用的普通声明数据、默认参数数据和身份查询；以共有源码编译、reader、链接与运行回归确认清理结果。
 
-类型生产器直接返回完整的共有 type section；MIR 从其中已有的继承边、槽序和 typed 实现目标取得类型与 dispatch 信息。类型可物化性查询复用已有共有 nominal/callable 声明，不为同一次产出重新投影全部声明表。删除另行投影的来源 foundation、独立证明外层、只供旧测试消费的平行名义声明/参数/属性表，以及仅为比较同次结果而重建公开声明和 callable 表的工作。生产器仍从完整 HIR 生成全部实际记录，外部 reader 继续在明确边界检查格式、身份、引用、继承、类型与 ABI。删除仅用于重复证明的名义类型 lookup/inheritance/slot 三域副本；可见性仍由完整 typed 声明、词法 owner 和实际继承关系决定。`NominalInheritanceInterfaceV1` 的 field 5 退役，保留 field 1～4、6～9；HIR `cross-cone-type-semantics/6`、required inventory、profile 与 HIR fingerprint 同步更新，旧产物重建。未进入实际产物的旧辅助编码不保留兼容分支，runtime C ABI 与 String 表示不变。
+类型生产器直接返回完整的共有 type section；MIR 使用已有继承边、槽序、typed 实现目标及成员引用。类型物化和构造器选择查询已有共有 nominal/callable 声明，不另行投影来源 foundation、完整 protected 声明、构造器签名或参数协议来重复证明同次产出。删除这些副本的生产工厂、凭证外层、只用于副本的 reader 及测试。必要的类型、引用、继承、ABI 与格式检查保留在实际消费边界，未变化的数据复用已有检查结果。
+
+所有可见性的 nominal、callable、property、参数、默认值和定义环境由共有源码接口完整保存。protected 成员仍以 typed 引用参与实际 MIR callable 选择，其可见性和签名读取同一声明；构造器使用共有 nominal 的 constructor 引用及对应 callable，不在 inheritance record 再保存一份 payload。generic 词法 owner 不因访问域查询而要求 machine exact type。名义类型的 lookup/inheritance/slot 三份派生域不再保存和重验。
+
+`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/7`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
 
 共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。 依赖查询直接使用真实 `ConeIdentity` 与 callable、property、type-alias 的类型化声明 ID；选择集合按这些 ID 保存完整接口和实际依赖路径。删除独立 world/projection/selection 品牌、仅为品牌服务的计数器和错误，以及从声明 ID 再映射到局部 u32 的三套重复表。候选选择依照当前依赖目录中的实际声明与表示，不要求由同一查询实例铸造；直接依赖的名称可见性、转导出路径、实际 provider 和引用完整性继续按共有规则检查。HIR 候选和已选声明只保存实际 provider ID，不逐项复制 artifact 坐标/fingerprint 凭证；HIR→MIR 使用同次编译的依赖快照及完整声明，核对实际定义和签名，不再次比较来源凭证。普通构建依赖记录与缓存 fingerprint 继续承担定位和失效职责。MIR 外部 callable 引用保存实际 provider 与类型化声明，不另映射到带会话品牌的局部编号；调用位置保留 GC effect。MIR 类型与 LIR layout/ABI 选择按实际 provider 和 typed target 直接返回完整记录，不先铸造并验证中间 handle；依赖闭包、类型、ABI、物理引用和 GC 契约仍在其消费边界检查。同一声明或 target 在另一选择集合中是否存在，按实际目录查询决定，不依据集合生成顺序或计数器。该进程内数据简化不改变 wire/profile、实体身份或 runtime ABI。
 
@@ -94,7 +98,7 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 
 删除 `validate_iteration_plans` 及 concretizer 两个入口的整模块调用。该通道重新检查全部函数、构造器、默认值的迭代协议、类型、effect 和局部定义，没有实际 artifact reader 消费；其独立语义实现、伪造 HIR 测试和修改辅助函数一并退役。前端产生完整 `IterationCore`、`ForIterationPlan`、binding plan 与 typed loop target，后续直接消费；保留真实源码和正常产物的正确性回归。
 
-共有源码接口保存所有必要声明的参数协议、typed 默认值正文和定义环境，protected、private 与默认值支持声明使用同一记录。type-semantics section 不再复制受限参数协议、默认值或来源并集；原 field 5、6、7 退役，现有 field 1～4、8 保持原编号。前端完成语言与可见性检查，reader 核对已有正文的编码、typed 引用与 owner/binder 关系，不再生成 ParamFree/GenericSourceMetadata 资格、逐正文访问证明或独立完整重放。源码完整但无运行时表示的类型可以参与默认参数声明；实际物化时按 typed 声明处理。此次格式变化纳入 cross-cone-type-semantics/6，旧产物需重建，runtime C ABI 不变。
+共有源码接口保存所有必要声明的参数协议、typed 默认值正文和定义环境，protected、private 与默认值支持声明使用同一记录。type-semantics section 不再复制受限参数协议、默认值或来源并集；原 field 5、6、7 退役，现有 field 1～4、8 保持原编号。前端完成语言与可见性检查，reader 核对已有正文的编码、typed 引用与 owner/binder 关系，不再生成 ParamFree/GenericSourceMetadata 资格、逐正文访问证明或独立完整重放。源码完整但无运行时表示的类型可以参与默认参数声明；实际物化时按 typed 声明处理。此次格式变化纳入 cross-cone-type-semantics/7，旧产物需重建，runtime C ABI 不变。
 
 源码位置由共有接口的 definition_sources、call_sites、type_sites 与已有全局定义记录汇集，不能为收集位置重建独立默认值正文、参数协议或访问证明。删除 NominalDefaultSourceProductionV1、DefaultSourceBodyProductionV1 及旧 DefaultSourceTemplate／References／Access 数据模型、适配器和专用测试；生产路径直接复用共有接口的完整默认值及位置收集。必要的来源位置、typed 引用、可见性、参数与 binder 规则仍保留。旧模型已不属于正常产物字段，此清理不增加格式分支或改变 runtime ABI；内容 fingerprint 依实际产物数据计算。
 

@@ -8,16 +8,7 @@ use crate::{CrossConeTypeSemanticsSectionV1, DependencyHirOutput, SourceNominalI
 
 mod facts;
 pub(in crate::production) mod inheritance;
-mod nested_sources;
-mod protected_sources;
-pub use protected_sources::*;
-mod nominal_callables;
-mod nominal_constructors;
-mod nominal_parameters;
-pub use nested_sources::*;
-pub(in crate::production) use nominals::declaration_access_for_subject;
 mod nominals;
-mod source_parameter_shapes;
 
 impl CrossConeTypeSemanticsSectionV1 {
     /// Projects complete type representations, inheritance and dependency uses
@@ -50,10 +41,6 @@ pub enum CrossConeTypeSemanticsProductionError {
         kind: TypeSemanticsNominalKind,
         index: u32,
     },
-    GeneratedPublicNominal {
-        kind: TypeSemanticsNominalKind,
-        index: u32,
-    },
     MissingDefinitionOrigin(scoop_identity::DefinitionOriginSubject),
     InvalidLexicalOwner(scoop_identity::DefinitionOwnerAtom),
     InvalidSourceDeclaration(String),
@@ -64,7 +51,6 @@ pub enum CrossConeTypeSemanticsProductionError {
     MissingConcreteType(PersistentExactTypeId),
     MissingLocalSupport(PersistentExactTypeId),
     GenericOdrRequired(PersistentExactTypeId),
-    MissingConstructor(PersistentExactTypeId),
     InvalidSourceShape {
         declaration: SourceNominalId,
         reason: String,
@@ -98,12 +84,6 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
             Self::MissingNominalIdentity { kind, index } => {
                 write!(f, "missing {kind:?} identity at arena index {index}")
             }
-            Self::GeneratedPublicNominal { kind, index } => {
-                write!(
-                    f,
-                    "public {kind:?} at arena index {index} is compiler-generated"
-                )
-            }
             Self::MissingDefinitionOrigin(subject) => {
                 write!(f, "missing definition origin for {subject:?}")
             }
@@ -129,9 +109,6 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
                 f,
                 "exact type {exact} requires generic ODR materialization from M23-7"
             ),
-            Self::MissingConstructor(owner) => {
-                write!(f, "source constructor metadata for {owner} is missing")
-            }
             Self::InvalidSourceShape {
                 declaration,
                 reason,

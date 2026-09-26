@@ -69,19 +69,8 @@ pub(super) fn produce(
     let slot_selections = inheritance::slot_selections(export, &concrete)?;
     let source_callables =
         inheritance::source_callables(export, &inheritance_inventory, &slot_selections)?;
-    let source_constructors =
-        inheritance::source_constructors(export, &concrete, &inheritance_inventory)?;
     let slots = inheritance::SlotContracts::new(export, &source_callables, &slot_selections)?;
-    let inheritance = inheritance::produce(
-        export,
-        &concrete,
-        &inheritance_inventory,
-        &source_constructors,
-        &slots,
-    )?;
-    let (_, protected_declarations, _) =
-        ProtectedDeclarationSourceProductionV1::from_export_hir(&output.output().export)?
-            .into_parts();
+    let inheritance = inheritance::produce(export, &concrete, &inheritance_inventory, &slots)?;
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)
         .map_err(|error| Error::InvalidTable {
@@ -92,7 +81,6 @@ pub(super) fn produce(
         facts,
         representation_support,
         inheritance,
-        protected_declarations,
         metadata
             .materialized_type_uses(dependencies)
             .map_err(|error| Error::SharedTypeMetadata(Box::new(error)))?,
@@ -215,7 +203,7 @@ pub(super) fn declaration_access(
     declaration_access_for_subject(export, key, owner, visibility)
 }
 
-pub(in crate::production) fn declaration_access_for_subject(
+pub(super) fn declaration_access_for_subject(
     export: &ExportHir,
     key: &SourceDeclarationKey,
     subject: DefinitionOriginSubject,

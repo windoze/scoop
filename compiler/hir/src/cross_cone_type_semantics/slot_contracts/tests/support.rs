@@ -8,7 +8,7 @@ use scoop_identity::*;
 
 mod authority;
 
-pub(super) struct Fixture {
+pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub schema: SchemaFixture,
     pub unit: Node,
 }

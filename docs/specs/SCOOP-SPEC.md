@@ -1215,7 +1215,11 @@ class StringBuilder {
 
 共有 HIR 类型位置的结构、foreign nominal 分发、真实 provider 与定义/求值位置在 HIR reader 边界检查一次。后续物化查询和 MIR/LIR 消费同一未变化的 typed 记录，不重新完整检查这组 HIR 关系，不建立额外验证状态或凭证；实际类型表示、签名、ABI、对象与传递引用仍由相应边界检查。外部字节重新读入或相关数据发生变化时重新验证受影响部分。这一职责调整不改变 wire、内容 fingerprint 的字段组成或 runtime C ABI。
 
-类型生产器直接返回完整的共有 type section；MIR 从其中已有的继承边、槽序和 typed 实现目标取得类型与 dispatch 信息。类型可物化性查询复用已有共有 nominal/callable 声明，不为同一次产出重新投影全部声明表。删除另行投影的来源 foundation、独立证明外层、只供旧测试消费的平行名义声明/参数/属性表，以及仅为比较同次结果而重建公开声明和 callable 表的工作。生产器仍从完整 HIR 生成全部实际记录，外部 reader 继续在明确边界检查格式、身份、引用、继承、类型与 ABI。删除仅用于重复证明的名义类型 lookup/inheritance/slot 三域副本；可见性仍由完整 typed 声明、词法 owner 和实际继承关系决定。`NominalInheritanceInterfaceV1` 的 field 5 退役，保留 field 1～4、6～9；HIR `cross-cone-type-semantics/6`、required inventory、profile 与 HIR fingerprint 同步更新，旧产物重建。未进入实际产物的旧辅助编码不保留兼容分支，runtime C ABI 与 String 表示不变。
+类型生产器直接返回完整的共有 type section；MIR 使用已有继承边、槽序、typed 实现目标及成员引用。类型物化和构造器选择查询已有共有 nominal/callable 声明，不另行投影来源 foundation、完整 protected 声明、构造器签名或参数协议来重复证明同次产出。删除这些副本的生产工厂、凭证外层、只用于副本的 reader 及测试。必要的类型、引用、继承、ABI 与格式检查保留在实际消费边界，未变化的数据复用已有检查结果。
+
+所有可见性的 nominal、callable、property、参数、默认值和定义环境由共有源码接口完整保存。protected 成员仍以 typed 引用参与实际 MIR callable 选择，其可见性和签名读取同一声明；构造器使用共有 nominal 的 constructor 引用及对应 callable，不在 inheritance record 再保存一份 payload。generic 词法 owner 不因访问域查询而要求 machine exact type。名义类型的 lookup/inheritance/slot 三份派生域不再保存和重验。
+
+`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/7`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
 
 - generic class可以继承`Throwable`；其每个exact application都是不同异常类型并拥有不同TypeDescriptor。`catch (e: Error<Int>)`只接收该exact application及普通派生class，`catch (e: Throwable)`仍可接收全部application；不存在`Error<*>`式通配catch。
 

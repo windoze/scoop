@@ -78,13 +78,6 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
         self.replay_access(source.source())
     }
 
-    pub fn replay_variant_access<'g>(
-        &'g self,
-        source: crate::CheckedEnumVariantAccessSourceV1<'_>,
-    ) -> Result<ReplayedDeclarationAccessDomainsV1<'g, 'a>, AccessDomainSemanticError> {
-        self.replay_access(source.source())
-    }
-
     pub(in crate::cross_cone_type_semantics) fn replay_access<'g>(
         &'g self,
         source: &DeclarationAccessSourceV1,

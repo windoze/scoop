@@ -156,7 +156,6 @@ fn replacement(
         facts,
         representations,
         section.inheritance().clone(),
-        section.protected_declarations().clone(),
         section.selected().clone(),
     )
 }

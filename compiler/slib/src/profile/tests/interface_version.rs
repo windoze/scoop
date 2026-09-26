@@ -13,10 +13,10 @@ fn source_interface_v27_retires_runtime_call_proof_tags() {
 }
 
 #[test]
-fn type_semantics_v6_rejects_retired_duplicate_source_tables_and_domains() {
+fn type_semantics_v7_rejects_retired_duplicate_declaration_tables() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        6,
+        7,
         &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG],
     );
 }

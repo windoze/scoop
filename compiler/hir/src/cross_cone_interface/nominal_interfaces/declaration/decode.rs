@@ -1,5 +1,5 @@
 use super::*;
-use crate::{DecodedNestedSourceMemberRefV1, NestedSourceBuildError};
+use crate::{DecodedNestedSourceMemberRefV1, NominalDeclarationReferenceError};
 use scoop_identity::DecodedPersistentId;
 use scoop_wire::WireErrorKind;
 
@@ -132,7 +132,7 @@ pub enum NominalDeclarationDetailsResolutionError<E> {
     DispatchSelections(NominalDispatchSelectionResolutionError<E>),
     Constructors(CanonicalPersistentIdSetValidationError<PersistentConstructorId, E>),
     Reference(E),
-    Order(NestedSourceBuildError),
+    Order(NominalDeclarationReferenceError),
 }
 
 impl<E: std::fmt::Display> std::fmt::Display for NominalDeclarationDetailsResolutionError<E> {

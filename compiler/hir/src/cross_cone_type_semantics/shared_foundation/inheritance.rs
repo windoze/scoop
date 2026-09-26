@@ -15,11 +15,9 @@ use crate::{
     SourceNominalId,
 };
 
-mod constructors;
 mod contracts;
 mod edges;
 mod members;
-mod protected;
 mod schemas;
 mod source;
 
@@ -49,7 +47,6 @@ impl CheckedSharedTypeFoundationV1<'_> {
         )
         .map_err(|error| Error::InheritanceGraph(Box::new(error)))?;
         for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
-            protected::validate(provider, dependencies, &context)?;
             for record in provider.section.inheritance().records() {
                 let owner = graph
                     .get(record.owner())
@@ -62,7 +59,6 @@ impl CheckedSharedTypeFoundationV1<'_> {
                     .nominal_interfaces()
                     .declaration(owner)
                     .ok_or(Error::InheritanceSource(owner))?;
-                constructors::validate(provider, declaration, record, &context)?;
                 members::validate(provider, declaration, record, &context)?;
             }
         }

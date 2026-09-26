@@ -4,7 +4,6 @@ use super::CrossConeTypeSemanticsProductionError as Error;
 use super::nominals::{ConcreteNominal, NominalLocalId};
 use crate::*;
 
-mod constructors;
 mod edges;
 use edges::exact;
 pub(super) use edges::project_edges;
@@ -13,19 +12,15 @@ mod slots;
 pub(super) use schemas::slot_selections;
 pub(super) use slots::SlotContracts;
 mod source_callables;
-mod source_constructors;
 pub(in crate::production) mod source_errors;
 pub(in crate::production::type_semantics) mod source_inventory;
-pub(in crate::production::type_semantics) mod source_properties;
 pub(super) use source_callables::project as source_callables;
-pub(super) use source_constructors::project as source_constructors;
 pub(super) use source_inventory::project as source_inventory;
 
 pub(super) fn produce(
     export: &ExportHir,
     nominals: &[ConcreteNominal<'_>],
     inventory: &CanonicalSourceInheritanceInventoriesV1,
-    source_constructors: &CanonicalInheritanceSourceConstructorsV1,
     slots: &SlotContracts<'_>,
 ) -> Result<CanonicalNominalInheritanceInterfacesV1, Error> {
     let mut records = Vec::with_capacity(nominals.len());
@@ -35,7 +30,6 @@ pub(super) fn produce(
             .ok_or(Error::MissingLocalSupport(nominal.exact))?;
         let record = NominalInheritanceInterfaceV1::try_new(
             project_edges(export, nominal)?,
-            constructors::project(nominal.exact, source, source_constructors)?,
             slots.project(nominal.exact, source.slot_schemas())?,
             source.protected_members().clone(),
             source.slot_schemas().clone(),

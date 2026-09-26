@@ -18,7 +18,6 @@ pub(in crate::production) mod owner_resolution;
 mod root_declarations;
 mod source_contracts;
 pub(in crate::production) use source_contracts::SharedSourceRoots;
-pub(in crate::production) use source_contracts::{NestedSourceNode, project_nested_sources};
 mod source_shape;
 
 pub use errors::{

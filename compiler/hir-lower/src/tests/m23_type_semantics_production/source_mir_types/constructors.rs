@@ -11,13 +11,13 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-mir-constructor-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, dump) = with_production(&source, |output, input, hir, graph, types| {
+        let (bytes, dump) = with_production(&source, |output, input, _hir, graph, types| {
             let unit = dependencies::unit(input, graph);
             let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
             let bindings =
                 lower_constructor_bindings(output, &public_interface(output), input, graph, &index)
                     .unwrap();
-            assertions::actual(output, hir, input, &bindings);
+            assertions::actual(output, &public_interface(output), input, &bindings);
             rejections::primary_effects(input, graph, &index, &bindings);
             let restored: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
             assert_eq!(
@@ -28,7 +28,7 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
             );
             (
                 encode(&bindings).unwrap(),
-                assertions::dump(output, hir, &bindings),
+                assertions::dump(output, &public_interface(output), &bindings),
             )
         });
         with_production(

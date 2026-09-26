@@ -15,7 +15,6 @@ fn empty() -> CrossConeTypeSemanticsSectionV1 {
         CanonicalExactTypeFactsV1::default(),
         CanonicalNominalRepresentationSupportV1::default(),
         CanonicalNominalInheritanceInterfacesV1::default(),
-        CanonicalProtectedDeclarationInterfacesV1::default(),
         CanonicalSelectedExternalTypeUsesV1::try_new(vec![]).unwrap(),
     )
 }

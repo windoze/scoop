@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Source signature, access and selected implementation for one owner/slot.
-/// Whole-table completeness and machine-use permissions remain separate.
+/// The artifact reader retains the checked contract for subsequent use.
 #[derive(Clone, Copy, Debug)]
 pub struct CheckedInheritanceSourceSlotContractV1<'a> {
     contract: CheckedInheritanceSlotContractV1<'a>,
@@ -66,14 +66,4 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         }
         Ok(CheckedInheritanceSourceSlotContractV1 { contract })
     }
-}
-pub(super) fn validate<A: NominalInheritanceInterfaceSemanticAuthority<E>, E>(
-    record: &NominalInheritanceInterfaceV1,
-    graph: &CheckedNominalInheritanceGraphV1<'_>,
-    authority: &A,
-) -> Result<(), InheritanceInterfaceSemanticError<E>> {
-    for slot in record.slots().records() {
-        graph.validate_slot_source_contract(record.owner(), slot, authority)?;
-    }
-    Ok(())
 }

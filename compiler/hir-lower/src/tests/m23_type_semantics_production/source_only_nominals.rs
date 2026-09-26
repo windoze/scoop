@@ -22,7 +22,10 @@ fn source_only_nominals_preserve_complete_declarations_and_close_machine_depende
             let identities = source_inventory::identity_closure(output);
             let section = &production;
             if case == "combined" {
-                assert!(!section.protected_declarations().records().is_empty());
+                assert!(public.nominal_interfaces().all_records().any(|record| {
+                    record.declaration_details().declared_visibility()
+                        == hir::DeclaredVisibilityV1::Protected
+                }));
                 assert_eq!(public.default_templates().records().len(), 1);
             }
             let mut rows = Vec::new();

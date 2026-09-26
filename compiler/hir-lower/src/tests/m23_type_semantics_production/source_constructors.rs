@@ -1,6 +1,6 @@
 use super::source_dispatch::with_source;
 use super::*;
-use scoop_identity::{DefinitionOriginSubject, DuplicateSignatureKey, SignatureTypeKey};
+use scoop_identity::{CallableTemplateOrigin, DuplicateSignatureKey, SignatureTypeKey};
 
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -10,34 +10,16 @@ const SOURCE: &str = include_str!(concat!(
 #[test]
 fn constructors_project_protected_public_defaults_and_struct_representation() {
     with_source(SOURCE, |output, _| {
-        let production =
-            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
-        let records = production
-            .inheritance()
-            .records()
-            .iter()
-            .flat_map(|owner| owner.constructors().records())
-            .map(|record| record.source())
-            .collect::<Vec<_>>();
-        let inventory = production.inheritance();
-        let required = inventory
-            .records()
-            .iter()
-            .flat_map(|owner| {
-                owner
-                    .constructors()
-                    .records()
-                    .iter()
-                    .map(|record| record.declaration())
-            })
-            .collect::<BTreeSet<_>>();
-        assert_eq!(
-            records
-                .iter()
-                .map(|record| record.declaration())
-                .collect::<BTreeSet<_>>(),
-            required
-        );
+        let public = public_interface(output);
+        let identities = source_inventory::identity_closure(output);
+        let records = hir::select_param_free_source_constructors(
+            output.output().export.cone,
+            &public,
+            &identities,
+        )
+        .unwrap()
+        .into_values()
+        .collect::<Vec<_>>();
         assert_eq!(records.len(), 6);
         let export = output.output().export.module();
         let mut names = BTreeMap::new();
@@ -59,13 +41,14 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
         }
         let mut lines = Vec::new();
         for record in &records {
-            let payload = record.payload();
-            let hir::SourceNominalId::Concrete(owner) = payload.owner() else {
+            let payload = *record;
+            let hir::SourceNominalId::Concrete(owner) = payload.owner().nominal_owner().unwrap()
+            else {
                 panic!("param-free owner")
             };
             assert_eq!(payload.result(), &SignatureTypeKey::Nominal(owner));
             assert!(payload.type_parameters().is_empty());
-            assert!(!payload.receiver().is_present());
+            assert!(payload.receiver().is_none());
             assert!(payload.slot_relations().is_empty());
             assert_eq!(
                 payload.effects().execution(),
@@ -74,14 +57,6 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
             assert_eq!(
                 payload.effects().implementation(),
                 hir::CallableImplementationV1::Scoop
-            );
-            assert_eq!(
-                record.declaration_access().definition_origin().origin(),
-                export
-                    .export_definition_origins
-                    .get(DefinitionOriginSubject::Constructor(record.declaration()))
-                    .unwrap()
-                    .origin()
             );
             let parameters = payload.parameters().parameters();
             lines.push(format!(
@@ -92,7 +67,7 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
                     .map(|parameter| parameter.name().as_str())
                     .collect::<Vec<_>>()
                     .join(","),
-                record.declaration_access().declared_visibility(),
+                record.declared_visibility(),
                 payload.modality()
             ));
         }
@@ -108,10 +83,7 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
     });
 }
 
-fn verify_parameter_types(
-    export: &hir::ExportHir,
-    table: &[&hir::NominalSupportConstructorInterfaceV1],
-) {
+fn verify_parameter_types(export: &hir::ExportHir, table: &[&hir::CallableDeclarationRecordV1]) {
     let mut keys = BTreeMap::new();
     for (id, _) in export.class_constructors.iter() {
         if let Some(record) = export.constructor_identities[id].source_record() {
@@ -124,13 +96,12 @@ fn verify_parameter_types(
     }
     for record in table {
         let DuplicateSignatureKey::Constructor { parameters } =
-            keys[&record.declaration()].duplicate_signature()
+            keys[&constructor_id(record)].duplicate_signature()
         else {
             panic!("typed constructor key")
         };
         assert_eq!(
             record
-                .payload()
                 .parameters()
                 .parameters()
                 .iter()
@@ -142,47 +113,47 @@ fn verify_parameter_types(
 }
 
 #[test]
-fn protected_constructor_interfaces_are_complete_in_the_type_section() {
+fn protected_constructors_use_complete_shared_declarations() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m23-type-source-dispatch/protected-construction.scoop"
     ));
     with_source(source, |output, _| {
-        let production =
-            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
-        let table = production
-            .inheritance()
-            .records()
-            .iter()
-            .flat_map(|record| record.constructors().records())
-            .map(|record| record.source())
-            .collect::<Vec<_>>();
+        let public = public_interface(output);
+        let identities = source_inventory::identity_closure(output);
+        let table = hir::select_param_free_source_constructors(
+            output.output().export.cone,
+            &public,
+            &identities,
+        )
+        .unwrap()
+        .into_values()
+        .collect::<Vec<_>>();
         assert_eq!(table.len(), 2);
         assert_eq!(
             table
                 .iter()
-                .filter(|record| record.declaration_access().declared_visibility()
-                    == hir::DeclaredVisibilityV1::Protected)
+                .filter(
+                    |record| record.declared_visibility() == hir::DeclaredVisibilityV1::Protected
+                )
                 .count(),
             1
         );
         assert_eq!(
             table
                 .iter()
-                .filter(|record| record.declaration_access().declared_visibility()
-                    == hir::DeclaredVisibilityV1::Public)
+                .filter(|record| record.declared_visibility() == hir::DeclaredVisibilityV1::Public)
                 .count(),
             1
         );
-        assert_eq!(
-            production
-                .inheritance()
-                .records()
-                .iter()
-                .map(|record| record.constructors().records().len())
-                .sum::<usize>(),
-            2
-        );
-        assert_eq!(production.protected_declarations().records().len(), 1);
     });
+}
+
+fn constructor_id(
+    source: &hir::CallableDeclarationRecordV1,
+) -> scoop_identity::PersistentConstructorId {
+    let CallableTemplateOrigin::Constructor(id) = source.declaration() else {
+        panic!("selected a source constructor")
+    };
+    id
 }

@@ -1,14 +1,12 @@
 use super::*;
 use crate::{
-    CanonicalBinderListV1, CanonicalNestedMemberRefsV1, CanonicalNestedNominalRefsV1,
-    CanonicalNestedSourceSupportV1, CanonicalPersistentIdsV1, CanonicalPublicMemberRefsV1,
-    CanonicalSignatureTypesV1, IntrinsicTypeParameters, NominalInheritanceModalityV1,
-    NominalInterfaceRecordBuildError, NominalInterfaceRecordV1, ProtectedNestedSourceInterfaceV1,
-    SourceNominalId, TypeParameterBinderV1, TypeParameterBoundsV1,
+    CanonicalBinderListV1, CanonicalPersistentIdsV1, CanonicalPublicMemberRefsV1,
+    CanonicalSignatureTypesV1, IntrinsicTypeParameters, NominalInterfaceRecordBuildError,
+    NominalInterfaceRecordV1, SourceNominalId, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 
 #[test]
-fn all_intrinsic_families_share_public_source_contract_and_nested_binder_validation() {
+fn all_intrinsic_families_use_shared_source_contract_and_binder_validation() {
     for family in families() {
         let expected = match family.parameters() {
             IntrinsicTypeParameters::None => vec![],
@@ -53,22 +51,6 @@ fn check_builders(family: IntrinsicTypeKind, bounds: &[TypeParameterBoundsV1], v
         public_record(family, shape.kind(), binders.clone()).is_ok(),
         valid,
         "public {family:?} {bounds:?}"
-    );
-    assert_eq!(
-        ProtectedNestedSourceInterfaceV1::try_new(
-            shape.kind(),
-            NominalInheritanceModalityV1::Final,
-            binders,
-            CanonicalSignatureTypesV1::try_new(vec![]).unwrap(),
-            CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
-            CanonicalNestedMemberRefsV1::try_new(vec![]).unwrap(),
-            CanonicalNestedNominalRefsV1::try_new(vec![]).unwrap(),
-            shape,
-            CanonicalNestedSourceSupportV1::try_new(vec![]).unwrap(),
-        )
-        .is_ok(),
-        valid,
-        "nested support {family:?} {bounds:?}"
     );
 }
 

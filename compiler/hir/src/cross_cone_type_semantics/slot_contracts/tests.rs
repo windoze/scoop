@@ -6,7 +6,7 @@ use crate::*;
 mod access;
 mod defaults;
 mod semantics;
-mod support;
+pub(in crate::cross_cone_type_semantics) mod support;
 mod wire;
 
 use support::{Fixture, effects};

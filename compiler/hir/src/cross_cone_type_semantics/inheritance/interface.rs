@@ -1,13 +1,12 @@
 use crate::cross_cone_type_semantics::wire;
 use crate::{
     CanonicalInheritanceSlotContractsV1, CanonicalInheritanceSlotSchemasV1,
-    CanonicalProtectedDeclarationRefsV1, NominalInheritanceEdgesV1, ProtectedDeclarationRefV1,
+    CanonicalProtectedDeclarationRefsV1, NominalInheritanceEdgesV1,
 };
 use scoop_identity::PersistentExactTypeId;
 use scoop_wire::{Encoder, WireEncode};
 use std::collections::BTreeSet;
 
-mod constructors;
 mod decode;
 mod errors;
 mod table;
@@ -15,17 +14,15 @@ mod table;
 pub(in crate::cross_cone_type_semantics) mod tests;
 mod validation;
 
-pub use constructors::*;
 pub use decode::*;
 pub use errors::*;
 pub use table::*;
 pub use validation::*;
 
-/// Complete inheritance edges, constructor records and dispatch slots.
+/// Complete inheritance edges, protected member references and dispatch slots.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalInheritanceInterfaceV1 {
     edges: NominalInheritanceEdgesV1,
-    constructors: CanonicalInheritanceConstructorsV1,
     slots: CanonicalInheritanceSlotContractsV1,
     protected_members: CanonicalProtectedDeclarationRefsV1,
     slot_schemas: CanonicalInheritanceSlotSchemasV1,
@@ -33,18 +30,10 @@ pub struct NominalInheritanceInterfaceV1 {
 impl NominalInheritanceInterfaceV1 {
     pub fn try_new(
         edges: NominalInheritanceEdgesV1,
-        constructors: CanonicalInheritanceConstructorsV1,
         slots: CanonicalInheritanceSlotContractsV1,
         protected_members: CanonicalProtectedDeclarationRefsV1,
         slot_schemas: CanonicalInheritanceSlotSchemasV1,
     ) -> Result<Self, InheritanceInterfaceBuildError> {
-        if protected_members
-            .values()
-            .iter()
-            .any(|value| matches!(value, ProtectedDeclarationRefV1::Constructor(_)))
-        {
-            return Err(InheritanceInterfaceBuildError::ConstructorInMembers);
-        }
         let required: BTreeSet<_> = slot_schemas
             .records()
             .iter()
@@ -59,7 +48,6 @@ impl NominalInheritanceInterfaceV1 {
         }
         Ok(Self {
             edges,
-            constructors,
             slots,
             protected_members,
             slot_schemas,
@@ -70,9 +58,6 @@ impl NominalInheritanceInterfaceV1 {
     }
     pub const fn edges(&self) -> &NominalInheritanceEdgesV1 {
         &self.edges
-    }
-    pub const fn constructors(&self) -> &CanonicalInheritanceConstructorsV1 {
-        &self.constructors
     }
     pub const fn slots(&self) -> &CanonicalInheritanceSlotContractsV1 {
         &self.slots
@@ -86,11 +71,9 @@ impl NominalInheritanceInterfaceV1 {
 }
 impl WireEncode for NominalInheritanceInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
+        encoder.map(7)?;
         self.edges.encode_fields(encoder)?;
-        // Field 5 is retired; visibility comes from the shared declaration.
-        encoder.field(6)?;
-        self.constructors.encode(encoder)?;
+        // Fields 5 and 6 are retired; visibility and constructors use shared declarations.
         encoder.field(7)?;
         self.slots.encode(encoder)?;
         encoder.field(8)?;

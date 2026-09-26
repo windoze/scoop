@@ -3,12 +3,10 @@ use std::fmt;
 use scoop_wire::WireError;
 
 mod callables;
-mod constructors;
 mod inheritance;
 mod roots;
 mod slot_selections;
 pub use callables::*;
-pub use constructors::*;
 pub use inheritance::*;
 pub use roots::*;
 pub use slot_selections::*;
@@ -34,14 +32,7 @@ fn validate_order<T, K: Ord>(
 pub enum SourceInventoryError {
     Resource(WireError),
     Reference(String),
-    NonCanonicalOrder {
-        table: &'static str,
-        index: usize,
-    },
-    ConstructorInMembers {
-        owner: scoop_identity::PersistentExactTypeId,
-        constructor: scoop_identity::PersistentConstructorId,
-    },
+    NonCanonicalOrder { table: &'static str, index: usize },
 }
 
 impl From<WireError> for SourceInventoryError {
@@ -61,10 +52,6 @@ impl fmt::Display for SourceInventoryError {
                     "duplicate or noncanonical {table} source inventory at index {index}"
                 )
             }
-            Self::ConstructorInMembers { owner, constructor } => write!(
-                f,
-                "source inheritance owner {owner} lists constructor {constructor} as a member"
-            ),
         }
     }
 }

@@ -110,15 +110,15 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
     assert_eq!(section.inheritance().records().len(), 7);
     assert_eq!(section.exact_facts().records().len(), 7);
     assert!(!section.selected().records().is_empty());
-    assert!(section.protected_declarations().records().is_empty());
     assert!(public.default_templates().records().is_empty());
     assert_eq!(
-        section
-            .inheritance()
-            .records()
-            .iter()
-            .map(|record| record.constructors().records().len())
-            .sum::<usize>(),
+        hir::select_param_free_source_constructors(
+            output.output().export.cone,
+            &public,
+            &source_inventory::identity_closure(&output),
+        )
+        .unwrap()
+        .len(),
         4
     );
     assert!(section.inheritance().records().iter().any(|record| {

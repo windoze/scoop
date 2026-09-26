@@ -51,7 +51,6 @@ pub(super) fn check(
         original.exact_facts().clone(),
         original.representation_support().clone(),
         original.inheritance().clone(),
-        original.protected_declarations().clone(),
         hir::CanonicalSelectedExternalTypeUsesV1::try_new(selected).unwrap(),
     );
     let payload = wire::replace_types(artifact, &candidate);

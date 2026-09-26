@@ -1,7 +1,7 @@
 //! Joins transported source signatures to the ordinary declaration records.
 
 use super::*;
-use crate::{CallableDeclarationRecordV1, NominalSourceCallablePayloadV1};
+use crate::CallableDeclarationRecordV1;
 use scoop_identity::{
     CallableTemplateOrigin, DefinitionOriginSubject, PropertyAccessorKey, PropertyOwner,
 };
@@ -17,31 +17,6 @@ pub(super) fn callable<'a>(
         .callable_interfaces()
         .declaration(declaration)
         .ok_or(Error::CallableContract(declaration))
-}
-
-pub(super) fn validate_callable(
-    metadata: SharedTypeMetadataV1<'_>,
-    declaration: CallableTemplateOrigin,
-    access: &DeclarationAccessSourceV1,
-    payload: &NominalSourceCallablePayloadV1,
-) -> Result<(), Error> {
-    let source = callable(metadata, declaration)?;
-
-    let expected_access = callable_access(metadata, source)?;
-
-    if source.owner().nominal_owner() != Some(payload.owner())
-        || source.receiver().is_some()
-        || source.type_parameters() != payload.type_parameters()
-        || source.parameters() != payload.parameters()
-        || source.result() != payload.result()
-        || source.effects() != payload.effects()
-        || source.modality() != payload.modality()
-        || source.slot_relations().values() != payload.slot_relations().slots()
-        || access != &expected_access
-    {
-        return Err(Error::CallableContract(declaration));
-    }
-    Ok(())
 }
 
 pub(super) fn callable_access(

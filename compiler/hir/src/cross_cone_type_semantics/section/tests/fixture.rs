@@ -73,9 +73,6 @@ impl Fixture {
             .unwrap();
         pending.finish().unwrap()
     }
-    pub fn value_type(&self) -> SignatureTypeKey {
-        SignatureTypeKey::Nominal(self.unit.id())
-    }
 
     pub fn section(&self) -> CrossConeTypeSemanticsSectionV1 {
         let protected = self.declaration();
@@ -106,13 +103,10 @@ impl Fixture {
                 .unwrap(),
             ])
             .unwrap(),
-            CanonicalNominalInheritanceInterfacesV1::try_new(vec![
-                self.inheritance(protected.reference()),
-            ])
-            .unwrap(),
-            CanonicalProtectedDeclarationInterfacesV1::try_new(vec![protected]).unwrap(),
+            CanonicalNominalInheritanceInterfacesV1::try_new(vec![self.inheritance(protected)])
+                .unwrap(),
             // This is a transport fixture; local-looking selected records must
-            // still be rejected by the later complete semantic transaction.
+            // are checked against dependency uses by the artifact reader.
             CanonicalSelectedExternalTypeUsesV1::try_new(vec![SelectedExternalTypeUseV1::new(
                 ConeIdentity::SINGLE_FILE,
                 SelectedTypeUseV1::Signature {

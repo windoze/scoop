@@ -3,7 +3,7 @@
 use super::*;
 use crate::{
     CallableModalityV1, DeclarationAccessSourceV1, InheritanceCallableDeclarationV1,
-    InheritanceCallableSignatureV1, InheritanceSourceCallableFactsV1,
+    InheritanceCallableSignatureV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -39,13 +39,6 @@ impl InheritanceSourceCallableV1 {
     }
     pub const fn declaration_access(&self) -> &DeclarationAccessSourceV1 {
         &self.declaration_access
-    }
-    pub const fn facts(&self) -> InheritanceSourceCallableFactsV1<'_> {
-        InheritanceSourceCallableFactsV1 {
-            signature: &self.signature,
-            modality: self.modality,
-            declaration_access: &self.declaration_access,
-        }
     }
 }
 

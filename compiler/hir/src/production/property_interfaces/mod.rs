@@ -16,7 +16,6 @@ mod errors;
 mod signature;
 mod support;
 
-pub(in crate::production) use accessors::project_representation as source_property_representation;
 pub use errors::{
     ExportPropertyAccessorBuildError, PropertyInterfaceBuildError, PropertyNominalOwnerKind,
 };

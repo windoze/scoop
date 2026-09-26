@@ -96,7 +96,6 @@ fn reject(
         .unwrap() = replacement;
     *record = NominalInheritanceInterfaceV1::try_new(
         record.edges().clone(),
-        record.constructors().clone(),
         CanonicalInheritanceSlotContractsV1::try_new(slots).unwrap(),
         record.protected_members().clone(),
         record.slot_schemas().clone(),

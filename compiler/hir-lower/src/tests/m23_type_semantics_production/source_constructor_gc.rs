@@ -4,37 +4,26 @@ use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{decode_canonical, encode};
 
 #[test]
-fn constructor_nogc_source_effects_match_public_interfaces_and_survive_wire() {
+fn constructor_nogc_effects_survive_shared_declaration_wire() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m19-constructor-nogc/scalar.scoop"
     ));
     with_hir_source(source, |output, _| {
-        let public =
-            hir::CanonicalCallableInterfacesV1::from_export_hir(output.output().export.module())
-                .unwrap();
-
-        let section = produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
-        let sources = section.inheritance();
-        let mut no_gc_count = 0;
-        for record in sources
-            .records()
-            .iter()
-            .flat_map(|owner| owner.constructors().records())
-            .map(|record| record.source())
-        {
-            let callable = public
-                .get(CallableTemplateOrigin::Constructor(record.declaration()))
-                .unwrap();
-            assert_eq!(callable.effects(), record.payload().effects());
-            no_gc_count += usize::from(
-                record.payload().effects().gc_effect() == scoop_identity::GcEffect::NoGc,
-            );
-        }
-        assert_eq!(no_gc_count, 6);
+        let public = public_interface(output);
+        let sources = public.callable_interfaces();
+        assert_eq!(
+            sources
+                .all_declarations()
+                .filter(|record| {
+                    matches!(record.declaration(), CallableTemplateOrigin::Constructor(_))
+                        && record.effects().gc_effect() == scoop_identity::GcEffect::NoGc
+                })
+                .count(),
+            6
+        );
         let bytes = encode(sources).unwrap();
-        let decoded: hir::DecodedCanonicalNominalInheritanceInterfacesV1 =
-            decode_canonical(&bytes).unwrap();
+        let decoded: hir::DecodedCanonicalCallableInterfacesV1 = decode_canonical(&bytes).unwrap();
         let restored = decoded
             .resolve(&mut source_inventory::identity_closure(output))
             .unwrap();

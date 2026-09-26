@@ -23,10 +23,7 @@ mod selections;
 mod semantics;
 mod table;
 
-pub use declaration::{
-    DecodedNominalDeclarationDetailsV1, NominalDeclarationDetailsResolutionError,
-    NominalDeclarationDetailsV1, NominalDeclarationInventoryError,
-};
+pub use declaration::*;
 pub use dispatch::*;
 pub use errors::{NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError};
 pub use field_inventory::NominalSourceFieldInventoryError;

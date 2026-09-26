@@ -13,7 +13,7 @@ mod signature;
 mod table;
 mod target;
 #[cfg(test)]
-mod tests;
+pub(in crate::cross_cone_type_semantics) mod tests;
 mod validation;
 
 pub use declaration::*;

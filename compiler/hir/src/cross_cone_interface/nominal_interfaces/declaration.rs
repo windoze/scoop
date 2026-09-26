@@ -1,13 +1,12 @@
 use super::*;
-use crate::{
-    CanonicalNestedMemberRefsV1, CanonicalNestedNominalRefsV1, DeclaredVisibilityV1,
-    NestedSourceMemberRefV1, NominalInheritanceModalityV1,
-};
+use crate::{DeclaredVisibilityV1, NominalInheritanceModalityV1};
 
 mod decode;
 mod inventory;
+mod references;
 pub use decode::{DecodedNominalDeclarationDetailsV1, NominalDeclarationDetailsResolutionError};
 pub use inventory::NominalDeclarationInventoryError;
+pub use references::*;
 
 /// Declaration relationships shared by public lookup and representation queries.
 /// Kind, binders, supertypes and storage remain in the enclosing nominal record.

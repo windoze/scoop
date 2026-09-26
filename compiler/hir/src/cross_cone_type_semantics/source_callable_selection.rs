@@ -47,8 +47,7 @@ pub fn select_param_free_source_callables<'a>(
                     selection.insert(reference.declaration())?
                 }
                 ProtectedDeclarationRefV1::Property(id) => selection.require_property(*id)?,
-                ProtectedDeclarationRefV1::Constructor(_)
-                | ProtectedDeclarationRefV1::NestedNominal(_) => continue,
+                ProtectedDeclarationRefV1::NestedNominal(_) => continue,
             }
         }
         for slot in nominal.slots().records() {

@@ -97,7 +97,6 @@ pub(super) fn reject_section(
         source.exact_facts().clone(),
         source.representation_support().clone(),
         CanonicalNominalInheritanceInterfacesV1::try_new(records).unwrap(),
-        source.protected_declarations().clone(),
         source.selected().clone(),
     );
     candidate

@@ -2,15 +2,10 @@
 
 use super::*;
 use hir::{
-    CanonicalInheritanceConstructorsV1, CanonicalNominalInheritanceInterfacesV1,
-    CanonicalProtectedDeclarationInterfacesV1, CanonicalProtectedDeclarationRefsV1,
-    InheritanceConstructorInterfaceV1, NominalInheritanceInterfaceV1,
-    NominalSourceCallablePayloadV1, NominalSupportConstructorInterfaceV1,
-    ProtectedDeclarationInterfaceV1, ProtectedDeclarationRefV1,
+    CanonicalNominalInheritanceInterfacesV1, CanonicalProtectedDeclarationRefsV1,
+    NominalInheritanceInterfaceV1, ProtectedDeclarationRefV1,
 };
-use scoop_identity::CallableTemplateOrigin;
-
-mod constructor_rejections;
+use scoop_identity::{CallableTemplateOrigin, ExactTypeKey};
 mod member_rejections;
 
 pub(super) fn check(
@@ -31,20 +26,40 @@ pub(super) fn check(
         let provider = lower(sysroot, target, &root, vec![], &[core]);
         let checked = provider.check(&[core]).unwrap();
         checked.with_inheritance_graph(&[core], |_| ()).unwrap();
-        constructor_rejections::check(checked, core);
         if name == "inheritance-members" {
             member_rejections::check(checked, core);
         }
+        let metadata = checked.metadata();
+        let constructors = hir::select_param_free_source_constructors(
+            metadata.provider,
+            metadata.public,
+            metadata.identities,
+        )
+        .unwrap();
         let mut dump = String::new();
         for record in checked.section().inheritance().records() {
             dump.push_str(&format!("owner {}\n", record.owner()));
-            for constructor in record.constructors().records() {
-                let source = constructor.source();
+            let key = metadata
+                .identities
+                .canonical_key::<_, ExactTypeKey>(record.owner())
+                .unwrap();
+            let ExactTypeKey::Nominal(owner) = *key else {
+                panic!("source nominal")
+            };
+            let nominal = metadata
+                .public
+                .nominal_interfaces()
+                .declaration(hir::SourceNominalId::Concrete(owner))
+                .unwrap();
+            for id in nominal.declaration_details().constructors().values() {
+                let Some(source) = constructors.get(id) else {
+                    continue;
+                };
                 dump.push_str(&format!(
                     "  constructor {} {:?} {:?}\n",
-                    constructor.declaration(),
-                    source.declaration_access().declared_visibility(),
-                    source.payload().parameters(),
+                    id,
+                    source.declared_visibility(),
+                    source.parameters()
                 ));
             }
             for reference in record.protected_members().values() {
@@ -61,12 +76,10 @@ pub(super) fn check(
 
 fn replace(
     record: &NominalInheritanceInterfaceV1,
-    constructors: CanonicalInheritanceConstructorsV1,
     members: CanonicalProtectedDeclarationRefsV1,
 ) -> NominalInheritanceInterfaceV1 {
     NominalInheritanceInterfaceV1::try_new(
         record.edges().clone(),
-        constructors,
         record.slots().clone(),
         members,
         record.slot_schemas().clone(),
@@ -78,14 +91,12 @@ fn reject(
     checked: CheckedSharedTypeFoundationV1<'_>,
     core: CheckedSharedTypeFoundationV1<'_>,
     records: Vec<NominalInheritanceInterfaceV1>,
-    protected: CanonicalProtectedDeclarationInterfacesV1,
 ) -> Error {
     let source = checked.section();
     let candidate = CrossConeTypeSemanticsSectionV1::new(
         source.exact_facts().clone(),
         source.representation_support().clone(),
         CanonicalNominalInheritanceInterfacesV1::try_new(records).unwrap(),
-        protected,
         source.selected().clone(),
     );
     candidate

@@ -65,3 +65,6 @@ impl CheckedNominalInheritanceGraphV1<'_> {
 
 #[cfg(test)]
 pub(in crate::cross_cone_type_semantics) mod tests;
+
+mod member_refs;
+pub use member_refs::*;

@@ -6,7 +6,7 @@ use scoop_wire::WireError;
 
 use crate::{
     ExactTypeFactsSemanticError, InheritanceGraphError, NominalMaterializationClosureError,
-    ProtectedDeclarationRefV1, SourceNominalId,
+    SourceNominalId,
 };
 
 #[derive(Debug)]
@@ -52,14 +52,10 @@ pub enum SharedTypeMetadataError {
     DeclarationMetadata(DefinitionOriginSubject),
     CallableContract(CallableTemplateOrigin),
     CallableClassification(crate::NominalCallableClassificationError),
-    ConstructorInventory(PersistentExactTypeId),
     ObjectInitializationOwner(PersistentTypeId),
     DuplicateObjectInitialization(PersistentTypeId),
     ProtectedMemberInventory(PersistentExactTypeId),
-    ProtectedMember(ProtectedDeclarationRefV1),
-    ProtectedInventory(ConeIdentity),
     PropertyContract(PersistentPropertyId),
-    NestedContract(SourceNominalId),
     DefinitionSourceLocation(crate::DefinitionSourceLocationValidationError),
     DispatchDeclarations(crate::NominalDispatchDeclarationError),
     SlotSource(PersistentDispatchSlotId),

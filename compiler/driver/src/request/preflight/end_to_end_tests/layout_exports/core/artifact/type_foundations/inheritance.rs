@@ -40,7 +40,6 @@ pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
             first.edges().direct_interfaces().to_vec(),
         )
         .unwrap(),
-        first.constructors().clone(),
         first.slots().clone(),
         first.protected_members().clone(),
         first.slot_schemas().clone(),
@@ -60,7 +59,6 @@ fn reject(
         source.exact_facts().clone(),
         source.representation_support().clone(),
         CanonicalNominalInheritanceInterfacesV1::try_new(records).unwrap(),
-        source.protected_declarations().clone(),
         source.selected().clone(),
     );
     let foundation = candidate
