@@ -66,7 +66,6 @@ pub(super) fn assemble(
         source: &source,
         mir: &mir.strong,
         ordinary: &mir.public,
-        nominal_classifier: &hir.nominal_classifier,
         identities: &identities,
     };
     let mir_exports = scoop_mir_lower::lower_type_bridge_exports(

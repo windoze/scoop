@@ -238,7 +238,6 @@ fn check_core_layout_exports(names: &[&str]) {
             source: &source,
             mir: &mir.strong,
             ordinary: &mir.public,
-            nominal_classifier: &hir.nominal_classifier,
             identities: &identities,
         };
         let bridge = scoop_mir_lower::lower_type_bridge_exports(

@@ -82,7 +82,6 @@ pub(super) fn with_mir(
             source: &source,
             mir: &mir.strong,
             ordinary: &mir.public,
-            nominal_classifier: &hir.nominal_classifier,
             identities: &identities,
         },
         &callables,

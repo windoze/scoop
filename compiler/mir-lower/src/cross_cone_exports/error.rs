@@ -20,9 +20,6 @@ pub enum MirTypeBridgeExportProductionError {
     InitializationSource(Box<hir::HirInitializationUseError>),
     MissingInitializationUnit(PersistentInitializationUnitId),
     OrdinaryCallableMismatch(StrongCallableDefinitionOwner),
-    OrdinarySource(Box<hir::SharedTypeMetadataError>),
-    OrdinaryClassification(hir::NominalCallableClassificationError),
-    IncompleteOrdinaryCallables { expected: usize, actual: usize },
 }
 
 impl From<WireError> for Error {

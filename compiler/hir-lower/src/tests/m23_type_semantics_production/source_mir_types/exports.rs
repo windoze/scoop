@@ -59,7 +59,6 @@ fn with_exports<R>(
             source: hir,
             mir: input,
             ordinary: &ordinary,
-            nominal_classifier: &classifier,
             identities: graph,
         };
         let exports = produce(context, &[&dependencies]).unwrap();

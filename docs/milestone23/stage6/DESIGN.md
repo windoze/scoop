@@ -513,6 +513,8 @@ M23-6 的正式 `scoopc` 发布与 `scoop` 依赖消费统一使用 `CrossConeLa
 
 MIR section 直接消费同一次 HIR→MIR 已生产的六张完整导出表、初始化单元记录和 typed 依赖使用。删除独立来源工厂、重复预期表、逐表比较回调及 source-join 凭证；生产侧不再次重建或完整验证已经检查的记录。读取边界按实际 HIR 声明、MIR 定义与依赖目录检查格式、类型、签名、effect、可见性、实体归属和引用关系，保留已检查组成表供后续使用，不重建 producer section。依赖选择仍检查实际 provider、完整 typed target 和引用闭包。
 
+普通 callable 导出在首次生成时根据真实声明解析 exact signature，并与实际 Strong body 的签名关联。组装类型导出时直接使用这些完整记录，不再次从 HIR 枚举、分类和比较同一普通导出全集。多个 lowering 表与普通导出的重叠项仍核对 implementation、逻辑签名、物理签名及 GC effect；合并后的最终表统一排序并检查重复定义，不在合并中途再构建一张仅供重验的临时 canonical 表。外部 reader 对新读入数据的类型、签名和定义检查保留；本调整不改变 wire/profile、runtime C ABI 或 String 表示。
+
 生产侧的类型与 shape 依赖直接取 HIR 已保存的实际物化使用记录，不再次遍历全部 HIR 来证明同一记录。外部 callable 从同次 MIR 实际引用取得；ordinary 分区已有的 provider、declaration、implementation 和签名继续复用，其余用途进入类型桥接闭包。初始化使用从实际操作生成一次。元数据中的未物化默认正文和无关源码声明不产生机器依赖。
 
 mir-lower 的导出、初始化记录和依赖使用是普通数据转换输出。section 只组装这些完整数据、共有依赖目录和 selected 引用，不要求调用者实现来源工厂，也不另外重放本地六表的完整语义。初始化服务按已有语言角色参加普通调用路径。
