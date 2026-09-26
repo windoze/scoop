@@ -5,19 +5,22 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     run: impl FnOnce(&hir::DependencyHirOutput, &scoop_mir::Module) -> T,
 ) -> T {
     with_hir_source(source, |output, core| {
-        let mut dependencies =
-            scoop_mir::SelectedExternalMirSet::empty(output.output().local.module().cone);
-        if !output
+        let records = if output
             .output()
             .local
             .module()
             .initialization_units
             .is_empty()
         {
-            dependencies = dependencies
-                .with_initialization_cycle(core.project_initialization_cycle_to_mir())
-                .unwrap();
-        }
+            Vec::new()
+        } else {
+            vec![core.project_initialization_cycle_to_mir()]
+        };
+        let dependencies = scoop_mir::SelectedExternalMirSet::try_from_callables(
+            output.output().local.module().cone,
+            records,
+        )
+        .unwrap();
         let mir = scoop_mir_lower::lower_current_cone(output, dependencies).unwrap();
         run(output, mir.module())
     })

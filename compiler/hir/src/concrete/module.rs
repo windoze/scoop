@@ -151,8 +151,7 @@ pub struct InitializationUnit {
 }
 
 /// Fully selected cycle-error exit for one concrete initialization unit.
-/// Defined-core lowering calls a local function; ordinary lowering retains
-/// the trusted artifact's imported compiler-protocol callable proof.
+/// Retains a local function or the actual dependency callable declaration.
 #[derive(Debug, Clone)]
 pub enum InitializationCycleThrower {
     Local(FunctionId),

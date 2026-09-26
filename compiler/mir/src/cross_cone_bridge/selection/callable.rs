@@ -3,8 +3,6 @@
 use crate::{GcEffect, ParamFreeMirCallableBindingV1, SelectedDependencyMirCallableV1};
 use scoop_identity::{ConeIdentity, ExactCallableSignature, StrongCallableDefinitionOwner};
 
-pub use scoop_identity::CallableRole;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum SelectedCallableDefinition {
     Direct(SelectedDependencyMirCallableV1),
@@ -17,14 +15,12 @@ enum SelectedCallableDefinition {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SelectedExternalMirCallable {
     definition: SelectedCallableDefinition,
-    role: CallableRole,
 }
 
 impl SelectedExternalMirCallable {
     pub fn dependency(record: SelectedDependencyMirCallableV1) -> Self {
         Self {
             definition: SelectedCallableDefinition::Direct(record),
-            role: CallableRole::Ordinary,
         }
     }
 
@@ -35,14 +31,6 @@ impl SelectedExternalMirCallable {
                 provider,
                 definition: Box::new(definition),
             },
-            role: CallableRole::Ordinary,
-        }
-    }
-
-    pub(super) fn initialization_cycle(record: SelectedDependencyMirCallableV1) -> Self {
-        Self {
-            definition: SelectedCallableDefinition::Direct(record),
-            role: CallableRole::InitializationCycle,
         }
     }
 
@@ -51,10 +39,6 @@ impl SelectedExternalMirCallable {
             SelectedCallableDefinition::Direct(record) => Some(record),
             SelectedCallableDefinition::Lowered { .. } => None,
         }
-    }
-
-    pub const fn role(&self) -> CallableRole {
-        self.role
     }
 
     pub const fn provider(&self) -> ConeIdentity {

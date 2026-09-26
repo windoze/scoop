@@ -7,52 +7,22 @@ impl ValidatedCompilerProtocols {
             Self::Imported(inputs) => inputs.as_ref().clone().into(),
         }
     }
+}
 
-    pub(super) fn lower_machine(
-        &self,
-        hir: current_hir::CurrentConeHirArtifacts,
-        request: &ValidatedSingleConeBuildRequest<'_>,
-        cone: scoop_slib::ConeRecord,
-        temporary_parent: &Path,
-        dump: &mut Option<EmittedStageDump>,
-    ) -> Result<scoop_slib::AssembledCrossConeLayoutStrongArtifactV1, CurrentConeProductionFailure>
-    {
-        let selected = request
-            .dependencies()
-            .semantic()
-            .project_dependency_callables_to_mir(&hir.hir)
-            .map_err(CurrentConeMirStageError::DependencyProjection)
-            .map_err(CurrentConeProductionFailure::Mir)?;
-        let selected = match self {
-            Self::CurrentDeclarations => selected,
-            Self::Imported(inputs) => {
-                if hir
-                    .hir
-                    .output()
-                    .local
-                    .module()
-                    .initialization_units
-                    .is_empty()
-                {
-                    selected
-                } else {
-                    request
-                        .dependencies()
-                        .semantic()
-                        .select_initialization_cycle(
-                            selected,
-                            inputs
-                                .protocols()
-                                .exceptions()
-                                .initialization_cycle_thrower(),
-                        )
-                        .map_err(CurrentConeMirStageError::Initialization)
-                        .map_err(CurrentConeProductionFailure::Mir)?
-                }
-            }
-        };
-        layout::assemble(hir, request, cone, temporary_parent, selected, dump)
-    }
+pub(super) fn lower_machine(
+    hir: current_hir::CurrentConeHirArtifacts,
+    request: &ValidatedSingleConeBuildRequest<'_>,
+    cone: scoop_slib::ConeRecord,
+    temporary_parent: &Path,
+    dump: &mut Option<EmittedStageDump>,
+) -> Result<scoop_slib::AssembledCrossConeLayoutStrongArtifactV1, CurrentConeProductionFailure> {
+    let selected = request
+        .dependencies()
+        .semantic()
+        .project_dependency_callables_to_mir(&hir.hir)
+        .map_err(CurrentConeMirStageError::DependencyProjection)
+        .map_err(CurrentConeProductionFailure::Mir)?;
+    layout::assemble(hir, request, cone, temporary_parent, selected, dump)
 }
 
 pub(super) fn type_identities(

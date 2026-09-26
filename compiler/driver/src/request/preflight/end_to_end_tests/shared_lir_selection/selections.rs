@@ -1,6 +1,6 @@
 use super::*;
 use scoop_identity::{
-    CallableOwner, CallableRole, DependencyCallableDeclarationId, Effect, ExactCallableSignature,
+    CallableOwner, DependencyCallableDeclarationId, Effect, ExactCallableSignature,
     StrongCallableDefinitionOwner,
 };
 use scoop_mir::{SelectedDependencyMirCallableV1 as Record, SelectedExternalMirSet as Selection};
@@ -37,17 +37,11 @@ pub(super) fn check(
         export.signature().clone(),
     )
     .unwrap();
-    let inputs = closure.import_compiler_protocols(core.identity()).unwrap();
-    for records in [vec![], vec![ordinary.clone()]] {
-        let mir = closure
-            .select_initialization_cycle(
-                Selection::try_from_callables(closure.current(), records).unwrap(),
-                inputs
-                    .protocols()
-                    .exceptions()
-                    .initialization_cycle_thrower(),
-            )
-            .unwrap();
+    for records in [
+        vec![service.clone()],
+        vec![ordinary.clone(), service.clone()],
+    ] {
+        let mir = Selection::try_from_callables(closure.current(), records).unwrap();
         let lir = closure.project_dependency_callables_to_lir(&mir).unwrap();
         assert_eq!(lir.len(), mir.len());
         for selected in mir.callables() {
@@ -60,19 +54,12 @@ pub(super) fn check(
                     .unwrap(),
                 )
                 .unwrap();
-            assert_eq!(actual.role(), selected.role());
             assert_eq!(actual.bridge().target(), selected.implementation());
             assert_eq!(
                 actual.bridge().abi_signature().signature(),
                 selected.signature()
             );
         }
-        assert_eq!(
-            lir.callable(lir.initialization_cycle().unwrap())
-                .unwrap()
-                .role(),
-            CallableRole::InitializationCycle
-        );
     }
     let ordinary_service =
         Selection::try_from_callables(closure.current(), vec![service.clone()]).unwrap();
@@ -93,9 +80,7 @@ pub(super) fn check(
         bad_signature,
     )
     .unwrap();
-    let wrong_signature = Selection::empty(closure.current())
-        .with_initialization_cycle(bad)
-        .unwrap();
+    let wrong_signature = Selection::try_from_callables(closure.current(), vec![bad]).unwrap();
     assert!(matches!(
         closure.project_dependency_callables_to_lir(&wrong_signature),
         Err(Error::BridgeMismatch { .. })
@@ -107,9 +92,7 @@ pub(super) fn check(
         service.signature().clone(),
     )
     .unwrap();
-    let missing_provider = Selection::empty(closure.current())
-        .with_initialization_cycle(bad)
-        .unwrap();
+    let missing_provider = Selection::try_from_callables(closure.current(), vec![bad]).unwrap();
     assert!(matches!(
         closure.project_dependency_callables_to_lir(&missing_provider),
         Err(Error::MissingProvider { .. })

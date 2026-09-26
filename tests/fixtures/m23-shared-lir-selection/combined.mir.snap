@@ -125,7 +125,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 object:Holder
-      call external0 direct
+      call external1 direct
         Type String
         Local $init.message
       unreachable
@@ -148,7 +148,7 @@ Module
         Local $call.1
   fun $init$body$1 @fn5() -> Unit
     bb0 entry
-      call $call.1: String = external1 direct
+      call $call.1: String = external0 direct
       global_assign message
         Type String
         Local $call.1
@@ -245,7 +245,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:message
-      call external0 direct
+      call external1 direct
         Type String
         Local $init.message
       unreachable
@@ -259,7 +259,7 @@ Module
         GlobalRead message
   fun init.Holder.$c0 @fn8(this: Holder) -> Unit
     bb0 entry
-      call $call.1: String = external1 direct
+      call $call.1: String = external0 direct
       field_set 0
         Type Holder
         Local this

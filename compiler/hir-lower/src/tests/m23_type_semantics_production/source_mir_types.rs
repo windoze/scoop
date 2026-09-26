@@ -35,12 +35,13 @@ fn with_production<R>(
         let hir_types =
             produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
         let local = output.output().local.module();
-        let mut selected = scoop_mir::SelectedExternalMirSet::empty(local.cone);
-        if !local.initialization_units.is_empty() {
-            selected = selected
-                .with_initialization_cycle(core.project_initialization_cycle_to_mir())
-                .unwrap();
-        }
+        let records = if local.initialization_units.is_empty() {
+            Vec::new()
+        } else {
+            vec![core.project_initialization_cycle_to_mir()]
+        };
+        let selected =
+            scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, records).unwrap();
         let (module, selected) = scoop_mir_lower::lower_current_cone(output, selected)
             .unwrap()
             .into_parts();

@@ -1,12 +1,11 @@
 use std::fmt;
 
-use scoop_identity::{
-    ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
-};
+use scoop_identity::{ConeIdentity, StrongCallableDefinitionOwner};
 
 use super::{CrossConeMirBridgeSectionV1, SelectedDependencyMirCallableV1};
 mod callable;
-pub use callable::{CallableRole, SelectedExternalMirCallable};
+pub use callable::SelectedExternalMirCallable;
+pub use scoop_identity::CallableRole;
 
 /// The actual provider and typed declaration of one external callable.
 /// The MIR arena uses the separate `ExternalCallableUseId` domain.
@@ -150,37 +149,6 @@ impl SelectedExternalMirSet {
             .filter_map(SelectedExternalMirCallable::direct_record)
     }
 
-    pub fn initialization_cycle(&self) -> Option<SelectedExternalMirCallableRef> {
-        self.callables
-            .iter()
-            .find(|callable| callable.role() == CallableRole::InitializationCycle)
-            .map(|callable| SelectedExternalMirCallableRef {
-                provider: callable.provider(),
-                implementation: callable.implementation(),
-            })
-    }
-
-    /// Adds the service before any MIR uses are allocated and seals one complete set.
-    pub fn with_initialization_cycle(
-        self,
-        record: SelectedDependencyMirCallableV1,
-    ) -> Result<Self, SelectedExternalMirSetBuildError> {
-        if self.initialization_cycle().is_some() {
-            return Err(SelectedExternalMirSetBuildError::DuplicateInitializationCycle);
-        }
-        if record.signature().receiver().is_present()
-            || !matches!(
-                record.declaration(),
-                DependencyCallableDeclarationId::Function(_)
-            )
-        {
-            return Err(SelectedExternalMirSetBuildError::InvalidInitializationCycle);
-        }
-        let mut callables = self.callables;
-        callables.push(SelectedExternalMirCallable::initialization_cycle(record));
-        Self::try_from_selections(self.consumer, callables)
-    }
-
     pub fn len(&self) -> usize {
         self.callables.len()
     }
@@ -192,8 +160,6 @@ impl SelectedExternalMirSet {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectedExternalMirSetBuildError {
-    DuplicateInitializationCycle,
-    InvalidInitializationCycle,
     SelectedCurrentProvider {
         provider: ConeIdentity,
     },
@@ -206,11 +172,6 @@ pub enum SelectedExternalMirSetBuildError {
 impl fmt::Display for SelectedExternalMirSetBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::DuplicateInitializationCycle => {
-                formatter.write_str("MIR selection contains duplicate initialization services")
-            }
-            Self::InvalidInitializationCycle => formatter
-                .write_str("MIR initialization service must name a function without a receiver"),
             Self::SelectedCurrentProvider { provider } => write!(
                 formatter,
                 "external MIR selection names current Cone {provider} as an external provider"

@@ -38,7 +38,6 @@ impl std::error::Error for CurrentConeLirStageError {
 
 #[derive(Debug)]
 pub enum CurrentConeMirStageError {
-    Initialization(scoop_slib::CrossConeInitializationSelectionError),
     DependencyProjection(scoop_slib::CrossConeMirSelectionProjectionError),
     Lowering(scoop_mir_lower::CurrentConeMirLoweringError),
     Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
@@ -50,7 +49,6 @@ pub enum CurrentConeMirStageError {
 impl fmt::Display for CurrentConeMirStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Initialization(source) => source.fmt(formatter),
             Self::DependencyProjection(source) => source.fmt(formatter),
             Self::Lowering(source) => source.fmt(formatter),
             Self::Foundation(source) => source.fmt(formatter),
@@ -64,7 +62,6 @@ impl fmt::Display for CurrentConeMirStageError {
 impl std::error::Error for CurrentConeMirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
-            Self::Initialization(source) => source,
             Self::DependencyProjection(source) => source,
             Self::Lowering(source) => source,
             Self::Foundation(source) => source,

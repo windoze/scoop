@@ -181,7 +181,6 @@ pub fn lower(
     };
     Ok(lower_with_dependencies(
         output,
-        InitializationCycleLoweringAuthority::Local,
         Arena::new(),
         HashMap::new(),
     ))
@@ -189,7 +188,6 @@ pub fn lower(
 
 fn lower_with_dependencies(
     output: &scoop_hir::LocalConcreteHirOutput,
-    initialization_cycle: InitializationCycleLoweringAuthority,
     external_callables: Arena<mir::ExternalCallableUse>,
     imported_dependency_callable_map: HashMap<
         hir::ImportedDependencyCallableUseId,
@@ -207,7 +205,6 @@ fn lower_with_dependencies(
     Lowerer {
         output,
         core_protocols: module.core_protocols.clone(),
-        initialization_cycle,
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
@@ -289,16 +286,6 @@ impl std::fmt::Display for DefinedCoreMirLoweringError {
 
 impl std::error::Error for DefinedCoreMirLoweringError {}
 
-#[derive(Clone, Copy, Debug)]
-enum InitializationCycleLoweringAuthority {
-    Local,
-    ImportedUnused,
-    Imported {
-        definition: hir::PersistentFunctionId,
-        callable: mir::ExternalCallableUseId,
-    },
-}
-
 fn defined_protocols(protocols: &hir::ConcreteCoreProtocols) -> &hir::DefinedConcreteCoreProtocols {
     let hir::ConcreteCoreProtocols::Defined(protocols) = protocols else {
         panic!("this operation requires concrete local protocol types");
@@ -310,7 +297,6 @@ struct Lowerer {
     output: LoweringOutput,
     /// Complete typed protocol declarations retained from the HIR input.
     core_protocols: hir::ConcreteCoreProtocols,
-    initialization_cycle: InitializationCycleLoweringAuthority,
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,

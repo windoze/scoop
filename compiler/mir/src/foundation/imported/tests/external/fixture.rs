@@ -69,12 +69,16 @@ impl Fixture {
                     self.signature.clone(),
                 )
                 .unwrap(),
+                self.cycle_record(),
             ],
         )
-        .unwrap()
-        .with_initialization_cycle(self.cycle_record())
         .unwrap();
-        let protocol = dependencies.initialization_cycle().unwrap();
+        let protocol = dependencies
+            .callable_for(
+                self.provider,
+                StrongCallableDefinitionOwner::Function(self.cycle),
+            )
+            .unwrap();
         let selected = dependencies
             .callable_for(self.provider, declaration.implementation())
             .unwrap();

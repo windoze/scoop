@@ -93,26 +93,6 @@ pub(super) fn with_pair(
     let selected = closure
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();
-    let selected = if hir
-        .hir
-        .output()
-        .local
-        .module()
-        .initialization_units
-        .is_empty()
-    {
-        selected
-    } else {
-        closure
-            .select_initialization_cycle(
-                selected,
-                inputs
-                    .protocols()
-                    .exceptions()
-                    .initialization_cycle_thrower(),
-            )
-            .unwrap()
-    };
     let mir = hir.machine_input().lower_selected_mir(selected).unwrap();
     let selected = closure
         .project_dependency_callables_to_lir(&mir.selected_callables)

@@ -9,11 +9,12 @@ use scoop_wire::WirePath;
 use super::ValidatedCrossConeSemanticClosure;
 
 mod errors;
+mod initialization;
 mod lir;
 mod protocols;
 mod runtime_constructors;
 pub use errors::*;
-pub use protocols::{CrossConeInitializationSelectionError, CrossConeProtocolImportError};
+pub use protocols::CrossConeProtocolImportError;
 
 impl ValidatedCrossConeSemanticClosure {
     /// Projects actual executable HIR calls into matching provider MIR exports.
@@ -106,6 +107,7 @@ impl ValidatedCrossConeSemanticClosure {
             }
         }
 
+        self.project_initialization_callables(hir.output().local.module(), &mut projected)?;
         self.project_runtime_constructors(hir.output().local.module(), &mut projected)?;
         SelectedExternalMirSet::try_from_selections(self.current, projected)
             .map_err(CrossConeMirSelectionProjectionError::Selection)

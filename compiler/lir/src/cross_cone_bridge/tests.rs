@@ -16,7 +16,7 @@ use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
 mod abi_record;
 mod relations;
 mod replay;
-mod role_selection;
+mod selection;
 mod wire;
 
 struct Fixture {
@@ -203,9 +203,7 @@ fn dependency_lir_selection_retains_consumer_and_canonical_lookup() {
         .callable_for(fixture.producer, fixture.declaration)
         .unwrap();
     assert_eq!(
-        selection
-            .callable(id)
-            .map(crate::SelectedExternalLirCallable::record),
+        selection.callable(id),
         selection.dependency_callables().next()
     );
 }

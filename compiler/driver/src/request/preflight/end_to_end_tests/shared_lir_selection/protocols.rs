@@ -1,6 +1,5 @@
 use super::*;
-use scoop_mir::SelectedExternalMirSet as Selection;
-use scoop_slib::{CrossConeInitializationSelectionError as Error, CrossConeProtocolImportError};
+use scoop_slib::CrossConeProtocolImportError;
 
 pub(super) fn check(
     closure: &scoop_slib::ValidatedCrossConeSemanticClosure,
@@ -19,30 +18,6 @@ pub(super) fn check(
         core.hir().identity(string.persistent()),
         Some(string.identity())
     );
-    let selected = closure
-        .select_initialization_cycle(Selection::empty(closure.current()), cycle)
-        .unwrap();
-    assert_eq!(selected.len(), 1);
-    assert!(matches!(
-        closure.select_initialization_cycle(selected, cycle),
-        Err(Error::Selection(
-            scoop_mir::SelectedExternalMirSetBuildError::DuplicateInitializationCycle
-        ))
-    ));
-    assert!(matches!(
-        closure.select_initialization_cycle(Selection::empty(core.identity()), cycle),
-        Err(Error::ConsumerMismatch { .. })
-    ));
-    for callable in [
-        inputs.protocols().exceptions().throwable_constructor(),
-        inputs.protocols().ffi().gc_unpin_raw(),
-    ] {
-        let error = closure
-            .select_initialization_cycle(Selection::empty(closure.current()), callable)
-            .err()
-            .expect("constructors and generic functions cannot name the service");
-        assert!(matches!(error, Error::InvalidDefinition(_)), "{error:?}");
-    }
     assert!(matches!(
         closure.import_compiler_protocols(ordinary.identity()),
         Err(CrossConeProtocolImportError::MissingDefinitions(provider)) if provider == ordinary.identity()

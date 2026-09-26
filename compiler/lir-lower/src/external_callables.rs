@@ -75,13 +75,6 @@ pub(super) fn lower_external_callables(
         let signature =
             abi::classify_mir_signature(context, parameters, result.ty(), structs, enums)?;
         let callable = if let Some(direct) = selected.callable_by_target(provider, target) {
-            if direct.role() != root.role() {
-                return Err(Error::ExternalCallableMismatch {
-                    index,
-                    provider,
-                    target,
-                });
-            }
             direct_count += 1;
             direct
                 .materialize(signature)

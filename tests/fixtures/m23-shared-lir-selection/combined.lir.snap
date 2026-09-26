@@ -91,7 +91,7 @@ Module
   block if.else.18
     call managed-direct-target3 sp<managed-call:1> live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init1)
     store t16 -> local4
-    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn0(local4)
+    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn1(local4)
     t17 = aggregate () : {}
     unreachable
   block invoke.normal.1
@@ -122,7 +122,7 @@ Module
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> external-fn1()
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> external-fn0()
     store t0 -> local0
     global_store global0, local0
     ret
@@ -195,7 +195,7 @@ Module
   block if.else.18
     call managed-direct-target3 sp<managed-call:1> live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init0)
     store t16 -> local4
-    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn0(local4)
+    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn1(local4)
     t17 = aggregate () : {}
     unreachable
   block invoke.normal.1
@@ -216,7 +216,7 @@ Module
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 () -> ptr<managed> external-fn1()
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 () -> ptr<managed> external-fn0()
     store t0 -> local0
     heap_store param0 +16 local0
     ret

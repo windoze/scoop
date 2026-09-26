@@ -1,4 +1,4 @@
-//! Every selected callable resolves through its actual provider and role.
+//! Every selected callable resolves through its actual provider and declaration.
 
 use scoop_lir::{SelectedDependencyLirCallableV1, SelectedExternalLirSet};
 use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
@@ -20,10 +20,10 @@ impl ValidatedCrossConeSemanticClosure {
         let mut projected = Vec::with_capacity(selected.len());
         for callable in selected.callables() {
             if let Some(record) = callable.direct_record() {
-                projected.push((callable.role(), self.project_selected_callable(record)?));
+                projected.push(self.project_selected_callable(record)?);
             }
         }
-        SelectedExternalLirSet::try_from_role_records(self.current, projected)
+        SelectedExternalLirSet::try_from_callables(self.current, projected)
             .map_err(Error::Selection)
     }
 

@@ -22,9 +22,6 @@ pub enum SingleConeStrongMirInputError {
     ForeignExternalCallable {
         index: u32,
     },
-    InitializationCycleGcEffect {
-        index: u32,
-    },
     UnreferencedExternalCallable {
         index: u32,
     },
@@ -104,7 +101,6 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::ForeignExternalCallableSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }
             | Self::ForeignExternalCallable { .. }
-            | Self::InitializationCycleGcEffect { .. }
             | Self::UnreferencedExternalCallable { .. }
             | Self::DuplicateExternalImplementation { .. }
             | Self::FoundationMismatch

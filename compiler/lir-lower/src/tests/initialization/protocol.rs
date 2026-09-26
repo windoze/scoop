@@ -89,9 +89,11 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     } = fixture::imported_initialization();
     let target = lir_callable.bridge().target();
     let string_exact = runtime_string.target();
-    let selected_lir = lir::SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)
-        .with_initialization_cycle(lir_callable)
-        .unwrap();
+    let selected_lir = lir::SelectedExternalLirSet::try_from_callables(
+        ConeIdentity::SINGLE_FILE,
+        vec![lir_callable],
+    )
+    .unwrap();
 
     assert!(matches!(
         crate::lower(

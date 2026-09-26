@@ -29,13 +29,11 @@ pub(super) fn project(
         )?;
     }
     for root in input.mir.materialization().external_callable_roots() {
-        if root.role() == mir::CallableRole::InitializationCycle
-            || input.ordinary.selected().iter().any(|selected| {
-                selected.provider() == root.provider()
-                    && selected.implementation() == root.implementation()
-                    && selected.signature() == root.signature()
-            })
-        {
+        if input.ordinary.selected().iter().any(|selected| {
+            selected.provider() == root.provider()
+                && selected.implementation() == root.implementation()
+                && selected.signature() == root.signature()
+        }) {
             continue;
         }
         push(

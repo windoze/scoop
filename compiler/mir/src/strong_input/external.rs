@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::{
     SingleConeStrongMirInputError as Error, StrongExternalCallableInput, StrongExternalCallableRoot,
 };
-use crate::{CallableRole, GcEffect, Module};
+use crate::Module;
 
 /// Resolves every MIR use through one complete selection before projecting the
 /// existing LIR metadata roles. Both output sealing paths use this validator.
@@ -46,14 +46,8 @@ pub(crate) fn validate_external_callables(
         if !referenced.contains(&callable) {
             return Err(Error::UnreferencedExternalCallable { index });
         }
-        if selected.role() == CallableRole::InitializationCycle
-            && value.gc_effect() != GcEffect::Managed
-        {
-            return Err(Error::InitializationCycleGcEffect { index });
-        }
         roots.push(StrongExternalCallableRoot {
             callable,
-            role: selected.role(),
             provider: selected.provider(),
             implementation: selected.implementation(),
             signature: selected.signature().clone(),

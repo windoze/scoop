@@ -54,7 +54,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         });
         let artifact = (|| {
             let artifact =
-                protocols.lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;
+                protocols::lower_machine(hir, self.request, cone, temporary_parent, &mut dump)?;
             artifact
                 .publish(self.request.output().as_path())
                 .map_err(CurrentConeProductionFailure::Publication)

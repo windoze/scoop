@@ -79,7 +79,6 @@ pub struct StrongGeneratedNominalShapeRoot {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongExternalCallableRoot {
     callable: ExternalCallableUseId,
-    role: crate::CallableRole,
     provider: ConeIdentity,
     implementation: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
@@ -87,10 +86,6 @@ pub struct StrongExternalCallableRoot {
 }
 
 impl StrongExternalCallableRoot {
-    pub const fn role(&self) -> crate::CallableRole {
-        self.role
-    }
-
     pub const fn callable(&self) -> ExternalCallableUseId {
         self.callable
     }

@@ -4,24 +4,18 @@ use std::fmt;
 use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 
 use super::{CrossConeLirBridgeSectionV1, SelectedDependencyLirCallableV1};
-mod callable;
-pub use callable::{CallableRole, SelectedExternalLirCallable};
+pub use scoop_identity::CallableRole;
 
 /// Request-local index into one validated external LIR selection.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SelectedExternalLirCallableId(u32);
 
-/// Complete canonical external callable authority for one LIR
-/// lowering request.
-///
-/// Construction consumes a locally validated bridge. Closure validation is
-/// responsible for proving every selected record against its terminal
-/// provider before this set reaches lowering.
+/// Complete external callable records checked at the dependency boundary.
 pub struct SelectedExternalLirSet {
     consumer: ConeIdentity,
     by_declaration:
         BTreeMap<(ConeIdentity, DependencyCallableDeclarationId), SelectedExternalLirCallableId>,
-    callables: Vec<SelectedExternalLirCallable>,
+    callables: Vec<SelectedDependencyLirCallableV1>,
 }
 
 impl SelectedExternalLirSet {
@@ -32,22 +26,6 @@ impl SelectedExternalLirSet {
         Self::try_from_callables(bridge.artifact(), bridge.selected().to_vec())
     }
 
-    /// Seals a producer-side selection after its records have been projected
-    /// from an already validated dependency closure.
-    #[doc(hidden)]
-    pub fn try_from_callables(
-        consumer: ConeIdentity,
-        selected: Vec<SelectedDependencyLirCallableV1>,
-    ) -> Result<Self, SelectedExternalLirSetBuildError> {
-        Self::try_from_selections(
-            consumer,
-            selected
-                .into_iter()
-                .map(SelectedExternalLirCallable::dependency)
-                .collect(),
-        )
-    }
-
     pub fn empty(consumer: ConeIdentity) -> Self {
         Self {
             consumer,
@@ -56,50 +34,10 @@ impl SelectedExternalLirSet {
         }
     }
 
-    /// Seals all projected roles together before lowering allocates any uses.
-    pub fn try_from_role_records(
+    pub fn try_from_callables(
         consumer: ConeIdentity,
-        records: Vec<(CallableRole, SelectedDependencyLirCallableV1)>,
+        mut selected: Vec<SelectedDependencyLirCallableV1>,
     ) -> Result<Self, SelectedExternalLirSetBuildError> {
-        Self::try_from_selections(
-            consumer,
-            records
-                .into_iter()
-                .map(|(role, record)| match role {
-                    CallableRole::Ordinary => SelectedExternalLirCallable::dependency(record),
-                    CallableRole::InitializationCycle => {
-                        SelectedExternalLirCallable::initialization_cycle(record)
-                    }
-                })
-                .collect(),
-        )
-    }
-
-    fn try_from_selections(
-        consumer: ConeIdentity,
-        mut selected: Vec<SelectedExternalLirCallable>,
-    ) -> Result<Self, SelectedExternalLirSetBuildError> {
-        let mut has_initialization_cycle = false;
-        for callable in &selected {
-            if callable.role() == CallableRole::InitializationCycle {
-                if has_initialization_cycle {
-                    return Err(SelectedExternalLirSetBuildError::DuplicateInitializationCycle);
-                }
-                if !matches!(
-                    callable.bridge().declaration(),
-                    DependencyCallableDeclarationId::Function(_)
-                ) || callable
-                    .bridge()
-                    .abi_signature()
-                    .signature()
-                    .receiver()
-                    .is_present()
-                {
-                    return Err(SelectedExternalLirSetBuildError::InvalidInitializationCycle);
-                }
-                has_initialization_cycle = true;
-            }
-        }
         selected.sort_unstable_by_key(|callable| {
             (callable.provider(), callable.bridge().declaration())
         });
@@ -146,7 +84,7 @@ impl SelectedExternalLirSet {
     pub fn callable(
         &self,
         id: SelectedExternalLirCallableId,
-    ) -> Option<&SelectedExternalLirCallable> {
+    ) -> Option<&SelectedDependencyLirCallableV1> {
         self.callables.get(id.0 as usize)
     }
 
@@ -162,32 +100,14 @@ impl SelectedExternalLirSet {
         &self,
         provider: ConeIdentity,
         target: scoop_identity::StrongCallableDefinitionOwner,
-    ) -> Option<&SelectedExternalLirCallable> {
+    ) -> Option<&SelectedDependencyLirCallableV1> {
         self.callables.iter().find(|callable| {
             callable.provider() == provider && callable.bridge().target() == target
         })
     }
 
     pub fn dependency_callables(&self) -> impl Iterator<Item = &SelectedDependencyLirCallableV1> {
-        self.callables
-            .iter()
-            .map(SelectedExternalLirCallable::record)
-    }
-
-    pub fn initialization_cycle(&self) -> Option<SelectedExternalLirCallableId> {
-        self.callables
-            .iter()
-            .position(|callable| callable.role() == CallableRole::InitializationCycle)
-            .map(|index| SelectedExternalLirCallableId(index as u32))
-    }
-
-    pub fn with_initialization_cycle(
-        self,
-        record: SelectedDependencyLirCallableV1,
-    ) -> Result<Self, SelectedExternalLirSetBuildError> {
-        let mut callables = self.callables;
-        callables.push(SelectedExternalLirCallable::initialization_cycle(record));
-        Self::try_from_selections(self.consumer, callables)
+        self.callables.iter()
     }
 
     pub fn len(&self) -> usize {
@@ -201,8 +121,6 @@ impl SelectedExternalLirSet {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectedExternalLirSetBuildError {
-    DuplicateInitializationCycle,
-    InvalidInitializationCycle,
     TooManyCallables {
         count: usize,
     },
@@ -218,11 +136,6 @@ pub enum SelectedExternalLirSetBuildError {
 impl fmt::Display for SelectedExternalLirSetBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::DuplicateInitializationCycle => {
-                formatter.write_str("LIR selection contains duplicate initialization services")
-            }
-            Self::InvalidInitializationCycle => formatter
-                .write_str("LIR initialization service must name a function without a receiver"),
             Self::TooManyCallables { count } => write!(
                 formatter,
                 "external LIR selection contains {count} callables, exceeding the u32 id domain"

@@ -26,32 +26,30 @@ impl Lowerer {
         }
 
         for (source_id, source) in module.initialization_units.iter() {
-            let cycle_thrower = match (&source.cycle_thrower, self.initialization_cycle) {
-                (
-                    hir::InitializationCycleThrower::Local(function),
-                    InitializationCycleLoweringAuthority::Local,
-                ) => mir::InitializationCycleThrower::Local(self.function_map[function]),
-                (
-                    hir::InitializationCycleThrower::Imported(protocol),
-                    InitializationCycleLoweringAuthority::Imported {
-                        definition,
-                        callable,
-                    },
-                ) => {
-                    let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(
-                        source_definition,
-                    ) = protocol.definition()
+            let cycle_thrower = match &source.cycle_thrower {
+                hir::InitializationCycleThrower::Local(function) => {
+                    mir::InitializationCycleThrower::Local(self.function_map[function])
+                }
+                hir::InitializationCycleThrower::Imported(protocol) => {
+                    let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(definition) =
+                        protocol.definition()
                     else {
-                        unreachable!(
-                            "the initialization-cycle protocol was validated as a source function"
-                        )
+                        unreachable!("initialization cycle targets are typed source functions")
                     };
-                    assert_eq!(source_definition.persistent(), definition);
+                    let target = scoop_identity::StrongCallableDefinitionOwner::Function(
+                        definition.persistent(),
+                    );
+                    let callable = self
+                        .external_callables
+                        .iter()
+                        .find_map(|(id, callable)| {
+                            (callable.reference().provider() == protocol.provider()
+                                && callable.reference().implementation() == target)
+                                .then_some(id)
+                        })
+                        .expect("the unit's actual dependency function has been selected");
                     mir::InitializationCycleThrower::External(callable)
                 }
-                _ => unreachable!(
-                    "initialization units and their cycle-thrower authority are branch-aligned"
-                ),
             };
             let kind = match source.kind {
                 hir::InitializationUnitKind::EagerTopLevel { storage } => {

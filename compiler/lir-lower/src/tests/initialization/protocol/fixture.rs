@@ -93,10 +93,12 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     let mir_callable =
         mir::SelectedDependencyMirCallableV1::try_new(provider, declaration, target, exact)
             .unwrap();
-    let selected_mir = mir::SelectedExternalMirSet::empty(ConeIdentity::SINGLE_FILE)
-        .with_initialization_cycle(mir_callable)
-        .unwrap();
-    let mir_selection = selected_mir.initialization_cycle().unwrap();
+    let selected_mir = mir::SelectedExternalMirSet::try_from_callables(
+        ConeIdentity::SINGLE_FILE,
+        vec![mir_callable],
+    )
+    .unwrap();
+    let mir_selection = selected_mir.callable_for(provider, target).unwrap();
     let mut ordinary_builder = Builder::new();
     let mut caller_locals = Arena::new();
     let caller_argument = caller_locals.alloc(local("message", mir::Type::String));

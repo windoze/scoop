@@ -38,38 +38,16 @@ fn both_sealers_require_complete_selection_coverage_and_consumer() {
 }
 
 #[test]
-fn service_role_rejects_duplicate_self_import_and_receiver() {
+fn selection_rejects_the_current_provider() {
     let fixture = Fixture::new();
     let record = fixture.cycle_record();
-    let empty = || SelectedExternalMirSet::empty(ConeIdentity::SINGLE_FILE);
-    let selected = empty().with_initialization_cycle(record.clone()).unwrap();
     assert!(matches!(
-        selected.with_initialization_cycle(record.clone()),
-        Err(crate::SelectedExternalMirSetBuildError::DuplicateInitializationCycle)
-    ));
-    assert!(matches!(
-        SelectedExternalMirSet::empty(ConeIdentity::CORE).with_initialization_cycle(record.clone()),
+        SelectedExternalMirSet::try_from_callables(ConeIdentity::CORE, vec![record]),
         Err(
             crate::SelectedExternalMirSetBuildError::SelectedCurrentProvider {
                 provider: ConeIdentity::CORE
             }
         )
-    ));
-    let with_receiver = SelectedDependencyMirCallableV1::try_new(
-        record.provider(),
-        record.declaration(),
-        record.implementation(),
-        ExactCallableSignature::new(
-            Effect::Ordinary,
-            Some(crate::core_unit_exact_type()),
-            Vec::new(),
-            crate::core_unit_exact_type(),
-        ),
-    )
-    .unwrap();
-    assert!(matches!(
-        empty().with_initialization_cycle(with_receiver),
-        Err(crate::SelectedExternalMirSetBuildError::InvalidInitializationCycle)
     ));
 }
 
@@ -92,15 +70,15 @@ fn both_sealers_reject_duplicate_implementations_across_providers() {
         let (mut module, _) = fixture.mixed();
         let selected = SelectedExternalMirSet::try_from_callables(
             ConeIdentity::SINGLE_FILE,
-            vec![ordinary.clone()],
+            vec![ordinary.clone(), record.clone()],
         )
-        .unwrap()
-        .with_initialization_cycle(record.clone())
         .unwrap();
         let ordinary = selected
             .callable_for(other_provider, record.implementation())
             .unwrap();
-        let cycle = selected.initialization_cycle().unwrap();
+        let cycle = selected
+            .callable_for(record.provider(), record.implementation())
+            .unwrap();
         for ((_, value), (id, effect)) in module
             .meta
             .external_callables

@@ -14,17 +14,14 @@ fn lower_selected(
 }
 
 #[test]
-fn initialization_selection_requires_its_explicit_role() {
+fn initialization_selection_uses_shared_callables_and_checks_coverage() {
     let fixture = imported_initialization();
     let ordinary = lir::SelectedExternalLirSet::try_from_callables(
         fixture.input.module().cone,
         vec![fixture.callable.clone()],
     )
     .unwrap();
-    assert!(matches!(
-        lower_selected(&fixture, &ordinary),
-        Err(crate::StrongLirLoweringError::ExternalCallableMismatch { index: 0, .. })
-    ));
+    lower_selected(&fixture, &ordinary).unwrap();
     let empty = lir::SelectedExternalLirSet::empty(fixture.input.module().cone);
     assert!(matches!(
         lower_selected(&fixture, &empty),
@@ -58,9 +55,11 @@ fn initialization_selection_uses_the_shared_gc_effect_check() {
         lir::ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
-    let selected = lir::SelectedExternalLirSet::empty(fixture.input.module().cone)
-        .with_initialization_cycle(callable)
-        .unwrap();
+    let selected = lir::SelectedExternalLirSet::try_from_callables(
+        fixture.input.module().cone,
+        vec![callable],
+    )
+    .unwrap();
     assert!(matches!(
         lower_selected(&fixture, &selected),
         Err(
@@ -76,9 +75,11 @@ fn initialization_selection_uses_the_shared_gc_effect_check() {
 #[test]
 fn descriptor_inputs_resolve_the_actual_type_and_provider() {
     let fixture = imported_initialization();
-    let selected = lir::SelectedExternalLirSet::empty(fixture.input.module().cone)
-        .with_initialization_cycle(fixture.callable.clone())
-        .unwrap();
+    let selected = lir::SelectedExternalLirSet::try_from_callables(
+        fixture.input.module().cone,
+        vec![fixture.callable.clone()],
+    )
+    .unwrap();
     let wrong_type =
         lir::ExternalTypeDescriptor::new(ConeIdentity::CORE, mir::core_unit_exact_type()).unwrap();
     assert!(matches!(
@@ -132,9 +133,11 @@ fn an_ordinary_provider_supplies_string_and_initialization_through_shared_record
         .identity()
         .unwrap();
     let fixture = fixture::imported_initialization_from(provider);
-    let selected = lir::SelectedExternalLirSet::empty(fixture.input.module().cone)
-        .with_initialization_cycle(fixture.callable.clone())
-        .unwrap();
+    let selected = lir::SelectedExternalLirSet::try_from_callables(
+        fixture.input.module().cone,
+        vec![fixture.callable.clone()],
+    )
+    .unwrap();
     let output = lower_selected(&fixture, &selected).unwrap();
     let module = output.module();
     let lir::TypeDescriptorRef::External(id) = module.meta.well_known_type_descriptors.string

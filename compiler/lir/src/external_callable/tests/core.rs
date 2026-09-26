@@ -48,11 +48,19 @@ fn check_callable(provider: ConeIdentity) {
         crate::ExternalCallableRootPlan::ManagedStatepoint,
     )
     .unwrap();
-    let set = crate::SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)
-        .with_initialization_cycle(selected)
-        .unwrap();
+    let set = crate::SelectedExternalLirSet::try_from_callables(
+        ConeIdentity::SINGLE_FILE,
+        vec![selected],
+    )
+    .unwrap();
     let callable = set
-        .callable(set.initialization_cycle().unwrap())
+        .callable(
+            set.callable_for(
+                provider,
+                scoop_identity::DependencyCallableDeclarationId::Function(function),
+            )
+            .unwrap(),
+        )
         .unwrap()
         .materialize(ScoopAbiSignature::new(
             Vec::new(),
