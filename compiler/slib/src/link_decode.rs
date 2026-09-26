@@ -1,6 +1,7 @@
 //! Link-view section inventory and atomic payload decoding.
 
 use std::fmt;
+use std::rc::Rc;
 
 use scoop_hir::{
     DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, OdrFreeHirFoundation,
@@ -22,8 +23,8 @@ use scoop_wire::{WireDecode, WireError, WirePath, decode_canonical};
 use crate::compile_decode::validate_foundation_identity_graph_with_authorities;
 use crate::strong_compile_decode::{
     DecodedStrongProfileProductionSet, OdrFreeStrongFoundationSet, StrongProfileFoundationError,
-    StrongProfileProductionError, validate_cross_cone_strong_profile_foundations,
-    validate_strong_profile_foundations, validate_strong_profile_production,
+    StrongProfileProductionError, validate_strong_profile_foundations,
+    validate_strong_profile_production,
 };
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,
@@ -93,9 +94,13 @@ pub use states::*;
 mod compile_view;
 mod cross_cone;
 mod decode;
-mod shared_shapes;
+mod shared;
 pub use compile_view::*;
 pub use cross_cone::*;
+pub(crate) use shared::{
+    DecodedCrossConeLinkOnlySections, decode_cross_cone_link_only,
+    validate_cross_cone_link_from_compile,
+};
 mod layout;
 pub use layout::*;
 mod fingerprinting;
@@ -694,6 +699,7 @@ impl std::error::Error for StrongLinkFinalValidationError {
 
 #[derive(Debug)]
 pub enum StrongLinkArtifactValidationError {
+    SharedMetadata(Box<crate::CompileSectionDecodeError>),
     CompileView(crate::PublishViewMismatchError),
     Decode(Box<SingleConeLinkSectionDecodeError>),
     Identities(Box<IdentityValidationError>),
@@ -721,6 +727,7 @@ impl fmt::Display for StrongLinkArtifactValidationError {
 impl std::error::Error for StrongLinkArtifactValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::SharedMetadata(error) => error.as_ref(),
             Self::CompileView(error) => error,
             Self::Decode(error) => error.as_ref(),
             Self::Identities(error) => error.as_ref(),

@@ -41,18 +41,6 @@ pub enum CrossConeArtifactClosureValidationError {
         source: Box<CrossConeHirFrontSectionDecodeError>,
     },
     Semantic(Box<CrossConeSemanticClosureValidationError>),
-    MissingLinkDependencyAuthority {
-        slot: CrossConeClosureArtifactSlotV1,
-        dependency: ConeIdentity,
-    },
-    LinkEnvelope {
-        slot: CrossConeClosureArtifactSlotV1,
-        source: Box<SlibReadError>,
-    },
-    LinkGraph {
-        slot: CrossConeClosureArtifactSlotV1,
-        source: Box<GraphValidationError>,
-    },
     Link {
         slot: CrossConeClosureArtifactSlotV1,
         source: Box<StrongLinkArtifactValidationError>,
@@ -91,16 +79,6 @@ impl fmt::Display for CrossConeArtifactClosureValidationError {
             }
             Self::Semantic(source) => source.fmt(formatter),
 
-            Self::MissingLinkDependencyAuthority { slot, dependency } => write!(
-                formatter,
-                "cannot validate Link view for {slot}: direct dependency {dependency} has no earlier validated Link identity authority"
-            ),
-            Self::LinkEnvelope { slot, source } => {
-                write!(formatter, "cannot open Link view for {slot}: {source}")
-            }
-            Self::LinkGraph { slot, source } => {
-                write!(formatter, "cannot validate Link graph for {slot}: {source}")
-            }
             Self::Link { slot, source } => {
                 write!(formatter, "cannot validate Link view for {slot}: {source}")
             }
@@ -121,20 +99,14 @@ impl fmt::Display for CrossConeArtifactClosureValidationError {
 impl std::error::Error for CrossConeArtifactClosureValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CompileEnvelope { source, .. } | Self::LinkEnvelope { source, .. } => {
-                Some(source.as_ref())
-            }
-            Self::CompileGraph { source, .. } | Self::LinkGraph { source, .. } => {
-                Some(source.as_ref())
-            }
+            Self::CompileEnvelope { source, .. } => Some(source.as_ref()),
+            Self::CompileGraph { source, .. } => Some(source.as_ref()),
             Self::CompileSections { source, .. } => Some(source.as_ref()),
             Self::Semantic(source) => Some(source.as_ref()),
             Self::Link { source, .. } => Some(source.as_ref()),
             Self::ViewMismatch { source, .. } => Some(source.as_ref()),
             Self::Definition(source) => Some(source.as_ref()),
-            Self::MissingLinkDependencyAuthority { .. } | Self::MissingCompletedCurrentArtifact => {
-                None
-            }
+            Self::MissingCompletedCurrentArtifact => None,
         }
     }
 }

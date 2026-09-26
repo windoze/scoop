@@ -2,16 +2,11 @@
 
 use super::*;
 
-pub(super) struct DecodedCrossConeLinkSections<'input> {
-    pub(super) common: DecodedSingleConeLinkSections<'input>,
-    pub(super) cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
-}
-
 /// Cross-Cone Link state whose legacy and dependency undefined uses have
 /// been rebuilt as disjoint, complete partitions.
 pub struct CrossConeLinkSymbolCheckedSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
-    identities: ValidatedIdentityGraph,
+    identities: Rc<ValidatedIdentityGraph>,
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
     link_identity_closure: SymbolProjectionCheckedLinkIdentityClosureSectionV1,
@@ -35,7 +30,7 @@ pub struct CrossConeLinkSymbolCheckedSections<'input> {
 /// consumed the same partitioned undefined-use authority.
 pub struct CrossConeRegistrationDependencyFingerprintedSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
-    identities: ValidatedIdentityGraph,
+    identities: Rc<ValidatedIdentityGraph>,
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
     link_identity_closure: SymbolProjectionCheckedLinkIdentityClosureSectionV1,
@@ -55,7 +50,7 @@ pub struct CrossConeRegistrationDependencyFingerprintedSections<'input> {
 /// Cross-Cone Link state after all final object patches have been replayed.
 pub struct FinalizedCrossConeStrongLinkObjectSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
-    identities: ValidatedIdentityGraph,
+    identities: Rc<ValidatedIdentityGraph>,
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
     link_identity_closure: SymbolProjectionCheckedLinkIdentityClosureSectionV1,
@@ -70,118 +65,13 @@ pub struct FinalizedCrossConeStrongLinkObjectSections<'input> {
 /// artifact, including its independently reconstructed physical-use closure.
 pub struct ValidatedCrossConeStrongLinkArtifact {
     metadata: crate::graph::ArtifactMetadata,
-    identities: ValidatedIdentityGraph,
+    identities: Rc<ValidatedIdentityGraph>,
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     link_identity_closure: LinkIdentityClosureSectionV1,
     cross_cone_link_closure: CrossConeLinkClosureSectionV1,
     production_manifest: SingleConeProductionManifestV1,
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(super) fn validate_cross_cone_strong_link_parts<'input>(
-    graph: ValidatedGraphArtifact<'input>,
-    hir_interface: &scoop_hir::CrossConeHirInterfaceSectionV1,
-    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
-    lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
-    let DecodedCrossConeLinkSections {
-        common,
-        cross_cone_link_closure,
-    } = graph
-        .decode_cross_cone_link_sections()
-        .map_err(|error| StrongLinkArtifactValidationError::Decode(Box::new(error)))?;
-    common
-        .validate_identities()
-        .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
-        .validate_cross_cone_foundation_structure()
-        .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?
-        .validate_shared_production(hir_interface, expected_external_bridges)
-        .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
-        .validate_materializations()
-        .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?
-        .validate_c_bridge_envelopes(c_bridge_profile)
-        .map_err(|error| StrongLinkArtifactValidationError::CBridge(Box::new(error)))?
-        .validate_builtin_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::BuiltinObjects(Box::new(error)))?
-        .validate_digest_patch_sites()
-        .map_err(|error| StrongLinkArtifactValidationError::DigestPatches(Box::new(error)))?
-        .validate_registration_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::RegistrationObjects(Box::new(error)))?
-        .fingerprint_registration_leaves()
-        .map_err(|error| StrongLinkArtifactValidationError::RegistrationLeaves(Box::new(error)))?
-        .validate_cross_cone_link_symbol_requirements(
-            lir_cross_cone_bridge,
-            cross_cone_link_closure,
-            dependency_owners,
-            c_bridge_profile,
-        )
-        .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
-        .fingerprint_registration_dependencies()
-        .map_err(|error| {
-            StrongLinkArtifactValidationError::RegistrationDependencies(Box::new(error))
-        })?
-        .finalize_strong_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::ObjectFinalization(Box::new(error)))?
-        .validate_code_and_closures()
-        .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
-}
-
-pub(super) fn validate_self_describing_cross_cone_strong_link_parts<'input, 'authority>(
-    graph: ValidatedGraphArtifact<'input>,
-    external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
-    hir_interface: &scoop_hir::CrossConeHirInterfaceSectionV1,
-    lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
-    let DecodedCrossConeLinkSections {
-        common,
-        cross_cone_link_closure,
-    } = graph
-        .decode_cross_cone_link_sections()
-        .map_err(|error| StrongLinkArtifactValidationError::Decode(Box::new(error)))?;
-    let mut front = common
-        .validate_identities_with_authorities(external_authorities)
-        .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
-        .validate_cross_cone_foundation_structure()
-        .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?;
-    let external_bridges = front
-        .reconstruct_external_bridges()
-        .map_err(|error| StrongLinkArtifactValidationError::ExternalBridges(Box::new(error)))?;
-    front
-        .validate_shared_production(hir_interface, &external_bridges)
-        .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
-        .validate_materializations()
-        .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?
-        .validate_c_bridge_envelopes(c_bridge_profile)
-        .map_err(|error| StrongLinkArtifactValidationError::CBridge(Box::new(error)))?
-        .validate_builtin_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::BuiltinObjects(Box::new(error)))?
-        .validate_digest_patch_sites()
-        .map_err(|error| StrongLinkArtifactValidationError::DigestPatches(Box::new(error)))?
-        .validate_registration_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::RegistrationObjects(Box::new(error)))?
-        .fingerprint_registration_leaves()
-        .map_err(|error| StrongLinkArtifactValidationError::RegistrationLeaves(Box::new(error)))?
-        .validate_cross_cone_link_symbol_requirements(
-            lir_cross_cone_bridge,
-            cross_cone_link_closure,
-            dependency_owners,
-            c_bridge_profile,
-        )
-        .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
-        .fingerprint_registration_dependencies()
-        .map_err(|error| {
-            StrongLinkArtifactValidationError::RegistrationDependencies(Box::new(error))
-        })?
-        .finalize_strong_objects()
-        .map_err(|error| StrongLinkArtifactValidationError::ObjectFinalization(Box::new(error)))?
-        .validate_code_and_closures()
-        .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
 }
 
 impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
@@ -542,10 +432,6 @@ impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
 }
 
 impl ValidatedCrossConeStrongLinkArtifact {
-    pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
-        &self.identities
-    }
-
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.metadata.coordinate()
     }

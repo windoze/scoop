@@ -3,6 +3,7 @@ use scoop_identity::{
     PersistentExportBindingId, PersistentGenericTypeId, PersistentId, PersistentTypeId,
 };
 use scoop_wire::WireEncode;
+use std::rc::Rc;
 
 use super::{
     CanonicalHirFoundation, HirFoundationCounts, OdrFreeHirFoundation, ValidatedHirFoundation,
@@ -52,7 +53,7 @@ impl<I: PersistentId> ImportedHirNominal<I> {
 /// The complete HIR identity foundation after atomic import into a semantic
 /// session. It is artifact metadata, not a semantic lookup capability.
 pub struct ImportedHirFoundation {
-    canonical: CanonicalHirFoundation,
+    canonical: Rc<CanonicalHirFoundation>,
     identities: ImportedIdentityMap<HirIdentityLayer>,
 }
 
@@ -63,7 +64,7 @@ impl ImportedHirFoundation {
         identities: ImportedIdentityMap<HirIdentityLayer>,
     ) -> Self {
         Self {
-            canonical: foundation.into_canonical(),
+            canonical: Rc::new(foundation.into_canonical()),
             identities,
         }
     }
@@ -74,7 +75,7 @@ impl ImportedHirFoundation {
         identities: ImportedIdentityMap<HirIdentityLayer>,
     ) -> Self {
         Self {
-            canonical: foundation.into_canonical(),
+            canonical: foundation.into_shared(),
             identities,
         }
     }
@@ -117,7 +118,7 @@ impl ImportedHirFoundation {
         })
     }
 
-    pub(crate) const fn canonical_for_semantic_authority(&self) -> &CanonicalHirFoundation {
+    pub(crate) fn canonical_for_semantic_authority(&self) -> &CanonicalHirFoundation {
         &self.canonical
     }
 

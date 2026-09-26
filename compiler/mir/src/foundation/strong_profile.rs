@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use scoop_identity::{OdrGroupId, OdrMemberId};
 use scoop_wire::{Encoder, WireEncode};
@@ -9,7 +10,7 @@ use crate::{CallableSignatureSubject, ValidatedMirFoundation};
 /// A canonical MIR identity foundation proven to satisfy the M23-3
 /// `SingleConeStrong` profile's `RejectAll` ODR policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OdrFreeMirFoundation(CanonicalMirFoundation);
+pub struct OdrFreeMirFoundation(Rc<CanonicalMirFoundation>);
 
 impl OdrFreeMirFoundation {
     pub fn from_module(
@@ -47,7 +48,7 @@ impl OdrFreeMirFoundation {
         if let Some(record) = foundation.odr_members.first() {
             return Err(OdrFreeMirFoundationError::OdrMember(record.id()));
         }
-        Ok(Self(foundation))
+        Ok(Self(Rc::new(foundation)))
     }
 
     pub fn from_validated(
@@ -56,7 +57,7 @@ impl OdrFreeMirFoundation {
         Self::try_new(foundation.into_canonical())
     }
 
-    pub const fn as_canonical(&self) -> &CanonicalMirFoundation {
+    pub fn as_canonical(&self) -> &CanonicalMirFoundation {
         &self.0
     }
 
@@ -66,6 +67,10 @@ impl OdrFreeMirFoundation {
     }
 
     pub fn into_canonical(self) -> CanonicalMirFoundation {
+        Rc::unwrap_or_clone(self.0)
+    }
+
+    pub(crate) fn into_shared(self) -> Rc<CanonicalMirFoundation> {
         self.0
     }
 }

@@ -116,7 +116,7 @@ fn fixture(
         .into_parts();
     (
         ImportedLirFoundation {
-            canonical,
+            canonical: canonical.into(),
             identities: imported,
         },
         definitions,

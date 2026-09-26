@@ -100,7 +100,7 @@ fn imported_foundation(
         .unwrap()
         .into_parts();
     ImportedMirFoundation {
-        canonical,
+        canonical: canonical.into(),
         identities: imported,
     }
 }

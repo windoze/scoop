@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use scoop_identity::{
     CallableOwner, ConeIdentity, ExactCallableSignature, ImportedIdentityId, ImportedIdentityMap,
@@ -27,7 +28,7 @@ impl<I: PersistentId> ImportedMirId<I> {
 
 /// The MIR identity foundation after atomic import into a semantic session.
 pub struct ImportedMirFoundation {
-    canonical: CanonicalMirFoundation,
+    canonical: Rc<CanonicalMirFoundation>,
     identities: ImportedIdentityMap<MirIdentityLayer>,
 }
 
@@ -38,7 +39,7 @@ impl ImportedMirFoundation {
         identities: ImportedIdentityMap<MirIdentityLayer>,
     ) -> Self {
         Self {
-            canonical: foundation.into_canonical(),
+            canonical: Rc::new(foundation.into_canonical()),
             identities,
         }
     }
@@ -49,7 +50,7 @@ impl ImportedMirFoundation {
         identities: ImportedIdentityMap<MirIdentityLayer>,
     ) -> Self {
         Self {
-            canonical: foundation.into_canonical(),
+            canonical: foundation.into_shared(),
             identities,
         }
     }

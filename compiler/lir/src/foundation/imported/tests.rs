@@ -276,7 +276,7 @@ fn imported_foundation(
         .unwrap()
         .into_parts();
     ImportedLirFoundation {
-        canonical,
+        canonical: canonical.into(),
         identities: imported,
     }
 }

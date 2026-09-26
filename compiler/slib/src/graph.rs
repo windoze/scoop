@@ -12,7 +12,7 @@ use crate::{
 ///
 /// This proof does not assert that dependency artifacts exist, form a closed
 /// acyclic graph, or satisfy any Compile or Link capability.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatedGraphArtifact<'input> {
     pub(crate) envelope: DecodedSlibEnvelope<'input>,
 }

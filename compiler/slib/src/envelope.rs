@@ -80,7 +80,7 @@ impl std::error::Error for SlibWriteError {}
 /// Immutable `.slib` bytes whose canonical container, bootstrap manifest,
 /// typed directory, member ranges, content hashes, and artifact fingerprint
 /// have all been validated. It exposes no payload extraction or IR API.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedSlibEnvelope<'input> {
     archive: DecodedArchive<'input>,
     manifest: BootstrapManifest,

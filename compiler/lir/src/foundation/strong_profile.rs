@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use scoop_identity::{
     ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DefinitionAtomRole,
@@ -17,7 +18,7 @@ use crate::ValidatedLirFoundation;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OdrFreeLirFoundation {
     producer: ConeIdentity,
-    canonical: CanonicalLirFoundation,
+    canonical: Rc<CanonicalLirFoundation>,
 }
 
 impl OdrFreeLirFoundation {
@@ -98,7 +99,7 @@ impl OdrFreeLirFoundation {
         }
         Ok(Self {
             producer,
-            canonical: foundation,
+            canonical: Rc::new(foundation),
         })
     }
 
@@ -113,7 +114,7 @@ impl OdrFreeLirFoundation {
         self.producer
     }
 
-    pub const fn as_canonical(&self) -> &CanonicalLirFoundation {
+    pub fn as_canonical(&self) -> &CanonicalLirFoundation {
         &self.canonical
     }
 
@@ -318,6 +319,10 @@ impl OdrFreeLirFoundation {
     }
 
     pub fn into_canonical(self) -> CanonicalLirFoundation {
+        Rc::unwrap_or_clone(self.canonical)
+    }
+
+    pub(crate) fn into_shared(self) -> Rc<CanonicalLirFoundation> {
         self.canonical
     }
 }

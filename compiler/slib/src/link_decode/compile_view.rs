@@ -3,58 +3,21 @@
 use super::*;
 use crate::{CrossConeSemanticsStrongProfile, PublishViewMismatchError, ValidatedCompileArtifact};
 
-pub fn validate_cross_cone_strong_link_artifact<'input>(
-    graph: ValidatedGraphArtifact<'input>,
-    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
-    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
-    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
-    validate_compile_view(&graph, compile)?;
-    cross_cone::validate_cross_cone_strong_link_parts(
-        graph,
-        compile.production().hir_interface(),
-        expected_external_bridges,
-        compile.production().lir_cross_cone(),
-        dependency_owners,
-        c_bridge_profile,
-    )
-}
-
-pub fn validate_self_describing_cross_cone_strong_link_artifact<'input>(
-    graph: ValidatedGraphArtifact<'input>,
-    compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
-    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
-    validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
-        graph,
-        std::iter::empty(),
-        compile,
-        dependency_owners,
-        c_bridge_profile,
-    )
-}
-
-pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_authorities<
-    'input,
-    'authority,
->(
-    graph: ValidatedGraphArtifact<'input>,
-    external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
+pub fn validate_self_describing_cross_cone_strong_link_artifact(
+    mut graph: ValidatedGraphArtifact<'_>,
     compile: &ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedCrossConeStrongLinkArtifact, StrongLinkArtifactValidationError> {
     validate_compile_view(&graph, compile)?;
-    cross_cone::validate_self_describing_cross_cone_strong_link_parts(
-        graph,
-        external_authorities,
-        compile.production().hir_interface(),
-        compile.production().lir_cross_cone(),
-        dependency_owners,
-        c_bridge_profile,
+    let metadata = crate::compile_sections::decode_compile_metadata_envelopes(
+        &mut graph,
+        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
     )
+    .map_err(|error| StrongLinkArtifactValidationError::SharedMetadata(Box::new(error)))?;
+    let sections = decode_cross_cone_link_only(graph, &metadata)
+        .map_err(|error| StrongLinkArtifactValidationError::Decode(Box::new(error)))?;
+    validate_cross_cone_link_from_compile(sections, compile, dependency_owners, c_bridge_profile)
 }
 
 fn validate_compile_view(

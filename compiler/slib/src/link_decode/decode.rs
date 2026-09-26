@@ -2,41 +2,9 @@ use super::*;
 
 impl<'input> ValidatedGraphArtifact<'input> {
     pub fn decode_single_cone_link_sections(
-        self,
-    ) -> Result<DecodedSingleConeLinkSections<'input>, SingleConeLinkSectionDecodeError> {
-        self.decode_link_sections_for_profile(ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
-            .map(|(sections, cross_cone)| {
-                debug_assert!(cross_cone.is_none());
-                sections
-            })
-    }
-
-    pub(super) fn decode_cross_cone_link_sections(
-        self,
-    ) -> Result<DecodedCrossConeLinkSections<'input>, SingleConeLinkSectionDecodeError> {
-        self.decode_link_sections_for_profile(
-            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-        )
-        .map(
-            |(common, cross_cone_link_closure)| DecodedCrossConeLinkSections {
-                common,
-                cross_cone_link_closure: cross_cone_link_closure
-                    .expect("the cross-Cone profile requires its Link closure"),
-            },
-        )
-    }
-
-    fn decode_link_sections_for_profile(
         mut self,
-        expected_profile: ArtifactCapabilityProfile,
-    ) -> Result<
-        (
-            DecodedSingleConeLinkSections<'input>,
-            Option<DecodedCrossConeLinkClosureSectionV1>,
-        ),
-        SingleConeLinkSectionDecodeError,
-    > {
-        let profile = require_strong_profile(&self, expected_profile)?;
+    ) -> Result<DecodedSingleConeLinkSections<'input>, SingleConeLinkSectionDecodeError> {
+        let profile = require_strong_profile(&self, ArtifactCapabilityProfile::SINGLE_CONE_STRONG)?;
         let production_manifest = decode_production_manifest(&mut self, profile)?;
 
         let hir_member_id = metadata_member_id(&self, MetadataLocation::Hir)?;
@@ -80,15 +48,6 @@ impl<'input> ValidatedGraphArtifact<'input> {
             required_metadata_section(&lir_envelope, &strong_production_capability)?;
         let closure_payload =
             required_metadata_section(&lir_envelope, &link_identity_closure_capability)?;
-        let cross_cone_link_closure =
-            if profile == ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG {
-                let capability = lir_cross_cone_link_closure_capability();
-                let payload = required_metadata_section(&lir_envelope, &capability)?;
-                Some(decode_inner(MetadataLocation::Lir, capability, payload)?)
-            } else {
-                None
-            };
-
         let hir_foundation = decode_inner(
             MetadataLocation::Hir,
             hir_foundation_capability,
@@ -126,20 +85,17 @@ impl<'input> ValidatedGraphArtifact<'input> {
         )?;
         validate_semantic_fingerprints(&mut self, &hir_envelope, &mir_envelope, &lir_envelope)?;
 
-        Ok((
-            DecodedSingleConeLinkSections {
-                graph: self,
-                hir_foundation,
-                hir_production,
-                mir_foundation,
-                mir_production,
-                lir_foundation,
-                strong_production,
-                link_identity_closure,
-                production_manifest,
-            },
-            cross_cone_link_closure,
-        ))
+        Ok(DecodedSingleConeLinkSections {
+            graph: self,
+            hir_foundation,
+            hir_production,
+            mir_foundation,
+            mir_production,
+            lir_foundation,
+            strong_production,
+            link_identity_closure,
+            production_manifest,
+        })
     }
 }
 
@@ -188,19 +144,9 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
         &self.production_manifest
     }
 
-    /// Registers and resolves every foundation identity before any Link
-    /// payload can use a persistent identity as trusted input.
+    /// Resolves all persistent references in the single-Cone foundation.
     pub fn validate_identities(
         self,
-    ) -> Result<IdentityCheckedSingleConeLinkSections<'input>, IdentityValidationError> {
-        self.validate_identities_with_authorities(std::iter::empty())
-    }
-
-    /// Validates the Link-view foundation against only the identity graphs
-    /// of this artifact's already validated direct dependencies.
-    pub(crate) fn validate_identities_with_authorities<'authority>(
-        self,
-        external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
     ) -> Result<IdentityCheckedSingleConeLinkSections<'input>, IdentityValidationError> {
         let Self {
             mut graph,
@@ -218,7 +164,7 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
             &hir_foundation,
             &mir_foundation,
             &lir_foundation,
-            external_authorities,
+            std::iter::empty(),
         )?;
         Ok(IdentityCheckedSingleConeLinkSections {
             graph,
@@ -279,19 +225,6 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
     pub fn validate_foundation_structure(
         self,
     ) -> Result<OdrCheckedSingleConeLinkFoundations<'input>, StrongProfileFoundationError> {
-        self.validate_foundation_structure_with(LinkFoundationSourceAuthority::CurrentArtifact)
-    }
-
-    pub(super) fn validate_cross_cone_foundation_structure(
-        self,
-    ) -> Result<OdrCheckedSingleConeLinkFoundations<'input>, StrongProfileFoundationError> {
-        self.validate_foundation_structure_with(LinkFoundationSourceAuthority::DependencyClosure)
-    }
-
-    fn validate_foundation_structure_with(
-        self,
-        source_authority: LinkFoundationSourceAuthority,
-    ) -> Result<OdrCheckedSingleConeLinkFoundations<'input>, StrongProfileFoundationError> {
         let Self {
             mut graph,
             mut identities,
@@ -304,24 +237,13 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
             link_identity_closure,
             production_manifest,
         } = self;
-        let foundations = match source_authority {
-            LinkFoundationSourceAuthority::CurrentArtifact => validate_strong_profile_foundations(
-                &mut graph,
-                &mut identities,
-                hir_foundation,
-                mir_foundation,
-                lir_foundation,
-            ),
-            LinkFoundationSourceAuthority::DependencyClosure => {
-                validate_cross_cone_strong_profile_foundations(
-                    &mut graph,
-                    &mut identities,
-                    hir_foundation,
-                    mir_foundation,
-                    lir_foundation,
-                )
-            }
-        }?;
+        let foundations = validate_strong_profile_foundations(
+            &mut graph,
+            &mut identities,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+        )?;
         Ok(OdrCheckedSingleConeLinkFoundations {
             graph,
             identities,
@@ -335,12 +257,6 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
             production_manifest,
         })
     }
-}
-
-#[derive(Clone, Copy)]
-enum LinkFoundationSourceAuthority {
-    CurrentArtifact,
-    DependencyClosure,
 }
 
 impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
@@ -427,7 +343,7 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
         )?;
         Ok(ProductionValidatedSingleConeLinkSections {
             graph,
-            identities,
+            identities: Rc::new(identities),
             foundations,
             production,
             link_identity_closure,

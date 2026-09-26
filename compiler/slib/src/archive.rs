@@ -311,7 +311,7 @@ impl<'input> ManifestArchive<'input> {
 /// Canonical physical archive whose member headers, ranges, padding, lengths,
 /// and content digests match a typed directory. It intentionally exposes no
 /// member payload extraction API or semantic view.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedArchive<'input> {
     input: &'input [u8],
     manifest: Range<usize>,

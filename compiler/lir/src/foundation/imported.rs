@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use scoop_identity::{
     ConeIdentity, CoreImportedCallableKind, ExactCallableSignature, ImportedIdentityId,
@@ -28,7 +29,7 @@ impl<I: PersistentId> ImportedLirId<I> {
 
 /// The LIR identity foundation after atomic import into a semantic session.
 pub struct ImportedLirFoundation {
-    canonical: CanonicalLirFoundation,
+    canonical: Rc<CanonicalLirFoundation>,
     identities: ImportedIdentityMap<LirIdentityLayer>,
 }
 
@@ -39,7 +40,7 @@ impl ImportedLirFoundation {
         identities: ImportedIdentityMap<LirIdentityLayer>,
     ) -> Self {
         Self {
-            canonical: foundation.into_canonical(),
+            canonical: Rc::new(foundation.into_canonical()),
             identities,
         }
     }
@@ -50,7 +51,7 @@ impl ImportedLirFoundation {
         identities: ImportedIdentityMap<LirIdentityLayer>,
     ) -> Self {
         Self {
-            canonical: foundation.into_canonical(),
+            canonical: foundation.into_shared(),
             identities,
         }
     }

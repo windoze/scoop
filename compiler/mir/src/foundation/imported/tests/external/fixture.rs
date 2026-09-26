@@ -147,7 +147,7 @@ pub(super) fn seal(
 #[test]
 fn projection_uses_the_role_of_the_requested_strong_record() {
     let fixture = Fixture::new();
-    let mut canonical = fixture.foundation.canonical.clone();
+    let mut canonical = fixture.foundation.canonical.as_ref().clone();
     let mut signatures = canonical.callable_signatures().to_vec();
     signatures.push(CallableSignatureRecord::new(
         CallableSignatureSubject::Strong(CallableOwner::Function(fixture.ordinary)),

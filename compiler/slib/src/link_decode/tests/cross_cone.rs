@@ -11,85 +11,14 @@ use scoop_mir::CrossConeMirBridgeSectionV1;
 use super::*;
 
 #[test]
-fn cross_cone_graph_validates_the_complete_final_link_view() {
-    let (bytes, lir_bridge) = complete_cross_cone_artifact();
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let dependency_owners = Vec::new();
-
-    open_graph(&bytes)
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
-    let artifact = super::super::cross_cone::validate_cross_cone_strong_link_parts(
-        open_graph(&bytes),
-        &empty_hir_interface(),
-        &external,
-        &lir_bridge,
-        &dependency_owners,
-        &c_bridge_profile(),
-    )
-    .unwrap();
-
-    assert_eq!(artifact.identity(), cone().identity());
-    assert_eq!(
-        artifact.compatibility().artifact_profile(),
-        &ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG.id()
-    );
-    assert!(
-        artifact
-            .cross_cone_link_closure()
-            .semantic_imports()
-            .imports()
-            .is_empty()
-    );
-    assert!(artifact.cross_cone_link_closure().requirements().is_empty());
-    let contributions = artifact
-        .production_manifest()
-        .code_proof()
-        .link_extension_contributions()
-        .contributions();
-    assert_eq!(contributions.len(), 1);
-    assert_eq!(
-        contributions[0].capability(),
-        &lir_cross_cone_link_closure_capability()
-    );
-}
-
-#[test]
-fn cross_cone_link_reader_rejects_the_legacy_profile() {
-    let bytes = complete_artifact(false);
-    let (foundation, _) =
-        strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
-    let foundation = OdrFreeLirFoundation::try_new(cone().identity(), foundation).unwrap();
-    let lir_bridge =
-        CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let dependency_owners = Vec::new();
-
-    assert!(matches!(
-        super::super::cross_cone::validate_cross_cone_strong_link_parts(
-            open_graph(&bytes),
-            &empty_hir_interface(),
-            &external,
-            &lir_bridge,
-            &dependency_owners,
-            &c_bridge_profile(),
-        ),
-        Err(StrongLinkArtifactValidationError::Decode(error))
-            if matches!(*error, SingleConeLinkSectionDecodeError::WrongProfile { .. })
-    ));
-}
-
-#[test]
 fn cross_cone_artifact_writer_is_byte_reproducible() {
     assert_eq!(
-        complete_cross_cone_artifact().0,
-        complete_cross_cone_artifact().0
+        complete_cross_cone_artifact(),
+        complete_cross_cone_artifact()
     );
 }
 
-fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
+fn complete_cross_cone_artifact() -> Vec<u8> {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -195,7 +124,7 @@ fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
         ),
     )
     .unwrap();
-    (artifact.as_bytes().to_vec(), lir_cross_cone)
+    artifact.as_bytes().to_vec()
 }
 
 fn empty_hir_interface() -> CrossConeHirInterfaceSectionV1 {

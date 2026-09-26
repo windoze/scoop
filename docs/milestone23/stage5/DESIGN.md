@@ -286,11 +286,13 @@ validation_policy   = {
 
 M23-5 production graph只接受新profile：
 
-- source Cone、single-file、trusted core都写新profile，即使新section为空；
+- source Cone、single-file 与 core 普通 library Cone 都写新 profile，即使新 section 为空；
 - M23-3 `single-cone-strong/2` prebuilt/cache entry报告明确的profile mismatch并要求重建，不做in-memory upgrade；
-- trusted core slot receipt和compile cache key都绑定新profile id/fingerprint；
+- core 和其他依赖的缓存记录、compile cache key 均绑定实际 profile id/fingerprint；
 - graph summary仍可读取旧artifact用于报告coordinate，但旧artifact不能成为completed node或dependency authority；
-- writer从最终bytes独立构造`ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>`与对应Link view；publish gate再比较Compile LIR bridge的import projection与Link closure的semantic projection，逐byte不等即失败。
+- reader 从同一 envelope 取得语义与对象 section，构造共享数据的 `ValidatedCompileArtifact<CrossConeSemanticsStrongProfile>` 和 Link view；LIR bridge 的 import 与 Link closure 必须指向相同 provider、typed target 和 ABI。producer 发布复用同次编译的完整 IR 和已检查对象，写回仅核对实际 bytes。
+
+M23-6 清理修订：相同 envelope 的语义与 Link 专用 section 共同解码，身份、canonical foundation 和 Strong production 在语义边界完成检查后供 Compile/Link 共享；Link 只增加 materialization、真实对象、符号、relocation 与相应 fingerprint 检查，不重建外来 bridge 或完整重放语义。
 
 迁移不提升outer schema、identity foundation或container schema。新增能力通过section inventory fail closed；旧reader看到新required capability必须拒绝，而不是忽略后继续编译或链接。
 
@@ -303,10 +305,9 @@ M23-5 production graph只接受新profile：
 ```text
 CrossConeClosureInputV1 {
     current: ConeIdentity,
-    direct: CanonicalMap<ConeIdentity, CompileArtifactHandle>,
-    support: CanonicalMap<ConeIdentity, CompileArtifactHandle>,
+    artifacts: CanonicalMap<ConeIdentity, CompleteArtifact>,
+    direct: CanonicalSet<ConeIdentity>,
     edges: CanonicalSet<DependencyRecordEdge>,
-    trusted_core: TrustedCoreArtifactHandle,
 }
 ```
 

@@ -13,11 +13,22 @@ use crate::{
 use super::DecodedCrossConeHirFrontSections;
 
 impl<'input> ValidatedGraphArtifact<'input> {
-    /// Opens the HIR-facing front of the M23-5 profile without granting any
-    /// identity, surface, route, bridge, or session-import authority.
     pub fn decode_cross_cone_hir_front_sections(
-        mut self,
+        self,
     ) -> Result<DecodedCrossConeHirFrontSections<'input>, CrossConeHirFrontSectionDecodeError> {
+        self.decode_cross_cone_shared_metadata()
+            .map(|(front, _)| front)
+    }
+
+    pub(crate) fn decode_cross_cone_shared_metadata(
+        mut self,
+    ) -> Result<
+        (
+            DecodedCrossConeHirFrontSections<'input>,
+            crate::compile_sections::DecodedCompileMetadataEnvelopes<'input>,
+        ),
+        CrossConeHirFrontSectionDecodeError,
+    > {
         let metadata = decode_compile_metadata_envelopes(
             &mut self,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -71,18 +82,21 @@ impl<'input> ValidatedGraphArtifact<'input> {
 
         metadata.validate_semantic_fingerprints(&mut self)?;
 
-        Ok(DecodedCrossConeHirFrontSections {
-            graph: self,
-            hir_foundation,
-            hir_core_production,
-            hir_interface,
-            mir_foundation,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_foundation,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        })
+        Ok((
+            DecodedCrossConeHirFrontSections {
+                graph: self,
+                hir_foundation,
+                hir_core_production,
+                hir_interface,
+                mir_foundation,
+                mir_core_production,
+                mir_cross_cone_bridge,
+                lir_foundation,
+                lir_strong_production,
+                lir_cross_cone_bridge,
+            },
+            metadata,
+        ))
     }
 }
 

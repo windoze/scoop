@@ -32,7 +32,7 @@ pub use surface_validation::*;
 /// closure proof.
 #[derive(Debug)]
 pub struct DecodedCrossConeHirFrontSections<'input> {
-    graph: ValidatedGraphArtifact<'input>,
+    pub(crate) graph: ValidatedGraphArtifact<'input>,
     hir_foundation: DecodedHirFoundation,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,

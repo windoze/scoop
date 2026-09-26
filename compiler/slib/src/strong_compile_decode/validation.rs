@@ -51,11 +51,9 @@ pub(crate) fn validate_strong_profile_production(
         expected_external_bridges,
     )
     .map_err(StrongProfileProductionError::Lir)?;
-    Ok(ValidatedSingleConeStrongProduction {
-        hir: local.hir,
-        mir: local.mir,
-        lir,
-    })
+    Ok(ValidatedSingleConeStrongProduction::new(
+        local.hir, local.mir, lir,
+    ))
 }
 
 pub(super) fn validate_strong_profile_local_production(

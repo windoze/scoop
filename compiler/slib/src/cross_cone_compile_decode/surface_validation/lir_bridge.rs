@@ -52,34 +52,42 @@ pub struct LirBridgeValidatedCrossConeHirFrontSections<'input> {
 /// All Compile-facing production surfaces retained after closure-wide
 /// validation and atomic identity import for one M23-5 artifact.
 pub struct ValidatedCrossConeSemanticsProduction {
-    hir_core: CoreBootstrapInterfaceSectionV1,
+    foundations: crate::strong_compile_decode::OdrFreeStrongFoundationSet,
+    strong: crate::ValidatedSingleConeStrongProduction,
     hir_interface: CrossConeHirInterfaceSectionV1,
-    mir_core: CoreBootstrapBridgeSectionV1,
     mir_cross_cone: CrossConeMirBridgeSectionV1,
-    lir_strong: StrongProductionSectionV1,
     lir_cross_cone: CrossConeLirBridgeSectionV1,
     type_alias_expansions: CanonicalTypeAliasExpansionsV1,
 }
 
 impl ValidatedCrossConeSemanticsProduction {
-    pub const fn hir_core(&self) -> &CoreBootstrapInterfaceSectionV1 {
-        &self.hir_core
+    pub(crate) fn shared_foundations(
+        &self,
+    ) -> crate::strong_compile_decode::OdrFreeStrongFoundationSet {
+        self.foundations.clone()
+    }
+    pub(crate) fn shared_strong_production(&self) -> crate::ValidatedSingleConeStrongProduction {
+        self.strong.clone()
+    }
+
+    pub fn hir_core(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        self.strong.hir()
     }
 
     pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
         &self.hir_interface
     }
 
-    pub const fn mir_core(&self) -> &CoreBootstrapBridgeSectionV1 {
-        &self.mir_core
+    pub fn mir_core(&self) -> &CoreBootstrapBridgeSectionV1 {
+        self.strong.mir()
     }
 
     pub const fn mir_cross_cone(&self) -> &CrossConeMirBridgeSectionV1 {
         &self.mir_cross_cone
     }
 
-    pub const fn lir_strong(&self) -> &StrongProductionSectionV1 {
-        &self.lir_strong
+    pub fn lir_strong(&self) -> &StrongProductionSectionV1 {
+        self.strong.lir()
     }
 
     pub const fn lir_cross_cone(&self) -> &CrossConeLirBridgeSectionV1 {
@@ -108,7 +116,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         self.identities.declared_identity_count()
     }
 
-    pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+    pub fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
         &self.hir_core_production
     }
 
@@ -120,7 +128,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         &self.foundations.mir
     }
 
-    pub const fn mir_core_production(&self) -> &CoreBootstrapBridgeSectionV1 {
+    pub fn mir_core_production(&self) -> &CoreBootstrapBridgeSectionV1 {
         &self.mir_core_production
     }
 
@@ -132,7 +140,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         &self.foundations.lir
     }
 
-    pub const fn lir_strong_production(&self) -> &StrongProductionSectionV1 {
+    pub fn lir_strong_production(&self) -> &StrongProductionSectionV1 {
         &self.lir_strong_production
     }
 
@@ -188,7 +196,7 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
     ) -> ValidatedCompileArtifact<CrossConeSemanticsStrongProfile> {
         let Self {
             graph,
-            identities: _,
+            identities,
             foundations,
             hir_core_production,
             hir_interface,
@@ -199,16 +207,20 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         } = self;
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
         let production = ValidatedCrossConeSemanticsProduction {
-            hir_core: hir_core_production,
+            foundations: foundations.clone(),
+            strong: crate::ValidatedSingleConeStrongProduction::new(
+                hir_core_production,
+                mir_core_production,
+                lir_strong_production,
+            ),
             hir_interface,
-            mir_core: mir_core_production,
             mir_cross_cone: mir_cross_cone_bridge,
-            lir_strong: lir_strong_production,
             lir_cross_cone: lir_cross_cone_bridge,
             type_alias_expansions,
         };
         ValidatedCompileArtifact::from_parts(
             graph,
+            identities,
             ImportedHirFoundation::from_odr_free(foundations.hir, hir_identities),
             ImportedMirFoundation::from_odr_free(foundations.mir, mir_identities),
             ImportedLirFoundation::from_odr_free(foundations.lir, lir_identities),

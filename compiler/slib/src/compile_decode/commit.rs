@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 use scoop_hir::ImportedHirFoundation;
 use scoop_identity::{
@@ -65,6 +66,7 @@ impl CompileCapabilityProfile for CrossConeSemanticsStrongProfile {
 /// conversion.
 pub struct ValidatedCompileArtifact<P: CompileCapabilityProfile> {
     metadata: crate::graph::ArtifactMetadata,
+    identities: Rc<ValidatedIdentityGraph>,
     hir: ImportedHirFoundation,
     mir: ImportedMirFoundation,
     lir: ImportedLirFoundation,
@@ -91,6 +93,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
         Ok(ValidatedCompileArtifact {
             metadata: graph.into(),
+            identities: Rc::new(identities),
             hir: ImportedHirFoundation::from_validated(hir, hir_identities),
             mir: ImportedMirFoundation::from_validated(mir, mir_identities),
             lir: ImportedLirFoundation::from_validated(lir, lir_identities),
@@ -103,6 +106,7 @@ impl<'input> NativeBoundaryValidatedFoundations<'input> {
 impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
     pub(crate) fn from_parts(
         graph: ValidatedGraphArtifact<'_>,
+        identities: ValidatedIdentityGraph,
         hir: ImportedHirFoundation,
         mir: ImportedMirFoundation,
         lir: ImportedLirFoundation,
@@ -110,12 +114,17 @@ impl<P: CompileCapabilityProfile> ValidatedCompileArtifact<P> {
     ) -> Self {
         Self {
             metadata: graph.into(),
+            identities: Rc::new(identities),
             hir,
             mir,
             lir,
             production,
             profile: PhantomData,
         }
+    }
+
+    pub(crate) fn shared_identity_graph(&self) -> Rc<ValidatedIdentityGraph> {
+        Rc::clone(&self.identities)
     }
 
     pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {

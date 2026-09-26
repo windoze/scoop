@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use scoop_identity::{
     DefinitionOriginRecord, DefinitionOriginSubject, OdrGroupId, OdrMemberId,
@@ -12,7 +13,7 @@ use crate::ValidatedHirFoundation;
 /// A canonical HIR identity foundation proven to satisfy the M23-3
 /// `SingleConeStrong` profile's `RejectAll` ODR policy.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OdrFreeHirFoundation(CanonicalHirFoundation);
+pub struct OdrFreeHirFoundation(Rc<CanonicalHirFoundation>);
 
 impl OdrFreeHirFoundation {
     pub fn from_output(
@@ -41,7 +42,7 @@ impl OdrFreeHirFoundation {
         if let Some(record) = foundation.odr_members.first() {
             return Err(OdrFreeHirFoundationError::OdrMember(record.id()));
         }
-        Ok(Self(foundation))
+        Ok(Self(Rc::new(foundation)))
     }
 
     pub fn from_validated(
@@ -50,7 +51,7 @@ impl OdrFreeHirFoundation {
         Self::try_new(foundation.into_canonical())
     }
 
-    pub const fn as_canonical(&self) -> &CanonicalHirFoundation {
+    pub fn as_canonical(&self) -> &CanonicalHirFoundation {
         &self.0
     }
 
@@ -112,6 +113,10 @@ impl OdrFreeHirFoundation {
     }
 
     pub fn into_canonical(self) -> CanonicalHirFoundation {
+        Rc::unwrap_or_clone(self.0)
+    }
+
+    pub(crate) fn into_shared(self) -> Rc<CanonicalHirFoundation> {
         self.0
     }
 }

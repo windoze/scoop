@@ -2,6 +2,7 @@
 //! single-Cone strong profile.
 
 use std::fmt;
+use std::rc::Rc;
 
 use scoop_hir::{
     CompilerProtocolDefinitionsV1, CoreBootstrapInterfaceSectionV1,
@@ -127,6 +128,7 @@ pub struct NativeBoundaryValidatedSingleConeCompileProduction<'input> {
     structural: StructurallyValidatedSingleConeCompileProduction<'input>,
 }
 
+#[derive(Clone)]
 pub(crate) struct OdrFreeStrongFoundationSet {
     pub(crate) hir: OdrFreeHirFoundation,
     pub(crate) mir: OdrFreeMirFoundation,
@@ -141,10 +143,11 @@ pub(crate) struct DecodedStrongProfileProductionSet {
 
 /// The validated HIR, MIR, and LIR production surfaces retained by a
 /// structurally valid `SingleConeStrongProfile` proof.
+#[derive(Clone)]
 pub struct ValidatedSingleConeStrongProduction {
-    hir: CoreBootstrapInterfaceSectionV1,
-    mir: CoreBootstrapBridgeSectionV1,
-    lir: StrongProductionSectionV1,
+    hir: Rc<CoreBootstrapInterfaceSectionV1>,
+    mir: Rc<CoreBootstrapBridgeSectionV1>,
+    lir: Rc<StrongProductionSectionV1>,
 }
 
 /// Validate and atomically import the complete Compile view of one
@@ -211,15 +214,27 @@ pub fn validate_self_describing_single_cone_strong_compile_artifact<'input>(
 }
 
 impl ValidatedSingleConeStrongProduction {
-    pub const fn hir(&self) -> &CoreBootstrapInterfaceSectionV1 {
+    pub(crate) fn new(
+        hir: CoreBootstrapInterfaceSectionV1,
+        mir: CoreBootstrapBridgeSectionV1,
+        lir: StrongProductionSectionV1,
+    ) -> Self {
+        Self {
+            hir: Rc::new(hir),
+            mir: Rc::new(mir),
+            lir: Rc::new(lir),
+        }
+    }
+
+    pub fn hir(&self) -> &CoreBootstrapInterfaceSectionV1 {
         &self.hir
     }
 
-    pub const fn mir(&self) -> &CoreBootstrapBridgeSectionV1 {
+    pub fn mir(&self) -> &CoreBootstrapBridgeSectionV1 {
         &self.mir
     }
 
-    pub const fn lir(&self) -> &StrongProductionSectionV1 {
+    pub fn lir(&self) -> &StrongProductionSectionV1 {
         &self.lir
     }
 }
@@ -742,13 +757,14 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
         } = self.structural;
         let imported = commit_identity_graph(&mut graph, &identities, session)?;
         let (hir_identities, mir_identities, lir_identities) = imported.into_parts();
-        let production = ValidatedSingleConeStrongProduction {
-            hir: hir_production,
-            mir: mir_production,
-            lir: lir_production,
-        };
+        let production = ValidatedSingleConeStrongProduction::new(
+            hir_production,
+            mir_production,
+            lir_production,
+        );
         Ok(ValidatedCompileArtifact::from_parts(
             graph,
+            identities,
             ImportedHirFoundation::from_odr_free(hir_foundation, hir_identities),
             ImportedMirFoundation::from_odr_free(mir_foundation, mir_identities),
             ImportedLirFoundation::from_odr_free(lir_foundation, lir_identities),
@@ -758,9 +774,7 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
 }
 
 mod errors;
-mod shared_shapes;
 mod validation;
-pub(crate) use shared_shapes::validate_shared_strong_profile_production;
 
 pub use errors::{
     SingleConeCompileSectionDecodeError, StrongCompileArtifactValidationError,

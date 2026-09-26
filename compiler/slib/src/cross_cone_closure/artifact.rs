@@ -12,13 +12,16 @@ use super::{
 use crate::{
     CanonicalDefinedLinkSymbolOwnerSetV1, DecodedSlibEnvelope, PublishableCrossConeArtifact,
     ValidatedCompileArtifact, ValidatedCrossConeStrongLinkArtifact,
-    validate_self_describing_cross_cone_strong_link_artifact_with_authorities,
 };
 
 mod definition;
 mod errors;
 pub use errors::*;
 
+use crate::link_decode::{
+    DecodedCrossConeLinkOnlySections, decode_cross_cone_link_only,
+    validate_cross_cone_link_from_compile,
+};
 use definition::validate_terminal_definitions;
 
 /// Borrowed final bytes for one dependency closure and, optionally, its
@@ -64,9 +67,8 @@ impl<'input> CrossConeArtifactClosureInput<'input> {
     }
 }
 
-/// The exact artifact set after every member has independently passed both
-/// views and every cross-Cone requirement has resolved to a provider Strong
-/// definition.
+/// The complete artifact set with shared semantics, checked objects, and
+/// cross-Cone references resolved to their provider definitions.
 pub struct ValidatedCrossConeArtifactClosure {
     semantic: ValidatedCrossConeSemanticClosure,
     links: Vec<ValidatedCrossConeStrongLinkArtifact>,
@@ -74,8 +76,7 @@ pub struct ValidatedCrossConeArtifactClosure {
     positions: BTreeMap<ConeIdentity, usize>,
 }
 
-/// Closure proof produced only when the current artifact bytes participated
-/// in validation. The retained position makes all three current views total.
+/// A completed artifact closure retaining all three current artifact views.
 pub struct ValidatedCompletedCrossConeArtifactClosure {
     closure: ValidatedCrossConeArtifactClosure,
     current_position: usize,
@@ -161,8 +162,8 @@ impl ValidatedCrossConeArtifactClosure {
     }
 }
 
-/// Reopens all bytes through the M23-5 Compile and Link readers, commits the
-/// semantic closure once, and resolves Link imports against terminal owners.
+/// Reads each envelope and its semantic sections once, then checks Link
+/// objects and resolves their imports against actual provider definitions.
 pub fn validate_cross_cone_artifact_closure<'input>(
     input: CrossConeArtifactClosureInput<'input>,
 
@@ -177,17 +178,27 @@ pub fn validate_cross_cone_artifact_closure<'input>(
         current_artifact,
     } = input;
 
-    let mut decoded = Vec::with_capacity(dependency_first.len());
-    for (index, bytes) in dependency_first.iter().copied().enumerate() {
-        decoded.push(decode_compile_front(
+    let dependency_count = dependency_first.len();
+    let mut decoded = Vec::with_capacity(dependency_count);
+    let mut physical =
+        Vec::with_capacity(dependency_count + usize::from(current_artifact.is_some()));
+    for (index, bytes) in dependency_first.into_iter().enumerate() {
+        let (front, link) = decode_sections(
             bytes,
             target,
             CrossConeClosureArtifactSlotV1::Dependency(index),
-        )?);
+        )?;
+        decoded.push(front);
+        physical.push(link);
     }
-    let current_front = current_artifact
-        .map(|bytes| decode_compile_front(bytes, target, CrossConeClosureArtifactSlotV1::Current))
-        .transpose()?;
+    let current_front = if let Some(bytes) = current_artifact {
+        let (front, link) =
+            decode_sections(bytes, target, CrossConeClosureArtifactSlotV1::Current)?;
+        physical.push(link);
+        Some(front)
+    } else {
+        None
+    };
     let decoded = match current_front {
         Some(current_artifact) => DecodedCrossConeClosure::with_current_artifact(
             current,
@@ -201,32 +212,22 @@ pub fn validate_cross_cone_artifact_closure<'input>(
     let semantic = validate_and_commit_cross_cone_semantic_closure(decoded, session)
         .map_err(|source| CrossConeArtifactClosureValidationError::Semantic(Box::new(source)))?;
 
-    let dependency_count = dependency_first.len();
-    let mut bytes = dependency_first;
-    if let Some(current_bytes) = current_artifact {
-        bytes.push(current_bytes);
-    }
-    let identities = semantic
-        .all_artifacts_for_validation()
-        .map(|artifact| artifact.identity())
-        .collect::<Vec<_>>();
-    debug_assert_eq!(bytes.len(), identities.len());
-
-    let mut links = Vec::with_capacity(bytes.len());
-    let mut publications = Vec::with_capacity(bytes.len());
+    let mut links = Vec::with_capacity(physical.len());
+    let mut publications = Vec::with_capacity(physical.len());
     let mut positions = BTreeMap::new();
-    for (position, (identity, bytes)) in identities.into_iter().zip(bytes).enumerate() {
+    for (position, (compile, sections)) in semantic
+        .all_artifacts_for_validation()
+        .zip(physical)
+        .enumerate()
+    {
         let (publication, link) = validate_link(
-            &semantic,
-            identity,
-            bytes,
-            target,
+            compile,
+            sections,
             &links,
-            &positions,
             c_bridge_profile,
             slot_for(position, dependency_count),
         )?;
-        positions.insert(identity, position);
+        positions.insert(compile.identity(), position);
         publications.push(publication);
         links.push(link);
     }
@@ -274,14 +275,18 @@ pub fn validate_completed_cross_cone_artifact_closure<'input>(
     })
 }
 
-fn decode_compile_front<'input>(
+fn decode_sections<'input>(
     bytes: &'input [u8],
-
     target: ValidatedLirTargetSelection,
     slot: CrossConeClosureArtifactSlotV1,
-) -> Result<crate::DecodedCrossConeHirFrontSections<'input>, CrossConeArtifactClosureValidationError>
-{
-    DecodedSlibEnvelope::open(bytes, target)
+) -> Result<
+    (
+        crate::DecodedCrossConeHirFrontSections<'input>,
+        DecodedCrossConeLinkOnlySections<'input>,
+    ),
+    CrossConeArtifactClosureValidationError,
+> {
+    let graph = DecodedSlibEnvelope::open(bytes, target)
         .map_err(
             |source| CrossConeArtifactClosureValidationError::CompileEnvelope {
                 slot,
@@ -294,25 +299,31 @@ fn decode_compile_front<'input>(
                 slot,
                 source: Box::new(source),
             },
-        )?
-        .decode_cross_cone_hir_front_sections()
+        )?;
+    let (front, metadata) = graph
+        .decode_cross_cone_shared_metadata()
         .map_err(
             |source| CrossConeArtifactClosureValidationError::CompileSections {
                 slot,
                 source: Box::new(source),
             },
-        )
+        )?;
+    let physical =
+        decode_cross_cone_link_only(front.graph.clone(), &metadata).map_err(|source| {
+            CrossConeArtifactClosureValidationError::Link {
+                slot,
+                source: Box::new(crate::StrongLinkArtifactValidationError::Decode(Box::new(
+                    source,
+                ))),
+            }
+        })?;
+    Ok((front, physical))
 }
 
-#[allow(clippy::too_many_arguments)]
 fn validate_link(
-    semantic: &ValidatedCrossConeSemanticClosure,
-    identity: ConeIdentity,
-    bytes: &[u8],
-
-    target: ValidatedLirTargetSelection,
+    compile: &ValidatedCompileArtifact<crate::CrossConeSemanticsStrongProfile>,
+    sections: DecodedCrossConeLinkOnlySections<'_>,
     validated_links: &[ValidatedCrossConeStrongLinkArtifact],
-    validated_positions: &BTreeMap<ConeIdentity, usize>,
     c_bridge_profile: &CBridgeToolchainProfileV1,
     slot: CrossConeClosureArtifactSlotV1,
 ) -> Result<
@@ -322,50 +333,12 @@ fn validate_link(
     ),
     CrossConeArtifactClosureValidationError,
 > {
-    let compile = semantic
-        .all_artifacts_for_validation()
-        .find(|artifact| artifact.identity() == identity)
-        .expect("Link validation identity belongs to the committed Compile closure");
-    let graph = DecodedSlibEnvelope::open(bytes, target).map_err(|source| {
-        CrossConeArtifactClosureValidationError::LinkEnvelope {
-            slot,
-            source: Box::new(source),
-        }
-    })?;
-    let graph = graph.validate_graph().map_err(|source| {
-        CrossConeArtifactClosureValidationError::LinkGraph {
-            slot,
-            source: Box::new(source),
-        }
-    })?;
-    let mut authorities = Vec::with_capacity(compile.direct_dependencies().len());
-    for dependency in compile.direct_dependencies() {
-        let dependency = dependency.identity();
-        let Some(position) = validated_positions.get(&dependency).copied() else {
-            return Err(
-                CrossConeArtifactClosureValidationError::MissingLinkDependencyAuthority {
-                    slot,
-                    dependency,
-                },
-            );
-        };
-        let Some(link) = validated_links.get(position) else {
-            return Err(
-                CrossConeArtifactClosureValidationError::MissingLinkDependencyAuthority {
-                    slot,
-                    dependency,
-                },
-            );
-        };
-        authorities.push(link.identity_graph());
-    }
     let dependency_owners = validated_links
         .iter()
         .map(|link| link.defined_symbols().clone())
         .collect::<Vec<_>>();
-    let link = validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
-        graph,
-        authorities,
+    let link = validate_cross_cone_link_from_compile(
+        sections,
         compile,
         &dependency_owners,
         c_bridge_profile,
