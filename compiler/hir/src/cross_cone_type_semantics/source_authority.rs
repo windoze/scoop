@@ -5,6 +5,3 @@ pub use inventory::*;
 
 mod default_nested_identity;
 pub use default_nested_identity::*;
-
-mod default_operation_types;
-pub use default_operation_types::*;

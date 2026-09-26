@@ -1,5 +1,7 @@
 # Scoop 实现路线图
 
+删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
+
 M23-6 清理默认值逐引用访问证明及仅测试使用的平行完整验证入口。保留前端定义处与继承后的可见性检查、完整 typed 正文和引用索引；producer 直接投影，reader 在边界检查真实引用和跨表关系。默认引用 field 3 退役，`hir/cross-cone-interface/25` 要求旧 `/24` 及更早产物、profile fingerprint 和缓存重建；跨 Cone 默认值实际展开与运行仍是验收要求。
 
 共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/25` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。

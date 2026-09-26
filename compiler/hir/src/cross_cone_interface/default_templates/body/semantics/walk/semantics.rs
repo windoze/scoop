@@ -1,17 +1,10 @@
 use super::*;
 use crate::SignatureTypeSemanticError;
 
-type OriginValidator<A, E> =
-    fn(
-        &mut A,
-        &ExportDefinitionSourceV1,
-        DefaultBodyOriginSiteV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>;
-
 pub(super) struct SemanticValidation<'a, A, E> {
     pub(super) scope: crate::SignatureBinderScopeV1,
     pub(super) authority: &'a mut A,
-    pub(super) origin: OriginValidator<A, E>,
+    pub(super) error: std::marker::PhantomData<fn() -> E>,
 }
 
 impl<A, E> BodyWalkMode for SemanticValidation<'_, A, E>
@@ -98,11 +91,12 @@ where
 
     fn visit_origin(
         &mut self,
-        source: &ExportDefinitionSourceV1,
-        site: DefaultBodyOriginSiteV1,
+        _source: &ExportDefinitionSourceV1,
+        _site: DefaultBodyOriginSiteV1,
 
         _path: &WirePath,
     ) -> Result<(), Self::Error> {
-        (self.origin)(self.authority, source, site)
+        // Source locations are handled by the source visitor, separately from types.
+        Ok(())
     }
 }

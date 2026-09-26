@@ -16,8 +16,7 @@ use crate::{
     DefaultIteratorNextV1, DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1,
     DefaultMethodCalleeV1, DefaultPatternV1, DefaultStatementV1, DefaultTemplateProviderShapeV1,
     DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
-    ExportDefaultBodyV1, ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
-    NominalInterfaceShapeAuthority,
+    ExportDefaultBodyV1, ExportDefinitionSourceV1, NominalInterfaceShapeAuthority,
 };
 
 mod expression;
@@ -28,38 +27,6 @@ mod origin;
 mod semantics;
 use semantics::SemanticValidation;
 mod statement;
-
-pub(super) fn validate<A, E>(
-    body: &ExportDefaultBodyV1,
-    provider: DefaultTemplateProviderShapeV1,
-    authority: &mut A,
-
-    path: &WirePath,
-) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>
-where
-    A: NominalInterfaceShapeAuthority<E>
-        + ExportDefinitionSourceSemanticAuthority<E>
-        + DefaultLocalFunctionSignatureAuthority<E>,
-{
-    Validator {
-        mode: SemanticValidation::<A, E> {
-            scope: provider.signature_scope(),
-            authority,
-            origin: |authority, source, site| {
-                source.validate_semantics(authority).map_err(|error| {
-                    DefaultBodyProviderEnvelopeSemanticValidationError::Origin {
-                        site,
-                        definition_origin: Box::new(source.clone()),
-                        error: Box::new(error),
-                    }
-                })
-            },
-        },
-
-        path,
-    }
-    .run(body)
-}
 
 /// Reuses the full typed walk after the caller has bound every origin occurrence.
 pub(super) fn validate_types<
@@ -76,8 +43,7 @@ pub(super) fn validate_types<
         mode: SemanticValidation {
             scope: provider.signature_scope(),
             authority,
-            // This pass consumes types only; origin binding is a separate input proof.
-            origin: |_, _, _| Ok(()),
+            error: std::marker::PhantomData,
         },
 
         path,

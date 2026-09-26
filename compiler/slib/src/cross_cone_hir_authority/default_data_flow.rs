@@ -1,8 +1,8 @@
 //! Default-body data flow using the already validated declaration closure.
 
 use scoop_hir::{
-    CrossConeHirInterfaceSectionV1, DefaultLocalDataFlowSemanticAuthority, ExportDefaultTemplateV1,
-    NominalSourceShapeV1, SourceNominalId,
+    CrossConeHirInterfaceSectionV1, DefaultLocalDataFlowSemanticAuthority, NominalSourceShapeV1,
+    SourceNominalId,
 };
 use scoop_identity::{PersistentFieldId, SignatureTypeKey};
 use scoop_wire::WirePath;
@@ -135,7 +135,6 @@ impl DefaultStructFields {
 impl DefaultLocalDataFlowSemanticAuthority<CrossConeHirDefaultFieldError> for DefaultStructFields {
     fn default_binding_struct_field_index(
         &mut self,
-        _template: &ExportDefaultTemplateV1,
         declaration: PersistentFieldId,
         owner_type: &SignatureTypeKey,
     ) -> Result<u32, CrossConeHirDefaultFieldError> {

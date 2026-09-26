@@ -804,7 +804,6 @@ impl Authority {
 impl DefaultLocalDataFlowSemanticAuthority<FieldIndexError> for Authority {
     fn default_binding_struct_field_index(
         &mut self,
-        _template: &ExportDefaultTemplateV1,
         declaration: PersistentFieldId,
         owner_type: &SignatureTypeKey,
     ) -> Result<u32, FieldIndexError> {

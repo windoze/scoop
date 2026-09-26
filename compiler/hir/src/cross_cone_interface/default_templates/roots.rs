@@ -12,13 +12,10 @@ mod provider_parameter;
 pub use provider_parameter::{
     DefaultTemplateProviderParameterBuildError, DefaultTemplateProviderParameterV1,
 };
-mod semantics;
+mod provider_shape;
 pub use nominal_receiver::DefaultNominalReceiverBuildError;
 
-pub use semantics::{
-    DefaultTemplateProviderShapeBuildError, DefaultTemplateProviderShapeV1,
-    DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
-};
+pub use provider_shape::{DefaultTemplateProviderShapeBuildError, DefaultTemplateProviderShapeV1};
 
 /// Persistent source root for one exported default template.
 ///

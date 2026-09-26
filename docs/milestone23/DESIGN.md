@@ -2605,6 +2605,8 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 删除没有生产实现者的完整 HIR semantic-authority 总入口、默认引用 envelope 平行验证器和公共类型支持凭证；正常 reader 使用已有各表的格式、引用与类型边界检查。仅验证旧凭证构造、访问域重放和证明状态的测试随之删除，实际源码的可见性错误、默认值继承与跨 Cone 展开验收继续保留。
 
+删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
+
 嵌套声明的源码 payload 只保留实际声明身份与完整源码接口，不重复携带可由该身份推导的 inheritance exact、representation owner 或泛型/非泛型资格标志。是否存在机器表示由同一产物的实际 representation、inheritance、MIR 与 LIR 表表达；源码完整但尚未物化的声明仍可正常发布。reader 在这些表的消费边界检查引用与表示一致性，不因解析嵌套源码声明再次完整验证同一表示。原 payload 的 field 3 退役且不得复用；HIR `cross-cone-type-semantics` capability 升至 5，旧产物按版本规则重建，runtime C ABI 不变。producer 的类型事实与表示投影必须覆盖共有声明接口中实际需要的私有存储与嵌套支持类型，不能只依据 public binding 根的局部列表。
 
 当前目标同时包含 [core 专用资格清理](stage6/CORE-AUTHORITY-CLEANUP.md)：删除 core ABI 重放豁免、native-boundary 专用可信输入、protocol 额外来源资格、String/初始化专用 bridge 和 core 独立 Link requirement closure。各项须有共有路径的实际生产/消费、正负例与 wire/cache 迁移，不能以旧分区冻结或仅完成类型组成表宣称完成。

@@ -4,18 +4,11 @@ mod data_flow;
 mod export_body;
 mod expressions;
 mod nested;
-mod operation_typing;
 mod operators;
 mod patterns;
 mod references;
 mod semantics;
 mod statements;
-mod validation_input;
-
-pub(crate) use validation_input::{
-    DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,
-    DefaultBodyValidationInputV1,
-};
 
 #[cfg(test)]
 pub(crate) use expressions::test_support as expression_test_support;
@@ -76,28 +69,10 @@ pub use nested::{
     DefaultLexicalCallableBuildError, DefaultLexicalCallableIndexError,
     DefaultLexicalCallableResolutionError, DefaultLocalFunctionBuildError,
     DefaultLocalFunctionIndexError, DefaultLocalFunctionResolutionError, DefaultLocalFunctionV1,
-    DefaultNestedCallableAbiShapeV1, DefaultNestedCallableAbiValidationError,
-    DefaultNestedCallableAuthorityQueryV1, DefaultNestedCallableBodyArgumentsV1,
-    DefaultNestedCallableBodyShapeV1, DefaultNestedCallableIdentityShapeV1,
-    DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1, DefaultNestedCallableLocalUseV1,
-    DefaultNestedCallableProvenanceV1, DefaultNestedCallableReferenceResolver,
-    DefaultNestedCallableSemanticAuthority, DefaultNestedCallableSiteV1,
+    DefaultNestedCallableBodyArgumentsV1, DefaultNestedCallableIdentityV1,
+    DefaultNestedCallableReferenceResolver, DefaultNestedCallableSiteV1,
     IndexedDefaultAnonymousFunctionV1, IndexedDefaultCaptureV1, IndexedDefaultLambdaV1,
     IndexedDefaultLocalFunctionV1,
-};
-pub use operation_typing::{
-    DefaultAggregateOperationShapeV1, DefaultAssignmentOperationV1,
-    DefaultBindingActionOperationV1, DefaultBindingShapeOperationV1,
-    DefaultBodyOperationTypingProblemV1, DefaultBodyOperationTypingSiteV1, DefaultBodyOperationV1,
-    DefaultCallableOperationShapeV1, DefaultCallbackOperationShapeV1, DefaultCoreApplicationV1,
-    DefaultExpressionOperationV1, DefaultFieldOperationKindV1, DefaultFieldOperationShapeV1,
-    DefaultForOperationV1, DefaultOperationCoreTypeV1, DefaultOperationEntityShapeKindV1,
-    DefaultOperationEntityShapeV1, DefaultOperationEntityV1, DefaultOperationExpectedTypeShapeV1,
-    DefaultOperationIntrinsicV1, DefaultOperationTypeRelationV1, DefaultOperationTypingProblemV1,
-    DefaultOperationTypingSemanticAuthority, DefaultOperationTypingSiteV1,
-    DefaultOperationValueRoleV1, DefaultPatternOperationV1, DefaultStatementOperationV1,
-    DefaultValueOperationShapeV1, DefaultVariantFieldOperationShapeV1,
-    ExportDefaultBodyOperationTypingValidationError, ExportDefaultOperationTypingValidationError,
 };
 pub use operators::{
     DefaultArrayAccessKindV1, DefaultBinaryOperatorV1, DefaultForeignCallbackOperationV1,

@@ -1,5 +1,3 @@
-use crate::{DefaultBodyDataFlowAuthority, DefaultBodyValidationInputV1};
-
 use std::fmt;
 
 use scoop_identity::{LocalValueSelector, PersistentFieldId, SignatureTypeKey};
@@ -9,7 +7,6 @@ use crate::{
     CanonicalBooleanV1, DefaultBindingTemporaryV1, ExportDefaultTemplateV1, TemplateLocalRecordV1,
 };
 
-mod authority;
 mod binding;
 mod control;
 mod expression;
@@ -22,18 +19,16 @@ mod tests;
 pub trait DefaultLocalDataFlowSemanticAuthority<E> {
     fn default_binding_struct_field_index(
         &mut self,
-        template: &ExportDefaultTemplateV1,
         declaration: PersistentFieldId,
         owner_type: &SignatureTypeKey,
     ) -> Result<u32, E>;
 }
 
 impl ExportDefaultTemplateV1 {
-    /// Proves definite local definition, mutability, loop nesting, and the
+    /// Checks definite local definition, mutability, loop nesting, and the
     /// exact binding-shape/action schedule for this template.
     ///
-    /// Provider type/origin envelopes must already be valid. Operation
-    /// typing and nested-callable ABI validation remain independent passes.
+    /// Types and declaration references have already been resolved at the reader boundary.
     pub fn validate_local_data_flow_semantics<A, E>(
         &self,
         authority: &mut A,
@@ -43,29 +38,12 @@ impl ExportDefaultTemplateV1 {
     where
         A: DefaultLocalDataFlowSemanticAuthority<E>,
     {
-        DefaultBodyValidationInputV1::from(self).validate_local_data_flow(
-            &mut authority::PublicAuthority {
-                template: self,
-                authority,
-            },
-            path,
-        )
-    }
-}
-
-impl DefaultBodyValidationInputV1<'_> {
-    pub(crate) fn validate_local_data_flow<A: DefaultBodyDataFlowAuthority<E>, E>(
-        self,
-        authority: &mut A,
-
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         Validator::new(self, authority, path)?.run()
     }
 }
 
 struct Validator<'a, A, E> {
-    template: DefaultBodyValidationInputV1<'a>,
+    template: &'a ExportDefaultTemplateV1,
     authority: &'a mut A,
     owners: Vec<Option<DefinitionOwner>>,
     next_plan: u32,
@@ -76,10 +54,10 @@ struct Validator<'a, A, E> {
 
 impl<'a, A, E> Validator<'a, A, E>
 where
-    A: DefaultBodyDataFlowAuthority<E>,
+    A: DefaultLocalDataFlowSemanticAuthority<E>,
 {
     fn new(
-        template: DefaultBodyValidationInputV1<'a>,
+        template: &'a ExportDefaultTemplateV1,
         authority: &'a mut A,
 
         path: &'a WirePath,

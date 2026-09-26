@@ -4,17 +4,16 @@ use scoop_wire::{WireError, WirePath};
 
 use super::ExportDefaultBodyV1;
 use crate::{
-    DefaultTemplateProviderShapeV1, ExportDefinitionSourceSemanticAuthority,
-    ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceV1,
-    NominalInterfaceShapeAuthority, SignatureBinderScopeError, SignatureTypeSemanticError,
+    DefaultTemplateProviderShapeV1, ExportDefinitionSourceV1, NominalInterfaceShapeAuthority,
+    SignatureBinderScopeError, SignatureTypeSemanticError,
 };
 
 mod walk;
 
 /// Supplies a local function's own generic arity from its independently validated
 /// Function/GenericFunction canonical declaration key. Descriptor signatures and
-/// captured owner arguments must not be used to infer this fact. This query does
-/// not replace the separate artifact ownership, parent, or nested ABI proofs.
+/// captured owner arguments must not be used to infer this fact. The query
+/// supplements the resolved declaration, parent and body-argument records.
 pub trait DefaultLocalFunctionSignatureAuthority<E> {
     fn default_local_function_own_binder_arity(
         &mut self,
@@ -23,24 +22,6 @@ pub trait DefaultLocalFunctionSignatureAuthority<E> {
 }
 
 impl ExportDefaultBodyV1 {
-    /// Validates every provider-scoped type and inline definition origin in
-    /// this body. Operation typing, local data flow, nested callable ABI, and
-    /// the exact reference closure remain separate semantic passes.
-    pub fn validate_provider_envelope_semantics<A, E>(
-        &self,
-        provider: DefaultTemplateProviderShapeV1,
-        authority: &mut A,
-
-        path: &WirePath,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>
-    where
-        A: NominalInterfaceShapeAuthority<E>
-            + ExportDefinitionSourceSemanticAuthority<E>
-            + DefaultLocalFunctionSignatureAuthority<E>,
-    {
-        walk::validate(self, provider, authority, path)
-    }
-
     /// Validates the complete provider type envelope without reinterpreting
     /// origins. Used only after artifact-bound source-origin validation.
     pub(crate) fn validate_provider_types_semantics<
@@ -138,11 +119,6 @@ pub enum DefaultBodyProviderEnvelopeSemanticValidationError<E> {
         definition_origin: Box<ExportDefinitionSourceV1>,
         error: SignatureBinderScopeError,
     },
-    Origin {
-        site: DefaultBodyOriginSiteV1,
-        definition_origin: Box<ExportDefinitionSourceV1>,
-        error: Box<ExportDefinitionSourceSemanticValidationError<E>>,
-    },
     Resource(WireError),
 }
 
@@ -163,9 +139,6 @@ impl<E: fmt::Display> fmt::Display for DefaultBodyProviderEnvelopeSemanticValida
             }
             Self::Binder { site, error, .. } => {
                 write!(formatter, "invalid provider binder at {site:?}: {error}")
-            }
-            Self::Origin { site, error, .. } => {
-                write!(formatter, "invalid definition origin at {site:?}: {error}")
             }
             Self::Resource(error) => {
                 write!(

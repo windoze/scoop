@@ -11,7 +11,7 @@ use super::{
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: super::DefaultBodyDataFlowAuthority<E>,
+    A: super::DefaultLocalDataFlowSemanticAuthority<E>,
 {
     pub(super) fn validate_statements(
         &mut self,

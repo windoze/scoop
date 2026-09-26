@@ -1,5 +1,7 @@
 # M23-5 设计：多 Cone 名称语义
 
+删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
+
 共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/25` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 M23-6 版本衔接：core 与普通依赖共用实际 provider 和 typed target 查询，独立 core requirement 闭包与 CoreStrong tag 2 已退役。当前 `link-identity-closure/3` 使用实际符号和 relocation 合同；旧产物需要重建。不同消费用途复用已有记录，移除按历史表分区授予或拒绝来源资格的规则。
@@ -1284,17 +1286,14 @@ DefaultForIterationPlanV1 {
 ```
 
 struct binding fields按field declaration index严格递增，class component sequence保留source order且不得重复
-`NonZeroU32` index。所有temporary/leaf/capture descriptor的类型和mutability都必须与canonical local table中
-同selector record一致；local place必须命中该record。`Local` expression的principal type来自该record，但其
-`result_type`允许由下述operation-typing pass证明一次零成本reference retype，不能由local data-flow pass误判为
-损坏。iterator interface、next callable和Option variant relation由trusted core protocol authority重放，不按名称
-`Iterator`/`next`/`Some`/`None`认定。
+`NonZeroU32` index。temporary、leaf、capture及local place保留实际类型和mutability，并在读取边界与canonical
+local table核对。表达式的类型适配、赋值规则、调用与迭代协议由前端检查；生产者保存完整typed HIR及真实声明
+引用，reader不在IR/meta crate中另维护一套operation-typing语义实现。
 
-body semantic validation还必须检查：所有expression result type和operation期望类型一致；局部声明的
-definition-before-use、可变性、pattern/action完整性与循环嵌套成立；嵌套callable descriptor的
-identity/path/role/signature/capture ABI与provider foundation一致；任何callable、constructor、type、global、
-singleton和field引用都与`references`的规范去重闭包精确相等。解码按实际输入边界和checked长度读取，
-遍历使用显式工作栈与必要的局部环检查，不累计node、edge、owned byte或semantic depth费用。
+reader检查实际格式、声明引用、provider类型及binder范围、局部数据流和跨表一致性。正文与六类引用索引
+核对一次；字段和构造器的owner及种类直接对照已解析声明。默认值的root、path与参数关系由共有声明表提供，
+来源位置只用于对应实际source/context/span。解码按实际输入边界和checked长度读取；遍历使用显式工作栈，
+必要的循环引用检查针对具体引用关系，不累计node、edge、owned byte或semantic depth费用。
 
 local data-flow pass以canonical local table的record index建立definite-definition bitset；初始集合只能包含
 `receiver`与`value_parameters`显式列出的local。可达路径上的`Local` expression、local `AddressOf`、nested
@@ -1314,127 +1313,30 @@ read不产生可观察的future-use错误，也不能恢复normal edge。wire不
 都是与table type一致的immutable record，并按source setup → source init → iterator setup → iterator call →
 conformance/next → binding actions → body的顺序建立可用性；`binding.subject`必须逐字段等于next element。
 binding action按wire顺序执行，source必须已定义，Project/Component result与Bind target只能在对应位置首次定义；
-for binding leaf必须immutable。binding shape随后作为独立证明精确消费这些action：Binding匹配唯一同source/target
+for binding leaf必须immutable。binding shape与实际action逐项对应：Binding匹配唯一同source/target
 的Bind，Tuple/Struct的每个非Wildcard子shape匹配唯一对应Project，Class component index必须从1连续且匹配
 唯一Component；一个action不能被复用，也不能游离于shape之外。不同for plan的私有temporary/setup/action
 definition、普通region definition与其他plan两两不重叠，防止同一local借由另一控制流区域获得定义。
-Struct shape只有declaration index而projection保存persistent field id；二者的对应关系由trusted foundation field
-authority返回精确index，不能按action位置、persistent id字节顺序或显示名称猜测。该查询只服务shape/action
-identity闭包；source/result type及field applied-owner关系仍由operation-typing pass独立证明。
+Struct shape只有declaration index而projection保存persistent field id；二者的对应关系从共有声明记录取得精确index，不能按action位置、persistent id字节顺序或显示名称猜测。该查询检查当前shape/action的真实引用关系，并核对field applied-owner；已验证的字段声明不重新推导。
 
 local data-flow pass的bitset、branch snapshot、definition-owner集合、shape-consumption表与显式work stack按
-实际输入创建，分配失败携带相应`WirePath`。状态转移、lookup、merge与shape/action匹配不逐项计费。该pass检查local与控制流
-关系；constructor/call/field/protocol的类型关系仍由operation-typing pass证明，nested descriptor本身的
-identity/path/signature/capture顺序仍由nested-callable ABI pass证明。
+实际输入创建，分配失败携带相应`WirePath`。状态转移、lookup、merge与shape/action匹配不逐项计费。
+该pass直接借用完整默认值模板与共有字段查询，不经重复body input、公共/私有authority适配器或第二套数据表。
 
-nested-callable ABI pass对`LocalFunction` statement、`Lambda`、`AnonymousFunction`和
-`CallableReference` expression的每一次descriptor occurrence独立重放provider ABI。它使用typed identity与`DefaultNestedCallableSiteV1`
-调用authority；authority必须从已验证的provider HIR/foundation及default-dependency closure返回非wire的
-结构化projection，至少包含exact definition path、当前template provider scope中的function type、hidden
-capture type sequence、owner type-parameter count，以及lambda/anonymous body binder的期望模式与arity。
-local function identity必须解析为lexical-scoped Function或GenericFunction declaration；三个generated identity
-必须分别解析为`Lexical/LambdaBody`、`Lexical/AnonymousFunctionBody`和
-`CallableReferenceInvoke`，不能用同为generated callable的其他role替代。authority同时区分
-`TemplateLexical`与`DefaultDependency` provenance：前者必须由validator再次检查strict-descendant关系，
-后者必须已经证明经合法default展开从当前template可达，不能用普通public lookup或reference-set membership
-冒充。
+嵌套callable直接保留正文中的实际descriptor与类型化声明。reader核对local function对应真实lexical Function
+或GenericFunction，lambda、anonymous及callable-reference对应实际generated role、parent/path与binder参数。
+局部函数引用必须对应本模板携带的声明；capture与local table的类型、可用性和可变性在局部数据流边界检查。
+诊断位置使用正文前序ordinal，不提供独立Standalone证明模式。删除没有生产实现者的nested ABI来源工厂、
+TemplateLexical/DefaultDependency资格包装、独立ABI投影以及逐descriptor比较回调。
 
-validator负责逐字段比较descriptor与projection，不能把整条检查下放为无结构的
-`validate_whole_nested_callable`布尔结果。definition path、function type、owner count、capture数量及每个
-capture的`value_type`都必须exact相等；capture source的definite-definition、不可变性和与local table的类型
-一致性仍只由local data-flow pass负责，`first_use_origin`仍由provider-envelope pass负责。lambda与anonymous
-的`Lexical` body arguments只允许authority证明body与当前template共享同一flattened provider binder
-namespace时使用；经另一个default展开或其他需要重映射的body必须使用`Explicit`，参数数量等于provider body
-binder arity。每个explicit argument已由provider-envelope pass证明处于当前template scope；authority用该有序
-substitution投影function/capture ABI后，validator再比较projection，不能只检查arity。callable-reference target
-的callee/receiver operation由operation-typing pass证明；本pass证明其invoke identity/path及生成wrapper的
-function/capture ABI，避免把同签名但不同generated role或lexical site混为一体。
+默认值的expression、statement、pattern与for操作遵循语言规范，由前端在定义处或实际代换改变事实时检查。
+后续阶段消费非可选的完整typed正文、声明签名和实际引用，不再从假想authority重建operation shape、core角色或
+principal type并重跑语言规则。真实调用、布局、ABI与GC检查仍在各自消费边界执行，不能接受缺失声明、错引用
+或不完整IR。只有测试实现的operation-typing工厂、root/origin语义工厂及其专用反例随接口一起删除。
 
-完整正文的site为`Body { ordinal }`，ordinal从0开始按descriptor的完整前序遍历递增，只计算四类nested descriptor，包含内联receiver中的descriptor；不是expression index或六类reference序号。同一次descriptor的identity与ABI查询必须携带相同site。相同persistent identity可以因同一泛型default的多次展开出现在不同site并具有不同ABI，authority须以template、site及query种类定位独立来源，不能按identity去重或只查询第一个匹配项。独立descriptor验证使用明确的`Standalone` site，不冒充正文ordinal 0；这类验证不声明正文闭包。site只属于非wire语义查询协议，不改变冻结的descriptor字段或persistent identity。ordinal推进使用checked算术，实际表示溢出为格式错误。
-
-nested-callable ABI pass与其他body pass一样使用显式work stack完整覆盖control-flow、pattern literal、assign
-target、for/binding plan及callable-reference内联receiver；lookup、capture/argument比较直接消费typed数据，
-stack按实际容量分配，错误携带所在`WirePath`。它必须在operation typing之后、reference closure之前成功，
-声明引用、shape、arity、来源关系或实际分配错误均阻止template进入canonical table。
-
-operation-typing pass把每个expression的**principal type**与wire保存的`result_type`分开。principal type是该
-operation在发生任何上下文适配前必然产生的类型：例如local table中的local类型、field declaration的value
-type、constructor的owner application或callable的result。多数node要求二者exact相等；只有operation本身不从
-`result_type`恢复目标且authority证明source/target均为reference、source是target subtype、运行时表示不变时，
-才允许principal type到`result_type`的一次zero-cost reference retype。该例外适用于local/global/singleton read、
-string literal、nominal construction、field/payload read、nested callable value及named/callable call result；
-value boxing必须有显式`Box`，function variance必须有显式`FunctionCoercion`。`Cast`、`Box`、`Unbox`、
-`ArrayLiteral`、`ArrayAssembly`、`ArrayClone`、pointer conversion、`NoneLiteral`及其他以结果类型选择目标
-operation的node禁止隐含retype；否则consumer无法从portable body无歧义地重建provider HIR。一个node即使
-允许最终retype，其child operand/argument仍必须逐结构等于operation shape要求的已适配类型。
-
-operation authority只能返回已由当前foundation、validated general interface与trusted core protocol registry
-证明的typed fact，不能接受display name、FQN、link symbol、arena ordinal或“存在于reference set”作为类型
-证明。它至少提供以下不可由body自身重建的事实：
-
-- canonical `Unit`、`Boolean`、`String`、八种integer、`Long`、`ULong`、`Array<T>`、
-  `MutableArray<T>`、`Option<T>`、`ForeignCallback<F>`、`Throwable`与callback state类型；
-- applied callable shape（effect、optional receiver、hidden capture参数、source参数和result）、constructor/
-  variant的exact owner与声明序payload、global/singleton/field的value type及可写性、function address和callback
-  registration的exact signature；
-- reference-retype、member receiver、runtime type check/cast、boxing/unboxing、concrete GC-free value等typed
-  relation，以及integer intrinsic/conversion、direct-super、iterator `next`和literal equality的exact role。
-
-validator而非authority负责比较body中的顺序、数量、type tree与operation kind；authority不得用一个无结构的
-`validate_whole_expression`布尔返回值吞掉这些检查。所有authority结果都是非wire proof DTO，不进入fingerprint。
-一次authority调用失败原样保留在typed validation error中；返回的shape不匹配则报告稳定的operation site、
-expected type和actual type。
-
-expression operation规则固定如下：
-
-| node family | principal type与operand约束 |
-|---|---|
-| literal / tuple | string、integer、boolean、unit分别是对应canonical core type；tuple必须非空，principal type是按source order组成的exact tuple |
-| local / global / singleton | principal type分别来自local table、global shape与singleton shape；global是否可写只约束assignment，读取所需的初始化/访问能力已由reference pass独立证明 |
-| struct / class / variant construction | constructor/variant shape的owner必须exact等于ref中的applied owner，argument数与类型逐项exact；`StructConstruct`按declaration field order完整消费authority返回的全部field type |
-| variant test / payload project | operand exact等于variant applied owner；test结果exact为`Boolean`，project principal type为对应declaration-index field type |
-| lambda / anonymous / callable reference | principal type为descriptor的`function_type`；descriptor identity/capture ABI仍由独立pass证明，operation pass只证明其函数类型形状及bound receiver/callee typing |
-| function coercion | source expression exact等于`source_function_type`，两端都必须是function shape且authority证明完整variance relation，result exact等于`target_function_type` |
-| pointer | `PtrFromNonZeroULong`接收`ULong`并产生exact `RawPointer<T>`；`PtrToULong`反向产生`ULong`；`PtrCast`两端均为raw pointer；load/store/offset的pointer是`RawPointer<T>`、optional offset与offset均为`Long`，load产生`T`，store产生`Unit`，offset产生原pointer type |
-| address / size / align | place type来自local/global shape且必须是concrete GC-free value；`AddressOf`产生exact `RawPointer<T>`，`SizeOf`/`AlignOf`的queried type满足同一约束并产生`ULong` |
-| function address / callback | function address exact等于authority给出的native function pointer；registration的closure exact等于managed function shape且结果为对应`ForeignCallback<F>`；retain返回同一callback type，release返回`Unit`，state返回canonical state，failure返回`Option<Throwable>` |
-| field access | tuple index必须在界内；struct receiver exact等于field applied owner；class receiver满足authority证明的member-receiver relation；principal type为field value type |
-| named method / direct-super / direct call | receiver presence、hidden capture为空、source argument数与类型及result逐项匹配applied callable shape；direct-super另须authority证明该target是当前provider的合法direct-super edge；任何suspend shape都要求template `allows_suspend=True` |
-| local-function call | declaration必须与callee的persistent declaration一致，hidden capture与source argument分别逐项匹配applied callable shape，principal type为shape result；descriptor存在性与capture identity由nested ABI pass证明 |
-| callable call | `function_type`必须是`SignatureTypeKey::Function`，callee exact等于它，argument与result按该shape逐项exact；suspend function同样受`allows_suspend`约束 |
-| box / unbox / runtime check | `Box`和`Unbox`的source/result必须分别满足authority证明的value-to-reference与reference-to-value relation；`IsInstance`产生`Boolean`；`Cast`的target由non-optional result或optional `Option<T>` payload唯一恢复，并与operand满足`could_hold` relation |
-| array | literal/result必须是exact `Array<T>`或`MutableArray<T>`且元素逐项exact为`T`；assembly result与内嵌result exact相等且必须是`Array<T>`，element part为`T`、copy part为`Array<T>`；index kind与receiver array kind一致、index为`Long`、结果为`T`；set只接受`MutableSet + MutableArray<T>`并返回`Unit`；len返回`Long`；clone在相同`T`的两种array kind之间切换 |
-| primitive / integer | string concat、string compare和boolean not使用canonical `String`/`Long`/`Boolean`；integer operation的arity、operand/result kind与operation枚举一致且target必须具有对应exact intrinsic role；conversion的operand/result分别匹配source/target integer kind且target具有exact conversion role |
-| binary / unary | `< <= > >=`是`Long, Long -> Boolean`，`&& || !`是`Boolean` operation；`=== !==`的两端都必须是authority证明可参与identity comparison的reference type，但不要求两个静态类型逐结构相等（例如`Any === Shape`合法），结果为`Boolean` |
-| option | `SomeWrap`的result exact为`Option<T>`且operand为`T`；`NoneLiteral`的result必须是某个exact `Option<T>`；`IsSome`产生`Boolean`；`Unwrap`产生operand的exact option payload type |
-
-statement/pattern operation规则与expression使用同一type relation：`Expr`不附加约束；`Return`仅在provider
-result为`Unit`时可省略value，否则value必须exact等于provider result；`ValDecl` initializer的result是pattern
-subject；assignment RHS必须exact等于target type，global/class field必须由authority证明writable，array target
-固定为`MutableArray<T>`加`Long` index；`if`/`while`/when guard都是`Boolean`；throw operand与catch type必须
-分别可赋给canonical `Throwable`。when fallback保存的subject type必须exact等于subject result，enum matrix的
-owner还必须是该subject的exact enum application。
-
-pattern从外到内消费一个exact subject type：binding local record的type exact等于subject且immutable，wildcard
-不增加约束；literal value的canonical core type、保存的`subject_type`与实际subject三者exact相等，equality
-target必须是该类型的exact equality role；tuple arity与element type逐项一致；variant owner exact等于subject且
-field index/type来自variant declaration；struct owner exact等于subject且field index/type来自struct declaration。
-`for` plan除上述普通expression/statement检查外，还证明source init/result、iterator call/result、五个temporary、
-binding action source/result和shape subject之间的exact type链；trusted protocol authority证明source到
-`Iterator<E>` conformance、`next(iterator) -> Option<E>`、Some payload与None identity。binding `Project`按tuple
-index或field shape产生对应type，`Component` call的receiver/source与result temporary匹配，`Bind`两端exact。
-
-operation-typing pass必须以显式work stack覆盖body、statement、expression、pattern、assignment target、for与
-binding plan，错误保留实际`WirePath`；不为node/edge/work/reserve/depth建立累计成本。它只消费已通过provider
-envelope与local data-flow的template，不以`unwrap`、缺省shape或后续MIR断言补救corruption；通过后才可运行
-nested-callable ABI和reference closure并把template提交到canonical table。
-
-实现可以把上述检查拆成名称明确且边界互斥的pass，但reader接受template前必须运行完整组合。其中
-provider-envelope pass遍历整棵body（包括control-flow、binding plan、pattern、嵌套callable descriptor与
-capture），验证每个内联`SignatureTypeKey`都处于definition root的provider binder scope，并验证每个内联
-`ExportDefinitionSourceV1`都属于当前Cone且命中foundation source/context/point；它不代替operation类型关系、
-local数据流、nested callable ABI或reference精确闭包检查。显式work stack按实际容量分配，类型子树与body树
-保留所在`WirePath`，长度溢出、格式错误或实际分配失败立即终止当前template读取，不提交部分结果。
+provider类型检查遍历正文、control-flow、binding plan、pattern与嵌套descriptor，检查每个SignatureTypeKey的
+真实名义声明和binder范围；来源位置直接复用共有source/context/span检查及位置收集，不另运行类型加来源的
+完整envelope重放入口。实际长度溢出、错误格式或分配失败终止当前读取，不提交部分模板。
 
 default reference closure沿用M17的六个互不兼容的typed domain，不把target压成无类型entity id：
 
@@ -1477,8 +1379,8 @@ target；它不从body形状猜出另一种target。`LocalFunction.declaration`�
 GenericFunction，并由其source declaration key重放local path；三个lexical generated variant的
 persistent key必须分别具有`LambdaBody`、`AnonymousFunctionBody`或`CallableReferenceInvoke`的精确
 root/path/role。`DerivedEquality`在winner替换前没有exact generated callable identity，所以保留
-provider-scope的`owner_type`并由type authority重放；不能为它伪造一个persistent callable id。
-`LocalFunctionCall`同时保留local declaration与applied callee引用。来源收集器按typed function identity记录当前default正文实际出现的local声明；对应callee沿该声明的可用性处理，不再次要求调用方lookup其词法private名字。普通callee、未在该正文声明的local function及其外部依赖仍使用原有访问域规则。reader的nested declaration/use闭包和operation typing继续核对该local declaration与callee的对应关系，不能把任意lexical key视为Universal。
+provider-scope的`owner_type`并在实际类型实例化时使用；不能为它伪造一个persistent callable id。
+`LocalFunctionCall`同时保留local declaration与applied callee引用。来源收集器按typed function identity记录当前default正文实际出现的local声明；对应callee沿该声明的可用性处理，不再次要求调用方lookup其词法private名字。普通callee、未在该正文声明的local function及其外部依赖仍使用原有访问域规则。前端核对local declaration与callee的对应关系；reader检查该声明确实存在于正文，不能只因引用了一个lexical key就省略实际声明。
 constructor、field与type target保留完整applied/structural ref，因此同一declaration的不同
 provider-scope application不会被错误合并。tuple field是合法的structural `DefaultFieldRefV1`，不为它
 制造persistent field id。

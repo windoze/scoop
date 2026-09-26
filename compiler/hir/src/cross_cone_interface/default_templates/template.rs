@@ -25,13 +25,6 @@ use crate::{
     ExportDefinitionSourceV1,
 };
 
-mod semantics;
-
-pub use semantics::{
-    DefaultTemplateOriginSemanticAuthority, ExportDefaultTemplateContractSemanticValidationError,
-    ExportDefaultTemplateOriginSemanticValidationError,
-};
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExportDefaultTemplateV1 {
     key: ExportDefaultTemplateKeyV1,
