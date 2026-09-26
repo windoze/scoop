@@ -3,7 +3,6 @@ use super::*;
 #[derive(Debug)]
 pub enum DefaultSourceTargetSubjectError {
     Resource(WireError),
-    Foundation(TypeFoundationBindingError),
     Encoding(scoop_wire::cbor::EncodeError),
     Identity(SourceDeclarationIdentityError),
     IdentityLookup(IdentityReferenceError),
@@ -45,19 +44,10 @@ impl From<WireError> for Error {
         Self::Resource(error)
     }
 }
-impl From<TypeFoundationBindingError> for Error {
-    fn from(error: TypeFoundationBindingError) -> Self {
-        match error {
-            TypeFoundationBindingError::Resource(error) => Self::Resource(error),
-            other => Self::Foundation(other),
-        }
-    }
-}
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Resource(e) => e.fmt(f),
-            Self::Foundation(e) => e.fmt(f),
             Self::Encoding(e) => e.fmt(f),
             Self::Identity(e) => e.fmt(f),
             Self::IdentityLookup(e) => e.fmt(f),

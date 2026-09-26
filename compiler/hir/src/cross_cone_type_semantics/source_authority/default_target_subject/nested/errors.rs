@@ -3,7 +3,6 @@ use super::*;
 #[derive(Debug)]
 pub enum DefaultNestedIdentityValidationError {
     Resource(WireError),
-    Foundation(TypeFoundationBindingError),
     Identity {
         identity: DefaultNestedCallableIdentityV1,
         reason: DefaultSourceNestedIdentityFailureV1,
@@ -18,7 +17,6 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Resource(error) => error.fmt(f),
-            Self::Foundation(error) => error.fmt(f),
             Self::Identity { identity, reason } => {
                 write!(f, "default nested identity {identity:?}: {reason:?}")
             }
@@ -29,7 +27,6 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Resource(error) => Some(error),
-            Self::Foundation(error) => Some(error),
             Self::Identity { .. } => None,
         }
     }

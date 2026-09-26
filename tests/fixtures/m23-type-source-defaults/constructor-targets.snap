@@ -1,6 +1,0 @@
-packet: Constructor [Cone, File]; generic 0
-packetSecondary: Constructor [Cone, File]; generic 0
-cell: Constructor [Cone]; generic 0
-Cell.nested: Constructor [Cone, SubclassesOf]; generic 0
-choice: Type [Cone]; generic 0
-Hidden.nested: Constructor [Cone, LexicalOwner]; generic 0

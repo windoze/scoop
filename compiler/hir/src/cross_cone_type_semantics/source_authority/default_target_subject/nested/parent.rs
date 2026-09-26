@@ -59,7 +59,6 @@ fn variant(
 ) -> Result<(), Error> {
     let canonical = foundation.foundation.as_canonical();
     let key = key(
-        foundation,
         canonical.type_source_enum_variant_records(),
         variant,
         identity,

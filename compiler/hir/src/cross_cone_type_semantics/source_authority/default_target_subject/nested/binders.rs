@@ -54,7 +54,7 @@ impl<'f> Arity<'_, 'f> {
         I: PersistentId + 'static,
         K: CborIdentityKey<I> + Eq + Clone + Send + Sync + 'static,
     {
-        key(self.foundation, records, id, self.identity)
+        key(records, id, self.identity)
     }
     fn callable(&mut self, owner: CallableTemplateOwner) -> Result<u32, Error> {
         let canonical = self.foundation.foundation.as_canonical();

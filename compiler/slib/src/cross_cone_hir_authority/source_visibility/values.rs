@@ -25,7 +25,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 .map(|entry| entry.foundation)
                 .ok_or(Error::UnreachableProvider { origin: provider })?
         };
-        let query = DefaultTargetIdentityQueriesV1::new(provider, foundation, self.identities);
+        let query = DefaultTargetIdentityQueriesV1::new(provider, foundation);
         let subject = match target {
             Target::Constructor(target) => query.default_constructor_access_subject(target)?,
             Target::Global(id) => query.default_global_access_subject(id)?,

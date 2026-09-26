@@ -1,10 +1,8 @@
 //! Artifact-owned identity routes to declarations governing indirect accesses.
-use super::binding_keys;
 use crate::*;
 use scoop_identity::{DefinitionOriginSubject as Subject, *};
 use scoop_wire::{WireError, WirePath};
 mod applied_fields;
-mod bound;
 mod callables;
 mod constructors;
 mod errors;
@@ -20,24 +18,17 @@ pub use errors::DefaultSourceTargetSubjectError;
 pub use nested::{DefaultNestedIdentityValidationError, DefaultSourceNestedIdentityFailureV1};
 type Error = DefaultSourceTargetSubjectError;
 
-/// Borrowed identity routes for default targets. The foundation and identity
-/// graph are the original artifact data; this query supplies no access proof.
+/// Declaration queries over the provider's already validated foundation.
 pub struct DefaultTargetIdentityQueriesV1<'f> {
     provider: ConeIdentity,
     foundation: &'f OdrFreeHirFoundation,
-    identities: &'f ValidatedIdentityGraph,
 }
 
 impl<'f> DefaultTargetIdentityQueriesV1<'f> {
-    pub const fn new(
-        provider: ConeIdentity,
-        foundation: &'f OdrFreeHirFoundation,
-        identities: &'f ValidatedIdentityGraph,
-    ) -> Self {
+    pub const fn new(provider: ConeIdentity, foundation: &'f OdrFreeHirFoundation) -> Self {
         Self {
             provider,
             foundation,
-            identities,
         }
     }
 }
@@ -51,6 +42,15 @@ pub enum DefaultSourceIndirectTargetV1 {
     EnumVariant(PersistentEnumVariantId),
     Singleton(PersistentObjectValueId),
 }
+/// Actual value targets whose access is checked at their declaration.
+#[derive(Clone, Copy, Debug)]
+pub enum DefaultSourceValueTargetV1<'a> {
+    Constructor(&'a DefaultConstructorRefV1),
+    Global(PersistentPropertyId),
+    Singleton(PersistentObjectValueId),
+    Field(&'a DefaultFieldRefV1),
+}
+
 type Target = DefaultSourceIndirectTargetV1;
 
 impl DefaultTargetIdentityQueriesV1<'_> {

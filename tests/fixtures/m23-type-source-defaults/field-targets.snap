@@ -1,4 +1,0 @@
-packet: Type [Cone, File]; generic 0
-Cell.read: Property [Cone, LexicalOwner]; generic 0
-Cache.read: Property [Cone, LexicalOwner]; generic 0
-tuple: TupleElement 0

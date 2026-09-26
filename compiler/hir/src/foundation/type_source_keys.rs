@@ -13,10 +13,6 @@ impl CanonicalHirFoundation {
         &self.enum_variants
     }
 
-    pub(crate) fn type_source_enum_variant_field_records(&self) -> &[EnumVariantFieldRecord] {
-        &self.enum_variant_fields
-    }
-
     pub(crate) fn type_source_object_value_records(&self) -> &[ObjectValueRecord] {
         &self.object_values
     }
@@ -25,6 +21,7 @@ impl CanonicalHirFoundation {
         &self.constructors
     }
 
+    #[cfg(test)]
     pub(crate) fn type_source_exact_records(&self) -> &[ExactTypeRecord] {
         &self.exact_types
     }

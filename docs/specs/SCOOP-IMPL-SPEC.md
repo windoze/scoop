@@ -10,6 +10,8 @@
 
 MIR 的普通直接 callable 与需要独立 lowering 表示的 callable 按 typed implementation 共用借用查询，dispatch 和 boxing 直接读取实际记录。每个定义只保存一份导出；删除禁止跨历史分区引用的资格限制和专用身份名单，保留重复定义、类型、签名、effect 与 provider 一致性检查。
 
+旧 `TypeFoundationSourceAuthorityV1`、`TypeDeclarationSourceAuthorityV1` 及仅供它们使用的 `Bound*` 绑定链退役。生产 reader 和前端继续使用现有共有声明表、typed identity 查询与完整 IR；移除这些 transcript 的独立编码器、逆向重建入口、无生产用途的重复来源表及专用测试与快照。`source_authority` 中确有生产调用的默认参数数据、可见性数据和身份查询按实际职责保留，不以新工厂或资格状态机替代被删除的代码。
+
 LIR dispatch 同样查询实际 provider 的普通或专用 lowering callable ABI，校验调用约定、完整签名与 receiver 表示后保留 typed implementation/body 引用；每个 slot 不再保存一份完整 callee ABI。布局依赖闭包沿共有导出查询真实类型，普通记录只编码于其原表。reader 在布局完成后先检查普通 ABI，再供 dispatch 和后续 Link 消费，不因表的位置重复重建或验证同一 ABI。
 
 共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。 依赖查询直接使用真实 `ConeIdentity` 与 callable、property、type-alias 的类型化声明 ID；选择集合按这些 ID 保存完整接口和实际依赖路径。删除独立 world/projection/selection 品牌、仅为品牌服务的计数器和错误，以及从声明 ID 再映射到局部 u32 的三套重复表。候选选择依照当前依赖目录中的实际声明与表示，不要求由同一查询实例铸造；直接依赖的名称可见性、转导出路径、实际 provider 和引用完整性继续按共有规则检查。HIR 候选和已选声明只保存实际 provider ID，不逐项复制 artifact 坐标/fingerprint 凭证；HIR→MIR 使用同次编译的依赖快照及完整声明，核对实际定义和签名，不再次比较来源凭证。普通构建依赖记录与缓存 fingerprint 继续承担定位和失效职责。MIR 外部 callable 引用保存实际 provider 与类型化声明，不另映射到带会话品牌的局部编号；调用位置保留 GC effect。MIR 类型与 LIR layout/ABI 选择按实际 provider 和 typed target 直接返回完整记录，不先铸造并验证中间 handle；依赖闭包、类型、ABI、物理引用和 GC 契约仍在其消费边界检查。同一声明或 target 在另一选择集合中是否存在，按实际目录查询决定，不依据集合生成顺序或计数器。该进程内数据简化不改变 wire/profile、实体身份或 runtime ABI。

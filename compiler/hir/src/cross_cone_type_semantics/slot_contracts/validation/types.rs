@@ -93,21 +93,6 @@ pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
     Ok(())
 }
 
-impl crate::NominalRepresentationSupportV1 {
-    /// Uses the same exact/source type relation as callable contracts. The
-    /// source sequence is retained in declaration order by representation data.
-    pub(in crate::cross_cone_type_semantics) fn validate_exact_field_types<
-        A: NominalInheritanceSemanticAuthority<E>,
-        E,
-    >(
-        source: &[SignatureTypeKey],
-        exact: &[PersistentExactTypeId],
-        authority: &A,
-    ) -> Result<(), Error<E>> {
-        match_parameters(source, exact, authority)
-    }
-}
-
 fn push<'s, E>(
     pending: &mut Vec<(&'s SignatureTypeKey, PersistentExactTypeId)>,
     source: &'s [SignatureTypeKey],

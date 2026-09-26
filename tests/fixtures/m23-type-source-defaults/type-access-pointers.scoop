@@ -1,7 +1,0 @@
-private fun raw(first: Ptr<Unit>, value: Ptr<Unit> = first): Ptr<Unit> = value
-private fun native(first: FunPtr<(Int) -> Int>, value: FunPtr<(Int) -> Int> = first): FunPtr<(Int) -> Int> = value
-private fun <T : value> genericPointer(first: Ptr<T>, value: Ptr<T> = first): Ptr<T> = value
-private fun combinedPointers(
-    first: (Ptr<Int>, FunPtr<(Ptr<Unit>) -> Unit>, Ptr<Ptr<Int>>),
-    value: (Ptr<Int>, FunPtr<(Ptr<Unit>) -> Unit>, Ptr<Ptr<Int>>) = first
-): (Ptr<Int>, FunPtr<(Ptr<Unit>) -> Unit>, Ptr<Ptr<Int>>) = value

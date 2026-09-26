@@ -31,7 +31,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                             .map(|entry| entry.foundation)
                             .ok_or(Error::UnreachableProvider(provider))?
                     };
-                    DefaultTargetIdentityQueriesV1::new(provider, foundation, self.identities)
+                    DefaultTargetIdentityQueriesV1::new(provider, foundation)
                         .validate_nested_callable_identity(occurrence.descriptor(), origin, &path)
                         .map_err(|source| Error::Occurrence {
                             site: occurrence.site(),

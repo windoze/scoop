@@ -1,4 +1,0 @@
-Base.state: RuntimeAccessor, slots=2
-Base.value: RuntimeAccessor, slots=1
-Middle.state: AbstractSlot, slots=2
-Middle.value: AbstractSlot, slots=1

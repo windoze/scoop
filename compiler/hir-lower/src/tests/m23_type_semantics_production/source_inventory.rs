@@ -43,61 +43,6 @@ pub(super) fn core_identity_closure() -> ValidatedIdentityGraph {
 }
 
 #[test]
-fn ordinary_source_inventories_resolve_against_real_foundation_bytes() {
-    let output = lower_public_nominals();
-    let public = public_interface(&output);
-    let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    let source = production.foundation();
-    let mut identities = identity_closure(&output);
-
-    let roots = hir::CanonicalSourceNominalIdsV1::try_new(source.source_roots().to_vec()).unwrap();
-    let roots = decoded::<hir::DecodedCanonicalSourceNominalIdsV1>(&roots)
-        .resolve(&mut identities)
-        .unwrap();
-    assert_eq!(roots.values(), source.source_roots());
-
-    let nominals = hir::CanonicalTypeSourceNominalsV1::try_new(
-        source
-            .source_nominals()
-            .map(|(owner, access)| hir::TypeSourceNominalV1::new(owner, access.clone()))
-            .collect(),
-    )
-    .unwrap();
-    let restored = decoded::<hir::DecodedCanonicalTypeSourceNominalsV1>(&nominals)
-        .resolve(&mut identities)
-        .unwrap();
-    assert_eq!(restored, nominals);
-    assert_eq!(restored.records().len(), roots.values().len());
-
-    let dependencies =
-        hir::CanonicalTypeSectionDependencyFactsV1::try_new(source.dependency_facts().to_vec())
-            .unwrap();
-    let dependencies = decoded::<hir::DecodedCanonicalTypeSectionDependencyFactsV1>(&dependencies)
-        .resolve(&mut identities)
-        .unwrap();
-    assert_eq!(dependencies.records(), source.dependency_facts());
-
-    let edges =
-        hir::CanonicalNominalInheritanceEdgesV1::try_new(source.local_inheritance_edges().to_vec())
-            .unwrap();
-    let edges = decoded::<hir::DecodedCanonicalNominalInheritanceEdgesV1>(&edges)
-        .resolve(&mut identities)
-        .unwrap();
-    assert_eq!(edges.records(), source.local_inheritance_edges());
-    let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(
-        edges.records().iter(),
-        roots.values().iter().copied(),
-        source,
-    )
-    .unwrap();
-    for record in production.section().inheritance().records() {
-        graph
-            .validate_nominal_domains(record.owner(), record.domains())
-            .unwrap();
-    }
-}
-
-#[test]
 fn inheritance_inventory_is_independently_projected_before_candidate_and_survives_bytes() {
     let output = lower_public_nominals();
     let public = public_interface(&output);

@@ -12,8 +12,7 @@ impl<'a> Query<'_, 'a> {
             self.authority.identities,
         )?;
         let foundation = self.foundation(provider)?;
-        let query =
-            DefaultTargetIdentityQueriesV1::new(provider, foundation, self.authority.identities);
+        let query = DefaultTargetIdentityQueriesV1::new(provider, foundation);
         let subject = match declaration {
             CallableTemplateOrigin::Function(id) => DefinitionOriginSubject::Function(id),
             CallableTemplateOrigin::GenericFunction(id) => {
@@ -85,8 +84,7 @@ impl<'a> Query<'_, 'a> {
             self.authority.identities,
         )?;
         let foundation = self.foundation(provider)?;
-        let query =
-            DefaultTargetIdentityQueriesV1::new(provider, foundation, self.authority.identities);
+        let query = DefaultTargetIdentityQueriesV1::new(provider, foundation);
         Ok(*query.source_dispatch_slot_key(slot)?)
     }
 }

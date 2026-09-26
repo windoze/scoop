@@ -1,3 +1,0 @@
-public struct CoreOdrZero()
-public open class CoreOdrBox<T>(val item: T)
-public class CoreOdrEntry: CoreOdrBox<CoreOdrZero>(CoreOdrZero())

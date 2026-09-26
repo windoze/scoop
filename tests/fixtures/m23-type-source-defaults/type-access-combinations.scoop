@@ -1,8 +1,0 @@
-internal class Envelope<T> {
-    protected struct Nested<U>(val value: U)
-
-    private fun <U> combined(
-        first: (Nested<T>, (U) -> T),
-        value: (Nested<T>, (U) -> T) = first
-    ): (Nested<T>, (U) -> T) = value
-}

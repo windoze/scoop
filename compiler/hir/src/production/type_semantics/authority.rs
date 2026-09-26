@@ -8,8 +8,6 @@ use scoop_identity::{
 
 use crate::*;
 
-mod transcript;
-
 /// Independent HIR evidence used to validate the produced M23-6 foundation
 /// tables. None of these lookups read the candidate type-semantics section.
 #[derive(Clone, Debug)]

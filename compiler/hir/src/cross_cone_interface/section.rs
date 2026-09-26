@@ -431,6 +431,3 @@ impl<E: std::error::Error + 'static> std::error::Error for CrossConeHirInterface
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-pub(crate) use semantic_validation::EmptyAuthority;

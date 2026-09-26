@@ -46,7 +46,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 .map(|entry| entry.foundation)
                 .ok_or(DeclarationError::UnreachableProvider { origin: provider })?
         };
-        let query = DefaultTargetIdentityQueriesV1::new(provider, foundation, self.identities);
+        let query = DefaultTargetIdentityQueriesV1::new(provider, foundation);
         match query.default_callable_access_subject_view(target)? {
             Access::Declaration(subject) => {
                 let key = query.source_declaration_key(subject)?;

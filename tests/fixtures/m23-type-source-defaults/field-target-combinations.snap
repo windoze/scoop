@@ -1,4 +1,0 @@
-Envelope.packet: GenericType [Cone]; generic 1
-Envelope.Cell.read: Property [Cone, LexicalOwner]; generic 1
-Envelope.Cache.read: Property [Cone, LexicalOwner]; generic 0
-Envelope.tuple: TupleElement 0

@@ -33,14 +33,10 @@ impl DefaultTargetIdentityQueriesV1<'_> {
         let (key_path, parent) = match identity {
             Identity::LocalFunction(declaration) => {
                 let key = match declaration {
-                    CallableTemplateOrigin::Function(id) => key(
-                        foundation,
-                        canonical.type_source_function_records(),
-                        id,
-                        identity,
-                    )?,
+                    CallableTemplateOrigin::Function(id) => {
+                        key(canonical.type_source_function_records(), id, identity)?
+                    }
                     CallableTemplateOrigin::GenericFunction(id) => key(
-                        foundation,
                         canonical.type_source_generic_function_records(),
                         id,
                         identity,
@@ -56,7 +52,6 @@ impl DefaultTargetIdentityQueriesV1<'_> {
             | Identity::AnonymousFunction(id)
             | Identity::CallableReference(id) => {
                 let key = key(
-                    foundation,
                     canonical.type_source_generated_callable_records(),
                     id,
                     identity,
@@ -115,12 +110,7 @@ fn local_path<'k>(
     Ok(definition_path)
 }
 
-fn key<'k, I, K>(
-    foundation: &DefaultTargetIdentityQueriesV1<'_>,
-    records: &'k [CborIdentityRecord<I, K>],
-    id: I,
-    identity: Identity,
-) -> Result<&'k K, Error>
+fn key<I, K>(records: &[CborIdentityRecord<I, K>], id: I, identity: Identity) -> Result<&K, Error>
 where
     I: PersistentId + 'static,
     K: CborIdentityKey<I> + Eq + Clone + Send + Sync + 'static,
@@ -131,7 +121,6 @@ where
         .iter()
         .find(|r| r.id() == id)
         .ok_or_else(|| failure(identity, Failure::MissingArtifactRecord))?;
-    binding_keys::verify(id, record.key(), foundation.identities).map_err(Error::Foundation)?;
     Ok(record.key())
 }
 fn failure(identity: Identity, reason: Failure) -> Error {

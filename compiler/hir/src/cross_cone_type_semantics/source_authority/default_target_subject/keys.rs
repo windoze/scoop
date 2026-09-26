@@ -17,8 +17,7 @@ impl<'f> DefaultTargetIdentityQueriesV1<'f> {
         )
     }
 
-    /// Borrows the provider's actual source key and checks it against the same
-    /// identity graph used for the target route. An accessor borrows its logical
+    /// Borrows the provider's already validated source key. An accessor uses its logical
     /// property's lexical key; visibility still belongs to the accessor itself.
     pub fn source_declaration_key(
         &self,
@@ -71,7 +70,6 @@ impl<'f> Query<'_, 'f> {
             .find(|record| record.id() == id)
             .ok_or_else(missing)?;
         let key = record.key();
-        binding_keys::verify(id, key, self.foundation.identities)?;
         Ok(key)
     }
 

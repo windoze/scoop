@@ -1,6 +1,0 @@
-ReceiverHost.ownField: Field expression 0; this true; super false
-ReceiverHost.implicit: Callable expression 1; this false; super false
-ReceiverHost.explicit: Callable expression 1; this false; super false
-ReceiverHost.field: Field expression 0; this false; super false
-ReceiverHost.parent: Callable expression 1; this false; super true
-ReceiverHost.construct: Constructor expression 2

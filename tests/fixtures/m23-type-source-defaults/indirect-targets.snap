@@ -1,5 +1,0 @@
-StructField -> Type: [Cone, File]; generic 0
-ClassField -> Property: [Cone, LexicalOwner]; generic 0
-ClassField -> Property: [Cone, LexicalOwner]; generic 0
-EnumVariant -> Type: [Cone]; generic 0
-Singleton -> Type: [Cone]; generic 0
