@@ -7,16 +7,13 @@ use crate::{
     DirectImportedTargetBinding, HirDependencyCallReasonV1, HirDependencyCallSiteV1,
 };
 
-pub(super) enum PendingCallSite<'a> {
-    Source {
-        position: crate::concrete::ExecutableExpressionPosition,
-        origin: ConcreteExpressionOrigin,
-        arguments: Vec<PersistentExactTypeId>,
-        result: PersistentExactTypeId,
-        receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
-        binding: Option<&'a DirectImportedTargetBinding>,
-    },
-    Runtime(HirDependencyCallSiteV1),
+pub(super) struct PendingCallSite<'a> {
+    position: crate::concrete::ExecutableExpressionPosition,
+    origin: ConcreteExpressionOrigin,
+    arguments: Vec<PersistentExactTypeId>,
+    result: PersistentExactTypeId,
+    receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
+    binding: Option<&'a DirectImportedTargetBinding>,
 }
 
 pub(super) fn project<'a, E>(
@@ -56,7 +53,7 @@ pub(super) fn project<'a, E>(
             .map(|identity| identity.id())
             .ok_or(Error::ExpressionType { position, ty })
     })?;
-    Ok(PendingCallSite::Source {
+    Ok(PendingCallSite {
         position,
         origin,
         arguments,
@@ -72,17 +69,14 @@ impl PendingCallSite<'_> {
         witnesses: &CanonicalDependencyBindingWitnessesV1,
     ) -> Result<HirDependencyCallSiteV1, ExternalHirReferenceProductionError<E>> {
         use ExternalHirReferenceProductionError as Error;
-        let (position, origin, arguments, result, receiver, binding) = match self {
-            Self::Source {
-                position,
-                origin,
-                arguments,
-                result,
-                receiver,
-                binding,
-            } => (position, origin, arguments, result, receiver, binding),
-            Self::Runtime(site) => return Ok(site),
-        };
+        let Self {
+            position,
+            origin,
+            arguments,
+            result,
+            receiver,
+            binding,
+        } = self;
         let Some(binding) = binding else {
             return HirDependencyCallSiteV1::try_new_with_reason(
                 position,

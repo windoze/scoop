@@ -16,7 +16,6 @@ use crate::{
 
 mod declaration_types;
 mod finish;
-mod runtime_calls;
 mod type_sites;
 
 struct PendingReference<'a> {

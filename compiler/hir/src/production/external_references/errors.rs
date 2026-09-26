@@ -21,8 +21,6 @@ pub enum ExternalHirReferenceProductionError<E> {
     DeclarationType(crate::concrete::TypeId),
     ConflictingDeclarationType(crate::HirDependencyTypePositionV1),
     MissingLocalValue,
-    RuntimeConstructor(crate::ImportedCoreProtocolCallableDefinition),
-    RuntimeExact(String),
     ExpressionType {
         position: crate::concrete::ExecutableExpressionPosition,
         ty: crate::concrete::TypeId,
@@ -82,13 +80,6 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceProductionError<E> {
             Self::MissingLocalValue => {
                 formatter.write_str("actual constructor local has no persistent identity")
             }
-            Self::RuntimeConstructor(definition) => {
-                write!(formatter, "invalid runtime constructor {definition:?}")
-            }
-            Self::RuntimeExact(error) => write!(
-                formatter,
-                "invalid runtime construction exact type: {error}"
-            ),
             Self::ExpressionType { position, ty } => write!(
                 formatter,
                 "expression {position:?} has no exact identity for type {ty:?}"

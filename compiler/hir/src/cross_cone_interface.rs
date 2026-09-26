@@ -269,8 +269,8 @@ pub use external_references::{
     HirDependencyCallSiteResolver, HirDependencyCallSiteV1, HirDependencyTypePositionV1,
     HirDependencyTypeRelationError, HirDependencyTypeSiteBuildError,
     HirDependencyTypeSiteResolutionError, HirDependencyTypeSiteResolver, HirDependencyTypeSiteV1,
-    HirExpressionTypeRoleV1, HirExpressionTypeSiteV1, HirRuntimeConstructorError,
-    HirTypeSiteExactError, collect_type_site_nominals,
+    HirExpressionTypeRoleV1, HirExpressionTypeSiteV1, HirTypeSiteExactError,
+    collect_type_site_nominals,
 };
 pub use nominal_callables::{
     NominalCallableClassificationError, NominalExactLeafClassifierBuildError,

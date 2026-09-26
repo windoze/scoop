@@ -8,16 +8,13 @@ use crate::concrete::ExecutableExpressionPosition;
 mod decode;
 mod errors;
 mod reason;
-mod runtime;
 mod source;
 mod table;
 #[cfg(test)]
 mod tests;
 pub use decode::{DecodedHirDependencyCallSiteV1, HirDependencyCallSiteResolver};
 pub use errors::{HirDependencyCallSiteBuildError, HirDependencyCallSiteResolutionError};
-use reason::DecodedHirDependencyCallReasonV1;
 pub use reason::HirDependencyCallReasonV1;
-pub use runtime::HirRuntimeConstructorError;
 pub use source::HirDependencyCallSignatureError;
 pub use table::{CanonicalHirDependencyCallSitesV1, DecodedCanonicalHirDependencyCallSitesV1};
 #[cfg(test)]
@@ -60,21 +57,12 @@ impl HirDependencyCallSiteV1 {
         reason: HirDependencyCallReasonV1,
         receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
     ) -> Result<Self, HirDependencyCallSiteBuildError> {
-        if receiver.has_receiver() {
-            if matches!(reason, HirDependencyCallReasonV1::CastFailure { .. }) {
-                return Err(HirDependencyCallSiteBuildError::RuntimeReceiver);
-            }
-            if arguments.is_empty() {
-                return Err(HirDependencyCallSiteBuildError::MissingReceiverArgument);
-            }
+        if receiver.has_receiver() && arguments.is_empty() {
+            return Err(HirDependencyCallSiteBuildError::MissingReceiverArgument);
         }
         match &reason {
             HirDependencyCallReasonV1::SourceBinding(indices) => validate_witness_indices(indices),
-            HirDependencyCallReasonV1::CastFailure { .. } if !arguments.is_empty() => {
-                Err(HirDependencyCallSiteBuildError::RuntimeArguments)
-            }
-            HirDependencyCallReasonV1::CastFailure { .. }
-            | HirDependencyCallReasonV1::SourceDeclaration => Ok(()),
+            HirDependencyCallReasonV1::SourceDeclaration => Ok(()),
         }?;
         Ok(Self {
             position,
@@ -109,8 +97,7 @@ impl HirDependencyCallSiteV1 {
     pub fn witness_indices(&self) -> &[u32] {
         match &self.reason {
             HirDependencyCallReasonV1::SourceBinding(indices) => indices,
-            HirDependencyCallReasonV1::CastFailure { .. }
-            | HirDependencyCallReasonV1::SourceDeclaration => &[],
+            HirDependencyCallReasonV1::SourceDeclaration => &[],
         }
     }
 

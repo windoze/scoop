@@ -4,7 +4,6 @@ use super::*;
 pub enum HirDependencyCallSignatureError {
     Resource(WireError),
     Type(Box<SharedTypeMetadataError>),
-    Reason,
     Target(ExternalHirTargetV1),
     Declaration(CallableTemplateOrigin),
     GenericDeclaration(CallableTemplateOrigin),
@@ -44,9 +43,6 @@ impl std::fmt::Display for HirDependencyCallSignatureError {
         match self {
             Self::Resource(error) => error.fmt(f),
             Self::Type(error) => error.fmt(f),
-            Self::Reason => {
-                f.write_str("source signature check requires an actual source-binding call")
-            }
             Self::Target(target) => write!(
                 f,
                 "source call target {target:?} is not a concrete source callable"

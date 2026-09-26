@@ -28,7 +28,6 @@ pub enum SharedTypeMetadataError {
         receiver: crate::SourceCallReceiver<PersistentExactTypeId>,
         expected: PersistentExactTypeId,
     },
-    RuntimeConstructor(Box<crate::HirRuntimeConstructorError>),
     TypeUseInventory,
     SourceOnlyNominal(PersistentTypeId),
     MissingNominal(PersistentTypeId),

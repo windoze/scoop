@@ -1,7 +1,7 @@
 use scoop_identity::{CallableTemplateOrigin, PersistentExactTypeId, SignatureTypeKey};
 use scoop_wire::WireError;
 
-use super::{HirDependencyCallReasonV1, HirDependencyCallSiteV1};
+use super::HirDependencyCallSiteV1;
 use crate::{
     CallableDeclarationRecordV1, ExternalHirTargetV1, SharedTypeMetadataError,
     SharedTypeMetadataV1, SourceNominalId,
@@ -23,13 +23,6 @@ impl HirDependencyCallSiteV1 {
     ) -> Result<&'a CallableDeclarationRecordV1, HirDependencyCallSignatureError> {
         use HirDependencyCallSignatureError as Error;
 
-        if !matches!(
-            self.reason(),
-            HirDependencyCallReasonV1::SourceBinding(_)
-                | HirDependencyCallReasonV1::SourceDeclaration
-        ) {
-            return Err(Error::Reason);
-        }
         let ExternalHirTargetV1::Callable(
             declaration @ (CallableTemplateOrigin::Function(_)
             | CallableTemplateOrigin::Accessor(_)

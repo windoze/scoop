@@ -14,7 +14,6 @@ pub enum ExternalHirReferenceRoleV1 {
     ConcreteSelectedUse,
     InheritanceDependency,
     ExecutableTypeDependency,
-    RuntimeOperationDependency,
 }
 
 impl ExternalHirReferenceRoleV1 {
@@ -27,7 +26,6 @@ impl ExternalHirReferenceRoleV1 {
             | Self::ConstType
             | Self::InheritanceDependency
             | Self::ExecutableTypeDependency
-            | Self::RuntimeOperationDependency
             | Self::DefaultDependency => false,
         }
     }
@@ -44,7 +42,6 @@ impl WireEncode for ExternalHirReferenceRoleV1 {
             Self::ConcreteSelectedUse => 6,
             Self::InheritanceDependency => 7,
             Self::ExecutableTypeDependency => 8,
-            Self::RuntimeOperationDependency => 9,
         })
     }
 }
@@ -60,7 +57,6 @@ impl WireDecode for ExternalHirReferenceRoleV1 {
             6 => Ok(Self::ConcreteSelectedUse),
             7 => Ok(Self::InheritanceDependency),
             8 => Ok(Self::ExecutableTypeDependency),
-            9 => Ok(Self::RuntimeOperationDependency),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),

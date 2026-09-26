@@ -179,24 +179,3 @@ fn source_call_requires_the_target_declaration_in_its_provider() {
         Err(HirDependencyCallSignatureError::Declaration(_))
     ));
 }
-
-#[test]
-fn source_signature_cannot_substitute_for_runtime_role_validation() {
-    let fixture = Fixture::simple();
-    let site = fixture.call(0, Vec::new(), unit_exact());
-    let runtime = HirDependencyCallSiteV1::try_new_with_reason(
-        site.position(),
-        site.origin().clone(),
-        Vec::new(),
-        unit_exact(),
-        HirDependencyCallReasonV1::CastFailure {
-            checked_type: bool_exact(),
-        },
-        crate::SourceCallReceiver::NoReceiver,
-    )
-    .unwrap();
-    assert!(matches!(
-        validate(&fixture, &runtime),
-        Err(HirDependencyCallSignatureError::Reason)
-    ));
-}

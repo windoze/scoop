@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v26_requires_explicit_reference_upcasts() {
+fn source_interface_v27_retires_runtime_call_proof_tags() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        26,
+        27,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

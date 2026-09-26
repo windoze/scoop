@@ -3,14 +3,11 @@
 use scoop_hir::concrete::ExecutableExpressionPosition;
 use scoop_hir::{
     DefinitionSourceLocationValidationError, ExecutableEvaluationValidationError,
-    HirDependencyCallReasonV1, HirDependencyCallSignatureError, SharedTypeMetadataV1,
+    HirDependencyCallSignatureError, SharedTypeMetadataV1,
 };
 use scoop_wire::WireError;
 
 use super::*;
-
-mod runtime;
-pub use runtime::CrossConeHirRuntimeCallError;
 
 impl HirInterfaceValidationInput<'_> {
     pub(crate) fn call_sites(
@@ -20,40 +17,26 @@ impl HirInterfaceValidationInput<'_> {
         for reference in self.interface.external_references().records() {
             for site in reference.call_sites().records() {
                 self.executable_origin(site.position(), site.origin(), dependencies)?;
-                match site.reason() {
-                    HirDependencyCallReasonV1::SourceBinding(_)
-                    | HirDependencyCallReasonV1::SourceDeclaration => {
-                        let provider = dependencies
-                            .iter()
-                            .find(|provider| provider.identity == reference.origin())
-                            .ok_or(CrossConeHirCallSiteOriginError::UnreachableTarget {
-                                position: site.position(),
-                                provider: reference.origin(),
-                            })?;
-                        site.validate_source_signature(
-                            reference.target(),
-                            SharedTypeMetadataV1 {
-                                provider: provider.identity,
-                                identities: provider.identities,
-                                foundation: provider.foundation,
-                                public: provider.interface,
-                            },
-                        )
-                        .map_err(|source| {
-                            CrossConeHirCallSiteOriginError::Signature {
-                                position: site.position(),
-                                source: Box::new(source),
-                            }
-                        })?;
-                    }
-                    HirDependencyCallReasonV1::CastFailure { .. } => {
-                        self.runtime_call(reference, site, dependencies)
-                            .map_err(|source| CrossConeHirCallSiteOriginError::Runtime {
-                                position: site.position(),
-                                source: Box::new(source),
-                            })?;
-                    }
-                }
+                let provider = dependencies
+                    .iter()
+                    .find(|provider| provider.identity == reference.origin())
+                    .ok_or(CrossConeHirCallSiteOriginError::UnreachableTarget {
+                        position: site.position(),
+                        provider: reference.origin(),
+                    })?;
+                site.validate_source_signature(
+                    reference.target(),
+                    SharedTypeMetadataV1 {
+                        provider: provider.identity,
+                        identities: provider.identities,
+                        foundation: provider.foundation,
+                        public: provider.interface,
+                    },
+                )
+                .map_err(|source| CrossConeHirCallSiteOriginError::Signature {
+                    position: site.position(),
+                    source: Box::new(source),
+                })?;
             }
         }
         Ok(())
@@ -107,10 +90,6 @@ pub enum CrossConeHirCallSiteOriginError {
         position: ExecutableExpressionPosition,
         provider: ConeIdentity,
     },
-    Runtime {
-        position: ExecutableExpressionPosition,
-        source: Box<CrossConeHirRuntimeCallError>,
-    },
     UnreachableDefinition {
         position: ExecutableExpressionPosition,
         provider: ConeIdentity,
@@ -137,9 +116,6 @@ impl std::fmt::Display for CrossConeHirCallSiteOriginError {
                     f,
                     "call {position:?} has an unreachable target provider {provider}"
                 )
-            }
-            Self::Runtime { position, source } => {
-                write!(f, "invalid runtime call at {position:?}: {source}")
             }
             Self::UnreachableDefinition { position, provider } => write!(
                 f,

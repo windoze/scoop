@@ -8,7 +8,6 @@ use crate::{
 };
 
 mod receivers;
-mod runtime;
 pub(super) mod support;
 use support::Fixture;
 

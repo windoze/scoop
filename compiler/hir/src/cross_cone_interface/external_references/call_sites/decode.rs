@@ -47,7 +47,7 @@ pub struct DecodedHirDependencyCallSiteV1 {
     origin: DecodedConcreteExpressionOrigin,
     arguments: Vec<DecodedPersistentId<PersistentExactTypeId>>,
     result: DecodedPersistentId<PersistentExactTypeId>,
-    reason: DecodedHirDependencyCallReasonV1,
+    reason: HirDependencyCallReasonV1,
     receiver: crate::SourceCallReceiver<DecodedPersistentId<PersistentExactTypeId>>,
 }
 
@@ -72,13 +72,17 @@ impl DecodedHirDependencyCallSiteV1 {
             arguments.push(resolver.resolve(argument).map_err(Error::Identity)?);
         }
         let result = resolver.resolve(self.result).map_err(Error::Identity)?;
-        let reason = self.reason.resolve(resolver).map_err(Error::Identity)?;
         let receiver = self
             .receiver
             .try_map(|ty| resolver.resolve(ty))
             .map_err(Error::Identity)?;
         HirDependencyCallSiteV1::try_new_with_reason(
-            position, origin, arguments, result, reason, receiver,
+            position,
+            origin,
+            arguments,
+            result,
+            self.reason,
+            receiver,
         )
         .map_err(Error::Shape)
     }
@@ -117,7 +121,7 @@ impl WireDecode for DecodedHirDependencyCallSiteV1 {
             arguments: decoder
                 .field(4, |d| d.decode_array(|d, _| DecodedPersistentId::decode(d)))?,
             result: decoder.field(5, DecodedPersistentId::decode)?,
-            reason: decoder.field(6, DecodedHirDependencyCallReasonV1::decode)?,
+            reason: decoder.field(6, HirDependencyCallReasonV1::decode)?,
             receiver: decoder.field(7, crate::SourceCallReceiver::decode)?,
         })
     }

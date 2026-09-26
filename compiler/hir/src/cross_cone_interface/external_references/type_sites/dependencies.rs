@@ -1,8 +1,7 @@
 //! Temporary type-dependency query over the shared materialized occurrences.
 
 use crate::{
-    CanonicalExternalHirReferencesV1, ExternalHirTargetV1, HirDependencyCallReasonV1,
-    HirDependencyTypeRelationError,
+    CanonicalExternalHirReferencesV1, ExternalHirTargetV1, HirDependencyTypeRelationError,
 };
 use scoop_identity::{
     ConeIdentity, ExactTypeKey, NominalDeclarationOwner, PersistentExactTypeId,
@@ -23,25 +22,6 @@ impl CanonicalExternalHirReferencesV1 {
         let path = WirePath::root().field(10);
         let mut result = Vec::new();
         for reference in self.records() {
-            for call in reference.call_sites().records() {
-                if !matches!(call.reason(), HirDependencyCallReasonV1::CastFailure { .. }) {
-                    continue;
-                }
-
-                let key = identities
-                    .canonical_key::<_, ExactTypeKey>(call.result())
-                    .map_err(|error| Error::Identity(Box::new(error)))?;
-                let ExactTypeKey::Nominal(owner) = key.as_ref() else {
-                    return Err(Error::CallResult(call.position()));
-                };
-                let source = identities
-                    .canonical_key::<_, SourceDeclarationKey>(*owner)
-                    .map_err(|error| Error::Identity(Box::new(error)))?;
-                if source.origin() == current || source.origin() != reference.origin() {
-                    return Err(Error::Target(reference.target()));
-                }
-                push(&mut result, (source.origin(), call.result()), &path)?;
-            }
             if reference.type_sites().is_empty() {
                 continue;
             }

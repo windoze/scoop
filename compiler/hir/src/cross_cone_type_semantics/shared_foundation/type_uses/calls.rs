@@ -26,35 +26,18 @@ impl Graph<'_> {
                     .providers
                     .get(&reference.origin())
                     .ok_or(Error::MissingProvider(reference.origin()))?;
-                match call.reason() {
-                    crate::HirDependencyCallReasonV1::SourceBinding(_)
-                    | crate::HirDependencyCallReasonV1::SourceDeclaration => {
-                        let metadata = provider.metadata;
-                        let source = call
-                            .validate_source_signature(reference.target(), metadata)
-                            .map_err(|source| Error::CallSignature {
-                                position: call.position(),
-                                source: Box::new(source),
-                            })?;
-                        self.source_receiver(call.receiver())?;
-                        self.call_signature(source)?;
-                        self.source_extension(source, metadata, call, &path)?;
-                        self.source_construction(source)?;
-                        self.source_member(source, metadata, call, &path)?;
-                    }
-                    crate::HirDependencyCallReasonV1::CastFailure { .. } => {
-                        let (constructor, owner) = call
-                            .runtime_constructor_source(
-                                reference.target(),
-                                reference.origin(),
-                                provider.metadata.identities,
-                                provider.metadata.public,
-                            )
-                            .map_err(|error| Error::RuntimeConstructor(Box::new(error)))?;
-                        self.select(owner, Kind::Construct(constructor))?;
-                        self.select(owner, Kind::Signature)?;
-                    }
-                }
+                let metadata = provider.metadata;
+                let source = call
+                    .validate_source_signature(reference.target(), metadata)
+                    .map_err(|source| Error::CallSignature {
+                        position: call.position(),
+                        source: Box::new(source),
+                    })?;
+                self.source_receiver(call.receiver())?;
+                self.call_signature(source)?;
+                self.source_extension(source, metadata, call, &path)?;
+                self.source_construction(source)?;
+                self.source_member(source, metadata, call, &path)?;
             }
         }
         Ok(())

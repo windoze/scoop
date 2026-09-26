@@ -57,7 +57,7 @@ fn source_call_receiver_rejects_unknown_tags_and_inexact_payloads() {
 }
 
 #[test]
-fn source_call_receiver_requires_an_argument_and_cannot_enter_runtime_construction() {
+fn source_call_receiver_requires_an_argument() {
     let fixture = Fixture::new();
     let site = receiver_call(&fixture);
     assert_eq!(
@@ -70,18 +70,5 @@ fn source_call_receiver_requires_an_argument_and_cannot_enter_runtime_constructi
             site.receiver(),
         ),
         Err(HirDependencyCallSiteBuildError::MissingReceiverArgument)
-    );
-    assert_eq!(
-        HirDependencyCallSiteV1::try_new_with_reason(
-            site.position(),
-            site.origin().clone(),
-            vec![],
-            site.result(),
-            HirDependencyCallReasonV1::CastFailure {
-                checked_type: fixture.unit
-            },
-            site.receiver(),
-        ),
-        Err(HirDependencyCallSiteBuildError::RuntimeReceiver)
     );
 }
