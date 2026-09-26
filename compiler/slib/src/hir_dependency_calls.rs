@@ -21,12 +21,12 @@ pub(crate) fn validate_executable_hir_calls(
 
     validate_hir_selected_set(interface, bridge)?;
     for selected in bridge.selected() {
-        let reference = interface
+        let Some(reference) = interface
             .external_references()
             .get(dependency_hir_target(selected.declaration()))
-            .ok_or(Error::MissingHirSelection {
-                declaration: selected.declaration(),
-            })?;
+        else {
+            continue;
+        };
         for site in reference.call_sites().records() {
             let position = site.position();
 
@@ -73,11 +73,9 @@ pub(crate) fn validate_hir_selected_set(
     let selected = bridge.selected();
     for record in selected {
         let target = dependency_hir_target(record.declaration());
-        let reference = interface.external_references().get(target).ok_or(
-            CrossConeMirClosureRelationError::MissingHirSelection {
-                declaration: record.declaration(),
-            },
-        )?;
+        let Some(reference) = interface.external_references().get(target) else {
+            continue;
+        };
         if reference.origin() != record.provider() {
             return Err(
                 CrossConeMirClosureRelationError::HirSelectionOriginMismatch {
@@ -86,14 +84,6 @@ pub(crate) fn validate_hir_selected_set(
                     actual: reference.origin(),
                 },
             );
-        }
-        if !reference
-            .roles()
-            .contains(ExternalHirReferenceRoleV1::ConcreteSelectedUse)
-        {
-            return Err(CrossConeMirClosureRelationError::MissingHirSelectionRole {
-                declaration: record.declaration(),
-            });
         }
     }
 

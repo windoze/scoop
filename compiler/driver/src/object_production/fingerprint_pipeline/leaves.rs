@@ -122,7 +122,6 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
         let dependencies = verify_dependency_strong_requirements_v1(
             production.target(),
             strong_closure,
-            production.production.external_bridges().clone(),
             dependency_owners,
         )
         .map_err(BuiltinObjectProductionError::DependencyRequirements)?;

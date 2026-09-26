@@ -7,44 +7,6 @@ use crate::{
 };
 use scoop_wire::{WirePath, encode_canonical_temporary};
 
-/// All eight registration fields have been replayed against one foundation.
-/// This carrier grants no export or selected-dependency authority. It cannot
-/// be encoded or converted publicly into a committed production surface.
-#[derive(Debug)]
-pub struct ReplayedStrongRegistrationProductionV2 {
-    pub(in crate::production) surface: StrongRegistrationProductionSurfaceV2,
-}
-
-impl ReplayedStrongRegistrationProductionV2 {
-    pub fn identities(&self) -> &StrongRegistrationIdentitySurfaceV1 {
-        self.surface.identities()
-    }
-
-    pub fn safepoints(&self) -> &crate::StrongSafepointRegistrationPlanSetV1 {
-        self.surface.safepoints()
-    }
-
-    pub fn callables(&self) -> &crate::StrongCallableRegistrationPlanSetV1 {
-        self.surface.callables()
-    }
-
-    pub fn types(&self) -> &crate::StrongTypeRegistrationPlanSetV2 {
-        self.surface.types()
-    }
-
-    pub fn immortal_objects(&self) -> &crate::StrongImmortalObjectRegistrationPlanSetV1 {
-        self.surface.immortal_objects()
-    }
-
-    pub fn static_storages(&self) -> &crate::StrongStaticStorageRegistrationPlanSetV1 {
-        self.surface.static_storages()
-    }
-
-    pub fn initialization_units(&self) -> &crate::StrongInitializationUnitRegistrationPlanSetV2 {
-        self.surface.initialization_units()
-    }
-}
-
 impl DecodedStrongRegistrationProductionSurfaceV2 {
     #[allow(clippy::too_many_arguments)]
     pub fn replay(
@@ -52,14 +14,13 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
         target: LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
-        external_bridges: &StrongExternalLirBridgeSurfaceV1,
+
         type_definitions: &StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &StrongInitializationDefinitionCatalogV2,
-    ) -> Result<ReplayedStrongRegistrationProductionV2, StrongRegistrationProductionValidationError>
+    ) -> Result<StrongRegistrationProductionSurfaceV2, StrongRegistrationProductionValidationError>
     {
-        // Empty tables must not allow authorities from another consumer.
-        if external_bridges.producer() != foundation.producer()
-            || type_definitions.consumer() != foundation.producer()
+        // Every dependency directory must belong to this consumer.
+        if type_definitions.consumer() != foundation.producer()
             || initialization_definitions.producer() != foundation.producer()
         {
             return Err(StrongRegistrationProductionValidationError::ProducerMismatch);
@@ -81,7 +42,6 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             target,
             foundation,
             &identities,
-            external_bridges,
             type_definitions,
             digests,
         )?;
@@ -118,6 +78,6 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
         if actual != encode_canonical_temporary(&surface, &path)? {
             return Err(StrongRegistrationProductionValidationError::SurfaceMismatch);
         }
-        Ok(ReplayedStrongRegistrationProductionV2 { surface })
+        Ok(surface)
     }
 }

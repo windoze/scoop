@@ -77,6 +77,7 @@ impl Replay<'_, '_> {
             &[],
             self.graph,
             ordinary,
+            &mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(self.foundation),
             bindings,
         )
     }

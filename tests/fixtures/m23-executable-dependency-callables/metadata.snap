@@ -1,8 +1,8 @@
 default_templates=1
 hir_concrete=3
-mir_selected=3
-lir_selected=3
-link_imports=3
+mir_selected=4
+lir_selected=4
+link_imports=4
 call=ExecutableExpressionPosition { root: CallableMaterialization { template: Function(PersistentFunctionId([21, 140, 215, 120, 143, 113, 21, 115, 64, 99, 116, 240, 224, 215, 174, 118, 20, 142, 152, 218, 226, 248, 173, 14, 178, 157, 100, 157, 199, 139, 3, 8])), context: NoSubstitution }, expression_index: 0 } arguments=0 witnesses=[1] foreign_definition=false
 call=ExecutableExpressionPosition { root: CallableMaterialization { template: Function(PersistentFunctionId([122, 211, 199, 148, 116, 146, 28, 132, 74, 110, 251, 206, 44, 196, 119, 74, 52, 206, 168, 10, 206, 38, 240, 49, 27, 251, 43, 126, 118, 130, 109, 142])), context: NoSubstitution }, expression_index: 8 } arguments=0 witnesses=[0] foreign_definition=false
 call=ExecutableExpressionPosition { root: CallableMaterialization { template: Function(PersistentFunctionId([122, 211, 199, 148, 116, 146, 28, 132, 74, 110, 251, 206, 44, 196, 119, 74, 52, 206, 168, 10, 206, 38, 240, 49, 27, 251, 43, 126, 118, 130, 109, 142])), context: NoSubstitution }, expression_index: 12 } arguments=0 witnesses=[0, 1] foreign_definition=true

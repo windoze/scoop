@@ -49,7 +49,6 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         let ordinary = slib::verify_cross_cone_strong_requirements_v1(
             prepared.target_selection.target(),
             strong,
-            prepared.production.external_bridges().clone(),
             dependency_owners,
             self.ordinary.lir_cross_cone,
         )

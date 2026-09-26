@@ -169,7 +169,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
         array_size_overflow_message,
     )?;
 
-    let producer = production.external_bridges().producer();
+    let producer = production.image_plan().cone().identity();
     for actual in [
         safepoints.producer(),
         callables.producer(),

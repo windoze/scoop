@@ -23,8 +23,7 @@ pub(crate) struct TrustedCoreFixture {
     general_interface: scoop_hir::CrossConeHirInterfaceSectionV1,
     aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
     pub(crate) interface: scoop_hir::CompilerProtocolDefinitionsV1,
-    mir_foundation: scoop_mir::ImportedMirFoundation,
-    mir_production: scoop_mir::CoreBootstrapBridgeSectionV1,
+
     session: SemanticIdentitySession,
 }
 
@@ -46,9 +45,13 @@ impl TrustedCoreFixture {
             vec![self.interface.string_capability().exact_type()],
             scoop_mir::core_unit_exact_type(),
         );
-        self.mir_foundation
-            .project_initialization_cycle_thrower(&self.mir_production, definition, signature)
-            .unwrap()
+        scoop_mir::SelectedDependencyMirCallableV1::try_new(
+            self.foundation.origin(),
+            scoop_identity::DependencyCallableDeclarationId::Function(definition),
+            scoop_identity::StrongCallableDefinitionOwner::Function(definition),
+            signature,
+        )
+        .unwrap()
     }
 
     pub(crate) fn import_dependency_foundation(
@@ -106,7 +109,7 @@ impl TrustedCoreFixture {
 }
 
 pub(crate) fn trusted_core() -> TrustedCoreFixture {
-    trusted_core_from_source(complete_core_file(), "", None)
+    trusted_core_from_source(complete_core_file(), "")
 }
 
 pub(super) fn trusted_core_with_answer() -> TrustedCoreFixture {
@@ -119,13 +122,12 @@ pub(super) fn trusted_core_with_answer() -> TrustedCoreFixture {
         int_lit(42),
     ));
     make_core_public(&mut source);
-    trusted_core_from_source(source, "", Some("coreAnswer"))
+    trusted_core_from_source(source, "")
 }
 
 pub(crate) fn trusted_core_from_source(
     source: scoop_ast::SourceFile,
     source_text: &str,
-    strong_callable: Option<&str>,
 ) -> TrustedCoreFixture {
     let parsed = parsed_sources(
         super::super::core_source_identity("src/core.scoop"),
@@ -135,22 +137,6 @@ pub(crate) fn trusted_core_from_source(
     );
     let output = lower_core_bootstrap(&parsed).unwrap();
     let interface = scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
-    let strong_definition = strong_callable.map(|name| {
-        let function = output
-            .export
-            .top_level
-            .iter()
-            .copied()
-            .find(|function| output.export.functions[*function].name == name)
-            .unwrap();
-        let scoop_hir::HirFunctionIdentity::Source(scoop_hir::HirSourceFunctionIdentity::Plain(
-            identity,
-        )) = &output.export.function_identities[function]
-        else {
-            panic!("test strong callable has a plain source identity")
-        };
-        identity.id()
-    });
     let mut canonical = scoop_hir::CanonicalHirFoundation::from_modules(
         &output.export,
         &output.local,
@@ -176,95 +162,17 @@ pub(crate) fn trusted_core_from_source(
             &identities,
         )
         .unwrap();
-    let (hir, mir, _) = imported.into_parts();
+    let (hir, _, _) = imported.into_parts();
     let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
     let foundation =
         scoop_hir::ImportedHirFoundation::from_odr_free(source_foundation.clone(), hir);
-    let classifier = scoop_hir::NominalExactLeafClassifierV1::try_from_nominal_interfaces(
-        general_interface.nominal_interfaces().records(),
-    )
-    .unwrap();
-    let strong_mir = strong_definition
-        .map(|definition| {
-            let record = general_interface
-                .callable_interfaces()
-                .get(scoop_identity::CallableTemplateOrigin::Function(definition))
-                .unwrap();
-            let callable = classifier.classify_callable(record).unwrap().unwrap();
-            (definition, callable.signature().clone())
-        })
-        .into_iter()
-        .collect::<Vec<_>>();
-    let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) = interface
-        .compiler_protocols()
-        .initialization_cycle_thrower()
-        .definition()
-    else {
-        panic!("test initialization-cycle protocol is a source function")
-    };
-    let cycle_signature = scoop_identity::ExactCallableSignature::new(
-        scoop_identity::Effect::Ordinary,
-        None,
-        vec![interface.string_capability().exact_type()],
-        scoop_mir::core_unit_exact_type(),
-    );
-    let mut mir_canonical = scoop_mir::CanonicalMirFoundation::empty();
-    mir_canonical
-        .set_callable_signatures(
-            strong_mir
-                .iter()
-                .map(|(definition, signature)| {
-                    scoop_mir::CallableSignatureRecord::new(
-                        scoop_mir::CallableSignatureSubject::Strong(
-                            scoop_identity::CallableOwner::Function(*definition),
-                        ),
-                        signature.clone(),
-                    )
-                })
-                .chain(std::iter::once(scoop_mir::CallableSignatureRecord::new(
-                    scoop_mir::CallableSignatureSubject::Strong(
-                        scoop_identity::CallableOwner::Function(cycle_definition),
-                    ),
-                    cycle_signature.clone(),
-                )))
-                .collect(),
-        )
-        .unwrap();
-    let mir_foundation = scoop_mir::ImportedMirFoundation::from_odr_free(
-        scoop_mir::OdrFreeMirFoundation::try_new(mir_canonical).unwrap(),
-        mir,
-    );
-    let mir_production = scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
-        ConeIdentity::CORE,
-        scoop_mir::EntryMirBridgeBranchV1::Library,
-        scoop_mir::StrongCallableBridgeSurfaceV1::try_new(
-            strong_mir
-                .iter()
-                .map(|(definition, signature)| {
-                    scoop_mir::StrongCallableBridgeV1::new(
-                        scoop_identity::CallableOwner::Function(*definition),
-                        signature.clone(),
-                    )
-                })
-                .chain(std::iter::once(scoop_mir::StrongCallableBridgeV1::new(
-                    scoop_identity::CallableOwner::Function(cycle_definition),
-                    cycle_signature,
-                )))
-                .collect(),
-        )
-        .unwrap()
-        .with_initialization_cycle(cycle_definition)
-        .unwrap(),
-    )
-    .unwrap();
     TrustedCoreFixture {
         general_interface,
         aliases,
         foundation,
         source_foundation,
         interface,
-        mir_foundation,
-        mir_production,
+
         session,
     }
 }

@@ -2,7 +2,7 @@ use super::*;
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
-pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> (usize, [usize; 7]) {
+pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> (usize, [usize; 6]) {
     let strong = proof
         .object_contents()
         .patch_sites()
@@ -47,17 +47,16 @@ pub(super) fn check(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> (usize, [us
         actual.len()
     );
     assert_eq!(actual, expected);
-    let mut categories = [0; 7];
+    let mut categories = [0; 6];
     for requirement in legacy {
         use slib::FinalUndefinedSymbolRequirementV1 as Requirement;
         categories[match requirement.requirement() {
             Requirement::IntraConeStrong { .. } => 0,
-            Requirement::DependencyStrong { .. } => 1,
-            Requirement::GeneratedBridge { .. } => 2,
-            Requirement::SourceExtern { .. } => 3,
-            Requirement::RuntimeAbi { .. } => 4,
-            Requirement::TargetEhSupport { .. } => 5,
-            Requirement::CBridgeTargetSupport { .. } => 6,
+            Requirement::GeneratedBridge { .. } => 1,
+            Requirement::SourceExtern { .. } => 2,
+            Requirement::RuntimeAbi { .. } => 3,
+            Requirement::TargetEhSupport { .. } => 4,
+            Requirement::CBridgeTargetSupport { .. } => 5,
         }] += 1;
     }
     (actual.len(), categories)
@@ -68,7 +67,7 @@ pub(super) fn dump(
     current: bool,
     proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
     uses: usize,
-    categories: [usize; 7],
+    categories: [usize; 6],
 ) {
     let partitions = proof.undefined_partitions();
     writeln!(

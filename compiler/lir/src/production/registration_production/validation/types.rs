@@ -25,7 +25,7 @@ pub(crate) fn validate_types(
     target: LirTargetProfile,
     foundation: &OdrFreeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
-    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+
     digests: &StrongDigestFinalizationPlanV1,
 ) -> Result<StrongTypeDescriptorSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     validate_types_with_references(
@@ -37,7 +37,6 @@ pub(crate) fn validate_types(
         &LegacyTypeReferences {
             foundation,
             identities,
-            external: external_bridges,
         },
     )
 }
@@ -52,12 +51,12 @@ pub fn validate_type_registration_constituents_v2(
     target: LirTargetProfile,
     foundation: &OdrFreeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
-    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+
     definitions: &crate::StrongTypeReferenceDefinitionsV2,
     digests: &StrongDigestFinalizationPlanV1,
 ) -> Result<crate::StrongTypeDescriptorSemanticPlanSetV2, StrongRegistrationProductionValidationError>
 {
-    for actual in [definitions.consumer(), external_bridges.producer()] {
+    for actual in [definitions.consumer()] {
         if actual != foundation.producer() {
             return Err(
                 crate::StrongTypeReferenceResolutionErrorV2::ProducerMismatch {
@@ -78,7 +77,6 @@ pub fn validate_type_registration_constituents_v2(
             local: LegacyTypeReferences {
                 foundation,
                 identities,
-                external: external_bridges,
             },
             definitions,
         },

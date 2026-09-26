@@ -40,7 +40,6 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         cone.coordinate().clone(),
         v1.image_plan().dependencies(),
         &foundation,
-        v1.external_bridges().clone(),
         v1.digest_finalization_plan().clone(),
         StrongRegistrationProductionSurfaceV2::empty(
             target,
@@ -50,7 +49,6 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap()
     .validate_layout_abi(&layout)
@@ -162,11 +160,10 @@ fn legacy_closure(
 ) -> crate::VerifiedCrossConeStrongRequirementClosureV1 {
     let producer = strong.producer();
     let object = fixture_for_producer(producer, "layoutCodeCoreOwner");
-    let seed = dependency_closure(producer, verified_member_without_relocations(&object));
+    let seed = dependency_closure(verified_member_without_relocations(&object));
     verify_dependency_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,
         strong,
-        scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
         seed.dependency_owners(),
     )
     .unwrap()

@@ -9,8 +9,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CanonicalLirFoundation, DigestNodeV1, EntryProductionSourceV1, LirTargetProfile,
-    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
-    StrongProductionSectionV1, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
+    OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongProductionSectionV1,
+    StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
     StrongRegistrationProductionSurfaceV2,
 };
 
@@ -228,17 +228,15 @@ fn production() -> (
         &digests,
     )
     .unwrap();
-    let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
+
     let production = StrongProductionSectionV1::new(
         coordinate,
         &[scoop_identity::ConeIdentity::CORE],
         &foundation,
-        external,
         digests,
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap();
     (
@@ -299,17 +297,15 @@ fn production_v2() -> (
         &digests,
     )
     .unwrap();
-    let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
+
     let production = StrongProductionSectionV2::new(
         coordinate,
         &[scoop_identity::ConeIdentity::CORE],
         &foundation,
-        external,
         digests,
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap();
     (

@@ -4,7 +4,7 @@ use super::*;
 
 impl StrongProductionSectionV2 {
     pub fn provider(&self) -> ConeIdentity {
-        self.external_bridges().producer()
+        self.type_registrations().producer()
     }
 
     pub fn registration_identities(&self) -> &crate::StrongRegistrationIdentitySurfaceV1 {

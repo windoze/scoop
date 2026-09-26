@@ -24,12 +24,11 @@ use scoop_lir::{
     SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
     SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StaticStorageIdentity,
     StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
-    StrongExternalLirBridgeSurfaceV1, StrongImmortalObjectRegistrationPlanSetV1,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongRegistrationProductionSurfaceV1,
-    StrongSafepointRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
-    StrongTypeRegistrationPlanSetV1, StructDefs, Terminator, TypeDescriptor,
-    TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1, VoidCallSignature,
-    VtableRecord, WellKnownTypeDescriptors,
+    StrongImmortalObjectRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanSetV1,
+    StrongRegistrationProductionSurfaceV1, StrongSafepointRegistrationPlanSetV1,
+    StrongStaticStorageRegistrationPlanSetV1, StrongTypeRegistrationPlanSetV1, StructDefs,
+    Terminator, TypeDescriptor, TypeDescriptorIdentity, TypeDescriptorRef, TypeInstanceShapeV1,
+    VoidCallSignature, VtableRecord, WellKnownTypeDescriptors,
 };
 
 use super::Corruption;
@@ -129,14 +128,12 @@ fn complete_registration_production_uses_the_closed_eight_field_shape() {
         scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(&encoded)
             .unwrap();
     assert_eq!(scoop_wire::encode(&decoded).unwrap(), encoded);
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(inputs.module.cone, Vec::new()).unwrap();
+
     let validated = decoded
         .validate(
             inputs.module.meta.target_profile,
             &inputs.foundation,
             &inputs.digest_plan,
-            &external,
         )
         .unwrap();
     assert_eq!(validated, inputs.registration_production);
@@ -154,8 +151,7 @@ fn complete_registration_production_uses_the_closed_eight_field_shape() {
 #[test]
 fn registration_production_rejects_a_stale_derived_plan_identity() {
     let inputs = inputs(Corruption::None);
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(inputs.module.cone, Vec::new()).unwrap();
+
     let stale =
         inputs.registration_production.safepoints().registrations()[0].normalized_stackmap_patch();
     let mut encoded = scoop_wire::encode(&inputs.registration_production).unwrap();
@@ -174,7 +170,6 @@ fn registration_production_rejects_a_stale_derived_plan_identity() {
                 inputs.module.meta.target_profile,
                 &inputs.foundation,
                 &inputs.digest_plan,
-                &external,
             )
             .is_err()
     );

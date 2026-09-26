@@ -12,7 +12,7 @@ use scoop_identity::{
 use super::*;
 use crate::{
     CanonicalLirFoundation, DecodedStrongTypeRegistrationPlanV1, DigestNodeV1, RefScan,
-    RuntimeTypeMappingRecord, StrongExternalLirBridgeSurfaceV1, TypeInstanceShapeV1,
+    RuntimeTypeMappingRecord, TypeInstanceShapeV1,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -85,15 +85,12 @@ fn wire_reader_reconstructs_the_complete_type_descriptor_semantics() {
             decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encode(plan).unwrap()).unwrap()
         })
         .collect();
-    let external_bridges =
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap();
 
     let validated = crate::validate_types(
         decoded,
         crate::LirTargetProfile::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.identities,
-        &external_bridges,
         &fixture.digests,
     )
     .unwrap();
@@ -144,15 +141,13 @@ fn records_and_round_trips_the_exact_typed_itable_directory() {
             decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encode(plan).unwrap()).unwrap()
         })
         .collect();
-    let external_bridges =
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap();
+
     assert_eq!(
         crate::validate_types(
             decoded,
             crate::LirTargetProfile::DARWIN_AARCH64,
             &fixture.foundation,
             &fixture.identities,
-            &external_bridges,
             &fixture.digests,
         )
         .unwrap(),

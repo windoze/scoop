@@ -100,8 +100,17 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
         )
         .unwrap();
         let production = closure.current_compile().production();
-        assert_eq!(production.mir_cross_cone().selected().len(), selected);
-        assert_eq!(production.lir_cross_cone().selected().len(), selected);
+        // The metadata case has a runtime initializer, which also calls the
+        // ordinary initialization-cycle function from its actual provider.
+        let machine_selected = selected + usize::from(case == "metadata");
+        assert_eq!(
+            production.mir_cross_cone().selected().len(),
+            machine_selected
+        );
+        assert_eq!(
+            production.lir_cross_cone().selected().len(),
+            machine_selected
+        );
         assert_eq!(
             closure
                 .current_link()
@@ -111,7 +120,7 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
                 .semantic_imports()
                 .imports()
                 .len(),
-            selected
+            machine_selected
         );
         let references = production.hir_interface().external_references().records();
         let concrete = references
@@ -161,7 +170,7 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
             .len();
         assert_eq!(defaults, usize::from(case != "uninstantiated"));
         let mut dump = format!(
-            "default_templates={defaults}\nhir_concrete={concrete}\nmir_selected={selected}\nlir_selected={selected}\nlink_imports={selected}\n"
+            "default_templates={defaults}\nhir_concrete={concrete}\nmir_selected={machine_selected}\nlir_selected={machine_selected}\nlink_imports={machine_selected}\n"
         );
         for reference in references {
             for site in reference.call_sites().records() {

@@ -161,7 +161,6 @@ impl SelectedExternalLirSet {
     pub fn dependency_callables(&self) -> impl Iterator<Item = &SelectedDependencyLirCallableV1> {
         self.callables
             .iter()
-            .filter(|callable| callable.role() == CallableRole::Ordinary)
             .map(SelectedExternalLirCallable::record)
     }
 

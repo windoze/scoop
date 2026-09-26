@@ -45,8 +45,8 @@ impl Provider {
                 .to_owned();
         let mut module = provider_module(identity, exact_record.clone(), callable, diagnostic_name);
         let initialization_unit = attach_eager_initialization(&mut module, "providerValue", exact);
-        let protocol = super::lir_fixture::provider_protocol(&mut module, exact);
-        let output = SingleConeStrongLirOutput::try_new(module, Vec::new(), protocol).unwrap();
+        super::lir_fixture::provider_protocol(&mut module, exact);
+        let output = SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
         let empty = StrongProductionDependencySelectionV2::empty(identity, TARGET).unwrap();
         let section = output
             .build_production_section_v2(

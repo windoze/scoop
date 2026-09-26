@@ -7,7 +7,7 @@ use scoop_identity::{
     GcEffect, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
 };
 
-use crate::{CallableImplementationV1, CallableInterfaceRecordV1, PublicDeclarationOwnerV1};
+use crate::{CallableDeclarationRecordV1, CallableImplementationV1, PublicDeclarationOwnerV1};
 
 mod leaves;
 
@@ -36,7 +36,7 @@ impl NominalExactLeafClassifierV1 {
     /// extension. This does not establish its implementation or ABI.
     pub fn classify_callable(
         &self,
-        callable: &CallableInterfaceRecordV1,
+        callable: &CallableDeclarationRecordV1,
     ) -> Result<Option<ParamFreeNominalCallableV1>, NominalCallableClassificationError> {
         let Some(declaration) = eligible_declaration(callable) else {
             return Ok(None);
@@ -53,7 +53,7 @@ impl NominalExactLeafClassifierV1 {
 
     fn exact_signature(
         &self,
-        callable: &CallableInterfaceRecordV1,
+        callable: &CallableDeclarationRecordV1,
     ) -> Result<Option<ExactCallableSignature>, NominalCallableClassificationError> {
         let receiver = match callable.receiver() {
             Some(receiver) => match self.classify(receiver) {
@@ -88,7 +88,7 @@ impl NominalExactLeafClassifierV1 {
 }
 
 fn eligible_declaration(
-    callable: &CallableInterfaceRecordV1,
+    callable: &CallableDeclarationRecordV1,
 ) -> Option<DependencyCallableDeclarationId> {
     if !matches!(
         callable.owner(),

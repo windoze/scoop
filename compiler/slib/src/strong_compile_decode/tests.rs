@@ -210,9 +210,7 @@ fn test_cycle_thrower() -> scoop_identity::PersistentFunctionId {
 fn strong_compile_validates_lir_production_from_the_semantic_front() {
     let (hir, mir, lir) = required_sections();
     let bytes = artifact(hir, mir, lir);
-    let external =
-        scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new())
-            .unwrap();
+
     let validated = open_graph(&bytes)
         .decode_single_cone_compile_sections()
         .unwrap()
@@ -224,10 +222,10 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
         .unwrap()
         .validate_cross_layer()
         .unwrap()
-        .validate_lir_production(&external)
+        .validate_lir_production()
         .unwrap();
     assert_eq!(validated.identity(), cone().identity());
-    assert_eq!(validated.lir_production().external_bridges(), &external);
+
     assert!(matches!(
         validated.lir_production().entry_plan(),
         scoop_lir::EntryProductionPlanV1::Library
@@ -256,51 +254,20 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
             .compiler_protocol_definitions()
             .is_none()
     );
-    assert_eq!(compiled.production().lir().external_bridges(), &external);
-
-    let (hir, mir, lir) = required_sections();
-    let bytes = artifact(hir, mir, lir);
-    let wrong_external = scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(
-        scoop_identity::ConeIdentity::CORE,
-        Vec::new(),
-    )
-    .unwrap();
-    assert!(matches!(
-        open_graph(&bytes)
-            .decode_single_cone_compile_sections()
-            .unwrap()
-            .validate_identities()
-            .unwrap()
-            .validate_foundation_structure()
-            .unwrap()
-            .validate_local_production()
-            .unwrap()
-            .validate_cross_layer()
-            .unwrap()
-            .validate_lir_production(&wrong_external),
-        Err(StrongProfileLirProductionError::Production(
-            scoop_lir::StrongProductionSectionValidationError::Expected(
-                scoop_lir::StrongProductionSectionBuildError::ExternalBridgeProducer
-            )
-        ))
-    ));
 }
 
 #[test]
 fn strong_compile_one_shot_entry_returns_the_final_typed_artifact() {
     let (hir, mir, lir) = required_sections();
     let bytes = artifact(hir, mir, lir);
-    let external =
-        scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new())
-            .unwrap();
+
     let mut session = SemanticIdentitySession::new();
 
     let compiled =
-        validate_single_cone_strong_compile_artifact(open_graph(&bytes), &external, &mut session)
-            .unwrap();
+        validate_single_cone_strong_compile_artifact(open_graph(&bytes), &mut session).unwrap();
 
     assert_eq!(compiled.identity(), cone().identity());
-    assert_eq!(compiled.production().lir().external_bridges(), &external);
+
     assert_eq!(session.origin_count(), 1);
     assert_eq!(session.entity_count(), 17);
 }

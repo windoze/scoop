@@ -1,18 +1,16 @@
 use la_arena::Arena;
 use scoop_identity::{
-    CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, Effect, ExactTypeKey, PackagePath,
-    PendingIdentityValidation, PersistentExactTypeId, SemanticIdentitySession,
-    SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite,
+    CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
+    ExactTypeKey, PackagePath, PersistentExactTypeId, PersistentFunctionId, SourceDeclarationKey,
+    SourceDeclarationSite, StrongCallableDefinitionOwner,
 };
 
 use super::*;
 use crate::{
-    BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, CallableSignatureRecord,
-    CallableSignatureSubject, Callee, CoreBootstrapBridgeSectionV1, CoroutinePendingContext,
-    DependencyMirOutput, DependencyMirOutputError, EntryMirBridgeBranchV1, Function, GcEffect,
-    MirMeta, MirOutput, Module, OdrFreeMirFoundation, SingleConeStrongMirInput, SourceSpan,
-    Statement, StatementKind, StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1, Terminator,
-    Type,
+    BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, Callee, CoreBootstrapBridgeSectionV1,
+    CoroutinePendingContext, DependencyMirOutput, DependencyMirOutputError, EntryMirBridgeBranchV1,
+    Function, GcEffect, MirMeta, MirOutput, Module, OdrFreeMirFoundation, SingleConeStrongMirInput,
+    SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
 };
 
 mod external;
@@ -80,27 +78,5 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
             external_callables,
             ..MirMeta::default()
         },
-    }
-}
-
-fn imported_foundation(
-    provider: ConeIdentity,
-    canonical: CanonicalMirFoundation,
-) -> ImportedMirFoundation {
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(provider).unwrap();
-    let identities = pending.finish().unwrap();
-    let mut session = SemanticIdentitySession::new();
-    let (_, imported, _) = session
-        .import(
-            provider,
-            SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
-            &identities,
-        )
-        .unwrap()
-        .into_parts();
-    ImportedMirFoundation {
-        canonical: canonical.into(),
-        identities: imported,
     }
 }

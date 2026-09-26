@@ -108,7 +108,7 @@ fn classify_with_form(
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "runtimeRequirementConsumer");
     let member = verified_member_with_undefined_form(&object, symbol, form);
-    let core = dependency_closure(producer, member);
+    let core = dependency_closure(member);
     let native = native_surface(producer, Vec::new(), Vec::new());
     let source = verify_source_external_requirements_v1(core, native).unwrap();
     verify_runtime_and_eh_requirements_v1(

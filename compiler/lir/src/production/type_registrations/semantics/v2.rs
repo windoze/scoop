@@ -201,21 +201,10 @@ fn slots(
                         );
                     }
                     let callable = &module.meta.external_callables[id];
-                    match callable.origin() {
-                        crate::ExternalCallableOrigin::InitializationCycle => {
-                            StrongTypeDispatchCallableRefV2::DependencyExternal {
-                                provider: callable.provider(),
-                                body: callable.body(),
-                            }
-                        }
-                        crate::ExternalCallableOrigin::Legacy(_)
-                        | crate::ExternalCallableOrigin::LayoutV1 => {
-                            validate_callable_selection(selected, callable, module)?;
-                            StrongTypeDispatchCallableRefV2::DependencyExternal {
-                                provider: callable.provider(),
-                                body: callable.body(),
-                            }
-                        }
+                    validate_callable_selection(selected, callable, module)?;
+                    StrongTypeDispatchCallableRefV2::DependencyExternal {
+                        provider: callable.provider(),
+                        body: callable.body(),
                     }
                 }
             })

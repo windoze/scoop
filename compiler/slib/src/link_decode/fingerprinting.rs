@@ -123,7 +123,6 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
         let dependencies = crate::verify_dependency_strong_requirements_v1(
             selection.target(),
             strong_closure,
-            production.lir().external_bridges().clone(),
             dependency_owners,
         )
         .map_err(StrongLinkSymbolRequirementError::CrossCone)?;

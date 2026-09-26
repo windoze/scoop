@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn core_lowering_publishes_initialization_protocol_abi() {
+fn initialization_function_uses_the_ordinary_callable_abi_export() {
     let mut builder = Builder::new();
     let function = builder.user_fn("exported", Arena::new(), Vec::new());
     let cycle_function =
@@ -49,9 +49,22 @@ fn core_lowering_publishes_initialization_protocol_abi() {
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
-    let Some(callable) = output.initialization_cycle_abi() else {
-        panic!("the initialization role must publish its LIR ABI")
-    };
+    let target = scoop_identity::StrongCallableDefinitionOwner::Function(cycle_definition);
+    let export = mir::ParamFreeMirCallableExportV1::try_new(
+        scoop_identity::DependencyCallableDeclarationId::Function(cycle_definition),
+        target,
+        exact.clone(),
+    )
+    .unwrap();
+    let mir_bridge = mir::CrossConeMirBridgeSectionV1::try_new(
+        ConeIdentity::CORE,
+        input.foundation(),
+        vec![export],
+        Vec::new(),
+    )
+    .unwrap();
+    let lir_bridge = crate::lower_cross_cone_bridge_section(&input, &mir_bridge, &output).unwrap();
+    let callable = lir_bridge.exports()[0].callable_abi();
     assert_eq!(callable.abi_signature().signature(), &exact);
     assert_eq!(
         callable.root_plan(),
@@ -141,21 +154,13 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         call.destination(&module.functions[0].call_targets),
         lir::CallDestination::External(_)
     ));
-    let production = output
-        .build_production_section(
-            scoop_identity::ConeCoordinate::reserved_single_file(),
-            &[scoop_identity::ConeIdentity::CORE],
-            lir::EntryProductionSourceV1::Library,
-        )
-        .unwrap();
-    assert_eq!(production.external_bridges().bridges().len(), 1);
     assert_eq!(
-        production
-            .external_bridges()
-            .bridges()
-            .iter()
-            .filter(|bridge| matches!(bridge, lir::StrongExternalLirBridgeV1::Callable(_)))
-            .count(),
-        1
+        external.legacy_declaration(),
+        Some(scoop_identity::DependencyCallableDeclarationId::Function(
+            match target {
+                scoop_identity::StrongCallableDefinitionOwner::Function(function) => function,
+                _ => panic!("source function"),
+            }
+        ))
     );
 }

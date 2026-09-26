@@ -1,5 +1,4 @@
-use scoop_identity::ConeIdentity;
-use scoop_lir::{LirTargetProfile, StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection};
+use scoop_lir::{LirTargetProfile, ValidatedLirTargetSelection};
 
 use super::super::generated_bridge_semantics::tests::{
     SemanticFixture, semantic_fixture, semantic_fixture_with_additional_contracts,
@@ -114,13 +113,9 @@ fn runtime_closure(fixture: &SemanticFixture) -> VerifiedRuntimeAndEhRequirement
         .builtins()
         .strong_relocations()
         .clone();
-    let core = verify_dependency_strong_requirements_v1(
-        LirTargetProfile::DARWIN_AARCH64,
-        strong,
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::CORE, Vec::new()).unwrap(),
-        &[],
-    )
-    .unwrap();
+    let core =
+        verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, &[])
+            .unwrap();
     let source =
         verify_source_external_requirements_v1(core, fixture.native_requirements.clone()).unwrap();
     verify_runtime_and_eh_requirements_v1(

@@ -1,10 +1,5 @@
 use super::*;
-use crate::cross_cone_hir_authority::{
-    CrossConeHirSourceInventoryError as InventoryError, SourceInventoryDeclaration,
-};
 use scoop_hir::*;
-
-mod cycle;
 
 #[test]
 fn reader_requires_source_parameter_protocols_for_support_callables() {
@@ -42,27 +37,6 @@ fn reader_checks_the_actual_body_reference_closure_of_support_defaults() {
         *source,
         crate::CrossConeHirDefaultProviderContractError::ReferenceClosure(_)
     ));
-}
-
-#[test]
-fn reader_rejects_unreachable_support_even_when_its_default_references_itself() {
-    for recursive in [false, true] {
-        let mut fixture = support(true);
-        if recursive {
-            cycle::install(&mut fixture);
-        }
-        let bytes = fixture.artifact();
-        let error = validate_until_type_alias(&bytes)
-            .validate_source_interfaces(vec![])
-            .err()
-            .expect("unreachable support must fail");
-        assert!(
-            matches!(error, CrossConeHirSourceInterfaceSurfaceError::SourceInventory(
-            InventoryError::Unrelated(SourceInventoryDeclaration::Callable(id))
-            ) if id == fixture.owner),
-            "{error:?}"
-        );
-    }
 }
 
 fn support(default: bool) -> CallableSourceSurface {

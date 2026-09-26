@@ -165,12 +165,4 @@ fn an_ordinary_provider_supplies_string_and_initialization_through_shared_record
         )
         .unwrap();
     assert_eq!(production.image_plan().dependencies(), &[provider]);
-    assert_eq!(production.external_bridges().bridges().len(), 1);
-    assert!(
-        production
-            .external_bridges()
-            .bridges()
-            .iter()
-            .all(|reference| reference.provider() == provider)
-    );
 }

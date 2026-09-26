@@ -51,8 +51,8 @@ pub(super) fn check(
     shared_initialization::check(
         name,
         input.mir.production(),
+        &ordinary,
         lir,
-        layout,
         objects.production(),
     );
     external_boxing::check(name, target, lir, layout, &ordinary, objects.production());

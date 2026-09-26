@@ -43,6 +43,13 @@ impl SharedSourceRoots {
         for function in &export.public_surface.functions {
             sources.function(export, *function, &mut nominals)?;
         }
+        if let crate::CoreProtocols::Defined(protocols) = &export.core_protocols {
+            sources.function(
+                export,
+                protocols.exceptions.initialization_cycle_thrower,
+                &mut nominals,
+            )?;
+        }
         for property in &export.public_surface.properties {
             sources.property(export, *property, &mut nominals)?;
         }

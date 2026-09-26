@@ -4,8 +4,8 @@ use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 use super::{
-    LirInitializationAbiValidatedCrossConeLayoutClosure,
-    LirInitializationAbiValidatedCrossConeLayoutSections,
+    OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
+    OrdinaryLirBridgeValidatedCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
@@ -35,7 +35,7 @@ pub type LirStrongProductionReplayedCrossConeLayoutClosure<'input> =
         lir::StrongProductionSectionV2,
     >;
 
-impl<'input> LirInitializationAbiValidatedCrossConeLayoutClosure<'input> {
+impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
     pub fn replay_lir_strong_production(
         self,
     ) -> Result<
@@ -55,7 +55,7 @@ impl<'input> LirInitializationAbiValidatedCrossConeLayoutClosure<'input> {
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let resolve = || -> Result<_, SharedLirStrongProductionError> {
-                let LirInitializationAbiValidatedCrossConeLayoutSections {
+                let OrdinaryLirBridgeValidatedCrossConeLayoutSections {
                     mut prepared,
                     mir,
                     units,
@@ -122,9 +122,5 @@ impl<'input> LirInitializationAbiValidatedCrossConeLayoutClosure<'input> {
 impl LirStrongProductionReplayedCrossConeLayoutSections<'_> {
     pub const fn lir_strong_production(&self) -> &lir::StrongProductionSectionV2 {
         &self.strong
-    }
-
-    pub fn initialization_cycle_abi(&self) -> Option<&lir::CallableAbiRecordV1> {
-        self.strong.initialization_cycle_abi()
     }
 }

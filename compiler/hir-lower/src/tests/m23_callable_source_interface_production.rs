@@ -111,8 +111,7 @@ fn producer_projects_required_default_and_both_vararg_protocols() {
     let interfaces = hir::CanonicalCallableSourceInterfacesV1::from_export_hir(&module)
         .expect("the public source-call protocol must project canonically");
     let expected_count = callables
-        .records()
-        .iter()
+        .all_declarations()
         .filter(|record| !matches!(record.declaration(), CallableTemplateOrigin::Accessor(_)))
         .count();
     assert_eq!(interfaces.records().len(), expected_count);

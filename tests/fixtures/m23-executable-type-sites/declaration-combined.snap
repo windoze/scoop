@@ -76,5 +76,5 @@ initializer_result_sites=2
 cycle_message_sites=1
 type_sites=31
 foreign_definitions=0
-MIR selected=0
-LIR selected=0
+MIR selected=1
+LIR selected=1

@@ -30,7 +30,6 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
             .validate_lir_descriptors()?
             .validate_lir_shape_support()?
             .validate_ordinary_lir_bridges()?
-            .validate_lir_initialization_abi()?
             .replay_lir_strong_production()?
             .replay_mir_dependency_graph()?
             .replay_lir_dependency_graph()?)
@@ -75,7 +74,6 @@ semantic_errors! {
     LirDescriptors(CrossConeLayoutLirDescriptorsError),
     LirShapeSupport(CrossConeLayoutLirShapeSupportError),
     OrdinaryLirBridges(CrossConeLayoutOrdinaryLirBridgeError),
-    LirInitialization(CrossConeLayoutLirInitializationAbiError),
     LirStrongProduction(CrossConeLayoutLirStrongProductionError),
     MirDependencies(CrossConeLayoutMirDependenciesError),
     LirDependencies(CrossConeLayoutLirDependenciesError),

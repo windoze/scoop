@@ -69,11 +69,6 @@ impl ImportSymbolIndex {
                 return Err(LayoutLinkClosureError::OldPartition { import_index });
             }
         }
-        for requirement in legacy.external_requirements() {
-            if let Some(import_index) = self.find(requirement.use_site().symbol())? {
-                return Err(LayoutLinkClosureError::OldPartition { import_index });
-            }
-        }
         Ok(())
     }
 }
@@ -171,7 +166,7 @@ mod tests {
         let request = imports.imports()[0].expected_symbol();
         let name = normalized(request, TARGET).unwrap();
         let object = fixture_for_producer(consumer, "oldCall");
-        let core = dependency_closure(consumer, verified_member_with_undefined(&object, &name));
+        let core = dependency_closure(verified_member_with_undefined(&object, &name));
         let provider_object = fixture_for_producer(provider, "entry");
         let provider_strong = crate::verify_current_cone_strong_relocation_closure_v1(vec![
             crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations(&provider_object),
@@ -183,7 +178,6 @@ mod tests {
         let legacy = verify_cross_cone_strong_requirements_v1(
             core.target(),
             core.strong_closure().clone(),
-            core.external_bridges().clone(),
             &[owners],
             &bridge,
         )

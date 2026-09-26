@@ -1,4 +1,4 @@
-//! Dependency TD/dispatch references traverse the actual ten-field wire.
+//! Dependency TD/dispatch references traverse the actual eight-field wire.
 
 use super::*;
 use crate::{
@@ -22,12 +22,10 @@ fn section(fixture: &Fixture) -> StrongProductionSectionV2 {
         ConeCoordinate::reserved_single_file(),
         &[],
         &fixture.foundation,
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
         fixture.digests.clone(),
         surface(fixture, true),
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap()
 }
@@ -43,26 +41,24 @@ fn replay_section(
         &[],
         crate::LirTargetProfile::DARWIN_AARCH64,
         &fixture.foundation,
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        None,
         definitions,
         &StrongInitializationDefinitionCatalogV2::new(ConeIdentity::SINGLE_FILE, &[]).unwrap(),
     )
 }
 
 #[test]
-fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
+fn eight_field_section_replays_foreign_parent_interface_and_dispatch() {
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
-    assert_eq!(bytes[0], 0xaa);
+    assert_eq!(bytes[0], 0xa8);
     let shared: crate::DecodedStrongProductionSectionV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
     let replayed = replay_section(&fixture, &bytes, &definitions).unwrap();
-    assert_eq!(replayed.external_bridges(), original.external_bridges());
+
     assert_eq!(
         replayed.canonical_definitions(),
         original.canonical_definitions()
@@ -90,14 +86,10 @@ fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
         replayed.generated_bridge_plan(),
         original.generated_bridge_plan()
     );
-    assert_eq!(
-        replayed.initialization_cycle_abi(),
-        original.initialization_cycle_abi()
-    );
 }
 
 #[test]
-fn ten_field_section_rejects_missing_foreign_definitions_and_changed_definition_atoms() {
+fn eight_field_section_rejects_missing_foreign_definitions_and_changed_definition_atoms() {
     let fixture = complete_fixture();
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
@@ -121,7 +113,7 @@ fn ten_field_section_rejects_missing_foreign_definitions_and_changed_definition_
 }
 
 #[test]
-fn ten_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
+fn eight_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
     let fixture = complete_fixture();
     let bytes = crate::production::strong_section::tests::without_image_input(
         &section(&fixture),
@@ -161,12 +153,10 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
         coordinate,
         &[],
         &fixture.foundation,
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
         fixture.digests.clone(),
         surface(&fixture, false),
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap();
     let expected = production.registration_production().types().clone();

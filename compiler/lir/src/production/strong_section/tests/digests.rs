@@ -43,15 +43,13 @@ pub(super) fn check(section: &StrongProductionSectionV2, foundation: &OdrFreeLir
     };
     assert_eq!(&projection().unwrap(), section.digest_finalization_plan());
     let replay = |raw: DecodedStrongProductionSectionV2| {
-        raw.validate_initialization_abi(None).unwrap().replay(
+        raw.replay(
             ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap(),
             &[],
             LirTargetProfile::DARWIN_AARCH64,
             foundation,
-            section.external_bridges().clone(),
             EntryProductionSourceV1::Library,
             &[],
-            None,
             &crate::StrongTypeReferenceDefinitionsV2::new(foundation.producer(), &[]).unwrap(),
             &crate::StrongInitializationDefinitionCatalogV2::new(foundation.producer(), &[])
                 .unwrap(),

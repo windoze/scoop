@@ -31,12 +31,7 @@ fn runtime_string_uses_ordinary_selection_even_without_descriptor_edges() {
     let string = descriptor(ordinary_provider(), "String");
     let foreign = module.meta.external_type_descriptors.alloc(string);
     module.meta.well_known_type_descriptors.string = TypeDescriptorRef::External(foreign);
-    assert!(
-        StrongExternalLirBridgeSurfaceV1::from_module(&module)
-            .unwrap()
-            .bridges()
-            .is_empty()
-    );
+
     let empty = StrongProductionDependencySelectionV2::empty(module.cone, TARGET).unwrap();
     assert!(matches!(
         StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty),

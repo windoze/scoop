@@ -35,13 +35,11 @@ pub struct ExternalCallable {
 pub enum ExternalCallableOrigin {
     Legacy(DependencyCallableDeclarationId),
     LayoutV1,
-    InitializationCycle,
 }
 
 impl ExternalCallable {
     pub(crate) fn new(
         selected: SelectedDependencyLirCallableV1,
-        role: crate::CallableRole,
         signature: ScoopAbiSignature,
     ) -> Result<Self, ExternalCallableBuildError> {
         let bridge = selected.bridge();
@@ -55,14 +53,7 @@ impl ExternalCallable {
         let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(bridge.target()))
             .map_err(ExternalCallableBuildError::Identity)?;
         Ok(Self {
-            origin: match role {
-                crate::CallableRole::Ordinary => {
-                    ExternalCallableOrigin::Legacy(bridge.declaration())
-                }
-                crate::CallableRole::InitializationCycle => {
-                    ExternalCallableOrigin::InitializationCycle
-                }
-            },
+            origin: ExternalCallableOrigin::Legacy(bridge.declaration()),
             provider: selected.provider(),
             target: bridge.target(),
             body,
@@ -127,7 +118,7 @@ impl ExternalCallable {
     pub const fn legacy_declaration(&self) -> Option<DependencyCallableDeclarationId> {
         match self.origin {
             ExternalCallableOrigin::Legacy(declaration) => Some(declaration),
-            ExternalCallableOrigin::LayoutV1 | ExternalCallableOrigin::InitializationCycle => None,
+            ExternalCallableOrigin::LayoutV1 => None,
         }
     }
 

@@ -4,7 +4,6 @@ use super::*;
 
 pub(super) struct LoweredModule {
     pub module: lir::Module,
-    pub initialization_cycle_abi: Option<Box<lir::CallableAbiRecordV1>>,
 }
 
 pub(super) fn lower_graph(
@@ -249,9 +248,6 @@ pub(super) fn lower_graph(
         .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
         .collect::<StorageResult<Vec<_>>>()?;
 
-    let initialization_cycle_abi =
-        callable_abi::lower_initialization_abi(input, &functions, &enums)?;
-
     let layouts = layouts(
         &context,
         &identity_roots,
@@ -295,10 +291,7 @@ pub(super) fn lower_graph(
             external_callables,
         },
     };
-    Ok(LoweredModule {
-        module,
-        initialization_cycle_abi,
-    })
+    Ok(LoweredModule { module })
 }
 
 fn materialized_exact_types(

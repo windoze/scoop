@@ -284,19 +284,12 @@ fn resolve_slots(
                         },
                     );
                 }
-                let callable = &external_callables[id];
-                if callable.origin() != crate::ExternalCallableOrigin::InitializationCycle {
-                    return Err(
-                        StrongTypeDescriptorSemanticPlanBuildError::DependencyCallableInV1 {
-                            exact_type,
-                            index,
-                        },
-                    );
-                }
-                Ok(StrongTypeDispatchCallableRefV1::DependencyExternal {
-                    provider: callable.provider(),
-                    body: callable.body(),
-                })
+                Err(
+                    StrongTypeDescriptorSemanticPlanBuildError::DependencyCallableInV1 {
+                        exact_type,
+                        index,
+                    },
+                )
             }
             CallableRef::Runtime(function) => {
                 Ok(StrongTypeDispatchCallableRefV1::Runtime(function))

@@ -15,7 +15,7 @@ fn with_aliases<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -
     core_source
         .declarations
         .extend(scoop_parser::parse(ALIASES).unwrap().declarations);
-    let core = support::trusted_core_from_source(core_source, ALIASES, Some("UserCoreNumber"));
+    let core = support::trusted_core_from_source(core_source, ALIASES);
     let parsed = support::parsed_ordinary_text(source);
     let world = core.world(parsed.cone());
     let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();

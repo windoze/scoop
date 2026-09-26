@@ -68,26 +68,11 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
             .unwrap();
     let callable = ExternalStrongShapeSubjectV1::Callable(fixture.target);
     assert!(
-        matches!(ShapeLinkProviderV1::reject_legacy_subject(&ordinary, None, callable), Err(ShapeLinkError::LegacyPartition(actual)) if actual == callable)
+        matches!(ShapeLinkProviderV1::reject_legacy_subject(&ordinary, callable), Err(ShapeLinkError::LegacyPartition(actual)) if actual == callable)
     );
     ShapeLinkProviderV1::reject_legacy_subject(
         &ordinary,
-        None,
         ExternalStrongShapeSubjectV1::DispatchTable(fixture.vtable.identity_record().id()),
     )
     .unwrap();
-    let empty =
-        CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, Vec::new(), Vec::new()).unwrap();
-    let thrower = CallableAbiRecordV1::new(
-        fixture.foundation.producer(),
-        fixture.target,
-        fixture.abi.canonical_signature().clone(),
-        fixture.abi.calling_convention(),
-        ExternalCallableRootPlan::ManagedStatepoint,
-    )
-    .unwrap();
-    assert!(matches!(
-        ShapeLinkProviderV1::reject_legacy_subject(&empty, Some(&thrower), callable),
-        Err(ShapeLinkError::LegacyPartition(_))
-    ));
 }

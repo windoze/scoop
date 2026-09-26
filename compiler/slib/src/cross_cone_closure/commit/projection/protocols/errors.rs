@@ -41,15 +41,11 @@ pub enum CrossConeInitializationSelectionError {
     },
     InvalidDefinition(ImportedCoreProtocolCallableDefinition),
     MissingProvider(ConeIdentity),
-    SourceMismatch {
-        provider: ConeIdentity,
-        definition: PersistentFunctionId,
-    },
     MissingMirBridge {
         provider: ConeIdentity,
         definition: PersistentFunctionId,
     },
-    Projection(scoop_mir::ImportedMirCallableProjectionError),
+    Record(scoop_mir::ParamFreeMirCallableBuildError),
     Selection(scoop_mir::SelectedExternalMirSetBuildError),
 }
 
@@ -68,13 +64,6 @@ impl std::fmt::Display for CrossConeInitializationSelectionError {
                 formatter,
                 "initialization service provider {provider} is outside the dependency closure"
             ),
-            Self::SourceMismatch {
-                provider,
-                definition,
-            } => write!(
-                formatter,
-                "initialization service {definition:?} disagrees with provider {provider}'s source declaration"
-            ),
             Self::MissingMirBridge {
                 provider,
                 definition,
@@ -82,7 +71,7 @@ impl std::fmt::Display for CrossConeInitializationSelectionError {
                 formatter,
                 "provider {provider} has no MIR bridge for initialization service {definition:?}"
             ),
-            Self::Projection(error) => error.fmt(formatter),
+            Self::Record(error) => error.fmt(formatter),
             Self::Selection(error) => error.fmt(formatter),
         }
     }
@@ -91,12 +80,11 @@ impl std::fmt::Display for CrossConeInitializationSelectionError {
 impl std::error::Error for CrossConeInitializationSelectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Projection(error) => Some(error),
+            Self::Record(error) => Some(error),
             Self::Selection(error) => Some(error),
             Self::ConsumerMismatch { .. }
             | Self::InvalidDefinition(_)
             | Self::MissingProvider(_)
-            | Self::SourceMismatch { .. }
             | Self::MissingMirBridge { .. } => None,
         }
     }

@@ -23,10 +23,8 @@ pub(super) fn replayed_provider(provider: &Provider) -> StrongProductionSectionV
             &[],
             TARGET,
             provider.output.foundation(),
-            raw.external_bridges().clone(),
             EntryProductionSourceV1::Library,
             &[],
-            raw.initialization_cycle_abi().cloned().map(Box::new),
             &StrongTypeReferenceDefinitionsV2::new(provider.identity, &[]).unwrap(),
             &StrongInitializationDefinitionCatalogV2::new(provider.identity, &[]).unwrap(),
         )

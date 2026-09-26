@@ -116,11 +116,7 @@ fn encode_legacy_requirement(
             encoder.u32(1)?;
             encode_strong_owner(encoder, owner)
         }
-        FinalUndefinedSymbolRequirementV1::DependencyStrong { provider, owner } => {
-            encoder.u32(13)?;
-            encoder.fixed(provider.as_array())?;
-            encode_strong_owner(encoder, owner)
-        }
+
         FinalUndefinedSymbolRequirementV1::GeneratedBridge { unit } => {
             encoder.u32(3)?;
             encoder.fixed(unit.as_array())

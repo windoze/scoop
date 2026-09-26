@@ -312,18 +312,8 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
         &self.production_manifest
     }
 
-    pub fn reconstruct_external_bridges(
-        &mut self,
-    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
-        let producer = self.graph.identity();
-        self.production
-            .lir
-            .reconstruct_external_bridges(producer, &mut self.identities)
-    }
-
     pub fn validate_production(
         self,
-        expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     ) -> Result<ProductionValidatedSingleConeLinkSections<'input>, StrongProfileProductionError>
     {
         let Self {
@@ -334,13 +324,8 @@ impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {
             link_identity_closure,
             production_manifest,
         } = self;
-        let production = validate_strong_profile_production(
-            &graph,
-            &mut identities,
-            &foundations,
-            production,
-            expected_external_bridges,
-        )?;
+        let production =
+            validate_strong_profile_production(&graph, &mut identities, &foundations, production)?;
         Ok(ProductionValidatedSingleConeLinkSections {
             graph,
             identities: Rc::new(identities),

@@ -14,7 +14,7 @@ fn source_support_queries_never_expose_a_dependency_private_nominal() {
     use scoop_hir::NominalInterfaceShapeAuthority as _;
 
     let fixture = Fixture::new();
-    let bytes = fixture.artifact(true, true, false);
+    let bytes = fixture.artifact(true, true);
     let provider = front(&bytes).validate_nominal_surface(vec![]).unwrap();
     let mut identities = fixture.identities();
     let empty: scoop_hir::DecodedCrossConeHirInterfaceSectionV1 =
@@ -69,7 +69,7 @@ fn source_support_queries_never_expose_a_dependency_private_nominal() {
 #[test]
 fn ordinary_reader_preserves_private_support_from_the_same_nominal_table() {
     let fixture = Fixture::new();
-    let bytes = fixture.artifact(true, true, false);
+    let bytes = fixture.artifact(true, true);
     let validated = front(&bytes).validate_nominal_surface(vec![]).unwrap();
     let table = validated.hir_interface().nominal_interfaces();
     assert_eq!(table.records().len(), 1);
@@ -87,38 +87,34 @@ fn ordinary_reader_preserves_private_support_from_the_same_nominal_table() {
 }
 
 #[test]
-fn ordinary_reader_rejects_missing_support_and_unrelated_support() {
+fn ordinary_reader_rejects_a_declared_child_missing_from_the_shared_table() {
     let fixture = Fixture::new();
-    for (include, extra, expected) in [
-        (false, false, "required shared source declaration is absent"),
-        (
-            true,
-            true,
-            "shared source support is unreachable from public roots",
-        ),
-    ] {
-        let bytes = fixture.artifact(include, true, extra);
-        let Err(CrossConeHirSourceInterfaceSurfaceError::SourceInventory(error)) = front(&bytes)
-            .validate_nominal_surface(vec![])
-            .unwrap()
-            .validate_property_surface(vec![])
-            .unwrap()
-            .validate_callable_surface(vec![])
-            .unwrap()
-            .validate_type_alias_surface(vec![])
-            .unwrap()
-            .validate_source_interfaces(vec![])
-        else {
-            panic!("support closure must reject missing or unrelated declarations")
-        };
-        assert!(error.to_string().contains(expected), "{error}");
-    }
+    let bytes = fixture.artifact(false, true);
+    let Err(CrossConeHirSourceInterfaceSurfaceError::SourceInventory(error)) = front(&bytes)
+        .validate_nominal_surface(vec![])
+        .unwrap()
+        .validate_property_surface(vec![])
+        .unwrap()
+        .validate_callable_surface(vec![])
+        .unwrap()
+        .validate_type_alias_surface(vec![])
+        .unwrap()
+        .validate_source_interfaces(vec![])
+    else {
+        panic!("declared children must have complete source records")
+    };
+    assert!(
+        error
+            .to_string()
+            .contains("required shared source declaration is absent"),
+        "{error}"
+    );
 }
 
 #[test]
 fn ordinary_reader_rejects_a_private_child_omitted_from_its_declaring_parent() {
     let fixture = Fixture::new();
-    let bytes = fixture.artifact(false, false, false);
+    let bytes = fixture.artifact(false, false);
     let Err(CrossConeHirNominalSurfaceError::Relations(
         scoop_hir::NominalDeclarationInventoryError::MissingChild { owner, child },
     )) = front(&bytes).validate_nominal_surface(vec![])

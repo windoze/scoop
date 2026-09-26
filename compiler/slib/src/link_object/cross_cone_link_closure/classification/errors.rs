@@ -1,8 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, PersistentExactTypeId, PersistentSymbolError, StrongCallableDefinitionOwner,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    ConeIdentity, StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::link_object::{
@@ -52,18 +51,6 @@ pub enum CrossConeStrongRequirementValidationError {
         entity: StrongDefinitionEntity,
         role: StrongDefinitionRole,
     },
-    InvalidTypeRegistrationSymbol {
-        target: PersistentExactTypeId,
-        source: PersistentSymbolError,
-    },
-    UnusedExternalCallableBridge {
-        name: Vec<u8>,
-    },
-    UnusedImport {
-        import_index: u32,
-        provider: ConeIdentity,
-        target: StrongCallableDefinitionOwner,
-    },
 }
 
 impl fmt::Display for CrossConeStrongRequirementValidationError {
@@ -79,7 +66,6 @@ impl std::error::Error for CrossConeStrongRequirementValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::SemanticImports(source) => Some(source),
-            Self::InvalidTypeRegistrationSymbol { source, .. } => Some(source),
             _ => None,
         }
     }

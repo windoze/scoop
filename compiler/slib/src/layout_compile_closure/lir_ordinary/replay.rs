@@ -59,7 +59,7 @@ pub fn replay_shared_ordinary_lir_bridge(
         let interface = source
             .public
             .callable_interfaces()
-            .get(origin)
+            .declaration(origin)
             .ok_or(Error::CallableInterface(declaration))?;
         let gc = interface.effects().gc_effect();
         let signature = types.replay(target, callable.signature(), gc)?;

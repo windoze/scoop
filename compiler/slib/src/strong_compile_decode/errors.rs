@@ -82,7 +82,6 @@ impl std::error::Error for StrongProfileLocalProductionError {
 pub enum StrongProfileLirProductionError {
     ShapeSources(PublicNominalShapeProjectionError),
     Production(StrongProductionSectionValidationError),
-    InitializationAbiRelation(StrongProfileInitializationAbiRelationError),
 }
 
 impl fmt::Display for StrongProfileLirProductionError {
@@ -96,29 +95,9 @@ impl std::error::Error for StrongProfileLirProductionError {
         Some(match self {
             Self::ShapeSources(error) => error,
             Self::Production(error) => error,
-            Self::InitializationAbiRelation(error) => error,
         })
     }
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongProfileInitializationAbiRelationError {
-    PresenceMismatch,
-    InvalidInitializationCycleOwner,
-    InitializationCycleMismatch,
-    InitializationCycleSignatureMismatch,
-}
-
-impl fmt::Display for StrongProfileInitializationAbiRelationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid MIR-to-LIR initialization ABI relation: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for StrongProfileInitializationAbiRelationError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongProfileRelationError {
@@ -150,7 +129,6 @@ pub enum StrongCompileArtifactValidationError {
     Foundations(Box<StrongProfileFoundationError>),
     LocalProduction(Box<StrongProfileLocalProductionError>),
     Relations(Box<StrongProfileRelationError>),
-    ExternalBridges(Box<StrongExternalLirBridgeReconstructionError>),
     LirProduction(Box<StrongProfileLirProductionError>),
     NativeBoundary(Box<NativeBoundaryCompileError>),
     Commit(Box<CompileCommitError>),
@@ -173,7 +151,6 @@ impl std::error::Error for StrongCompileArtifactValidationError {
             Self::Foundations(error) => error.as_ref(),
             Self::LocalProduction(error) => error.as_ref(),
             Self::Relations(error) => error.as_ref(),
-            Self::ExternalBridges(error) => error.as_ref(),
             Self::LirProduction(error) => error.as_ref(),
             Self::NativeBoundary(error) => error.as_ref(),
             Self::Commit(error) => error.as_ref(),

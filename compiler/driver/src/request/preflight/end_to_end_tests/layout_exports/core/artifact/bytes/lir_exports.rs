@@ -106,21 +106,5 @@ pub(super) fn check(
         encode(current.lir_cross_cone_bridge()).unwrap(),
         expected_ordinary
     );
-    let expected_strong = encode(current.lir_strong_production_wire()).unwrap();
-    let complete = complete
-        .validate_lir_initialization_abi()
-        .unwrap_or_else(|error| panic!("{name} shared initialization ABI replay: {error}"));
-    let current = complete.artifact(ConeIdentity::CORE).unwrap();
-    assert!(current.initialization_cycle_abi().is_some());
-    assert_eq!(
-        encode(current.lir_strong_production_wire()).unwrap(),
-        expected_strong
-    );
-    assert_eq!(
-        encode(current.lir_cross_cone_bridge()).unwrap(),
-        expected_ordinary
-    );
-    assert_eq!(current.lir_exports().layouts(), lir.layouts());
-    assert_eq!(current.initialization_units(), units);
     super::lir_strong::check(name, complete, units, lir);
 }

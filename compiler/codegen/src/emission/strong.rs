@@ -291,7 +291,7 @@ fn validate_production_binding(
     production: &scoop_lir::StrongProductionSectionV2,
 ) -> Result<(), CodegenError> {
     let foundation = input.foundation();
-    if production.external_bridges().producer() != foundation.producer() {
+    if production.image_plan().cone().identity() != foundation.producer() {
         return Err(CodegenError(
             "layout-validated strong production belongs to a different producer".to_owned(),
         ));

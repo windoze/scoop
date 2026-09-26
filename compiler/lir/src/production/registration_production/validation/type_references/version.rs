@@ -33,7 +33,6 @@ pub(in super::super) trait TypeReferences {
 pub(in super::super) struct LegacyTypeReferences<'a> {
     pub foundation: &'a OdrFreeLirFoundation,
     pub identities: &'a StrongRegistrationIdentitySurfaceV1,
-    pub external: &'a StrongExternalLirBridgeSurfaceV1,
 }
 
 impl TypeReferences for LegacyTypeReferences<'_> {
@@ -62,7 +61,7 @@ impl TypeReferences for LegacyTypeReferences<'_> {
         decoded: Vec<Self::DecodedCallable>,
         index: usize,
     ) -> Result<Vec<Self::Callable>, StrongRegistrationProductionValidationError> {
-        validate_type_dispatch_slots(decoded, self.foundation, self.external, index)
+        validate_type_dispatch_slots(decoded, self.foundation, index)
     }
 }
 

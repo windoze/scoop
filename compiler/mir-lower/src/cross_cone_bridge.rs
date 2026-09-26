@@ -3,7 +3,7 @@
 use std::fmt;
 
 use scoop_hir::{
-    CallableInterfaceRecordV1, CrossConeHirInterfaceSectionV1, NominalCallableClassificationError,
+    CrossConeHirInterfaceSectionV1, NominalCallableClassificationError,
     NominalExactLeafClassifierV1,
 };
 use scoop_mir::{
@@ -12,18 +12,15 @@ use scoop_mir::{
     StrongCallableBridgeSurfaceV1,
 };
 
-use scoop_identity::{
-    ConeIdentity, DependencyCallableDeclarationId, ExactCallableSignature,
-    StrongCallableDefinitionOwner,
-};
+use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 
 /// Projects the exact producer export surface and the already-validated
 /// consumer selections into the M23-5 MIR bridge section.
 ///
 /// Export eligibility is derived from the HIR interface and nominal signatures
-/// resolved within the actual provider scope. A public callable is exported only when the current
+/// resolved within the actual provider scope. A callable is exported only when the current
 /// MIR foundation also contains its strong implementation. The selected side
-/// is copied only from the branded request-local selection set; this function
+/// is copied from the complete request-local selection set; this function
 /// never scans MIR bodies or symbols to reconstruct dependency use.
 pub fn lower_cross_cone_bridge_section(
     artifact: ConeIdentity,
@@ -32,25 +29,6 @@ pub fn lower_cross_cone_bridge_section(
     foundation: &OdrFreeMirFoundation,
     selected: &SelectedExternalMirSet,
 ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeLoweringError> {
-    lower_cross_cone_bridge_with_classifier(
-        artifact,
-        hir.callable_interfaces().records(),
-        classifier,
-        foundation,
-        selected,
-    )
-}
-
-fn lower_cross_cone_bridge_with_classifier<C>(
-    artifact: ConeIdentity,
-    callable_records: &[CallableInterfaceRecordV1],
-    classifier: &C,
-    foundation: &OdrFreeMirFoundation,
-    selected: &SelectedExternalMirSet,
-) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeLoweringError>
-where
-    C: NominalCallableClassifier,
-{
     if selected.consumer() != artifact {
         return Err(CrossConeMirBridgeLoweringError::ForeignSelection {
             expected: artifact,
@@ -59,7 +37,7 @@ where
     }
 
     let strong = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation);
-    let exports = derive_exports(callable_records, &strong, classifier)?;
+    let exports = derive_exports(hir, &strong, classifier)?;
     let selected = clone_selected(selected)?;
     CrossConeMirBridgeSectionV1::try_new(artifact, foundation, exports, selected)
         .map_err(CrossConeMirBridgeLoweringError::Bridge)
@@ -78,52 +56,13 @@ fn clone_selected(
     Ok(records)
 }
 
-trait NominalCallableClassifier {
-    fn classify_callable(
-        &self,
-        callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, NominalCallableClassificationError>;
-}
-
-impl NominalCallableClassifier for NominalExactLeafClassifierV1 {
-    fn classify_callable(
-        &self,
-        callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, NominalCallableClassificationError> {
-        Ok(
-            NominalExactLeafClassifierV1::classify_callable(self, callable)?.map(|classified| {
-                ClassifiedCallable {
-                    declaration: classified.declaration(),
-                    implementation: classified.implementation(),
-                    signature: classified.signature().clone(),
-                }
-            }),
-        )
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct ClassifiedCallable {
-    declaration: DependencyCallableDeclarationId,
-    implementation: StrongCallableDefinitionOwner,
-    signature: ExactCallableSignature,
-}
-
-fn derive_exports<C>(
-    callable_records: &[CallableInterfaceRecordV1],
+fn derive_exports(
+    hir: &CrossConeHirInterfaceSectionV1,
     strong: &StrongCallableBridgeSurfaceV1,
-    classifier: &C,
-) -> Result<Vec<ParamFreeMirCallableExportV1>, CrossConeMirBridgeLoweringError>
-where
-    C: NominalCallableClassifier,
-{
+    classifier: &NominalExactLeafClassifierV1,
+) -> Result<Vec<ParamFreeMirCallableExportV1>, CrossConeMirBridgeLoweringError> {
     let mut exports = Vec::new();
-    exports
-        .try_reserve_exact(callable_records.len())
-        .map_err(|_| CrossConeMirBridgeLoweringError::Allocation {
-            requested_slots: callable_records.len(),
-        })?;
-    for callable in callable_records {
+    for callable in hir.callable_interfaces().all_declarations() {
         let declaration = callable.declaration();
         let Some(classified) = classifier.classify_callable(callable).map_err(|source| {
             CrossConeMirBridgeLoweringError::Classification {
@@ -134,7 +73,7 @@ where
         else {
             continue;
         };
-        let implementation = classified.implementation.callable_owner();
+        let implementation = classified.implementation().callable_owner();
         let Some(strong) = strong
             .bridges()
             .iter()
@@ -142,19 +81,19 @@ where
         else {
             continue;
         };
-        if strong.signature() != &classified.signature {
+        if strong.signature() != classified.signature() {
             return Err(CrossConeMirBridgeLoweringError::StrongSignatureMismatch {
-                declaration: classified.declaration,
+                declaration: classified.declaration(),
             });
         }
         exports.push(
             ParamFreeMirCallableExportV1::try_new(
-                classified.declaration,
-                classified.implementation,
-                classified.signature,
+                classified.declaration(),
+                classified.implementation(),
+                classified.signature().clone(),
             )
             .map_err(|source| CrossConeMirBridgeLoweringError::Export {
-                declaration: classified.declaration,
+                declaration: classified.declaration(),
                 source: Box::new(source),
             })?,
         );
@@ -231,6 +170,3 @@ impl std::error::Error for CrossConeMirBridgeLoweringError {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

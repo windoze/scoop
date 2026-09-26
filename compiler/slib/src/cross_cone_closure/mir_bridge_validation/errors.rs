@@ -83,16 +83,10 @@ pub enum CrossConeMirClosureRelationError {
     ExportSignatureMismatch {
         declaration: DependencyCallableDeclarationId,
     },
-    MissingHirSelection {
-        declaration: DependencyCallableDeclarationId,
-    },
     HirSelectionOriginMismatch {
         declaration: DependencyCallableDeclarationId,
         expected: ConeIdentity,
         actual: ConeIdentity,
-    },
-    MissingHirSelectionRole {
-        declaration: DependencyCallableDeclarationId,
     },
     UnsupportedHirSelection {
         target: ExternalHirTargetV1,
@@ -162,10 +156,6 @@ impl fmt::Display for CrossConeMirClosureRelationError {
                 formatter,
                 "MIR export {declaration:?} disagrees with its HIR-derived exact signature"
             ),
-            Self::MissingHirSelection { declaration } => write!(
-                formatter,
-                "MIR selection {declaration:?} has no external HIR reference"
-            ),
             Self::HirSelectionOriginMismatch {
                 declaration,
                 expected,
@@ -173,10 +163,6 @@ impl fmt::Display for CrossConeMirClosureRelationError {
             } => write!(
                 formatter,
                 "MIR selection {declaration:?} names provider {expected}, but its HIR reference originates in {actual}"
-            ),
-            Self::MissingHirSelectionRole { declaration } => write!(
-                formatter,
-                "MIR selection {declaration:?} lacks the ConcreteSelectedUse HIR role"
             ),
             Self::UnsupportedHirSelection { target } => write!(
                 formatter,

@@ -2,8 +2,8 @@
 
 use super::*;
 use crate::{
-    StrongExternalLirBridgeSurfaceV1, StrongRegistrationIdentitySurfaceV1,
-    StrongTypeDescriptorRefV2, StrongTypeDispatchCallableRefV2, StrongTypeReferenceDefinitionsV2,
+    StrongRegistrationIdentitySurfaceV1, StrongTypeDescriptorRefV2,
+    StrongTypeDispatchCallableRefV2, StrongTypeReferenceDefinitionsV2,
     StrongTypeReferenceResolutionErrorV2 as Error,
 };
 
@@ -14,7 +14,6 @@ fn checked(subject: ExternalStrongShapeSubjectV1) -> StrongShapeDefinitionRefV1 
 fn empty_consumer() -> (
     crate::OdrFreeLirFoundation,
     StrongRegistrationIdentitySurfaceV1,
-    StrongExternalLirBridgeSurfaceV1,
 ) {
     consumer_at(ConeIdentity::CORE)
 }
@@ -24,7 +23,6 @@ fn consumer_at(
 ) -> (
     crate::OdrFreeLirFoundation,
     StrongRegistrationIdentitySurfaceV1,
-    StrongExternalLirBridgeSurfaceV1,
 ) {
     let foundation =
         crate::OdrFreeLirFoundation::try_new(producer, crate::CanonicalLirFoundation::empty())
@@ -38,8 +36,8 @@ fn consumer_at(
     let digests = crate::StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-    let core = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
-    (foundation, registrations, core)
+
+    (foundation, registrations)
 }
 
 fn decoded<T: scoop_wire::WireDecode>(value: &impl scoop_wire::WireEncode) -> T {
@@ -51,7 +49,7 @@ fn descriptor_and_body_references_bind_the_same_provider_definition() {
     let all = subjects();
     let definitions = [checked(all[0]), checked(all[3])];
     let catalog = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &definitions).unwrap();
-    let (consumer, registrations, core) = empty_consumer();
+    let (consumer, registrations) = empty_consumer();
     let ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = all[3] else {
         panic!("descriptor fixture");
     };
@@ -73,7 +71,7 @@ fn descriptor_and_body_references_bind_the_same_provider_definition() {
     };
     assert_eq!(
         catalog
-            .resolve_dispatch_callable(decoded(&callable), &consumer, &core)
+            .resolve_dispatch_callable(decoded(&callable), &consumer)
             .unwrap(),
         callable
     );
@@ -113,7 +111,7 @@ fn physical_catalog_rejects_duplicate_local_and_wrong_role_definitions() {
 fn an_imported_symbol_request_is_not_a_local_definition() {
     let definition = checked(subjects()[3]);
     let catalog = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition]).unwrap();
-    let (_, registrations, _) = empty_consumer();
+    let (_, registrations) = empty_consumer();
     let mut canonical = crate::CanonicalLirFoundation::empty();
     canonical
         .set_symbol_requests(PersistentSymbolRequestTable::new(vec![definition.symbol()]).unwrap());
@@ -138,7 +136,7 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
     let all = subjects();
     let definitions = [checked(all[0]), checked(all[3])];
     let catalog = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &definitions).unwrap();
-    let (consumer, registrations, core) = empty_consumer();
+    let (consumer, registrations) = empty_consumer();
     let ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = all[3] else {
         panic!("descriptor fixture");
     };
@@ -166,14 +164,13 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
         body,
     };
     assert!(matches!(
-        catalog.resolve_dispatch_callable(decoded(&wrong), &consumer, &core),
+        catalog.resolve_dispatch_callable(decoded(&wrong), &consumer),
         Err(Error::UnknownDependencyCallable { .. })
     ));
     assert!(matches!(
         catalog.resolve_dispatch_callable(
             decoded(&StrongTypeDispatchCallableRefV2::Local(body)),
             &consumer,
-            &core
         ),
         Err(Error::UnknownLocalCallable(_))
     ));
@@ -193,7 +190,7 @@ fn descriptor_references_bind_the_requested_provider() {
     .unwrap();
     let definition = checked(ExternalStrongShapeSubjectV1::TypeDescriptor(exact));
     let catalog = StrongTypeReferenceDefinitionsV2::new(producer, &[definition]).unwrap();
-    let (consumer, registrations, _) = consumer_at(producer);
+    let (consumer, registrations) = consumer_at(producer);
     for provider in [ConeIdentity::CORE, definition.provider()] {
         let reference = StrongTypeDescriptorRefV2::DependencyExternal { provider, exact };
         let result = catalog.resolve_descriptor(decoded(&reference), &consumer, &registrations);

@@ -89,7 +89,6 @@ fn seal(
             .iter()
             .map(|root| root.declaration().clone())
             .collect(),
-        lowered.initialization_cycle_abi,
     )
     .map_err(StrongLirLoweringError::Output)
 }

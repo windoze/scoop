@@ -1,10 +1,9 @@
 //! Frontend protocol references and machine selections share the dependency closure.
 
 use scoop_hir::{
-    CoreProtocolCallableDefinitionV1, ImportedCoreInputs, ImportedCoreProtocolCallable,
-    ImportedCoreProtocolCallableDefinition,
+    ImportedCoreInputs, ImportedCoreProtocolCallable, ImportedCoreProtocolCallableDefinition,
 };
-use scoop_identity::{CallableOwner, ConeIdentity};
+use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 use scoop_mir::SelectedExternalMirSet;
 
 use super::ValidatedCrossConeSemanticClosure;
@@ -55,42 +54,21 @@ impl ValidatedCrossConeSemanticClosure {
         let artifact = self
             .provider(provider)
             .ok_or(Error::MissingProvider(provider))?;
-        let protocols = artifact
+        let export = artifact
             .production()
-            .hir_core()
-            .compiler_protocol_definitions()
-            .ok_or(Error::SourceMismatch {
-                provider,
-                definition,
-            })?;
-        let source = protocols
-            .compiler_protocols()
-            .initialization_cycle_thrower();
-        if artifact.hir().identity(definition) != Some(imported)
-            || source.definition() != CoreProtocolCallableDefinitionV1::Function(definition)
-            || source.signature() != callable.signature()
-        {
-            return Err(Error::SourceMismatch {
-                provider,
-                definition,
-            });
-        }
-        let production = artifact.production().mir_core();
-        let bridge = production
-            .strong_callable_bridges()
-            .get(CallableOwner::Function(definition))
+            .mir_cross_cone()
+            .export(DependencyCallableDeclarationId::Function(definition))
             .ok_or(Error::MissingMirBridge {
                 provider,
                 definition,
             })?;
-        let record = artifact
-            .mir()
-            .project_initialization_cycle_thrower(
-                production,
-                definition,
-                bridge.signature().clone(),
-            )
-            .map_err(Error::Projection)?;
+        let record = scoop_mir::SelectedDependencyMirCallableV1::try_new(
+            provider,
+            export.declaration(),
+            export.implementation(),
+            export.signature().clone(),
+        )
+        .map_err(Error::Record)?;
         selected
             .with_initialization_cycle(record)
             .map_err(Error::Selection)

@@ -1,32 +1,33 @@
 use super::*;
-use scoop_slib::SharedLirInitializationAbiValidationError as Error;
-
-mod rejections;
 
 pub(super) fn check(
     name: &str,
     mir: &mir::CoreBootstrapBridgeSectionV1,
+    ordinary: &lir::CrossConeLirBridgeSectionV1,
     lir: &lir::SingleConeStrongLirOutput,
-    layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     strong: &lir::StrongProductionSectionV2,
 ) {
-    let replay = |callables: &mir::StrongCallableBridgeSurfaceV1,
-                  layouts: &lir::CanonicalExactLayoutExportsV1| {
-        scoop_slib::replay_shared_initialization_abi(
-            lir.module().meta.target_profile,
-            callables,
-            layouts,
-            &[],
-            lir.foundation(),
-        )
+    let source = mir
+        .strong_callable_bridges()
+        .initialization_cycle()
+        .unwrap();
+    let scoop_identity::CallableOwner::Function(function) = source.implementation() else {
+        panic!("initialization service is a source function")
     };
-    let callables = mir.strong_callable_bridges();
-    let expected =
-        replay(callables, layout.layouts()).unwrap_or_else(|error| panic!("{name}: {error}"));
-    assert_eq!(expected.as_deref(), strong.initialization_cycle_abi());
+    let export = ordinary
+        .export(scoop_identity::DependencyCallableDeclarationId::Function(
+            function,
+        ))
+        .expect("internal initialization service has an ordinary callable export");
+    let abi = export.callable_abi();
+    assert_eq!(abi.abi_signature().signature(), source.signature());
+    assert_eq!(
+        abi.root_plan(),
+        lir::ExternalCallableRootPlan::ManagedStatepoint
+    );
+    abi.validate_against(lir.foundation(), strong.canonical_definitions())
+        .unwrap();
     if name.starts_with("shared-init-abi-") {
-        rejections::check(callables, layout.layouts(), lir.foundation(), &replay);
-        let abi = expected.as_deref().unwrap();
         let snapshot = crate::workspace_root()
             .join("tests/fixtures/m23-core-layout-exports")
             .join(format!("{name}.initialization-abi.snap"));
@@ -44,23 +45,4 @@ pub(super) fn check(
         }
         assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     }
-}
-
-pub(super) fn check_consumption(
-    input: scoop_lir_lower::LayoutAbiExportInputV1<'_>,
-    layouts: &lir::CanonicalExactLayoutExportsV1,
-    dependencies: &[&lir::CanonicalExactLayoutExportsV1],
-) {
-    assert_eq!(
-        scoop_slib::replay_shared_initialization_abi(
-            input.lir.module().meta.target_profile,
-            input.mir.production().strong_callable_bridges(),
-            layouts,
-            dependencies,
-            input.lir.foundation(),
-        )
-        .unwrap()
-        .as_deref(),
-        input.lir.initialization_cycle_abi(),
-    );
 }

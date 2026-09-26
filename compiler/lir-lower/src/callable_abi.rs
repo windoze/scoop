@@ -7,9 +7,6 @@ use scoop_identity::{
 use scoop_lir as lir;
 use scoop_mir as mir;
 
-mod initialization;
-pub(crate) use initialization::lower_initialization_abi;
-
 mod error;
 pub use error::*;
 

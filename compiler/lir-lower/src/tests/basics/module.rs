@@ -273,7 +273,6 @@ fn strong_writer_projects_the_complete_executable_production_section() {
         section.entry_plan(),
         lir::EntryProductionPlanV1::Executable(_)
     ));
-    assert!(section.external_bridges().bridges().is_empty());
 }
 
 #[test]

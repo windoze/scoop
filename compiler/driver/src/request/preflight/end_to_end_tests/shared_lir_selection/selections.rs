@@ -71,19 +71,16 @@ pub(super) fn check(
             CallableRole::InitializationCycle
         );
     }
-    let wrong_role = Selection::empty(closure.current())
-        .with_initialization_cycle(ordinary)
-        .unwrap();
-    assert!(matches!(
-        closure.project_dependency_callables_to_lir(&wrong_role),
-        Err(Error::RoleMismatch { .. })
-    ));
-    let public_service =
+    let ordinary_service =
         Selection::try_from_callables(closure.current(), vec![service.clone()]).unwrap();
-    assert!(matches!(
-        closure.project_dependency_callables_to_lir(&public_service),
-        Err(Error::MissingExport { .. })
-    ));
+    let lir = closure
+        .project_dependency_callables_to_lir(&ordinary_service)
+        .unwrap();
+    assert_eq!(lir.dependency_callables().count(), 1);
+    assert_eq!(
+        lir.dependency_callables().next().unwrap().bridge().target(),
+        service.implementation()
+    );
     let bad_signature =
         ExactCallableSignature::new(Effect::Ordinary, None, vec![], service.signature().result());
     let bad = Record::try_new(

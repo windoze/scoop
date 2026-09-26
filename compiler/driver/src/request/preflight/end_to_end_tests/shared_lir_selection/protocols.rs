@@ -43,14 +43,6 @@ pub(super) fn check(
             .expect("constructors and generic functions cannot name the service");
         assert!(matches!(error, Error::InvalidDefinition(_)), "{error:?}");
     }
-    let error = closure
-        .select_initialization_cycle(
-            Selection::empty(closure.current()),
-            inputs.protocols().source_location().current(),
-        )
-        .err()
-        .expect("another source function cannot replace the service");
-    assert!(matches!(error, Error::SourceMismatch { .. }), "{error:?}");
     assert!(matches!(
         closure.import_compiler_protocols(ordinary.identity()),
         Err(CrossConeProtocolImportError::MissingDefinitions(provider)) if provider == ordinary.identity()

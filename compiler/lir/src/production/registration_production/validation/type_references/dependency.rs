@@ -39,11 +39,10 @@ impl TypeReferences for DependencyTypeReferences<'_> {
         let mut slots = Vec::new();
         scoop_wire::allocation::try_reserve(&mut slots, decoded.len(), &WirePath::root())?;
         for decoded in decoded {
-            slots.push(self.definitions.resolve_dispatch_callable(
-                decoded,
-                self.local.foundation,
-                self.local.external,
-            )?);
+            slots.push(
+                self.definitions
+                    .resolve_dispatch_callable(decoded, self.local.foundation)?,
+            );
         }
         Ok(slots)
     }

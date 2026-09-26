@@ -47,7 +47,6 @@ pub(crate) fn replay<'a>(
     let ordinary = verify_cross_cone_strong_requirements_v1(
         input.selection.target(),
         closure.clone(),
-        input.strong.external_bridges().clone(),
         &dependencies,
         input.ordinary,
     )?;

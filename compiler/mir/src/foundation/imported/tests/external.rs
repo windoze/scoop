@@ -25,7 +25,7 @@ fn check_mixed_calls(provider: ConeIdentity) {
     let (module, dependencies) = fixture.mixed();
     drop(fixture);
     assert_eq!(module.meta.external_callables.len(), 2);
-    assert_eq!(dependencies.dependency_callables().count(), 1);
+    assert_eq!(dependencies.dependency_callables().count(), 2);
     let (ordinary, protocol) = {
         let mut callables = module.meta.external_callables.iter();
         let (ordinary, value) = callables.next().unwrap();

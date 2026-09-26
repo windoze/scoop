@@ -99,18 +99,16 @@ impl Provider {
         .unwrap();
         let exports = exports(&foundation, vec![value.into()]);
         let section = CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &[]).unwrap();
-        let external = StrongExternalLirBridgeSurfaceV1::try_new(provider, Vec::new()).unwrap();
+
         let digests = image.digest_finalization_plan().clone();
         let old = StrongProductionSectionV1::new(
             coordinate.clone(),
             &[scoop_identity::ConeIdentity::CORE],
             &foundation,
-            external.clone(),
             digests.clone(),
             StrongRegistrationProductionSurfaceV1::empty(TARGET, &foundation, &digests).unwrap(),
             EntryProductionSourceV1::Library,
             &[],
-            None,
         )
         .unwrap();
         let raw: DecodedStrongProductionSectionV2 =
@@ -121,10 +119,8 @@ impl Provider {
                 old.image_plan().dependencies(),
                 TARGET,
                 &foundation,
-                external,
                 EntryProductionSourceV1::Library,
                 &[],
-                None,
                 &StrongTypeReferenceDefinitionsV2::new(provider, &[]).unwrap(),
                 &StrongInitializationDefinitionCatalogV2::new(provider, &[]).unwrap(),
             )

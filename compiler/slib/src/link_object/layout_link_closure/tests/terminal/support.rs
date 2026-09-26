@@ -136,18 +136,15 @@ pub(super) fn replay_provider_production(
 ) -> StrongProductionSectionV2 {
     let coordinate = ConeCoordinate::new("test", "layout-link-provider", "1.0.0").unwrap();
     let digests = provider.production.digest_finalization_plan().clone();
-    let external = provider.production.external_bridges().clone();
     let old = StrongProductionSectionV1::new(
         coordinate.clone(),
         &[scoop_identity::ConeIdentity::CORE],
         &provider.foundation,
-        external,
         digests.clone(),
         StrongRegistrationProductionSurfaceV1::empty(TARGET, &provider.foundation, &digests)
             .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap();
     replay(&old, coordinate, &provider.foundation, section)
@@ -166,10 +163,8 @@ fn replay(
         old.image_plan().dependencies(),
         TARGET,
         foundation,
-        old.external_bridges().clone(),
         EntryProductionSourceV1::Library,
         &[],
-        old.initialization_cycle_abi().cloned().map(Box::new),
         &StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
         &StrongInitializationDefinitionCatalogV2::new(producer, &[]).unwrap(),
     )

@@ -12,15 +12,13 @@ pub(super) fn replay(
     coordinate: ConeCoordinate,
     direct: &[ConeIdentity],
     target: lir::LirTargetProfile,
-    strong: lir::InitializationAbiResolvedStrongProductionSectionV2,
+    strong: lir::DecodedStrongProductionSectionV2,
     parts: PreparedLayoutMirSemanticParts<'_>,
     dependencies: &[&LirStrongProductionReplayedCrossConeLayoutSections<'_>],
 ) -> Result<lir::StrongProductionSectionV2, Error> {
     let provider = parts.lir_foundation.producer();
-    let external = strong.reconstruct_external_bridges(provider, parts.identities)?;
-    super::dependencies::validate_external_bridges(&external, dependencies)?;
     let (type_definitions, initialization_definitions) =
-        super::dependencies::definitions(provider, dependencies, &external)?;
+        super::dependencies::definitions(provider, dependencies)?;
     let roots = PublicNominalShapeRequirementsV1::from_shared_surface(
         provider,
         parts.hir_core.direct_public_surface(),
@@ -44,18 +42,13 @@ pub(super) fn replay(
             lir::EntryProductionSourceV1::executable(bridge.source().clone())
         }
     };
-    let initialization = strong
-        .initialization_cycle_abi()
-        .map(|abi| Box::new(abi.clone()));
     Ok(strong.replay(
         coordinate,
         direct,
         target,
         parts.lir_foundation,
-        external,
         entry,
         &sources,
-        initialization,
         &type_definitions,
         &initialization_definitions,
     )?)

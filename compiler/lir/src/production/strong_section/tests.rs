@@ -12,18 +12,15 @@ use super::*;
 
 mod complete_image;
 mod digests;
-mod initialization;
-use crate::{DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
+use crate::{DigestNodeV1, LirTargetProfile};
 pub(in crate::production) use complete_image::attach_image;
 pub(in crate::production) use digests::without_image_input;
 
 #[test]
-fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
+fn strong_section_has_eight_closed_fields_and_round_trips() {
     let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(coordinate.identity().unwrap(), Vec::new())
-            .unwrap();
+
     let registrations = StrongRegistrationProductionSurfaceV1::empty(
         LirTargetProfile::DARWIN_AARCH64,
         &foundation,
@@ -34,17 +31,14 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
         coordinate.clone(),
         &[],
         &foundation,
-        external.clone(),
         digests,
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap();
     let encoded = encode(&section).unwrap();
-    assert_eq!(encoded[0], 0xaa);
-    assert_initialization_field(&encoded);
+    assert_eq!(encoded[0], 0xa8);
 
     let decoded: DecodedStrongProductionSectionV1 = decode_canonical(&encoded).unwrap();
     let mut identities = identities(&foundation);
@@ -54,7 +48,6 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
             &[],
             LirTargetProfile::DARWIN_AARCH64,
             &foundation,
-            &external,
             EntryProductionSourceV1::Library,
             &[],
             &mut identities,
@@ -67,49 +60,8 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
 
 #[test]
 fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
-    for bytes in [vec![0xa9], vec![0xab]] {
+    for bytes in [vec![0xa7], vec![0xa9], vec![0xaa]] {
         assert!(decode_canonical::<DecodedStrongProductionSectionV1>(&bytes).is_err());
-    }
-}
-
-fn assert_initialization_field(encoded: &[u8]) {
-    assert!(encoded.ends_with(&[11, 0x80, 12, 0x80]));
-    let mut retired = vec![0xaa, 1, 0x80];
-    retired.extend_from_slice(&encoded[1..encoded.len() - 2]);
-    for error in [
-        decode_canonical::<DecodedStrongProductionSectionV1>(&retired).unwrap_err(),
-        decode_canonical::<DecodedStrongProductionSectionV2>(&retired).unwrap_err(),
-    ] {
-        assert_eq!(
-            error.kind(),
-            &scoop_wire::WireErrorKind::UnexpectedField {
-                expected: 2,
-                actual: 1,
-            }
-        );
-    }
-    for payload in [&[10, 0x80][..], &[10, 0xa1, 0, 1][..]] {
-        let mut retired = encoded[..encoded.len() - 4].to_vec();
-        retired.extend_from_slice(payload);
-        retired.extend_from_slice(&[12, 0x80]);
-        let v1 = decode_canonical::<DecodedStrongProductionSectionV1>(&retired).unwrap_err();
-        let v2 = decode_canonical::<DecodedStrongProductionSectionV2>(&retired).unwrap_err();
-        for error in [v1, v2] {
-            assert_eq!(
-                error.kind(),
-                &scoop_wire::WireErrorKind::UnexpectedField {
-                    expected: 11,
-                    actual: 10,
-                }
-            );
-        }
-    }
-    for payload in [&[11, 0xa1, 0, 1][..], &[11, 0x82][..]] {
-        let mut invalid = encoded[..encoded.len() - 4].to_vec();
-        invalid.extend_from_slice(payload);
-        invalid.extend_from_slice(&[12, 0x80]);
-        assert!(decode_canonical::<DecodedStrongProductionSectionV1>(&invalid).is_err());
-        assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&invalid).is_err());
     }
 }
 

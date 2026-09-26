@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{CallableRole, ConeIdentity, DependencyCallableDeclarationId};
+use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 
 #[derive(Debug)]
 pub enum CrossConeMirSelectionProjectionError {
@@ -101,16 +101,6 @@ impl std::error::Error for CrossConeMirSelectionProjectionError {
 
 #[derive(Debug)]
 pub enum CrossConeLirSelectionProjectionError {
-    MissingInitializationAbi {
-        provider: ConeIdentity,
-    },
-    RoleMismatch {
-        provider: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
-        selected: CallableRole,
-        actual: CallableRole,
-    },
-    InitializationService(scoop_lir::ImportedLirCallableProjectionError),
     ConsumerMismatch {
         closure: ConeIdentity,
         selected: ConeIdentity,
@@ -133,20 +123,6 @@ pub enum CrossConeLirSelectionProjectionError {
 impl fmt::Display for CrossConeLirSelectionProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingInitializationAbi { provider } => write!(
-                formatter,
-                "provider {provider} has no initialization-service ABI"
-            ),
-            Self::RoleMismatch {
-                provider,
-                declaration,
-                selected,
-                actual,
-            } => write!(
-                formatter,
-                "provider {provider} callable {declaration:?} has role {actual:?}, selected as {selected:?}"
-            ),
-            Self::InitializationService(source) => source.fmt(formatter),
             Self::ConsumerMismatch { closure, selected } => write!(
                 formatter,
                 "dependency MIR selection belongs to consumer {selected}, not closure {closure}"
@@ -184,12 +160,9 @@ impl fmt::Display for CrossConeLirSelectionProjectionError {
 impl std::error::Error for CrossConeLirSelectionProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::InitializationService(source) => Some(source),
             Self::Record(source) => Some(source),
             Self::Selection(source) => Some(source),
             Self::ConsumerMismatch { .. }
-            | Self::MissingInitializationAbi { .. }
-            | Self::RoleMismatch { .. }
             | Self::MissingProvider { .. }
             | Self::MissingExport { .. }
             | Self::BridgeMismatch { .. } => None,

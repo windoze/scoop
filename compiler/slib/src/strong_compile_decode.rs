@@ -16,11 +16,9 @@ use scoop_identity::{
     ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    CallableAbiRecordV1, DecodedLirFoundation, DecodedStrongProductionSectionV1,
-    EntryProductionSourceV1, ImportedLirFoundation, LirFoundationValidationError,
-    OdrFreeLirFoundation, OdrFreeLirFoundationError, StrongExternalLirBridgeReconstructionError,
-    StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
-    StrongProductionSectionValidationError,
+    DecodedLirFoundation, DecodedStrongProductionSectionV1, EntryProductionSourceV1,
+    ImportedLirFoundation, LirFoundationValidationError, OdrFreeLirFoundation,
+    OdrFreeLirFoundationError, StrongProductionSectionV1, StrongProductionSectionValidationError,
 };
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation,
@@ -158,7 +156,7 @@ pub struct ValidatedSingleConeStrongProduction {
 /// obtain the final proof without replaying every required phase.
 pub fn validate_single_cone_strong_compile_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
-    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+
     session: &mut SemanticIdentitySession,
 ) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, StrongCompileArtifactValidationError>
 {
@@ -173,7 +171,7 @@ pub fn validate_single_cone_strong_compile_artifact<'input>(
         .map_err(|error| StrongCompileArtifactValidationError::LocalProduction(Box::new(error)))?
         .validate_cross_layer()
         .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?
-        .validate_lir_production(expected_external_bridges)
+        .validate_lir_production()
         .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
         .validate_native_boundary()
         .map_err(|error| StrongCompileArtifactValidationError::NativeBoundary(Box::new(error)))?
@@ -190,7 +188,7 @@ pub fn validate_self_describing_single_cone_strong_compile_artifact<'input>(
     session: &mut SemanticIdentitySession,
 ) -> Result<ValidatedCompileArtifact<SingleConeStrongProfile>, StrongCompileArtifactValidationError>
 {
-    let mut front = graph
+    let front = graph
         .decode_single_cone_compile_sections()
         .map_err(|error| StrongCompileArtifactValidationError::Decode(Box::new(error)))?
         .validate_identities()
@@ -201,11 +199,8 @@ pub fn validate_self_describing_single_cone_strong_compile_artifact<'input>(
         .map_err(|error| StrongCompileArtifactValidationError::LocalProduction(Box::new(error)))?
         .validate_cross_layer()
         .map_err(|error| StrongCompileArtifactValidationError::Relations(Box::new(error)))?;
-    let external_bridges = front
-        .reconstruct_external_bridges()
-        .map_err(|error| StrongCompileArtifactValidationError::ExternalBridges(Box::new(error)))?;
     front
-        .validate_lir_production(&external_bridges)
+        .validate_lir_production()
         .map_err(|error| StrongCompileArtifactValidationError::LirProduction(Box::new(error)))?
         .validate_native_boundary()
         .map_err(|error| StrongCompileArtifactValidationError::NativeBoundary(Box::new(error)))?
@@ -612,20 +607,10 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
         self.local.lir_production_wire()
     }
 
-    pub fn reconstruct_external_bridges(
-        &mut self,
-    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
-        let producer = self.local.identity();
-        self.local
-            .lir_production
-            .reconstruct_external_bridges(producer, &mut self.local.identities)
-    }
-
     /// Closes the LIR production proof without accepting independently
     /// supplied entry or shape-source lists.
     pub fn validate_lir_production(
         self,
-        expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     ) -> Result<
         StructurallyValidatedSingleConeCompileProduction<'input>,
         StrongProfileLirProductionError,
@@ -650,7 +635,6 @@ impl<'input> ValidatedSingleConeCompileSemanticFront<'input> {
                 lir_foundation: &lir_foundation,
             },
             lir_production,
-            expected_external_bridges,
         )?;
         Ok(StructurallyValidatedSingleConeCompileProduction {
             graph,
@@ -778,9 +762,8 @@ mod validation;
 
 pub use errors::{
     SingleConeCompileSectionDecodeError, StrongCompileArtifactValidationError,
-    StrongProfileFoundationError, StrongProfileInitializationAbiRelationError,
-    StrongProfileLirProductionError, StrongProfileLocalProductionError,
-    StrongProfileProductionError, StrongProfileRelationError,
+    StrongProfileFoundationError, StrongProfileLirProductionError,
+    StrongProfileLocalProductionError, StrongProfileProductionError, StrongProfileRelationError,
 };
 use validation::validate_strong_profile_local_production;
 pub(crate) use validation::{

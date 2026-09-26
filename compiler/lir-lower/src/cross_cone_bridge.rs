@@ -17,7 +17,7 @@ pub fn lower_cross_cone_bridge_section(
     mir_bridge: &mir::CrossConeMirBridgeSectionV1,
     output: &lir::SingleConeStrongLirOutput,
 ) -> Result<lir::CrossConeLirBridgeSectionV1, CrossConeLirBridgeLoweringError> {
-    validate_authority(input, mir_bridge, output)?;
+    validate_providers(input, mir_bridge, output)?;
     validate_mir_selections(input, mir_bridge)?;
     let exports = lower_exports(input, mir_bridge, output)?;
     let selected = lower_selected(mir_bridge, output)?;
@@ -25,7 +25,7 @@ pub fn lower_cross_cone_bridge_section(
         .map_err(|source| CrossConeLirBridgeLoweringError::Bridge(Box::new(source)))
 }
 
-fn validate_authority(
+fn validate_providers(
     input: &mir::SingleConeStrongMirInput,
     bridge: &mir::CrossConeMirBridgeSectionV1,
     output: &lir::SingleConeStrongLirOutput,
@@ -56,13 +56,7 @@ fn validate_mir_selections(
         .map_err(|_| CrossConeLirBridgeLoweringError::Allocation {
             requested_slots: input.materialization().external_callable_roots().len(),
         })?;
-    roots.extend(
-        input
-            .materialization()
-            .external_callable_roots()
-            .iter()
-            .filter(|root| root.role() == scoop_identity::CallableRole::Ordinary),
-    );
+    roots.extend(input.materialization().external_callable_roots().iter());
     roots.sort_unstable_by_key(|root| (root.provider(), root.declaration()));
 
     if roots.len() != bridge.selected().len() {

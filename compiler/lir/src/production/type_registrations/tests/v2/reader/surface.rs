@@ -2,9 +2,8 @@
 
 use super::*;
 use crate::{
-    DecodedStrongRegistrationProductionSurfaceV2, ReplayedStrongRegistrationProductionV2,
-    StrongInitializationDefinitionCatalogV2, StrongRegistrationProductionSurfaceV2,
-    StrongTypeReferenceDefinitionsV2,
+    DecodedStrongRegistrationProductionSurfaceV2, StrongInitializationDefinitionCatalogV2,
+    StrongRegistrationProductionSurfaceV2, StrongTypeReferenceDefinitionsV2,
 };
 
 mod section;
@@ -35,14 +34,13 @@ fn replay(
     fixture: &Fixture,
     bytes: &[u8],
     definitions: &StrongTypeReferenceDefinitionsV2,
-) -> Result<ReplayedStrongRegistrationProductionV2, Error> {
+) -> Result<StrongRegistrationProductionSurfaceV2, Error> {
     let decoded: DecodedStrongRegistrationProductionSurfaceV2 = decode_canonical(bytes).unwrap();
     let producer = fixture.foundation.producer();
     decoded.replay(
         crate::LirTargetProfile::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.digests,
-        &StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
         definitions,
         &StrongInitializationDefinitionCatalogV2::new(producer, &[]).unwrap(),
     )

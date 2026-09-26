@@ -134,7 +134,6 @@ pub enum StrongTypeReferenceResolutionErrorV2 {
     DuplicateDefinition(PersistentSymbolKey),
     UnknownLocalDescriptor(DecodedPersistentId<PersistentExactTypeId>),
     UnknownLocalCallable(DecodedPersistentId<PersistentCallableBodyId>),
-    ConflictingCallableSources(PersistentCallableBodyId),
     LocalDescriptorPartition(PersistentExactTypeId),
     LocalCallablePartition(PersistentCallableBodyId),
     UnknownDependencyDescriptor {

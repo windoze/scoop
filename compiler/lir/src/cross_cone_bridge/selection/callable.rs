@@ -38,6 +38,6 @@ impl SelectedExternalLirCallable {
         &self,
         signature: crate::ScoopAbiSignature,
     ) -> Result<crate::ExternalCallable, crate::ExternalCallableBuildError> {
-        crate::ExternalCallable::new(self.record.clone(), self.role, signature)
+        crate::ExternalCallable::new(self.record.clone(), signature)
     }
 }

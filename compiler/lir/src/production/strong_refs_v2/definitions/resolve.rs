@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    OdrFreeLirFoundation, StrongExternalLirBridgeSurfaceV1, StrongRegistrationIdentitySurfaceV1,
-};
+use crate::{OdrFreeLirFoundation, StrongRegistrationIdentitySurfaceV1};
 
 type Error = StrongTypeReferenceResolutionErrorV2;
 
@@ -71,10 +69,8 @@ impl StrongTypeReferenceDefinitionsV2 {
         &self,
         decoded: DecodedStrongTypeDispatchCallableRefV2,
         foundation: &OdrFreeLirFoundation,
-        external: &StrongExternalLirBridgeSurfaceV1,
     ) -> Result<StrongTypeDispatchCallableRefV2, Error> {
         self.check_producer(foundation.producer())?;
-        self.check_producer(external.producer())?;
 
         match decoded {
             DecodedStrongTypeDispatchCallableRefV2::Local(body) => {
@@ -98,26 +94,20 @@ impl StrongTypeReferenceDefinitionsV2 {
                     }
                 }
 
-                let service = external.resolve_callable_reference(provider, body);
-
-                let layout = self.callables.iter().find_map(|definition| {
-                    let PersistentSymbolKey::CallableBody(candidate) = definition.symbol().key()
-                    else {
-                        return None;
-                    };
-                    (definition.provider().as_array() == provider.as_array()
-                        && candidate.as_array() == body.as_array())
-                    .then_some((definition.provider(), candidate))
-                });
-                let (provider, body) = match (service, layout) {
-                    (Some((_, body)), Some(_)) => {
-                        return Err(Error::ConflictingCallableSources(body));
-                    }
-                    (Some(reference), None) | (None, Some(reference)) => reference,
-                    (None, None) => {
-                        return Err(Error::UnknownDependencyCallable { provider, body });
-                    }
-                };
+                let (provider, body) = self
+                    .callables
+                    .iter()
+                    .find_map(|definition| {
+                        let PersistentSymbolKey::CallableBody(candidate) =
+                            definition.symbol().key()
+                        else {
+                            return None;
+                        };
+                        (definition.provider().as_array() == provider.as_array()
+                            && candidate.as_array() == body.as_array())
+                        .then_some((definition.provider(), candidate))
+                    })
+                    .ok_or(Error::UnknownDependencyCallable { provider, body })?;
                 Ok(StrongTypeDispatchCallableRefV2::DependencyExternal { provider, body })
             }
         }

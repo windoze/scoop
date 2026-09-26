@@ -1,9 +1,7 @@
-use std::fmt;
 use std::rc::Rc;
 
 use scoop_identity::{
-    CallableOwner, ConeIdentity, ExactCallableSignature, ImportedIdentityId, ImportedIdentityMap,
-    MirIdentityLayer, PersistentFunctionId, PersistentId, StrongCallableDefinitionOwner,
+    ConeIdentity, ImportedIdentityId, ImportedIdentityMap, MirIdentityLayer, PersistentId,
 };
 use scoop_wire::WireEncode;
 
@@ -70,73 +68,6 @@ impl ImportedMirFoundation {
     pub fn identity<I: PersistentId + 'static>(&self, id: I) -> Option<ImportedMirId<I>> {
         self.identities.get(id).map(ImportedMirId)
     }
-
-    /// Projects the required initialization cycle service from its provider. Its
-    /// typed role is disjoint from public prelude bindings.
-    pub fn project_initialization_cycle_thrower(
-        &self,
-        production: &crate::CoreBootstrapBridgeSectionV1,
-        definition: PersistentFunctionId,
-        signature: ExactCallableSignature,
-    ) -> Result<crate::SelectedDependencyMirCallableV1, ImportedMirCallableProjectionError> {
-        let implementation = CallableOwner::Function(definition);
-        let bridge = production
-            .strong_callable_bridges()
-            .get(implementation)
-            .ok_or(ImportedMirCallableProjectionError::MissingStrongSignature(
-                definition,
-            ))?;
-        if bridge.role() != crate::CallableRole::InitializationCycle {
-            return Err(
-                ImportedMirCallableProjectionError::InitializationCycleRoleMismatch(definition),
-            );
-        }
-        self.project_checked_callable(production, definition, implementation, signature)
-    }
-
-    fn project_checked_callable(
-        &self,
-        production: &crate::CoreBootstrapBridgeSectionV1,
-        definition: PersistentFunctionId,
-        implementation: CallableOwner,
-        signature: ExactCallableSignature,
-    ) -> Result<crate::SelectedDependencyMirCallableV1, ImportedMirCallableProjectionError> {
-        let strong_bridge = production
-            .strong_callable_bridges()
-            .bridges()
-            .iter()
-            .find(|bridge| bridge.implementation() == implementation)
-            .ok_or(ImportedMirCallableProjectionError::MissingStrongSignature(
-                definition,
-            ))?;
-        if strong_bridge.signature() != &signature {
-            return Err(ImportedMirCallableProjectionError::StrongSignatureMismatch(
-                definition,
-            ));
-        }
-        let foundation_signature = self
-            .canonical
-            .callable_signatures()
-            .iter()
-            .find(|candidate| {
-                candidate.subject() == crate::CallableSignatureSubject::Strong(implementation)
-            })
-            .ok_or(ImportedMirCallableProjectionError::MissingStrongSignature(
-                definition,
-            ))?;
-        if foundation_signature.signature() != &signature {
-            return Err(ImportedMirCallableProjectionError::StrongSignatureMismatch(
-                definition,
-            ));
-        }
-        crate::SelectedDependencyMirCallableV1::try_new(
-            self.origin(),
-            scoop_identity::DependencyCallableDeclarationId::Function(definition),
-            StrongCallableDefinitionOwner::Function(definition),
-            signature,
-        )
-        .map_err(ImportedMirCallableProjectionError::CallableShape)
-    }
 }
 
 impl WireEncode for ImportedMirFoundation {
@@ -147,22 +78,6 @@ impl WireEncode for ImportedMirFoundation {
         self.canonical.encode(encoder)
     }
 }
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ImportedMirCallableProjectionError {
-    CallableShape(crate::ParamFreeMirCallableBuildError),
-    InitializationCycleRoleMismatch(PersistentFunctionId),
-    MissingStrongSignature(PersistentFunctionId),
-    StrongSignatureMismatch(PersistentFunctionId),
-}
-
-impl fmt::Display for ImportedMirCallableProjectionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "cannot project imported MIR callable: {self:?}")
-    }
-}
-
-impl std::error::Error for ImportedMirCallableProjectionError {}
 
 #[cfg(test)]
 mod tests;

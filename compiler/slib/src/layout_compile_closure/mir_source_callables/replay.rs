@@ -50,6 +50,7 @@ pub(super) fn validate_sources(
                     &dependencies,
                     graph,
                     parts.mir_ordinary,
+                    parts.mir_core.strong_callable_bridges(),
                     artifact.mir.callables(),
                 )
             })??;

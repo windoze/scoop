@@ -10,11 +10,11 @@ use scoop_lir::{
 };
 
 use super::{
-    CanonicalUndefinedRelocationUseV1, DependencyStrongRequirementUseV1,
-    GeneratedBridgeRelocationSemanticV1, RelocationTargetSlotV1, RuntimeAbiRequirementUseV1,
-    SourceExternalRequirementUseV1, StrongRelocationBindingV1, TargetEhRequirementUseV1,
-    VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeStrongRelocationClosureV1,
-    VerifiedGeneratedCBridgeSemanticSetV1, VerifiedRuntimeAndEhRequirementClosureV1,
+    CanonicalUndefinedRelocationUseV1, GeneratedBridgeRelocationSemanticV1, RelocationTargetSlotV1,
+    RuntimeAbiRequirementUseV1, SourceExternalRequirementUseV1, StrongRelocationBindingV1,
+    TargetEhRequirementUseV1, VerifiedCrossConeStrongRequirementClosureV1,
+    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedGeneratedCBridgeSemanticSetV1,
+    VerifiedRuntimeAndEhRequirementClosureV1,
 };
 use crate::SlibMemberId;
 
@@ -70,13 +70,6 @@ impl VerifiedCBridgeTargetSupportRequirementClosureV1 {
             .source_closure()
             .cross_cone_closure()
             .strong_closure()
-    }
-
-    pub fn external_requirements(&self) -> &[DependencyStrongRequirementUseV1] {
-        self.runtime_and_eh
-            .source_closure()
-            .cross_cone_closure()
-            .external_requirements()
     }
 
     pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {

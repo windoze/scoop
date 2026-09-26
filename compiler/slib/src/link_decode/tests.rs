@@ -9,8 +9,8 @@ use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     CanonicalLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
     EntryProductionSourceV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
-    StrongExternalLirBridgeSurfaceV1, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1,
-    StrongProductionSectionV1, ValidatedLirTargetSelection,
+    StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionV1, StrongProductionSectionV1,
+    ValidatedLirTargetSelection,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -21,7 +21,6 @@ use crate::{
     ManifestSection, MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataSection,
     PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProducerRecord,
     RuntimeImageFingerprint, SemanticFingerprintRecord, SlibMember, SlibMemberRole,
-    StrongProfileLirProductionError,
 };
 
 pub(crate) mod layout_link_support;
@@ -63,9 +62,8 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         odr_free.lir_foundation().as_canonical().counts().odr_groups,
         0
     );
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let validated = odr_free.validate_production(&external).unwrap();
+
+    let validated = odr_free.validate_production().unwrap();
     assert_eq!(validated.identity(), cone().identity());
     assert!(
         validated
@@ -82,7 +80,7 @@ fn strong_graph_decodes_all_link_sections_atomically() {
             .initialization_cycle()
             .is_none()
     );
-    assert_eq!(validated.production().lir().external_bridges(), &external);
+
     let _ = validated.link_identity_closure_wire();
     let _ = validated.production_manifest_wire();
     let materialized = validated.validate_materializations().unwrap();
@@ -222,12 +220,10 @@ fn strong_graph_decodes_all_link_sections_atomically() {
 #[test]
 fn strong_graph_validates_the_complete_final_link_view() {
     let bytes = complete_artifact(false);
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+
     let dependency_owners = Vec::new();
     let artifact = validate_single_cone_strong_link_artifact(
         open_graph(&bytes),
-        &external,
         &dependency_owners,
         &c_bridge_profile(),
     )
@@ -261,8 +257,7 @@ fn strong_graph_validates_the_complete_final_link_view() {
 #[test]
 fn strong_graph_rejects_final_object_bytes_that_do_not_reconstruct() {
     let bytes = complete_artifact(true);
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+
     let dependency_owners = Vec::new();
     assert!(matches!(
         open_graph(&bytes)
@@ -272,7 +267,7 @@ fn strong_graph_rejects_final_object_bytes_that_do_not_reconstruct() {
             .unwrap()
             .validate_foundation_structure()
             .unwrap()
-            .validate_production(&external)
+            .validate_production()
             .unwrap()
             .validate_materializations()
             .unwrap()
@@ -298,33 +293,6 @@ fn strong_graph_rejects_final_object_bytes_that_do_not_reconstruct() {
 }
 
 #[test]
-fn link_production_rejects_an_external_surface_for_another_producer() {
-    let bytes = artifact(
-        vec![production_manifest_section()],
-        vec![strong_section(), closure_section()],
-    );
-    let wrong_external =
-        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::CORE, Vec::new()).unwrap();
-    assert!(matches!(
-        open_graph(&bytes)
-            .decode_single_cone_link_sections()
-            .unwrap()
-            .validate_identities()
-            .unwrap()
-            .validate_foundation_structure()
-            .unwrap()
-            .validate_production(&wrong_external),
-        Err(StrongProfileProductionError::Lir(
-            StrongProfileLirProductionError::Production(
-                scoop_lir::StrongProductionSectionValidationError::Expected(
-                    scoop_lir::StrongProductionSectionBuildError::ExternalBridgeProducer
-                )
-            )
-        ))
-    ));
-}
-
-#[test]
 fn link_materialization_requires_the_complete_planned_object_directory() {
     let bytes = build_artifact(
         vec![production_manifest_section()],
@@ -334,8 +302,7 @@ fn link_materialization_requires_the_complete_planned_object_directory() {
         false,
         false,
     );
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+
     assert!(matches!(
         open_graph(&bytes)
             .decode_single_cone_link_sections()
@@ -344,7 +311,7 @@ fn link_materialization_requires_the_complete_planned_object_directory() {
             .unwrap()
             .validate_foundation_structure()
             .unwrap()
-            .validate_production(&external)
+            .validate_production()
             .unwrap()
             .validate_materializations(),
         Err(StrongLinkMaterializationError::MissingObjectMember(_))
@@ -370,8 +337,7 @@ fn link_digest_patch_rejects_a_stale_definition_index_projection() {
         vec![production_manifest_section()],
         vec![strong_section(), stale_closure],
     );
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+
     assert!(matches!(
         open_graph(&bytes)
             .decode_single_cone_link_sections()
@@ -380,7 +346,7 @@ fn link_digest_patch_rejects_a_stale_definition_index_projection() {
             .unwrap()
             .validate_foundation_structure()
             .unwrap()
-            .validate_production(&external)
+            .validate_production()
             .unwrap()
             .validate_materializations()
             .unwrap()
@@ -415,8 +381,7 @@ fn link_symbol_validation_rejects_a_stale_defined_owner_projection() {
         vec![production_manifest_section()],
         vec![strong_section(), stale_closure],
     );
-    let external =
-        StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
+
     let dependency_owners = Vec::new();
     assert!(matches!(
         open_graph(&bytes)
@@ -426,7 +391,7 @@ fn link_symbol_validation_rejects_a_stale_defined_owner_projection() {
             .unwrap()
             .validate_foundation_structure()
             .unwrap()
-            .validate_production(&external)
+            .validate_production()
             .unwrap()
             .validate_materializations()
             .unwrap()
@@ -1118,7 +1083,7 @@ pub(crate) fn strong_production_fixture(
     );
     let image = scoop_lir::DigestNodeV1::new(image_key, Vec::new(), vec![patch]).unwrap();
     let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
-    let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
+
     let registrations = scoop_lir::StrongRegistrationProductionSurfaceV1::empty(
         selection().target(),
         &foundation,
@@ -1130,17 +1095,14 @@ pub(crate) fn strong_production_fixture(
         ConeIdentity::CORE,
         "the link fixture models an ordinary Cone, not the core protocol surface"
     );
-    let initialization_cycle_abi = None;
     let production = StrongProductionSectionV1::new(
         coordinate,
         direct_dependencies,
         &foundation,
-        external,
         digests,
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        initialization_cycle_abi,
     )
     .unwrap();
     (canonical, production)
@@ -1493,13 +1455,8 @@ fn empty_undefined_requirements(
         foundation,
     )
     .unwrap();
-    let core = crate::verify_dependency_strong_requirements_v1(
-        selection().target(),
-        strong,
-        production.external_bridges().clone(),
-        &[],
-    )
-    .unwrap();
+    let core =
+        crate::verify_dependency_strong_requirements_v1(selection().target(), strong, &[]).unwrap();
     let source = crate::verify_source_external_requirements_v1(core, native.clone()).unwrap();
     let runtime = crate::verify_runtime_and_eh_requirements_v1(source, selection()).unwrap();
     let bridge = crate::verify_generated_c_bridge_semantics_v1(

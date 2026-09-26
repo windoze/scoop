@@ -93,7 +93,7 @@ fn assert_shape_link_partition_allows(fixture: &Fixture, closure: &ParamFreeShap
         ]);
     }
     for subject in subjects {
-        ShapeLinkProviderV1::reject_legacy_subject(&ordinary, None, subject).unwrap();
+        ShapeLinkProviderV1::reject_legacy_subject(&ordinary, subject).unwrap();
     }
 }
 

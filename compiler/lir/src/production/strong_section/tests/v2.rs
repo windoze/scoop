@@ -3,12 +3,12 @@
 use super::*;
 
 #[test]
-fn layout_schema_retains_ten_fields_and_the_shared_initialization_payload() {
+fn layout_schema_retains_eight_shared_production_fields() {
     let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
     let producer = foundation.producer();
     let target = LirTargetProfile::DARWIN_AARCH64;
-    let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
+
     let identities =
         crate::StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     let registrations = crate::StrongRegistrationProductionSurfaceV2::from_semantics(
@@ -35,38 +35,32 @@ fn layout_schema_retains_ten_fields_and_the_shared_initialization_payload() {
         coordinate.clone(),
         &[],
         &foundation,
-        external.clone(),
         digests.clone(),
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap();
     let old = StrongProductionSectionV1::new(
         coordinate,
         &[],
         &foundation,
-        external,
         digests.clone(),
         StrongRegistrationProductionSurfaceV1::empty(target, &foundation, &digests).unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        None,
     )
     .unwrap();
     let bytes = encode(&current).unwrap();
-    super::initialization::check(&current);
     super::digests::check(&current, &foundation);
-    assert_eq!(bytes[0], 0xaa);
-    assert_initialization_field(&bytes);
+    assert_eq!(bytes[0], 0xa8);
     assert_eq!(bytes, encode(&old).unwrap());
     let decoded: DecodedStrongProductionSectionV2 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let mut truncated = bytes.clone();
     truncated.pop();
     assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&truncated).is_err());
-    for field_count in [0xa9, 0xab] {
+    for field_count in [0xa7, 0xa9] {
         let mut malformed = bytes.clone();
         malformed[0] = field_count;
         assert!(decode_canonical::<DecodedStrongProductionSectionV2>(&malformed).is_err());

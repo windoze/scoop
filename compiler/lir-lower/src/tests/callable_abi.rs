@@ -40,7 +40,22 @@ fn ordinary_initialization_and_layout_publication_share_the_materialized_abi() {
     assert_eq!(layout.canonical_signature(), record.abi_signature());
     assert_eq!(layout.definition().symbol(), record.expected_symbol());
 
-    let cycle = output.initialization_cycle_abi().unwrap();
+    let source = input
+        .production()
+        .strong_callable_bridges()
+        .initialization_cycle()
+        .unwrap();
+    let scoop_identity::CallableOwner::Function(function) = source.implementation() else {
+        panic!("source function");
+    };
+    let target = StrongCallableDefinitionOwner::Function(function);
+    let common = crate::lower_cross_cone_bridge_section(
+        &input,
+        &mir_bridge(&input, target, source.signature()),
+        &output,
+    )
+    .unwrap();
+    let cycle = common.exports()[0].callable_abi();
     let materialized = LocalCallableMaterialization::resolve(
         &input,
         &output.module().functions,
@@ -57,13 +72,12 @@ fn ordinary_initialization_and_layout_publication_share_the_materialized_abi() {
 #[test]
 fn ordinary_and_layout_publication_reject_a_missing_materialized_body_with_the_same_target() {
     let (input, output, target, signature) = exact_callable_abi::fixture();
-    let cycle = output.initialization_cycle_abi().cloned().map(Box::new);
     let mut module = output.into_module();
     let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target)).unwrap();
     module
         .functions
         .retain(|function| function.callable_body.id() != body);
-    let output = lir::SingleConeStrongLirOutput::try_new(module, Vec::new(), cycle).unwrap();
+    let output = lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
     assert!(matches!(
         crate::lower_cross_cone_bridge_section(&input, &mir_bridge(&input, target, signature.exact()), &output),
         Err(CrossConeLirBridgeLoweringError::CallableAbi { source: CallableAbiProjectionError::MissingLirBody(actual), .. }) if actual == target
@@ -82,9 +96,19 @@ fn both_publication_roles_reject_physical_gc_and_argument_drift() {
         for gc_drift in [false, true] {
             let (input, output, ordinary_target, ordinary_signature) =
                 exact_callable_abi::fixture();
-            let cycle = output.initialization_cycle_abi().unwrap();
+            let source = input
+                .production()
+                .strong_callable_bridges()
+                .initialization_cycle()
+                .unwrap();
+            let scoop_identity::CallableOwner::Function(function) = source.implementation() else {
+                panic!("source function");
+            };
             let (target, signature) = if initialization {
-                (cycle.target(), cycle.abi_signature().signature().clone())
+                (
+                    StrongCallableDefinitionOwner::Function(function),
+                    source.signature().clone(),
+                )
             } else {
                 (ordinary_target, ordinary_signature.exact().clone())
             };
@@ -128,16 +152,6 @@ fn both_publication_roles_reject_physical_gc_and_argument_drift() {
                 assert!(
                     matches!(error, CallableAbiProjectionError::ArgumentCount { target: actual, mir: 0, lir: 1 } if actual == target)
                 );
-            }
-            if initialization {
-                assert!(matches!(
-                    crate::callable_abi::lower_initialization_abi(
-                        &input,
-                        &module.functions,
-                        &module.enums
-                    ),
-                    Err(StrongLirLoweringError::CallableAbi(_))
-                ));
             }
         }
     }

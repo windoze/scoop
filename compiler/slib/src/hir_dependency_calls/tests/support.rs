@@ -150,7 +150,7 @@ impl Fixture {
             Default::default(),
         )
         .unwrap();
-        selected::empty_interface(vec![reference])
+        interface::empty_interface(vec![reference])
     }
 }
 

@@ -54,7 +54,6 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 LirTargetProfile::DARWIN_AARCH64,
                 &fixture.foundation,
                 &fixture.digests,
-                &crate::StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
                 &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
                 &Catalog::new(producer, &[definition(&provider)]).unwrap(),
             )
@@ -71,18 +70,15 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 .dependencies(),
             &[reference]
         );
-        let external =
-            crate::StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
+
         let section = crate::StrongProductionSectionV2::from_parts(
             coordinate.clone(),
             &[],
             &fixture.foundation,
-            external.clone(),
             fixture.digests.clone(),
             original,
             crate::EntryProductionSourceV1::Library,
             &[],
-            None,
         )
         .unwrap();
         let decoded: crate::DecodedStrongProductionSectionV2 =
@@ -93,10 +89,8 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 &[],
                 LirTargetProfile::DARWIN_AARCH64,
                 &fixture.foundation,
-                external,
                 crate::EntryProductionSourceV1::Library,
                 &[],
-                None,
                 &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
                 &Catalog::new(producer, &[definition(&provider)]).unwrap(),
             )

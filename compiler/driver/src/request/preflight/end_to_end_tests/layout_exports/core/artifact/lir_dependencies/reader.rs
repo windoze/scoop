@@ -79,8 +79,6 @@ pub(in super::super) fn read_sections<'a>(
         .unwrap()
         .validate_ordinary_lir_bridges()
         .unwrap()
-        .validate_lir_initialization_abi()
-        .unwrap()
         .replay_lir_strong_production()
         .unwrap()
         .replay_mir_dependency_graph()

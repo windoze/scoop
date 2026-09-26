@@ -3,7 +3,7 @@ use scoop_identity::{Effect, ExactCallableSignature};
 
 use super::*;
 
-mod selected;
+mod interface;
 mod support;
 use support::Fixture;
 

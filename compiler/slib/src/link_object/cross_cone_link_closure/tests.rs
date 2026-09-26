@@ -122,7 +122,6 @@ fn classify_callables(
     verify_cross_cone_strong_requirements_v1(
         base.target(),
         base.strong_closure().clone(),
-        base.external_bridges().clone(),
         owners,
         bridge,
     )
@@ -186,12 +185,8 @@ fn classifier_claims_only_selected_dependency_relocations() {
     let object = fixture_for_producer(consumer, "dependencyCaller");
     let member = verified_member_with_undefined(&object, &physical_symbol);
 
-    let verified = classify_callables(
-        dependency_closure(consumer, member),
-        &lir,
-        &[callable.owners()],
-    )
-    .unwrap();
+    let verified =
+        classify_callables(dependency_closure(member), &lir, &[callable.owners()]).unwrap();
 
     assert_eq!(verified.producer(), consumer);
     assert_eq!(verified.semantic_imports(), &semantic);
@@ -205,12 +200,12 @@ fn classifier_claims_only_selected_dependency_relocations() {
 }
 
 #[test]
-fn classifier_preserves_unmatched_candidates_and_rejects_unused_imports() {
+fn classifier_preserves_unmatched_candidates_and_metadata_only_imports() {
     let consumer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(consumer, "unmatchedCaller");
     let member = verified_member_with_undefined(&object, b"_unrelated");
     let empty = bridge(consumer, Vec::new());
-    let verified = classify_callables(dependency_closure(consumer, member), &empty, &[]).unwrap();
+    let verified = classify_callables(dependency_closure(member), &empty, &[]).unwrap();
     assert!(verified.requirements().is_empty());
     assert_eq!(verified.remaining_external_candidates().len(), 1);
 
@@ -218,14 +213,10 @@ fn classifier_preserves_unmatched_candidates_and_rejects_unused_imports() {
     let selected = bridge(consumer, vec![callable.selected()]);
     let object = fixture_for_producer(consumer, "noDependencyCall");
     let member = verified_member_without_relocations(&object);
-    assert!(matches!(
-        classify_callables(
-            dependency_closure(consumer, member),
-            &selected,
-            &[callable.owners()]
-        ),
-        Err(CrossConeStrongRequirementValidationError::UnusedImport { .. })
-    ));
+    let classified =
+        classify_callables(dependency_closure(member), &selected, &[callable.owners()]).unwrap();
+    assert_eq!(classified.semantic_imports().imports().len(), 1);
+    assert!(classified.requirements().is_empty());
 }
 
 #[test]
@@ -239,11 +230,7 @@ fn classifier_rejects_a_bridge_for_another_consumer() {
     let member = verified_member_without_relocations(&object);
 
     assert_eq!(
-        classify_callables(
-            dependency_closure(consumer, member),
-            &bridge(other, Vec::new()),
-            &[],
-        ),
+        classify_callables(dependency_closure(member), &bridge(other, Vec::new()), &[],),
         Err(
             CrossConeStrongRequirementValidationError::ConsumerMismatch {
                 object: consumer,
@@ -266,7 +253,7 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
         .into_bytes();
     let object = fixture_for_producer(consumer, "partitionCaller");
     let member = verified_member_with_undefined(&object, &physical_symbol);
-    let core = dependency_closure(consumer, member);
+    let core = dependency_closure(member);
     let strong = core.strong_closure().clone();
     let current =
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(consumer))
@@ -363,4 +350,33 @@ fn link_closure_reader_rejects_non_v1_product_shapes() {
     for bytes in [vec![0xa2], vec![0xa4]] {
         assert!(decode_canonical::<DecodedCrossConeLinkClosureSectionV1>(&bytes).is_err());
     }
+}
+
+#[test]
+fn callable_provider_directory_rejects_missing_duplicate_and_self_entries() {
+    let consumer = ConeIdentity::CORE;
+    let callable = CallableFixture::new("provider", "target");
+    let selected = bridge(consumer, vec![callable.selected()]);
+    let object = fixture_for_producer(consumer, "caller");
+    let source = dependency_closure(verified_member_without_relocations(&object));
+    assert!(matches!(classify_callables(source.clone(), &selected, &[]),
+        Err(CrossConeStrongRequirementValidationError::MissingProvider { provider }) if provider == callable.provider));
+    let owners = callable.owners();
+    assert!(
+        matches!(classify_callables(source.clone(), &selected, &[owners.clone(), owners.clone()]),
+        Err(CrossConeStrongRequirementValidationError::DuplicateProvider { provider }) if provider == callable.provider)
+    );
+    let self_owners = crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
+        source.strong_closure(),
+    )
+    .unwrap();
+    assert!(
+        matches!(classify_callables(source.clone(), &selected, &[self_owners]),
+        Err(CrossConeStrongRequirementValidationError::SelfDependency { provider }) if provider == consumer)
+    );
+    let actual = classify_callables(source, &selected, &[owners]).unwrap();
+    assert_eq!(
+        actual.semantic_imports().imports()[0].provider(),
+        callable.provider
+    );
 }

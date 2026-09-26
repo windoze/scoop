@@ -81,14 +81,8 @@ fn dependencies_for_strong(
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let producer = strong.producer();
     let object = fixture_for_producer(producer, "layoutPartitionCoreOwnerSeed");
-    let seed = dependency_closure(producer, verified_member_without_relocations(&object));
-    verify_dependency_strong_requirements_v1(
-        TARGET,
-        strong,
-        StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
-        seed.dependency_owners(),
-    )
-    .unwrap()
+    let seed = dependency_closure(verified_member_without_relocations(&object));
+    verify_dependency_strong_requirements_v1(TARGET, strong, seed.dependency_owners()).unwrap()
 }
 
 #[test]
@@ -127,7 +121,6 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
     let old = verify_cross_cone_strong_requirements_v1(
         TARGET,
         strong.clone(),
-        StrongExternalLirBridgeSurfaceV1::try_new(consumer_id, vec![]).unwrap(),
         &[owners],
         &callable.bridge,
     )

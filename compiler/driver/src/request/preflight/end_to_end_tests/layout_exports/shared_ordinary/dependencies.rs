@@ -18,7 +18,6 @@ pub(in super::super) fn check_dependency_uses(
         dependencies.layouts,
     )
     .unwrap();
-    super::super::shared_initialization::check_consumption(input, &layouts, dependencies.layouts);
     let replay = |callables: &[&lir::CrossConeLirBridgeSectionV1]| {
         scoop_slib::replay_shared_ordinary_lir_bridge(
             input.lir.module().meta.target_profile,

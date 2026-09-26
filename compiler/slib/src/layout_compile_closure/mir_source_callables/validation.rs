@@ -17,6 +17,7 @@ pub fn validate_shared_mir_source_callables(
     dependencies: &[hir::CheckedSharedTypeFoundationV1<'_>],
     inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
+    strong: &mir::StrongCallableBridgeSurfaceV1,
     callables: &mir::CanonicalMirCallableBindingsV1,
 ) -> Result<(), Error> {
     if ordinary.artifact() != source.provider() {
@@ -40,12 +41,17 @@ pub fn validate_shared_mir_source_callables(
         ),
     )
     .map_err(Error::Classifier)?;
-    let ordinary_expected = hir::select_ordinary_source_callables(
+    let mut ordinary_expected = hir::select_ordinary_source_callables(
         source.provider(),
         metadata.public,
         &classifier,
         metadata.identities,
     )?;
+    ordinary_expected.retain(|declaration, _| {
+        strong
+            .get(declaration.implementation().callable_owner())
+            .is_some()
+    });
     for (&declaration, &source) in &ordinary_expected {
         expected.remove(&declaration);
 

@@ -197,7 +197,6 @@ impl SelectedExternalMirSet {
     pub fn dependency_callables(&self) -> impl Iterator<Item = &SelectedDependencyMirCallableV1> {
         self.callables
             .iter()
-            .filter(|callable| callable.role() == CallableRole::Ordinary)
             .map(SelectedExternalMirCallable::record)
     }
 

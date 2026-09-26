@@ -54,7 +54,7 @@ fn no_gc_calls_with_elided_results_keep_the_planned_compact_unwind_atoms() {
     caller.blocks[caller.entry].instructions.splice(0..0, calls);
     module.functions = vec![leaf, caller];
     module.output = scoop_lir::LirOutput::Library;
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new(), None).unwrap();
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
     let directory = tempfile::tempdir().unwrap();
     let emitted = emit_object_set(
         &input,

@@ -40,10 +40,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
         ]
         .into_iter()
         .any(|actual| actual != provider)
-            || parts
-                .production
-                .initialization_cycle_abi()
-                .is_some_and(|abi| abi.link_contract(provider).is_err())
         {
             return Err(ShapeLinkError::Provider);
         }

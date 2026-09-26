@@ -3,8 +3,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DecodedNativeLibraryBinding, DecodedPersistentId, DefinitionAtomRole,
-    GeneratedBridgeUnitId, NativeExternalContractFingerprint, ObjectDefinitionAtomId,
+    DecodedNativeLibraryBinding, DecodedPersistentId, DefinitionAtomRole, GeneratedBridgeUnitId,
+    NativeExternalContractFingerprint, ObjectDefinitionAtomId,
 };
 use scoop_lir::{
     CBridgeTargetSupportRequirementId, RuntimeSymbolContractId, TargetEhRequirementId,
@@ -26,14 +26,6 @@ impl WireEncode for FinalUndefinedSymbolRequirementV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::IntraConeStrong { owner } => encode_one_field_sum(encoder, 1, owner),
-            Self::DependencyStrong { provider, owner } => {
-                encoder.map(3)?;
-                encode_tag(encoder, 8)?;
-                encoder.field(1)?;
-                provider.encode(encoder)?;
-                encoder.field(2)?;
-                owner.encode(encoder)
-            }
             Self::GeneratedBridge { unit } => encode_one_field_sum(encoder, 3, unit),
             Self::SourceExtern { contract, library } => {
                 encoder.map(3)?;
@@ -101,10 +93,7 @@ pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
     IntraConeStrong {
         owner: DecodedStrongDefinitionOwnerV1,
     },
-    DependencyStrong {
-        provider: DecodedPersistentId<ConeIdentity>,
-        owner: DecodedStrongDefinitionOwnerV1,
-    },
+
     GeneratedBridge {
         unit: DecodedPersistentId<GeneratedBridgeUnitId>,
     },
@@ -127,14 +116,6 @@ impl WireEncode for DecodedFinalUndefinedSymbolRequirementV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::IntraConeStrong { owner } => encode_one_field_sum(encoder, 1, owner),
-            Self::DependencyStrong { provider, owner } => {
-                encoder.map(3)?;
-                encode_tag(encoder, 8)?;
-                encoder.field(1)?;
-                provider.encode(encoder)?;
-                encoder.field(2)?;
-                owner.encode(encoder)
-            }
             Self::GeneratedBridge { unit } => encode_one_field_sum(encoder, 3, unit),
             Self::SourceExtern { contract, library } => {
                 encoder.map(3)?;
@@ -162,13 +143,7 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
                     .field(1, DecodedStrongDefinitionOwnerV1::decode)
                     .map(|owner| Self::IntraConeStrong { owner })
             }
-            8 => {
-                expect_sum_length(decoder, fields, 3)?;
-                Ok(Self::DependencyStrong {
-                    provider: decoder.field(1, DecodedPersistentId::decode)?,
-                    owner: decoder.field(2, DecodedStrongDefinitionOwnerV1::decode)?,
-                })
-            }
+
             3 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder

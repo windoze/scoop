@@ -68,23 +68,26 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     )
     .unwrap();
 
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(provider).unwrap();
-    let identities = pending.finish().unwrap();
-    let mut session = SemanticIdentitySession::new();
-    let (_, imported_mir_identities, _) = session
-        .import(
-            provider,
-            SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
-            &identities,
-        )
-        .unwrap()
-        .into_parts();
-    let imported_mir =
-        mir::ImportedMirFoundation::from_odr_free(core_foundation, imported_mir_identities);
-    let mir_callable = imported_mir
-        .project_initialization_cycle_thrower(core_input.production(), definition, exact.clone())
-        .unwrap();
+    let target = scoop_identity::StrongCallableDefinitionOwner::Function(definition);
+    let declaration = scoop_identity::DependencyCallableDeclarationId::Function(definition);
+    let export =
+        mir::ParamFreeMirCallableExportV1::try_new(declaration, target, exact.clone()).unwrap();
+    let bridge = mir::CrossConeMirBridgeSectionV1::try_new(
+        provider,
+        core_input.foundation(),
+        vec![export],
+        Vec::new(),
+    )
+    .unwrap();
+    let lir_bridge =
+        crate::lower_cross_cone_bridge_section(&core_input, &bridge, &core_lir).unwrap();
+    let lir_callable = lir::SelectedDependencyLirCallableV1::from_export(
+        provider,
+        lir_bridge.exports()[0].clone(),
+    );
+    let mir_callable =
+        mir::SelectedDependencyMirCallableV1::try_new(provider, declaration, target, exact)
+            .unwrap();
     let selected_mir = mir::SelectedExternalMirSet::empty(ConeIdentity::SINGLE_FILE)
         .with_initialization_cycle(mir_callable)
         .unwrap();
@@ -144,78 +147,6 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     )
     .unwrap();
 
-    let canonical_lir = core_lir.foundation().as_canonical().clone();
-    let decoded_lir = scoop_wire::decode_canonical::<lir::DecodedLirFoundation>(
-        &scoop_wire::encode(&canonical_lir).unwrap(),
-    )
-    .unwrap();
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(provider).unwrap();
-    pending.register_authority(definition).unwrap();
-    let decoded_exact_types = core_input
-        .module()
-        .meta
-        .source_exact_types
-        .iter()
-        .map(|identity| {
-            scoop_wire::decode_canonical::<
-                scoop_identity::DecodedCborIdentityRecord<
-                    scoop_identity::PersistentExactTypeId,
-                    scoop_identity::DecodedExactTypeKey,
-                >,
-            >(&scoop_wire::encode(identity.identity_record()).unwrap())
-            .unwrap()
-        })
-        .collect::<Vec<_>>();
-    for identity in core_input.module().meta.source_exact_types.iter() {
-        match identity.identity_record().key() {
-            scoop_identity::ExactTypeKey::Nominal(owner) => {
-                pending.register_authority(*owner).unwrap();
-            }
-            scoop_identity::ExactTypeKey::NominalApplication { origin, .. } => {
-                pending.register_authority(*origin).unwrap();
-            }
-            scoop_identity::ExactTypeKey::Tuple(_)
-            | scoop_identity::ExactTypeKey::Function { .. }
-            | scoop_identity::ExactTypeKey::RawPointer(_)
-            | scoop_identity::ExactTypeKey::NativeFunctionPointer { .. } => {}
-        }
-    }
-    for identity in &decoded_exact_types {
-        pending
-            .register(scoop_identity::IdentityLayer::Hir, identity)
-            .unwrap();
-    }
-    decoded_lir.register_identities(&mut pending).unwrap();
-    for identity in &decoded_exact_types {
-        pending.resolve(identity).unwrap();
-    }
-    decoded_lir.resolve_identities(&mut pending).unwrap();
-    let identities = pending.finish().unwrap();
-    let mut session = SemanticIdentitySession::new();
-    let (_, _, imported_lir_identities) = session
-        .import(
-            provider,
-            SemanticOriginFingerprint::new([4; 32], [5; 32], [6; 32]),
-            &identities,
-        )
-        .unwrap()
-        .into_parts();
-    let imported_lir = lir::ImportedLirFoundation::from_odr_free(
-        core_lir.foundation().clone(),
-        imported_lir_identities,
-    );
-    let definitions =
-        lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(core_lir.foundation()).unwrap();
-    let core_bridge = core_lir.initialization_cycle_abi().unwrap();
-    let lir_callable = imported_lir
-        .project_initialization_cycle_thrower(
-            core_bridge,
-            &definitions,
-            scoop_identity::StrongCallableDefinitionOwner::Function(definition),
-            exact,
-        )
-        .unwrap();
     let string_exact = core_input
         .module()
         .meta

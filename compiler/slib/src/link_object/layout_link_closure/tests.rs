@@ -1,5 +1,4 @@
 use scoop_identity::ConeIdentity;
-use scoop_lir::StrongExternalLirBridgeSurfaceV1;
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
@@ -24,14 +23,8 @@ fn legacy_for(
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let producer = strong.producer();
     let object = fixture_for_producer(producer, "coreOwnerSeed");
-    let seed = dependency_closure(producer, verified_member_without_relocations(&object));
-    verify_dependency_strong_requirements_v1(
-        TARGET,
-        strong,
-        StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
-        seed.dependency_owners(),
-    )
-    .unwrap()
+    let seed = dependency_closure(verified_member_without_relocations(&object));
+    verify_dependency_strong_requirements_v1(TARGET, strong, seed.dependency_owners()).unwrap()
 }
 
 fn single_legacy(
@@ -39,7 +32,7 @@ fn single_legacy(
     symbol: &[u8],
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let object = fixture_for_producer(producer, "layoutUse");
-    dependency_closure(producer, verified_member_with_undefined(&object, symbol))
+    dependency_closure(verified_member_with_undefined(&object, symbol))
 }
 
 #[test]

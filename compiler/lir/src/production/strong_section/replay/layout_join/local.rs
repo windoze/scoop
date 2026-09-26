@@ -12,7 +12,6 @@ pub(super) fn validate(
     let provider = production.type_registrations().producer();
     for (component, actual) in [
         ("layout_abi", section.provider()),
-        ("external_bridges", production.external_bridges().producer()),
         (
             "callable_registrations",
             production.callable_registrations().producer(),

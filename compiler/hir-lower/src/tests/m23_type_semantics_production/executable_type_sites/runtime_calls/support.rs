@@ -26,7 +26,7 @@ pub(super) fn with_fixture(
     }).unwrap();
     *declaration = replacement;
     make_core_public(&mut source);
-    let core = trusted_core_from_source(source, &text, None);
+    let core = trusted_core_from_source(source, &text);
     let ordinary = parsed_ordinary_text(&runtime_fixture(case));
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());

@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check(
     name: &str,
-    input: scoop_slib::LirInitializationAbiValidatedCrossConeLayoutClosure<'_>,
+    input: scoop_slib::OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'_>,
     units: &[mir::MirTypeBridgeInitializationUnitV1],
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
 ) {
@@ -20,8 +20,6 @@ pub(super) fn check(
     );
     assert_eq!(current.initialization_units(), units);
     let strong = current.lir_strong_production();
-    assert!(strong.external_bridges().bridges().is_empty());
-    assert!(strong.initialization_cycle_abi().is_some());
     assert!(!strong.digest_finalization_plan().nodes().is_empty());
     if name.starts_with("shared-production-") {
         let dump = format!(

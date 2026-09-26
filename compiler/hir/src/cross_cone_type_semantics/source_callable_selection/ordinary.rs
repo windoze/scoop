@@ -1,16 +1,17 @@
 use super::*;
-use crate::{CallableInterfaceRecordV1, NominalExactLeafClassifierV1};
+use crate::{CallableDeclarationRecordV1, NominalExactLeafClassifierV1};
 use scoop_identity::PropertyAccessorKey;
 
-/// Replays the established ordinary partition without granting type layouts.
+/// Selects ordinary source declarations whose exact signatures are available.
+/// Consumers join these declarations with actual MIR bodies.
 pub fn select_ordinary_source_callables<'a>(
     provider: ConeIdentity,
     public: &'a CrossConeHirInterfaceSectionV1,
     classifier: &NominalExactLeafClassifierV1,
     identities: &ValidatedIdentityGraph,
-) -> Result<BTreeMap<Declaration, &'a CallableInterfaceRecordV1>, Error> {
+) -> Result<BTreeMap<Declaration, &'a CallableDeclarationRecordV1>, Error> {
     let mut required = BTreeMap::new();
-    for source in public.callable_interfaces().records() {
+    for source in public.callable_interfaces().all_declarations() {
         let Some(classified) =
             classifier
                 .classify_callable(source)

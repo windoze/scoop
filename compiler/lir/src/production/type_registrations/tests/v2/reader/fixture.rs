@@ -84,7 +84,6 @@ pub(super) fn validate(
         crate::LirTargetProfile::DARWIN_AARCH64,
         &fixture.foundation,
         &fixture.identities,
-        &StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
         definitions,
         &fixture.digests,
     )

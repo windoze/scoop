@@ -136,7 +136,7 @@ fn imported_intrinsics_keep_edited_parameter_names_and_declared_method_names() {
         })
         .unwrap();
     method.params[0].name.text = "distance".into();
-    let core = support::trusted_core_from_source(source, "", None);
+    let core = support::trusted_core_from_source(source, "");
     let run = |name: &str, check: &dyn Fn(&CurrentConeSources<'_, '_>, &str)| {
         let source = fixture(name);
         let parsed = support::parsed_ordinary_text(&source);

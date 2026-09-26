@@ -1,5 +1,5 @@
-dependency: owners=3152 uses=499 ordinary=0 shape=0 native=10 categories=[240, 0, 0, 21, 232, 6, 0]
-current: owners=209 uses=72 ordinary=2 shape=2 native=1 categories=[31, 1, 1, 1, 31, 3, 0]
+dependency: owners=3152 uses=499 ordinary=0 shape=0 native=10 categories=[240, 0, 21, 232, 6, 0]
+current: owners=209 uses=72 ordinary=3 shape=2 native=1 categories=[31, 1, 1, 31, 3, 0]
 reject DefinedMissing
 reject DefinedDuplicate
 reject DefinedMember

@@ -7,7 +7,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError, OdrFreeLirFoundation,
-    StrongExternalLirBridgeReconstructionError, StrongProductionSectionV1,
+    StrongProductionSectionV1,
 };
 use scoop_mir::{CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation};
 
@@ -148,9 +148,6 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
             lir_strong_production,
             lir_cross_cone_bridge,
         } = self;
-        let external_bridges = lir_strong_production
-            .reconstruct_external_bridges(graph.identity(), &mut identities)
-            .map_err(CrossConeLirFrontValidationError::ExternalBridges)?;
         let shape_sources = scoop_hir::PublicNominalShapeRequirementsV1::from_shared_surface(
             graph.identity(),
             hir_core_production.direct_public_surface(),
@@ -171,7 +168,6 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
                 lir_foundation: &foundations.lir,
             },
             lir_strong_production,
-            &external_bridges,
             &shape_sources,
         )
         .map_err(CrossConeLirFrontValidationError::StrongProduction)?;
@@ -195,7 +191,6 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
 
 #[derive(Debug)]
 pub enum CrossConeLirFrontValidationError {
-    ExternalBridges(StrongExternalLirBridgeReconstructionError),
     StrongProduction(StrongProfileLirProductionError),
     NativeBoundary(NativeBoundaryCompileError),
     DependencyBridge(CrossConeLirBridgeValidationError),
@@ -210,7 +205,6 @@ impl std::fmt::Display for CrossConeLirFrontValidationError {
 impl std::error::Error for CrossConeLirFrontValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
-            Self::ExternalBridges(source) => source,
             Self::StrongProduction(source) => source,
             Self::NativeBoundary(source) => source,
             Self::DependencyBridge(source) => source,

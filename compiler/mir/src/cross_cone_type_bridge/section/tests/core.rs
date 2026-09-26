@@ -22,14 +22,21 @@ pub(super) fn fixture() -> Fixture {
     ])
     .unwrap();
     let exports = exports(&types, ConeIdentity::CORE, table);
+    let (cycle, signature) = add_function_to(&mut types, ConeIdentity::CORE, "cycle");
     let ordinary = crate::CrossConeMirBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         &types.foundation,
-        vec![],
+        vec![
+            crate::ParamFreeMirCallableExportV1::try_new(
+                DependencyCallableDeclarationId::Function(cycle),
+                StrongCallableDefinitionOwner::Function(cycle),
+                signature,
+            )
+            .unwrap(),
+        ],
         vec![],
     )
     .unwrap();
-    let (cycle, _) = add_function_to(&mut types, ConeIdentity::CORE, "cycle");
     let production = crate::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         crate::EntryMirBridgeBranchV1::Library,
@@ -70,7 +77,7 @@ fn core_shape_selection_uses_the_common_table_and_round_trips() {
 }
 
 #[test]
-fn fixed_core_and_ordinary_callable_partitions_cannot_be_selected_again() {
+fn ordinary_callable_exports_cannot_be_selected_in_the_type_partition() {
     let core_provider = fixture();
     let mut ordinary = Fixture::new("ordinary-provider");
     let (function, signature) = add_function(&mut ordinary, "ordinary");

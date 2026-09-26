@@ -18,7 +18,6 @@ mod wire;
 pub use errors::*;
 pub use selection::*;
 pub use wire::DecodedCrossConeLirBridgeSectionV1;
-pub(crate) use wire::DecodedSelectedDependencyLirCallableV1;
 
 /// Canonical LIR contract exported by a terminal provider.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -117,6 +116,10 @@ pub struct SelectedDependencyLirCallableV1 {
 }
 
 impl SelectedDependencyLirCallableV1 {
+    pub fn from_export(provider: ConeIdentity, bridge: ParamFreeLirCallableExportV1) -> Self {
+        Self { provider, bridge }
+    }
+
     pub fn new(
         provider: ConeIdentity,
         declaration: DependencyCallableDeclarationId,
@@ -153,7 +156,7 @@ impl SelectedDependencyLirCallableV1 {
         &self,
         signature: crate::ScoopAbiSignature,
     ) -> Result<crate::ExternalCallable, crate::ExternalCallableBuildError> {
-        crate::ExternalCallable::new(self.clone(), crate::CallableRole::Ordinary, signature)
+        crate::ExternalCallable::new(self.clone(), signature)
     }
 
     fn sort_key(&self) -> (ConeIdentity, DependencyCallableDeclarationId) {

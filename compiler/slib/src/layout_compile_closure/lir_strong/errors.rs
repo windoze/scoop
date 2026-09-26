@@ -13,7 +13,6 @@ pub enum SharedLirStrongProductionError {
     InitializationDefinition(PersistentInitializationUnitId),
     ShapeSources(scoop_hir::PublicNominalShapeProjectionError),
     SourceIdentity(scoop_identity::IdentityReferenceError),
-    ExternalBridges(lir::StrongExternalLirBridgeReconstructionError),
     ShapeDefinition(lir::StrongShapeDefinitionError),
     TypeDefinitions(lir::StrongTypeReferenceResolutionErrorV2),
     InitializationDefinitions(lir::InitializationDependencyResolutionError),
@@ -33,10 +32,6 @@ macro_rules! from_error {
 from_error!(WireError, Resource);
 from_error!(scoop_hir::PublicNominalShapeProjectionError, ShapeSources);
 from_error!(scoop_identity::IdentityReferenceError, SourceIdentity);
-from_error!(
-    lir::StrongExternalLirBridgeReconstructionError,
-    ExternalBridges
-);
 from_error!(lir::StrongShapeDefinitionError, ShapeDefinition);
 from_error!(lir::StrongTypeReferenceResolutionErrorV2, TypeDefinitions);
 from_error!(

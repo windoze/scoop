@@ -30,16 +30,15 @@ use crate::{
     LirTargetProfile, NonEmptyRefScan, OdrFreeLirFoundation, PointerKind, RefScan,
     StaticImmortalRelocationPlanV1, StaticStorageScanKindV1, StrongCallableRuntimeScanAtomV1,
     StrongCallableRuntimeScanPlanSetV1, StrongCallableRuntimeScanPlanV1,
-    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
-    StrongImmortalObjectSemanticPlanSetV1, StrongImmortalObjectSemanticPlanV1,
-    StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSetV1,
-    StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityValidationError,
-    StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1,
-    StrongStaticStorageInitialStatePlanV1, StrongStaticStorageSemanticPlanSetV1,
-    StrongStaticStorageSemanticPlanV1, StrongTypeDescriptorRefV1,
-    StrongTypeDescriptorSemanticPlanSetV1, StrongTypeDispatchCallableRefV1,
-    TypeDescriptorInlineScanV1, TypeInstanceKindV1, TypeInstanceShapeV1, ValueStorageLayoutV1,
-    generated_unit_body, startup_gateway_body,
+    StrongDigestFinalizationPlanV1, StrongImmortalObjectSemanticPlanSetV1,
+    StrongImmortalObjectSemanticPlanV1, StrongInitializationSchedulePlanV1,
+    StrongInitializationUnitSemanticPlanSetV1, StrongRegistrationIdentitySurfaceV1,
+    StrongRegistrationIdentityValidationError, StrongSafepointSemanticPlanSetV1,
+    StrongSafepointSemanticPlanV1, StrongStaticStorageInitialStatePlanV1,
+    StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1,
+    StrongTypeDescriptorRefV1, StrongTypeDescriptorSemanticPlanSetV1,
+    StrongTypeDispatchCallableRefV1, TypeDescriptorInlineScanV1, TypeInstanceKindV1,
+    TypeInstanceShapeV1, ValueStorageLayoutV1, generated_unit_body, startup_gateway_body,
 };
 
 mod callables;
@@ -60,7 +59,6 @@ pub use initialization::validate_initialization_registration_constituents_v2;
 use initialization::validate_initialization_units;
 
 mod v2;
-pub use v2::ReplayedStrongRegistrationProductionV2;
 
 impl DecodedStrongRegistrationProductionSurfaceV1 {
     pub fn validate(
@@ -68,7 +66,6 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
         target: LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         digests: &StrongDigestFinalizationPlanV1,
-        external_bridges: &StrongExternalLirBridgeSurfaceV1,
     ) -> Result<StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError>
     {
         let actual = encode(&self).map_err(StrongRegistrationProductionValidationError::Encode)?;
@@ -95,14 +92,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             })?
             .registrations(),
         )?;
-        let type_semantics = validate_types(
-            self.types,
-            target,
-            foundation,
-            &identities,
-            external_bridges,
-            digests,
-        )?;
+        let type_semantics = validate_types(self.types, target, foundation, &identities, digests)?;
         let immortal_semantics = validate_immortal_objects(
             self.immortal_objects,
             target,

@@ -223,7 +223,6 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
                 crate::LirTargetProfile::DARWIN_AARCH64,
                 &fixture.foundation,
                 &fixture.digests,
-                &crate::StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
             )
             .is_err()
     );

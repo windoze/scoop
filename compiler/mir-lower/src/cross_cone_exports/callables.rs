@@ -48,7 +48,7 @@ pub(super) fn combine<const N: usize>(
 }
 
 pub(super) fn validate_ordinary(input: MirTypeBridgeExportInputV1<'_>) -> Result<(), Error> {
-    let expected = hir::select_ordinary_source_callables(
+    let mut expected = hir::select_ordinary_source_callables(
         input.mir.module().cone,
         input.public,
         input.nominal_classifier,
@@ -58,6 +58,14 @@ pub(super) fn validate_ordinary(input: MirTypeBridgeExportInputV1<'_>) -> Result
         hir::SharedTypeMetadataError::Resource(error) => Error::Resource(error),
         error => Error::OrdinarySource(Box::new(error)),
     })?;
+    expected.retain(|declaration, _| {
+        input
+            .mir
+            .production()
+            .strong_callable_bridges()
+            .get(declaration.implementation().callable_owner())
+            .is_some()
+    });
     if expected.len() != input.ordinary.exports().len() {
         return Err(Error::IncompleteOrdinaryCallables {
             expected: expected.len(),

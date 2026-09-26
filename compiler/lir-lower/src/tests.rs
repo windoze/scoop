@@ -23,13 +23,12 @@ use scoop_identity::{
     InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
     PendingIdentityValidation, PersistentCallbackApplicationId, PersistentExactTypeId,
     PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId,
-    PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint, SignatureCallableShape,
-    SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceDeclarationKey,
-    SourceDeclarationSite, SourceExternFunctionAbi, SourceNativeExternalContract,
-    SourceNativeExternalContractKey, SourceNativeExternalContractRecord,
-    SourceNativeLibraryBinding, SourceNativeSymbol, SourceNominalKind,
-    SourceScoopAbiFunctionSignature, SpecializationKey, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
+    SourceNativeExternalContract, SourceNativeExternalContractKey,
+    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
+    SourceNominalKind, SourceScoopAbiFunctionSignature, SpecializationKey,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 fn test_field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {

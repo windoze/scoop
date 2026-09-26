@@ -37,10 +37,8 @@ fn replay(fixture: &ProviderFixture) -> StrongProductionSectionV2 {
         &[],
         TARGET,
         &fixture.source.foundation,
-        StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        None,
         &StrongTypeReferenceDefinitionsV2::new(producer, &[]).unwrap(),
         &StrongInitializationDefinitionCatalogV2::new(producer, &[]).unwrap(),
     )

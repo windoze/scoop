@@ -4,7 +4,6 @@ pub(super) struct Fixture {
     foundation: CanonicalHirFoundation,
     pub public: NominalInterfaceRecordV1,
     pub hidden: NominalInterfaceRecordV1,
-    extra: NominalInterfaceRecordV1,
 }
 
 impl Fixture {
@@ -29,7 +28,6 @@ impl Fixture {
             "Hidden",
             DefinitionOwnerChain::from_outer_to_inner(vec![DefinitionOwnerAtom::Type(public.id())]),
         );
-        let extra = nominal_key(cone, "Unrelated", DefinitionOwnerChain::top_level());
         let source = SourceIdentity::new(
             cone,
             NormalizedSourcePath::new("src/Container.scoop").unwrap(),
@@ -53,7 +51,7 @@ impl Fixture {
         foundation.set_source_contexts(vec![context]).unwrap();
         foundation
             .set_definition_origins(
-                [&public, &hidden, &extra]
+                [&public, &hidden]
                     .map(|key| {
                         DefinitionOriginRecord::new(
                             DefinitionOriginSubject::Type(key.id()),
@@ -69,7 +67,6 @@ impl Fixture {
                 CoreBuiltinNominal::Any.identity_record(),
                 public.clone(),
                 hidden.clone(),
-                extra.clone(),
             ])
             .unwrap();
         Self {
@@ -80,11 +77,10 @@ impl Fixture {
                 vec![SourceNominalId::Concrete(hidden.id())],
             ),
             hidden: record(hidden.id(), DeclaredVisibilityV1::Private, vec![]),
-            extra: record(extra.id(), DeclaredVisibilityV1::Private, vec![]),
         }
     }
 
-    pub fn artifact(&self, hidden: bool, child: bool, extra: bool) -> Vec<u8> {
+    pub fn artifact(&self, hidden: bool, child: bool) -> Vec<u8> {
         let public = if child {
             self.public.clone()
         } else {
@@ -96,9 +92,6 @@ impl Fixture {
         let mut support = Vec::new();
         if hidden {
             support.push(self.hidden.clone());
-        }
-        if extra {
-            support.push(self.extra.clone());
         }
         let mut section = CrossConeHirInterfaceSectionV1::new(
             CanonicalPublicExportBindingsV1::try_new(vec![]).unwrap(),

@@ -6,7 +6,6 @@ use scoop_identity::{
     CallableBodyKey, ConeIdentity, PersistentCallableBodyId, StrongCallableDefinitionOwner,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_lir::StrongExternalLirBridgeV1;
 
 use super::CrossConeStrongRequirementValidationError;
 use crate::SlibMemberId;
@@ -66,21 +65,6 @@ pub(super) fn resolve_owner(
         );
     }
     Ok(owner.member())
-}
-
-pub(super) fn expected_symbol(
-    bridge: &StrongExternalLirBridgeV1,
-) -> scoop_identity::PersistentSymbolRequest {
-    match bridge {
-        StrongExternalLirBridgeV1::Callable(bridge) => bridge.bridge().expected_symbol(),
-    }
-}
-
-pub(super) fn expected_owner(
-    bridge: &StrongExternalLirBridgeV1,
-) -> Result<StrongDefinitionOwnerV1, CrossConeStrongRequirementValidationError> {
-    let StrongExternalLirBridgeV1::Callable(bridge) = bridge;
-    callable_owner(bridge.bridge().target())
 }
 
 pub(super) fn callable_owner(

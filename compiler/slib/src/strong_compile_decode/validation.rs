@@ -19,7 +19,6 @@ pub(crate) fn validate_strong_profile_production(
     identities: &mut ValidatedIdentityGraph,
     foundations: &OdrFreeStrongFoundationSet,
     production: DecodedStrongProfileProductionSet,
-    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
 ) -> Result<ValidatedSingleConeStrongProduction, StrongProfileProductionError> {
     let local = validate_strong_profile_local_production(
         graph.identity(),
@@ -48,7 +47,6 @@ pub(crate) fn validate_strong_profile_production(
             lir_foundation: &foundations.lir,
         },
         production.lir,
-        expected_external_bridges,
     )
     .map_err(StrongProfileProductionError::Lir)?;
     Ok(ValidatedSingleConeStrongProduction::new(
@@ -98,7 +96,6 @@ pub(crate) fn validate_strong_profile_lir_production(
     identities: &mut ValidatedIdentityGraph,
     front: StrongProfileSemanticFront<'_>,
     lir: DecodedStrongProductionSectionV1,
-    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
 ) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
     let shape_sources = PublicNominalShapeRequirementsV1::from_direct_surface(
         graph.identity(),
@@ -107,14 +104,7 @@ pub(crate) fn validate_strong_profile_lir_production(
     )
     .and_then(|shapes| shapes.source_declarations(front.hir_foundation.as_canonical()))
     .map_err(StrongProfileLirProductionError::ShapeSources)?;
-    validate_strong_profile_lir_with_shape_sources(
-        graph,
-        identities,
-        front,
-        lir,
-        expected_external_bridges,
-        &shape_sources,
-    )
+    validate_strong_profile_lir_with_shape_sources(graph, identities, front, lir, &shape_sources)
 }
 
 pub(crate) fn validate_strong_profile_lir_with_shape_sources(
@@ -122,7 +112,7 @@ pub(crate) fn validate_strong_profile_lir_with_shape_sources(
     identities: &mut ValidatedIdentityGraph,
     front: StrongProfileSemanticFront<'_>,
     lir: DecodedStrongProductionSectionV1,
-    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+
     shape_sources: &[scoop_identity::SourceDeclarationKey],
 ) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
     let entry_source = match front.mir_production.entry_bridge() {
@@ -141,50 +131,12 @@ pub(crate) fn validate_strong_profile_lir_with_shape_sources(
                 .collect::<Vec<_>>(),
             graph.target_selection().target(),
             front.lir_foundation,
-            expected_external_bridges,
             entry_source,
             shape_sources,
             identities,
         )
         .map_err(StrongProfileLirProductionError::Production)?;
-    validate_initialization_abi_relation(
-        front.mir_production.strong_callable_bridges(),
-        lir.initialization_cycle_abi(),
-    )
-    .map_err(StrongProfileLirProductionError::InitializationAbiRelation)?;
     Ok(lir)
-}
-
-fn validate_initialization_abi_relation(
-    strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
-    lir: Option<&CallableAbiRecordV1>,
-) -> Result<(), StrongProfileInitializationAbiRelationError> {
-    let cycle = strong.initialization_cycle();
-    let (Some(cycle), Some(lir)) = (cycle, lir) else {
-        return match (cycle, lir) {
-            (None, None) => Ok(()),
-            _ => Err(StrongProfileInitializationAbiRelationError::PresenceMismatch),
-        };
-    };
-    let cycle_target = match cycle.implementation() {
-        scoop_identity::CallableOwner::Function(id) => {
-            scoop_identity::StrongCallableDefinitionOwner::Function(id)
-        }
-        _ => {
-            return Err(
-                StrongProfileInitializationAbiRelationError::InvalidInitializationCycleOwner,
-            );
-        }
-    };
-    if lir.target() != cycle_target {
-        return Err(StrongProfileInitializationAbiRelationError::InitializationCycleMismatch);
-    }
-    if lir.abi_signature().signature() != cycle.signature() {
-        return Err(
-            StrongProfileInitializationAbiRelationError::InitializationCycleSignatureMismatch,
-        );
-    }
-    Ok(())
 }
 
 fn validate_output_relation(
@@ -315,6 +267,3 @@ fn validate_strong_profile_foundations_with_source_authority(
             .map_err(StrongProfileFoundationError::LirOdr)?,
     })
 }
-
-#[cfg(test)]
-mod initialization_abi_tests;

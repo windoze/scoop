@@ -6,9 +6,7 @@ use scoop_wire::{WirePath, encode_canonical_temporary};
 mod layout_join;
 pub use layout_join::StrongProductionLayoutJoinError;
 
-impl<I: WireEncode>
-    DecodedStrongProductionSection<crate::DecodedStrongRegistrationProductionSurfaceV2, I>
-{
+impl DecodedStrongProductionSectionV2 {
     /// Checks the canonical section against its foundation and registration
     /// records. Layout and external-reference joins use the returned data.
     #[allow(clippy::too_many_arguments)]
@@ -18,10 +16,8 @@ impl<I: WireEncode>
         direct_dependencies: &[ConeIdentity],
         target: crate::LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
-        expected_external_bridges: StrongExternalLirBridgeSurfaceV1,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        expected_initialization_abi: Option<Box<CallableAbiRecordV1>>,
         type_definitions: &crate::StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &crate::StrongInitializationDefinitionCatalogV2,
     ) -> Result<StrongProductionSectionV2, StrongProductionSectionValidationError> {
@@ -40,14 +36,13 @@ impl<I: WireEncode>
                 target,
                 foundation,
                 &digests,
-                &expected_external_bridges,
                 type_definitions,
                 initialization_definitions,
             )
             .map_err(StrongProductionSectionValidationError::Registrations)?;
         let expected_digests = crate::replay_strong_digest_finalization_plan_v2(
             foundation,
-            &registrations.surface,
+            &registrations,
             &entry_source,
         )
         .map_err(|source| {
@@ -63,12 +58,10 @@ impl<I: WireEncode>
             coordinate,
             direct_dependencies,
             foundation,
-            expected_external_bridges,
             expected_digests,
-            registrations.surface,
+            registrations,
             entry_source,
             shape_sources,
-            expected_initialization_abi,
         )
         .map_err(StrongProductionSectionValidationError::Expected)?;
         let canonical = encode_canonical_temporary(&section, &path)?;

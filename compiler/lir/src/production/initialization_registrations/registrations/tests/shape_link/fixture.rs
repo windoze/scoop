@@ -58,12 +58,10 @@ impl ProviderFixture {
             coordinate,
             &[],
             &source.foundation,
-            StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
             source.digests.clone(),
             registrations,
             EntryProductionSourceV1::Library,
             &[],
-            None,
         )
         .unwrap();
         let layouts =

@@ -115,7 +115,7 @@ fn imported_member_named_arguments_follow_the_edited_source_declaration() {
         })
         .unwrap();
     method.params[0].name.text = "distance".into();
-    let core = support::trusted_core_from_source(source, "", None);
+    let core = support::trusted_core_from_source(source, "");
     for name in ["edited-parameter.scoop", "edited-old-name.scoop"] {
         let source = fixture(name);
         let parsed = support::parsed_ordinary_text(&source);
