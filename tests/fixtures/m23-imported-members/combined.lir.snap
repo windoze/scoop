@@ -69,6 +69,70 @@ Module
     store local3 -> local4
     t1 = integer_Add<Long> local2, local4 : i64
     ret t1
+  fun @scoop$1$cb$e35f3d74a09d205fffbc2c953ad00fe3457e5b5ebc0c2825004ff7fb2890343d(indirect<struct2 size=24 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $dependency.receiver: struct2
+    local %1 $dependency.parameter.other: struct2
+    local %2 $dependency.receiver: i64
+    local %3 $dependency.argument.0: i64
+    local %4 $dependency.parameter.other: i64
+    local %5 $dependency.receiver: i64
+    local %6 $dependency.argument.0: i64
+    local %7 $dependency.parameter.other: i64
+    local %8 $dependency.receiver: i64
+    local %9 $dependency.argument.0: i64
+    local %10 $dependency.parameter.other: i64
+    local %11 $call.1: struct2
+    local %12 $sc.1: struct2
+    local %13 $sc.2: struct2
+    local %14 $sc.3: struct2
+  block entry
+    store param0 -> local0
+    store local0 -> local1
+    store local0 -> local12
+    store local1 -> local13
+    call no-gc-indirect-target0 local14 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local12, indirect local13)
+    store local14 -> local11
+    t0 = extract local11, 0 : i64
+    store t0 -> local2
+    t1 = extract param0, 1 : i64
+    store t1 -> local3
+    store local3 -> local4
+    t2 = integer_Add<Long> local2, local4 : i64
+    store t2 -> local5
+    t3 = extract param0, 2 : i64
+    store t3 -> local6
+    store local6 -> local7
+    t4 = integer_Add<Long> local5, local7 : i64
+    store t4 -> local8
+    store integer<Long>(0x0000000000000007) -> local9
+    store local9 -> local10
+    t5 = integer_Add<Long> local8, local10 : i64
+    ret t5
+  fun @scoop$1$cb$ef2518b3213a2cc27f10d917f5b9f5ddb9bb42f589a7d02d8e983aaa94520517(indirect<struct2 size=24 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $dependency.receiver: struct2
+    local %1 $dependency.parameter.other: struct2
+    local %2 $dependency.receiver: i64
+    local %3 $dependency.argument.0: i64
+    local %4 $dependency.parameter.other: i64
+    local %5 $call.1: struct2
+    local %6 $sc.1: struct2
+    local %7 $sc.2: struct2
+    local %8 $sc.3: struct2
+    local %9 $sc.4: struct2
+  block entry
+    store param0 -> local0
+    store local0 -> local1
+    store local0 -> local6
+    store local1 -> local7
+    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local6, indirect local7)
+    store local8 -> local5
+    store local5 -> local9
+    call no-gc-direct-target0 t0 = sig=direct0 (indirect<struct2 size=24 align=8 scan=none>) -> i64 external-fn4(indirect local9)
+    store t0 -> local2
+    store integer<Long>(0x0000000000000007) -> local3
+    store local3 -> local4
+    t1 = integer_Add<Long> local2, local4 : i64
+    ret t1
   fun @scoop$1$cb$cf168d409d4a94415495b8ac0c3598671130fb3fcc524b6b8c4e893df1a54520(indirect<struct3 size=8 align=8 scan=refs[0]>) -> sret<struct3 size=8 align=8 scan=refs[0]>
     local %0 $dependency.receiver: struct3
     local %1 $dependency.parameter.other: struct3
@@ -82,9 +146,30 @@ Module
     store local0 -> local1
     store local0 -> local3
     store local1 -> local4
-    call managed-indirect-target0 sp<managed-call:0> live=[local3:struct3@0, local4:struct3@0] local5 = sig=indirect0 (sret struct3 size=8 align=8 scan=refs[0], indirect<struct3 size=8 align=8 scan=refs[0]>, indirect<struct3 size=8 align=8 scan=refs[0]>) external-fn4(indirect local3, indirect local4)
+    call managed-indirect-target0 sp<managed-call:0> live=[local3:struct3@0, local4:struct3@0] local5 = sig=indirect0 (sret struct3 size=8 align=8 scan=refs[0], indirect<struct3 size=8 align=8 scan=refs[0]>, indirect<struct3 size=8 align=8 scan=refs[0]>) external-fn5(indirect local3, indirect local4)
     store local5 -> local2
     ret local2
+  fun @scoop$1$cb$a7126fdb32f05b6296e0d858359499417f049f4ef40134dde21891e7bedc5fb7(indirect<struct3 size=8 align=8 scan=refs[0]>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:struct3@0]
+    t0 = extract param0, 0 : ptr<managed>
+    ret t0
+  fun @scoop$1$cb$36f4a106b8160ac2cef18aea95ae69d6cdc70f54871afac6e4cbd255db471e77(indirect<struct4 size=24 align=8 scan=none>) -> elided-zst<struct1 size=0 align=1> <no-gc>
+  block entry
+    t0 = extract param0, 1 : struct1
+    ret t0
+  fun @scoop$1$cb$7f5922a0f3565b922920e06e0becf9fae03fe470a81e2291d27f3e9862205bf6(indirect<struct4 size=24 align=8 scan=none>) -> i64 <no-gc>
+  block entry
+    t0 = extract param0, 0 : struct2
+    t1 = extract t0, 0 : i64
+    ret t1
+  fun @scoop$1$cb$8e175f3f0c511a58f6493efef96a4b8796c46c57d6d2b1f374a7d670df410a42(indirect<struct2 size=24 align=8 scan=none>) -> i64 <no-gc>
+  block entry
+    t0 = extract param0, 0 : i64
+    ret t0
+  fun @scoop$1$cb$80d695d5447c352bf5299611b3c273eb3fb37aec62774be97e2af0c358500cf5(indirect<struct2 size=24 align=8 scan=none>) -> i64 <no-gc>
+  block entry
+    ret integer<Long>(0x00000000000003e7)
   fun @scoop$1$cb$8483e4f2834ccb885240057638a79d4f3c9f6e56ca6810c939d4d97b7e58617b(elided-zst<struct1 size=0 align=1>, indirect<struct2 size=24 align=8 scan=none>) -> sret<struct0 size=24 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0

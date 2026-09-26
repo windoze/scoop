@@ -5,6 +5,7 @@ Module
     field1 payload: Wide
     property0 val marker: Token getter0=storage <stored struct0-field0>
     property1 val payload: Wide getter1=storage <stored struct0-field1>
+  property2 val Wide.first: Long getter2=body($get$first) <accessor-only>
   fun keepToken(value: Token): Token <no-gc cdecl>
     val local1
       Local value : Token
@@ -58,13 +59,87 @@ Module
       IntegerOperation long.add <no-gc> : Long
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
+  fun fieldSum(value: Wide): Long <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local $dependency.receiver : Wide
+    val local3
+      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
+        ImportedDependencyCall #1 : Wide
+          Local $dependency.receiver : Wide
+          Local $dependency.parameter.other : Wide
+    val local4
+      FieldAccess dependency field 6afc04e0050bcfe6e2e9c89e67745664a13cccdce2934e458a7b29d7a9a0a10a : Long
+        Local value : Wide
+    val local5
+      Local $dependency.argument.0 : Long
+    val local6
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local7
+      FieldAccess dependency field 21233201ed8f0d9420a38df7bf221699b719a3881a149367f4131f7000729ec9 : Long
+        Local value : Wide
+    val local8
+      Local $dependency.argument.0 : Long
+    val local9
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local10
+      IntegerLiteral 7 : Long
+    val local11
+      Local $dependency.argument.0 : Long
+    return
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+  fun computedTotal(value: Wide): Long <no-gc cdecl>
+    val local1
+      Local value : Wide
+    val local2
+      Local $dependency.receiver : Wide
+    val local3
+      ImportedDependencyCall #4 : Long
+        ImportedDependencyCall #1 : Wide
+          Local $dependency.receiver : Wide
+          Local $dependency.parameter.other : Wide
+    val local4
+      IntegerLiteral 7 : Long
+    val local5
+      Local $dependency.argument.0 : Long
+    return
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
   fun keepManaged(value: Managed): Managed
     val local1
       Local value : Managed
     val local2
       Local $dependency.receiver : Managed
     return
-      ImportedDependencyCall #4 : Managed
+      ImportedDependencyCall #5 : Managed
         Local $dependency.receiver : Managed
         Local $dependency.parameter.other : Managed
+  fun text(value: Managed): String
+    return
+      FieldAccess dependency field bad02aa0c02a92727874dfffe8b10c2ec430cc9b3e8ce8c720e745df07acf03d : String
+        Local value : Managed
+  fun marker(value: Nested): Token <no-gc cdecl>
+    return
+      FieldAccess dependency field bc90c80ba77f9b4a98c9d5ca9eb3e157147a45d1ccd98b263e7917accfc8d504 : Token
+        Local value : Nested
+  fun nestedFirst(value: Nested): Long <no-gc cdecl>
+    return
+      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
+        FieldAccess dependency field e455bae1b6cb089412338e6835adbfe9ac0747431f07dee9b5447bd240a828a6 : Wide
+          Local value : Nested
+  fun first(value: Wide): Long <no-gc cdecl>
+    return
+      FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
+        Local value : Wide
+  fun $get$first(this: Wide): Long <no-gc cdecl>
+    return
+      IntegerLiteral 999 : Long
   output library

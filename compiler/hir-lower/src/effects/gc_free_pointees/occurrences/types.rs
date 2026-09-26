@@ -615,6 +615,7 @@ pub(in super::super) fn collect_field_ref_types(
     out: &mut Vec<hir::TypeId>,
 ) {
     match field {
+        hir::FieldRef::ImportedStruct { owner, .. } => out.push(owner),
         hir::FieldRef::StructField(field) => {
             out.push(lowerer.struct_applications[field.application()].canonical_type);
         }

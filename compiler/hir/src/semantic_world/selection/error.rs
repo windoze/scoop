@@ -20,6 +20,7 @@ pub enum ImportedDependencySelectionPlanBuildError {
     MissingCallableSourceName(CallableTemplateOrigin),
     DuplicateConstant(PersistentPropertyId),
     DuplicateProperty(PropertyOwner),
+    MissingPropertySourceName(PropertyOwner),
     DuplicateTypeAlias(scoop_identity::PersistentTypeAliasId),
     MissingTypeAliasExpansion(scoop_identity::PersistentTypeAliasId),
     MissingDefinitionSource {
@@ -70,6 +71,10 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency semantic world contains duplicate property {property:?}"
             ),
+            Self::MissingPropertySourceName(property) => write!(
+                formatter,
+                "dependency property {property:?} has no declaration name"
+            ),
             Self::DuplicateTypeAlias(alias) => write!(
                 formatter,
                 "dependency semantic world contains duplicate type alias {alias:?}"
@@ -109,6 +114,7 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             | Self::DuplicateNominal(_)
             | Self::DuplicateCallable(_)
             | Self::MissingCallableSourceName(_)
+            | Self::MissingPropertySourceName(_)
             | Self::DuplicateConstant(_)
             | Self::DuplicateProperty(_)
             | Self::DuplicateTypeAlias(_)

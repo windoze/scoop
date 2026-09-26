@@ -54,6 +54,7 @@ impl ImportedCallableSource for ImportedDependencyCallableCandidate {
 pub enum ImportedMemberLookup<'a> {
     Name(&'a str),
     Operator(CallableOperatorRoleV1),
+    PropertyGetter(&'a str),
 }
 
 /// A member of an exact source nominal, without a fabricated import binding.
@@ -62,7 +63,7 @@ pub struct ImportedMemberCallableCandidate {
     name: CanonicalIdentifier,
     interface: CallableInterfaceRecordV1,
     capability: Option<ParamFreeNominalCallableV1>,
-    source: CallableSourceInterfaceV1,
+    source: Option<CallableSourceInterfaceV1>,
     defaults: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
@@ -82,7 +83,7 @@ impl ImportedCallableSource for ImportedMemberCallableCandidate {
         &self.interface
     }
     fn source_interface(&self) -> Option<&CallableSourceInterfaceV1> {
-        Some(&self.source)
+        self.source.as_ref()
     }
     fn default_template(
         &self,
@@ -105,32 +106,55 @@ impl ImportedDependencySelectionPlan {
         lookup: ImportedMemberLookup<'_>,
     ) -> Result<Vec<ImportedMemberCallableCandidate>, ImportedDependencyCandidateError> {
         let mut candidates = Vec::new();
+        let property = match lookup {
+            ImportedMemberLookup::PropertyGetter(name) => {
+                self.catalog.properties.values().find(|property| {
+                    property.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
+                        && property.name.as_str() == name
+                })
+            }
+            _ => None,
+        };
         for entry in self.catalog.callables.values() {
             if entry.interface.owner() != PublicDeclarationOwnerV1::Nominal(owner) {
                 continue;
             }
-            let CallableCatalogName::Function(name) = &entry.name else {
-                continue;
-            };
-            let matches = match lookup {
-                ImportedMemberLookup::Name(expected) => name.as_str() == expected,
-                ImportedMemberLookup::Operator(expected) => {
-                    entry.interface.effects().operator_role() == expected
+            let name = match (&entry.name, lookup) {
+                (CallableCatalogName::Function(name), ImportedMemberLookup::Name(expected))
+                    if name.as_str() == expected =>
+                {
+                    name
                 }
+                (CallableCatalogName::Function(name), ImportedMemberLookup::Operator(expected))
+                    if entry.interface.effects().operator_role() == expected =>
+                {
+                    name
+                }
+                (CallableCatalogName::Accessor, ImportedMemberLookup::PropertyGetter(_)) => {
+                    let Some(property) = property else {
+                        continue;
+                    };
+                    if entry.interface.declaration()
+                        != scoop_identity::CallableTemplateOrigin::Accessor(
+                            property.interface.capability().getter(),
+                        )
+                    {
+                        continue;
+                    }
+                    &property.name
+                }
+                _ => continue,
             };
-            if !matches {
-                continue;
-            }
-            let source = entry.source.clone().ok_or(
-                ImportedDependencyCandidateError::MissingCallableSource(
+            if matches!(entry.name, CallableCatalogName::Function(_)) && entry.source.is_none() {
+                return Err(ImportedDependencyCandidateError::MissingCallableSource(
                     entry.interface.declaration(),
-                ),
-            )?;
+                ));
+            }
             candidates.push(ImportedMemberCallableCandidate {
                 name: name.clone(),
                 interface: entry.interface.clone(),
                 capability: entry.capability.clone(),
-                source,
+                source: entry.source.clone(),
                 defaults: entry.default_templates.clone(),
                 definition_sources: Arc::clone(&entry.definition_sources),
             });

@@ -100,7 +100,14 @@ fn dependency_members_compile_and_run_through_actual_artifacts() {
         );
     }
 
-    for case in ["wrong-identity", "private-member", "wrong-argument"] {
+    for case in [
+        "wrong-identity",
+        "private-member",
+        "wrong-argument",
+        "missing-field",
+        "private-property",
+        "wrong-field-type",
+    ] {
         let root = sysroot.path().join(case);
         let source = source(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source);

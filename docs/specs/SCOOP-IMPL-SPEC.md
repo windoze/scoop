@@ -10,6 +10,8 @@
 
 MIR 的普通直接 callable 与需要独立 lowering 表示的 callable 按 typed implementation 共用借用查询，dispatch 和 boxing 直接读取实际记录。每个定义只保存一份导出；删除禁止跨历史分区引用的资格限制和专用身份名单，保留重复定义、类型、签名、effect 与 provider 一致性检查。
 
+跨 Cone struct 字段读取按接收者的实际声明解析名称，并在 HIR 保留 typed field identity 与完整接收者类型。字段在具体化时映射到同一声明的字段位置，后续布局和 ABI 继续使用共有依赖表示；不得用同名或同布局替代身份。计算属性通过其真实 getter 声明进入共有 callable 路径，保留可见性、GC effect 和返回类型；固定表示字段不为读取额外生成函数。该消费改动不新增 wire tag、profile 或 runtime ABI。
+
 旧 `TypeFoundationSourceAuthorityV1`、`TypeDeclarationSourceAuthorityV1` 及仅供它们使用的 `Bound*` 绑定链退役。生产 reader 和前端继续使用现有共有声明表、typed identity 查询与完整 IR；移除这些 transcript 的独立编码器、逆向重建入口、无生产用途的重复来源表及专用测试与快照。`source_authority` 中确有生产调用的默认参数数据、可见性数据和身份查询按实际职责保留，不以新工厂或资格状态机替代被删除的代码。
 
 LIR dispatch 同样查询实际 provider 的普通或专用 lowering callable ABI，校验调用约定、完整签名与 receiver 表示后保留 typed implementation/body 引用；每个 slot 不再保存一份完整 callee ABI。布局依赖闭包沿共有导出查询真实类型，普通记录只编码于其原表。reader 在布局完成后先检查普通 ABI，再供 dispatch 和后续 Link 消费，不因表的位置重复重建或验证同一 ABI。

@@ -41,6 +41,25 @@ pub(super) fn callable_catalog_name(
     }
 }
 
+pub(super) fn property_catalog_name(
+    provider: &ImportedProvider<'_>,
+    declaration: scoop_identity::PropertyOwner,
+) -> Result<CanonicalIdentifier, ImportedDependencySelectionPlanBuildError> {
+    let foundation = provider.foundation().canonical_for_semantic_authority();
+    let key = match declaration {
+        scoop_identity::PropertyOwner::Property(id) => foundation
+            .property_by_bytes(id.as_array())
+            .map(|(_, key)| key),
+        scoop_identity::PropertyOwner::ExtensionProperty(id) => foundation
+            .extension_property_by_bytes(id.as_array())
+            .map(|(_, key)| key),
+    };
+    match key.map(|key| key.name()) {
+        Some(DeclarationName::Named(name)) => Ok(name.clone()),
+        _ => Err(ImportedDependencySelectionPlanBuildError::MissingPropertySourceName(declaration)),
+    }
+}
+
 /// A complete source-call view of one shared intrinsic declaration.
 #[derive(Clone, Copy)]
 pub struct ImportedIntrinsicCallable<'a> {

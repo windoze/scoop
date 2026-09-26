@@ -104,6 +104,10 @@ impl DefaultEntityProjector<'_> {
         binders: &[HirSignatureBinder],
     ) -> Result<DefaultFieldRefV1, super::super::DefaultEntityProjectionError> {
         match field {
+            crate::FieldRef::ImportedStruct { owner, field } => Ok(DefaultFieldRefV1::Struct {
+                declaration: field,
+                owner_type: self.type_key(owner, binders)?,
+            }),
             crate::FieldRef::StructField(field) => {
                 let application = arena_get(&self.export.struct_applications, field.application())
                     .ok_or(super::super::DefaultEntityProjectionError::Unknown {

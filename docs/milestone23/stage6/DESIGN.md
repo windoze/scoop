@@ -198,6 +198,8 @@ org.scoop-lang.slib-profile/cross-cone-layout-strong/2
 
 普通与 layout 产物中的 canonical C layout 合同同时覆盖实际 native 使用和已物化的本地 CLayout 表示。读取方在共有声明及实际依赖闭包验证后，使用同一物理物化 exact type 清单与共有 nominal 的 CLayout policy 收集表示根，再按实际 provider 的完整字段类型、aligned/packed 和 target 重算合同；native-only witness 闭包仍只由真实 extern/callback 使用决定。额外表示根不从候选 C layout 合同反推，不新增 native callable 或 witness。普通 Compile reader 在每个 provider 的可达依赖均可借用时完成这一重放，缺失、额外或非 canonical 合同仍按完整集合拒绝；无 native 调用的合法 CLayout 可以发布并从最终 bytes 重读。不修改 wire、runtime C ABI 或 persistent identity。
 
+跨 Cone struct 字段读取按接收者的实际声明解析名称，并在 HIR 保留 typed field identity 与完整接收者类型。字段在具体化时映射到同一声明的字段位置，后续布局和 ABI 继续使用共有依赖表示；不得用同名或同布局替代身份。计算属性通过其真实 getter 声明进入共有 callable 路径，保留可见性、GC effect 和返回类型；固定表示字段不为读取额外生成函数。生产验收覆盖普通及嵌套值类型、ZST 字段、计算属性、成员组合和下游再次消费。
+
 MIR 从完整 HIR 声明与实际物化正文生成 callable 导出。公开声明、继承接口需要的 protected 成员、实际 slot root 与选中的源码 implementation，以及 logical property 的 getter/setter 均按其语言用途处理；Storage/Constant accessor 不产生函数 binding，Body/AbstractSlot 保留正文或 fatal trap。抽象 override 保留自身 typed declaration，外来声明按实际 provider 留在依赖侧，object 成员的逻辑 receiver 使用源码 object exact。
 
 无参数的普通函数、extension、final nominal 成员和需要正文的 accessor 使用普通 callable 表，保留完整 exact signature 与 GC effect；其余成员、constructor、trap 和生成的适配函数使用相应的 lowering 记录。两类记录通过同一个 typed target 查询，实际重叠的源码 callable 只导出一份。某个 nominal 的字段布局仍为 source-only，不会取消已经合法的普通函数签名，也不能为它补造 type-bridge binding 或 descriptor。reader 在产物边界检查声明、实际 implementation、签名、GC effect 和 lowering role 的一致性；dispatch、selected closure 和初始化消费已经检查的记录，不复制签名或重复建立来源证明。缺失定义、重复 typed target 及签名不一致仍是产物错误。

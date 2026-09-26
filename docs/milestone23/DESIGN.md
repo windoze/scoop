@@ -4,7 +4,7 @@
 
 外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
 
-普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。
+普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。固定 struct 字段保存实际 field ID，直接读取共有值表示；计算属性按实际 getter ID 使用同一 callable 路径，不为字段额外生成函数。
 
 普通 callable、dispatch 与物理消费共用实际 provider 和 typed target 查询。普通直接导出保存完整 GC effect；调用位置保留逻辑参数及 ZST，后端消费实际 canonical ABI。具体数据格式与验收见 [M23-6 设计](stage6/DESIGN.md)，不增加来源资格、分区豁免或重复 ABI 副本。
 

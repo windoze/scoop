@@ -104,6 +104,23 @@ impl Lowerer {
                     access.span,
                 );
             }
+            if let Some((field, ty)) = self.imported_struct_field(receiver.ty, &field.text) {
+                return Some(hir::Expr {
+                    kind: ExprKind::FieldAccess {
+                        receiver: Box::new(receiver),
+                        field,
+                    },
+                    ty,
+                    span: access.span,
+                    origin: self.expression_origin(access.span),
+                });
+            }
+            if let Some(expression) = self
+                .lower_imported_member_property_read(&receiver, field, access.span, expected)
+                .ok()?
+            {
+                return Some(expression);
+            }
             match self.resolve_extension_property_read(receiver.clone(), field, sink) {
                 crate::properties::ExtensionPropertyResolution::Resolved(property) => {
                     return Some(property.read);
@@ -214,6 +231,21 @@ impl Lowerer {
                     self.find_accessible_nominal_property(inner, &name.text)
                 {
                     self.lower_property_read(property, Some(owner), Some(unwrapped), ty, span)?
+                } else if let Some((field, ty)) = self.imported_struct_field(inner, &name.text) {
+                    hir::Expr {
+                        kind: ExprKind::FieldAccess {
+                            receiver: Box::new(unwrapped),
+                            field,
+                        },
+                        ty,
+                        span,
+                        origin,
+                    }
+                } else if let Some(expression) = self
+                    .lower_imported_member_property_read(&unwrapped, name, span, None)
+                    .ok()?
+                {
+                    expression
                 } else {
                     match self.resolve_extension_property_read(
                         unwrapped.clone(),
@@ -470,6 +502,25 @@ impl Lowerer {
         selector: &ast::FieldSelector,
     ) -> Option<(hir::FieldRef, TypeId)> {
         match self.types[receiver_ty].clone() {
+            Type::ImportedStruct(structure) => {
+                if let ast::FieldSelector::Name(name) = selector
+                    && let Some(field) = self.imported_struct_field(receiver_ty, &name.text)
+                {
+                    return Some(field);
+                }
+                let (name, span) = match selector {
+                    ast::FieldSelector::Name(name) => (name.text.clone(), name.span),
+                    ast::FieldSelector::Index(index, span) => (format!("_{index}"), *span),
+                };
+                self.error(
+                    span,
+                    format!(
+                        "struct `{}` has no field `{name}`",
+                        structure.declaration.name()
+                    ),
+                );
+                None
+            }
             Type::Class(application) => {
                 let class_id = self.class_applications[application].template;
                 let class_name = self.classes[class_id].name.clone();
@@ -562,5 +613,19 @@ impl Lowerer {
                 None
             }
         }
+    }
+
+    fn imported_struct_field(&self, owner: TypeId, name: &str) -> Option<(hir::FieldRef, TypeId)> {
+        let Type::ImportedStruct(structure) = &self.types[owner] else {
+            return None;
+        };
+        let field = structure.fields.iter().find(|field| field.name == name)?;
+        Some((
+            hir::FieldRef::ImportedStruct {
+                owner,
+                field: field.identity,
+            },
+            field.ty,
+        ))
     }
 }

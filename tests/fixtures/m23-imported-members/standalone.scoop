@@ -2,7 +2,13 @@ package consumer.members
 
 import dependency.members.Token
 import dependency.members.Wide
+import dependency.members.Nested
 
 @NoGC public fun keepToken(value: Token): Token = value.sameToken(value)
 @NoGC public fun keepWide(value: Wide): Wide = value.copyWide(value)
 @NoGC public fun total(value: Wide): Long = value.total(7)
+@NoGC public fun fieldSum(value: Wide): Long = value.first + value.second + value.third + 7
+@NoGC public fun computedTotal(value: Wide): Long = value.calculated + 7
+@NoGC public fun first(value: Wide): Long = value.first
+@NoGC public fun marker(value: Nested): Token = value.marker
+@NoGC public fun nestedFirst(value: Nested): Long = value.value.first

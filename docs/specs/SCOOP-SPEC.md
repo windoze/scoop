@@ -1586,6 +1586,8 @@ M23-5 引入 `org.scoop-lang.slib-profile/cross-cone-semantics-strong/2` 作为�
 
 M23-6 的共有 HIR 接口 `/20` 保留 struct 的实际 `@CLayout`、`@InteriorMutable`、字段、成员及调用位置。公共和支持声明使用同一源码形状；布局按实际声明和 target 计算，不按类型名称、空字段或 core 身份补出策略。完整字段与版本规则见实现规范 2.6、2.11、2.12；runtime C ABI 与 String 表示保持。
 
+跨 Cone struct 字段读取按接收者的实际声明解析名称，并在 HIR 保留 typed field identity 与完整接收者类型。字段在具体化时映射到同一声明的字段位置，后续布局和 ABI 继续使用共有依赖表示；不得用同名或同布局替代身份。计算属性通过其真实 getter 声明进入共有 callable 路径，保留可见性、GC effect 和返回类型；固定表示字段不为读取额外生成函数。
+
 跨 Cone 名称、类型、成员和默认参数语义由实际声明及 typed IR 表达。独立的 foundation/declaration source transcript 及其逐层绑定结果不构成语言输入或调用资格；生产路径未使用的来源工厂、绑定包装和专用证明测试应移除。实际名称解析、可见性、默认值实例化与声明身份规则继续由对应前端实现负责。
 
 外部调用与布局引用使用实际 provider、typed target、完整 ABI、符号和定义记录。共有 Link 消费检查实际 undefined relocation 的符号、目标和覆盖关系；Code fingerprint 记录影响代码的依赖，member/range/offset 等物理位置按 Link 合同处理。同一次编译的完整 IR 和已验证依赖直接用于发布；不再保留独立 core requirement 闭包、来源资格或发布时分别重放 Compile/Link 的证明链。provider 拥有实际 body 和 Strong definition，re-export 仅引用已有声明。

@@ -85,6 +85,7 @@ impl SourceRoots {
         }
         for reference in &references.fields {
             let ty = match reference.target {
+                FieldRef::ImportedStruct { owner, .. } => owner,
                 FieldRef::StructField(field) => {
                     export.struct_applications[field.application()].canonical_type
                 }

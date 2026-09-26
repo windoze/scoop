@@ -42,4 +42,57 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (indirect<struct1 size=24 align=8 scan=none>, i64) -> i64 external-fn2(indirect local4, local2)
     store t0 -> local3
     ret local3
+  fun @scoop$1$cb$993ea81440d86c7b8852d7f2612547d1d1b2c0061565ac0a626cd0d7fba30f6a(indirect<struct1 size=24 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $dependency.receiver: i64
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.other: i64
+    local %3 $dependency.receiver: i64
+    local %4 $dependency.argument.0: i64
+    local %5 $dependency.parameter.other: i64
+    local %6 $dependency.receiver: i64
+    local %7 $dependency.argument.0: i64
+    local %8 $dependency.parameter.other: i64
+  block entry
+    t0 = extract param0, 0 : i64
+    store t0 -> local0
+    t1 = extract param0, 1 : i64
+    store t1 -> local1
+    store local1 -> local2
+    t2 = integer_Add<Long> local0, local2 : i64
+    store t2 -> local3
+    t3 = extract param0, 2 : i64
+    store t3 -> local4
+    store local4 -> local5
+    t4 = integer_Add<Long> local3, local5 : i64
+    store t4 -> local6
+    store integer<Long>(0x0000000000000007) -> local7
+    store local7 -> local8
+    t5 = integer_Add<Long> local6, local8 : i64
+    ret t5
+  fun @scoop$1$cb$ecbb731e199300a73f10b99ebb4f05155edee1ec0809fa440c361fbeffdbaa90(indirect<struct1 size=24 align=8 scan=none>) -> i64 <no-gc>
+    local %0 $dependency.receiver: i64
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.other: i64
+    local %3 $sc.1: struct1
+  block entry
+    store param0 -> local3
+    call no-gc-direct-target0 t0 = sig=direct0 (indirect<struct1 size=24 align=8 scan=none>) -> i64 external-fn3(indirect local3)
+    store t0 -> local0
+    store integer<Long>(0x0000000000000007) -> local1
+    store local1 -> local2
+    t1 = integer_Add<Long> local0, local2 : i64
+    ret t1
+  fun @scoop$1$cb$78aa1f9968e998fe577876846fdac75001f046ca04acabe8896d8cca32b1711f(indirect<struct1 size=24 align=8 scan=none>) -> i64 <no-gc>
+  block entry
+    t0 = extract param0, 0 : i64
+    ret t0
+  fun @scoop$1$cb$79dc93cc44cd236dc3230d9d33f066333668d9972099f7ff3ca4b0549580943b(indirect<struct2 size=24 align=8 scan=none>) -> elided-zst<struct0 size=0 align=1> <no-gc>
+  block entry
+    t0 = extract param0, 1 : struct0
+    ret t0
+  fun @scoop$1$cb$f093d78b6b1bb28b4898eeb998079229374ac0664bbfe0b8e208b3c032d47dde(indirect<struct2 size=24 align=8 scan=none>) -> i64 <no-gc>
+  block entry
+    t0 = extract param0, 0 : struct1
+    t1 = extract t0, 0 : i64
+    ret t1
   output library

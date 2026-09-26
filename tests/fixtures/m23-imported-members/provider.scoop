@@ -9,8 +9,14 @@ public struct Wide(val first: Long, val second: Long, val third: Long) {
     @NoGC public fun total(delta: Long = 0): Long = first + second + third + delta
     @NoGC public operator fun plus(other: Wide): Wide = other
     @NoGC private fun hidden(): Long = first
+    public val calculated: Long
+        @NoGC get() = first + second + third
+    private val hiddenValue: Long
+        @NoGC get() = first
 }
 
 public struct Managed(val text: String, val token: Token) {
     public fun sameManaged(other: Managed = this): Managed = other
 }
+
+public struct Nested(val value: Wide, val marker: Token)

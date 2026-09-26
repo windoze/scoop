@@ -322,6 +322,7 @@ pub(super) fn dump_expr(
         }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
+                FieldRef::ImportedStruct { field, .. } => format!("dependency field {field}"),
                 FieldRef::StructField(field) => format!("field {}", field.local_index()),
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
                 FieldRef::ClassField { field, .. } => {

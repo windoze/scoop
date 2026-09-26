@@ -3,6 +3,7 @@ package consumer.members
 import dependency.members.Token
 import dependency.members.Wide
 import dependency.members.Managed
+import dependency.members.Nested
 
 public typealias Payload = Wide
 public struct Container(val marker: Token, val payload: Payload)
@@ -13,4 +14,14 @@ public struct Container(val marker: Token, val payload: Payload)
     return value + copy.copyWide()
 }
 @NoGC public fun total(value: Payload): Long = value.total() + 7
+@NoGC public fun fieldSum(value: Payload): Long = value.copyWide().first + value.second + value.third + 7
+@NoGC public fun computedTotal(value: Payload): Long = value.copyWide().calculated + 7
 public fun keepManaged(value: Managed): Managed = value.sameManaged()
+public fun text(value: Managed): String = value.text
+@NoGC public fun marker(value: Nested): Token = value.marker
+@NoGC public fun nestedFirst(value: Nested): Long = value.value.first
+
+public val Wide.first: Long
+    @NoGC get() = 999
+
+@NoGC public fun first(value: Wide): Long = value.first

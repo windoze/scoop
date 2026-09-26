@@ -12,6 +12,7 @@ use crate::imported_capabilities::{ImportedCapabilityRequirement, callable_requi
 use crate::properties::PropertyCallReceiver;
 
 mod extension;
+mod members;
 mod read;
 mod write;
 

@@ -3,6 +3,7 @@ Module
   struct Token ()
   struct Wide (first: Long, second: Long, third: Long)
   struct Managed (text: String, token: Token)
+  struct Nested (value: Wide, marker: Token)
   enum CoroutineStep<Container>
     Completed(value: Container)
     Suspended()
@@ -96,7 +97,97 @@ Module
           Local $dependency.receiver
           Type Long
           Local $dependency.parameter.other
-  fun keepManaged @fn3(value: Managed) -> Managed
+  fun fieldSum @fn3(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $call.1: Wide = external1 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local $call.1
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun computedTotal @fn4(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.receiver
+      call $call.1: Wide = external1 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      call $dependency.receiver: Long = external4 direct
+        Type Wide
+        Local $call.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun keepManaged @fn5(value: Managed) -> Managed
     bb0 entry
       val $dependency.receiver: Managed
         Type Managed
@@ -104,7 +195,7 @@ Module
       val $dependency.parameter.other: Managed
         Type Managed
         Local $dependency.receiver
-      call $call.1: Managed = external4 direct
+      call $call.1: Managed = external5 direct
         Type Managed
         Local $dependency.receiver
         Type Managed
@@ -112,7 +203,42 @@ Module
       return
         Type Managed
         Local $call.1
-  fun ctor.Container.$c0 @fn4(marker: Token, payload: Wide) -> Container <no-gc>
+  fun text @fn6(value: Managed) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Managed
+          Local value
+  fun marker @fn7(value: Nested) -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        FieldAccess 1
+          Type Nested
+          Local value
+  fun nestedFirst @fn8(value: Nested) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          FieldAccess 0
+            Type Nested
+            Local value
+  fun first @fn9(value: Wide) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local value
+  fun $extension.$get$first @fn10(this: Wide) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=999 bits=0x00000000000003e7
+  fun ctor.Container.$c0 @fn11(marker: Token, payload: Wide) -> Container <no-gc>
     bb0 entry
       return
         Type Container

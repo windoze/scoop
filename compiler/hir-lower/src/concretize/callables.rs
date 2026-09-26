@@ -428,6 +428,21 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::FieldRef {
         match source {
+            export::FieldRef::ImportedStruct { owner, field } => {
+                let ty = self.lower_type(owner, substitution);
+                let concrete::TypeKind::Struct(structure) = self.types[ty].kind else {
+                    unreachable!("a dependency struct field retains its struct receiver")
+                };
+                let index = self.structs[structure]
+                    .declared_fields()
+                    .iter()
+                    .position(|candidate| candidate.identity == field)
+                    .expect("a resolved dependency field belongs to its declaration");
+                concrete::FieldRef::StructField(
+                    concrete::StructFieldRef::checked(&self.structs, structure, index as u32)
+                        .expect("a declared dependency field is in range"),
+                )
+            }
             export::FieldRef::StructField(field) => concrete::FieldRef::StructField(
                 self.lower_applied_struct_field_ref(field, substitution),
             ),

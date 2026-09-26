@@ -40,6 +40,7 @@ pub(super) struct ConstantCatalogEntry {
 #[derive(Clone, Debug)]
 pub(super) struct PropertyCatalogEntry {
     pub(super) provider: ConeIdentity,
+    pub(super) name: scoop_identity::CanonicalIdentifier,
     pub(super) interface: PropertyInterfaceRecordV1,
 }
 
@@ -136,6 +137,7 @@ impl ImportedSemanticWorld<'_> {
                 let declaration = property.declaration();
                 let entry = PropertyCatalogEntry {
                     provider: provider.identity(),
+                    name: super::intrinsics::property_catalog_name(provider, declaration)?,
                     interface: property.clone(),
                 };
                 if properties.insert(declaration, entry).is_some() {

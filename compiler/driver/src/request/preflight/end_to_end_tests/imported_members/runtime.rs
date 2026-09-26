@@ -101,11 +101,66 @@ pub(super) fn check(
             symbols.push(export.expected_symbol().symbol().to_string());
         }
     }
+    for (index, names) in [
+        (1, vec![]),
+        (
+            2,
+            vec![
+                "first",
+                "marker",
+                "nestedFirst",
+                "fieldSum",
+                "computedTotal",
+            ],
+        ),
+    ] {
+        let (sections, link) = closure.artifact(identities[index]).unwrap();
+        for export in sections.lir_cross_cone_bridge().exports() {
+            let selected_name = match export.target() {
+                StrongCallableDefinitionOwner::PropertyAccessor(_) => index == 1,
+                StrongCallableDefinitionOwner::Function(id) => {
+                    let key = sections
+                        .identity_graph()
+                        .canonical_key::<_, SourceDeclarationKey>(id)
+                        .unwrap();
+                    matches!(key.name(), scoop_identity::DeclarationName::Named(name) if names.contains(&name.as_str()))
+                }
+                _ => false,
+            };
+            if !selected_name {
+                continue;
+            }
+            let symbol = format!("_{}", export.expected_symbol().symbol());
+            let definition = link
+                .defined_symbols()
+                .owners()
+                .iter()
+                .find(|owner| owner.symbol() == symbol.as_bytes())
+                .unwrap();
+            let object = link
+                .final_objects()
+                .objects()
+                .iter()
+                .find(|object| object.member() == definition.member())
+                .unwrap();
+            let path = directory.join(format!("extra-{}.o", objects.len()));
+            std::fs::write(&path, object.bytes()).unwrap();
+            objects.push(path);
+        }
+        for name in names {
+            let export = sections.lir_cross_cone_bridge().exports().iter().find(|export| {
+                let StrongCallableDefinitionOwner::Function(id) = export.target() else { return false; };
+                let key = sections.identity_graph().canonical_key::<_, SourceDeclarationKey>(id).unwrap();
+                matches!(key.name(), scoop_identity::DeclarationName::Named(actual) if actual.as_str() == name)
+            }).unwrap();
+            symbols.push(export.expected_symbol().symbol().to_string());
+        }
+    }
     // The actual exported function objects use Scoop's byval/sret ABI.
     // Linking them does not require multi-image startup or artifact-only program linking.
     let mut harness = std::fs::read_to_string(fixtures.join("runtime.ll")).unwrap();
     for (index, symbol) in symbols.iter().enumerate() {
-        harness = harness.replace(&format!("@f{index}"), &format!("@\"{symbol}\""));
+        harness = harness.replace(&format!("@f{index}("), &format!("@\"{symbol}\"("));
     }
     let source = directory.join("main.ll");
     let executable = directory.join("members");

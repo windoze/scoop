@@ -544,6 +544,11 @@ pub enum Place {
 pub enum FieldRef {
     /// Field `index` of one complete struct application.
     StructField(AppliedStructFieldRef),
+    /// A field of a dependency struct, identified within its actual declaration.
+    ImportedStruct {
+        owner: TypeId,
+        field: scoop_identity::PersistentFieldId,
+    },
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
     /// Source field of one complete declaring-class application. Layout is a

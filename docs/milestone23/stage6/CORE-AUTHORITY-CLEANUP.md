@@ -2,7 +2,7 @@
 
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
 
-普通 final 成员与其他 callable 共用真实 provider、typed declaration 和 implementation 查询；移除“普通导出不能被 dispatch/类型闭包引用”的旧分区限制及其身份名单。MIR 直接导出补全 GC effect，LIR dispatch 复用实际 ABI 并只保存 implementation/body 引用。无 namespace 导入的成员调用不伪造 binding，不在选择集合中另存用于认证的 import 路径。格式升级、旧 major 退役和完整消费规则见 [M23-6 设计](DESIGN.md)；runtime C ABI、String 表示与 GC 契约保持。
+普通 final 成员与其他 callable 共用真实 provider、typed declaration 和 implementation 查询；移除“普通导出不能被 dispatch/类型闭包引用”的旧分区限制及其身份名单。MIR 直接导出补全 GC effect，LIR dispatch 复用实际 ABI 并只保存 implementation/body 引用。无 namespace 导入的成员调用不伪造 binding，不在选择集合中另存用于认证的 import 路径。格式升级、旧 major 退役和完整消费规则见 [M23-6 设计](DESIGN.md)；runtime C ABI、String 表示与 GC 契约保持。 struct 字段读取直接保留真实 field ID 并使用共有布局；计算属性消费实际 getter 引用及 ABI，均无额外来源或资格外层。
 
 本次来源框架清理覆盖所有 Cone：旧 HIR foundation/declaration transcript 及逐层 `Bound*` 包装只由测试工厂消费，应删除相关构造器、编码器、绑定链和专用测试。保留 `source_authority` 中仍被生产调用的普通声明数据、默认参数数据和身份查询；以共有源码编译、reader、链接与运行回归确认清理结果。
 
