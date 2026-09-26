@@ -70,13 +70,13 @@ Module
     call managed-direct-target5 sp<managed-call:6> live=[local5:ptr<managed>@0, local7:ptr<managed>@0] t6 = sig=direct5 (ptr<managed>) -> ptr<managed> external-fn11(local7)
     store t6 -> local8
     t7 = aggregate () : {}
-    t8 = box_zst external-td1 sp<managed-call:7> live=[local5:ptr<managed>@0]
+    t8 = box_zst external-td0 sp<managed-call:7> live=[local5:ptr<managed>@0]
     store t8 -> local9
     store local9 -> local10
     call managed-direct-target6 sp<managed-call:8> live=[local5:ptr<managed>@0, local10:ptr<managed>@0] t9 = sig=direct6 (ptr<managed>) -> ptr<managed> external-fn8(local10)
     store t9 -> local11
     store integer<Int>(0x00000004) -> local19
-    t10 = box_value external-td2, local19 scan=none sp<managed-call:9> live=[local5:ptr<managed>@0]
+    t10 = box_value external-td1, local19 scan=none sp<managed-call:9> live=[local5:ptr<managed>@0]
     store t10 -> local12
     store local12 -> local13
     call managed-direct-target7 sp<managed-call:10> live=[local5:ptr<managed>@0, local13:ptr<managed>@0] t11 = sig=direct7 (ptr<managed>) -> ptr<managed> external-fn8(local13)

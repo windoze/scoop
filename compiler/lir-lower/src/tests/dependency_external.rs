@@ -4,7 +4,7 @@ use super::*;
 fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols() {
     for effect in [mir::GcEffect::Managed, mir::GcEffect::NoGc] {
         let (input, selected_lir, expected_target) = dependency_input(effect, effect, false);
-        let core = test_runtime_string_descriptor(&input);
+        let core = &test_external_descriptors(&input);
 
         assert!(matches!(
             super::super::lower(
@@ -62,7 +62,7 @@ fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols(
 fn dependency_strong_lowering_rejects_gc_effect_drift() {
     let (input, selected_lir, _) =
         dependency_input(mir::GcEffect::Managed, mir::GcEffect::NoGc, false);
-    let core = test_runtime_string_descriptor(&input);
+    let core = &test_external_descriptors(&input);
 
     assert!(matches!(
         super::super::lower(
@@ -83,7 +83,7 @@ fn dependency_strong_lowering_rejects_gc_effect_drift() {
 fn dependency_strong_lowering_classifies_an_extension_receiver_as_the_first_argument() {
     let (input, selected_lir, _) =
         dependency_input(mir::GcEffect::Managed, mir::GcEffect::Managed, true);
-    let core = test_runtime_string_descriptor(&input);
+    let core = &test_external_descriptors(&input);
 
     let output = super::super::lower(
         &input,
@@ -109,7 +109,7 @@ fn cross_cone_lir_bridge_projects_local_exports_and_dependency_selections() {
     for effect in [mir::GcEffect::Managed, mir::GcEffect::NoGc] {
         let (input, selected_lir, _) = dependency_input(effect, effect, false);
         let mir_bridge = dependency_mir_bridge(&input, true);
-        let core = test_runtime_string_descriptor(&input);
+        let core = &test_external_descriptors(&input);
         let output = super::super::lower(
             &input,
             core,
@@ -162,7 +162,7 @@ fn cross_cone_lir_bridge_rejects_a_mir_selection_not_owned_by_the_input() {
     let (input, selected_lir, _) =
         dependency_input(mir::GcEffect::Managed, mir::GcEffect::Managed, false);
     let incomplete_bridge = dependency_mir_bridge(&input, false);
-    let core = test_runtime_string_descriptor(&input);
+    let core = &test_external_descriptors(&input);
     let output = super::super::lower(
         &input,
         core,

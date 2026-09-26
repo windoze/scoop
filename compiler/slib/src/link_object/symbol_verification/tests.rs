@@ -3,10 +3,10 @@ use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, LinkageClass,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentFunctionId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
-    RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite,
-    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionPlanKey, PackagePath, PersistentFunctionId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, RuntimeIdentityRecord,
+    SourceDeclarationKey, SourceDeclarationSite, StrongCallableDefinitionOwner,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     CanonicalLirFoundation, LirTargetProfile, OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1,
@@ -212,74 +212,6 @@ pub(in crate::link_object) fn fixture_named(name: &str) -> Fixture {
 
 pub(in crate::link_object) fn fixture_for_producer(producer: ConeIdentity, name: &str) -> Fixture {
     build_fixture(producer, name, false)
-}
-
-pub(in crate::link_object) fn fixture_for_type_descriptor(
-    producer: ConeIdentity,
-    target: PersistentExactTypeId,
-) -> Fixture {
-    fixture_for_exact_type_definition(
-        producer,
-        target,
-        StrongDefinitionRole::TypeDescriptor,
-        PersistentSymbolKey::TypeDescriptor(target),
-    )
-}
-
-pub(in crate::link_object) fn fixture_for_type_registration(
-    producer: ConeIdentity,
-    target: PersistentExactTypeId,
-) -> Fixture {
-    fixture_for_exact_type_definition(
-        producer,
-        target,
-        StrongDefinitionRole::TypeRegistration,
-        PersistentSymbolKey::TypeRegistration(target),
-    )
-}
-
-fn fixture_for_exact_type_definition(
-    producer: ConeIdentity,
-    target: PersistentExactTypeId,
-    role: StrongDefinitionRole,
-    symbol_key: PersistentSymbolKey,
-) -> Fixture {
-    let plan = CborIdentityRecord::from_key(
-        ObjectDefinitionPlanKey::strong(producer, StrongDefinitionEntity::exact_type(target), role)
-            .unwrap(),
-    )
-    .unwrap();
-    let atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
-        plan.id(),
-        DefinitionAtomRole::Primary,
-        DefinitionAtomSubkey::Singleton,
-    ))
-    .unwrap();
-    let symbol = PersistentSymbolRequest::new(symbol_key, LinkageClass::ConeStrong).unwrap();
-    let mut canonical = CanonicalLirFoundation::empty();
-    canonical.set_definition_plans(vec![plan.clone()]).unwrap();
-    canonical.set_definition_atoms(vec![atom.clone()]).unwrap();
-    canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
-    let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
-    let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
-    let members = PlannedLinkObjectMemberSetV1::new(
-        &partition,
-        vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
-        Vec::new(),
-    )
-    .unwrap();
-    let symbols =
-        PlannedStrongObjectSymbolSetV1::new(LirTargetProfile::DARWIN_AARCH64, &surface, &members)
-            .unwrap()
-            .members()[0]
-            .clone();
-    Fixture {
-        plan: plan.id(),
-        atom: atom.id(),
-        associated_atom: None,
-        symbols,
-    }
 }
 
 fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bool) -> Fixture {

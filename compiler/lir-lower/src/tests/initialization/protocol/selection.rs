@@ -7,7 +7,7 @@ fn lower_selected(
 ) -> Result<lir::SingleConeStrongLirOutput, crate::StrongLirLoweringError> {
     crate::lower(
         &fixture.input,
-        crate::RuntimeStringDescriptor::External(fixture.runtime_string),
+        &[fixture.runtime_string],
         selected,
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
@@ -74,7 +74,7 @@ fn initialization_selection_uses_the_shared_gc_effect_check() {
 }
 
 #[test]
-fn runtime_string_input_checks_the_actual_descriptor_and_provider() {
+fn descriptor_inputs_resolve_the_actual_type_and_provider() {
     let fixture = imported_initialization();
     let selected = lir::SelectedExternalLirSet::empty(fixture.input.module().cone)
         .with_initialization_cycle(fixture.callable.clone())
@@ -84,11 +84,11 @@ fn runtime_string_input_checks_the_actual_descriptor_and_provider() {
     assert!(matches!(
         crate::lower(
             &fixture.input,
-            crate::RuntimeStringDescriptor::External(wrong_type),
+            &[wrong_type],
             &selected,
             lir::LirTargetProfile::DARWIN_AARCH64
         ),
-        Err(crate::StrongLirLoweringError::RuntimeStringExactMismatch { .. })
+        Err(crate::StrongLirLoweringError::MissingDependencyLayoutSelection { exact, .. }) if exact == fixture.runtime_string.target()
     ));
     let wrong_provider = lir::ExternalTypeDescriptor::new(
         ConeIdentity::SINGLE_FILE,
@@ -98,11 +98,13 @@ fn runtime_string_input_checks_the_actual_descriptor_and_provider() {
     assert!(matches!(
         crate::lower(
             &fixture.input,
-            crate::RuntimeStringDescriptor::External(wrong_provider),
+            &[wrong_provider],
             &selected,
             lir::LirTargetProfile::DARWIN_AARCH64
         ),
-        Err(crate::StrongLirLoweringError::RuntimeStringDescriptorOwnership { .. })
+        Err(crate::StrongLirLoweringError::DependencyDescriptorBinding(
+            _
+        ))
     ));
     let unrelated = scoop_identity::ConeCoordinate::new("test", "unrelated", "1.0.0")
         .unwrap()
@@ -111,8 +113,15 @@ fn runtime_string_input_checks_the_actual_descriptor_and_provider() {
     let wrong_provider =
         lir::ExternalTypeDescriptor::new(unrelated, fixture.runtime_string.target()).unwrap();
     assert!(matches!(
-        crate::lower(&fixture.input, crate::RuntimeStringDescriptor::External(wrong_provider), &selected, lir::LirTargetProfile::DARWIN_AARCH64),
-        Err(crate::StrongLirLoweringError::RuntimeStringProviderMismatch { expected: ConeIdentity::CORE, actual }) if actual == unrelated
+        crate::lower(
+            &fixture.input,
+            &[wrong_provider],
+            &selected,
+            lir::LirTargetProfile::DARWIN_AARCH64
+        ),
+        Err(crate::StrongLirLoweringError::DependencyDescriptorBinding(
+            _
+        ))
     ));
 }
 
@@ -156,55 +165,12 @@ fn an_ordinary_provider_supplies_string_and_initialization_through_shared_record
         )
         .unwrap();
     assert_eq!(production.image_plan().dependencies(), &[provider]);
-    assert_eq!(production.external_bridges().bridges().len(), 2);
+    assert_eq!(production.external_bridges().bridges().len(), 1);
     assert!(
         production
             .external_bridges()
             .bridges()
             .iter()
             .all(|reference| reference.provider() == provider)
-    );
-}
-
-#[test]
-fn unused_mir_string_does_not_need_a_materialized_type_entry() {
-    let mut builder = Builder::new();
-    let entry = builder.user_fn("main", Arena::new(), Vec::new());
-    let mut module = builder.finish(entry);
-    let string = module
-        .meta
-        .source_exact_types
-        .get(&mir::Type::String)
-        .unwrap()
-        .identity_record()
-        .id();
-    module.classes = Arena::new();
-    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(
-        module
-            .meta
-            .source_exact_types
-            .iter()
-            .filter(|identity| identity.ty() != &mir::Type::String)
-            .cloned()
-            .collect(),
-    )
-    .unwrap();
-    let input = crate::tests::seal_strong_input(module);
-    let descriptor = lir::ExternalTypeDescriptor::new(ConeIdentity::CORE, string).unwrap();
-    let output = crate::lower(
-        &input,
-        crate::RuntimeStringDescriptor::External(descriptor),
-        &lir::SelectedExternalLirSet::empty(input.module().cone),
-        lir::LirTargetProfile::DARWIN_AARCH64,
-    )
-    .unwrap();
-    let lir::TypeDescriptorRef::External(id) =
-        output.module().meta.well_known_type_descriptors.string
-    else {
-        panic!("the runtime role retains the selected external descriptor");
-    };
-    assert_eq!(
-        output.module().meta.external_type_descriptors[id],
-        descriptor
     );
 }

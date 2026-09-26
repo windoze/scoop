@@ -83,13 +83,14 @@ pub(super) fn check(
             );
             assert_eq!(
                 imports.records().len(),
-                if name == "combined" { 2 } else { 1 }
+                if name == "combined" { 4 } else { 2 }
             );
             dump.push_str(&format!("physical={}\n", imports.records().len()));
             for import in imports.records() {
                 assert!(matches!(
                     import.subject(),
                     lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_)
+                        | lir::ExternalStrongShapeSubjectV1::TypeRegistration(_)
                 ));
                 dump.push_str(&format!(
                     "{} {:?} {:?}\n",

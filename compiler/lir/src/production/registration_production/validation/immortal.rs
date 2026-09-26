@@ -7,7 +7,7 @@ pub(super) fn validate_immortal_objects(
     target: LirTargetProfile,
     foundation: &OdrFreeLirFoundation,
     identities: &StrongRegistrationIdentitySurfaceV1,
-    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    definitions: Option<&crate::StrongTypeReferenceDefinitionsV2>,
 ) -> Result<StrongImmortalObjectSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
     require_length(
         RegistrationProductionTableV1::ImmortalObject,
@@ -74,8 +74,10 @@ pub(super) fn validate_immortal_objects(
                 ImmortalObjectTypeRegistrationRefV1::Local(exact_type)
             }
             DecodedImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, exact } => {
-                let descriptor = external_bridges
-                    .resolve_descriptor_reference(provider, exact)
+                let (provider, exact) = definitions
+                    .and_then(|definitions| {
+                        definitions.resolve_external_descriptor(provider, exact)
+                    })
                     .ok_or_else(|| {
                         semantic_error(
                             RegistrationProductionTableV1::ImmortalObject,
@@ -83,10 +85,7 @@ pub(super) fn validate_immortal_objects(
                             "external_type_registration",
                         )
                     })?;
-                ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
-                    provider: descriptor.provider(),
-                    exact: descriptor.target(),
-                }
+                ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, exact }
             }
         };
         let symbol = PersistentSymbolRequest::new(

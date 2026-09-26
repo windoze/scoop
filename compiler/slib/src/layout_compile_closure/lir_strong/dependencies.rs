@@ -31,13 +31,6 @@ pub(super) fn definitions(
         let callables = strong.callable_registrations().registrations();
         scoop_wire::allocation::try_reserve(&mut types, descriptors.len(), &path)?;
         for descriptor in descriptors {
-            if is_service(
-                foundation.producer(),
-                descriptor.descriptor_symbol(),
-                external,
-            )? {
-                continue;
-            }
             types.push(lir::StrongShapeDefinitionRefV1::from_foundation(
                 lir::ExternalStrongShapeSubjectV1::TypeDescriptor(descriptor.exact_type()),
                 foundation,
@@ -119,39 +112,6 @@ pub(super) fn validate_external_bridges(
         let symbol = reference.expected_symbol();
 
         match reference {
-            lir::StrongExternalLirBridgeV1::TypeDescriptor(reference) => {
-                let protocol = dependency
-                    .prepared
-                    .hir_production()
-                    .compiler_protocol_definitions()
-                    .ok_or(Error::ExternalDefinition(symbol.key()))?;
-                if protocol.string_capability().exact_type() != reference.target() {
-                    return Err(Error::ExternalDefinition(symbol.key()));
-                }
-                let descriptor = dependency
-                    .lir_exports()
-                    .descriptors()
-                    .get(reference.target())
-                    .ok_or(Error::ExternalDefinition(symbol.key()))?;
-                let physical = descriptor.physical_definition();
-                if physical.provider() != provider
-                    || physical.symbol() != symbol
-                    || physical.definition() != reference.required_definition()
-                {
-                    return Err(Error::ExternalDefinition(symbol.key()));
-                }
-                let registrations = dependency.strong.type_registrations().registrations();
-                let position = registrations
-                    .binary_search_by_key(&reference.target(), |record| record.exact_type())
-                    .map_err(|_| Error::ExternalDefinition(symbol.key()))?;
-                let registration = &registrations[position];
-                if registration.descriptor_definition_plan() != physical.definition()
-                    || registration.descriptor_primary_atom() != physical.primary()
-                    || registration.descriptor_symbol() != symbol
-                {
-                    return Err(Error::ExternalDefinition(symbol.key()));
-                }
-            }
             lir::StrongExternalLirBridgeV1::Callable(reference) => {
                 let expected = dependency
                     .initialization_cycle_abi()

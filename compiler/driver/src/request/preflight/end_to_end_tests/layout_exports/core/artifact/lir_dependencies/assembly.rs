@@ -1,37 +1,6 @@
 use super::*;
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn assemble(
-    directory: &Path,
-    target: &scoop_toolchain::ResolvedTargetProfile,
-    core: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
-    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
-    lir: &lir::SingleConeStrongLirOutput,
-    mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
-    layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    owners: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
-) -> scoop_slib::AssembledCrossConeLayoutStrongArtifactV1 {
-    let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
-    let selected =
-        lir::StrongProductionDependencySelectionV2::empty(lir.module().cone, target.lir_target())
-            .unwrap();
-    let production = lir
-        .build_production_section_v2(
-            coordinate.clone(),
-            &[ConeIdentity::CORE],
-            lir::EntryProductionSourceV1::Library,
-            &selected,
-            &[],
-        )
-        .unwrap()
-        .validate_layout_abi(layout)
-        .unwrap();
-    assemble_with_production(
-        directory, target, core, input, lir, mir, layout, owners, production,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
 pub(in super::super) fn assemble_with_production(
     directory: &Path,
     target: &scoop_toolchain::ResolvedTargetProfile,

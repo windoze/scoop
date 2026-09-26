@@ -42,6 +42,12 @@ pub(super) fn check(
         provider.layout.provider(),
         lir::ExternalStrongShapeSubjectV1::TypeDescriptor(provider.string),
     )];
+    if !plan.strings().is_empty() {
+        physical.push((
+            provider.layout.provider(),
+            lir::ExternalStrongShapeSubjectV1::TypeRegistration(provider.string),
+        ));
+    }
     for root in plan.dependency_generated_nominal_shapes() {
         assert_eq!(root.provider(), provider.layout.provider());
         let shape = provider
@@ -87,11 +93,9 @@ pub(super) fn check(
         &source.roots,
     )
     .unwrap();
-    let string = scoop_lir_lower::RuntimeStringDescriptor::External(
-        selected
-            .materialize_type_descriptor(provider.layout.provider(), provider.string)
-            .unwrap(),
-    );
+    let string = &[selected
+        .materialize_type_descriptor(provider.layout.provider(), provider.string)
+        .unwrap()];
     assert!(matches!(
         scoop_lir_lower::lower(input.mir, string, callables, provider.target.lir_target(),),
         Err(scoop_lir_lower::StrongLirLoweringError::MissingDependencyLayoutSelection { .. })
@@ -105,14 +109,12 @@ pub(super) fn check(
         input.mir,
         callables,
         &diagnostics,
-        string,
         &selected,
         &source,
         provider,
     );
     let output = scoop_lir_lower::lower_with_layout_dependencies(
         input.mir,
-        string,
         callables,
         provider.target.lir_target(),
         &selected,
@@ -123,7 +125,14 @@ pub(super) fn check(
     assert!(output.module().meta.layouts.is_empty());
     assert_eq!(
         output.module().meta.external_type_descriptors.len(),
-        source.physical.len()
+        source
+            .physical
+            .iter()
+            .filter(|(_, subject)| matches!(
+                subject,
+                lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_)
+            ))
+            .count()
     );
     snapshot(
         &fixtures.join(format!("{name}.machine.mir.snap")),

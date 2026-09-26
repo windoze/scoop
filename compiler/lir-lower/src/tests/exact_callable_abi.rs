@@ -53,7 +53,7 @@ pub(super) fn fixture() -> (
     .unwrap();
     let output = crate::lower(
         &input,
-        RuntimeStringDescriptor::Local,
+        &[],
         &lir::SelectedExternalLirSet::empty(input.module().cone),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )

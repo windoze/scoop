@@ -6,6 +6,8 @@ M23-6 的实现范围以最新版 AGENTS.md 为准：完成类型布局、canoni
 
 本轮实施与验收见[core 普通 library 清理](CORE-LIBRARY.md)。
 
+String descriptor 使用完整 MIR 中实际声明的 source exact identity，沿共有 descriptor 查询、layout selection、physical import、registration 和 Link relocation 消费。删除独立 String bridge 与固定角色的 descriptor 恢复通道，不以 provider 坐标或协议来源豁免普通引用检查。Strong production `/7`、`/8` 退役原服务表中的 TD tag 2；旧产物与缓存重建，String 表示及 runtime C ABI 不变。
+
 2026-09-22：M23-6 明确增加旧 core 专用资格清理完成门，见 [补充设计](stage6/CORE-AUTHORITY-CLEANUP.md)。必须统一 ABI 重放、native-boundary 输入、protocol 引用、String/初始化 bridge 与 Link requirement closure；既有 layout/ABI/dispatch/ZST 和实际消费目标继续执行。历史阶段的专用通道及冻结描述不构成保留理由。
 
 版本：0.6（设计完成，待实现；2026-09-16）
@@ -2567,7 +2569,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 当前目标同时包含 [core 专用资格清理](stage6/CORE-AUTHORITY-CLEANUP.md)：删除 core ABI 重放豁免、native-boundary 专用可信输入、protocol 额外来源资格、String/初始化专用 bridge 和 core 独立 Link requirement closure。各项须有共有路径的实际生产/消费、正负例与 wire/cache 迁移，不能以旧分区冻结或仅完成类型组成表宣称完成。
 
-详细设计见 `docs/milestone23/stage6/DESIGN.md`。新增 `cross-cone-layout-strong/2`，以四条 required section 承载 HIR type/inheritance、MIR type bridge、LIR layout/ABI 及 Link-only layout-use closure，strong-production/5 升级为 /6 以完整表达普通依赖的 TD/dispatch 引用。独立 HIR source-authority 草案退役；完整声明、表示、参数/default 与实际使用信息由共有 metadata 持有，生产与 bytes-only reader 共用 typed identity、访问、依赖、跨阶段语义、ABI/layout 和 object 校验。源码接口可保留尚需后续能力的声明；机器接口只发布完整物化闭包通过 M23-7/10 gate 的根，实际使用不支持的能力仍拒绝。三层 outer schema 仍为1；旧 core 专用资格、bridge 和 Link 分区按补充设计退出，同步 capability/profile inventory 与 fingerprint，不复用退役 tag。有效 callable 与 general physical use 由共有 requirement 验证保证互斥且联合完整。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
+详细设计见 `docs/milestone23/stage6/DESIGN.md`。新增 `cross-cone-layout-strong/2`，以四条 required section 承载 HIR type/inheritance、MIR type bridge、LIR layout/ABI 及 Link-only layout-use closure，strong-production/7 升级为 /8 以完整表达普通依赖的 TD/dispatch 引用。独立 HIR source-authority 草案退役；完整声明、表示、参数/default 与实际使用信息由共有 metadata 持有，生产与 bytes-only reader 共用 typed identity、访问、依赖、跨阶段语义、ABI/layout 和 object 校验。源码接口可保留尚需后续能力的声明；机器接口只发布完整物化闭包通过 M23-7/10 gate 的根，实际使用不支持的能力仍拒绝。三层 outer schema 仍为1；旧 core 专用资格、bridge 和 Link 分区按补充设计退出，同步 capability/profile inventory 与 fingerprint，不复用退役 tag。有效 callable 与 general physical use 由共有 requirement 验证保证互斥且联合完整。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
 
 依赖M23-5。实现第3.6节的`ValueStorageLayout`、Scoop ABI payload elision、C ABI拒绝规则、boxing、address/static token与`Array`/`MutableArray<ZST>`，并完成param-free跨Cone layout/scan/TypeDescriptor、inheritance/slot/dispatch bridge及receiver-dependent protected access witness。本阶段新增独立required layout/ABI/scan capability，在完整`ValidatedArtifactClosure<Compile>`上验证依赖witness后才返回通用layout API；M23-2 foundation中服务现有extern/callback闭包的`NativeBoundaryTypeDefinitionRecordV1`、canonical C storage/signature/layout leaf仍只是一条受限native-boundary proof，不能提前冒充本阶段能力。本阶段冻结新增section版本、layout、scan与typed Scoop ABI；既有canonical generated-C storage contract与extern fingerprint bytes不回改，M23-7的specialization只能实例化这些规则，不能重写它们。
 

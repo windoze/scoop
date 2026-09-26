@@ -71,7 +71,7 @@ fn layout_link_classifies_a_real_layout_import_and_preserves_its_compile_table()
 }
 
 #[test]
-fn layout_link_keeps_native_candidates_and_rejects_unused_or_wrong_consumer_imports() {
+fn layout_link_retains_metadata_imports_and_rejects_wrong_consumers() {
     let producer = ConeIdentity::SINGLE_FILE;
     let legacy = single_legacy(producer, b"_native");
     let empty = empty_section(producer);
@@ -83,13 +83,13 @@ fn layout_link_keeps_native_candidates_and_rejects_unused_or_wrong_consumer_impo
     );
     let provider = Provider::new();
     let consumer = provider.consumer(producer);
-    assert!(matches!(
-        verify_external_shape_requirements_v1(&legacy, consumer.selected()),
-        Err(LayoutLinkClosureError::UnusedImport {
-            import_index: 0,
-            ..
-        })
-    ));
+    let metadata = verify_external_shape_requirements_v1(&legacy, consumer.selected()).unwrap();
+    assert!(metadata.requirements().is_empty());
+    assert_eq!(metadata.semantic_imports().records().len(), 1);
+    assert_eq!(
+        metadata.remaining_external_candidates()[0].symbol(),
+        b"_native"
+    );
     let wrong = empty_section(provider.foundation.producer());
     assert!(matches!(
         verify_external_shape_requirements_v1(&legacy, wrong.selected()),

@@ -202,7 +202,7 @@ fn check_core_layout_exports(names: &[&str]) {
                 .unwrap();
         let lir = scoop_lir_lower::lower_with_diagnostics(
             &mir.strong,
-            scoop_lir_lower::RuntimeStringDescriptor::Local,
+            &[],
             &lir::SelectedExternalLirSet::empty(ConeIdentity::CORE),
             target.lir_target(),
             &diagnostics,

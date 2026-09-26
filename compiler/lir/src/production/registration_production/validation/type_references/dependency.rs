@@ -19,12 +19,7 @@ impl TypeReferences for DependencyTypeReferences<'_> {
         _: usize,
     ) -> Result<Option<Self::Descriptor>, StrongRegistrationProductionValidationError> {
         self.definitions
-            .resolve_optional_descriptor(
-                decoded,
-                self.local.foundation,
-                self.local.identities,
-                self.local.external,
-            )
+            .resolve_optional_descriptor(decoded, self.local.foundation, self.local.identities)
             .map_err(Into::into)
     }
     fn descriptor(
@@ -33,12 +28,7 @@ impl TypeReferences for DependencyTypeReferences<'_> {
         _: usize,
     ) -> Result<Self::Descriptor, StrongRegistrationProductionValidationError> {
         self.definitions
-            .resolve_descriptor(
-                decoded,
-                self.local.foundation,
-                self.local.identities,
-                self.local.external,
-            )
+            .resolve_descriptor(decoded, self.local.foundation, self.local.identities)
             .map_err(Into::into)
     }
     fn slots(

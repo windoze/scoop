@@ -4,7 +4,7 @@ use std::fmt;
 pub enum CurrentConeLirStageError {
     Identity(scoop_identity::IdentityValidationError),
     DiagnosticCatalog(scoop_identity::ExactTypeDiagnosticCatalogError),
-    TypeDescriptor(scoop_slib::CrossConeTypeDescriptorProjectionError),
+
     DependencyProjection(scoop_slib::CrossConeLirSelectionProjectionError),
     Lowering(scoop_lir_lower::StrongLirLoweringError),
     CrossConeBridge(scoop_lir_lower::CrossConeLirBridgeLoweringError),
@@ -15,7 +15,7 @@ impl fmt::Display for CurrentConeLirStageError {
         match self {
             Self::Identity(source) => source.fmt(formatter),
             Self::DiagnosticCatalog(source) => source.fmt(formatter),
-            Self::TypeDescriptor(source) => source.fmt(formatter),
+
             Self::DependencyProjection(source) => source.fmt(formatter),
             Self::Lowering(source) => source.fmt(formatter),
             Self::CrossConeBridge(source) => source.fmt(formatter),
@@ -28,7 +28,7 @@ impl std::error::Error for CurrentConeLirStageError {
         Some(match self {
             Self::Identity(source) => source,
             Self::DiagnosticCatalog(source) => source,
-            Self::TypeDescriptor(source) => source,
+
             Self::DependencyProjection(source) => source,
             Self::Lowering(source) => source,
             Self::CrossConeBridge(source) => source,

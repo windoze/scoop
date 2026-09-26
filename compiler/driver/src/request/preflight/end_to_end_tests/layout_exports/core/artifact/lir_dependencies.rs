@@ -25,7 +25,7 @@ pub(super) fn check(
             &source,
             None,
             None,
-            |mir_input, _, lir_input, _, owners| {
+            |mir_input, _, lir_input, _, owners, physical| {
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                     types: &[core_mir.types()],
                     callables: &[core_mir.callables()],
@@ -63,21 +63,24 @@ pub(super) fn check(
                     dependencies,
                     &exports,
                     &source,
-                    &[],
+                    physical,
                 )
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(
                     exports,
                     &[core_lir.exports()],
-                    vec![],
+                    physical.to_vec(),
                     &source,
                 )
                 .unwrap_or_else(|error| panic!("{name} LIR dependency section: {error}"));
                 assert!(!layout.selected().is_empty());
-                assert!(layout.selected().physical_imports().records().is_empty());
+                assert_eq!(
+                    layout.selected().physical_imports().records().len(),
+                    physical.len()
+                );
                 corruption::check(mir_input, &layout, core_lir);
                 let directory = tempfile::tempdir().unwrap();
-                let artifact = assembly::assemble(
+                let artifact = assembly::assemble_with_production(
                     directory.path(),
                     &target,
                     core,
@@ -86,6 +89,11 @@ pub(super) fn check(
                     &mir,
                     &layout,
                     owners,
+                    input
+                        .registration
+                        .clone()
+                        .validate_layout_abi(&layout)
+                        .unwrap(),
                 );
                 reader::check(name, &fixtures, core, &artifact, &layout);
             },

@@ -29,7 +29,12 @@ fn layout_link_classification_orders_many_uses_and_preserves_native_remainder() 
     assert!(
         use_key(result.requirements[0].use_site()) < use_key(result.requirements[1].use_site())
     );
-    assert_eq!(result.used, [true]);
+    assert!(
+        result
+            .requirements
+            .iter()
+            .all(|use_| use_.import_index() == 0)
+    );
     assert_eq!(result.remaining.len(), 1);
     assert_eq!(result.remaining[0].symbol(), b"_native");
     let duplicated = vec![

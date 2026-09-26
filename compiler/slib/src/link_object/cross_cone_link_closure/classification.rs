@@ -15,9 +15,7 @@ use crate::link_object::{
 
 mod dependencies;
 mod errors;
-use dependencies::{
-    dependency_index, expected_owner, expected_symbol, resolve_owner, type_registration_support,
-};
+use dependencies::{dependency_index, expected_owner, expected_symbol, resolve_owner};
 pub use errors::CrossConeStrongRequirementValidationError;
 
 /// A physical use of an explicit strong-production dependency subject.
@@ -137,7 +135,6 @@ enum SymbolUse {
         index: usize,
         member: SlibMemberId,
         owner: StrongDefinitionOwnerV1,
-        primary: bool,
     },
     Callable {
         index: u32,
@@ -179,25 +176,8 @@ fn classify(
                 index,
                 member,
                 owner,
-                primary: true,
             },
         )?;
-        if let Some((request, owner)) = type_registration_support(bridge)? {
-            let name = normalization
-                .compiler_generated_object_symbol(request.symbol().as_str())
-                .into_bytes();
-            let member = resolve_owner(&dependencies, bridge.provider(), &name, owner)?;
-            insert_symbol(
-                &mut symbols,
-                name,
-                SymbolUse::External {
-                    index,
-                    member,
-                    owner,
-                    primary: false,
-                },
-            )?;
-        }
     }
     for (index, import) in semantic_imports.imports().iter().enumerate() {
         let name = normalization
@@ -231,11 +211,8 @@ fn classify(
                 index,
                 member,
                 owner,
-                primary,
             }) => {
-                if primary {
-                    used_external.insert(index);
-                }
+                used_external.insert(index);
                 let bridge = &external_bridges.bridges()[index];
                 external_requirements.push(DependencyStrongRequirementUseV1 {
                     use_site: CanonicalUndefinedRelocationUseV1::from(binding),
@@ -256,9 +233,7 @@ fn classify(
         }
     }
     for (index, bridge) in external_bridges.bridges().iter().enumerate() {
-        if matches!(bridge, StrongExternalLirBridgeV1::Callable(_))
-            && !used_external.contains(&index)
-        {
+        if !used_external.contains(&index) {
             return Err(
                 CrossConeStrongRequirementValidationError::UnusedExternalCallableBridge {
                     name: normalization

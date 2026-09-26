@@ -51,17 +51,17 @@ pub(super) fn check(
     let core = bootstrap_core(directory, target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
     odr::check(directory, target);
-    for (family, name, count) in [
-        ("m23-property-initialization", "standalone", 1),
-        ("m23-property-initialization", "combined", 4),
-        ("m23-extension-call-receivers", "standalone", 1),
-        ("m23-extension-call-receivers", "combined", 4),
-        ("m23-any-call-signatures", "standalone", 1),
-        ("m23-any-call-signatures", "combined", 4),
-        ("m23-link-object-contents", "standalone", 1),
-        ("m23-link-object-contents", "combined", 4),
-        ("m23-link-symbol-uses", "standalone", 1),
-        ("m23-link-symbol-uses", "combined", 4),
+    for (family, name, count, physical_count) in [
+        ("m23-property-initialization", "standalone", 1, 2),
+        ("m23-property-initialization", "combined", 4, 2),
+        ("m23-extension-call-receivers", "standalone", 1, 3),
+        ("m23-extension-call-receivers", "combined", 4, 3),
+        ("m23-any-call-signatures", "standalone", 1, 2),
+        ("m23-any-call-signatures", "combined", 4, 5),
+        ("m23-link-object-contents", "standalone", 1, 2),
+        ("m23-link-object-contents", "combined", 4, 2),
+        ("m23-link-symbol-uses", "standalone", 1, 3),
+        ("m23-link-symbol-uses", "combined", 4, 3),
     ] {
         let fixtures = crate::workspace_root().join("tests/fixtures").join(family);
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
@@ -72,7 +72,7 @@ pub(super) fn check(
             &source,
             Some((mir_exports, provider_exports)),
             Some(&provider),
-            |input, _, lir_input, _, _| {
+            |input, _, lir_input, _, _, _| {
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                     types: &[mir_exports.types()],
                     callables: &[mir_exports.callables()],
@@ -209,11 +209,6 @@ pub(super) fn check(
                         );
                     }
                 }
-                let physical_count = if family == "m23-any-call-signatures" && name == "combined" {
-                    3
-                } else {
-                    1
-                };
                 assert_eq!(selected.physical_imports().records().len(), physical_count);
                 let mut dump = format!("mir-uses={count}\n");
                 if family == "m23-any-call-signatures" {

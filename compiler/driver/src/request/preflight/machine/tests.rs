@@ -80,7 +80,6 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         lower_selected_lir(
             &mir.strong,
             &mir.public,
-            scoop_lir_lower::RuntimeStringDescriptor::Local,
             &empty,
             target,
             &scoop_lir::StrongProductionDependencySelectionV2::empty(ConeIdentity::CORE, target)
@@ -97,7 +96,6 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     let (lir, public) = lower_selected_lir(
         &mir.strong,
         &mir.public,
-        scoop_lir_lower::RuntimeStringDescriptor::Local,
         &selected,
         target,
         &scoop_lir::StrongProductionDependencySelectionV2::empty(ConeIdentity::CORE, target)

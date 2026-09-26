@@ -78,22 +78,6 @@ fn verify_import_requirements<'a>(
     let symbols = ImportSymbolIndex::new(imports, legacy.target())?;
     symbols.reject_old_partitions(legacy)?;
     let classified = classify(legacy.remaining_external_candidates(), &symbols)?;
-    for (index, import) in imports.records().iter().enumerate() {
-        // Initialization edges retain canonical unit ids in metadata. Their
-        // complete descriptor support is checked by the source/registration
-        // join and need not produce an object pointer relocation.
-        let metadata_support = matches!(
-            import.subject(),
-            scoop_lir::ExternalStrongShapeSubjectV1::InitializationDescriptor(_)
-        );
-        if !classified.used[index] && !metadata_support {
-            return Err(LayoutLinkClosureError::UnusedImport {
-                import_index: index as u32,
-                provider: import.provider(),
-                subject: import.subject(),
-            });
-        }
-    }
     Ok(VerifiedExternalShapeRequirementClosureV1 {
         legacy,
         imports,
@@ -105,7 +89,6 @@ fn verify_import_requirements<'a>(
 struct Classification<'a> {
     requirements: Vec<ExternalShapeUndefinedUseV1>,
     remaining: Vec<&'a StrongRelocationBindingV1>,
-    used: Vec<bool>,
 }
 
 fn classify<'a>(
@@ -116,11 +99,8 @@ fn classify<'a>(
 
     let mut requirements = Vec::new();
     let mut remaining = Vec::new();
-    let mut used = Vec::new();
     scoop_wire::allocation::try_reserve(&mut requirements, candidates.len(), &path)?;
     scoop_wire::allocation::try_reserve(&mut remaining, candidates.len(), &path)?;
-    scoop_wire::allocation::try_reserve(&mut used, symbols.len(), &path)?;
-    used.resize(symbols.len(), false);
     for binding in candidates {
         if !matches!(
             binding.resolution(),
@@ -132,7 +112,6 @@ fn classify<'a>(
             });
         }
         if let Some(index) = symbols.find(binding.symbol())? {
-            used[index as usize] = true;
             requirements.push(ExternalShapeUndefinedUseV1 {
                 use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                 import_index: index,
@@ -156,7 +135,6 @@ fn classify<'a>(
     Ok(Classification {
         requirements,
         remaining,
-        used,
     })
 }
 

@@ -151,10 +151,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
         &self.foundations.lir
     }
 
-    pub(crate) fn hir_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
-        &self.hir_core
-    }
-
     pub(crate) fn semantic_parts(&mut self) -> PreparedLayoutMirSemanticParts<'_> {
         let manifest = self.graph.envelope.manifest();
         PreparedLayoutMirSemanticParts {

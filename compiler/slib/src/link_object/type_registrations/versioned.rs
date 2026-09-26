@@ -60,7 +60,11 @@ impl LinkDescriptorReference for StrongTypeDescriptorRefV2 {
                 CanonicalObjectRelocationV1::intra_cone_type_descriptor(offset, exact)
             }
             Self::DependencyExternal { provider, exact } => {
-                CanonicalObjectRelocationV1::dependency_type_descriptor(offset, provider, exact)
+                CanonicalObjectRelocationV1::dependency_target(
+                    offset,
+                    provider,
+                    scoop_lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
+                )
             }
         }
     }

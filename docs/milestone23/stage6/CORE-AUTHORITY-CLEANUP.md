@@ -28,6 +28,12 @@
 
 ### 2.4 String、初始化与 Link
 
+String descriptor 使用完整 MIR 中实际声明的 source exact identity，沿共有 descriptor 查询、layout selection、physical import、registration 和 Link relocation 消费。删除独立 String bridge 与固定角色的 descriptor 恢复通道，不以 provider 坐标或协议来源豁免普通引用检查。Strong production `/7`、`/8` 退役原服务表中的 TD tag 2；旧产物与缓存重建，String 表示及 runtime C ABI 不变。
+
+LIR descriptor 依赖是明确的 typed IR 引用。reader 验证可达 provider、exact type 的实际 descriptor 导出、递归依赖闭合及物理定义，不要求 descriptor 先出现在 HIR 的 value-layout 或 shape-support 物化根中，也不从协议表重新证明其来源。显式 descriptor relation 与从源码类型使用得到的 layout/shape 根共同闭合；遗漏必要依赖、错误 provider/类型与不一致物理合同仍拒绝。
+
+共有 Link import 表可以保留没有实际 relocation 的完整类型或 callable 引用；这类声明不生成虚构的 machine use。Link 只对实际 relocation 生成 requirement，并验证目标、provider、symbol、ABI 和定义一致性。删除“每个已声明 import 必须至少出现一次”的附加证明，以及初始化服务的专用豁免；缺失实际引用、错误定义和损坏对象仍由共有 verifier 拒绝。
+
 String、初始化服务及 descriptor、callable、selected、registration 接入共有记录。删除固定 CORE provider、专用 bridge、独立授权及 core requirement/owner/proof 通道。所有外来 strong 引用按实际 provider 和 typed target 查询 definition、ABI、symbol 与 relocation；GC 登记与初始化依赖仍完整。runtime/native/target 的不同调用契约保持，用途分区互斥且完整覆盖实际 undefined relocation。
 
 未来 program descriptor 中的历史 C 字段 `core_image` 同样表示 String 声明的实际 provider，不再要求 reserved core coordinate。保持既有 C struct 布局、String 表示与 kind 常量；普通 core 修改或扩展不自动改变 runtime ABI。M23-8 的 startup 实现继续留在后续里程碑。

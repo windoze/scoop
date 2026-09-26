@@ -220,15 +220,15 @@ fn try_lower(
     let input = seal_strong_input(module);
     super::lower(
         &input,
-        test_runtime_string_descriptor(&input),
+        &test_external_descriptors(&input),
         &lir::SelectedExternalLirSet::empty(input.module().cone),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
 }
 
-fn test_runtime_string_descriptor(
+fn test_external_descriptors(
     input: &mir::SingleConeStrongMirInput,
-) -> super::RuntimeStringDescriptor {
+) -> Vec<lir::ExternalTypeDescriptor> {
     let string = input
         .module()
         .meta
@@ -239,11 +239,9 @@ fn test_runtime_string_descriptor(
         panic!("String has a nominal provider")
     };
     if provider == input.module().cone {
-        super::RuntimeStringDescriptor::Local
+        Vec::new()
     } else {
-        super::RuntimeStringDescriptor::External(
-            lir::ExternalTypeDescriptor::new(provider, string.identity_record().id()).unwrap(),
-        )
+        vec![lir::ExternalTypeDescriptor::new(provider, string.identity_record().id()).unwrap()]
     }
 }
 
@@ -256,7 +254,7 @@ fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
     let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
     let output = super::lower(
         &input,
-        test_runtime_string_descriptor(&input),
+        &test_external_descriptors(&input),
         &lir::SelectedExternalLirSet::empty(input.module().cone),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
@@ -609,7 +607,7 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
     let c_struct_exact = exact(&mir::Type::Struct(c_struct));
     let output = super::lower(
         &input,
-        test_runtime_string_descriptor(&input),
+        &test_external_descriptors(&input),
         &lir::SelectedExternalLirSet::empty(input.module().cone),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )

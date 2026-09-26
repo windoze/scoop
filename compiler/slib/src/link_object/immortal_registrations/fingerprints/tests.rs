@@ -36,30 +36,6 @@ fn computes_the_two_relocation_registration_object_leaf() {
 }
 
 #[test]
-fn encodes_a_core_type_registration_as_a_core_requirement() {
-    let fixture = Fixture::new(Corruption::ExternalImmortalTypeRegistration);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let registrations = verify_strong_immortal_object_registrations_v1(
-        fixture.verified_patch_sites(),
-        fixture.immortal_registration_plan.clone(),
-        &objects,
-    )
-    .unwrap();
-
-    let fingerprints =
-        compute_strong_immortal_object_registration_object_fingerprints_v1(registrations, &objects)
-            .unwrap();
-
-    assert_eq!(
-        fingerprints.fingerprints()[0].fingerprint().to_string(),
-        "3105450097f215c3b15eda9e83401288666df92d62bd0bd92b628a4fb49717d5"
-    );
-}
-
-#[test]
 fn rechecks_object_bytes_before_hashing() {
     let mut fixture = Fixture::new(Corruption::None);
     let objects = [ScoopLirObjectCandidateV1::new(

@@ -1,5 +1,5 @@
 use super::*;
-use crate::{DecodedExternalTypeDescriptor, DecodedSelectedDependencyLirCallableV1};
+use crate::DecodedSelectedDependencyLirCallableV1;
 use scoop_identity::ValidatedIdentityGraph;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -9,12 +9,10 @@ impl WireEncode for StrongExternalLirBridgeV1 {
         encoder.field(0)?;
         encoder.unsigned(match self {
             Self::Callable(_) => 3,
-            Self::TypeDescriptor(_) => 2,
         })?;
         encoder.field(1)?;
         match self {
             Self::Callable(bridge) => bridge.encode(encoder),
-            Self::TypeDescriptor(bridge) => bridge.encode(encoder),
         }
     }
 }
@@ -32,7 +30,6 @@ impl WireEncode for StrongExternalLirBridgeSurfaceV1 {
 #[derive(Clone, Debug)]
 pub(super) enum DecodedStrongExternalLirBridgeV1 {
     Callable(Box<DecodedSelectedDependencyLirCallableV1>),
-    TypeDescriptor(DecodedExternalTypeDescriptor),
 }
 
 impl WireEncode for DecodedStrongExternalLirBridgeV1 {
@@ -41,12 +38,10 @@ impl WireEncode for DecodedStrongExternalLirBridgeV1 {
         encoder.field(0)?;
         encoder.unsigned(match self {
             Self::Callable(_) => 3,
-            Self::TypeDescriptor(_) => 2,
         })?;
         encoder.field(1)?;
         match self {
             Self::Callable(bridge) => bridge.encode(encoder),
-            Self::TypeDescriptor(bridge) => bridge.encode(encoder),
         }
     }
 }
@@ -77,9 +72,7 @@ impl WireDecode for DecodedStrongExternalLirBridgeV1 {
                 .field(1, DecodedSelectedDependencyLirCallableV1::decode)
                 .map(Box::new)
                 .map(Self::Callable),
-            2 => decoder
-                .field(1, DecodedExternalTypeDescriptor::decode)
-                .map(Self::TypeDescriptor),
+
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),
@@ -114,14 +107,6 @@ impl DecodedStrongExternalLirBridgeSurfaceV1 {
                             .reconstruct(identities)
                             .map_err(StrongExternalLirBridgeReconstructionError::Callable)?,
                     ))
-                }
-                DecodedStrongExternalLirBridgeV1::TypeDescriptor(bridge) => {
-                    StrongExternalLirBridgeV1::TypeDescriptor(
-                        bridge
-                            .clone()
-                            .validate(identities)
-                            .map_err(StrongExternalLirBridgeReconstructionError::TypeDescriptor)?,
-                    )
                 }
             });
         }

@@ -79,7 +79,6 @@ pub(crate) fn object_bytes(
         | Corruption::StaticEncodedEmptyInitialState
         | Corruption::StaticEncodedZeroFillSection
         | Corruption::StaticSentinelCollision
-        | Corruption::ExternalImmortalTypeRegistration
         | Corruption::WritableRegistrationSection
         | Corruption::RelocatedRegistration => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
     };

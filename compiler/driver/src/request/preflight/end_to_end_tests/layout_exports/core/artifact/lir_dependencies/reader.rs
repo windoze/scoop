@@ -140,7 +140,14 @@ pub(super) fn check(
             assert_eq!(physical.dependency_first().count(), 2);
             let current = physical.artifact(layout.provider()).unwrap();
             assert_eq!(current.lir_exports(), layout.exports());
-            assert!(current.lir_physical_imports().records().is_empty());
+            assert_eq!(
+                current.lir_physical_imports().records().len(),
+                if current.identity() == layout.provider() {
+                    layout.selected().physical_imports().records().len()
+                } else {
+                    0
+                }
+            );
             assert!(current.link_sections().is_none());
         })
         .unwrap();
@@ -150,7 +157,14 @@ pub(super) fn check(
             assert_eq!(physical.dependency_first().count(), 2);
             for current in physical.dependency_first() {
                 assert!(current.link_sections().is_some());
-                assert!(current.lir_physical_imports().records().is_empty());
+                assert_eq!(
+                    current.lir_physical_imports().records().len(),
+                    if current.identity() == layout.provider() {
+                        layout.selected().physical_imports().records().len()
+                    } else {
+                        0
+                    }
+                );
             }
             assert_eq!(
                 physical.artifact(layout.provider()).unwrap().lir_exports(),

@@ -13,8 +13,6 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 use crate::{OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1};
 
-mod descriptors;
-
 #[test]
 fn selected_callable_keeps_actual_provider_body_and_definition_authority() {
     let ordinary = scoop_identity::ConeCoordinate::new("tests", "initialization", "1.0.0")

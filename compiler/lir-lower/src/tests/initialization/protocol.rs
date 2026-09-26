@@ -44,7 +44,7 @@ fn core_lowering_publishes_initialization_protocol_abi() {
 
     let output = crate::lower(
         &input,
-        crate::RuntimeStringDescriptor::Local,
+        &[],
         &lir::SelectedExternalLirSet::empty(ConeIdentity::CORE),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
@@ -82,15 +82,15 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     assert!(matches!(
         crate::lower(
             &ordinary_input,
-            crate::RuntimeStringDescriptor::Local,
+            &[],
             &selected_lir,
             lir::LirTargetProfile::DARWIN_AARCH64,
         ),
-        Err(StrongLirLoweringError::MissingRuntimeStringDescriptor { .. })
+        Err(StrongLirLoweringError::MissingDependencyLayoutSelection { .. })
     ));
     let output = crate::lower(
         &ordinary_input,
-        crate::RuntimeStringDescriptor::External(runtime_string),
+        &[runtime_string],
         &selected_lir,
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
@@ -148,10 +148,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
             lir::EntryProductionSourceV1::Library,
         )
         .unwrap();
-    assert_eq!(production.external_bridges().bridges().len(), 2);
-    assert!(production.external_bridges().bridges().contains(
-        &lir::StrongExternalLirBridgeV1::TypeDescriptor(runtime_string)
-    ));
+    assert_eq!(production.external_bridges().bridges().len(), 1);
     assert_eq!(
         production
             .external_bridges()

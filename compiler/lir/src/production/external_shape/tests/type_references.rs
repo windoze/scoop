@@ -60,7 +60,7 @@ fn descriptor_and_body_references_bind_the_same_provider_definition() {
         exact,
     };
     let resolved = catalog
-        .resolve_descriptor(decoded(&descriptor), &consumer, &registrations, &core)
+        .resolve_descriptor(decoded(&descriptor), &consumer, &registrations)
         .unwrap();
     assert_eq!(resolved, descriptor);
     assert_eq!(catalog.descriptor_definitions(), &definitions[1..]);
@@ -84,7 +84,7 @@ fn descriptor_and_body_references_bind_the_same_provider_definition() {
     };
     assert_eq!(
         catalog
-            .resolve_optional_descriptor(decoded(&optional), &consumer, &registrations, &core)
+            .resolve_optional_descriptor(decoded(&optional), &consumer, &registrations)
             .unwrap(),
         Some(descriptor)
     );
@@ -113,7 +113,7 @@ fn physical_catalog_rejects_duplicate_local_and_wrong_role_definitions() {
 fn an_imported_symbol_request_is_not_a_local_definition() {
     let definition = checked(subjects()[3]);
     let catalog = StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition]).unwrap();
-    let (_, registrations, core) = empty_consumer();
+    let (_, registrations, _) = empty_consumer();
     let mut canonical = crate::CanonicalLirFoundation::empty();
     canonical
         .set_symbol_requests(PersistentSymbolRequestTable::new(vec![definition.symbol()]).unwrap());
@@ -127,7 +127,7 @@ fn an_imported_symbol_request_is_not_a_local_definition() {
     };
     assert_eq!(
         catalog
-            .resolve_descriptor(decoded(&reference), &consumer, &registrations, &core)
+            .resolve_descriptor(decoded(&reference), &consumer, &registrations)
             .unwrap(),
         reference
     );
@@ -147,15 +147,14 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
         exact,
     };
     assert!(matches!(
-        catalog.resolve_descriptor(decoded(&wrong), &consumer, &registrations, &core),
+        catalog.resolve_descriptor(decoded(&wrong), &consumer, &registrations),
         Err(Error::UnknownDependencyDescriptor { .. })
     ));
     assert!(matches!(
         catalog.resolve_descriptor(
             decoded(&StrongTypeDescriptorRefV2::Local(exact)),
             &consumer,
-            &registrations,
-            &core
+            &registrations
         ),
         Err(Error::UnknownLocalDescriptor(_))
     ));
@@ -181,7 +180,7 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
 }
 
 #[test]
-fn descriptor_sources_bind_the_requested_provider_and_reject_duplicate_proofs() {
+fn descriptor_references_bind_the_requested_provider() {
     let producer = scoop_identity::ConeCoordinate::new("test", "reference-consumer", "1.0.0")
         .unwrap()
         .identity()
@@ -196,37 +195,15 @@ fn descriptor_sources_bind_the_requested_provider_and_reject_duplicate_proofs() 
     let catalog = StrongTypeReferenceDefinitionsV2::new(producer, &[definition]).unwrap();
     let (consumer, registrations, _) = consumer_at(producer);
     for provider in [ConeIdentity::CORE, definition.provider()] {
-        let external = StrongExternalLirBridgeSurfaceV1::try_new(
-            producer,
-            vec![crate::StrongExternalLirBridgeV1::TypeDescriptor(
-                crate::ExternalTypeDescriptor::new(provider, exact).unwrap(),
-            )],
-        )
-        .unwrap();
         let reference = StrongTypeDescriptorRefV2::DependencyExternal { provider, exact };
-        let result =
-            catalog.resolve_descriptor(decoded(&reference), &consumer, &registrations, &external);
+        let result = catalog.resolve_descriptor(decoded(&reference), &consumer, &registrations);
         if provider == definition.provider() {
-            assert!(
-                matches!(result, Err(Error::ConflictingDescriptorSources(actual)) if actual == exact)
-            );
-        } else {
             assert_eq!(result.unwrap(), reference);
-            let layout_reference = StrongTypeDescriptorRefV2::DependencyExternal {
-                provider: definition.provider(),
-                exact,
-            };
-            assert_eq!(
-                catalog
-                    .resolve_descriptor(
-                        decoded(&layout_reference),
-                        &consumer,
-                        &registrations,
-                        &external,
-                    )
-                    .unwrap(),
-                layout_reference
-            );
+        } else {
+            assert!(matches!(
+                result,
+                Err(Error::UnknownDependencyDescriptor { .. })
+            ));
         }
     }
 }

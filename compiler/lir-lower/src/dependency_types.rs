@@ -38,30 +38,39 @@ pub(super) fn lower(
     let roots = input
         .materialization()
         .dependency_generated_nominal_shapes();
-    let Some(selected) = selected else {
-        if let Some(root) = roots.first() {
-            return Err(Error::MissingDependencyLayoutSelection {
-                provider: root.provider(),
-                exact: root.exact(),
+    let module = input.module();
+    if let Some(selected) = selected {
+        if selected.consumer() != module.cone {
+            return Err(Error::DependencyLayoutConsumer {
+                expected: module.cone,
+                actual: selected.consumer(),
             });
         }
-        return Ok(result);
-    };
-    let module = input.module();
-    if selected.consumer() != module.cone {
-        return Err(Error::DependencyLayoutConsumer {
-            expected: module.cone,
-            actual: selected.consumer(),
-        });
+        if selected.target_profile() != target {
+            return Err(Error::DependencyLayoutTarget {
+                expected: target,
+                actual: selected.target_profile(),
+            });
+        }
     }
-    if selected.target_profile() != target {
-        return Err(Error::DependencyLayoutTarget {
-            expected: target,
-            actual: selected.target_profile(),
-        });
+    let mut supplied = std::collections::HashSet::new();
+    for (_, descriptor) in external.iter() {
+        if descriptor.provider() == module.cone
+            || !supplied.insert(descriptor.target())
+            || !module.meta.source_exact_types.iter().any(|source| {
+                source.identity_record().id() == descriptor.target()
+                    && source.owner() == mir::SourceExactTypeOwner::Cone(descriptor.provider())
+            })
+        {
+            return Err(Error::DependencyDescriptorBinding(descriptor.target()));
+        }
     }
 
     for root in roots {
+        let selected = selected.ok_or(Error::MissingDependencyLayoutSelection {
+            provider: root.provider(),
+            exact: root.exact(),
+        })?;
         let descriptor = selected
             .materialize_shape_type_descriptor(root.provider(), root.source(), root.exact())
             .map_err(Error::DependencyLayout)?;
@@ -109,23 +118,29 @@ pub(super) fn lower(
         ) {
             continue;
         }
-        let (ExactTypeKey::Nominal(nominal), mir::SourceExactTypeOwner::Cone(provider)) =
+        let (ExactTypeKey::Nominal(_), mir::SourceExactTypeOwner::Cone(provider)) =
             (source.identity_record().key(), source.owner())
         else {
             continue;
         };
-        if provider == module.cone
-            || selected
-                .selected_shape_support(provider, *nominal)
-                .is_none()
-        {
+        if provider == module.cone {
             continue;
         }
         let exact = source.identity_record().id();
-        let descriptor = selected
-            .materialize_shape_type_descriptor(provider, *nominal, exact)
-            .map_err(Error::DependencyLayout)?;
-        let id = intern(external, descriptor)?;
+        let existing = external.iter().find_map(|(id, descriptor)| {
+            (descriptor.provider() == provider && descriptor.target() == exact).then_some(id)
+        });
+        let id = match existing {
+            Some(id) => id,
+            None => {
+                let selected =
+                    selected.ok_or(Error::MissingDependencyLayoutSelection { provider, exact })?;
+                let descriptor = selected
+                    .materialize_type_descriptor(provider, exact)
+                    .map_err(Error::DependencyLayout)?;
+                intern(external, descriptor)?
+            }
+        };
 
         result
             .source

@@ -1,13 +1,12 @@
 //! Compiler-service references use the shared dependency callable and descriptor records.
 
-use crate::{ExternalTypeDescriptor, Module, SelectedDependencyLirCallableV1};
+use crate::{Module, SelectedDependencyLirCallableV1};
 use scoop_identity::{
     ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
 };
 
 mod errors;
 mod references;
-mod runtime_string;
 pub use errors::*;
 mod wire;
 pub use wire::DecodedStrongExternalLirBridgeSurfaceV1;
@@ -17,21 +16,18 @@ use wire::DecodedStrongExternalLirBridgeV1;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongExternalLirBridgeV1 {
     Callable(Box<SelectedDependencyLirCallableV1>),
-    TypeDescriptor(ExternalTypeDescriptor),
 }
 
 impl StrongExternalLirBridgeV1 {
     pub const fn provider(&self) -> ConeIdentity {
         match self {
             Self::Callable(callable) => callable.provider(),
-            Self::TypeDescriptor(descriptor) => descriptor.provider(),
         }
     }
 
     pub fn expected_symbol(&self) -> scoop_identity::PersistentSymbolRequest {
         match self {
             Self::Callable(callable) => callable.bridge().expected_symbol(),
-            Self::TypeDescriptor(descriptor) => descriptor.expected_symbol(),
         }
     }
 
@@ -40,7 +36,6 @@ impl StrongExternalLirBridgeV1 {
             Self::Callable(callable) => {
                 (1, *callable.bridge().expected_symbol().key().owner_bytes())
             }
-            Self::TypeDescriptor(descriptor) => (2, *descriptor.target().as_array()),
         }
     }
 }
@@ -84,9 +79,6 @@ impl StrongExternalLirBridgeSurfaceV1 {
                 .map_err(StrongExternalLirBridgeBuildError::Callable)?,
             )));
         }
-        if let Some(descriptor) = Self::runtime_string(module)? {
-            bridges.push(StrongExternalLirBridgeV1::TypeDescriptor(descriptor));
-        }
         Self::try_new(module.cone, bridges)
     }
 
@@ -105,9 +97,6 @@ impl StrongExternalLirBridgeSurfaceV1 {
                         .callable_abi()
                         .link_contract(callable.provider())
                         .map_err(StrongExternalLirBridgeBuildError::CallableContract)?;
-                }
-                StrongExternalLirBridgeV1::TypeDescriptor(descriptor) => {
-                    Self::validate_runtime_string(*descriptor)?;
                 }
             }
         }

@@ -4,8 +4,7 @@ use scoop_identity::RepresentationRole;
 
 use super::{SharedLirDependencyGraphError as Error, *};
 
-/// Replays the graph from shared HIR occurrences and complete export tables.
-/// This neither consumes candidate MIR roots nor infers uses from link imports.
+/// Closes source layout uses and explicit descriptor references against actual exports.
 pub fn replay_shared_lir_dependency_graph(
     source: scoop_hir::SharedTypeMetadataV1<'_>,
     layout: &lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
@@ -70,6 +69,19 @@ pub fn replay_shared_lir_dependency_graph(
             lir::LayoutAbiSemanticTargetV1::ShapeSupport(owner),
         )
     }));
+
+    committed.extend(
+        layout
+            .selected_relations()
+            .iter()
+            .filter(|relation| {
+                matches!(
+                    relation.target(),
+                    lir::LayoutAbiSemanticTargetV1::Descriptor(_)
+                )
+            })
+            .copied(),
+    );
 
     committed.sort_unstable();
     committed.dedup();

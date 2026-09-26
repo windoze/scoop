@@ -48,26 +48,14 @@ impl TypeReferences for LegacyTypeReferences<'_> {
         decoded: Self::Parent,
         index: usize,
     ) -> Result<Option<Self::Descriptor>, StrongRegistrationProductionValidationError> {
-        validate_optional_type_descriptor_ref(
-            decoded,
-            self.identities,
-            self.external,
-            index,
-            "parent",
-        )
+        validate_optional_type_descriptor_ref(decoded, self.identities, index, "parent")
     }
     fn descriptor(
         &self,
         decoded: Self::DecodedDescriptor,
         index: usize,
     ) -> Result<Self::Descriptor, StrongRegistrationProductionValidationError> {
-        resolve_type_descriptor_ref(
-            decoded,
-            self.identities,
-            self.external,
-            index,
-            "itable_interface",
-        )
+        resolve_type_descriptor_ref(decoded, self.identities, index, "itable_interface")
     }
     fn slots(
         &self,

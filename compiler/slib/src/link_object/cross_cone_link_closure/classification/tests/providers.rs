@@ -12,9 +12,7 @@ fn ordinary(
     consumer: ConeIdentity,
     callable: StrongExternalLirBridgeV1,
 ) -> CrossConeLirBridgeSectionV1 {
-    let StrongExternalLirBridgeV1::Callable(callable) = callable else {
-        panic!("the fixture has a callable subject");
-    };
+    let StrongExternalLirBridgeV1::Callable(callable) = callable;
     let foundation =
         OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
     CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![*callable]).unwrap()
@@ -23,18 +21,11 @@ fn ordinary(
 #[test]
 fn one_pass_resolves_mixed_providers_for_a_core_consumer() {
     let consumer = ConeIdentity::CORE;
-    let descriptor_provider = provider("descriptor-provider");
     let service_provider = provider("service-provider");
     let ordinary_provider = provider("ordinary-provider");
-    let exact = exact_type(descriptor_provider, "Text");
-    let descriptor = StrongExternalLirBridgeV1::TypeDescriptor(
-        ExternalTypeDescriptor::new(descriptor_provider, exact).unwrap(),
-    );
     let service = callable_bridge(service_provider, "initialize");
     let callable = callable_bridge(ordinary_provider, "entry");
     let symbols = [
-        bridge_name(&descriptor),
-        type_registration_name(exact),
         bridge_name(&service),
         bridge_name(&callable),
         b"_native_unmatched".to_vec(),
@@ -48,11 +39,9 @@ fn one_pass_resolves_mixed_providers_for_a_core_consumer() {
         })
         .collect();
     let strong = verify_current_cone_strong_relocation_closure_v1(members).unwrap();
-    let surface =
-        StrongExternalLirBridgeSurfaceV1::try_new(consumer, vec![descriptor, service]).unwrap();
+    let surface = StrongExternalLirBridgeSurfaceV1::try_new(consumer, vec![service]).unwrap();
     let ordinary = ordinary(consumer, callable);
     let mut owners = vec![
-        descriptor_owners(descriptor_provider, exact),
         callable_owners(service_provider, "initialize"),
         callable_owners(ordinary_provider, "entry"),
     ];
@@ -74,15 +63,7 @@ fn one_pass_resolves_mixed_providers_for_a_core_consumer() {
         reordered.external_requirements()
     );
     assert_eq!(result.requirements(), reordered.requirements());
-    assert_eq!(result.external_requirements().len(), 3);
-    assert_eq!(
-        result
-            .external_requirements()
-            .iter()
-            .filter(|use_| use_.provider() == descriptor_provider)
-            .count(),
-        2
-    );
+    assert_eq!(result.external_requirements().len(), 1);
     assert_eq!(
         result
             .external_requirements()
@@ -107,10 +88,7 @@ fn one_pass_resolves_mixed_providers_for_a_core_consumer() {
 fn provider_lookup_rejects_missing_duplicate_self_and_wrong_owner_inputs() {
     let consumer = ConeIdentity::SINGLE_FILE;
     let origin = provider("lookup-provider");
-    let exact = exact_type(origin, "Text");
-    let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        ExternalTypeDescriptor::new(origin, exact).unwrap(),
-    );
+    let bridge = callable_bridge(origin, "entry");
     let name = bridge_name(&bridge);
     let object = fixture_for_producer(consumer, "lookupUse");
     let strong =
@@ -119,7 +97,7 @@ fn provider_lookup_rejects_missing_duplicate_self_and_wrong_owner_inputs() {
         )])
         .unwrap();
     let surface = StrongExternalLirBridgeSurfaceV1::try_new(consumer, vec![bridge]).unwrap();
-    let owners = descriptor_owners(origin, exact);
+    let owners = callable_owners(origin, "entry");
     let run = |owners: &[CanonicalDefinedLinkSymbolOwnerSetV1]| {
         verify_dependency_strong_requirements_v1(
             LirTargetProfile::DARWIN_AARCH64,
@@ -149,7 +127,7 @@ fn provider_lookup_rejects_missing_duplicate_self_and_wrong_owner_inputs() {
     );
     let other_provider = provider("other-lookup-provider");
     assert!(
-        matches!(run(&[descriptor_owners(other_provider, exact)]), Err(CrossConeStrongRequirementValidationError::MissingProvider { provider }) if provider == origin)
+        matches!(run(&[callable_owners(other_provider, "entry")]), Err(CrossConeStrongRequirementValidationError::MissingProvider { provider }) if provider == origin)
     );
 }
 
@@ -181,17 +159,14 @@ fn a_callable_cannot_be_claimed_by_two_capability_subjects() {
 }
 
 #[test]
-fn final_requirement_keeps_the_non_core_descriptor_provider() {
+fn final_requirement_keeps_the_selected_callable_provider() {
     use crate::link_object::native_requirements::tests::native_surface;
     use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
     use crate::link_object::*;
 
     let consumer = ConeIdentity::SINGLE_FILE;
     let origin = provider("final-provider");
-    let exact = exact_type(origin, "Text");
-    let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        ExternalTypeDescriptor::new(origin, exact).unwrap(),
-    );
+    let bridge = callable_bridge(origin, "entry");
     let object = fixture_for_producer(consumer, "finalUse");
     let strong =
         verify_current_cone_strong_relocation_closure_v1(vec![verified_member_with_undefined(
@@ -206,7 +181,7 @@ fn final_requirement_keeps_the_non_core_descriptor_provider() {
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(consumer, vec![bridge]).unwrap(),
-        &[descriptor_owners(origin, exact)],
+        &[callable_owners(origin, "entry")],
     )
     .unwrap();
     let source = verify_source_external_requirements_v1(
@@ -227,6 +202,6 @@ fn final_requirement_keeps_the_non_core_descriptor_provider() {
     assert_eq!(final_set.requirements().len(), 1);
     assert!(
         matches!(final_set.requirements()[0].requirement(), FinalUndefinedSymbolRequirementV1::DependencyStrong { provider, owner }
-        if provider == origin && owner.entity() == StrongDefinitionEntity::exact_type(exact))
+        if provider == origin && owner.role() == StrongDefinitionRole::CallableBody)
     );
 }

@@ -6,11 +6,9 @@ use scoop_wire::WirePath;
 
 use super::{ValidatedCrossConeSemanticClosure, world::provider_certificate};
 
-mod descriptor;
 mod errors;
 mod lir;
 mod protocols;
-pub use descriptor::CrossConeTypeDescriptorProjectionError;
 pub use errors::*;
 pub use protocols::{CrossConeInitializationSelectionError, CrossConeProtocolImportError};
 

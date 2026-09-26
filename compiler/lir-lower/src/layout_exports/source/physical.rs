@@ -26,10 +26,7 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
 
     let mut imports = Vec::new();
 
-    for (id, descriptor) in module.meta.external_type_descriptors.iter() {
-        if module.meta.well_known_type_descriptors.string == lir::TypeDescriptorRef::External(id) {
-            continue;
-        }
+    for (_, descriptor) in module.meta.external_type_descriptors.iter() {
         push(
             &mut imports,
             RequiredImport {
@@ -39,6 +36,34 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
                 definition: descriptor.required_definition(),
             },
         )?;
+    }
+
+    for registration in input.registration.immortal_registrations().registrations() {
+        if let lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, exact } =
+            registration.semantic().type_registration_ref()
+        {
+            push(
+                &mut imports,
+                RequiredImport {
+                    provider,
+                    subject: Subject::TypeRegistration(exact),
+                    symbol: registration.type_registration_symbol(),
+                    definition: ObjectDefinitionPlanId::from_key(
+                        &Subject::TypeRegistration(exact)
+                            .expected_definition(provider)
+                            .map_err(|_| Error::PhysicalDefinition {
+                                provider,
+                                subject: Subject::TypeRegistration(exact),
+                            })?
+                            .0,
+                    )
+                    .map_err(|_| Error::PhysicalDefinition {
+                        provider,
+                        subject: Subject::TypeRegistration(exact),
+                    })?,
+                },
+            )?;
+        }
     }
 
     for (_, callable) in module.meta.external_callables.iter() {

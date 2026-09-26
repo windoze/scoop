@@ -90,6 +90,22 @@ impl StrongTypeReferenceDefinitionsV2 {
         &self.callables
     }
 
+    pub(crate) fn resolve_external_descriptor(
+        &self,
+        provider: DecodedPersistentId<ConeIdentity>,
+        exact: DecodedPersistentId<PersistentExactTypeId>,
+    ) -> Option<(ConeIdentity, PersistentExactTypeId)> {
+        self.descriptors.iter().find_map(|definition| {
+            let ExternalStrongShapeSubjectV1::TypeDescriptor(candidate) = definition.subject()
+            else {
+                return None;
+            };
+            (definition.provider().as_array() == provider.as_array()
+                && candidate.as_array() == exact.as_array())
+            .then_some((definition.provider(), candidate))
+        })
+    }
+
     fn check_producer(
         &self,
         actual: ConeIdentity,
@@ -118,7 +134,6 @@ pub enum StrongTypeReferenceResolutionErrorV2 {
     DuplicateDefinition(PersistentSymbolKey),
     UnknownLocalDescriptor(DecodedPersistentId<PersistentExactTypeId>),
     UnknownLocalCallable(DecodedPersistentId<PersistentCallableBodyId>),
-    ConflictingDescriptorSources(PersistentExactTypeId),
     ConflictingCallableSources(PersistentCallableBodyId),
     LocalDescriptorPartition(PersistentExactTypeId),
     LocalCallablePartition(PersistentCallableBodyId),

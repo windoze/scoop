@@ -32,8 +32,9 @@ impl StrongTypeDescriptorSemanticPlanSetV2 {
                 },
             );
         }
-        crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
-            .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
+        for (_, descriptor) in module.meta.external_type_descriptors.iter() {
+            validate_descriptor_selection(selected, *descriptor)?;
+        }
         let mut canonical = BTreeMap::new();
         for (_, descriptor) in module.meta.type_descriptors.iter() {
             let plan = build_descriptor_v2(module, descriptor, selected)?;
@@ -75,7 +76,7 @@ fn build_descriptor_v2(
 
     let parent = descriptor
         .parent
-        .map(|reference| descriptor_ref(module, reference, selected))
+        .map(|reference| descriptor_ref(module, reference))
         .transpose()?;
     let vtable = StrongTypeVtableSemanticPlanV2::from_artifact(
         descriptor.vtable.identity_record().id(),
@@ -90,7 +91,7 @@ fn build_descriptor_v2(
                 StrongTypeDescriptorSemanticPlanBuildError::ItableOwnerMismatch(exact_type),
             );
         }
-        let interface = descriptor_ref(module, itable.interface(), selected)?;
+        let interface = descriptor_ref(module, itable.interface())?;
         if !itable.belongs_to_interface_exact_type(interface.exact_type()) {
             return Err(
                 StrongTypeDescriptorSemanticPlanBuildError::ItableInterfaceMismatch {
@@ -139,7 +140,6 @@ fn build_descriptor_v2(
 fn descriptor_ref(
     module: &Module,
     reference: TypeDescriptorRef,
-    selected: &crate::StrongProductionDependencySelectionV2<'_>,
 ) -> Result<StrongTypeDescriptorRefV2, StrongTypeDescriptorSemanticPlanBuildError> {
     Ok(match reference {
         TypeDescriptorRef::Local(id) => {
@@ -160,19 +160,9 @@ fn descriptor_ref(
                 );
             }
             let descriptor = module.meta.external_type_descriptors[id];
-            if reference == module.meta.well_known_type_descriptors.string {
-                crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
-                    .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
-                StrongTypeDescriptorRefV2::DependencyExternal {
-                    provider: descriptor.provider(),
-                    exact: descriptor.target(),
-                }
-            } else {
-                validate_descriptor_selection(selected, descriptor)?;
-                StrongTypeDescriptorRefV2::DependencyExternal {
-                    provider: descriptor.provider(),
-                    exact: descriptor.target(),
-                }
+            StrongTypeDescriptorRefV2::DependencyExternal {
+                provider: descriptor.provider(),
+                exact: descriptor.target(),
             }
         }
     })

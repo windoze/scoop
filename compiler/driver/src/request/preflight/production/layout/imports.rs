@@ -23,6 +23,35 @@ pub(super) fn select<'a>(
             lir::ExternalStrongShapeSubjectV1::TypeDescriptor(shape.exact()),
         ));
     }
+    for source in input.module().meta.source_exact_types.iter() {
+        if !matches!(
+            source.ty(),
+            mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_)
+        ) {
+            continue;
+        }
+        let mir::SourceExactTypeOwner::Cone(provider) = source.owner() else {
+            continue;
+        };
+        if provider == input.module().cone {
+            continue;
+        }
+        let exact = source.identity_record().id();
+        roots.push(lir::LayoutAbiDependencyV1::new(
+            provider,
+            lir::LayoutAbiSemanticTargetV1::Descriptor(exact),
+        ));
+        physical.push((
+            provider,
+            lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
+        ));
+        if source.ty() == &mir::Type::String && !input.materialization().strings().is_empty() {
+            physical.push((
+                provider,
+                lir::ExternalStrongShapeSubjectV1::TypeRegistration(exact),
+            ));
+        }
+    }
     physical.extend(section.initialization_uses().records().iter().map(|usage| {
         (
             usage.provider(),

@@ -52,7 +52,6 @@ pub(crate) enum Corruption {
     StaticEncodedEmptyInitialState,
     StaticEncodedZeroFillSection,
     StaticSentinelCollision,
-    ExternalImmortalTypeRegistration,
     WritableRegistrationSection,
     RelocatedRegistration,
 }
@@ -173,24 +172,9 @@ impl Fixture {
     }
 
     pub(crate) fn undefined_requirements(&self) -> CanonicalUndefinedSymbolRequirementSetV1 {
-        match self.immortal_registration_plan.registrations()[0]
-            .semantic()
-            .type_registration_ref()
-        {
-            scoop_lir::ImmortalObjectTypeRegistrationRefV1::Local(_) => {
-                crate::link_object::undefined_requirements::tests::
-                    empty_final_requirements_for_strong(
-                        self.builtins.strong_relocations().clone(),
-                    )
-            }
-            scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { exact: exact_type, .. } => {
-                crate::link_object::undefined_requirements::tests::
-                    core_type_final_requirements_for_strong(
-                        self.builtins.strong_relocations().clone(),
-                        exact_type,
-                    )
-            }
-        }
+        crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong(
+            self.builtins.strong_relocations().clone(),
+        )
     }
 }
 

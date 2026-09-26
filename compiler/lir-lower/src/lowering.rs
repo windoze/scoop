@@ -9,7 +9,7 @@ pub(super) struct LoweredModule {
 
 pub(super) fn lower_graph(
     input: &mir::SingleConeStrongMirInput,
-    runtime_string: RuntimeStringDescriptor,
+    external_descriptors: &[lir::ExternalTypeDescriptor],
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     selected_layout: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
@@ -20,14 +20,17 @@ pub(super) fn lower_graph(
         .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
     let context = LoweringContext::new(target_profile);
     let identity_roots = IdentityRoots::new(input);
-    let (mut external_type_descriptors, imported_runtime_string) =
-        lower_runtime_string(input, runtime_string)?;
+    let mut external_type_descriptors = external_descriptors.iter().copied().collect();
     let dependency_types = dependency_types::lower(
         input,
         target_profile,
         selected_layout,
         &mut external_type_descriptors,
     )?;
+    let imported_runtime_string = dependency_types
+        .source
+        .iter()
+        .find_map(|(ty, reference)| (*ty == mir::Type::String).then_some(*reference));
     validate_strong_materialization(input, &identity_roots, &dependency_types)
         .map_err(StrongLirLoweringError::Capability)?;
     // Every string selected by the sealed materialization plan becomes a
@@ -188,7 +191,6 @@ pub(super) fn lower_graph(
         module,
         &enums,
         &local_function_map,
-        imported_runtime_string,
         dependency_types,
     )?;
     let (arrays, array_type_map) = array_types(
@@ -257,10 +259,10 @@ pub(super) fn lower_graph(
         &enums,
         imported_runtime_string.is_none(),
     )?;
-    let imported_runtime_string_exact = external_type_descriptors
+    let external_exact_types = external_type_descriptors
         .iter()
-        .next()
-        .map(|(_, descriptor)| descriptor.target());
+        .map(|(_, descriptor)| descriptor.target())
+        .collect::<std::collections::HashSet<_>>();
     let module = lir::Module {
         cone: module.cone,
         globals,
@@ -281,7 +283,7 @@ pub(super) fn lower_graph(
             },
         },
         meta: lir::LirMeta {
-            exact_types: materialized_exact_types(input, imported_runtime_string_exact),
+            exact_types: materialized_exact_types(input, &external_exact_types),
             target_profile: context.target_profile(),
             canonical_c_abi: native_abi.canonical_c_abi,
             native_externals: native_abi.native_externals,
@@ -301,7 +303,7 @@ pub(super) fn lower_graph(
 
 fn materialized_exact_types(
     input: &mir::SingleConeStrongMirInput,
-    imported_runtime_string: Option<scoop_identity::PersistentExactTypeId>,
+    external: &std::collections::HashSet<scoop_identity::PersistentExactTypeId>,
 ) -> Vec<
     scoop_identity::CborIdentityRecord<
         scoop_identity::PersistentExactTypeId,
@@ -313,7 +315,7 @@ fn materialized_exact_types(
         .materialization()
         .source_nominal_shapes()
         .iter()
-        .filter(|root| Some(root.exact()) != imported_runtime_string)
+        .filter(|root| !external.contains(&root.exact()))
         .map(|root| {
             let record = exact_type_record(module, root.ty());
             assert_eq!(record.id(), root.exact());

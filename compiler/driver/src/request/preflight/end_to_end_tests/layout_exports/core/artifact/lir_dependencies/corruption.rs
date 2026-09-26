@@ -27,6 +27,13 @@ pub(super) fn check(
     let resolved = resolve(&expected).unwrap();
     replay(&resolved, &[core.exports()]).unwrap();
     for index in 0..expected.len() {
+        if matches!(
+            expected[index].target(),
+            lir::LayoutAbiSemanticTargetV1::Descriptor(_)
+        ) {
+            // Explicit descriptor imports are checked at the physical-reference boundary.
+            continue;
+        }
         let mut missing = expected.clone();
         missing.remove(index);
         assert!(

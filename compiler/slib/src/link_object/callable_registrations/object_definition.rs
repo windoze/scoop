@@ -100,10 +100,10 @@ impl CanonicalObjectRelocationV1 {
         )
     }
 
-    pub(in crate::link_object) fn dependency_type_descriptor(
+    pub(in crate::link_object) fn dependency_target(
         offset_within_atom: u64,
         provider: scoop_identity::ConeIdentity,
-        exact_type: PersistentExactTypeId,
+        subject: scoop_lir::ExternalStrongShapeSubjectV1,
     ) -> Self {
         Self {
             offset_within_atom,
@@ -114,9 +114,7 @@ impl CanonicalObjectRelocationV1 {
                 target: CanonicalRelocationTargetKindV1::Requirement(
                     CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
                         provider,
-                        subject: scoop_lir::ExternalStrongShapeSubjectV1::TypeDescriptor(
-                            exact_type,
-                        ),
+                        subject,
                     },
                 ),
             }],

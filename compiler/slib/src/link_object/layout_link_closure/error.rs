@@ -1,7 +1,6 @@
 use std::fmt;
 
 use scoop_identity::{ConeIdentity, ObjectDefinitionAtomId};
-use scoop_lir::ExternalStrongShapeSubjectV1;
 
 use crate::{SlibMemberId, link_object::RelocationTargetSlotV1};
 
@@ -28,11 +27,6 @@ pub enum LayoutLinkClosureError {
         atom: ObjectDefinitionAtomId,
         offset: u64,
         target_slot: RelocationTargetSlotV1,
-    },
-    UnusedImport {
-        import_index: u32,
-        provider: ConeIdentity,
-        subject: ExternalStrongShapeSubjectV1,
     },
     ObjectProofMismatch,
     UseOutsideObjectSet {

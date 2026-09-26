@@ -44,10 +44,7 @@ pub(super) fn project(
     }
     let module = input.lir.module();
 
-    for (id, descriptor) in module.meta.external_type_descriptors.iter() {
-        if module.meta.well_known_type_descriptors.string == lir::TypeDescriptorRef::External(id) {
-            continue;
-        }
+    for (_, descriptor) in module.meta.external_type_descriptors.iter() {
         push(
             &mut uses,
             lir::LayoutAbiDependencyV1::new(

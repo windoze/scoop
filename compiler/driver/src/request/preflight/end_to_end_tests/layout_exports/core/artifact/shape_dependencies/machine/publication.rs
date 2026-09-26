@@ -36,15 +36,7 @@ pub(super) fn check<'a, 'p>(
         callables: &[provider.layout.callables()],
     };
     let exports = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
-    let imports = selected
-        .physical_imports()
-        .records()
-        .iter()
-        .filter(|import| {
-            import.subject() != lir::ExternalStrongShapeSubjectV1::TypeDescriptor(provider.string)
-        })
-        .cloned()
-        .collect::<Vec<_>>();
+    let imports = selected.physical_imports().records().to_vec();
     let committed = source.source;
     let roots = scoop_lir_lower::lower_layout_abi_dependencies(
         input,

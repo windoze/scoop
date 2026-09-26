@@ -102,7 +102,6 @@ pub(crate) fn type_descriptors(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
-    imported_runtime_string: Option<lir::TypeDescriptorRef>,
     dependencies: crate::dependency_types::DependencyTypeDescriptors,
 ) -> Result<
     (
@@ -112,9 +111,13 @@ pub(crate) fn type_descriptors(
     ),
     StrongLirLoweringError,
 > {
+    let imported = dependencies
+        .source
+        .iter()
+        .map(|(ty, _)| ty.clone())
+        .collect::<Vec<_>>();
     let mut descriptors = Arena::new();
     let mut refs = TypeDescriptorRefs {
-        string: imported_runtime_string,
         boxed: dependencies.boxed,
         ..TypeDescriptorRefs::default()
     };
@@ -139,7 +142,7 @@ pub(crate) fn type_descriptors(
     }
     for (interface, def) in module.interfaces.iter() {
         let ty = mir::Type::Interface(interface);
-        if !identity_roots.materializes_type(&ty) {
+        if imported.contains(&ty) || !identity_roots.materializes_type(&ty) {
             continue;
         }
         let runtime_type = runtime_type(module, &ty);
@@ -178,7 +181,7 @@ pub(crate) fn type_descriptors(
         } else {
             mir::Type::Class(id)
         };
-        if is_string && imported_runtime_string.is_some() {
+        if imported.contains(&descriptor_type) || refs.classes.contains_key(&id) {
             continue;
         }
         if !identity_roots.materializes_type(&descriptor_type) {
@@ -234,7 +237,7 @@ pub(crate) fn type_descriptors(
             .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
     }
     for root in identity_roots.source_nominal_shapes() {
-        if matches!(root.ty(), mir::Type::String) && imported_runtime_string.is_some() {
+        if imported.contains(root.ty()) {
             continue;
         }
         if descriptors

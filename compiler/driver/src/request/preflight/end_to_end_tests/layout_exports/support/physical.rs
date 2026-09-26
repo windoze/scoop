@@ -24,6 +24,37 @@ impl Source {
                 ExternalStrongShapeSubjectV1::TypeDescriptor(shape.exact()),
             ));
         }
+        for source in input.module().meta.source_exact_types.iter() {
+            if !matches!(
+                source.ty(),
+                scoop_mir::Type::String | scoop_mir::Type::Class(_) | scoop_mir::Type::Interface(_)
+            ) {
+                continue;
+            }
+            let scoop_mir::SourceExactTypeOwner::Cone(provider) = source.owner() else {
+                continue;
+            };
+            if provider == input.module().cone {
+                continue;
+            }
+            let exact = source.identity_record().id();
+            roots.push(LayoutAbiDependencyV1::new(
+                provider,
+                LayoutAbiSemanticTargetV1::Descriptor(exact),
+            ));
+            physical.push((
+                provider,
+                ExternalStrongShapeSubjectV1::TypeDescriptor(exact),
+            ));
+            if source.ty() == &scoop_mir::Type::String
+                && !input.materialization().strings().is_empty()
+            {
+                physical.push((
+                    provider,
+                    ExternalStrongShapeSubjectV1::TypeRegistration(exact),
+                ));
+            }
+        }
         roots.sort_unstable();
         roots.dedup();
         physical.sort_unstable();

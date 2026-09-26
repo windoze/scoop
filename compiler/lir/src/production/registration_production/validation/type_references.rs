@@ -5,7 +5,6 @@ use super::*;
 pub(super) fn validate_optional_type_descriptor_ref(
     decoded: DecodedOptionalStrongTypeDescriptorRefV1,
     identities: &StrongRegistrationIdentitySurfaceV1,
-    external_bridges: &StrongExternalLirBridgeSurfaceV1,
     index: usize,
     field: &'static str,
 ) -> Result<Option<StrongTypeDescriptorRefV1>, StrongRegistrationProductionValidationError> {
@@ -14,7 +13,6 @@ pub(super) fn validate_optional_type_descriptor_ref(
         DecodedOptionalStrongTypeDescriptorRefV1::Local(exact_type) => resolve_type_descriptor_ref(
             DecodedStrongTypeDescriptorRefV1::Local(exact_type),
             identities,
-            external_bridges,
             index,
             field,
         )
@@ -23,7 +21,6 @@ pub(super) fn validate_optional_type_descriptor_ref(
             resolve_type_descriptor_ref(
                 DecodedStrongTypeDescriptorRefV1::DependencyExternal { provider, exact },
                 identities,
-                external_bridges,
                 index,
                 field,
             )
@@ -35,7 +32,6 @@ pub(super) fn validate_optional_type_descriptor_ref(
 fn resolve_type_descriptor_ref(
     decoded: DecodedStrongTypeDescriptorRefV1,
     identities: &StrongRegistrationIdentitySurfaceV1,
-    external_bridges: &StrongExternalLirBridgeSurfaceV1,
     index: usize,
     field: &'static str,
 ) -> Result<StrongTypeDescriptorRefV1, StrongRegistrationProductionValidationError> {
@@ -51,15 +47,11 @@ fn resolve_type_descriptor_ref(
             field,
         )
         .map(StrongTypeDescriptorRefV1::Local),
-        DecodedStrongTypeDescriptorRefV1::DependencyExternal { provider, exact } => {
-            external_bridges
-                .resolve_descriptor_reference(provider, exact)
-                .map(|descriptor| StrongTypeDescriptorRefV1::DependencyExternal {
-                    provider: descriptor.provider(),
-                    exact: descriptor.target(),
-                })
-                .ok_or_else(|| semantic_error(RegistrationProductionTableV1::Type, index, field))
-        }
+        DecodedStrongTypeDescriptorRefV1::DependencyExternal { .. } => Err(semantic_error(
+            RegistrationProductionTableV1::Type,
+            index,
+            field,
+        )),
     }
 }
 

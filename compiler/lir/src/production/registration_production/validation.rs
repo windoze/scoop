@@ -108,7 +108,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
             target,
             foundation,
             &identities,
-            external_bridges,
+            None,
         )?;
         let static_semantics =
             validate_static_storages(self.static_storages, target, foundation, &identities)?;

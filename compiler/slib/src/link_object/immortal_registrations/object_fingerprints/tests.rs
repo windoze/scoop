@@ -3,8 +3,7 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{
-    FinalUndefinedSymbolRequirementV1, ScoopLirObjectCandidateV1,
-    compute_strong_immortal_object_registration_object_fingerprints_v1,
+    ScoopLirObjectCandidateV1, compute_strong_immortal_object_registration_object_fingerprints_v1,
     verify_strong_immortal_object_registrations_v1,
 };
 
@@ -33,39 +32,6 @@ fn hashes_the_exact_string_object_and_descriptor_relocation() {
     assert_eq!(
         actual.fingerprint().to_string(),
         "80264eaa8346aca094d5c905650e480421117ef9cece159fcb08a628d55fce29"
-    );
-}
-
-#[test]
-fn hashes_a_core_descriptor_as_a_typed_core_requirement() {
-    let fixture = Fixture::new(Corruption::ExternalImmortalTypeRegistration);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let requirements = fixture.undefined_requirements();
-    assert_eq!(requirements.requirements().len(), 2);
-    assert!(
-        requirements
-            .requirements()
-            .iter()
-            .all(|requirement| matches!(
-                requirement.requirement(),
-                FinalUndefinedSymbolRequirementV1::DependencyStrong { .. }
-            ))
-    );
-    let registration_objects = registration_objects(&fixture, &objects);
-
-    let fingerprints = compute_strong_immortal_object_definition_fingerprints_v1(
-        registration_objects,
-        requirements,
-        &objects,
-    )
-    .unwrap();
-
-    assert_eq!(
-        fingerprints.fingerprints()[0].fingerprint().to_string(),
-        "205b457b65b13ea6997bc6e12db265b54026e62ffa32cb9b9ba51ef676f83878"
     );
 }
 

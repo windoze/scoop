@@ -157,12 +157,10 @@ fn registration_object_fingerprint(
             FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner: type_owner },
         ),
         ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, .. } => {
-            CanonicalObjectRelocationV1::unsigned64(
+            CanonicalObjectRelocationV1::dependency_target(
                 176,
-                FinalUndefinedSymbolRequirementV1::DependencyStrong {
-                    provider,
-                    owner: type_owner,
-                },
+                provider,
+                scoop_lir::ExternalStrongShapeSubjectV1::TypeRegistration(plan.type_registration()),
             )
         }
     };

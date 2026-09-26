@@ -39,7 +39,7 @@ impl DependencyResolvedCrossConeLayoutAbiSectionV1 {
     }
 
     /// Uses all exports of exactly the caller's reachable dependency graph.
-    /// Committed roots must come from the containing artifact's source replay.
+    /// Roots include source layout uses and explicit typed descriptor references.
     pub fn replay_dependency_closure(
         &self,
         dependencies: &[&LayoutAbiExportConstituentsV1],

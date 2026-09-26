@@ -218,6 +218,8 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 ### M23-6 跨Cone layout、typed ABI与ZST
 
+String descriptor 使用完整 MIR 中实际声明的 source exact identity，沿共有 descriptor 查询、layout selection、physical import、registration 和 Link relocation 消费。删除独立 String bridge 与固定角色的 descriptor 恢复通道，不以 provider 坐标或协议来源豁免普通引用检查。Strong production `/7`、`/8` 退役原服务表中的 TD tag 2；旧产物与缓存重建，String 表示及 runtime C ABI 不变。
+
 总体设计见 [M23 设计](milestone23/DESIGN.md)，详细设计见 [M23-6](milestone23/stage6/DESIGN.md)，清理范围见 [清理设计](milestone23/stage6/CORE-AUTHORITY-CLEANUP.md)。
 
 - 完成共有 `ValueStorageLayout`、canonical Scoop ABI、scan/TypeDescriptor、ZST payload elision、boxing/address/static token、Array/Ptr 与 C 边界；完成 param-free 跨 Cone 类型、constructor/member/object、继承、dispatch/protected 和有限 shape-support 的实际发布与消费。

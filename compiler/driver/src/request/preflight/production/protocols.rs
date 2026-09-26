@@ -23,53 +23,35 @@ impl ValidatedCompilerProtocols {
             .project_dependency_callables_to_mir(&hir.hir)
             .map_err(CurrentConeMirStageError::DependencyProjection)
             .map_err(CurrentConeProductionFailure::Mir)?;
-        let (selected, runtime_string) = match self {
-            Self::CurrentDeclarations => {
-                (selected, scoop_lir_lower::RuntimeStringDescriptor::Local)
-            }
+        let selected = match self {
+            Self::CurrentDeclarations => selected,
             Self::Imported(inputs) => {
-                let needs_cycle = !hir
+                if hir
                     .hir
                     .output()
                     .local
                     .module()
                     .initialization_units
-                    .is_empty();
-                let protocols = inputs.protocols();
-                let closure = request.dependencies().semantic();
-                let selected = if needs_cycle {
-                    closure
+                    .is_empty()
+                {
+                    selected
+                } else {
+                    request
+                        .dependencies()
+                        .semantic()
                         .select_initialization_cycle(
                             selected,
-                            protocols.exceptions().initialization_cycle_thrower(),
+                            inputs
+                                .protocols()
+                                .exceptions()
+                                .initialization_cycle_thrower(),
                         )
                         .map_err(CurrentConeMirStageError::Initialization)
                         .map_err(CurrentConeProductionFailure::Mir)?
-                } else {
-                    selected
-                };
-                let string = protocols.fundamental_types().string();
-                let descriptor = request
-                    .dependencies()
-                    .semantic()
-                    .project_source_type_descriptor(string.provider(), string.persistent())
-                    .map_err(CurrentConeLirStageError::TypeDescriptor)
-                    .map_err(CurrentConeProductionFailure::Lir)?;
-                (
-                    selected,
-                    scoop_lir_lower::RuntimeStringDescriptor::External(descriptor),
-                )
+                }
             }
         };
-        layout::assemble(
-            hir,
-            request,
-            cone,
-            temporary_parent,
-            selected,
-            runtime_string,
-            dump,
-        )
+        layout::assemble(hir, request, cone, temporary_parent, selected, dump)
     }
 }
 

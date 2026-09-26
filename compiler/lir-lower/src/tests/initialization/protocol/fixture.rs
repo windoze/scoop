@@ -62,7 +62,7 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     .unwrap();
     let core_lir = crate::lower(
         &core_input,
-        crate::RuntimeStringDescriptor::Local,
+        &[],
         &lir::SelectedExternalLirSet::empty(provider),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
@@ -225,9 +225,8 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
         .unwrap()
         .identity_record()
         .id();
-    let runtime_string = imported_lir
-        .project_type_descriptor(&definitions, string_exact)
-        .unwrap();
+    let runtime_string =
+        lir::ExternalTypeDescriptor::new(core_input.module().cone, string_exact).unwrap();
     ImportedInitialization {
         input: ordinary_input,
         runtime_string,

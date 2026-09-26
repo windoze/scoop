@@ -1,11 +1,10 @@
 use super::*;
-use scoop_lir_lower::{RuntimeStringDescriptor, StrongLirLoweringError as Error};
+use scoop_lir_lower::StrongLirLoweringError as Error;
 
 pub(super) fn check(
     input: &mir::SingleConeStrongMirInput,
     callables: &lir::SelectedExternalLirSet,
     diagnostics: &ExactTypeDiagnosticCatalog<'_>,
-    string: RuntimeStringDescriptor,
     selected: &lir::StrongProductionDependencySelectionV2<'_>,
     source: &Source,
     provider: Provider<'_, '_>,
@@ -13,7 +12,6 @@ pub(super) fn check(
     let lower = |selection: &lir::StrongProductionDependencySelectionV2<'_>| {
         scoop_lir_lower::lower_with_layout_dependencies(
             input,
-            string,
             callables,
             provider.target.lir_target(),
             selection,
@@ -87,19 +85,19 @@ pub(super) fn check(
         roots: source
             .physical
             .iter()
-            .map(|(owner, subject)| {
+            .filter_map(|(owner, subject)| {
                 let lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = subject else {
-                    panic!("these fixtures only import type descriptors")
+                    return None;
                 };
-                lir::LayoutAbiDependencyV1::new(
+                Some(lir::LayoutAbiDependencyV1::new(
                     *owner,
                     lir::LayoutAbiSemanticTargetV1::Descriptor(*exact),
-                )
+                ))
             })
             .collect(),
         physical: source.physical.clone(),
     };
-    let unqualified = lir::StrongProductionDependencySelectionV2::try_new(
+    let missing_shape_support = lir::StrongProductionDependencySelectionV2::try_new(
         input.module().cone,
         provider.target.lir_target(),
         &[provider.layout],
@@ -108,44 +106,11 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(matches!(
-        lower(&unqualified),
+        lower(&missing_shape_support),
         Err(Error::DependencyLayout(
             lir::LayoutExternalMaterializationError::MissingShapeSupport { .. }
         ))
     ));
-    let reference_source = provider
-        .layout
-        .shape_support()
-        .records()
-        .iter()
-        .find(|shape| shape.exact() == provider.string)
-        .unwrap()
-        .source_nominal();
-    let reference_root = lir::LayoutAbiDependencyV1::new(
-        provider.layout.provider(),
-        lir::LayoutAbiSemanticTargetV1::ShapeSupport(reference_source),
-    );
-    if source.roots.contains(&reference_root) {
-        let runtime_only = Source {
-            roots: source
-                .roots
-                .iter()
-                .copied()
-                .filter(|root| *root != reference_root)
-                .collect(),
-            physical: source.physical.clone(),
-        };
-        let unqualified = lir::StrongProductionDependencySelectionV2::try_new(
-            input.module().cone,
-            provider.target.lir_target(),
-            &[provider.layout],
-            selected.physical_imports().records().to_vec(),
-            &runtime_only.roots,
-        )
-        .unwrap();
-        assert!(matches!(lower(&unqualified), Err(Error::Capability(error))
-            if error.requirement() == &scoop_lir_lower::StrongLirMaterializationRequirement::TypeDescriptor(mir::Type::String)));
-    }
     assert!(matches!(
         selected
             .materialize_shape_type_descriptor(root.provider(), root.source(), provider.string,),

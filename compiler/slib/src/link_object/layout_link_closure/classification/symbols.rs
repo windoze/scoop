@@ -51,10 +51,6 @@ impl ImportSymbolIndex {
         Ok(Self { symbols })
     }
 
-    pub(super) fn len(&self) -> usize {
-        self.symbols.len()
-    }
-
     pub(super) fn find(&self, symbol: &[u8]) -> Result<Option<u32>, LayoutLinkClosureError> {
         Ok(self
             .symbols

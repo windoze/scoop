@@ -5,8 +5,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeTargetSupportRequirementV1, CBridgeTargetSupportV1, CanonicalLirFoundation,
-    ExternalTypeDescriptor, GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
-    StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1, ValidatedLirTargetSelection,
+    GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
+    StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -20,13 +20,10 @@ use super::super::runtime_requirements::tests::classify;
 use super::super::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
 };
-use super::super::symbol_verification::tests::{
-    fixture_for_producer, fixture_for_type_descriptor, fixture_for_type_registration, fixture_named,
-};
+use super::super::symbol_verification::tests::{fixture_for_producer, fixture_named};
 use super::*;
 use crate::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, seal_builtin_object_external_requirements_v1,
-    verify_current_cone_strong_relocation_closure_v1,
+    seal_builtin_object_external_requirements_v1, verify_current_cone_strong_relocation_closure_v1,
     verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
     verify_runtime_and_eh_requirements_v1, verify_source_external_requirements_v1,
 };
@@ -173,53 +170,8 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
 }
 
 #[test]
-fn finalizes_core_and_source_external_requirements() {
+fn finalizes_source_external_requirements() {
     let producer = ConeIdentity::SINGLE_FILE;
-    let core_target = core_exact_type("FinalCoreType");
-    let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, core_target).unwrap(),
-    );
-    let bridge_name = normalized_bridge_name(&bridge);
-    let source = fixture_for_producer(producer, "finalCoreConsumer");
-    let strong =
-        verify_current_cone_strong_relocation_closure_v1(vec![verified_member_with_undefined(
-            &source,
-            &bridge_name,
-        )])
-        .unwrap();
-    let current =
-        verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
-            .unwrap();
-    let bridges = StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap();
-    let core = verify_dependency_strong_requirements_v1(
-        LirTargetProfile::DARWIN_AARCH64,
-        strong,
-        bridges,
-        &[core_owner_set(core_target)],
-    )
-    .unwrap();
-    let source = verify_source_external_requirements_v1(
-        core,
-        native_surface(producer, Vec::new(), Vec::new()),
-    )
-    .unwrap();
-    let external = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
-    let final_set =
-        finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
-            .unwrap();
-    assert_projection_round_trip(&final_set);
-    assert!(matches!(
-        final_set.requirements()[0].requirement(),
-        FinalUndefinedSymbolRequirementV1::DependencyStrong {
-            provider: ConeIdentity::CORE,
-            ..
-        }
-    ));
-
     let source = fixture_for_producer(producer, "finalNativeConsumer");
     let strong =
         verify_current_cone_strong_relocation_closure_v1(vec![verified_member_with_undefined(
@@ -234,7 +186,7 @@ fn finalizes_core_and_source_external_requirements() {
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
-        &[core_owner_set(core_exact_type("UnrelatedCoreType"))],
+        &[],
     )
     .unwrap();
     let native = native_surface(
@@ -385,37 +337,6 @@ pub(in crate::link_object) fn empty_final_requirements_for_strong(
     finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
 }
 
-pub(in crate::link_object) fn core_type_final_requirements_for_strong(
-    strong: crate::VerifiedCurrentConeStrongRelocationClosureV1,
-    target: PersistentExactTypeId,
-) -> CanonicalUndefinedSymbolRequirementSetV1 {
-    let producer = strong.producer();
-    let current =
-        verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
-            .unwrap();
-    let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
-    );
-    let core = verify_dependency_strong_requirements_v1(
-        LirTargetProfile::DARWIN_AARCH64,
-        strong,
-        StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap(),
-        &[core_owner_set(target)],
-    )
-    .unwrap();
-    let source = verify_source_external_requirements_v1(
-        core,
-        native_surface(producer, Vec::new(), Vec::new()),
-    )
-    .unwrap();
-    let external = verify_runtime_and_eh_requirements_v1(
-        source,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
-    finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external)).unwrap()
-}
-
 fn seal_without_generated(
     external: crate::VerifiedRuntimeAndEhRequirementClosureV1,
 ) -> SealedBuiltinObjectExternalRequirementClosureV1 {
@@ -433,15 +354,8 @@ pub(in crate::link_object) fn empty_bridge_plan(
     GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap()
 }
 
-fn core_owner_set(target: PersistentExactTypeId) -> CanonicalDefinedLinkSymbolOwnerSetV1 {
-    let descriptor = fixture_for_type_descriptor(ConeIdentity::CORE, target);
-    let registration = fixture_for_type_registration(ConeIdentity::CORE, target);
-    let closure = verify_current_cone_strong_relocation_closure_v1(vec![
-        verified_member_without_relocations(&descriptor),
-        verified_member_without_relocations(&registration),
-    ])
-    .unwrap();
-    CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&closure).unwrap()
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn core_exact_type(name: &str) -> PersistentExactTypeId {
@@ -460,20 +374,4 @@ fn core_exact_type(name: &str) -> PersistentExactTypeId {
     );
     let ty = PersistentTypeId::from_source_declaration(&source).unwrap();
     PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(ty)).unwrap()
-}
-
-fn normalized_bridge_name(bridge: &StrongExternalLirBridgeV1) -> Vec<u8> {
-    let request = match bridge {
-        StrongExternalLirBridgeV1::Callable(bridge) => bridge.bridge().expected_symbol(),
-        StrongExternalLirBridgeV1::TypeDescriptor(bridge) => bridge.expected_symbol(),
-    };
-    LirTargetProfile::DARWIN_AARCH64
-        .contract()
-        .native_symbol_normalization()
-        .compiler_generated_object_symbol(request.symbol().as_str())
-        .into_bytes()
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

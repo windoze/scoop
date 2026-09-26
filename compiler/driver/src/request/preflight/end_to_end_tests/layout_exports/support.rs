@@ -38,7 +38,7 @@ pub(super) fn with_inspection(
         source,
         None,
         None,
-        |mir, projection, lir, dependencies, _| {
+        |mir, projection, lir, dependencies, _, _| {
             inspect(mir, projection);
             run(lir, dependencies);
         },
@@ -61,6 +61,7 @@ pub(super) fn with_pair(
         scoop_lir_lower::LayoutAbiExportInputV1<'_>,
         scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
         &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
+        &[lir::ExternalShapeLinkImportV1],
     ),
 ) {
     let root = sysroot.join("layout-library");
@@ -116,10 +117,6 @@ pub(super) fn with_pair(
     let selected = closure
         .project_dependency_callables_to_lir(&mir.selected_callables)
         .unwrap();
-    let source_string = inputs.protocols().fundamental_types().string();
-    let string = closure
-        .project_source_type_descriptor(source_string.provider(), source_string.persistent())
-        .unwrap();
     let core_read = scoop_slib::read_cross_cone_layout_artifact_closure(
         scoop_slib::CrossConeArtifactClosureInput::completed(
             ConeIdentity::CORE,
@@ -137,32 +134,34 @@ pub(super) fn with_pair(
     let (source_graph, _, _) = identities(&hir.hir, &mir.strong, None, front);
     let diagnostics =
         scoop_identity::ExactTypeDiagnosticCatalog::try_new(&source_graph, &coordinates).unwrap();
-    let dependency_layouts = match (provider_exports, layout_provider) {
-        (Some((_, layout)), Some(provider)) => physical::select(&mir.strong, layout, provider),
-        _ => lir::StrongProductionDependencySelectionV2::empty(
-            mir.strong.module().cone,
-            target.lir_target(),
-        )
-        .unwrap(),
+    let string_provider = inputs.protocols().fundamental_types().string().provider();
+    let default_dependency = closure
+        .layout_dependencies()
+        .find(|dependency| dependency.identity() == string_provider)
+        .unwrap();
+    let default_exports = default_dependency.lir_exports();
+    let default_provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
+        foundation: default_dependency.lir_foundation(),
+        production: default_dependency.lir_strong_production(),
+        ordinary: default_dependency.lir_cross_cone_bridge(),
+        layouts: default_exports.layouts(),
+        callables: default_exports.callables(),
+        descriptors: default_exports.descriptors(),
+        dispatch: default_exports.dispatch(),
+    })
+    .unwrap();
+    let (layout, provider) = match (provider_exports, layout_provider) {
+        (Some((_, layout)), Some(provider)) => (layout, provider),
+        _ => (default_exports, &default_provider),
     };
-    let string = scoop_lir_lower::RuntimeStringDescriptor::External(string);
-    let lir = match layout_provider {
-        Some(_) => scoop_lir_lower::lower_with_layout_dependencies(
-            &mir.strong,
-            string,
-            &selected,
-            target.lir_target(),
-            &dependency_layouts,
-            &diagnostics,
-        ),
-        None => scoop_lir_lower::lower_with_diagnostics(
-            &mir.strong,
-            string,
-            &selected,
-            target.lir_target(),
-            &diagnostics,
-        ),
-    }
+    let dependency_layouts = physical::select(&mir.strong, layout, provider);
+    let lir = scoop_lir_lower::lower_with_layout_dependencies(
+        &mir.strong,
+        &selected,
+        target.lir_target(),
+        &dependency_layouts,
+        &diagnostics,
+    )
     .unwrap();
     let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), front);
     let foundation = hir::OdrFreeHirFoundation::try_new(
@@ -265,7 +264,12 @@ pub(super) fn with_pair(
         callables: &lir_callables,
     };
     if bridge.initialization_uses().records().is_empty() {
-        source_contracts::check(input, dependencies, &projected);
+        source_contracts::check(
+            input,
+            dependencies,
+            &projected,
+            dependency_layouts.physical_imports().records(),
+        );
     } else {
         // The baseline has no selected descriptors or external registration edges.
         let error = scoop_lir_lower::lower_layout_abi_dependencies(
@@ -308,5 +312,12 @@ pub(super) fn with_pair(
         .dependency_symbol_owners()
         .cloned()
         .collect::<Vec<_>>();
-    run(mir_input, &projected, input, dependencies, &owners);
+    run(
+        mir_input,
+        &projected,
+        input,
+        dependencies,
+        &owners,
+        dependency_layouts.physical_imports().records(),
+    );
 }

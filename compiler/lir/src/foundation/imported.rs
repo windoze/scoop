@@ -4,7 +4,7 @@ use std::rc::Rc;
 use scoop_identity::{
     ConeIdentity, CoreImportedCallableKind, ExactCallableSignature, ImportedIdentityId,
     ImportedIdentityMap, LirIdentityLayer, ObjectDefinitionPlanId, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentId, StrongCallableDefinitionOwner,
+    PersistentId, StrongCallableDefinitionOwner,
 };
 use scoop_wire::WireEncode;
 
@@ -111,37 +111,6 @@ impl ImportedLirFoundation {
         )
         .map_err(ImportedLirCallableProjectionError::Record)
     }
-
-    /// Projects one provider-owned TypeDescriptor only after its exact type and
-    /// canonical strong definition have both been proven by this imported
-    /// LIR world. Public-surface capability checks remain the responsibility
-    /// of the artifact-level caller that supplies `target`.
-    pub fn project_type_descriptor(
-        &self,
-        definitions: &crate::StrongObjectSymbolSurfaceV1,
-        target: PersistentExactTypeId,
-    ) -> Result<crate::ExternalTypeDescriptor, ImportedLirTypeDescriptorProjectionError> {
-        if self
-            .canonical
-            .materialized_exact_types
-            .binary_search(&target)
-            .is_err()
-        {
-            return Err(ImportedLirTypeDescriptorProjectionError::MissingExactType(
-                target,
-            ));
-        }
-        let descriptor = crate::ExternalTypeDescriptor::new(self.origin(), target)
-            .map_err(ImportedLirTypeDescriptorProjectionError::Contract)?;
-        let required_definition = descriptor.required_definition();
-        self.identity(required_definition).ok_or(
-            ImportedLirTypeDescriptorProjectionError::MissingDefinition(required_definition),
-        )?;
-        descriptor
-            .validate_definition(definitions)
-            .map_err(ImportedLirTypeDescriptorProjectionError::Definition)?;
-        Ok(descriptor)
-    }
 }
 
 impl WireEncode for ImportedLirFoundation {
@@ -161,33 +130,6 @@ pub enum ImportedLirCallableProjectionError {
     Callable(crate::CallableAbiValidationError),
     MissingBody(PersistentCallableBodyId),
     MissingDefinition(ObjectDefinitionPlanId),
-}
-
-#[derive(Debug)]
-pub enum ImportedLirTypeDescriptorProjectionError {
-    MissingExactType(PersistentExactTypeId),
-    Contract(crate::ExternalTypeDescriptorBuildError),
-    MissingDefinition(ObjectDefinitionPlanId),
-    Definition(crate::ExternalTypeDescriptorValidationError),
-}
-
-impl fmt::Display for ImportedLirTypeDescriptorProjectionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot project imported LIR TypeDescriptor: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for ImportedLirTypeDescriptorProjectionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Contract(error) => Some(error),
-            Self::Definition(error) => Some(error),
-            _ => None,
-        }
-    }
 }
 
 impl fmt::Display for ImportedLirCallableProjectionError {

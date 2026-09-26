@@ -161,9 +161,6 @@ pub use layout_exports::{
     LayoutAbiExportLoweringError, lower_layout_abi_dependencies, lower_layout_abi_exports,
 };
 
-mod runtime_string;
-pub use runtime_string::RuntimeStringDescriptor;
-use runtime_string::lower_runtime_string;
 mod external_callables;
 use external_callables::lower_external_callables;
 mod dependency_types;

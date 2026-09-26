@@ -28,14 +28,7 @@ pub enum StrongLirLoweringError {
     DependencyDescriptorBinding(scoop_identity::PersistentExactTypeId),
     Diagnostic(scoop_identity::ExactTypeDiagnosticError),
     StorageReplay(StorageLoweringError),
-    RuntimeStringProviderMismatch {
-        expected: scoop_identity::ConeIdentity,
-        actual: scoop_identity::ConeIdentity,
-    },
-    RuntimeStringExactMismatch {
-        mir: scoop_identity::PersistentExactTypeId,
-        lir: scoop_identity::PersistentExactTypeId,
-    },
+
     ForeignExternalLirSelection {
         expected: scoop_identity::ConeIdentity,
         actual: scoop_identity::ConeIdentity,
@@ -74,9 +67,7 @@ pub enum StrongLirLoweringError {
     MissingRuntimeStringDescriptor {
         producer: scoop_identity::ConeIdentity,
     },
-    RuntimeStringDescriptorOwnership {
-        producer: scoop_identity::ConeIdentity,
-    },
+
     InvalidInitializationCallable(scoop_identity::CallableOwner),
     CallableAbi(crate::CallableAbiProjectionError),
     Output(lir::SingleConeStrongLirOutputError),
@@ -97,7 +88,7 @@ impl fmt::Display for StrongLirLoweringError {
             ),
             Self::MissingDependencyLayoutSelection { provider, exact } => write!(
                 formatter,
-                "dependency helper {exact} from {provider} requires a complete layout selection",
+                "dependency descriptor {exact} from {provider} requires a complete layout selection",
             ),
             Self::DependencyDescriptorBinding(exact) => write!(
                 formatter,
@@ -107,14 +98,7 @@ impl fmt::Display for StrongLirLoweringError {
             Self::StorageReplay(source) => source.fmt(formatter),
             Self::ExternalCallable(source) => source.fmt(formatter),
             Self::CallableAbi(source) => source.fmt(formatter),
-            Self::RuntimeStringProviderMismatch { expected, actual } => write!(
-                formatter,
-                "runtime String provider mismatch: MIR requires {expected}, LIR provides {actual}"
-            ),
-            Self::RuntimeStringExactMismatch { mir, lir } => write!(
-                formatter,
-                "runtime String exact type mismatch: MIR requires {mir}, LIR provides {lir}"
-            ),
+
             Self::ForeignExternalLirSelection { expected, actual } => write!(
                 formatter,
                 "external callable LIR selection belongs to consumer {actual}, expected {expected}"
@@ -163,12 +147,9 @@ impl fmt::Display for StrongLirLoweringError {
             ),
             Self::MissingRuntimeStringDescriptor { producer } => write!(
                 formatter,
-                "Cone {producer} has no complete runtime String TypeDescriptor authority"
+                "Cone {producer} has no complete descriptor for the typed String declaration"
             ),
-            Self::RuntimeStringDescriptorOwnership { producer } => write!(
-                formatter,
-                "Cone {producer} has an invalid local/external runtime String TypeDescriptor branch"
-            ),
+
             Self::InvalidInitializationCallable(owner) => write!(
                 formatter,
                 "initialization service {owner:?} must be an ordinary function without a receiver"
@@ -193,8 +174,6 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::DependencyLayoutTarget { .. }
             | Self::MissingDependencyLayoutSelection { .. }
             | Self::DependencyDescriptorBinding(_)
-            | Self::RuntimeStringProviderMismatch { .. }
-            | Self::RuntimeStringExactMismatch { .. }
             | Self::ForeignExternalLirSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }
             | Self::MissingExternalCallable { .. }
@@ -202,8 +181,7 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::ExternalCallableGcEffectMismatch { .. }
             | Self::MissingExternalArgumentType { .. }
             | Self::MissingExternalResultType { .. }
-            | Self::MissingRuntimeStringDescriptor { .. }
-            | Self::RuntimeStringDescriptorOwnership { .. } => None,
+            | Self::MissingRuntimeStringDescriptor { .. } => None,
         }
     }
 }

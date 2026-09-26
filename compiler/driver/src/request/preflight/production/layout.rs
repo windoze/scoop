@@ -17,7 +17,6 @@ pub(super) fn assemble(
     cone: slib::ConeRecord,
     temporary_parent: &Path,
     selected: mir::SelectedExternalMirSet,
-    runtime_string: scoop_lir_lower::RuntimeStringDescriptor,
     dump: &mut Option<EmittedStageDump>,
 ) -> Result<slib::AssembledCrossConeLayoutStrongArtifactV1, CurrentConeProductionFailure> {
     let closure = request.dependencies().semantic();
@@ -125,7 +124,6 @@ pub(super) fn assemble(
     let (lir, lir_public) = machine::lower_selected_lir(
         &mir.strong,
         &mir.public,
-        runtime_string,
         &selected,
         request.target().lir_target(),
         &selected_layout,

@@ -121,29 +121,6 @@ fn rejects_type_relocation_to_the_immortal_object() {
 }
 
 #[test]
-fn accepts_the_exact_core_external_type_registration() {
-    let fixture = Fixture::new(Corruption::ExternalImmortalTypeRegistration);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-
-    let verified = verify_strong_immortal_object_registrations_v1(
-        fixture.verified_patch_sites(),
-        fixture.immortal_registration_plan.clone(),
-        &objects,
-    )
-    .unwrap();
-
-    assert!(matches!(
-        verified.registrations()[0]
-            .type_registration_relocation()
-            .resolution(),
-        crate::link_object::StrongRelocationResolutionV1::ExternalCandidate { .. }
-    ));
-}
-
-#[test]
 fn rejects_a_registration_node_with_the_wrong_direct_inputs() {
     let fixture = Fixture::new(Corruption::None);
     let plan = fixture.immortal_registration_plan.registrations()[0];

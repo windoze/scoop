@@ -18,7 +18,6 @@ pub use plans::*;
 mod v2;
 
 struct DescriptorSemanticInputs<'a> {
-    runtime_string: TypeDescriptorRef,
     descriptors: &'a la_arena::Arena<TypeDescriptor>,
     external_descriptors: &'a la_arena::Arena<ExternalTypeDescriptor>,
     layouts: &'a la_arena::Arena<Layout>,
@@ -31,13 +30,10 @@ impl StrongTypeDescriptorSemanticPlanSetV1 {
     pub fn from_module(
         module: &Module,
     ) -> Result<Self, StrongTypeDescriptorSemanticPlanBuildError> {
-        crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
-            .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
         Self::from_components(
             module.cone,
             module.meta.target_profile,
             DescriptorSemanticInputs {
-                runtime_string: module.meta.well_known_type_descriptors.string,
                 descriptors: &module.meta.type_descriptors,
                 external_descriptors: &module.meta.external_type_descriptors,
                 layouts: &module.meta.layouts,
@@ -250,11 +246,7 @@ fn resolve_descriptor_ref(
                     StrongTypeDescriptorSemanticPlanBuildError::MissingExternalDescriptor(index),
                 );
             }
-            if reference != inputs.runtime_string {
-                return Err(
-                    StrongTypeDescriptorSemanticPlanBuildError::DependencyDescriptorInV1(index),
-                );
-            }
+
             let descriptor = inputs.external_descriptors[id];
             Ok(StrongTypeDescriptorRefV1::DependencyExternal {
                 provider: descriptor.provider(),
@@ -351,8 +343,7 @@ pub enum StrongTypeDescriptorSemanticPlanBuildError {
     },
     MissingLocalDescriptor(u32),
     MissingExternalDescriptor(u32),
-    DependencyDescriptorInV1(u32),
-    ExternalBridge(crate::StrongExternalLirBridgeBuildError),
+
     MissingLocalCallable {
         exact_type: PersistentExactTypeId,
         index: u32,

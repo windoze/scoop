@@ -1,6 +1,6 @@
 mir-uses=1
-link-objects=6 physical=1 code=8167b25e2b38017a060577f205ce4490284384461dcd5dbf653c1a1c88dd0dae
-compile: physical=1 unit-edges=1
+link-objects=6 physical=2 code=19831b3f837ebae4537a690f10a52cd686aa50c8352958a6868b77a54f1a6d0a
+compile: physical=2 unit-edges=1
 b86cc3e23e480e6cbe8e57b0d3c1afe65110d8ac71ebedc13bb782582ca4402d -> 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d b8f2c8485e9a8f33b4c61a003917347c91936fcb766330285e6f328994631c03
-link: physical=1 unit-edges=1
+link: physical=2 unit-edges=1
 b86cc3e23e480e6cbe8e57b0d3c1afe65110d8ac71ebedc13bb782582ca4402d -> 5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d b8f2c8485e9a8f33b4c61a003917347c91936fcb766330285e6f328994631c03

@@ -6,6 +6,8 @@ core与其他library Cone使用相同image、registration与ABI检查。runtime�
 
 String TypeDescriptor、初始化循环异常服务及其 registration 由编译器和 linker 的共有类型/callable/definition 闭包提供，well-known 角色关联实际 typed 目标与 provider，不依赖 Core/NotCore 或 CoreExternal 资格。移除 core 专用发布与 Link 闭包不得省略布局、canonical ABI、GC/root plan、symbol/definition 归属及完整 relocation 验证；core image 与普通 image 遵守同一规则。runtime 的表示、capability kind、调用与登记 C ABI 不因本次清理改变。编译阶段的迁移与验收见实现规范 2.12 和 M23-6 的 core 专用资格清理设计。
 
+String 的外部 TypeDescriptor 与 type-registration relocation 使用普通 provider/exact 引用。删除编译器的独立 String bridge 不改变对象头、字符串数据布局、kind 常量或 C 调用约定。
+
 版本：0.6（草案）
 
 配套文档：`SCOOP-SPEC.md`（语言规范）。本文引用其章节号。

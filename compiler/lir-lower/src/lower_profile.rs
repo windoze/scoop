@@ -6,7 +6,7 @@ use scoop_identity::{CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticGraph}
 /// Lowers the existing strong profile with its source display diagnostics.
 pub fn lower(
     input: &mir::SingleConeStrongMirInput,
-    runtime_string: RuntimeStringDescriptor,
+    external_descriptors: &[lir::ExternalTypeDescriptor],
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
@@ -14,7 +14,7 @@ pub fn lower(
         input,
         lowering::lower_graph(
             input,
-            runtime_string,
+            external_descriptors,
             selected_callables,
             target_profile,
             None,
@@ -26,14 +26,14 @@ pub fn lower(
 /// registration plans, object atoms or export inventories can be produced.
 pub fn lower_with_diagnostics(
     input: &mir::SingleConeStrongMirInput,
-    runtime_string: RuntimeStringDescriptor,
+    external_descriptors: &[lir::ExternalTypeDescriptor],
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     diagnostics: &impl ExactTypeDiagnosticGraph,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let mut lowered = lowering::lower_graph(
         input,
-        runtime_string,
+        external_descriptors,
         selected_callables,
         target_profile,
         None,
@@ -61,7 +61,6 @@ fn canonicalize(
 /// and Strong V2 production; imported helpers never become local definitions.
 pub fn lower_with_layout_dependencies(
     input: &mir::SingleConeStrongMirInput,
-    runtime_string: RuntimeStringDescriptor,
     selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
     selected_layout: &lir::StrongProductionDependencySelectionV2<'_>,
@@ -69,7 +68,7 @@ pub fn lower_with_layout_dependencies(
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let mut lowered = lowering::lower_graph(
         input,
-        runtime_string,
+        &[],
         selected_callables,
         target_profile,
         Some(selected_layout),

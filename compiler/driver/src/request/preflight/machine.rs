@@ -65,7 +65,6 @@ impl CurrentConeMachineHir<'_> {
 pub(super) fn lower_selected_lir(
     strong: &scoop_mir::SingleConeStrongMirInput,
     public: &scoop_mir::CrossConeMirBridgeSectionV1,
-    runtime_string: scoop_lir_lower::RuntimeStringDescriptor,
     selected_callables: &scoop_lir::SelectedExternalLirSet,
     target: scoop_lir::LirTargetProfile,
     selected_layout: &scoop_lir::StrongProductionDependencySelectionV2<'_>,
@@ -79,7 +78,6 @@ pub(super) fn lower_selected_lir(
 > {
     let lir = scoop_lir_lower::lower_with_layout_dependencies(
         strong,
-        runtime_string,
         selected_callables,
         target,
         selected_layout,

@@ -290,7 +290,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let (real_lir, _) = machine::lower_selected_lir(
         &real_mir.strong,
         &real_mir.public,
-        scoop_lir_lower::RuntimeStringDescriptor::Local,
         &scoop_lir::SelectedExternalLirSet::empty(scoop_identity::ConeIdentity::CORE),
         scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &scoop_lir::StrongProductionDependencySelectionV2::empty(

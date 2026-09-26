@@ -15,10 +15,10 @@ use scoop_identity::{
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
     CanonicalLirFoundation, DecodedStrongRegistrationProductionSurfaceV1, DigestInputRefV1,
-    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Function, GcEffect, Global,
-    GlobalInit, ImmortalObjectIdentity, Instruction, IntrinsicTypeRepresentation, Layout,
-    LayoutIdentity, LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile,
-    LirType, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
+    DigestNodeV1, EnumDefs, ExternFunctions, Function, GcEffect, Global, GlobalInit,
+    ImmortalObjectIdentity, Instruction, IntrinsicTypeRepresentation, Layout, LayoutIdentity,
+    LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile, LirType,
+    LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
     ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
     NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeTypeMappingRecord,
     SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
@@ -308,7 +308,7 @@ fn semantic_module(
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         output: scoop_lir::LirOutput::Executable { entry },
-        meta: metadata(corruption),
+        meta: metadata(),
     };
     (module, body, safepoints)
 }
@@ -1071,7 +1071,7 @@ fn definition_plan(owner: scoop_identity::PersistentCallableBodyId) -> ObjectDef
     ObjectDefinitionPlanId::from_key(&key).unwrap()
 }
 
-fn metadata(corruption: Corruption) -> LirMeta {
+fn metadata() -> LirMeta {
     let string_type = exact_type("String");
     let runtime_type = RuntimeTypeMappingRecord::new(string_type).unwrap();
     let mut layouts = Arena::new();
@@ -1105,20 +1105,8 @@ fn metadata(corruption: Corruption) -> LirMeta {
         vtable,
         itables: Vec::new(),
     });
-    let mut external_type_descriptors = Arena::new();
-    let well_known_string = if matches!(corruption, Corruption::ExternalImmortalTypeRegistration) {
-        TypeDescriptorRef::External(
-            external_type_descriptors.alloc(
-                ExternalTypeDescriptor::new(
-                    scoop_identity::ConeIdentity::CORE,
-                    exact_type("CoreString"),
-                )
-                .unwrap(),
-            ),
-        )
-    } else {
-        TypeDescriptorRef::Local(string_descriptor)
-    };
+    let external_type_descriptors = Arena::new();
+    let well_known_string = TypeDescriptorRef::Local(string_descriptor);
     LirMeta {
         exact_types: Vec::new(),
         target_profile: LirTargetProfile::DARWIN_AARCH64,

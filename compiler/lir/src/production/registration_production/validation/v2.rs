@@ -90,7 +90,7 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             target,
             foundation,
             &identities,
-            external_bridges,
+            Some(type_definitions),
         )?;
         let storages =
             validate_static_storages(self.static_storages, target, foundation, &identities)?;

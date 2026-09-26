@@ -11,10 +11,8 @@ impl StrongTypeReferenceDefinitionsV2 {
         decoded: DecodedStrongTypeDescriptorRefV2,
         foundation: &OdrFreeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
-        external: &StrongExternalLirBridgeSurfaceV1,
     ) -> Result<StrongTypeDescriptorRefV2, Error> {
         self.check_producer(foundation.producer())?;
-        self.check_producer(external.producer())?;
 
         match decoded {
             DecodedStrongTypeDescriptorRefV2::Local(exact) => {
@@ -41,29 +39,9 @@ impl StrongTypeReferenceDefinitionsV2 {
                     }
                 }
 
-                let service = external
-                    .resolve_descriptor_reference(provider, exact)
-                    .map(|descriptor| (descriptor.provider(), descriptor.target()));
-
-                let layout = self.descriptors.iter().find_map(|definition| {
-                    let ExternalStrongShapeSubjectV1::TypeDescriptor(candidate) =
-                        definition.subject()
-                    else {
-                        return None;
-                    };
-                    (definition.provider().as_array() == provider.as_array()
-                        && candidate.as_array() == exact.as_array())
-                    .then_some((definition.provider(), candidate))
-                });
-                let (provider, exact) = match (service, layout) {
-                    (Some((_, exact)), Some(_)) => {
-                        return Err(Error::ConflictingDescriptorSources(exact));
-                    }
-                    (Some(reference), None) | (None, Some(reference)) => reference,
-                    (None, None) => {
-                        return Err(Error::UnknownDependencyDescriptor { provider, exact });
-                    }
-                };
+                let (provider, exact) = self
+                    .resolve_external_descriptor(provider, exact)
+                    .ok_or(Error::UnknownDependencyDescriptor { provider, exact })?;
                 Ok(StrongTypeDescriptorRefV2::DependencyExternal { provider, exact })
             }
         }
@@ -74,10 +52,8 @@ impl StrongTypeReferenceDefinitionsV2 {
         decoded: DecodedOptionalStrongTypeDescriptorRefV2,
         foundation: &OdrFreeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
-        external: &StrongExternalLirBridgeSurfaceV1,
     ) -> Result<Option<StrongTypeDescriptorRefV2>, Error> {
         self.check_producer(foundation.producer())?;
-        self.check_producer(external.producer())?;
         let descriptor = match decoded {
             DecodedOptionalStrongTypeDescriptorRefV2::Absent => return Ok(None),
             DecodedOptionalStrongTypeDescriptorRefV2::Local(exact) => {
@@ -87,7 +63,7 @@ impl StrongTypeReferenceDefinitionsV2 {
                 DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact }
             }
         };
-        self.resolve_descriptor(descriptor, foundation, registrations, external)
+        self.resolve_descriptor(descriptor, foundation, registrations)
             .map(Some)
     }
 
