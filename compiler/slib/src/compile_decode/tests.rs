@@ -29,6 +29,7 @@ use crate::{
 };
 
 mod property_tests;
+mod providers;
 
 #[test]
 fn graph_decodes_identity_checks_and_structurally_validates_all_foundation_layers() {
@@ -190,7 +191,7 @@ fn native_boundary_source_validation_rejects_an_unrelated_witness() {
 #[test]
 fn direct_dependency_native_boundary_requires_the_closure_capability() {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-    let (artifact, _) = scoop_native_function_artifact_with_options(GcEffect::Managed, false, true);
+    let (artifact, _) = scoop_native_function_artifact_with_witness(GcEffect::Managed, false);
 
     let graph = crate::DecodedSlibEnvelope::open(artifact.as_bytes(), selection)
         .unwrap()
@@ -502,14 +503,18 @@ fn native_function_artifact(target_symbol: &str) -> IdentityFoundationArtifact {
     lir.set_native_contracts(vec![target_contract]).unwrap();
     lir.set_c_abi_signatures(vec![signature]).unwrap();
 
-    IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new("test").unwrap(),
-        cone,
-        selection,
-        &hir,
-        &CanonicalMirFoundation::empty(),
-        &lir,
-    ))
+    let dependencies = crate::strong_compile_decode::tests::fixture_dependencies(&cone, Vec::new());
+    IdentityFoundationArtifact::write(
+        IdentityFoundationArtifactInput::new(
+            ProducerRecord::new("test").unwrap(),
+            cone,
+            selection,
+            &hir,
+            &CanonicalMirFoundation::empty(),
+            &lir,
+        )
+        .with_direct_dependencies(dependencies),
+    )
     .unwrap()
 }
 
@@ -519,13 +524,12 @@ fn scoop_native_function_artifact(
     IdentityFoundationArtifact,
     NativeExternalContractFingerprint,
 ) {
-    scoop_native_function_artifact_with_options(gc_effect, true, false)
+    scoop_native_function_artifact_with_witness(gc_effect, true)
 }
 
-fn scoop_native_function_artifact_with_options(
+fn scoop_native_function_artifact_with_witness(
     gc_effect: GcEffect,
     include_witness: bool,
-    include_core_dependency: bool,
 ) -> (
     IdentityFoundationArtifact,
     NativeExternalContractFingerprint,
@@ -653,18 +657,7 @@ fn scoop_native_function_artifact_with_options(
     let fingerprint = target_contract.fingerprint();
     let mut lir = CanonicalLirFoundation::empty();
     lir.set_native_contracts(vec![target_contract]).unwrap();
-    let dependencies = include_core_dependency
-        .then(|| {
-            DependencyRecord::new(
-                ConeCoordinate::reserved_core(),
-                HirFingerprint::from_array([1; 32]),
-                MirFingerprint::from_array([2; 32]),
-                LirFingerprint::from_array([3; 32]),
-            )
-            .unwrap()
-        })
-        .into_iter()
-        .collect();
+    let dependencies = crate::strong_compile_decode::tests::fixture_dependencies(&cone, Vec::new());
     let mir = CanonicalMirFoundation::empty();
     let input = IdentityFoundationArtifactInput::new(
         ProducerRecord::new("test").unwrap(),
@@ -696,14 +689,18 @@ fn foundation_artifact(
     let mut mir = CanonicalMirFoundation::empty();
     mir.set_exact_types(exact_types).unwrap();
     let lir = CanonicalLirFoundation::empty();
-    IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-        ProducerRecord::new("test").unwrap(),
-        cone,
-        selection,
-        &hir,
-        &mir,
-        &lir,
-    ))
+    let dependencies = crate::strong_compile_decode::tests::fixture_dependencies(&cone, Vec::new());
+    IdentityFoundationArtifact::write(
+        IdentityFoundationArtifactInput::new(
+            ProducerRecord::new("test").unwrap(),
+            cone,
+            selection,
+            &hir,
+            &mir,
+            &lir,
+        )
+        .with_direct_dependencies(dependencies),
+    )
     .unwrap()
 }
 

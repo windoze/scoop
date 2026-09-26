@@ -249,7 +249,11 @@ pub(crate) fn layout_artifact(
     stale_hir_fingerprint: bool,
     omitted: Option<scoop_identity::CapabilityId>,
 ) -> Vec<u8> {
-    let (mut hir, mir, lir) = layout_sections(empty_type_semantics());
+    let (mut hir, mir, lir) = layout_sections(
+        &cone(),
+        &[scoop_identity::ConeIdentity::CORE],
+        empty_type_semantics(),
+    );
     if let Some(capability) = omitted {
         hir.retain(|section| section.capability() != &capability);
     }
@@ -267,7 +271,11 @@ fn layout_artifact_with_hir_type_payload(
     hir_type_semantics: Vec<u8>,
     stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
-    let (hir, mir, lir) = layout_sections(hir_type_semantics);
+    let (hir, mir, lir) = layout_sections(
+        &cone(),
+        &[scoop_identity::ConeIdentity::CORE],
+        hir_type_semantics,
+    );
     build_artifact_for_profile(
         cone(),
         ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
@@ -278,7 +286,29 @@ fn layout_artifact_with_hir_type_payload(
     )
 }
 
+pub(crate) fn layout_artifact_for(
+    cone: crate::ConeRecord,
+    dependencies: Vec<crate::DependencyRecord>,
+) -> Vec<u8> {
+    let identities = dependencies
+        .iter()
+        .map(crate::DependencyRecord::identity)
+        .collect::<Vec<_>>();
+    let (hir, mir, lir) = layout_sections(&cone, &identities, empty_type_semantics());
+    crate::strong_compile_decode::tests::build_artifact_for_profile_with_dependencies(
+        cone,
+        ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
+        dependencies,
+        hir,
+        mir,
+        lir,
+        false,
+    )
+}
+
 fn layout_sections(
+    cone: &crate::ConeRecord,
+    dependencies: &[scoop_identity::ConeIdentity],
     hir_type_semantics: Vec<u8>,
 ) -> (
     Vec<crate::MetadataSection>,
@@ -312,8 +342,20 @@ fn layout_sections(
     ));
 
     lir.retain(|section| section.capability() != &lir_strong_production_capability());
-    let (_, production) =
-        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone(), &[]);
+    let (foundation, production) = crate::link_decode::strong_production_fixture_for_test(
+        cone.coordinate().clone(),
+        dependencies,
+    );
+    let lir_foundation = lir
+        .iter_mut()
+        .find(|section| section.capability() == &crate::lir_identity_foundation_capability())
+        .unwrap();
+    *lir_foundation = section(
+        MetadataLocation::Lir,
+        crate::lir_identity_foundation_capability(),
+        MemberPurposeSet::COMPILE,
+        encode(&foundation).unwrap(),
+    );
     lir.extend([
         section(
             MetadataLocation::Lir,

@@ -39,7 +39,22 @@ fn core_uses_the_shared_empty_layout_profile_graph() {
 
 #[test]
 fn layout_profile_graph_uses_actual_declared_providers() {
-    let bytes = layout_artifact(false, None);
+    let core_bytes = crate::layout_compile_decode::tests::layout_artifact_for(
+        crate::ConeRecord::new(
+            scoop_identity::ConeCoordinate::reserved_core(),
+            crate::ConeKind::Library,
+            crate::ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        Vec::new(),
+    );
+    let core = open_graph(&core_bytes)
+        .decode_cross_cone_layout_compile_sections()
+        .unwrap();
+    let bytes = crate::layout_compile_decode::tests::layout_artifact_for(
+        cone(),
+        vec![core.dependency_record()],
+    );
     let artifact = open_graph(&bytes)
         .decode_cross_cone_layout_compile_sections()
         .unwrap();
@@ -49,7 +64,7 @@ fn layout_profile_graph_uses_actual_declared_providers() {
         cone_named("layout-current").identity(),
         scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         vec![identity],
-        vec![artifact],
+        vec![core, artifact],
     )
     .validate_profile_graph()
     .unwrap();

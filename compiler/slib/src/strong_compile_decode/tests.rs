@@ -358,8 +358,10 @@ pub(crate) fn required_sections() -> (
     Vec<MetadataSection>,
     Vec<MetadataSection>,
 ) {
-    let (lir_foundation, lir_production) =
-        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone(), &[]);
+    let (lir_foundation, lir_production) = crate::link_decode::strong_production_fixture_for_test(
+        cone().coordinate().clone(),
+        &[scoop_identity::ConeIdentity::CORE],
+    );
     let mut hir_foundation = CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![
@@ -528,15 +530,39 @@ pub(crate) fn build_artifact_for_profile(
     lir_sections: Vec<MetadataSection>,
     stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
+    let dependencies = fixture_dependencies(&cone, Vec::new());
     build_artifact_for_profile_with_dependencies(
         cone,
         profile,
-        Vec::new(),
+        dependencies,
         hir_sections,
         mir_sections,
         lir_sections,
         stale_hir_fingerprint,
     )
+}
+
+pub(crate) fn fixture_dependencies(
+    cone: &ConeRecord,
+    mut dependencies: Vec<crate::DependencyRecord>,
+) -> Vec<crate::DependencyRecord> {
+    if cone.identity() != scoop_identity::ConeIdentity::CORE
+        && !dependencies
+            .iter()
+            .any(|dependency| dependency.identity() == scoop_identity::ConeIdentity::CORE)
+    {
+        dependencies.push(
+            crate::DependencyRecord::new(
+                ConeCoordinate::reserved_core(),
+                HirFingerprint::from_array([1; 32]),
+                crate::MirFingerprint::from_array([2; 32]),
+                crate::LirFingerprint::from_array([3; 32]),
+            )
+            .unwrap(),
+        );
+        dependencies.sort_unstable_by_key(crate::DependencyRecord::identity);
+    }
+    dependencies
 }
 
 pub(crate) fn build_artifact_for_profile_with_dependencies(

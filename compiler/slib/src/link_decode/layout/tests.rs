@@ -24,7 +24,10 @@ fn layout_link_front_decodes_the_complete_profile_atomically() {
 
     assert_eq!(sections.coordinate(), cone().coordinate());
     assert_eq!(sections.identity(), cone().identity());
-    assert!(sections.direct_dependencies().is_empty());
+    assert_eq!(
+        sections.direct_dependencies()[0].identity(),
+        scoop_identity::ConeIdentity::CORE
+    );
     let _ = sections.artifact_fingerprint();
 
     let _ = sections.production_manifest_wire();

@@ -30,7 +30,10 @@ fn profile_graph_assigns_direct_and_support_roles_after_closure_validation() {
     let core = decode(&core_bytes);
     let terminal_bytes = artifact(cone_named("terminal"), vec![core.dependency_record()]);
     let terminal = decode(&terminal_bytes);
-    let facade_bytes = artifact(cone_named("facade"), vec![terminal.dependency_record()]);
+    let facade_bytes = artifact(
+        cone_named("facade"),
+        vec![core.dependency_record(), terminal.dependency_record()],
+    );
 
     let core = decode(&core_bytes);
     let terminal = decode(&terminal_bytes);
@@ -179,13 +182,13 @@ fn completed_closure_requires_the_current_artifacts_exact_direct_set() {
         ConeSourceForm::Manifest,
     )
     .unwrap();
-    let current_bytes = artifact(current_cone, Vec::new());
+    let current_bytes = artifact(current_cone, vec![decode(&core_bytes).dependency_record()]);
 
     assert!(matches!(
         DecodedCrossConeClosure::with_current_artifact(
             cone_named("current-direct-mismatch").identity(),
             target(),
-            vec![ConeIdentity::CORE],
+            Vec::new(),
             vec![decode(&core_bytes)],
             decode(&current_bytes),
         )
@@ -237,29 +240,22 @@ fn protocol_definition_absence_is_not_inferred_from_the_core_coordinate() {
 
 #[test]
 fn provider_graph_uses_declared_dependencies_and_canonical_direct_set() {
-    let dependency_bytes = artifact(cone_named("dependency"), Vec::new());
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let dependency_bytes = artifact(
+        cone_named("dependency"),
+        vec![decode(&core_bytes).dependency_record()],
+    );
     let dependency = decode(&dependency_bytes);
     let identity = dependency.identity();
     let closure = DecodedCrossConeClosure::new(
         cone_named("current").identity(),
         target(),
         vec![identity],
-        vec![dependency],
+        vec![decode(&core_bytes), dependency],
     )
     .validate_profile_graph()
     .unwrap();
     assert_eq!(closure.role(identity), Some(CrossConeProviderRole::Direct));
-    let core = DecodedCrossConeClosure::new(
-        ConeIdentity::CORE,
-        target(),
-        vec![identity],
-        vec![decode(&dependency_bytes)],
-    )
-    .validate_profile_graph()
-    .unwrap();
-    assert_eq!(core.role(identity), Some(CrossConeProviderRole::Direct));
-
-    let core_bytes = artifact(core_cone(), Vec::new());
     assert!(matches!(
         DecodedCrossConeClosure::new(
             cone_named("current").identity(),
@@ -331,8 +327,14 @@ fn profile_graph_rejects_a_stale_dependency_fingerprint() {
 #[test]
 fn profile_graph_rejects_an_unreachable_support_artifact() {
     let core_bytes = artifact(core_cone(), Vec::new());
-    let direct_bytes = artifact(cone_named("direct"), Vec::new());
-    let unused_bytes = artifact(cone_named("unused"), Vec::new());
+    let direct_bytes = artifact(
+        cone_named("direct"),
+        vec![decode(&core_bytes).dependency_record()],
+    );
+    let unused_bytes = artifact(
+        cone_named("unused"),
+        vec![decode(&core_bytes).dependency_record()],
+    );
     let direct_identity = decode(&direct_bytes).identity();
     let unused_identity = decode(&unused_bytes).identity();
     let mut direct = vec![ConeIdentity::CORE, direct_identity];
@@ -430,7 +432,7 @@ fn identity_registration_resolves_reexport_targets_from_the_provider_closure() {
         .unwrap();
     let facade_bytes = artifact_with_foundation(
         facade_cone,
-        vec![terminal.dependency_record()],
+        vec![core.dependency_record(), terminal.dependency_record()],
         &facade_foundation,
     );
     let facade = decode(&facade_bytes);

@@ -274,15 +274,9 @@ pub(crate) fn validate_foundation_identity_graph_with_authorities<'authority>(
     let producer = graph.identity();
     let manifest = graph.envelope.manifest();
     let mut validation = PendingIdentityValidation::new();
-    validation.register_authority(ConeIdentity::CORE)?;
-    if producer != ConeIdentity::CORE {
-        validation.register_authority(producer)?;
-    }
+    validation.register_authority(producer)?;
     for dependency in manifest.direct_dependencies() {
-        let authority = dependency.identity();
-        if authority != ConeIdentity::CORE && authority != producer {
-            validation.register_authority(authority)?;
-        }
+        validation.register_authority(dependency.identity())?;
     }
 
     hir.register_identities(&mut validation)?;

@@ -576,6 +576,8 @@ pub(crate) fn cross_cone_artifact_for(
     dependencies: Vec<DependencyRecord>,
     hir_interface: Vec<u8>,
 ) -> Vec<u8> {
+    let dependencies =
+        crate::strong_compile_decode::tests::fixture_dependencies(&cone, dependencies);
     let (mut hir, mut mir, mut lir) = required_sections();
     retarget_lir_sections(&cone, &dependencies, &mut lir);
     hir.push(section(
@@ -602,6 +604,8 @@ pub(crate) fn cross_cone_artifact_for_with_hir_foundation(
     hir_foundation: &CanonicalHirFoundation,
     hir_interface: Vec<u8>,
 ) -> Vec<u8> {
+    let dependencies =
+        crate::strong_compile_decode::tests::fixture_dependencies(&cone, dependencies);
     let (mut hir, mut mir, mut lir) = required_sections();
     retarget_lir_sections(&cone, &dependencies, &mut lir);
     let foundation = hir

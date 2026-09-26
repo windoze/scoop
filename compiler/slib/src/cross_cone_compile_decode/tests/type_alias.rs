@@ -443,8 +443,10 @@ impl AliasSurface {
     }
 
     fn artifact(&self) -> Vec<u8> {
+        let dependencies =
+            crate::strong_compile_decode::tests::fixture_dependencies(&self.cone, Vec::new());
         let (mut hir, mut mir, mut lir) = required_sections();
-        retarget_lir_sections(&self.cone, &[], &mut lir);
+        retarget_lir_sections(&self.cone, &dependencies, &mut lir);
         replace_section(
             &mut hir,
             hir_identity_foundation_capability(),
@@ -466,7 +468,7 @@ impl AliasSurface {
         build_artifact_for_profile_with_dependencies(
             self.cone.clone(),
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
-            Vec::new(),
+            dependencies,
             hir,
             mir,
             lir,

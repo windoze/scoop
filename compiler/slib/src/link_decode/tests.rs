@@ -1084,11 +1084,6 @@ pub(crate) fn strong_production_fixture(
         &digests,
     )
     .unwrap();
-    assert_ne!(
-        producer,
-        ConeIdentity::CORE,
-        "the link fixture models an ordinary Cone, not the core protocol surface"
-    );
     let production = StrongProductionSectionV1::new(
         coordinate,
         direct_dependencies,
