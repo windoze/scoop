@@ -1,14 +1,4 @@
 use super::*;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct LayoutAbiSelectionBrand(u64);
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SelectedDependencyLayoutAbiRefV1 {
-    brand: LayoutAbiSelectionBrand,
-    index: u32,
-}
 
 pub(super) struct SelectedLayoutAbiEntryV1<'a> {
     pub relation: LayoutAbiDependencyV1,
@@ -18,7 +8,6 @@ pub(super) struct SelectedLayoutAbiEntryV1<'a> {
 pub struct SelectedDependencyLayoutAbiSetV1<'a> {
     consumer: ConeIdentity,
     target: crate::LirTargetProfile,
-    brand: LayoutAbiSelectionBrand,
     semantic: Vec<SelectedLayoutAbiEntryV1<'a>>,
     physical: crate::CanonicalExternalShapeLinkImportsV1,
 }
@@ -29,26 +18,13 @@ impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
         target: crate::LirTargetProfile,
         semantic: Vec<SelectedLayoutAbiEntryV1<'a>>,
         physical: crate::CanonicalExternalShapeLinkImportsV1,
-    ) -> Result<Self, LayoutAbiSectionError> {
-        if u32::try_from(semantic.len()).is_err() {
-            return Err(LayoutAbiSectionError::Semantic(
-                LayoutAbiSemanticClosureError::ArithmeticOverflow,
-            ));
-        }
-        static NEXT: AtomicU64 = AtomicU64::new(1);
-        let brand = NEXT
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                current.checked_add(1)
-            })
-            .map(LayoutAbiSelectionBrand)
-            .map_err(|_| LayoutAbiSectionError::SelectionIdentityExhausted)?;
-        Ok(Self {
+    ) -> Self {
+        Self {
             consumer,
             target,
-            brand,
             semantic,
             physical,
-        })
+        }
     }
 
     pub const fn consumer(&self) -> ConeIdentity {
@@ -75,44 +51,17 @@ impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
         &self.physical
     }
 
-    pub fn reference(
+    pub fn record(
         &self,
         provider: ConeIdentity,
         target: LayoutAbiSemanticTargetV1,
-    ) -> Option<SelectedDependencyLayoutAbiRefV1> {
-        let relation = LayoutAbiDependencyV1::new(provider, target);
-        self.semantic
-            .binary_search_by_key(&relation, |entry| entry.relation)
-            .ok()
-            .and_then(|index| u32::try_from(index).ok())
-            .map(|index| SelectedDependencyLayoutAbiRefV1 {
-                brand: self.brand,
-                index,
-            })
-    }
-
-    pub fn relation(
-        &self,
-        reference: SelectedDependencyLayoutAbiRefV1,
-    ) -> Option<LayoutAbiDependencyV1> {
-        self.entry(reference).map(|entry| entry.relation)
-    }
-
-    pub fn resolve(
-        &self,
-        reference: SelectedDependencyLayoutAbiRefV1,
     ) -> Option<LayoutAbiSemanticRecordV1<'a>> {
-        let entry = self.entry(reference)?;
-        entry.terminal.record(entry.relation.target())
-    }
-
-    fn entry(
-        &self,
-        reference: SelectedDependencyLayoutAbiRefV1,
-    ) -> Option<&SelectedLayoutAbiEntryV1<'a>> {
-        (reference.brand == self.brand)
-            .then(|| self.semantic.get(reference.index as usize))
-            .flatten()
+        let relation = LayoutAbiDependencyV1::new(provider, target);
+        let index = self
+            .semantic
+            .binary_search_by_key(&relation, |entry| entry.relation)
+            .ok()?;
+        self.semantic[index].terminal.record(target)
     }
 }
 

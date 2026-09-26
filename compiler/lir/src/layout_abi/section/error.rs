@@ -7,7 +7,6 @@ pub enum LayoutAbiSectionError {
     SelectedClosure,
     NonCanonicalSelected { index: usize },
     SelectedCurrentProvider,
-    SelectionIdentityExhausted,
     MissingSemanticProvider(ConeIdentity),
     MissingPhysicalProvider(ConeIdentity),
     MissingPhysicalSubject(crate::ExternalStrongShapeSubjectV1),

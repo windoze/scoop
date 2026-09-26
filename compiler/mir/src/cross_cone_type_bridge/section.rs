@@ -23,7 +23,7 @@ pub use dependency::MirTypeBridgeDependencyV1;
 pub use error::*;
 pub use model::*;
 pub use resolved_dependencies::DependencyResolvedCrossConeMirTypeBridgeSectionV1;
-pub use selection::{SelectedDependencyMirTypeRefV1, SelectedDependencyMirTypeSetV1};
+pub use selection::SelectedDependencyMirTypeSetV1;
 pub use units::{MirTypeBridgeInitializationUnitV1, replay_source_initialization_units};
 pub use view::MirTypeBridgeDependencyViewV1;
 pub use wire::{

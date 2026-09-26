@@ -36,7 +36,7 @@ impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
             graph,
             &types,
         )?;
-        let selected = SelectedDependencyMirTypeSetV1::from_closed(provider, entries)?;
+        let selected = SelectedDependencyMirTypeSetV1::from_closed(provider, entries);
         Ok(Self {
             provider,
             exports,

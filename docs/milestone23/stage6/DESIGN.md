@@ -4,7 +4,7 @@
 
 外来参数自由 struct 的源码类型引用使用依赖中实际的 typed nominal 声明及完整字段类型；名称仅用于查找和诊断。HIR 保留其完整成员、继承、构造器和字段声明，参数、结果、局部存储及嵌套字段使用同一类型。LocalConcrete/MIR 可以保存计算值表示所需的完整字段，同时保留真实定义 Cone；这些表示记录不是当前 Cone 的源码声明或机器定义。成员与构造器调用仍引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖选择取得；不能复制外来函数正文或在消费 Cone 重新发布其 Strong 定义。实际跨 Cone 类型使用无需来源凭证、工厂资格或重新认证 provider。此接通使用已有 wire 类型和布局记录，不改变 runtime C ABI 或 String 表示。
 
-共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。 依赖查询直接使用真实 `ConeIdentity` 与 callable、property、type-alias 的类型化声明 ID；选择集合按这些 ID 保存完整接口和实际依赖路径。删除独立 world/projection/selection 品牌、仅为品牌服务的计数器和错误，以及从声明 ID 再映射到局部 u32 的三套重复表。候选选择依照当前依赖目录中的实际声明与表示，不要求由同一查询实例铸造；直接依赖的名称可见性、转导出路径、实际 provider 和引用完整性继续按共有规则检查。该进程内数据简化不改变 wire/profile、实体身份或 runtime ABI。
+共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。 依赖查询直接使用真实 `ConeIdentity` 与 callable、property、type-alias 的类型化声明 ID；选择集合按这些 ID 保存完整接口和实际依赖路径。删除独立 world/projection/selection 品牌、仅为品牌服务的计数器和错误，以及从声明 ID 再映射到局部 u32 的三套重复表。候选选择依照当前依赖目录中的实际声明与表示，不要求由同一查询实例铸造；直接依赖的名称可见性、转导出路径、实际 provider 和引用完整性继续按共有规则检查。HIR 候选和已选声明只保存实际 provider ID，不逐项复制 artifact 坐标/fingerprint 凭证；HIR→MIR 使用同次编译的依赖快照及完整声明，核对实际定义和签名，不再次比较来源凭证。普通构建依赖记录与缓存 fingerprint 继续承担定位和失效职责。MIR 外部 callable 引用保存实际 provider 与类型化声明，不另映射到带会话品牌的局部编号；调用位置保留 GC effect。MIR 类型与 LIR layout/ABI 选择按实际 provider 和 typed target 直接返回完整记录，不先铸造并验证中间 handle；依赖闭包、类型、ABI、物理引用和 GC 契约仍在其消费边界检查。同一声明或 target 在另一选择集合中是否存在，按实际目录查询决定，不依据集合生成顺序或计数器。该进程内数据简化不改变 wire/profile、实体身份或 runtime ABI。
 
 M23-6 的实现范围以最新版 AGENTS.md 为准：完成类型布局、canonical ABI、dispatch、ZST、跨 Cone 消费与产物发布；同时删除编译器、slib、runtime 中额外的来源授权、防伪、资格认证、通用资源预算与计费、重复证明和仅为这些机制存在的框架。此约定修正历史设计中的冲突条款，将 core 专用机制推广到所有 Cone 不构成完成清理。正常类型、可见性、格式、引用、依赖环、缓存、ABI、内存范围与 GC 契约继续保留。
 
@@ -158,7 +158,7 @@ ValidatedArtifactClosure<Compile>
     -> complete local LIR + external typed definitions
 ```
 
-`SelectedMirTypeBridgeSet`、`SelectedLirLayoutAbiSet` 是经过 dependency closure 检查的 branded handle，不接受裸 table、symbol 或任意 exact-id 列表。MIR 无法读取 default/import/access 语法，LIR 无法读取 Export HIR body，codegen 无法重新查询全部 dependency。
+MIR 类型与 LIR layout/ABI 选择保存经过依赖闭包检查的完整记录，直接按实际 provider 和 typed target 查询；类型身份不由 symbol 或同布局推导，不另以选择集合的品牌决定使用资格。MIR 消费完整 typed HIR，LIR 消费完整 MIR，codegen 消费完整 LIR，各 stage 不回头重做源码解析。
 
 ## 3. profile、section 与 wire 演进
 

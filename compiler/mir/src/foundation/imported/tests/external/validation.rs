@@ -16,27 +16,6 @@ fn check(
 }
 
 #[test]
-fn both_roles_use_the_same_reference_domain_and_sealer() {
-    let fixture = Fixture::new();
-    for index in 0..2 {
-        for output in [true, false] {
-            let (mut module, selected) = fixture.mixed();
-            let (other, _) = fixture.mixed();
-            *module
-                .meta
-                .external_callables
-                .iter_mut()
-                .nth(index)
-                .unwrap()
-                .1 = *other.meta.external_callables.iter().nth(index).unwrap().1;
-            assert!(
-                matches!(check(module, selected, output), SingleConeStrongMirInputError::ForeignExternalCallable { index: found } if found == index as u32)
-            );
-        }
-    }
-}
-
-#[test]
 fn both_sealers_require_complete_selection_coverage_and_consumer() {
     let fixture = Fixture::new();
     for output in [true, false] {

@@ -140,12 +140,9 @@ fn mixed_core_and_ordinary_shape_selections_keep_their_terminal_records() {
         .unwrap();
     assert_eq!(section.selected().len(), 10);
     for provider in [&core_provider, &ordinary_provider] {
-        let reference = section
+        let Some(MirTypeBridgeSemanticRecordV1::ShapeSupport(selected)) = section
             .selected()
-            .reference(provider.provider, provider.shape_use().target())
-            .unwrap();
-        let Some(MirTypeBridgeSemanticRecordV1::ShapeSupport(selected)) =
-            section.selected().resolve(reference)
+            .record(provider.provider, provider.shape_use().target())
         else {
             panic!("shape selection resolves to its terminal shape record")
         };

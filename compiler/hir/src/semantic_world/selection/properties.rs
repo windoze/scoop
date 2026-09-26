@@ -21,18 +21,18 @@ impl ImportedDependencySelectionPlan {
             .ok_or(ImportedDependencyCandidateError::MissingProperty(property))?;
         if binding.sources().any(|source| {
             source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.certificate.identity()
+                || source.witness().route().terminal().exporter() != entry.provider
         }) {
             return Err(
                 ImportedDependencyCandidateError::PropertyTerminalProviderMismatch {
                     property,
-                    expected: entry.certificate.identity(),
+                    expected: entry.provider,
                 },
             );
         }
         Ok(ImportedDependencyPropertyCandidate {
             binding: binding.clone(),
-            certificate: entry.certificate.clone(),
+            provider: entry.provider,
             interface: entry.interface.clone(),
         })
     }

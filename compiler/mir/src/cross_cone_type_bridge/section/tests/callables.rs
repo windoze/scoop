@@ -101,12 +101,8 @@ fn value_method_selection_closes_both_signatures_and_preserves_gc_effect() {
     let mut expected = vec![provider.type_use(), relation, dispatch_relation];
     expected.sort_unstable();
     assert_eq!(section.selected().relations().collect::<Vec<_>>(), expected);
-    let handle = section
-        .selected()
-        .reference(relation.provider(), relation.target())
-        .unwrap();
     assert!(
-        matches!(section.selected().resolve(handle), Some(MirTypeBridgeSemanticRecordV1::Callable(record)) if record.lowered_signature().gc_effect() == crate::GcEffect::NoGc)
+        matches!(section.selected().record(relation.provider(), relation.target()), Some(MirTypeBridgeSemanticRecordV1::Callable(record)) if record.lowered_signature().gc_effect() == crate::GcEffect::NoGc)
     );
     let bytes = encode(&terminal).unwrap();
     let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();

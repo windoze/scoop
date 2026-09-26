@@ -127,8 +127,7 @@ impl<'a> MaterializationSelection<'a> for SelectedDependencyLayoutAbiSetV1<'a> {
         provider: ConeIdentity,
         target: LayoutAbiSemanticTargetV1,
     ) -> Option<LayoutAbiSemanticRecordV1<'a>> {
-        self.reference(provider, target)
-            .and_then(|reference| self.resolve(reference))
+        self.record(provider, target)
     }
 
     fn physical_imports(&'a self) -> &'a crate::CanonicalExternalShapeLinkImportsV1 {

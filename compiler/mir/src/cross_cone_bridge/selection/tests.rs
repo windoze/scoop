@@ -34,12 +34,13 @@ fn selected_dependency_set_preserves_canonical_bridge_order_and_typed_lookup() {
         .unwrap();
     assert_eq!(
         selected
-            .callable(first_id)
+            .resolve_callable(first_id)
             .map(SelectedExternalMirCallable::record),
         Some(&first)
     );
-    let reference = selected.callable_ref(first_id).unwrap();
-    assert_eq!(reference.callable(), first_id);
+    let reference = first_id;
+    assert_eq!(reference.provider(), first.provider());
+    assert_eq!(reference.declaration(), first.declaration());
     assert_eq!(
         selected
             .resolve_callable(reference)
@@ -59,30 +60,7 @@ fn selected_dependency_set_preserves_canonical_bridge_order_and_typed_lookup() {
 }
 
 #[test]
-fn equal_dependency_selections_have_distinct_request_local_brands() {
-    let consumer = cone("consumer");
-    let provider = cone("provider");
-    let callable = selected(provider, "run");
-    let bridge = bridge(consumer, vec![callable.clone()]);
-    let first = SelectedExternalMirSet::try_from_bridge(&bridge).unwrap();
-    let second = SelectedExternalMirSet::try_from_bridge(&bridge).unwrap();
-    let first_id = first
-        .callable_for(callable.provider(), callable.declaration())
-        .unwrap();
-    let second_id = second
-        .callable_for(callable.provider(), callable.declaration())
-        .unwrap();
-
-    assert_eq!(first_id, second_id);
-    assert!(
-        second
-            .resolve_callable(first.callable_ref(first_id).unwrap())
-            .is_none()
-    );
-}
-
-#[test]
-fn empty_dependency_selection_retains_its_consumer_authority() {
+fn empty_dependency_selection_retains_its_consumer() {
     let consumer = cone("consumer");
     let selected = SelectedExternalMirSet::empty(consumer);
 

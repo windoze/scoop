@@ -8,8 +8,8 @@ mod selection;
 mod wire;
 
 pub use error::LayoutAbiSectionError;
+pub use selection::SelectedDependencyLayoutAbiSetV1;
 use selection::SelectedLayoutAbiEntryV1;
-pub use selection::{SelectedDependencyLayoutAbiRefV1, SelectedDependencyLayoutAbiSetV1};
 pub use wire::{
     CallablesResolvedCrossConeLayoutAbiSectionV1, DecodedCrossConeLayoutAbiSectionV1,
     DependencyResolvedCrossConeLayoutAbiSectionV1, DescriptorsResolvedCrossConeLayoutAbiSectionV1,

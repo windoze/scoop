@@ -1,15 +1,4 @@
 use super::*;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct MirTypeSelectionBrand(u64);
-
-/// A typed reference into one request-local selection.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SelectedDependencyMirTypeRefV1 {
-    brand: MirTypeSelectionBrand,
-    index: u32,
-}
 
 pub(super) struct SelectedMirTypeEntryV1<'a> {
     pub relation: MirTypeBridgeDependencyV1,
@@ -19,29 +8,14 @@ pub(super) struct SelectedMirTypeEntryV1<'a> {
 /// Selected dependency records and their actual providers.
 pub struct SelectedDependencyMirTypeSetV1<'a> {
     consumer: ConeIdentity,
-    brand: MirTypeSelectionBrand,
     entries: Vec<SelectedMirTypeEntryV1<'a>>,
 }
 impl<'a> SelectedDependencyMirTypeSetV1<'a> {
     pub(super) fn from_closed(
         consumer: ConeIdentity,
         entries: Vec<SelectedMirTypeEntryV1<'a>>,
-    ) -> Result<Self, MirTypeBridgeSectionError> {
-        if u32::try_from(entries.len()).is_err() {
-            return Err(MirTypeBridgeSectionError::ArithmeticOverflow);
-        }
-        static NEXT: AtomicU64 = AtomicU64::new(1);
-        let brand = NEXT
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                current.checked_add(1)
-            })
-            .map(MirTypeSelectionBrand)
-            .map_err(|_| MirTypeBridgeSectionError::SelectionIdentityExhausted)?;
-        Ok(Self {
-            consumer,
-            brand,
-            entries,
-        })
+    ) -> Self {
+        Self { consumer, entries }
     }
     pub const fn consumer(&self) -> ConeIdentity {
         self.consumer
@@ -55,42 +29,17 @@ impl<'a> SelectedDependencyMirTypeSetV1<'a> {
     pub fn relations(&self) -> impl ExactSizeIterator<Item = MirTypeBridgeDependencyV1> + '_ {
         self.entries.iter().map(|entry| entry.relation)
     }
-    pub fn reference(
+    pub fn record(
         &self,
         provider: ConeIdentity,
         target: MirTypeBridgeTargetV1,
-    ) -> Option<SelectedDependencyMirTypeRefV1> {
-        let relation = MirTypeBridgeDependencyV1::new(provider, target);
-        self.entries
-            .binary_search_by_key(&relation, |entry| entry.relation)
-            .ok()
-            .and_then(|index| u32::try_from(index).ok())
-            .map(|index| SelectedDependencyMirTypeRefV1 {
-                brand: self.brand,
-                index,
-            })
-    }
-    pub fn relation(
-        &self,
-        reference: SelectedDependencyMirTypeRefV1,
-    ) -> Option<MirTypeBridgeDependencyV1> {
-        self.entry(reference).map(|entry| entry.relation)
-    }
-    pub fn resolve(
-        &self,
-        reference: SelectedDependencyMirTypeRefV1,
     ) -> Option<MirTypeBridgeSemanticRecordV1<'a>> {
-        let entry = self.entry(reference)?;
-        entry.terminal.record(entry.relation.target())
-    }
-    fn entry(
-        &self,
-        reference: SelectedDependencyMirTypeRefV1,
-    ) -> Option<&SelectedMirTypeEntryV1<'a>> {
-        if reference.brand != self.brand {
-            return None;
-        }
-        self.entries.get(reference.index as usize)
+        let relation = MirTypeBridgeDependencyV1::new(provider, target);
+        let index = self
+            .entries
+            .binary_search_by_key(&relation, |entry| entry.relation)
+            .ok()?;
+        self.entries[index].terminal.record(target)
     }
 }
 impl WireEncode for SelectedDependencyMirTypeSetV1<'_> {

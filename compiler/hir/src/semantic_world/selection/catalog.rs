@@ -13,14 +13,13 @@ use super::{
 use crate::semantic_world::{DirectImportedTargetBinding, ImportedProvider, ImportedSemanticWorld};
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, CanonicalNominalInterfacesV1,
-    ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    ImportedProviderCertificate, ImportedTarget, ParamFreeNominalCallableV1,
-    PropertyInterfaceRecordV1, TypeAliasInterfaceRecordV1,
+    ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedTarget,
+    ParamFreeNominalCallableV1, PropertyInterfaceRecordV1, TypeAliasInterfaceRecordV1,
 };
 
 #[derive(Clone, Debug)]
 pub(super) struct CallableCatalogEntry {
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) name: super::intrinsics::CallableCatalogName,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
@@ -32,7 +31,7 @@ pub(super) struct CallableCatalogEntry {
 
 #[derive(Clone, Debug)]
 pub(super) struct ConstantCatalogEntry {
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) record: ExportConstValueV1,
     pub(super) exact_type: Option<scoop_identity::PersistentExactTypeId>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
@@ -40,13 +39,13 @@ pub(super) struct ConstantCatalogEntry {
 
 #[derive(Clone, Debug)]
 pub(super) struct PropertyCatalogEntry {
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) interface: PropertyInterfaceRecordV1,
 }
 
 #[derive(Clone, Debug)]
 pub(super) struct TypeAliasCatalogEntry {
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) interface: TypeAliasInterfaceRecordV1,
     pub(super) expansion: scoop_identity::SignatureTypeKey,
 }
@@ -106,7 +105,7 @@ impl ImportedSemanticWorld<'_> {
                 };
                 let entry = CallableCatalogEntry {
                     name: super::intrinsics::callable_catalog_name(provider, declaration)?,
-                    certificate: provider.certificate().clone(),
+                    provider: provider.identity(),
                     interface: callable.clone(),
                     source: provider
                         .interface()
@@ -136,7 +135,7 @@ impl ImportedSemanticWorld<'_> {
             for property in provider.interface().property_interfaces().records() {
                 let declaration = property.declaration();
                 let entry = PropertyCatalogEntry {
-                    certificate: provider.certificate().clone(),
+                    provider: provider.identity(),
                     interface: property.clone(),
                 };
                 if properties.insert(declaration, entry).is_some() {
@@ -148,7 +147,7 @@ impl ImportedSemanticWorld<'_> {
             for constant in provider.interface().constants().records() {
                 let property = constant.property();
                 let entry = ConstantCatalogEntry {
-                    certificate: provider.certificate().clone(),
+                    provider: provider.identity(),
                     record: constant.clone(),
                     exact_type: classifier.classify(constant.value_type()),
                     definition_sources: Arc::clone(&definition_sources),
@@ -167,7 +166,7 @@ impl ImportedSemanticWorld<'_> {
                     ),
                 )?;
                 let entry = TypeAliasCatalogEntry {
-                    certificate: provider.certificate().clone(),
+                    provider: provider.identity(),
                     interface: alias.clone(),
                     expansion: expansion.target().clone(),
                 };

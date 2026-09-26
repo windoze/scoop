@@ -97,16 +97,16 @@ impl ImportedDependencySelectionPlan {
         )?;
         if binding.sources().any(|source| {
             source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.certificate.identity()
+                || source.witness().route().terminal().exporter() != entry.provider
         }) {
             return Err(ImportedDependencyCandidateError::TerminalProviderMismatch {
                 declaration,
-                expected: entry.certificate.identity(),
+                expected: entry.provider,
             });
         }
         Ok(ImportedDependencyCallableCandidate {
             binding: binding.clone(),
-            certificate: entry.certificate.clone(),
+            provider: entry.provider,
             interface: entry.interface.clone(),
             source: entry.source.clone(),
             capability: entry.capability.clone(),
@@ -158,18 +158,18 @@ impl ImportedDependencySelectionPlan {
             .ok_or(ImportedDependencyCandidateError::MissingConstant(property))?;
         if binding.sources().any(|source| {
             source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.certificate.identity()
+                || source.witness().route().terminal().exporter() != entry.provider
         }) {
             return Err(
                 ImportedDependencyCandidateError::ConstantTerminalProviderMismatch {
                     property,
-                    expected: entry.certificate.identity(),
+                    expected: entry.provider,
                 },
             );
         }
         Ok(ImportedDependencyConstantCandidate {
             binding: binding.clone(),
-            certificate: entry.certificate.clone(),
+            provider: entry.provider,
             record: entry.record.clone(),
             exact_type: entry.exact_type,
             definition_sources: Arc::clone(&entry.definition_sources),
@@ -191,18 +191,18 @@ impl ImportedDependencySelectionPlan {
             .ok_or(ImportedDependencyCandidateError::MissingTypeAlias(alias))?;
         if binding.sources().any(|source| {
             source.witness().terminal_declaration() != binding.target()
-                || source.witness().route().terminal().exporter() != entry.certificate.identity()
+                || source.witness().route().terminal().exporter() != entry.provider
         }) {
             return Err(
                 ImportedDependencyCandidateError::TypeAliasTerminalProviderMismatch {
                     alias,
-                    expected: entry.certificate.identity(),
+                    expected: entry.provider,
                 },
             );
         }
         Ok(ImportedDependencyTypeAliasCandidate {
             binding: binding.clone(),
-            certificate: entry.certificate.clone(),
+            provider: entry.provider,
             interface: entry.interface.clone(),
             expansion: entry.expansion.clone(),
         })
@@ -233,7 +233,7 @@ impl ImportedDependencySelectionPlan {
                 id,
                 SelectedImportedDependencyCallable {
                     binding: candidate.binding,
-                    certificate: entry.certificate.clone(),
+                    provider: entry.provider,
                     interface: entry.interface.clone(),
                     source: entry.source.clone(),
                     initialization_unit: entry.initialization_unit,
@@ -271,7 +271,7 @@ impl ImportedDependencySelectionPlan {
                 id,
                 SelectedImportedDependencyConstant {
                     binding: candidate.binding,
-                    certificate: entry.certificate.clone(),
+                    provider: entry.provider,
                     record: entry.record.clone(),
                     exact_type,
                 },
@@ -300,7 +300,7 @@ impl ImportedDependencySelectionPlan {
                 id,
                 SelectedImportedDependencyTypeAlias {
                     binding: candidate.binding,
-                    certificate: entry.certificate.clone(),
+                    provider: entry.provider,
                     interface: entry.interface.clone(),
                     expansion: entry.expansion.clone(),
                 },

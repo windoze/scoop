@@ -61,7 +61,7 @@ fn lower_initialization_cycle_authority(
         .initialization_cycle()
         .ok_or(CurrentConeMirLoweringError::MissingInitializationCycleThrower)?;
     let selected = imported
-        .callable(id)
+        .resolve_callable(id)
         .expect("a callable-kind lookup returns an in-bounds MIR callable");
     if selected.implementation()
         != scoop_identity::StrongCallableDefinitionOwner::Function(definition)
@@ -71,7 +71,7 @@ fn lower_initialization_cycle_authority(
     let callable = callables.alloc(
         imported
             .callable_use(id, mir::GcEffect::Managed)
-            .expect("a selected MIR callable mints one branded use"),
+            .expect("a selected MIR callable has a complete typed reference"),
     );
     Ok(InitializationCycleLoweringAuthority::Imported {
         definition,
@@ -102,7 +102,7 @@ fn lower_dependency_callables(
                 index: source_id.into_raw().into_u32(),
             })?;
         let target = imported
-            .callable(id)
+            .resolve_callable(id)
             .expect("a dependency callable lookup returns an in-bounds MIR callable");
         if target.implementation() != capability.implementation() {
             return Err(
@@ -123,7 +123,7 @@ fn lower_dependency_callables(
         let target = callables.alloc(
             imported
                 .callable_use(id, effect)
-                .expect("a selected dependency MIR callable mints one branded use"),
+                .expect("a selected dependency MIR callable has a complete typed reference"),
         );
         mapping.insert(source_id, target);
     }

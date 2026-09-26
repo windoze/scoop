@@ -4,7 +4,7 @@ use scoop_hir::DependencyHirOutput;
 use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
 use scoop_wire::WirePath;
 
-use super::{ValidatedCrossConeSemanticClosure, world::provider_certificate};
+use super::ValidatedCrossConeSemanticClosure;
 
 mod errors;
 mod lir;
@@ -16,8 +16,8 @@ impl ValidatedCrossConeSemanticClosure {
     /// Projects actual executable HIR calls into matching provider MIR exports.
     ///
     /// Constants have already been inlined into HIR and therefore do not
-    /// produce MIR roots. Every callable is checked against both its retained
-    /// artifact certificate and the terminal provider's canonical export.
+    /// produce MIR roots. Callables use the actual provider's complete export
+    /// and retain the checked implementation and signature.
     pub fn project_dependency_callables_to_mir(
         &self,
         hir: &DependencyHirOutput,
@@ -43,12 +43,6 @@ impl ValidatedCrossConeSemanticClosure {
             let artifact = self
                 .provider(provider)
                 .ok_or(CrossConeMirSelectionProjectionError::MissingProvider { provider })?;
-            if callable.certificate() != &provider_certificate(artifact) {
-                return Err(
-                    CrossConeMirSelectionProjectionError::ProviderCertificateMismatch { provider },
-                );
-            }
-
             let capability = callable.capability();
             let declaration = capability.declaration();
             let export = artifact

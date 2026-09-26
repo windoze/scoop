@@ -43,7 +43,7 @@ pub(super) fn complete<'a>(
         exports.target_profile(),
         semantic,
         physical_imports,
-    )?;
+    );
     Ok(CrossConeLayoutAbiSectionV1 { exports, selected })
 }
 

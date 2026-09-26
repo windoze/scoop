@@ -39,7 +39,6 @@ pub enum MirTypeBridgeSectionError {
     OldCallablePartition(StrongCallableDefinitionOwner),
     SelectedCurrentProvider,
     SelectedClosure,
-    SelectionIdentityExhausted,
     ArithmeticOverflow,
 }
 macro_rules! from_error {

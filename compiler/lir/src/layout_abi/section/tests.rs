@@ -63,24 +63,11 @@ fn nested_layout_use_selects_the_unique_terminal_record() {
     )
     .unwrap();
     let target = LayoutAbiSemanticTargetV1::Layout(remote_layout);
-    let reference = selected.selected().reference(remote, target).unwrap();
-    assert_eq!(
-        selected.selected().relation(reference).unwrap().target(),
-        target
-    );
     assert!(matches!(
-        selected.selected().resolve(reference),
+        selected.selected().record(remote, target),
         Some(LayoutAbiSemanticRecordV1::Layout(record))
             if record == terminal.layouts().get(remote_layout).unwrap()
     ));
-
-    let other = section(
-        empty_exports(cone("other-consumer")),
-        &dependencies,
-        &[LayoutAbiDependencyV1::new(remote, target)],
-    )
-    .unwrap();
-    assert!(other.selected().relation(reference).is_none());
 }
 
 #[test]

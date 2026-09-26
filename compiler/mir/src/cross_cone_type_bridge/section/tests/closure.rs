@@ -21,18 +21,9 @@ fn source_shape_request_closes_all_helpers_and_resolves_terminal_records() {
         .section(&[provider_section.dependency_view()], &graph)
         .unwrap();
     assert_eq!(consumer_section.selected().len(), 5);
-    let reference = consumer_section
-        .selected()
-        .reference(provider.provider, provider.type_use().target())
-        .unwrap();
     assert!(
-        matches!(consumer_section.selected().resolve(reference), Some(MirTypeBridgeSemanticRecordV1::Type(record)) if record.exact() == provider.types.payload.id())
+        matches!(consumer_section.selected().record(provider.provider, provider.type_use().target()), Some(MirTypeBridgeSemanticRecordV1::Type(record)) if record.exact() == provider.types.payload.id())
     );
-    let again = consumer
-        .section(&[provider_section.dependency_view()], &graph)
-        .unwrap();
-    assert!(again.selected().resolve(reference).is_none());
-    assert!(again.selected().relation(reference).is_none());
 }
 
 #[test]

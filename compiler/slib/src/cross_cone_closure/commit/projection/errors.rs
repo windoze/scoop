@@ -13,9 +13,6 @@ pub enum CrossConeMirSelectionProjectionError {
     MissingProvider {
         provider: ConeIdentity,
     },
-    ProviderCertificateMismatch {
-        provider: ConeIdentity,
-    },
     MissingExport {
         provider: ConeIdentity,
         declaration: DependencyCallableDeclarationId,
@@ -44,10 +41,6 @@ impl fmt::Display for CrossConeMirSelectionProjectionError {
             Self::MissingProvider { provider } => write!(
                 formatter,
                 "dependency HIR selection names provider {provider} outside the committed closure"
-            ),
-            Self::ProviderCertificateMismatch { provider } => write!(
-                formatter,
-                "dependency HIR selection carries a stale certificate for provider {provider}"
             ),
             Self::MissingExport {
                 provider,
@@ -91,7 +84,6 @@ impl std::error::Error for CrossConeMirSelectionProjectionError {
             Self::Selection(source) => Some(source),
             Self::ConsumerMismatch { .. }
             | Self::MissingProvider { .. }
-            | Self::ProviderCertificateMismatch { .. }
             | Self::MissingExport { .. }
             | Self::ImplementationMismatch { .. }
             | Self::SignatureMismatch { .. } => None,

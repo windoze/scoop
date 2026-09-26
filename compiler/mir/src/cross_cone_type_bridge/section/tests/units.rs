@@ -27,12 +27,8 @@ fn selected_initialization_unit_retains_both_callable_definitions() {
     let mut expected = vec![relation, core_fixture.type_use()];
     expected.sort_unstable();
     assert_eq!(section.selected().relations().collect::<Vec<_>>(), expected);
-    let reference = section
-        .selected()
-        .reference(relation.provider(), relation.target())
-        .unwrap();
     assert!(
-        matches!(section.selected().resolve(reference), Some(MirTypeBridgeSemanticRecordV1::InitializationUnit(record)) if record.unit() == unit)
+        matches!(section.selected().record(relation.provider(), relation.target()), Some(MirTypeBridgeSemanticRecordV1::InitializationUnit(record)) if record.unit() == unit)
     );
 }
 

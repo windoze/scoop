@@ -24,7 +24,7 @@ impl<'s, 'p> Selection<'s, 'p> {
         target: LayoutAbiSemanticTargetV1,
     ) -> bool {
         match self {
-            Self::Complete(value) => value.reference(provider, target).is_some(),
+            Self::Complete(value) => value.record(provider, target).is_some(),
             Self::Replayed(value) => value
                 .selected_relations()
                 .binary_search(&LayoutAbiDependencyV1::new(provider, target))

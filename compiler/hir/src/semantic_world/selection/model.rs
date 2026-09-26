@@ -10,9 +10,9 @@ use scoop_identity::{
 
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, DirectImportedTargetBinding,
-    ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    ImportedProviderCertificate, ImportedTarget, ParamFreeNominalCallableV1,
-    PropertyInterfaceRecordV1, SourceRecord, TypeAliasInterfaceRecordV1,
+    ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedTarget,
+    ParamFreeNominalCallableV1, PropertyInterfaceRecordV1, SourceRecord,
+    TypeAliasInterfaceRecordV1,
 };
 
 #[derive(Clone, Debug)]
@@ -58,7 +58,7 @@ impl<'a> ImportedDependencyDefinitionSource<'a> {
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyCallableCandidate {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: Option<ParamFreeNominalCallableV1>,
@@ -72,11 +72,7 @@ impl ImportedDependencyCallableCandidate {
     }
 
     pub const fn provider(&self) -> ConeIdentity {
-        self.certificate.identity()
-    }
-
-    pub const fn certificate(&self) -> &ImportedProviderCertificate {
-        &self.certificate
+        self.provider
     }
 
     pub const fn interface(&self) -> &CallableInterfaceRecordV1 {
@@ -115,7 +111,7 @@ impl ImportedDependencyCallableCandidate {
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyConstantCandidate {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) record: ExportConstValueV1,
     pub(super) exact_type: Option<PersistentExactTypeId>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
@@ -127,7 +123,7 @@ pub struct ImportedDependencyConstantCandidate {
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyPropertyCandidate {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) interface: PropertyInterfaceRecordV1,
 }
 
@@ -138,7 +134,7 @@ pub struct ImportedDependencyPropertyCandidate {
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyTypeAliasCandidate {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) interface: TypeAliasInterfaceRecordV1,
     pub(super) expansion: SignatureTypeKey,
 }
@@ -149,11 +145,7 @@ impl ImportedDependencyTypeAliasCandidate {
     }
 
     pub const fn provider(&self) -> ConeIdentity {
-        self.certificate.identity()
-    }
-
-    pub const fn certificate(&self) -> &ImportedProviderCertificate {
-        &self.certificate
+        self.provider
     }
 
     pub const fn interface(&self) -> &TypeAliasInterfaceRecordV1 {
@@ -175,11 +167,7 @@ impl ImportedDependencyPropertyCandidate {
     }
 
     pub const fn provider(&self) -> ConeIdentity {
-        self.certificate.identity()
-    }
-
-    pub const fn certificate(&self) -> &ImportedProviderCertificate {
-        &self.certificate
+        self.provider
     }
 
     pub const fn interface(&self) -> &PropertyInterfaceRecordV1 {
@@ -203,11 +191,7 @@ impl ImportedDependencyConstantCandidate {
     }
 
     pub const fn provider(&self) -> ConeIdentity {
-        self.certificate.identity()
-    }
-
-    pub const fn certificate(&self) -> &ImportedProviderCertificate {
-        &self.certificate
+        self.provider
     }
 
     pub const fn record(&self) -> &ExportConstValueV1 {
@@ -240,7 +224,7 @@ pub struct ImportedDependencyCallableRef {
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyCallable {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: ParamFreeNominalCallableV1,
@@ -256,11 +240,7 @@ impl SelectedImportedDependencyCallable {
     }
 
     pub const fn provider(&self) -> ConeIdentity {
-        self.certificate.identity()
-    }
-
-    pub const fn certificate(&self) -> &ImportedProviderCertificate {
-        &self.certificate
+        self.provider
     }
 
     pub const fn interface(&self) -> &CallableInterfaceRecordV1 {
@@ -284,18 +264,14 @@ impl SelectedImportedDependencyCallable {
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyConstant {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) record: ExportConstValueV1,
     pub(super) exact_type: PersistentExactTypeId,
 }
 
 impl SelectedImportedDependencyConstant {
     pub const fn provider(&self) -> ConeIdentity {
-        self.certificate.identity()
-    }
-
-    pub const fn certificate(&self) -> &ImportedProviderCertificate {
-        &self.certificate
+        self.provider
     }
 
     pub const fn record(&self) -> &ExportConstValueV1 {
@@ -327,18 +303,14 @@ pub struct ImportedDependencyTypeAliasRef {
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyTypeAlias {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) provider: ConeIdentity,
     pub(super) interface: TypeAliasInterfaceRecordV1,
     pub(super) expansion: SignatureTypeKey,
 }
 
 impl SelectedImportedDependencyTypeAlias {
     pub const fn provider(&self) -> ConeIdentity {
-        self.certificate.identity()
-    }
-
-    pub const fn certificate(&self) -> &ImportedProviderCertificate {
-        &self.certificate
+        self.provider
     }
 
     pub const fn interface(&self) -> &TypeAliasInterfaceRecordV1 {
