@@ -71,26 +71,6 @@ impl CanonicalHirFoundation {
         foundation.set_native_boundary_types(native_boundary_types.records().to_vec())?;
         Ok(foundation)
     }
-
-    /// Completes the sparse source-point tables with every position embedded
-    /// in the already-projected cross-Cone definition-source table.
-    ///
-    /// The cross-Cone interface is projected after the identity foundation
-    /// because its external-reference closure needs that typed authority.
-    /// Calling this method closes the one intentional construction cycle
-    /// before either product is serialized or validated as an artifact.
-    pub fn complete_cross_cone_source_points(
-        &mut self,
-        export: &ExportHir,
-        required: &crate::CanonicalExportDefinitionSourcesV1,
-    ) -> Result<(), HirFoundationBuildError> {
-        self.set_sources(source_records(
-            &export.source_files,
-            &self.definition_origins,
-            required.sources(),
-            &self.sources,
-        )?)
-    }
 }
 
 fn project_nominals(

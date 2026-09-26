@@ -2,7 +2,7 @@
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, DefaultBodyReferenceOccurrenceV1,
     DefaultCallableReferenceTargetViewV1 as View, DefaultSourceNestedCallablesV1,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
+    ExportDefaultTemplateV1,
 };
 use scoop_wire::WirePath;
 
@@ -13,7 +13,7 @@ mod occurrences;
 mod targets;
 pub use errors::CrossConeHirDefaultCallableAccessError;
 type Error = CrossConeHirDefaultCallableAccessError;
-type Nested<'a> = DefaultSourceNestedCallablesV1<'a, ExportDefaultTemplateKeyV1>;
+type Nested<'a> = DefaultSourceNestedCallablesV1<'a>;
 
 struct Context<'r, 'body> {
     nested: &'r Nested<'body>,

@@ -1604,7 +1604,7 @@ M23-6 的共有 HIR 接口 `/22` 保留 struct 的实际 `@CLayout`、`@Interior
 
 共有 HIR `cross-cone-interface/23` 明确此默认值依赖合同，保留默认值既有字段及 `SourceDeclaration` tag 3，不增加或复用 tag；`/21` 及更早版本退役，旧产物和缓存须重建。profile fingerprint 按实际 descriptor 更新，runtime C ABI、String 表示与 GC 契约保持。读取边界核对源码上下文及位置后，实例化复用同一不可变记录，保留定义位置与调用处求值位置。
 
-跨 Cone 名称、类型、成员和默认参数语义由实际声明及 typed IR 表达。独立的 foundation/declaration source transcript 及其逐层绑定结果不构成语言输入或调用资格；生产路径未使用的来源工厂、绑定包装和专用证明测试应移除。实际名称解析、可见性、默认值实例化与声明身份规则继续由对应前端实现负责。
+跨 Cone 名称、类型、成员和默认参数语义由实际声明及 typed IR 表达。独立的 foundation/declaration source transcript 及其逐层绑定结果不构成语言输入或调用资格；生产路径未使用的来源工厂、绑定包装和专用证明测试应移除。实际名称解析、可见性、默认值实例化与声明身份规则继续由对应前端实现负责。 默认值的源码位置和声明引用属于同一完整 HIR，不要求为位置收集另建一套默认值或访问凭证。
 
 外部调用与布局引用使用实际 provider、typed target、完整 ABI、符号和定义记录。共有 Link 消费检查实际 undefined relocation 的符号、目标和覆盖关系；Code fingerprint 记录影响代码的依赖，member/range/offset 等物理位置按 Link 合同处理。同一次编译的完整 IR 和已验证依赖直接用于发布；不再保留独立 core requirement 闭包、来源资格或发布时分别重放 Compile/Link 的证明链。provider 拥有实际 body 和 Strong definition，re-export 仅引用已有声明。
 

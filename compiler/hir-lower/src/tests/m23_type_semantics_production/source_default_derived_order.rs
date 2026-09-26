@@ -32,26 +32,22 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     .find(|(_, f)| f.name == *name)
                     .unwrap()
                     .0;
-                let production = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
-                    output,
-                    hir::ExportParameterOwner::Function(id),
-                    2,
-                )
-                .unwrap();
+                let production =
+                    default_expression(output, hir::ExportParameterOwner::Function(id), 2);
                 let role = if *name == "closure" {
                     "Lambda"
                 } else {
                     "DerivedEquality"
                 };
                 let references = production
-                    .references()
-                    .callables()
+                    .references
+                    .callables
                     .iter()
-                    .filter(|r| match r.target() {
-                        hir::ExportDefaultCallableTargetV1::DerivedEquality { .. } => {
+                    .filter(|r| match r.target {
+                        hir::ExportDefaultCallableTarget::DerivedEquality(_) => {
                             role == "DerivedEquality"
                         }
-                        hir::ExportDefaultCallableTargetV1::Lambda { .. } => role == "Lambda",
+                        hir::ExportDefaultCallableTarget::Lambda(_) => role == "Lambda",
                         _ => false,
                     })
                     .count();
@@ -64,20 +60,19 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     .iter()
                     .find(|(_, c)| c.name == "Holder")
                     .unwrap();
-                let production = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
+                let production = default_expression(
                     output,
                     hir::ExportParameterOwner::ClassConstructor(holder.constructors[0]),
                     0,
-                )
-                .unwrap();
+                );
                 assert_eq!(
                     production
-                        .references()
-                        .callables()
+                        .references
+                        .callables
                         .iter()
                         .filter(|r| matches!(
-                            r.target(),
-                            hir::ExportDefaultCallableTargetV1::DerivedEquality { .. }
+                            r.target,
+                            hir::ExportDefaultCallableTarget::DerivedEquality(_)
                         ))
                         .count(),
                     1
@@ -109,4 +104,23 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
             );
         });
     }
+}
+
+fn default_expression(
+    output: &hir::DependencyHirOutput,
+    owner: hir::ExportParameterOwner,
+    position: usize,
+) -> &hir::ExportDefaultExpr {
+    let export = output.output().export.module();
+    let parameters = export
+        .source_parameter_interfaces
+        .iter()
+        .find(|source| source.owner == owner)
+        .unwrap();
+    let hir::ExportParameterCalling::Default { source, .. } =
+        parameters.parameters[position].calling
+    else {
+        panic!("the fixture parameter has a default expression")
+    };
+    &export.export_default_exprs[export.export_default_sources[source].expression]
 }

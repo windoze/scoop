@@ -3,7 +3,7 @@ use super::*;
 use DefaultSourceNestedCallableDescriptorV1 as Descriptor;
 use DefaultSourceNestedCallableQueryError as Error;
 
-impl<'a, K: Copy> DefaultSourceNestedCallablesV1<'a, K> {
+impl<'a> DefaultSourceNestedCallablesV1<'a> {
     /// Membership supplies no occurrence-dependent ABI or capture facts.
     pub fn require_local_declaration(
         &self,

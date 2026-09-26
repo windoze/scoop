@@ -7,6 +7,8 @@ mod binder_uses;
 mod body;
 mod declaration_contract;
 mod locals;
+mod nested_references;
+pub use nested_references::*;
 mod receiver;
 mod references;
 mod roots;

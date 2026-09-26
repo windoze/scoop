@@ -1,14 +1,9 @@
 use super::*;
 use scoop_identity::ExactTypeKey;
-use scoop_wire::WirePath;
-
-mod default_sources;
 
 impl CanonicalHirFoundation {
-    /// M23-6 source authority needs the exact type of every generated nominal
-    /// in the same sealed HIR, including an otherwise unused object backing
-    /// class, and all source parameter/default-body origins before materialization.
-    /// Ordinary source identities are supplied by the shared foundation projection.
+    /// Completes exact identities for generated nominal representations.
+    /// Shared interface construction supplies all required source positions.
     pub fn from_type_semantics_output(
         output: &crate::DependencyHirOutput,
     ) -> Result<Self, HirFoundationBuildError> {
@@ -29,23 +24,6 @@ impl CanonicalHirFoundation {
             insert_identity(&mut exacts, &exact, HirFoundationTable::ExactType)?;
         }
         foundation.set_exact_types(exacts.into_values().collect())?;
-        let export = &output.output().export;
-        let mut parameters = export
-            .source_parameter_interfaces
-            .iter()
-            .flat_map(|interface| &interface.parameters)
-            .map(|parameter| {
-                crate::production::project_definition_source(export, parameter.origin)
-                    .map_err(HirFoundationBuildError::SourceParameterOrigin)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        default_sources::collect(output, &mut parameters)?;
-        foundation.set_sources(source_records(
-            &export.source_files,
-            &foundation.definition_origins,
-            &parameters,
-            &foundation.sources,
-        )?)?;
         Ok(foundation)
     }
 }

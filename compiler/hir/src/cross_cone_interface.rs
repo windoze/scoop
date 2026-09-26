@@ -268,6 +268,10 @@ pub(crate) use default_templates::{
     DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,
     DefaultBodyValidationInputV1,
 };
+pub use default_templates::{
+    DefaultSourceNestedCallableDescriptorV1, DefaultSourceNestedCallableOccurrenceV1,
+    DefaultSourceNestedCallableQueryError, DefaultSourceNestedCallablesV1,
+};
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceSemanticAuthority,

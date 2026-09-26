@@ -838,8 +838,6 @@ pub enum HirFoundationBuildError {
     },
     UnknownCrossConeDefinitionSource(SourceIdentity),
     SourceParameterOrigin(crate::HirDefinitionSourceProjectionError),
-    DefaultSourceProduction(Box<crate::NominalDefaultSourceProductionError>),
-    DefaultSourceResource(scoop_wire::WireError),
     SourcePointResource(scoop_wire::WireError),
     SourceCallableReference(Box<crate::DefaultEntityProjectionError>),
     IdentityDerivation {
@@ -905,10 +903,6 @@ impl fmt::Display for HirFoundationBuildError {
             Self::SourceParameterOrigin(error) => {
                 write!(formatter, "cannot project source parameter origin: {error}")
             }
-            Self::DefaultSourceProduction(error) => {
-                write!(formatter, "cannot project default source origins: {error}")
-            }
-            Self::DefaultSourceResource(error) => error.fmt(formatter),
             Self::SourcePointResource(error) => error.fmt(formatter),
             Self::SourceCallableReference(error) => write!(
                 formatter,

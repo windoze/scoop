@@ -56,7 +56,6 @@ fn ordinary_reader_binds_nested_default_identities_from_published_bytes() {
         let mut expanded_arguments = false;
         for template in templates {
             let nested = template.index_nested_callables(&WirePath::root()).unwrap();
-            assert_eq!(nested.template(), template.key());
             for occurrence in nested.occurrences() {
                 let descriptor = occurrence.descriptor();
                 kinds[match descriptor {

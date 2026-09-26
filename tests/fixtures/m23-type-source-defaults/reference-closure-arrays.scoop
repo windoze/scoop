@@ -1,5 +1,0 @@
-public fun closureArray(vararg values: Int): Array<Int> = values
-public class ClosureArrayHost {
-    internal fun arrays(seed: Array<Int>, value: Array<Int> = closureArray(1, *seed, 2)): Array<Int> = value
-}
-fun main() {}

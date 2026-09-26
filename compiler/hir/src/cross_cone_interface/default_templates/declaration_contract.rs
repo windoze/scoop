@@ -6,9 +6,9 @@ use scoop_identity::{CallableTemplateOrigin, Effect, SignatureTypeKey, Structura
 
 use crate::{
     CanonicalBinderUseListV1, CanonicalBooleanV1, CanonicalTemplateLocalTableV1,
-    CanonicalTemplateValueParametersV1, DefaultSourceTemplateV1,
-    DefaultTemplateProviderParameterV1, DefaultTemplateProviderShapeV1, ExportDefaultBodyV1,
-    ExportDefaultTemplateV1, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
+    CanonicalTemplateValueParametersV1, DefaultTemplateProviderParameterV1,
+    DefaultTemplateProviderShapeV1, ExportDefaultBodyV1, ExportDefaultTemplateV1,
+    OptionalTemplateReceiverV1, PersistentLexicalRootV1,
 };
 
 mod envelope;
@@ -53,7 +53,7 @@ impl<'a> DefaultTemplateDeclarationContractV1<'a> {
     }
 }
 
-/// The parameter, receiver and binder fields shared by both source surfaces.
+/// The parameter, receiver and binder fields of the shared default template.
 /// Borrowing this view does not validate the default body or its references.
 pub struct DefaultTemplateContractViewV1<'a> {
     owner: CallableTemplateOrigin,
@@ -69,25 +69,20 @@ pub struct DefaultTemplateContractViewV1<'a> {
     body: &'a ExportDefaultBodyV1,
 }
 
-macro_rules! contract_view {
-    ($($template:ty),+ $(,)?) => { $(
-        impl<'a> From<&'a $template> for DefaultTemplateContractViewV1<'a> {
-            fn from(template: &'a $template) -> Self {
-                Self {
-                    owner: template.key().owner(),
-                    position: template.key().parameter_position(),
-                    root: template.definition_root(),
-                    definition_path: template.definition_path(),
-                    mapping: template.type_parameters(),
-                    locals: template.locals(),
-                    receiver: template.receiver(),
-                    value_parameters: template.value_parameters(),
-                    result: template.result(),
-                    allows_suspend: template.allows_suspend(),
-                    body: template.body(),
-                }
-            }
+impl<'a> From<&'a ExportDefaultTemplateV1> for DefaultTemplateContractViewV1<'a> {
+    fn from(template: &'a ExportDefaultTemplateV1) -> Self {
+        Self {
+            owner: template.key().owner(),
+            position: template.key().parameter_position(),
+            root: template.definition_root(),
+            definition_path: template.definition_path(),
+            mapping: template.type_parameters(),
+            locals: template.locals(),
+            receiver: template.receiver(),
+            value_parameters: template.value_parameters(),
+            result: template.result(),
+            allows_suspend: template.allows_suspend(),
+            body: template.body(),
         }
-    )+ };
+    }
 }
-contract_view!(ExportDefaultTemplateV1, DefaultSourceTemplateV1);

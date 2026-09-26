@@ -178,40 +178,12 @@ fn standalone_validation_is_distinct_from_body_ordinal_zero_and_each_body_restar
     );
 }
 
-// Raw transport fixtures exercise traversal only; the empty reference envelope
-// deliberately does not claim source closure or semantic authority.
+// The nested index must visit the same body occurrences as semantic validation.
 pub(super) fn assert_source_index_order(
     template: &ExportDefaultTemplateV1,
     authority: &AuthoritySet,
 ) {
-    let source = crate::DefaultSourceTemplateV1::try_new(
-        crate::ProtectedDefaultTemplateKeyV1::try_new(
-            template.key().owner(),
-            template.key().parameter_position(),
-        )
-        .unwrap(),
-        template.definition_root(),
-        template.definition_path().clone(),
-        template.locals().clone(),
-        template.body().clone(),
-        template.result().clone(),
-        template.allows_suspend(),
-        template.type_parameters().clone(),
-        template.receiver().clone(),
-        template.value_parameters().clone(),
-        crate::DefaultSourceReferencesV1::try_new(
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap(),
-        template.definition_origin().clone(),
-    )
-    .unwrap();
-    let index = source.index_nested_callables(&WirePath::root()).unwrap();
+    let index = template.index_nested_callables(&WirePath::root()).unwrap();
     let queried = authority
         .sites
         .iter()

@@ -7,10 +7,12 @@ fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
 }
 
 pub(super) fn identity_closure(output: &hir::DependencyHirOutput) -> ValidatedIdentityGraph {
-    identity_closure_for_foundation(
-        output,
-        hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap(),
-    )
+    let mut foundation = hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap();
+    let interface = public_interface(output);
+    foundation
+        .complete_cross_cone_interface_source_points(output.output().export.module(), &interface)
+        .unwrap();
+    identity_closure_for_foundation(output, foundation)
 }
 
 pub(super) fn identity_closure_for_foundation(

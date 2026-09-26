@@ -1,5 +1,0 @@
-literal[0]: locals=, parameters=0, binders=0, inherited=false
-local[1]: locals=Parameter { declaration_index: 0 };LocalDeclaration { path: StructuralDefinitionPath([StructuralPathSegment { site_role: DefaultValue, ordinal: 0 }, StructuralPathSegment { site_role: LocalDeclaration, ordinal: 0 }]) };Synthetic { path: StructuralDefinitionPath([StructuralPathSegment { site_role: DefaultValue, ordinal: 0 }, StructuralPathSegment { site_role: SyntheticValue, ordinal: 0 }]), role: Temporary }, parameters=1, binders=0, inherited=false
-SourceBase.choose[1]: locals=This;Parameter { declaration_index: 0 }, parameters=1, binders=0, inherited=false
-SourceBase.callback[1]: locals=This;Parameter { declaration_index: 0 }, parameters=1, binders=0, inherited=false
-SourceChild.choose[1]: locals=This;Parameter { declaration_index: 0 }, parameters=1, binders=0, inherited=true

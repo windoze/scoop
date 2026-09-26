@@ -9,7 +9,6 @@ use super::{CrossConeTypeSemanticsProductionError as Error, *};
 use crate::*;
 
 mod authority_projection;
-pub(super) use authority_projection::all_nominals;
 mod materialization;
 mod representation;
 mod source_foundation;

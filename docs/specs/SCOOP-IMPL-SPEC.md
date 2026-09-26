@@ -760,7 +760,7 @@ program/image pointer链**不能**保活无符号`__LLVM_STACKMAPS,__llvm_stackm
 
 - M23-6 的 HIR type/inheritance producer 从同一份已解析成员与继承选择生成完整槽契约：每个 schema 中的 typed slot 恰有一个根声明、完整签名、访问域及 `Abstract | Concrete | InterfaceDefault` 实现。基类槽顺序、final override 和接口最具体实现选择复用普通 HIR 结果；getter/setter 保持不同声明角色，private interface helper 不进入槽表。槽根的访问域不随实现 owner 收窄。产出随后经过共有的声明、继承、签名和 metadata 回读验证，不另建 core 专用派发规则。
 - 同一生产入口输出 protected 方法、属性、accessor、构造及递归嵌套声明；public/protected 构造从共有源码构造记录投影，不从 public lookup 表反推所需接口。每个具体 owner 的继承记录保留完整 protected member 引用，generic nested 声明仅保存源码接口。参数协议按实际声明身份去重，来源表由实际表示、继承、protected 声明、参数及默认值字段精确收集；producer 与 reader 共用同一个递归来源遍历，不能遗漏 private setter 或 nested support 中的来源，也不能把未使用来源整表加入。
-- 类型接口的默认参数必须同时产出完整正文和六类引用，复用共有 source default 投影与正文 occurrence/receiver 索引。只投影该接口实际参数协议所需的模板；继承默认值保留原声明的 root、path、binder 和正文来源，发布 key 及直接调用域取当前声明，根槽域取完整已解析槽契约。相同 target 与 definition origin 的引用合并表达式使用位置，metadata 引用保留为空使用序列，不能伪造表达式位置。generic nominal 的默认值保持源码 metadata 身份，不据此授予具体执行能力；这些字段继续经过共有正文、引用闭包和参数协议校验，不增加独立来源授权框架。
+- 类型接口的默认参数使用共有源码参数协议、完整 typed 正文与实际声明引用。只投影接口实际需要的模板；继承默认值保留原声明的 root、path、binder 和正文来源，发布 key 取当前声明，访问规则由前端依实际声明检查。源码位置取共有正文及其完整定义记录，不构造独立 source default 副本、访问证明或第二份 occurrence/receiver 索引。generic nominal 的默认值保留源码类型参数，实际物化继续遵循所在阶段的泛型规则。
 - MIR 为每个具体类型建立 **vtable**（类层次分派）与 **itable**（接口分派）；标注 call kind 时，virtual / interface call 的 target 指向对应 table entry，direct call 指向具体函数符号。
 - 表的内容由 MIR 定义，由 codegen 以数据形式发射，并从 `TypeDescriptor` 引用：TypeDescriptor 内嵌 vtable 指针与 itable 数组（见 runtime spec 2.2）。vtable从slot 0开始只包含真实virtual成员并允许为空；`Any`无成员，不预留equals/hash/toString前缀。`ToString`/`Hash`及interface operator equals走普通itable，open class equals走普通vtable。
 - **引用 receiver 的直接适配**：class override及interface default表项可直接引用声明owner不同的目标方法。跨Cone schema必须显式保存`Identity | ReferenceDispatch`适配种类；后者以该表的exact implementor为起点，在同一typed继承/接口/Object→backing图中分别证明slot receiver与target receiver可达，二者均须是引用类型。验证器重建最短路径，同长路径按完整exact-id序列的canonical bytes排序取最小者；wire不保存任意可选路径。参数、结果、execution及GC合同仍须逐项相等；这不是按LLVM pointer形状接受不同signature，也不允许把value receiver作为引用直接传入。所有需要payload读取、值copy或其他实际变换的情况仍使用既有typed adjust thunk。
@@ -883,6 +883,8 @@ M23-6 的 Link strong requirement 按实际 relocation 在共有分类步骤中�
 嵌套声明的源码 payload 只保留实际声明身份与完整源码接口，不重复携带可由该身份推导的 inheritance exact、representation owner 或泛型/非泛型资格标志。是否存在机器表示由同一产物的实际 representation、inheritance、MIR 与 LIR 表表达；源码完整但尚未物化的声明仍可正常发布。reader 在这些表的消费边界检查引用与表示一致性，不因解析嵌套源码声明再次完整验证同一表示。原 payload 的 field 3 退役且不得复用；HIR `cross-cone-type-semantics` capability 升至 5，旧产物按版本规则重建，runtime C ABI 不变。producer 的类型事实与表示投影必须覆盖共有声明接口中实际需要的私有存储与嵌套支持类型，不能只依据 public binding 根的局部列表。
 
 共有源码接口保存所有必要声明的参数协议、typed 默认值正文和定义环境，protected、private 与默认值支持声明使用同一记录。type-semantics section 不再复制受限参数协议、默认值或来源并集；原 field 5、6、7 退役，现有 field 1～4、8 保持原编号。前端完成语言与可见性检查，reader 核对已有正文的编码、typed 引用与 owner/binder 关系，不再生成 ParamFree/GenericSourceMetadata 资格、逐正文访问证明或独立完整重放。源码完整但无运行时表示的类型可以参与默认参数声明；实际物化时按 typed 声明处理。此次格式变化纳入 cross-cone-type-semantics/5，旧产物需重建，runtime C ABI 不变。
+
+源码位置由共有接口的 definition_sources、call_sites、type_sites 与已有全局定义记录汇集，不能为收集位置重建独立默认值正文、参数协议或访问证明。删除 NominalDefaultSourceProductionV1、DefaultSourceBodyProductionV1 及旧 DefaultSourceTemplate／References／Access 数据模型、适配器和专用测试；生产路径直接复用共有接口的完整默认值及位置收集。必要的来源位置、typed 引用、可见性、参数与 binder 规则仍保留。旧模型已不属于正常产物字段，此清理不增加格式分支或改变 runtime ABI；内容 fingerprint 依实际产物数据计算。
 
 本节落实语言规范 12.6 和运行时规范的表示、调用及登记契约。实施清单见 [M23-6 清理设计](../milestone23/stage6/CORE-AUTHORITY-CLEANUP.md)，实际功能范围见 [M23-6 设计](../milestone23/stage6/DESIGN.md)。
 

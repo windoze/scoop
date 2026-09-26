@@ -103,23 +103,19 @@ fn functions(output: &hir::DependencyHirOutput, names: &[&str]) -> String {
     result
 }
 
-fn check(output: &hir::DependencyHirOutput, owner: hir::ExportParameterOwner, position: u32) {
-    let source =
-        hir::DefaultSourceBodyProductionV1::from_dependency_hir(output, owner, position).unwrap();
+fn check(output: &hir::DependencyHirOutput, owner: hir::ExportParameterOwner, position: usize) {
+    let source = default_expression(output, owner, position);
     let references = source
-        .references()
-        .callables()
+        .references
+        .callables
         .iter()
         .filter(|r| {
             matches!(
-                r.target(),
-                hir::ExportDefaultCallableTargetV1::DerivedEquality { .. }
+                r.target,
+                hir::ExportDefaultCallableTarget::DerivedEquality(_)
             )
         })
         .collect::<Vec<_>>();
     assert_eq!(references.len(), 1);
-    assert_eq!(
-        references[0].witness().target_domain(),
-        &hir::DefaultSourceAccessDomainV1::universal()
-    );
+    assert!(references[0].witness.target_domain.is_universal());
 }
