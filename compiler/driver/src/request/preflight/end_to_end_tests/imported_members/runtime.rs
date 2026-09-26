@@ -125,6 +125,7 @@ pub(super) fn check(
                 "fromMarker",
             ],
         ),
+        (3, vec!["fromRepublished"]),
     ] {
         let (sections, link) = closure.artifact(identities[index]).unwrap();
         for export in sections.lir_cross_cone_bridge().exports() {
@@ -135,7 +136,7 @@ pub(super) fn check(
                         .identity_graph()
                         .canonical_key::<_, SourceDeclarationKey>(id)
                         .unwrap();
-                    matches!(key.name(), scoop_identity::DeclarationName::Named(name) if names.contains(&name.as_str()))
+                    matches!(key.name(), scoop_identity::DeclarationName::Named(name) if (names.contains(&name.as_str()) || (index == 2 && name.as_str() == "republished")))
                 }
                 _ => false,
             };
@@ -159,7 +160,7 @@ pub(super) fn check(
             std::fs::write(&path, object.bytes()).unwrap();
             objects.push(path);
         }
-        for name in names.into_iter().filter(|_| index == 2) {
+        for name in names.into_iter().filter(|_| index != 1) {
             let export = sections.lir_cross_cone_bridge().exports().iter().find(|export| {
                 let StrongCallableDefinitionOwner::Function(id) = export.target() else { return false; };
                 let key = sections.identity_graph().canonical_key::<_, SourceDeclarationKey>(id).unwrap();

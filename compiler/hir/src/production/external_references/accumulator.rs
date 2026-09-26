@@ -152,23 +152,6 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
         Ok(())
     }
 
-    pub(super) fn add_implicit_dependency_witnesses(
-        &mut self,
-        dependencies: &crate::SelectedImportedDependencySet,
-    ) {
-        let role = ExternalHirReferenceRoleV1::DefaultDependency;
-        for (target, pending) in &mut self.references {
-            if !pending.roles.contains(&role) || pending.witnessed_roles.contains(&role) {
-                continue;
-            }
-            let witnesses = dependencies.direct_binding_witnesses(*target);
-            if !witnesses.is_empty() {
-                pending.witnessed_roles.insert(role);
-                pending.witnesses.extend(witnesses.iter().cloned());
-            }
-        }
-    }
-
     pub(super) fn add_call_sites<E>(
         &mut self,
         output: &'authority crate::DependencyHirOutput,

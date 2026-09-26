@@ -31,10 +31,6 @@ pub enum ImportedDependencySelectionPlanBuildError {
         provider: ConeIdentity,
         context: PersistentSourceContextId,
     },
-    DirectBindingMerge {
-        declaration: CallableTemplateOrigin,
-        source: DirectImportedTargetMergeError,
-    },
 }
 
 impl fmt::Display for ImportedDependencySelectionPlanBuildError {
@@ -91,13 +87,6 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency provider {provider:?} has no HIR source context for exported definition context {context:?}"
             ),
-            Self::DirectBindingMerge {
-                declaration,
-                source,
-            } => write!(
-                formatter,
-                "dependency callable {declaration:?} has inconsistent direct binding routes: {source}"
-            ),
         }
     }
 }
@@ -108,7 +97,6 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             Self::NominalClassifier(error) => Some(error),
             Self::Classification(error) => Some(error),
             Self::Initialization(error) => Some(error),
-            Self::DirectBindingMerge { source, .. } => Some(source),
             Self::MissingNominal(_)
             | Self::MissingNominalField(_)
             | Self::DuplicateNominal(_)

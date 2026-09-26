@@ -17,7 +17,6 @@ mod members;
 mod model;
 mod nominals;
 mod properties;
-mod routes;
 pub use error::*;
 pub use intrinsics::ImportedIntrinsicCallable;
 pub use members::*;
@@ -59,7 +58,6 @@ impl ImportedDependencySelectionPlan {
         Self {
             catalog: Arc::new(DependencyCatalog {
                 nominals: BTreeMap::new(),
-                direct_binding_witnesses: Arc::new(BTreeMap::new()),
                 consumer,
                 callables: BTreeMap::new(),
                 properties: BTreeMap::new(),
@@ -325,7 +323,6 @@ impl ImportedDependencySelectionPlan {
 
     pub fn finish(self) -> SelectedImportedDependencySet {
         SelectedImportedDependencySet {
-            direct_binding_witnesses: self.catalog.direct_binding_witnesses.clone(),
             consumer: self.catalog.consumer,
             callables: self.callables,
             constants: self.constants,

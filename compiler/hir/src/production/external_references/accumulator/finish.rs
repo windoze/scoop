@@ -14,7 +14,7 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
                 if pending.roles.contains(&role)
                     && !(role == ExternalHirReferenceRoleV1::ConcreteSelectedUse
                         && !pending.call_sites.is_empty())
-                    && role.requires_source_name_witness(target)
+                    && role.requires_source_name_witness()
                     && !pending.witnessed_roles.contains(&role)
                 {
                     return Err(ExternalHirReferenceProductionError::MissingWitnessUse {

@@ -18,32 +18,17 @@ pub enum ExternalHirReferenceRoleV1 {
 }
 
 impl ExternalHirReferenceRoleV1 {
-    /// Fixed language types have no source-name lookup or export binding.
-    /// Their typed provider and actual dependency use remain required.
-    pub(crate) fn requires_source_name_witness(self, target: super::ExternalHirTargetV1) -> bool {
+    /// Only a source namespace operation requires its lookup route.
+    /// Defaults already retain their resolved declaration and definition scope.
+    pub(crate) fn requires_source_name_witness(self) -> bool {
         match self {
             Self::ReexportTarget | Self::AliasTarget | Self::ConcreteSelectedUse => true,
             Self::SignatureDependency
             | Self::ConstType
             | Self::InheritanceDependency
             | Self::ExecutableTypeDependency
-            | Self::RuntimeOperationDependency => false,
-            Self::DefaultDependency => {
-                use scoop_identity::{CoreBuiltinNominal, NominalDeclarationOwner};
-                let super::ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(id)) =
-                    target
-                else {
-                    return true;
-                };
-                static BUILTINS: std::sync::LazyLock<[scoop_identity::PersistentTypeId; 2]> =
-                    std::sync::LazyLock::new(|| {
-                        [
-                            CoreBuiltinNominal::Unit.identity_record().id(),
-                            CoreBuiltinNominal::Any.identity_record().id(),
-                        ]
-                    });
-                !BUILTINS.contains(&id)
-            }
+            | Self::RuntimeOperationDependency
+            | Self::DefaultDependency => false,
         }
     }
 }

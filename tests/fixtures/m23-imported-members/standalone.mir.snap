@@ -241,4 +241,9 @@ Module
       return
         Type Token
         Local $call.1
+  fun republished @fn12(value: Wide, selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
   output library

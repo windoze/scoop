@@ -231,7 +231,7 @@ required_manifest = [
 
 required_hir = [
   org.scoop-lang.hir/core-bootstrap-interface/3,
-  org.scoop-lang.hir/cross-cone-interface/20,
+  org.scoop-lang.hir/cross-cone-interface/21,
   org.scoop-lang.hir/identity-foundation/3,
 ]
 
@@ -265,7 +265,7 @@ validation_policy   = {
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
-| `org.scoop-lang.hir/cross-cone-interface/20` | HIR | Compile | HIR |
+| `org.scoop-lang.hir/cross-cone-interface/21` | HIR | Compile | HIR |
 | `org.scoop-lang.mir/cross-cone-param-free-bridge/2` | MIR | Compile | MIR |
 | `org.scoop-lang.lir/cross-cone-param-free-bridge/1` | LIR | Compile | LIR |
 | `org.scoop-lang.lir/cross-cone-link-closure/1` | LIR | Link | Code + LinkValidationOnly |
@@ -1623,11 +1623,13 @@ ExternalHirTargetV1 =
   | GeneratedCallable(PersistentGeneratedCallableId) // tag 8, field 1
 ```
 
-role封闭为上述六个unsigned tag，不接受0、未知tag或native boolean。`roles`至少含一个元素，按tag严格递增；producer排序后拒绝重复，reader拒绝空集、重复和非规范顺序，不得排序修复。`ReexportTarget`、`SignatureDependency`、`AliasTarget`、`DefaultDependency`与`ConstType`由fields 1～8的实际引用唯一重建；reader对这五种role的去重expected closure逐项比较，extra/missing role或错误origin均失败。`ConcreteSelectedUse`来自本次HIR lowering已经commit的`SelectedExternalSet.hir`，不在只描述export surface的fields 1～8中重复编码；producer必须把它精确并入同一target record，artifact reader把该role作为显式selected edge验证，并在MIR/LIR bridge及Link closure需要该target时逐层交叉验证，不能声称从export fields反推出本Cone的瞬时`LocalConcreteHir`。因此只含`ConcreteSelectedUse`的合法record不属于export-role extra。只有需要source-name授权的role携带binding witness；signature dependency仍须有定义方已验证的signature exposure proof，但不会因此创建下游短名。
+role封闭为上述六个unsigned tag，不接受0、未知tag或native boolean。`roles`至少含一个元素，按tag严格递增；producer排序后拒绝重复，reader拒绝空集、重复和非规范顺序，不得排序修复。`ReexportTarget`、`SignatureDependency`、`AliasTarget`、`DefaultDependency`与`ConstType`由fields 1～8的实际引用唯一重建；reader对这五种role的去重expected closure逐项比较，extra/missing role或错误origin均失败。`ConcreteSelectedUse`来自本次HIR lowering已经commit的`SelectedExternalSet.hir`，不在只描述export surface的fields 1～8中重复编码；producer必须把它精确并入同一target record，artifact reader把该role作为显式selected edge验证，并在MIR/LIR bridge及Link closure需要该target时逐层交叉验证，不能声称从export fields反推出本Cone的瞬时`LocalConcreteHir`。因此只含`ConcreteSelectedUse`的合法record不属于export-role extra。binding witness 只记录实际发生的源码名称查找；signature dependency 继续检查类型引用及可见性，不因此创建下游短名或附加调用资格。
 
 `ExternalHirTargetV1`的每个variant都编码为`{0: tag, 1: payload}`，并保持persistent id种类；不能把不同kind的相同raw bytes合并。`Callable`沿用source callable的封闭sum，因此同时覆盖ordinary/generic function、constructor、property accessor与enum variant constructor；generated callable保持独立variant，不能冒充source callable。signature、default applied owner等结构中的tuple/function/pointer/binder本身不是外部实体；闭包只收集其nominal leaf。re-export route使用的export binding属于`DependencyBindingWitnessV1`，不伪装成semantic target。callback registration、initialization unit与body-local identity由当前artifact的template拥有，不进入foreign target集合。
 
-`DependencyBindingWitnessV1`与`ReexportRouteV1`是不同的Rust语义类型，但wire逐byte复用后者已经冻结的两字段map：`1=immediate_provider, 2=non-empty hops`，不增加wrapper tag或外层field。它证明当前artifact可从一个direct provider沿完整公开route取得该target；reader仍须执行route的non-empty、first-exporter、无重复Cone/binding与closure连续性验证。`witnesses`允许为空，按完整route结构序严格递增并拒绝重复；producer排序后拒绝重复，reader不得排序或去重修复。只有`ReexportTarget`、`AliasTarget`、`DefaultDependency`和`ConcreteSelectedUse`允许且要求至少一个witness；`SignatureDependency`与`ConstType`不靠source-name授权，单独出现时witnesses必须为空。M23-6 对语言固定 Unit/Any 的 DefaultDependency 进一步按无源码名称选择处理：其 typed target、实际 provider 与默认值依赖 role 仍保留，但单独或与 SignatureDependency/ConstType 合并时不携带 binding witness；规则详见 stage6/DESIGN.md 的共有默认值访问及依赖约定，不推广到其他 CORE 声明。producer把同一target所有需source-name授权occurrence实际选择的route精确并集写入`witnesses`。reader可从field 1直接重建并要求包含每条`ReexportTarget` route；alias、default与concrete selection的source binding不在对应export record或`LocalConcreteHir`中重复保存，reader不能从target枚举所有同名/别名route来伪造“精确反推”，而是逐条验证所声明witness确实闭合到该target。若target没有`AliasTarget`、`DefaultDependency`或`ConcreteSelectedUse`，reader还必须拒绝不属于field 1 re-export route并集的额外witness。
+`DependencyBindingWitnessV1` 与 `ReexportRouteV1` 保留不同的 Rust 语义类型，wire 共用两字段 map：`1=immediate_provider, 2=non-empty hops`。它记录当前 artifact 从直接依赖沿公开转导出路径找到声明的实际查找过程；reader 检查非空路径、首个 exporter、无重复 Cone/binding、路径连续性及最终 typed target。`witnesses` 按完整路径结构序严格递增且不重复；producer 规范化，reader 拒绝非规范输入。`ReexportTarget`、`AliasTarget` 以及采用 `SourceBinding` 的 `ConcreteSelectedUse` 要求相应路径。M23-6 的 `SourceDeclaration` 调用直接使用已解析的真实声明，不伪造 namespace 查找；`DefaultDependency` 同样保留定义处的 typed target 与作用域，可以附带定义时实际发生的查找路径，但不强制消费方取得或补造一条路径。Unit、Any 及其他声明遵循同一规则。`SignatureDependency` 与 `ConstType` 单独出现时没有名称查找路径。
+
+producer 将同一 target 实际使用的查找路径合并到 `witnesses`，不保存另一份全依赖路径表。reader 从 re-export 字段检查其实际路径已包含在内，再逐条核对其他已记录路径；不根据 target、同名或别名枚举路径，也不以路径存在授予调用资格。未发生相关查找的记录不能附加无关路径；实际成员选择、默认参数实例化、类型及可见性继续由对应的语言规则决定。
 
 witness terminal按target canonical key推导出的唯一`BindingTarget`公开根比较，而不是把不同typed id按raw bytes比较：source nominal、ordinary/generic function、property、object value、typealias与enum variant constructor分别映射到自身公开binding；constructor映射到所属nominal，property accessor映射到所属property，source field映射到所属nominal，enum variant field映射到所属variant，lexical generated callable递归映射到最近的source callable/constructor/accessor/variant constructor公开根。没有唯一public source root的generated identity或field不能携带dependency witness。该根同时冻结`namespace + target + role`，route每个hop都必须与三者逐项相等；第一跳必须属于当前Cone direct dependency，terminal必须是定义方`DeclaredCurrent`，每个中间hop必须在对应provider surface中发布完全相同的剩余suffix，route长度不得超过closure node count。
 

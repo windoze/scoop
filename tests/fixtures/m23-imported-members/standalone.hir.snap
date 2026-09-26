@@ -142,4 +142,7 @@ Module
       ImportedDependencyCall #7 : Token
         Local $dependency.parameter.value : Nested
         Local $dependency.parameter.marker : Token
+  fun republished(value: Wide, selected: Long): Long <no-gc cdecl>
+    return
+      Local selected : Long
   output library

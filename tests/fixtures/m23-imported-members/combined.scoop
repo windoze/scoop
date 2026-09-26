@@ -34,3 +34,5 @@ public val Wide.first: Long
 @NoGC public fun fromMember(value: Wide): Long = defaultMember(value = value.copyWide())
 @NoGC public fun fromProperty(value: Wide): Long = defaultProperty(value.copyWide())
 @NoGC public fun fromMarker(value: Nested): Token = defaultMarker(value)
+
+@NoGC public fun republished(value: Wide, selected: Long = value.copyWide().first): Long = selected

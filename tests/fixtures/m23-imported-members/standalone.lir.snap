@@ -165,4 +165,7 @@ Module
     call no-gc-elided-zst-target0 t1 = sig=elided-zst0 (indirect<struct2 size=24 align=8 scan=none>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> external-fn7(indirect local4, elided-zst local2)
     store t1 -> local3
     ret local3
+  fun @scoop$1$cb$9ac4de9091cbb2b868875aca26639b578485c2ce3ebf1997fdd6fbdc09e709d1(indirect<struct1 size=24 align=8 scan=none>, i64) -> i64 <no-gc>
+  block entry
+    ret param1
   output library

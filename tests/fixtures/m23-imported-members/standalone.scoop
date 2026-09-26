@@ -22,3 +22,5 @@ import dependency.members.defaultMarker
 @NoGC public fun fromMember(value: Wide): Long = defaultMember(value)
 @NoGC public fun fromProperty(value: Wide): Long = defaultProperty(value)
 @NoGC public fun fromMarker(value: Nested): Token = defaultMarker(value)
+
+@NoGC public fun republished(value: Wide, selected: Long = value.first): Long = selected

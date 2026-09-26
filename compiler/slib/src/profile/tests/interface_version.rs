@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v20_records_direct_declaration_calls() {
+fn source_interface_v21_preserves_resolved_default_dependencies() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        20,
+        21,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

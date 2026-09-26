@@ -41,7 +41,7 @@ impl ExternalHirReferenceV1 {
         call_sites: CanonicalHirDependencyCallSitesV1,
         type_sites: CanonicalHirDependencyTypeSitesV1,
     ) -> Result<Self, ExternalHirReferenceBuildError> {
-        validate_witness_presence(target, &roles, &witnesses, &call_sites)?;
+        validate_witness_presence(&roles, &witnesses, &call_sites)?;
         validate_call_sites(target, &roles, &witnesses, &call_sites)?;
         let typed = roles.contains(super::ExternalHirReferenceRoleV1::ExecutableTypeDependency);
         if typed && type_sites.is_empty() {
@@ -207,7 +207,6 @@ impl<R, E> ExternalHirReferenceResolver<E> for R where
 }
 
 fn validate_witness_presence(
-    target: ExternalHirTargetV1,
     roles: &CanonicalExternalHirReferenceRolesV1,
     witnesses: &CanonicalDependencyBindingWitnessesV1,
     call_sites: &CanonicalHirDependencyCallSitesV1,
@@ -222,12 +221,14 @@ fn validate_witness_presence(
                 )
             })
         } else {
-            role.requires_source_name_witness(target)
+            role.requires_source_name_witness()
         }
     });
     match (requires_witness, witnesses.is_empty()) {
         (true, true) => Err(ExternalHirReferenceBuildError::MissingWitness),
-        (false, false) => Err(ExternalHirReferenceBuildError::UnexpectedWitness),
+        (false, false) if !roles.contains(super::ExternalHirReferenceRoleV1::DefaultDependency) => {
+            Err(ExternalHirReferenceBuildError::UnexpectedWitness)
+        }
         _ => Ok(()),
     }
 }

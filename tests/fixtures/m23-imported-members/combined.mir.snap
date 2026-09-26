@@ -22,7 +22,7 @@ Module
       val $dependency.parameter.other: Token
         Type Token
         Local $dependency.receiver
-      call $call.1: Token = external0 direct
+      call $call.1: Token = external1 direct
         Type Token
         Local $dependency.receiver
         Type Token
@@ -41,7 +41,7 @@ Module
       val $dependency.parameter.other: Wide
         Type Wide
         Local $dependency.argument.0
-      call copy: Wide = external1 direct
+      call copy: Wide = external0 direct
         Type Wide
         Local $dependency.receiver
         Type Wide
@@ -55,7 +55,7 @@ Module
       val $dependency.parameter.other: Wide
         Type Wide
         Local $dependency.receiver
-      call $dependency.argument.0: Wide = external1 direct
+      call $dependency.argument.0: Wide = external0 direct
         Type Wide
         Local $dependency.receiver
         Type Wide
@@ -105,7 +105,7 @@ Module
       val $dependency.parameter.other: Wide
         Type Wide
         Local $dependency.receiver
-      call $call.1: Wide = external1 direct
+      call $call.1: Wide = external0 direct
         Type Wide
         Local $dependency.receiver
         Type Wide
@@ -166,7 +166,7 @@ Module
       val $dependency.parameter.other: Wide
         Type Wide
         Local $dependency.receiver
-      call $call.1: Wide = external1 direct
+      call $call.1: Wide = external0 direct
         Type Wide
         Local $dependency.receiver
         Type Wide
@@ -241,7 +241,7 @@ Module
       val $dependency.parameter.other: Wide
         Type Wide
         Local $dependency.receiver
-      call $dependency.argument.0: Wide = external1 direct
+      call $dependency.argument.0: Wide = external0 direct
         Type Wide
         Local $dependency.receiver
         Type Wide
@@ -270,7 +270,7 @@ Module
       val $dependency.parameter.other: Wide
         Type Wide
         Local $dependency.receiver
-      call $dependency.argument.0: Wide = external1 direct
+      call $dependency.argument.0: Wide = external0 direct
         Type Wide
         Local $dependency.receiver
         Type Wide
@@ -308,7 +308,7 @@ Module
       val $dependency.parameter.other: Wide
         Type Wide
         Local $dependency.receiver
-      call $dependency.argument.0: Wide = external1 direct
+      call $dependency.argument.0: Wide = external0 direct
         Type Wide
         Local $dependency.receiver
         Type Wide
@@ -348,12 +348,17 @@ Module
       return
         Type Token
         Local $call.1
-  fun $extension.$get$first @fn14(this: Wide) -> Long <no-gc>
+  fun republished @fn14(value: Wide, selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
+  fun $extension.$get$first @fn15(this: Wide) -> Long <no-gc>
     bb0 entry
       return
         Type Long
         IntegerLiteral Long value=999 bits=0x00000000000003e7
-  fun ctor.Container.$c0 @fn15(marker: Token, payload: Wide) -> Container <no-gc>
+  fun ctor.Container.$c0 @fn16(marker: Token, payload: Wide) -> Container <no-gc>
     bb0 entry
       return
         Type Container

@@ -10,10 +10,10 @@ use super::{
     ImportedDependencyDefinitionSources, ImportedDependencySelectionPlan,
     ImportedDependencySelectionPlanBuildError,
 };
-use crate::semantic_world::{DirectImportedTargetBinding, ImportedProvider, ImportedSemanticWorld};
+use crate::semantic_world::{ImportedProvider, ImportedSemanticWorld};
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, CanonicalNominalInterfacesV1,
-    ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedTarget,
+    ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
     ParamFreeNominalCallableV1, PropertyInterfaceRecordV1, TypeAliasInterfaceRecordV1,
 };
 
@@ -55,8 +55,6 @@ pub(super) struct TypeAliasCatalogEntry {
 pub(super) struct DependencyCatalog {
     pub(super) nominals:
         BTreeMap<scoop_identity::PersistentTypeId, Arc<super::ImportedNominalDeclaration>>,
-    pub(super) direct_binding_witnesses:
-        Arc<BTreeMap<crate::ExternalHirTargetV1, Vec<crate::DependencyBindingWitnessV1>>>,
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
@@ -177,13 +175,9 @@ impl ImportedSemanticWorld<'_> {
                 }
             }
         }
-        let direct_callable_bindings = self.direct_callable_bindings()?;
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
                 nominals,
-                direct_binding_witnesses: Arc::new(
-                    self.direct_binding_witnesses(&direct_callable_bindings),
-                ),
                 consumer: self.current,
                 callables,
                 properties,
@@ -195,91 +189,6 @@ impl ImportedSemanticWorld<'_> {
             type_aliases: BTreeMap::new(),
         })
     }
-
-    fn direct_callable_bindings(
-        &self,
-    ) -> Result<
-        BTreeMap<CallableTemplateOrigin, DirectImportedTargetBinding>,
-        ImportedDependencySelectionPlanBuildError,
-    > {
-        let mut bindings = BTreeMap::new();
-        for provider in self
-            .providers
-            .iter()
-            .filter(|provider| provider.is_direct())
-        {
-            for binding in provider.public_bindings() {
-                let declarations = direct_binding_callable_declarations(provider, binding.target());
-                for declaration in declarations {
-                    let candidate = DirectImportedTargetBinding::new(
-                        binding.key().binding_target(),
-                        binding.target(),
-                        binding.conflict_key().clone(),
-                        binding.lookup_sources().to_vec(),
-                    );
-                    insert_direct_binding(&mut bindings, declaration, candidate)?;
-                }
-            }
-        }
-        Ok(bindings)
-    }
-}
-
-fn direct_binding_callable_declarations(
-    provider: &ImportedProvider<'_>,
-    target: ImportedTarget,
-) -> Vec<CallableTemplateOrigin> {
-    match target {
-        ImportedTarget::Function(id) => vec![CallableTemplateOrigin::Function(id.persistent())],
-        ImportedTarget::GenericFunction(id) => {
-            vec![CallableTemplateOrigin::GenericFunction(id.persistent())]
-        }
-        ImportedTarget::Property(id) => {
-            property_accessors(provider, PropertyOwner::Property(id.persistent()))
-        }
-        ImportedTarget::ExtensionProperty(id) => {
-            property_accessors(provider, PropertyOwner::ExtensionProperty(id.persistent()))
-        }
-        ImportedTarget::Type(_)
-        | ImportedTarget::GenericType(_)
-        | ImportedTarget::ObjectValue(_)
-        | ImportedTarget::TypeAlias(_)
-        | ImportedTarget::EnumVariant(_) => Vec::new(),
-    }
-}
-
-fn property_accessors(
-    provider: &ImportedProvider<'_>,
-    property: PropertyOwner,
-) -> Vec<CallableTemplateOrigin> {
-    let Some(property) = provider.interface().property_interfaces().get(property) else {
-        return Vec::new();
-    };
-    let capability = property.capability();
-    let mut declarations = vec![CallableTemplateOrigin::Accessor(capability.getter())];
-    declarations.extend(capability.setter().map(CallableTemplateOrigin::Accessor));
-    declarations
-}
-
-fn insert_direct_binding(
-    bindings: &mut BTreeMap<CallableTemplateOrigin, DirectImportedTargetBinding>,
-    declaration: CallableTemplateOrigin,
-    candidate: DirectImportedTargetBinding,
-) -> Result<(), ImportedDependencySelectionPlanBuildError> {
-    match bindings.entry(declaration) {
-        std::collections::btree_map::Entry::Vacant(entry) => {
-            entry.insert(candidate);
-        }
-        std::collections::btree_map::Entry::Occupied(mut entry) => {
-            entry.get_mut().try_merge(candidate).map_err(|source| {
-                ImportedDependencySelectionPlanBuildError::DirectBindingMerge {
-                    declaration,
-                    source,
-                }
-            })?
-        }
-    }
-    Ok(())
 }
 
 fn imported_definition_sources(

@@ -54,7 +54,6 @@ impl CanonicalExternalHirReferencesV1 {
             accumulator.add_witness_use(use_)?;
         }
         if let Some(output) = dependency_output {
-            accumulator.add_implicit_dependency_witnesses(output.imported_dependencies());
             accumulator.add_call_sites(output)?;
             accumulator.add_runtime_call_sites(output)?;
             accumulator.add_type_sites(output)?;

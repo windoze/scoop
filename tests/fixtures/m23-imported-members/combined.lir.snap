@@ -8,7 +8,7 @@ Module
   block entry
     store param0 -> local0
     store local0 -> local1
-    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 (elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> external-fn0(elided-zst local0, elided-zst local1)
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 (elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> external-fn1(elided-zst local0, elided-zst local1)
     store t0 -> local2
     ret local2
   fun @scoop$1$cb$7553e5d9a26d3681375b368432ab759bd2a58a4f019f7912d1f1d0a8e0084e1e(indirect<struct2 size=24 align=8 scan=none>) -> sret<struct2 size=24 align=8 scan=none> <no-gc>
@@ -37,14 +37,14 @@ Module
     store local1 -> local2
     store local0 -> local10
     store local2 -> local11
-    call no-gc-indirect-target0 local12 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local10, indirect local11)
+    call no-gc-indirect-target0 local12 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn0(indirect local10, indirect local11)
     store local12 -> local3
     store param0 -> local6
     store local3 -> local4
     store local4 -> local5
     store local4 -> local13
     store local5 -> local14
-    call no-gc-indirect-target1 local15 = sig=indirect1 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local13, indirect local14)
+    call no-gc-indirect-target1 local15 = sig=indirect1 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn0(indirect local13, indirect local14)
     store local15 -> local7
     store local7 -> local8
     store local6 -> local16
@@ -90,7 +90,7 @@ Module
     store local0 -> local1
     store local0 -> local12
     store local1 -> local13
-    call no-gc-indirect-target0 local14 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local12, indirect local13)
+    call no-gc-indirect-target0 local14 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn0(indirect local12, indirect local13)
     store local14 -> local11
     t0 = extract local11, 0 : i64
     store t0 -> local2
@@ -124,7 +124,7 @@ Module
     store local0 -> local1
     store local0 -> local6
     store local1 -> local7
-    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local6, indirect local7)
+    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn0(indirect local6, indirect local7)
     store local8 -> local5
     store local5 -> local9
     call no-gc-direct-target0 t0 = sig=direct0 (indirect<struct2 size=24 align=8 scan=none>) -> i64 external-fn4(indirect local9)
@@ -183,7 +183,7 @@ Module
     store local0 -> local1
     store local0 -> local6
     store local1 -> local7
-    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local6, indirect local7)
+    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn0(indirect local6, indirect local7)
     store local8 -> local2
     store local2 -> local3
     t0 = extract local3, 0 : i64
@@ -212,7 +212,7 @@ Module
     store local0 -> local1
     store local0 -> local9
     store local1 -> local10
-    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local9, indirect local10)
+    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn0(indirect local9, indirect local10)
     store local11 -> local2
     store local2 -> local3
     store local3 -> local4
@@ -242,7 +242,7 @@ Module
     store local0 -> local1
     store local0 -> local6
     store local1 -> local7
-    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn1(indirect local6, indirect local7)
+    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, indirect<struct2 size=24 align=8 scan=none>, indirect<struct2 size=24 align=8 scan=none>) external-fn0(indirect local6, indirect local7)
     store local8 -> local2
     store local2 -> local3
     store local3 -> local9
@@ -267,6 +267,9 @@ Module
     call no-gc-elided-zst-target0 t1 = sig=elided-zst0 (indirect<struct4 size=24 align=8 scan=none>, elided-zst<struct1 size=0 align=1>) -> elided-zst<struct1 size=0 align=1> external-fn9(indirect local4, elided-zst local2)
     store t1 -> local3
     ret local3
+  fun @scoop$1$cb$e8e7231772c132657bce951b52fbc25d32ab4b48290f18d8f113d79fb6bfa5c1(indirect<struct2 size=24 align=8 scan=none>, i64) -> i64 <no-gc>
+  block entry
+    ret param1
   fun @scoop$1$cb$80d695d5447c352bf5299611b3c273eb3fb37aec62774be97e2af0c358500cf5(indirect<struct2 size=24 align=8 scan=none>) -> i64 <no-gc>
   block entry
     ret integer<Long>(0x00000000000003e7)

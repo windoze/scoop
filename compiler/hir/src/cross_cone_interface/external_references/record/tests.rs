@@ -4,8 +4,6 @@ use super::*;
 use crate::ExternalHirReferenceRoleV1;
 use crate::cross_cone_interface::external_references::test_support::{Fixture, roles, witnesses};
 
-mod builtin_defaults;
-
 #[test]
 fn record_has_a_fixed_six_field_wire_and_round_trips() {
     let fixture = Fixture::new();
@@ -90,7 +88,7 @@ fn decoded_record_rechecks_role_witness_shape() {
     let malformed = RawReference {
         origin: fixture.provider,
         target: ExternalHirTargetV1::TypeAlias(fixture.first_alias),
-        roles: roles(&[ExternalHirReferenceRoleV1::DefaultDependency]),
+        roles: roles(&[ExternalHirReferenceRoleV1::AliasTarget]),
         witnesses: CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
     };
     let decoded: DecodedExternalHirReferenceV1 =
@@ -130,4 +128,21 @@ impl WireEncode for RawReference {
         encoder.field(6)?;
         encoder.array(0)
     }
+}
+
+#[test]
+fn default_dependencies_round_trip_as_resolved_declarations() {
+    let fixture = Fixture::new();
+    let record = ExternalHirReferenceV1::try_new(
+        fixture.provider,
+        ExternalHirTargetV1::TypeAlias(fixture.first_alias),
+        roles(&[ExternalHirReferenceRoleV1::DefaultDependency]),
+        witnesses(Vec::new()),
+        Default::default(),
+        Default::default(),
+    )
+    .unwrap();
+    let decoded: DecodedExternalHirReferenceV1 =
+        decode_canonical(&encode(&record).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut fixture.authority()).unwrap(), record);
 }

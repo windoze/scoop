@@ -12,7 +12,7 @@ Module
     val local2
       Local $dependency.receiver : Token
     return
-      ImportedDependencyCall #0 : Token
+      ImportedDependencyCall #1 : Token
         Local $dependency.receiver : Token
         Local $dependency.parameter.other : Token
   fun keepWide(value: Wide): Wide <no-gc cdecl>
@@ -23,7 +23,7 @@ Module
     val local3
       Local $dependency.argument.0 : Wide
     val local4
-      ImportedDependencyCall #1 : Wide
+      ImportedDependencyCall #0 : Wide
         Local $dependency.receiver : Wide
         Local $dependency.parameter.other : Wide
     val local7
@@ -33,7 +33,7 @@ Module
     val local6
       Local $dependency.receiver : Wide
     val local8
-      ImportedDependencyCall #1 : Wide
+      ImportedDependencyCall #0 : Wide
         Local $dependency.receiver : Wide
         Local $dependency.parameter.other : Wide
     val local9
@@ -66,7 +66,7 @@ Module
       Local $dependency.receiver : Wide
     val local3
       FieldAccess dependency field 6d6e17d055f51c8227afdb34bcca8e6dee7432cea1a43e0d61a8e76eb75c4ad2 : Long
-        ImportedDependencyCall #1 : Wide
+        ImportedDependencyCall #0 : Wide
           Local $dependency.receiver : Wide
           Local $dependency.parameter.other : Wide
     val local4
@@ -102,7 +102,7 @@ Module
       Local $dependency.receiver : Wide
     val local3
       ImportedDependencyCall #4 : Long
-        ImportedDependencyCall #1 : Wide
+        ImportedDependencyCall #0 : Wide
           Local $dependency.receiver : Wide
           Local $dependency.parameter.other : Wide
     val local4
@@ -145,7 +145,7 @@ Module
     val local2
       Local $dependency.receiver : Wide
     val local3
-      ImportedDependencyCall #1 : Wide
+      ImportedDependencyCall #0 : Wide
         Local $dependency.receiver : Wide
         Local $dependency.parameter.other : Wide
     val local4
@@ -163,7 +163,7 @@ Module
     val local2
       Local $dependency.receiver : Wide
     val local3
-      ImportedDependencyCall #1 : Wide
+      ImportedDependencyCall #0 : Wide
         Local $dependency.receiver : Wide
         Local $dependency.parameter.other : Wide
     val local4
@@ -188,7 +188,7 @@ Module
     val local2
       Local $dependency.receiver : Wide
     val local3
-      ImportedDependencyCall #1 : Wide
+      ImportedDependencyCall #0 : Wide
         Local $dependency.receiver : Wide
         Local $dependency.parameter.other : Wide
     val local4
@@ -212,6 +212,9 @@ Module
       ImportedDependencyCall #9 : Token
         Local $dependency.parameter.value : Nested
         Local $dependency.parameter.marker : Token
+  fun republished(value: Wide, selected: Long): Long <no-gc cdecl>
+    return
+      Local selected : Long
   fun $get$first(this: Wide): Long <no-gc cdecl>
     return
       IntegerLiteral 999 : Long

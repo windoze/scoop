@@ -325,8 +325,6 @@ impl SelectedImportedDependencyTypeAlias {
 /// current HIR output.
 #[derive(Debug)]
 pub struct SelectedImportedDependencySet {
-    pub(super) direct_binding_witnesses:
-        Arc<BTreeMap<crate::ExternalHirTargetV1, Vec<crate::DependencyBindingWitnessV1>>>,
     pub(super) consumer: ConeIdentity,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, SelectedImportedDependencyCallable>,
     pub(super) constants: BTreeMap<PersistentPropertyId, SelectedImportedDependencyConstant>,
@@ -334,16 +332,6 @@ pub struct SelectedImportedDependencySet {
 }
 
 impl SelectedImportedDependencySet {
-    pub(crate) fn direct_binding_witnesses(
-        &self,
-        target: crate::ExternalHirTargetV1,
-    ) -> &[crate::DependencyBindingWitnessV1] {
-        self.direct_binding_witnesses
-            .get(&target)
-            .map(Vec::as_slice)
-            .unwrap_or_default()
-    }
-
     pub const fn consumer(&self) -> ConeIdentity {
         self.consumer
     }
