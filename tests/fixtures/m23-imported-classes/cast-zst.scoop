@@ -1,0 +1,8 @@
+import dependency.classes.Counter
+import dependency.classes.Token
+
+public fun primary(): Counter {
+    val value: Any = Token()
+    val marker = value as Token
+    return Counter(marker, 21)
+}

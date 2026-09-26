@@ -125,13 +125,38 @@ impl BodyLowerer<'_> {
             ),
         };
         if !optional {
-            let throw = self.throw_builtin(
-                self.core_protocols
-                    .defined()
-                    .exceptions
-                    .class_cast_exception,
-                span,
-            );
+            let throw = match self.core_protocols {
+                hir::ConcreteCoreProtocols::Defined(protocols) => {
+                    self.throw_builtin(protocols.exceptions.class_cast_exception, span)
+                }
+                hir::ConcreteCoreProtocols::Imported(protocols) => {
+                    let (provider, target) = crate::current::cast_constructor_target(protocols)
+                        .expect("the frontend retained a typed exception constructor");
+                    let callable = self
+                        .external_callables
+                        .iter()
+                        .find_map(|(id, callable)| {
+                            (callable.reference().provider() == provider
+                                && callable.reference().implementation() == target)
+                                .then_some(id)
+                        })
+                        .expect("the actual cast constructor was selected from its provider");
+                    let declaration = protocols.exceptions().class_cast_exception().persistent();
+                    let class = self
+                        .module
+                        .classes
+                        .iter()
+                        .find_map(|(id, class)| {
+                            (class.origin.concrete_type_id() == Some(declaration)).then_some(id)
+                        })
+                        .expect("the HIR stage completed the required exception representation");
+                    self.throw_class(
+                        self.class_map[&class],
+                        mir::Callee::External(callable),
+                        span,
+                    )
+                }
+            };
             self.prelude.push(smir::StatementKind::If {
                 cond: smir::Expr::new(
                     mir::Type::Boolean,

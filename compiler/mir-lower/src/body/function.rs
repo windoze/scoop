@@ -165,7 +165,10 @@ impl BodyLowerer<'_> {
     pub(crate) fn coroutine_eh_mode(&self) -> Option<smir::CoroutineEhMode> {
         self.contains_suspend_call.then(|| smir::CoroutineEhMode {
             throwable: mir::Type::Class(
-                self.class_map[&self.core_protocols.defined().exceptions.throwable.class()],
+                self.class_map[&crate::defined_protocols(self.core_protocols)
+                    .exceptions
+                    .throwable
+                    .class()],
             ),
         })
     }

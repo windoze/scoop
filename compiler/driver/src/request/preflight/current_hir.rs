@@ -1,7 +1,6 @@
 //! One complete HIR product and shared strong-profile sealing for every Cone.
 
 mod errors;
-mod runtime_requirements;
 pub use errors::{CurrentConeHirStageError, CurrentConeStrongProfileError};
 
 pub(super) struct CurrentConeHirArtifacts {
@@ -24,7 +23,6 @@ impl CurrentConeHirArtifacts {
         let hir = scoop_hir_lower::lower_current_cone(requested, &sources)
             .map_err(CurrentConeHirStageError::Lowering)?;
 
-        runtime_requirements::validate(&hir, world).map_err(CurrentConeHirStageError::Lowering)?;
         let mut foundation = scoop_hir::CanonicalHirFoundation::from_type_semantics_output(&hir)
             .map_err(CurrentConeHirStageError::Foundation)?;
         let production_section =

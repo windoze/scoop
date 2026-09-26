@@ -38,11 +38,36 @@ impl<'a> Producer<'a> {
         Option<(
             PersistentConstructorId,
             &'a hir::CallableDeclarationRecordV1,
+            mir::MirCallableOriginV1,
         )>,
         Error,
     > {
-        let CallableTemplateOwner::Constructor(declaration) = materialization.template() else {
-            return Ok(None);
+        let (declaration, origin) = match materialization.template() {
+            CallableTemplateOwner::Constructor(declaration) => (
+                declaration,
+                mir::MirCallableOriginV1::Constructor(declaration),
+            ),
+            CallableTemplateOwner::Generated(callable) => {
+                let role = self
+                    .authority
+                    .identities
+                    .canonical_key::<_, scoop_identity::GeneratedCallableKey>(callable)
+                    .map_err(mir::MirCallableBridgeError::from)?;
+                let scoop_identity::GeneratedCallableKey::ZeroArgumentConstructorAdapter {
+                    constructor,
+                } = *role
+                else {
+                    return Ok(None);
+                };
+                (
+                    constructor,
+                    mir::MirCallableOriginV1::Generated {
+                        callable,
+                        role: (*role).clone(),
+                    },
+                )
+            }
+            _ => return Ok(None),
         };
         let Some(&source) = self.source.get(&declaration) else {
             return Ok(None);
@@ -50,13 +75,14 @@ impl<'a> Producer<'a> {
         if materialization.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::OdrRequired(declaration));
         }
-        Ok(Some((declaration, source)))
+        Ok(Some((declaration, source, origin)))
     }
 
     pub(super) fn record(
         &mut self,
         declaration: PersistentConstructorId,
         source: &hir::CallableDeclarationRecordV1,
+        origin: mir::MirCallableOriginV1,
         semantic: ExactCallableSignature,
         lowered: ExactCallableSignature,
         role: mir::MirCallableLoweringRoleV1,
@@ -64,8 +90,9 @@ impl<'a> Producer<'a> {
         let roots = self.input.materialization().callable_roots();
         let signatures = &self.input.module().meta.callable_signatures;
 
+        let implementation = origin.implementation();
         let index = roots
-            .binary_search_by_key(&CallableOwner::Constructor(declaration), |root| {
+            .binary_search_by_key(&implementation.callable_owner(), |root| {
                 root.implementation()
             })
             .map_err(|_| Error::MissingMaterialization(declaration))?;
@@ -83,8 +110,8 @@ impl<'a> Producer<'a> {
         self.records
             .push(mir::ParamFreeMirCallableBindingV1::try_new(
                 self.authority,
-                mir::MirCallableOriginV1::Constructor(declaration),
-                StrongCallableDefinitionOwner::Constructor(declaration),
+                origin,
+                implementation,
                 mir::MirBridgeCallableSignatureV1::new(semantic, source_gc),
                 mir::MirBridgeCallableSignatureV1::new(
                     lowered,
@@ -96,10 +123,15 @@ impl<'a> Producer<'a> {
     }
 
     pub(super) fn finish(self) -> Result<mir::CanonicalMirCallableBindingsV1, Error> {
-        if self.records.len() != self.source.len() {
+        let source_count = self
+            .records
+            .iter()
+            .filter(|binding| matches!(binding.origin(), mir::MirCallableOriginV1::Constructor(_)))
+            .count();
+        if source_count != self.source.len() {
             return Err(Error::IncompleteConstructors {
                 expected: self.source.len(),
-                actual: self.records.len(),
+                actual: source_count,
             });
         }
 

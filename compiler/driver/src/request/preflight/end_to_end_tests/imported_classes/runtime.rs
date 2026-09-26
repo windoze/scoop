@@ -66,8 +66,27 @@ pub(super) fn check(
     let mut objects = Vec::new();
     let mut entry = None;
     let mut string = None;
+    let mut descriptors = std::collections::BTreeMap::new();
+    let mut immortals = Vec::new();
     for (index, identity) in identities.iter().enumerate() {
         let (sections, link) = closure.artifact(*identity).unwrap();
+        for descriptor in sections.lir_exports().descriptors().records() {
+            assert!(
+                descriptors
+                    .insert(
+                        descriptor.exact(),
+                        descriptor.definition().symbol().symbol().to_string(),
+                    )
+                    .is_none()
+            );
+        }
+        immortals.extend_from_slice(
+            sections
+                .lir_strong_production()
+                .registration_production()
+                .immortal_objects()
+                .registrations(),
+        );
         for ty in sections.mir_type_bridge().exports().types().records() {
             if matches!(
                 ty.representation(),
@@ -114,11 +133,33 @@ pub(super) fn check(
     let entry = entry.unwrap();
     let string = string.unwrap();
     let harness = directory.join("main.c");
+    let mut immortal_declarations = String::new();
+    let mut immortal_entries = String::new();
+    for (index, immortal) in immortals.iter().enumerate() {
+        let object = immortal.object_symbol().symbol();
+        let descriptor = &descriptors[&immortal.type_registration()];
+        immortal_declarations.push_str(&format!(
+            "extern const unsigned char fixture_immortal_{index}[] __asm__(\"_{object}\");\n\
+             extern const ScoopTypeDescriptor fixture_immortal_td_{index} __asm__(\"_{descriptor}\");\n"
+        ));
+        immortal_entries.push_str(&format!(
+            "{{fixture_immortal_{index}, {}, &fixture_immortal_td_{index}}},\n",
+            immortal.object_size(),
+        ));
+    }
+    if immortals.is_empty() {
+        immortal_entries.push_str("{0}");
+    }
+    immortal_declarations.push_str(&format!(
+        "const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[] = {{{immortal_entries}}};\n\
+         const uint64_t scoop_image_immortal_object_count = {};\n", immortals.len(),
+    ));
     std::fs::write(
         &harness,
         std::fs::read_to_string(fixtures.join("runtime.c"))
             .unwrap()
-            .replace("SCOOP_FIXTURE_ENTRY", &format!("_{entry}")),
+            .replace("SCOOP_FIXTURE_ENTRY", &format!("_{entry}"))
+            .replace("SCOOP_FIXTURE_IMMORTALS", &immortal_declarations),
     )
     .unwrap();
     let output = Command::new(target.final_link().linker_driver())

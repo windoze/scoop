@@ -1,0 +1,14 @@
+Module
+  fun primary(): Counter
+    val local0
+      IntegerLiteral 21 : Long
+    val local1
+      Local $dependency.argument.0 : Long
+    val local2
+      ReferenceUpcast : Any
+        ImportedDependencyCall #0 : Counter
+          Local $dependency.parameter.value : Long
+    return
+      Cast Counter optional=false : Counter
+        Local value : Any
+  output library

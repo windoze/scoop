@@ -60,3 +60,4 @@ public interface OtherReadable {
 
 public fun throwValue(value: Throwable) { throw value }
 public fun throwDefault(value: Throwable = RebuiltFailure(21)) { throw value }
+public fun castDefault(input: Any, value: Counter = input as Counter): Counter = value

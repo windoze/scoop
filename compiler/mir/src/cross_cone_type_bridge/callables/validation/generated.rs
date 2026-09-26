@@ -14,6 +14,15 @@ impl MirCallableBridgeAuthority<'_> {
         let lowered = binding.lowered.exact();
         match (generated, binding.role) {
             (
+                GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor },
+                MirCallableLoweringRoleV1::ClassInitializer { owner },
+            ) => {
+                if !semantic.parameters().is_empty() {
+                    return Err(MirCallableBridgeError::SignatureMismatch);
+                }
+                self.class_initializer(binding, *constructor, owner)
+            }
+            (
                 GeneratedCallableKey::Initialization { unit: actual, role },
                 MirCallableLoweringRoleV1::ObjectEnsure { unit },
             ) if *actual == unit && *role == InitializationCallableRole::Ensure => {
@@ -103,6 +112,7 @@ impl MirCallableBridgeAuthority<'_> {
             }
             (
                 GeneratedCallableKey::Initialization { .. }
+                | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                 | GeneratedCallableKey::DerivedEquality { .. }
                 | GeneratedCallableKey::DispatchAdjust { .. }
                 | GeneratedCallableKey::BoxingAdjust { .. },

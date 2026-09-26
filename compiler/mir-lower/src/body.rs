@@ -13,7 +13,7 @@ mod statements;
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {
     pub(super) module: &'a hir::Module,
-    pub(super) core_protocols: &'a CoreMirLoweringAuthority,
+    pub(super) core_protocols: &'a hir::ConcreteCoreProtocols,
     pub(super) source_exact_types: &'a mut SourceExactTypeRegistry,
     pub(super) local_values: &'a mut LocalValueRegistry,
     pub(super) current_function: mir::FunctionId,
@@ -31,6 +31,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) method_slots: &'a HashMap<mir::ClassId, HashMap<hir::VirtualMethodId, u32>>,
     pub(super) function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     pub(super) extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
+    pub(super) external_callables: &'a Arena<mir::ExternalCallableUse>,
 
     pub(super) imported_dependency_callable_map: &'a HashMap<
         hir::ImportedDependencyCallableUseId,

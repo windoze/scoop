@@ -30,9 +30,7 @@ pub(super) fn rewrite_intrinsic_site(
         unreachable!("intrinsic site carries its concrete register method")
     };
     let throwable = mir::Type::Class(
-        lowerer.class_map[&lowerer
-            .core_protocols
-            .defined()
+        lowerer.class_map[&crate::defined_protocols(&lowerer.core_protocols)
             .exceptions
             .throwable
             .class()],

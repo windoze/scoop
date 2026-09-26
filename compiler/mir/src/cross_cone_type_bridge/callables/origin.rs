@@ -47,6 +47,7 @@ impl DecodedMirCallableOriginV1 {
                 if !matches!(
                     role,
                     DecodedGeneratedCallableKey::Initialization { .. }
+                        | DecodedGeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                         | DecodedGeneratedCallableKey::DerivedEquality { .. }
                         | DecodedGeneratedCallableKey::DispatchAdjust { .. }
                         | DecodedGeneratedCallableKey::BoxingAdjust { .. }

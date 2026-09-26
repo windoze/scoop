@@ -112,9 +112,7 @@ fn transform_function(
     let completion_ty = completion.ty.clone();
     let source_params = &old_params[..old_params.len() - 1];
     let throwable_ty = mir::Type::Class(
-        lowerer.class_map[&lowerer
-            .core_protocols
-            .defined()
+        lowerer.class_map[&crate::defined_protocols(&lowerer.core_protocols)
             .exceptions
             .throwable
             .class()],

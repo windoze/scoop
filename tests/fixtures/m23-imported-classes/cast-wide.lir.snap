@@ -1,0 +1,57 @@
+Module
+  fun @scoop$1$cb$dbcb38e61f3a0f64c019695438f0f4e549beea70a389e9b948657777656b8428() -> ptr<managed>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.argument.1: i64
+    local %2 $dependency.argument.2: i64
+    local %3 $dependency.parameter.first: i64
+    local %4 $dependency.parameter.second: i64
+    local %5 $dependency.parameter.third: i64
+    local %6 boxed: ptr<managed>
+    local %7 value: struct0
+    local %8 $dependency.argument.0: i64
+    local %9 $dependency.parameter.value: i64
+    local %10 $cast.1: ptr<managed>
+    local %11 $ub.2: struct0
+    local %12 $call.1: struct0
+    local %13 $new.2: ptr<managed>
+    local %14 $new.3: ptr<managed>
+    local %15 $sc.1: struct0
+    local %16 $box.2: struct0
+    local %17 $box.3: struct0
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000015) -> local0
+    store integer<Long>(0x0000000000000001) -> local1
+    store integer<Long>(0x0000000000000002) -> local2
+    store local0 -> local3
+    store local1 -> local4
+    store local2 -> local5
+    call no-gc-indirect-target0 local15 = sig=indirect0 (sret struct0 size=24 align=8 scan=none, i64, i64, i64) external-fn0(local3, local4, local5)
+    store local15 -> local12
+    store local12 -> local16
+    t0 = box_value external-td0, local16 scan=none sp<managed-call:0> live=[]
+    store t0 -> local6
+    store local6 -> local10
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local10, external-td0)
+    t2 = Not t1 : i1
+    cbr t2 then @if.then.1 else @if.merge.2
+  block if.then.1
+    call managed-direct-target0 sp<managed-call:3> live=[] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(16)))
+    store t3 -> local13
+    call managed-void-target0 sp<managed-call:4> live=[local13:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn2(local13)
+    t4 = aggregate () : {}
+    throw local13
+    unreachable
+  block if.merge.2
+    unbox_value external-td0, local10 -> local17
+    store local17 -> local11
+    store local11 -> local7
+    t5 = extract local7, 0 : i64
+    store t5 -> local8
+    store local8 -> local9
+    call managed-direct-target1 sp<managed-call:1> live=[] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    store t6 -> local14
+    call managed-void-target1 sp<managed-call:2> live=[local14:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn1(local14, local9)
+    t7 = aggregate () : {}
+    ret local14
+  output library

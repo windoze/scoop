@@ -1,1 +1,0 @@
-public class ClassCastException public constructor(message: String = "invalid cast") : Throwable()

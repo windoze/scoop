@@ -1,0 +1,29 @@
+Module
+  fun primary(): Counter
+    try
+      val local0
+        IntegerLiteral 0 : Long
+      val local1
+        Local $dependency.argument.0 : Long
+      val local2
+        ReferenceUpcast : Any
+          ImportedDependencyCall #0 : Other
+            Local $dependency.parameter.value : Long
+      val local3
+        Local $dependency.argument.0 : Any
+      val local4
+        Cast Counter optional=false : Counter
+          Local $dependency.parameter.input : Any
+      return
+        ImportedDependencyCall #1 : Counter
+          Local $dependency.parameter.input : Any
+          Local $dependency.parameter.value : Counter
+    catch error: ClassCastException
+      val local6
+        IntegerLiteral 21 : Long
+      val local7
+        Local $dependency.argument.0 : Long
+      return
+        ImportedDependencyCall #2 : Counter
+          Local $dependency.parameter.value : Long
+  output library

@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.Other
+import dependency.classes.castDefault
+
+public fun primary(): Counter {
+    try {
+        return castDefault(Other(0))
+    } catch (error: ClassCastException) {
+        return Counter(21)
+    }
+}

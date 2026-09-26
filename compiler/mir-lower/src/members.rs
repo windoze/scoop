@@ -228,6 +228,7 @@ impl Lowerer {
         let mut lowerer = BodyLowerer {
             module,
             core_protocols: &self.core_protocols,
+            external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
             current_function: self.ctors[&constructor_id],
@@ -354,6 +355,7 @@ impl Lowerer {
         let mut lowerer = BodyLowerer {
             module,
             core_protocols: &self.core_protocols,
+            external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
             current_function: self.struct_ctors[&constructor_id],

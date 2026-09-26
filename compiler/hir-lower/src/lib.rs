@@ -392,12 +392,7 @@ fn finish_output(
                 format!("failed to project public nominal shapes: {error}"),
             )]
         })?;
-    let local = concretize::lower_output(&export, &requirements).map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to project automatic nominal roots: {error}"),
-        )]
-    })?;
+    let local = concretize::lower_output(&export, &requirements)?;
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
             .map_err(native_boundary_diagnostic)?;

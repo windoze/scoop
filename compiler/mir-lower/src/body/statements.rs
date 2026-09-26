@@ -204,13 +204,22 @@ impl BodyLowerer<'_> {
         debug_assert!(constructor.parameters.is_empty());
         let ctor = self.ctors[&exception.callable()];
         let class_id = self.class_map[&constructor.class];
+        self.throw_class(class_id, mir::Callee::User(ctor), span)
+    }
+
+    pub(super) fn throw_class(
+        &self,
+        class_id: mir::ClassId,
+        initializer: mir::Callee,
+        span: Span,
+    ) -> smir::Statement {
         let exception_ty = mir::Type::Class(class_id);
         smir::Statement {
             kind: smir::StatementKind::Throw(smir::Expr::new(
                 exception_ty.clone(),
                 smir::ExprKind::ClassNew {
                     class_id,
-                    initializer: mir::Callee::User(ctor),
+                    initializer,
                     args: Vec::new(),
                 },
             )),
@@ -257,8 +266,7 @@ impl BodyLowerer<'_> {
             ),
         );
         let throw = self.throw_builtin(
-            self.core_protocols
-                .defined()
+            crate::defined_protocols(self.core_protocols)
                 .exceptions
                 .index_out_of_bounds_exception,
             span,

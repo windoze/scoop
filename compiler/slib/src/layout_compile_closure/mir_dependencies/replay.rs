@@ -1,7 +1,7 @@
 use super::{SharedMirDependencyGraphError as Error, *};
 
-/// Replays the complete graph from shared HIR occurrences. Candidate selected
-/// records, MIR type lookup tables and physical imports cannot add source roots.
+/// Checks shared type dependencies and the complete MIR reference graph.
+/// Implicit calls retain ordinary MIR references without a second HIR call record.
 pub fn replay_shared_mir_dependency_graph(
     source: scoop_hir::SharedTypeMetadataV1<'_>,
     source_dependencies: &[scoop_hir::SharedTypeMetadataV1<'_>],
@@ -66,6 +66,12 @@ pub fn replay_shared_mir_dependency_graph(
             ));
         }
     }
+
+    committed.extend(
+        mir.selected_relations().iter().copied().filter(|relation| {
+            matches!(relation.target(), mir::MirTypeBridgeTargetV1::Callable(_))
+        }),
+    );
 
     committed.sort_unstable();
     committed.dedup();

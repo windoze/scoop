@@ -23,9 +23,7 @@ pub(super) fn generate_failure_method(
         .step_metadata_for_type(outer_step)
         .completed();
     let throwable = mir::Type::Class(
-        lowerer.class_map[&lowerer
-            .core_protocols
-            .defined()
+        lowerer.class_map[&crate::defined_protocols(&lowerer.core_protocols)
             .exceptions
             .throwable
             .class()],

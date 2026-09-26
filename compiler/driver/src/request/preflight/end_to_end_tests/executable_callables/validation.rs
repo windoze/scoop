@@ -43,34 +43,12 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
         }
     };
     scoop_mir_lower::lower_current_cone(&hir.hir, with_initialization(projected)).unwrap();
-    let consumer = hir.hir.output().local.module().cone;
-    let incorrect = if selected_count == 0 {
-        let source = hir.hir.imported_dependencies().callables().next().unwrap();
-        let capability = source.capability();
-        let record = scoop_mir::SelectedDependencyMirCallableV1::try_new(
-            source.provider(),
-            capability.direct_declaration().unwrap(),
-            capability.implementation(),
-            capability.signature().clone(),
-        )
-        .unwrap();
-        scoop_mir::SelectedExternalMirSet::try_from_callables(consumer, vec![record]).unwrap()
-    } else {
-        scoop_mir::SelectedExternalMirSet::empty(consumer)
-    };
-    let result = scoop_mir_lower::lower_current_cone(&hir.hir, with_initialization(incorrect));
-    let Err(error) = result else {
-        panic!("incorrect machine selection was accepted")
-    };
-    if selected_count == 0 {
+    if selected_count != 0 {
+        let consumer = hir.hir.output().local.module().cone;
+        let missing = scoop_mir::SelectedExternalMirSet::empty(consumer);
         assert!(matches!(
-            error,
-            scoop_mir_lower::CurrentConeMirLoweringError::UnusedExternalCallable { .. }
-        ));
-    } else {
-        assert!(matches!(
-            error,
-            scoop_mir_lower::CurrentConeMirLoweringError::MissingDependencyMirCallable { .. }
+            scoop_mir_lower::lower_current_cone(&hir.hir, with_initialization(missing)),
+            Err(scoop_mir_lower::CurrentConeMirLoweringError::MissingDependencyMirCallable { .. })
         ));
     }
 }

@@ -8,6 +8,8 @@ use scoop_identity::{
 pub enum CrossConeMirSelectionProjectionError {
     Resource(scoop_wire::WireError),
     Occurrences(scoop_hir::DependencyCallOccurrenceError),
+    Expressions(scoop_hir::concrete::ExecutableExpressionStructureError),
+    RuntimeConstructorKind(scoop_hir::ImportedCoreProtocolCallableDefinition),
     ConsumerMismatch {
         closure: ConeIdentity,
         selected: ConeIdentity,
@@ -36,6 +38,11 @@ impl fmt::Display for CrossConeMirSelectionProjectionError {
         match self {
             Self::Resource(source) => source.fmt(formatter),
             Self::Occurrences(source) => source.fmt(formatter),
+            Self::Expressions(source) => source.fmt(formatter),
+            Self::RuntimeConstructorKind(definition) => write!(
+                formatter,
+                "runtime exception target is not a constructor: {definition:?}"
+            ),
             Self::ConsumerMismatch { closure, selected } => write!(
                 formatter,
                 "dependency HIR selection belongs to consumer {selected}, not closure {closure}"
@@ -73,6 +80,8 @@ impl std::error::Error for CrossConeMirSelectionProjectionError {
         match self {
             Self::Resource(source) => Some(source),
             Self::Occurrences(source) => Some(source),
+            Self::Expressions(source) => Some(source),
+            Self::RuntimeConstructorKind(_) => None,
             Self::Record(source) => Some(source),
             Self::Selection(source) => Some(source),
             Self::ConsumerMismatch { .. }

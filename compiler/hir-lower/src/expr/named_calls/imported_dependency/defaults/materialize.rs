@@ -104,6 +104,44 @@ impl Lowerer {
             Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
             )),
+            Kind::Box(operand) => hir::ExprKind::Box(Box::new(
+                self.materialize_imported_default_expression(operand, context)?,
+            )),
+            Kind::Unbox(operand) => hir::ExprKind::Unbox(Box::new(
+                self.materialize_imported_default_expression(operand, context)?,
+            )),
+            Kind::IsInstance {
+                operand,
+                checked_type,
+            } => hir::ExprKind::IsInstance {
+                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
+                check_ty: self.imported_default_type(checked_type).map_err(|error| {
+                    ImportedDefaultMaterializationError::Plan(error.to_string())
+                })?,
+            },
+            Kind::Cast {
+                operand,
+                checked_type,
+                optional,
+            } => {
+                let optional = bool::from(*optional);
+                if !optional {
+                    self.prepare_cast_exception_type().map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(format!(
+                            "cannot resolve cast exception type: {error:?}"
+                        ))
+                    })?;
+                }
+                hir::ExprKind::Cast {
+                    operand: Box::new(
+                        self.materialize_imported_default_expression(operand, context)?,
+                    ),
+                    check_ty: self.imported_default_type(checked_type).map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?,
+                    optional,
+                }
+            }
             Kind::StringLiteral {
                 value,
                 owner: hir::DefaultStringOwnerV1::CurrentInstantiation,
@@ -310,10 +348,6 @@ impl Lowerer {
             | Kind::FieldAccess { .. }
             | Kind::MethodCall { .. }
             | Kind::DirectSuperMethodCall { .. }
-            | Kind::Box(_)
-            | Kind::Unbox(_)
-            | Kind::IsInstance { .. }
-            | Kind::Cast { .. }
             | Kind::ArrayLiteral(_)
             | Kind::ArrayAssembly(_)
             | Kind::Index { .. }

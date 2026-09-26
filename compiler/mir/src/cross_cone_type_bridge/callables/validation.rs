@@ -150,22 +150,7 @@ impl MirCallableBridgeAuthority<'_> {
             (
                 MirCallableOriginV1::Constructor(constructor),
                 MirCallableLoweringRoleV1::ClassInitializer { owner },
-            ) => {
-                self.constructor_owner(*constructor, owner)?;
-                if !matches!(
-                    self.type_export(owner)?.representation(),
-                    MirTypeRepresentationV1::Class { .. }
-                        | MirTypeRepresentationV1::ObjectBacking { .. }
-                ) || semantic.receiver().is_present()
-                    || semantic.result() != owner
-                    || lowered.receiver() != OptionalExactOwner::Present(owner)
-                    || semantic.parameters() != lowered.parameters()
-                    || !self.is_unit(lowered.result())?
-                {
-                    return Err(MirCallableBridgeError::SignatureMismatch);
-                }
-                Ok(())
-            }
+            ) => self.class_initializer(binding, *constructor, owner),
             (
                 MirCallableOriginV1::Constructor(constructor),
                 MirCallableLoweringRoleV1::ValueConstructor { owner },
@@ -216,6 +201,29 @@ impl MirCallableBridgeAuthority<'_> {
             }
             _ => Err(MirCallableBridgeError::RoleMismatch),
         }
+    }
+
+    fn class_initializer(
+        &self,
+        binding: &ParamFreeMirCallableBindingV1,
+        constructor: PersistentConstructorId,
+        owner: PersistentExactTypeId,
+    ) -> Result<(), MirCallableBridgeError> {
+        self.constructor_owner(constructor, owner)?;
+        let semantic = binding.semantic.exact();
+        let lowered = binding.lowered.exact();
+        if !matches!(
+            self.type_export(owner)?.representation(),
+            MirTypeRepresentationV1::Class { .. } | MirTypeRepresentationV1::ObjectBacking { .. }
+        ) || semantic.receiver().is_present()
+            || semantic.result() != owner
+            || lowered.receiver() != OptionalExactOwner::Present(owner)
+            || semantic.parameters() != lowered.parameters()
+            || !self.is_unit(lowered.result())?
+        {
+            return Err(MirCallableBridgeError::SignatureMismatch);
+        }
+        Ok(())
     }
 
     fn validate_origin(&self, origin: &MirCallableOriginV1) -> Result<(), MirCallableBridgeError> {

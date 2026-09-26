@@ -1,0 +1,63 @@
+Module
+  class Counter vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Any
+        Type Any
+        Retype Any
+          Type Counter
+          Local $new.1
+      val $dependency.parameter.input: Any
+        Type Any
+        Local $dependency.argument.0
+      val $cast.1: Any
+        Type Any
+        Local $dependency.parameter.input
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Counter
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $dependency.parameter.value: Counter
+        Type Counter
+        Retype Counter
+          Type Any
+          Local $cast.1
+      call $call.3: Counter = external1 direct
+        Type Any
+        Local $dependency.parameter.input
+        Type Counter
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $call.3
+  output library

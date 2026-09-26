@@ -4,6 +4,61 @@ mod runtime;
 
 #[test]
 fn dependency_classes_compile_and_run_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "cast-class",
+            "cast-failure",
+            "cast-interface",
+            "cast-zst",
+            "cast-wide",
+            "cast-default",
+            "cast-default-failure",
+            "exception-statement",
+            "exception-expression",
+            "exception-default",
+            "standalone",
+            "combined",
+            "aliases",
+            "secondary",
+            "recursive",
+            "core-extension",
+            "virtual",
+            "interface",
+            "interface-alias",
+            "interface-parent",
+            "reference-identity",
+            "core-interface",
+            "interface-values",
+            "interface-default-constructor",
+        ],
+        &[
+            "cast-impossible",
+            "wrong-identity",
+            "no-gc",
+            "internal-constructor",
+            "abstract-constructor",
+            "interface-wrong-identity",
+            "interface-wrong-argument",
+            "throw-wrong-type",
+            "throw-wrong-identity",
+            "catch-wrong-type",
+            "catch-expression-wrong-type",
+            "catch-unreachable",
+        ],
+    );
+}
+
+#[test]
+fn runtime_cast_failures_use_the_providers_default_constructor_adapter() {
+    check_class_cases(
+        "default",
+        &["cast-failure", "cast-default-failure", "cast-zst"],
+        &[],
+    );
+}
+
+fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]) {
     let target =
         resolved_target().expect("the production test requires the configured LLVM target");
     let sysroot = tempfile::tempdir().unwrap();
@@ -19,6 +74,15 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
         source("core-provider"),
     )
     .unwrap();
+    let throwable = core_source.join("src/throwable.scoop");
+    let original = std::fs::read_to_string(&throwable).unwrap();
+    let replacement = source(&format!("core-cast-{cast_variant}"));
+    let changed_exception = original.replace(
+        "public class ClassCastException public constructor() : Exception(Some(\"invalid cast\"))",
+        replacement.trim(),
+    );
+    assert_ne!(original, changed_exception);
+    std::fs::write(throwable, changed_exception).unwrap();
     let changed = core_source.join("src/stage3_test.scoop");
     std::fs::write(
         &changed,
@@ -37,7 +101,12 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
     )
     .unwrap()
     .build_and_publish()
-    .unwrap();
+    .unwrap_or_else(|error| match error {
+        SingleConeProductionError::Production(error) => {
+            panic!("modified core: {:?}", error.cause())
+        }
+        error => panic!("modified core: {error:?}"),
+    });
     assert_ne!(
         original_fingerprint,
         core.artifact().summary().artifact_fingerprint()
@@ -65,25 +134,7 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
     .unwrap();
 
     let runtime = runtime::build(&target, &sysroot.path().join("runtime"));
-    for case in [
-        "exception-statement",
-        "exception-expression",
-        "exception-default",
-        "standalone",
-        "combined",
-        "aliases",
-        "secondary",
-        "recursive",
-        "core-extension",
-        "virtual",
-        "interface",
-        "interface-alias",
-        "interface-parent",
-        "reference-identity",
-        "core-interface",
-        "interface-values",
-        "interface-default-constructor",
-    ] {
+    for case in cases {
         let name = format!("classes-{case}");
         let root = sysroot.path().join(&name);
         write_manifest_cone(&root, "dev.example", &name, "library", &source(case));
@@ -106,8 +157,13 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
             let output = request
                 .build_and_publish()
                 .unwrap_or_else(|error| panic!("{case} {stage}: {error:?}"));
+            let snapshot_case = if cast_variant == "direct" {
+                case.to_string()
+            } else {
+                format!("{case}-default-constructor")
+            };
             snapshot(
-                &fixtures.join(format!("{case}.{stage}.snap")),
+                &fixtures.join(format!("{snapshot_case}.{stage}.snap")),
                 output.emitted_dump().unwrap().text(),
             );
             outputs.push(output);
@@ -146,19 +202,7 @@ fn dependency_classes_compile_and_run_through_actual_artifacts() {
             &sysroot.path().join(format!("run-{case}")),
         );
     }
-    for case in [
-        "wrong-identity",
-        "no-gc",
-        "internal-constructor",
-        "abstract-constructor",
-        "interface-wrong-identity",
-        "interface-wrong-argument",
-        "throw-wrong-type",
-        "throw-wrong-identity",
-        "catch-wrong-type",
-        "catch-expression-wrong-type",
-        "catch-unreachable",
-    ] {
+    for case in negative_cases {
         let root = sysroot.path().join(case);
         let source = source(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source);

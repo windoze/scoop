@@ -382,11 +382,16 @@ impl Concretizer<'_> {
                 operand,
                 check_ty,
                 optional,
-            } => concrete::ExprKind::Cast {
-                operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                check_ty: self.lower_type(*check_ty, substitution),
-                optional: *optional,
-            },
+            } => {
+                if !optional {
+                    self.lower_cast_exception_type();
+                }
+                concrete::ExprKind::Cast {
+                    operand: Box::new(self.lower_expr(operand, substitution, locals)),
+                    check_ty: self.lower_type(*check_ty, substitution),
+                    optional: *optional,
+                }
+            }
             export::ExprKind::ArrayLiteral(elements) => concrete::ExprKind::ArrayLiteral(
                 elements
                     .iter()

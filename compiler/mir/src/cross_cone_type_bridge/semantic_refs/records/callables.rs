@@ -28,6 +28,11 @@ impl MirTypeBridgeSemanticReferencesV1 {
         }
         if let MirCallableOriginV1::Generated { role, .. } = record.origin().as_ref() {
             match role {
+                GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
+                    collector.push(MirTypeBridgeTargetV1::Callable(
+                        StrongCallableDefinitionOwner::Constructor(*constructor),
+                    ))?;
+                }
                 GeneratedCallableKey::Initialization { unit, .. } => {
                     collector.push(MirTypeBridgeTargetV1::InitializationUnit(*unit))?;
                 }

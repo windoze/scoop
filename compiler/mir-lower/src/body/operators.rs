@@ -281,8 +281,7 @@ impl BodyLowerer<'_> {
             init: rhs,
         });
         let throw = self.throw_builtin(
-            self.core_protocols
-                .defined()
+            crate::defined_protocols(self.core_protocols)
                 .exceptions
                 .arithmetic_exception,
             span,

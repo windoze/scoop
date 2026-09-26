@@ -4,7 +4,7 @@ use scoop_identity::RepresentationRole;
 
 use super::{SharedLirDependencyGraphError as Error, *};
 
-/// Closes source layout uses and explicit descriptor references against actual exports.
+/// Checks source layout uses and actual callable/descriptor references against exports.
 pub fn replay_shared_lir_dependency_graph(
     source: scoop_hir::SharedTypeMetadataV1<'_>,
     layout: &lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
@@ -78,6 +78,7 @@ pub fn replay_shared_lir_dependency_graph(
                 matches!(
                     relation.target(),
                     lir::LayoutAbiSemanticTargetV1::Descriptor(_)
+                        | lir::LayoutAbiSemanticTargetV1::Callable(_)
                 )
             })
             .copied(),

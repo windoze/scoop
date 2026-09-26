@@ -29,9 +29,7 @@ pub(super) fn drive_exit_blocks(
         .step_metadata_for_type(step_ty)
         .completed_payload();
     let throwable = mir::Type::Class(
-        lowerer.class_map[&lowerer
-            .core_protocols
-            .defined()
+        lowerer.class_map[&crate::defined_protocols(&lowerer.core_protocols)
             .exceptions
             .throwable
             .class()],

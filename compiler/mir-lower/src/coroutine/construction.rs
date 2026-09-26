@@ -154,15 +154,11 @@ pub(super) fn protocol_error_block(
     blocks: &mut Arena<mir::BasicBlock>,
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
-    let class = lowerer
-        .core_protocols
-        .defined()
+    let class = crate::defined_protocols(&lowerer.core_protocols)
         .exceptions
         .illegal_state_exception
         .class();
-    let constructor = lowerer
-        .core_protocols
-        .defined()
+    let constructor = crate::defined_protocols(&lowerer.core_protocols)
         .exceptions
         .illegal_state_exception
         .callable();

@@ -15,6 +15,7 @@ mod body;
 mod callable_identities;
 mod callables;
 mod callback_slots;
+mod casts;
 mod classes;
 mod closures;
 mod constructor_slots;
@@ -47,9 +48,14 @@ pub(crate) fn lower(module: &export::Module) -> concrete::Module {
 pub(crate) fn lower_output(
     output: &export::ExportHirOutput,
     requirements: &export::PublicNominalShapeRequirementsV1,
-) -> Result<export::LocalConcreteHirOutput, export::PublicNominalShapeProjectionError> {
+) -> Result<export::LocalConcreteHirOutput, Vec<scoop_ast::Diagnostic>> {
     let module = output.module();
-    let concretizer = Concretizer::new(module)?;
+    let concretizer = Concretizer::new(module).map_err(|error| {
+        vec![scoop_ast::Diagnostic::at(
+            scoop_ast::Span::new(0, 0),
+            format!("failed to project automatic nominal roots: {error}"),
+        )]
+    })?;
     let (module, output_kind) = match output.output_kind() {
         export::ConeOutputKind::Library => {
             (concretizer.run(), export::LocalConeOutputKind::Library)
@@ -67,6 +73,7 @@ pub(crate) fn lower_output(
             )
         }
     };
+    casts::check_runtime_layout(&module)?;
     let materialization = export::LocalShapeSupportPlan::try_new(&module, requirements)
         .expect("validated public shape roots survive concretization");
     Ok(

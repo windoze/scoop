@@ -65,8 +65,22 @@ impl Lowerer {
         self.imported_default_type(expression.result_type())?;
         use hir::DefaultExpressionKindV1 as Kind;
         match expression.kind() {
-            Kind::ReferenceUpcast(operand) => self
+            Kind::ReferenceUpcast(operand) | Kind::Box(operand) | Kind::Unbox(operand) => self
                 .preflight_imported_default_expression(owner, template, operand, locals, callables),
+            Kind::IsInstance {
+                operand,
+                checked_type,
+            }
+            | Kind::Cast {
+                operand,
+                checked_type,
+                ..
+            } => {
+                self.imported_default_type(checked_type)?;
+                self.preflight_imported_default_expression(
+                    owner, template, operand, locals, callables,
+                )
+            }
             Kind::StringLiteral {
                 owner: hir::DefaultStringOwnerV1::CurrentInstantiation,
                 ..
@@ -233,10 +247,6 @@ impl Lowerer {
             | Kind::SizeOf(_)
             | Kind::AlignOf(_)
             | Kind::FieldAccess { .. }
-            | Kind::Box(_)
-            | Kind::Unbox(_)
-            | Kind::IsInstance { .. }
-            | Kind::Cast { .. }
             | Kind::ArrayLiteral(_)
             | Kind::ArrayAssembly(_)
             | Kind::Index { .. }

@@ -15,21 +15,17 @@ pub fn lower_current_cone(
         });
     }
     let mut callables = Arena::new();
-    let (authority, cycle_authority) = match &hir.core_protocols {
-        hir::ConcreteCoreProtocols::Defined(defined) => (
-            CoreMirLoweringAuthority::Defined(defined.clone()),
-            InitializationCycleLoweringAuthority::Local,
-        ),
-        hir::ConcreteCoreProtocols::Imported(_) => (
-            CoreMirLoweringAuthority::Imported,
-            lower_initialization_cycle_authority(hir, &selected_callables, &mut callables)?,
-        ),
+    let cycle_authority = match &hir.core_protocols {
+        hir::ConcreteCoreProtocols::Defined(_) => InitializationCycleLoweringAuthority::Local,
+        hir::ConcreteCoreProtocols::Imported(_) => {
+            lower_initialization_cycle_authority(hir, &selected_callables, &mut callables)?
+        }
     };
     let dependency_mapping =
         lower_dependency_callables(output, &selected_callables, &mut callables)?;
-    let module = lower_with_core_authority(
+    lower_cast_constructor(hir, &selected_callables, &mut callables)?;
+    let module = lower_with_dependencies(
         &output.output().local,
-        authority,
         cycle_authority,
         callables,
         dependency_mapping,
@@ -131,13 +127,52 @@ fn lower_dependency_callables(
         );
         mapping.insert(source_id, (target, lowering_role));
     }
-    if callables.len() != imported.len() {
-        return Err(CurrentConeMirLoweringError::UnusedExternalCallable {
-            selected: imported.len(),
-            used: callables.len(),
-        });
-    }
     Ok(mapping)
+}
+
+pub(super) fn cast_constructor_target(
+    protocols: &scoop_hir::ImportedCoreProtocols,
+) -> Result<
+    (
+        mir::ConeIdentity,
+        scoop_identity::StrongCallableDefinitionOwner,
+    ),
+    CurrentConeMirLoweringError,
+> {
+    use scoop_hir::ImportedCoreProtocolCallableDefinition as Definition;
+    use scoop_identity::StrongCallableDefinitionOwner as Target;
+    let constructor = protocols.exceptions().class_cast_exception_constructor();
+    let target = match constructor.definition() {
+        Definition::Constructor(id) => Target::Constructor(id.persistent()),
+        Definition::GeneratedCallable(id) => Target::GeneratedCallable(id.persistent()),
+        _ => return Err(CurrentConeMirLoweringError::InvalidCastConstructor),
+    };
+    Ok((constructor.provider(), target))
+}
+
+fn lower_cast_constructor(
+    module: &hir::Module,
+    selected: &mir::SelectedExternalMirSet,
+    callables: &mut Arena<mir::ExternalCallableUse>,
+) -> Result<(), CurrentConeMirLoweringError> {
+    let hir::ConcreteCoreProtocols::Imported(protocols) = &module.core_protocols else {
+        return Ok(());
+    };
+    let (provider, target) = cast_constructor_target(protocols)?;
+    if callables.iter().any(|(_, callable)| {
+        callable.reference().provider() == provider
+            && callable.reference().implementation() == target
+    }) {
+        return Ok(());
+    }
+    if let Some(id) = selected.callable_for(provider, target) {
+        callables.alloc(
+            selected
+                .callable_use(id, mir::GcEffect::Managed)
+                .expect("the selected constructor retains its complete physical signature"),
+        );
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -146,6 +181,7 @@ pub enum CurrentConeMirLoweringError {
     InvalidInitializationCycleThrower,
     MissingInitializationCycleThrower,
     InitializationCycleThrowerMismatch,
+    InvalidCastConstructor,
     ForeignExternalMirSelection {
         expected: mir::ConeIdentity,
         actual: mir::ConeIdentity,
@@ -158,10 +194,6 @@ pub enum CurrentConeMirLoweringError {
     },
     DependencySignatureMismatch {
         index: u32,
-    },
-    UnusedExternalCallable {
-        selected: usize,
-        used: usize,
     },
     InvalidOutput(mir::DependencyMirOutputError),
 }

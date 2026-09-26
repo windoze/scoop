@@ -2,9 +2,8 @@
 
 use scoop_hir as hir;
 use scoop_identity::{
-    CallableMaterialization, CallableMaterializationContext, CallableOwner, CallableTemplateOwner,
-    ExactCallableSignature, PersistentConstructorId, StrongCallableDefinitionOwner,
-    ValidatedIdentityGraph,
+    CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
+    ExactCallableSignature, PersistentConstructorId, ValidatedIdentityGraph,
 };
 use scoop_mir as mir;
 use scoop_wire::{WireError, WirePath};
@@ -24,7 +23,8 @@ pub fn lower_constructor_bindings(
     let local = output.output().local.module();
     let mut producer = Producer::new(public, input, identities, types)?;
     for (id, constructor) in local.class_constructors.iter() {
-        let Some((declaration, source)) = producer.source(constructor.materialization)? else {
+        let Some((declaration, source, origin)) = producer.source(constructor.materialization)?
+        else {
             continue;
         };
 
@@ -41,13 +41,15 @@ pub fn lower_constructor_bindings(
         producer.record(
             declaration,
             source,
+            origin,
             semantic,
             lowered,
             mir::MirCallableLoweringRoleV1::ClassInitializer { owner },
         )?;
     }
     for (id, constructor) in local.struct_constructors.iter() {
-        let Some((declaration, source)) = producer.source(constructor.materialization)? else {
+        let Some((declaration, source, origin)) = producer.source(constructor.materialization)?
+        else {
             continue;
         };
 
@@ -56,6 +58,7 @@ pub fn lower_constructor_bindings(
         producer.record(
             declaration,
             source,
+            origin,
             lowered.clone(),
             lowered,
             match constructor.kind {

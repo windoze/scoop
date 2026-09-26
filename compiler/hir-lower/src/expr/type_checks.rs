@@ -104,6 +104,13 @@ impl Lowerer {
                 origin: self.expression_origin(span),
             });
         }
+        if let Err(error) = self.prepare_cast_exception_type() {
+            self.error(
+                span,
+                format!("cannot resolve cast exception type: {error:?}"),
+            );
+            return None;
+        }
         let cast = hir::Expr {
             kind: ExprKind::Cast {
                 operand: Box::new(operand),

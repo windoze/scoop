@@ -1,0 +1,88 @@
+Module
+  struct WideValue (first: Long, second: Long, third: Long)
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<WideValue> vtable=0 itables=0
+  generated_exact_type get0 location=class3 nominal_id=2687927a94b0ac574d1ec872ad722512d7d9d714019ff2659365c6ffb0775072 exact_id=a95456c32aee565d24518a02bca123712d71b5b2bfe21f32e59c7af7a9fabbf9
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call $call.1: WideValue = external0 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      val boxed: Any
+        Type Any
+        Box
+          Type WideValue
+          Local $call.1
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance WideValue
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $ub.2: WideValue
+        Type WideValue
+        Unbox
+          Type Any
+          Local $cast.1
+      val value: WideValue
+        Type WideValue
+        Local $ub.2
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type WideValue
+          Local value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  output library

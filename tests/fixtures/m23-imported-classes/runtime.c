@@ -3,13 +3,12 @@
 #include "thread.h"
 #include <stdlib.h>
 
-/* The linked fixture has no global storage, initialization units, or immortal
- * values. Supply the empty tables required by the existing single-image entry.
- * All object descriptors and managed bodies come from the actual artifacts. */
+/* The linked fixture has no global storage or initialization units.
+ * Immortal values and their descriptors are collected from the actual artifacts
+ * into the existing single-image runtime table. */
 const ScoopManagedGlobalDescriptor scoop_image_managed_globals[] = {{0}};
 const uint64_t scoop_image_managed_global_count = 0;
-const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[] = {{0}};
-const uint64_t scoop_image_immortal_object_count = 0;
+SCOOP_FIXTURE_IMMORTALS
 const ScoopInitializationUnitDescriptor scoop_image_initialization_units[] = {{0}};
 const uint64_t scoop_image_initialization_unit_count = 0;
 

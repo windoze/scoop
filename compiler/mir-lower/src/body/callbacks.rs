@@ -14,7 +14,7 @@ impl BodyLowerer<'_> {
             struct_map: self.struct_map,
             class_map: self.class_map,
         };
-        let core = self.core_protocols.defined().foreign_callbacks;
+        let core = crate::defined_protocols(self.core_protocols).foreign_callbacks;
         for enumeration in [
             core.modes.enumeration(),
             core.states.enumeration(),
@@ -245,9 +245,7 @@ impl BodyLowerer<'_> {
             "a callback registration mode belongs to the validated core protocol"
         );
         let callback_mode = if registration.mode
-            == self
-                .core_protocols
-                .defined()
+            == crate::defined_protocols(self.core_protocols)
                 .foreign_callbacks
                 .modes
                 .reusable()
@@ -256,8 +254,7 @@ impl BodyLowerer<'_> {
         } else {
             assert_eq!(
                 registration.mode,
-                self.core_protocols
-                    .defined()
+                crate::defined_protocols(self.core_protocols)
                     .foreign_callbacks
                     .modes
                     .one_shot(),
@@ -289,7 +286,10 @@ impl BodyLowerer<'_> {
             mutable: false,
         });
         let throwable = mir::Type::Class(
-            self.class_map[&self.core_protocols.defined().exceptions.throwable.class()],
+            self.class_map[&crate::defined_protocols(self.core_protocols)
+                .exceptions
+                .throwable
+                .class()],
         );
         let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
         let exception_out = locals.alloc(mir::Local {

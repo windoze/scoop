@@ -120,7 +120,11 @@ impl Lowerer {
         module: &hir::Module,
         result: &mir::Type,
     ) -> hir::CoroutineProtocol {
-        for protocol in self.core_protocols.defined().coroutines.iter().copied() {
+        for protocol in crate::defined_protocols(&self.core_protocols)
+            .coroutines
+            .iter()
+            .copied()
+        {
             let lowered = Types {
                 module,
                 struct_map: &self.struct_map,
@@ -138,9 +142,7 @@ impl Lowerer {
                 return protocol;
             }
         }
-        let protocols = self
-            .core_protocols
-            .defined()
+        let protocols = crate::defined_protocols(&self.core_protocols)
             .coroutines
             .iter()
             .map(|protocol| format!("{:?}", module.types[protocol.result_type].kind))

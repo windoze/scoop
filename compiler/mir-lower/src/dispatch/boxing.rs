@@ -402,13 +402,16 @@ impl Lowerer {
     ) -> Option<hir::StructId> {
         match payload {
             mir::Type::Integer(kind) => Some(
-                self.core_protocols
-                    .defined()
+                crate::defined_protocols(&self.core_protocols)
                     .fundamental_types
                     .integers
                     .owner(raise_integer_kind(*kind)),
             ),
-            mir::Type::Boolean => Some(self.core_protocols.defined().fundamental_types.boolean),
+            mir::Type::Boolean => Some(
+                crate::defined_protocols(&self.core_protocols)
+                    .fundamental_types
+                    .boolean,
+            ),
             mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
             _ => None,
         }
