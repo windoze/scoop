@@ -152,7 +152,11 @@ pub fn emit_object_set_v2(
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedStrongObjectSetV2, CodegenError> {
     validate_object_set_input(input, profile)?;
-    validate_production_binding(input, &production)?;
+    if production.image_plan().cone().identity() != input.module().cone {
+        return Err(CodegenError(
+            "strong production belongs to a different Cone than the emitted LIR".to_owned(),
+        ));
+    }
     emit_object_set_with_production(input, production, temporary_parent, profile)
 }
 
@@ -163,8 +167,9 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedStrongObjectSet<scoop_lir::StrongProductionSection<D, C, I>>, CodegenError> {
     let module = input.module();
-    let partition = StrongScoopLirObjectPartitionV1::from_input(input)
-        .map_err(|error| CodegenError(error.to_string()))?;
+    let partition =
+        StrongScoopLirObjectPartitionV1::from_input(input, production.canonical_definitions())
+            .map_err(|error| CodegenError(error.to_string()))?;
     let expected_safepoints = statepoint::expectations(module)?;
     let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
@@ -290,40 +295,6 @@ fn validate_object_set_input(
     Ok(())
 }
 
-fn validate_production_binding(
-    input: &scoop_lir::SingleConeStrongLirOutput,
-    production: &scoop_lir::StrongProductionSectionV2,
-) -> Result<(), CodegenError> {
-    let foundation = input.foundation();
-    if production.image_plan().cone().identity() != foundation.producer() {
-        return Err(CodegenError(
-            "layout-validated strong production belongs to a different producer".to_owned(),
-        ));
-    }
-    let expected_symbols = scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(
-        foundation,
-    )
-    .map_err(|error| CodegenError(format!("cannot rebuild strong symbol surface: {error}")))?;
-    if production.canonical_definitions() != &expected_symbols {
-        return Err(CodegenError(
-            "layout-validated strong production does not match the emitted LIR definitions"
-                .to_owned(),
-        ));
-    }
-    let expected_definitions =
-        scoop_lir::StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
-            .map_err(|error| {
-                CodegenError(format!("cannot rebuild strong definition surface: {error}"))
-            })?;
-    if production.object_definition_plans() != &expected_definitions {
-        return Err(CodegenError(
-            "layout-validated strong production does not match the emitted LIR definition plans"
-                .to_owned(),
-        ));
-    }
-    Ok(())
-}
-
 /// Render every physical strong object module without writing artifacts.
 pub fn render_llvm_ir_members(
     input: &scoop_lir::SingleConeStrongLirOutput,
@@ -339,8 +310,9 @@ pub fn render_llvm_ir_members(
         .map_err(|error| {
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
-    let partition = StrongScoopLirObjectPartitionV1::from_input(input)
-        .map_err(|error| CodegenError(error.to_string()))?;
+    let partition =
+        StrongScoopLirObjectPartitionV1::from_input(input, production.canonical_definitions())
+            .map_err(|error| CodegenError(error.to_string()))?;
     let expected_safepoints = statepoint::expectations(module)?;
     let machine = profile.create_target_machine()?;
     partition

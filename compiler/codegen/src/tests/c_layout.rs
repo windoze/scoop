@@ -1797,7 +1797,7 @@ fn foreign_callback_operation_rejects_lookalike_callback_struct() {
             },
         ));
 
-    let error = joined_c_bridge_sources(&module)
+    let error = crate::validation::validate_module(&module)
         .expect_err("callback operations must preserve nominal callback identity");
     assert!(
         error.0.contains("requires exact callback struct")
@@ -1969,7 +1969,7 @@ fn foreign_callback_state_operation_rejects_lookalike_state_enum() {
             },
         ));
 
-    let error = joined_c_bridge_sources(&module)
+    let error = crate::validation::validate_module(&module)
         .expect_err("callback state operations must preserve nominal state identity");
     assert!(
         error.0.contains("foreign callback operation")
@@ -2001,7 +2001,7 @@ fn foreign_callback_failure_operation_rejects_lookalike_failure_enum() {
             },
         ));
 
-    let error = joined_c_bridge_sources(&module)
+    let error = crate::validation::validate_module(&module)
         .expect_err("callback failure operations must preserve nominal failure identity");
     assert!(
         error.0.contains("foreign callback operation")

@@ -33,7 +33,11 @@ impl OdrFreeLirFoundation {
         foundation
             .project_strong_definitions(module)
             .map_err(OdrFreeLirFoundationProjectionError::Foundation)?;
-        Self::try_new(module.cone, foundation).map_err(OdrFreeLirFoundationProjectionError::Odr)
+        // The projection only appends current-Cone strong definitions.
+        Ok(Self {
+            producer: module.cone,
+            canonical: Rc::new(foundation),
+        })
     }
 
     pub fn try_new(
@@ -165,12 +169,32 @@ impl OdrFreeLirFoundation {
         &self.canonical.definition_plans
     }
 
+    pub(crate) fn definition_plan(
+        &self,
+        id: ObjectDefinitionPlanId,
+    ) -> Option<&super::DefinitionPlanRecord> {
+        self.definition_plans()
+            .binary_search_by_key(&id, |record| record.id())
+            .ok()
+            .map(|index| &self.definition_plans()[index])
+    }
+
     pub(crate) fn callable_bodies(&self) -> &[super::CallableBodyRecord] {
         &self.canonical.callable_bodies
     }
 
     pub(crate) fn definition_atoms(&self) -> &[super::DefinitionAtomRecord] {
         &self.canonical.definition_atoms
+    }
+
+    pub(crate) fn definition_atom(
+        &self,
+        id: ObjectDefinitionAtomId,
+    ) -> Option<&super::DefinitionAtomRecord> {
+        self.definition_atoms()
+            .binary_search_by_key(&id, |record| record.id())
+            .ok()
+            .map(|index| &self.definition_atoms()[index])
     }
 
     pub fn materialized_exact_types(&self) -> &[PersistentExactTypeId] {

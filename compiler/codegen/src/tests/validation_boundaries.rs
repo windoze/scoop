@@ -73,11 +73,10 @@ fn assert_validation_error<T>(
     }
 }
 
-fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
+fn assert_scoop_entries_reject(module: Module, expected: &str, fixture: &str) {
     let expected = resolve_function_markers(&module, expected);
     let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new())
         .expect("malformed validation fixture still has a complete strong foundation");
-    let module = input.module();
     let profile = host_profile();
     let output = std::env::temp_dir().join(format!(
         "scoop_codegen_{fixture}_preflight_test_{}.o",
@@ -114,14 +113,13 @@ fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
         }),
         &expected,
     );
-    assert_validation_error(
-        std::panic::catch_unwind(|| render_c_bridge_source_set(&input)),
-        &expected,
-    );
-    assert_validation_error(
-        std::panic::catch_unwind(|| c_layout_assertions(module)),
-        &expected,
-    );
+}
+
+fn assert_output_validation_error(module: Module, expected: &str) {
+    let error = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new())
+        .err()
+        .expect("malformed identities must fail at the LIR output boundary");
+    assert!(error.to_string().contains(expected), "{error}");
 }
 
 fn assert_module_validation_error(module: &Module, expected: &str) {
@@ -146,9 +144,9 @@ fn resolve_function_markers(module: &Module, expected: &str) -> String {
 }
 
 #[test]
-fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
+fn scoop_codegen_entries_validate_before_manifests_and_eh_edges() {
     let module = module_with_invalid_invoke_unwind();
-    assert_public_entries_reject(
+    assert_scoop_entries_reject(
         module,
         "variant control-flow validation in {function:2} reached invalid block 99",
         "eh_edge",
@@ -158,7 +156,7 @@ fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
 #[test]
 fn root_plan_validation_rejects_nonterminal_invoke_before_indexing_its_edges() {
     let module = module_with_nonterminal_invoke_and_invalid_edges();
-    assert_public_entries_reject(
+    assert_scoop_entries_reject(
         module,
         "invoke {function:2}: must be the last instruction of block entry",
         "nonterminal_invoke",
@@ -348,14 +346,14 @@ fn malformed_callback_operation(corruption: CallbackOperationCorruption) -> Modu
 #[test]
 fn public_codegen_entries_reject_invalid_typed_instruction_ids_without_panicking() {
     let module = module_with_invalid_enum_wrap_output();
-    assert_public_entries_reject(
+    assert_scoop_entries_reject(
         module,
         "enum_wrap result references invalid temporary t99 in {function:0}",
         "enum_result_id",
     );
 
     let module = module_with_invalid_callback_state_output();
-    assert_public_entries_reject(
+    assert_scoop_entries_reject(
         module,
         "foreign callback state result references invalid temporary t99 in {function:0}",
         "callback_result_id",
@@ -702,7 +700,7 @@ fn duplicate_type_descriptor_identity_is_rejected() {
         itables: Vec::new(),
     });
 
-    assert_module_validation_error(&module, "duplicate persistent symbol request");
+    assert_output_validation_error(module, "duplicate persistent symbol request");
 }
 
 #[test]
@@ -812,7 +810,7 @@ fn layout_validation_rejects_two_physical_layouts_for_one_identity() {
         kind: LayoutKind::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::String),
     });
 
-    assert_module_validation_error(&module, "duplicate layout identity");
+    assert_output_validation_error(module, "duplicate layout identity");
 }
 
 #[test]
@@ -838,7 +836,7 @@ fn static_storage_validation_rejects_two_globals_for_one_identity() {
         });
     }
 
-    assert_module_validation_error(&module, "duplicate static storage identity");
+    assert_output_validation_error(module, "duplicate static storage identity");
 }
 
 #[test]

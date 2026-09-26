@@ -17,15 +17,15 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
         .collect::<BTreeSet<_>>();
     let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new()).unwrap();
 
-    let partition = StrongScoopLirObjectPartitionV1::from_input(&input).unwrap();
+    let surface =
+        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(input.foundation())
+            .unwrap();
+    let partition = StrongScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
 
     assert_eq!(partition.objects().len(), callable_bodies.len() + 1);
     let non_callable = &partition.objects()[0];
     assert_eq!(non_callable.kind(), StrongScoopLirObjectKindV1::NonCallable);
     assert!(!non_callable.definition_plans().is_empty());
-    let surface =
-        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(input.foundation())
-            .unwrap();
     assert!(non_callable.definition_plans().iter().all(|definition| {
         surface
             .plans()
@@ -58,7 +58,10 @@ fn partition_is_complete_non_overlapping_and_excludes_generated_bridge_units() {
         scoop_lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(input.foundation())
             .unwrap();
 
-    let partition = StrongScoopLirObjectPartitionV1::from_input(&input).unwrap();
+    let surface =
+        scoop_lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(input.foundation())
+            .unwrap();
+    let partition = StrongScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
 
     let actual = partition
         .objects()

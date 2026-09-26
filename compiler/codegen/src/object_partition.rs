@@ -5,8 +5,8 @@ use std::fmt;
 
 use scoop_lir::{
     ObjectDefinitionPlanId, PersistentCallableBodyId, StrongDefinitionEntityKind,
-    StrongDefinitionRole, StrongObjectSymbolSurfaceBuildError, StrongObjectSymbolSurfaceV1,
-    StrongProducerUnitPartitionError, StrongProducerUnitPartitionV1,
+    StrongDefinitionRole, StrongObjectSymbolSurfaceV1, StrongProducerUnitPartitionError,
+    StrongProducerUnitPartitionV1,
 };
 
 /// The codegen-only selector for one physical Scoop LIR object.
@@ -46,22 +46,15 @@ pub struct StrongScoopLirObjectPartitionV1 {
 impl StrongScoopLirObjectPartitionV1 {
     pub fn from_input(
         input: &scoop_lir::SingleConeStrongLirOutput,
+        surface: &StrongObjectSymbolSurfaceV1,
     ) -> Result<Self, StrongScoopLirObjectPartitionError> {
         let producer_units =
             StrongProducerUnitPartitionV1::from_odr_free_foundation(input.foundation())
                 .map_err(StrongScoopLirObjectPartitionError::ProducerUnits)?;
-        let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(input.foundation())
-            .map_err(StrongScoopLirObjectPartitionError::SymbolSurface)?;
-        let definitions = surface
-            .plans()
-            .iter()
-            .map(|plan| (plan.definition_plan(), plan))
-            .collect::<BTreeMap<_, _>>();
-
         let mut non_callable = Vec::new();
         let mut callables = BTreeMap::<PersistentCallableBodyId, ObjectDefinitionPlanId>::new();
         for definition in producer_units.scoop_lir_definition_plans() {
-            let plan = definitions.get(definition).ok_or(
+            let plan = surface.plan(*definition).ok_or(
                 StrongScoopLirObjectPartitionError::MissingDefinition(*definition),
             )?;
             match plan.definition_role() {
@@ -117,7 +110,6 @@ impl StrongScoopLirObjectPartitionV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongScoopLirObjectPartitionError {
     ProducerUnits(StrongProducerUnitPartitionError),
-    SymbolSurface(StrongObjectSymbolSurfaceBuildError),
     MissingDefinition(ObjectDefinitionPlanId),
     InvalidCallableDefinition(ObjectDefinitionPlanId),
     DuplicateCallableBody {

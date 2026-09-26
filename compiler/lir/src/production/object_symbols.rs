@@ -1,6 +1,5 @@
 //! Complete expected persistent symbols for every strong definition plan.
 
-use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
@@ -123,22 +122,22 @@ impl StrongObjectSymbolSurfaceV1 {
     ) -> Result<Self, StrongObjectSymbolSurfaceBuildError> {
         let definitions = StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
             .map_err(StrongObjectSymbolSurfaceBuildError::DefinitionSurface)?;
-        let keys = foundation
-            .definition_plans()
-            .iter()
-            .map(|record| (record.id(), *record.key()))
-            .collect::<BTreeMap<_, _>>();
-        let atom_roles = foundation
-            .definition_atoms()
-            .iter()
-            .map(|record| (record.id(), record.key().role()))
-            .collect::<BTreeMap<_, _>>();
+        Self::from_definition_plans(foundation, &definitions)
+    }
+
+    pub(crate) fn from_definition_plans(
+        foundation: &OdrFreeLirFoundation,
+        definitions: &StrongObjectDefinitionPlanSurfaceV1,
+    ) -> Result<Self, StrongObjectSymbolSurfaceBuildError> {
         let mut plans = Vec::with_capacity(definitions.plans().len());
         for definition in definitions.plans() {
             let definition_plan = definition.plan();
-            let key = keys.get(&definition_plan).ok_or(
-                StrongObjectSymbolSurfaceBuildError::MissingDefinitionKey(definition_plan),
-            )?;
+            let key = foundation
+                .definition_plan(definition_plan)
+                .ok_or(StrongObjectSymbolSurfaceBuildError::MissingDefinitionKey(
+                    definition_plan,
+                ))?
+                .key();
             let (
                 ObjectDefinitionPlanOwner::Strong { producer, entity },
                 ObjectDefinitionPlanRole::Strong(definition_role),
@@ -176,9 +175,13 @@ impl StrongObjectSymbolSurfaceV1 {
             let atom_boundaries = atoms
                 .into_iter()
                 .map(|atom| {
-                    let role = atom_roles.get(&atom).copied().ok_or(
-                        StrongObjectSymbolSurfaceBuildError::MissingDefinitionAtom(atom),
-                    )?;
+                    let role = foundation
+                        .definition_atom(atom)
+                        .ok_or(StrongObjectSymbolSurfaceBuildError::MissingDefinitionAtom(
+                            atom,
+                        ))?
+                        .key()
+                        .role();
                     boundary_symbols(atom, role)
                         .map_err(StrongObjectSymbolSurfaceBuildError::Symbol)
                 })

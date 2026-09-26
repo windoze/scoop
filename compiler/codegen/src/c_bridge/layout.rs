@@ -5,7 +5,7 @@ use super::*;
 /// bridge. Synthetic names intentionally do not expose Scoop source field
 /// names; the bridge ABI promises byte layout, not a C-facing typedef API.
 pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
-    validation::validate_module(module)?;
+    validation::validate_native_boundary(module)?;
     let surface = CBridgeTypeSurface::for_module(module)?;
     render_c_layout_assertions(module, &surface)
 }

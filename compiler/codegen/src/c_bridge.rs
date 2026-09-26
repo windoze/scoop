@@ -52,7 +52,7 @@ impl GeneratedCBridgeSourceSetV1 {
 pub fn render_c_bridge_source_set(
     input: &scoop_lir::SingleConeStrongLirOutput,
 ) -> Result<GeneratedCBridgeSourceSetV1, CodegenError> {
-    validation::validate_module(input.module())?;
+    validation::validate_native_boundary(input.module())?;
     render_source_set(input.module(), input.foundation())
 }
 
@@ -60,7 +60,7 @@ pub fn render_c_bridge_source_set(
 pub(crate) fn render_c_bridge_source_set_for_module(
     module: &Module,
 ) -> Result<GeneratedCBridgeSourceSetV1, CodegenError> {
-    validation::validate_module(module)?;
+    validation::validate_native_boundary(module)?;
     let foundation = scoop_lir::OdrFreeLirFoundation::from_module(module)
         .map_err(|error| CodegenError(format!("cannot seal generated C bridge input: {error}")))?;
     render_source_set(module, &foundation)

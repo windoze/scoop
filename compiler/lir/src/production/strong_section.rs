@@ -105,12 +105,14 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         digest_finalization_plan
             .validate_against(foundation)
             .map_err(StrongProductionSectionBuildError::DigestPlan)?;
-        let canonical_definitions =
-            StrongObjectSymbolSurfaceV1::from_odr_free_foundation(foundation)
-                .map_err(StrongProductionSectionBuildError::CanonicalDefinitions)?;
         let object_definition_plans =
             StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
                 .map_err(StrongProductionSectionBuildError::ObjectDefinitions)?;
+        let canonical_definitions = StrongObjectSymbolSurfaceV1::from_definition_plans(
+            foundation,
+            &object_definition_plans,
+        )
+        .map_err(StrongProductionSectionBuildError::CanonicalDefinitions)?;
         let image_plan = ConeImagePlanV1::new(
             coordinate,
             direct_dependencies,
