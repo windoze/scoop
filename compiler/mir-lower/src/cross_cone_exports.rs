@@ -1,9 +1,7 @@
 //! Complete local export assembly from one sealed HIR/MIR production pair.
 
 use scoop_hir as hir;
-use scoop_identity::{
-    PersistentInitializationUnitId, StrongCallableDefinitionOwner, ValidatedIdentityGraph,
-};
+use scoop_identity::{PersistentInitializationUnitId, ValidatedIdentityGraph};
 use scoop_mir as mir;
 use scoop_wire::{WireError, WirePath};
 
@@ -39,6 +37,7 @@ pub fn lower_type_bridge_exports(
         input.mir,
         input.identities,
         &type_index,
+        input.ordinary.exports(),
     )
     .map_err(Error::SourceCallables)?;
     let constructors = crate::lower_constructor_bindings(
@@ -58,9 +57,9 @@ pub fn lower_type_bridge_exports(
     .map_err(Error::Objects)?
     .into_parts();
     let source_tables = with_local(&source_callables, dependencies.callables)?;
-    let source_index =
-        mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables, dependencies.direct_callables)
-            .map_err(Error::Lookup)?;
+    let direct_tables = with_local(input.ordinary, dependencies.direct_callables)?;
+    let source_index = mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables, &direct_tables)
+        .map_err(Error::Lookup)?;
     let boxing = mir::CanonicalMirCallableBindingsV1::from_boxing_adjusts(
         input.mir,
         &types,
@@ -77,18 +76,14 @@ pub fn lower_type_bridge_exports(
         &type_index,
     )
     .map_err(Error::Equality)?;
-    let callables = callables::combine(
-        [
-            source_callables,
-            constructors,
-            object_callables,
-            boxing,
-            equality,
-        ],
-        input.ordinary,
-    )?;
+    let callables = callables::combine([
+        source_callables,
+        constructors,
+        object_callables,
+        boxing,
+        equality,
+    ])?;
     let callable_tables = with_local(&callables, dependencies.callables)?;
-    let direct_tables = with_local(input.ordinary, dependencies.direct_callables)?;
     let callable_index =
         mir::MirTypeBridgeCallableIndexV1::try_new(&callable_tables, &direct_tables)
             .map_err(Error::Lookup)?;

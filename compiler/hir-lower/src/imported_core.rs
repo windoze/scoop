@@ -96,22 +96,22 @@ impl Lowerer {
                 {
                     return Ok(self.any);
                 }
-                let CoreLoweringAuthority::Imported(authority) = &self.core else {
-                    return Err(ImportedSignatureTypeError::Structural);
-                };
-                let fundamental = authority.protocols.fundamental_types();
-                if let Some(kind) = hir::IntegerKind::ALL
-                    .into_iter()
-                    .find(|kind| *identity == fundamental.integer(*kind).persistent())
-                {
-                    Ok(self.integer_type(kind))
-                } else if *identity == fundamental.boolean().persistent() {
-                    Ok(self.boolean)
-                } else if *identity == fundamental.string().persistent() {
-                    Ok(self.string)
-                } else {
-                    self.imported_struct_type(*identity)
+                if let CoreLoweringAuthority::Imported(authority) = &self.core {
+                    let fundamental = authority.protocols.fundamental_types();
+                    if let Some(kind) = hir::IntegerKind::ALL
+                        .into_iter()
+                        .find(|kind| *identity == fundamental.integer(*kind).persistent())
+                    {
+                        return Ok(self.integer_type(kind));
+                    }
+                    if *identity == fundamental.boolean().persistent() {
+                        return Ok(self.boolean);
+                    }
+                    if *identity == fundamental.string().persistent() {
+                        return Ok(self.string);
+                    }
                 }
+                self.imported_struct_type(*identity)
             }
             SignatureTypeKey::NominalApplication { .. } | SignatureTypeKey::Binder { .. } => {
                 Err(ImportedSignatureTypeError::Generic)

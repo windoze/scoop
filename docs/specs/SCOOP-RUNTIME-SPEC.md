@@ -2,6 +2,8 @@
 
 跨 Cone struct 主构造器保留源码 Managed 合同与实际 NoGC 值构造入口的区别；次构造器使用其实际 lowering 签名及 GC effect。调用方按完整 MIR lowering 记录和 LIR canonical ABI 传递参数、结果及 roots，ZST 的机器消除不改变源码求值。该接入不改变现有 runtime C 调用约定、String 表示或 GC 契约。
 
+跨 Cone tuple 等结构类型继续使用既有值布局和 canonical ABI；其 nominal 叶、逻辑参数、ZST 及 GC roots 不因签名组合而丢失。结构签名解析不改变 runtime C ABI、String 表示或扫描规则。
+
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
 
 跨 Cone 的 struct 值与成员调用使用实际 provider 的布局和 canonical ABI。ZST 保留逻辑 receiver、参数和结果，物理调用可以省略其存储；普通值保留规定的 direct/indirect/sret 传递，含引用的值保留完整 scan 和 safepoint root 信息。dispatch 使用实际 callable body 引用，不因函数位于某张 metadata 表而获得或失去调用资格。此项不改变 runtime C 调用约定、String 表示及初始化、登记、GC 语义；产物格式见 [实现规范](SCOOP-IMPL-SPEC.md)。

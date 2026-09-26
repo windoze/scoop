@@ -13,3 +13,13 @@ public struct Wide(val first: Long, val second: Long, val third: Long, val marke
 public typealias Packet = Wide
 public typealias Marker = Token
 public typealias Scalar = Long
+
+@NoGC public fun tupleIdentity(value: (Long, Token, Long)): (Long, Token, Long) = value
+@NoGC public fun tupleDefault(value: (Long, Token, Long) = (3, Token(), 9)): Long = value._1 + value._3
+@NoGC public fun tupleProjection(value: (Long, Token, Long), selected: Long = value._1 + value._3): Long = selected
+public struct TupleOps() {
+    @NoGC public fun nested(value: (Token, (Long, Long, Long), Token)): (Token, (Long, Long, Long), Token) = value
+    @NoGC public fun sum(value: (Long, Token, Long)): Long = value._1 + value._3
+    public val pair: (Long, Token, Long)
+        @NoGC get() = (3, Token(), 9)
+}

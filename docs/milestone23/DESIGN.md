@@ -4,6 +4,8 @@
 
 跨 Cone struct 主／次构造器沿共有名称解析及参数协议进入 typed HIR；MIR 选择直接使用实际 provider、构造器 implementation、逻辑签名和 lowering 签名。主构造器的源码 Managed 合同与实际 NoGC 值入口保持各自职责，LIR 按 provider 的 canonical ABI 和真实物理引用物化调用。该路径复用既有 M23-6 callable/selected 记录，不另建构造器来源工厂、授权表或第二份定义；验证覆盖真实产物消费、ZST、命名／默认参数和大值返回。
 
+M23-6 的 param-free 调用消费覆盖由真实 nominal 组成的结构签名。tuple、函数和指针结构沿既有 ExactTypeKey 解析，实例、符号、ABI 与 GC 数据继续从实际 provider 取得。验收包含真实产物中的 tuple 参数／结果及其与 struct、成员、默认值和 ZST 的组合，不把名义叶分类当作拒绝结构类型的资格限制。
+
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
 
 外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
@@ -1540,7 +1542,7 @@ M23-6 的正式 `scoopc` 发布与 `scoop` 依赖消费统一使用 `CrossConeLa
 
 MIR section 直接消费同一次 HIR→MIR 已生产的六张完整导出表、初始化单元记录和 typed 依赖使用。删除独立来源工厂、重复预期表、逐表比较回调及 source-join 凭证；生产侧不再次重建或完整验证已经检查的记录。读取边界按实际 HIR 声明、MIR 定义与依赖目录检查格式、类型、签名、effect、可见性、实体归属和引用关系，保留已检查组成表供后续使用，不重建 producer section。依赖选择仍检查实际 provider、完整 typed target 和引用闭包。
 
-普通 callable 导出在首次生成时根据真实声明解析 exact signature，并与实际 Strong body 的签名关联。组装类型导出时直接使用这些完整记录，不再次从 HIR 枚举、分类和比较同一普通导出全集。多个 lowering 表与普通导出的重叠项仍核对 implementation、逻辑签名、物理签名及 GC effect；合并后的最终表统一排序并检查重复定义，不在合并中途再构建一张仅供重验的临时 canonical 表。外部 reader 对新读入数据的类型、签名和定义检查保留；本调整不改变 wire/profile、runtime C ABI 或 String 表示。
+普通 callable 导出在首次生成时根据真实声明解析 exact signature，并与实际 Strong body 的签名关联。组装类型导出时直接使用这些完整记录，不再次从 HIR 枚举、分类和比较同一普通导出全集。组装在生产其他 lowering 记录前排除已有普通定义；合并后的最终表统一排序并检查重复定义，不在合并中途再构建一张仅供重验的临时 canonical 表。外部 reader 对新读入数据的类型、签名和定义检查保留；本调整不改变 wire/profile、runtime C ABI 或 String 表示。
 
 初始化单元在 MIR 物化时已经确定实际 initializer、ensure、完整逻辑签名与 GC effect；导出直接复制这些完整记录，不再投影第二套来源签名或保存 ProducerEmitted／ReaderSemanticReplay 证明状态。reader 从实际声明的 unit key 和同一产物的 callable 定义恢复相同数据，并检查真实 provider、ordinary Managed、无 receiver/参数及 Unit 返回值。实际机器定义与 relocation 在 Link 对象边界检查；两种消费使用同一记录类型，七字段 wire 不增加冗余 unit-role 表。
 

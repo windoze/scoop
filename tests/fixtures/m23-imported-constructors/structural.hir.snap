@@ -1,0 +1,142 @@
+Module
+  fun token(): Token <no-gc cdecl>
+    return
+      ImportedDependencyCall #0 : Token
+  fun primary(): Wide <no-gc cdecl>
+    val local0
+      TupleLiteral : (Long, Token, Long)
+        IntegerLiteral -29 : Long
+        ImportedDependencyCall #0 : Token
+        IntegerLiteral 53 : Long
+    val local1
+      Local $dependency.argument.0 : (Long, Token, Long)
+    val local2
+      ImportedDependencyCall #1 : (Long, Token, Long)
+        Local $dependency.parameter.value : (Long, Token, Long)
+    val local3
+      IntegerLiteral 17 : Long
+    val local4
+      FieldAccess _1 : Long
+        Local fields : (Long, Token, Long)
+    val local5
+      FieldAccess _3 : Long
+        Local fields : (Long, Token, Long)
+    val local6
+      FieldAccess _2 : Token
+        Local fields : (Long, Token, Long)
+    val local7
+      Local $dependency.argument.0 : Long
+    val local8
+      Local $dependency.argument.1 : Long
+    val local9
+      Local $dependency.argument.2 : Long
+    val local10
+      Local $dependency.argument.3 : Token
+    return
+      ImportedDependencyCall #2 : Wide
+        Local $dependency.parameter.first : Long
+        Local $dependency.parameter.second : Long
+        Local $dependency.parameter.third : Long
+        Local $dependency.parameter.marker : Token
+  fun secondary(): Wide <no-gc cdecl>
+    val local0
+      ImportedDependencyCall #3 : TupleOps
+    val local1
+      TupleLiteral : (Token, (Long, Long, Long), Token)
+        ImportedDependencyCall #0 : Token
+        TupleLiteral : (Long, Long, Long)
+          IntegerLiteral 5 : Long
+          IntegerLiteral 8 : Long
+          IntegerLiteral 11 : Long
+        ImportedDependencyCall #0 : Token
+    val local2
+      Local $dependency.argument.0 : (Token, (Long, Long, Long), Token)
+    val local3
+      ImportedDependencyCall #4 : (Token, (Long, Long, Long), Token)
+        Local $dependency.receiver : TupleOps
+        Local $dependency.parameter.value : (Token, (Long, Long, Long), Token)
+    val local4
+      FieldAccess _1 : Long
+        FieldAccess _2 : (Long, Long, Long)
+          Local fields : (Token, (Long, Long, Long), Token)
+    val local5
+      FieldAccess _2 : Long
+        FieldAccess _2 : (Long, Long, Long)
+          Local fields : (Token, (Long, Long, Long), Token)
+    val local6
+      FieldAccess _3 : Long
+        FieldAccess _2 : (Long, Long, Long)
+          Local fields : (Token, (Long, Long, Long), Token)
+    val local7
+      FieldAccess _1 : Token
+        Local fields : (Token, (Long, Long, Long), Token)
+    val local8
+      Local $dependency.argument.0 : Long
+    val local9
+      Local $dependency.argument.1 : Long
+    val local10
+      Local $dependency.argument.2 : Long
+    val local11
+      Local $dependency.argument.3 : Token
+    return
+      ImportedDependencyCall #2 : Wide
+        Local $dependency.parameter.first : Long
+        Local $dependency.parameter.second : Long
+        Local $dependency.parameter.third : Long
+        Local $dependency.parameter.marker : Token
+  fun defaults(): Long <no-gc cdecl>
+    val local0
+      TupleLiteral : (Long, Token, Long)
+        IntegerLiteral 3 : Long
+        ImportedDependencyCall #0 : Token
+        IntegerLiteral 9 : Long
+    val local7
+      ImportedDependencyCall #5 : Long
+        Local $dependency.parameter.value : (Long, Token, Long)
+    val local1
+      ImportedDependencyCall #6 : (Long, Token, Long)
+        ImportedDependencyCall #3 : TupleOps
+    val local2
+      Local $dependency.argument.0 : (Long, Token, Long)
+    val local3
+      FieldAccess _1 : Long
+        Local $dependency.parameter.value : (Long, Token, Long)
+    val local4
+      FieldAccess _3 : Long
+        Local $dependency.parameter.value : (Long, Token, Long)
+    val local5
+      Local $dependency.default.local.2 : Long
+    val local6
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.default.local.1 : Long
+        Local $dependency.default.local.3 : Long
+    val local8
+      ImportedDependencyCall #7 : Long
+        Local $dependency.parameter.value : (Long, Token, Long)
+        Local $dependency.parameter.selected : Long
+    val local9
+      Local $dependency.argument.0 : Long
+    val local10
+      IntegerOperation long.add <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+    val local11
+      IntegerLiteral 12 : Long
+    val local12
+      Local $dependency.argument.0 : Long
+    return
+      IntegerOperation long.sub <no-gc> : Long
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+  fun republished(value: (Long, Token, Long)): Long <no-gc cdecl>
+    val local1
+      ImportedDependencyCall #3 : TupleOps
+    val local2
+      Local value : (Long, Token, Long)
+    val local3
+      Local $dependency.argument.0 : (Long, Token, Long)
+    return
+      ImportedDependencyCall #8 : Long
+        Local $dependency.receiver : TupleOps
+        Local $dependency.parameter.value : (Long, Token, Long)
+  output library

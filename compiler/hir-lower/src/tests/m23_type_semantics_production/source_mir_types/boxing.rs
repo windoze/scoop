@@ -28,6 +28,7 @@ fn sources(
         input,
         graph,
         types,
+        &[],
     )
     .unwrap()
 }

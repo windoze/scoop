@@ -22,11 +22,11 @@ impl Lowerer {
                 operation: "dependency default type substitution",
             });
         }
-        self.imported_default_core_type(template.result())?;
+        self.imported_default_type(template.result())?;
 
         let mut locals = BTreeSet::new();
         for local in template.locals().records() {
-            self.imported_default_core_type(local.value_type())?;
+            self.imported_default_type(local.value_type())?;
             locals.insert(local.selector().clone());
         }
         let mut callables = BTreeMap::new();
@@ -62,7 +62,7 @@ impl Lowerer {
             hir::ImportedCallableDeclaration,
         >,
     ) -> Result<(), ImportedDefaultPlanError> {
-        self.imported_default_core_type(expression.result_type())?;
+        self.imported_default_type(expression.result_type())?;
         use hir::DefaultExpressionKindV1 as Kind;
         match expression.kind() {
             Kind::StringLiteral {
@@ -81,6 +81,9 @@ impl Lowerer {
             }),
             Kind::Local(local) if locals.contains(local) => Ok(()),
             Kind::Local(local) => Err(ImportedDefaultPlanError::UnknownLocal(local.clone())),
+            Kind::TupleLiteral(elements) => self.preflight_imported_default_expressions(
+                owner, template, elements, locals, callables,
+            ),
             Kind::Call {
                 callee,
                 arguments,
@@ -88,7 +91,7 @@ impl Lowerer {
             } => {
                 receiver
                     .as_ref()
-                    .try_map(|ty| self.imported_default_core_type(ty))?;
+                    .try_map(|ty| self.imported_default_type(ty))?;
                 self.prepare_imported_default_call(
                     super::plan::default_callable_origin(callee)?,
                     callables,
@@ -105,7 +108,7 @@ impl Lowerer {
                     },
                 arguments,
             } => {
-                self.imported_default_core_type(owner_type)?;
+                self.imported_default_type(owner_type)?;
                 self.prepare_imported_default_call(
                     scoop_identity::CallableTemplateOrigin::Constructor(*declaration),
                     callables,
@@ -149,11 +152,17 @@ impl Lowerer {
                 receiver,
                 field: hir::DefaultFieldRefV1::Struct { owner_type, .. },
             } => {
-                self.imported_default_core_type(owner_type)?;
+                self.imported_default_type(owner_type)?;
                 self.preflight_imported_default_expression(
                     owner, template, receiver, locals, callables,
                 )
             }
+            Kind::FieldAccess {
+                receiver,
+                field: hir::DefaultFieldRefV1::Tuple { .. },
+            } => self.preflight_imported_default_expression(
+                owner, template, receiver, locals, callables,
+            ),
             Kind::MethodCall {
                 receiver,
                 callee: hir::DefaultMethodCalleeV1::Callable(callee),
@@ -198,8 +207,7 @@ impl Lowerer {
                 requirement: ImportedCapabilityRequirement::Native,
                 operation: "dependency default native operation",
             }),
-            Kind::TupleLiteral(_)
-            | Kind::StructInit { .. }
+            Kind::StructInit { .. }
             | Kind::StructConstruct { .. }
             | Kind::ClassInit { .. }
             | Kind::VariantConstruct { .. }
@@ -279,13 +287,13 @@ impl Lowerer {
         Ok(())
     }
 
-    pub(super) fn imported_default_core_type(
+    pub(super) fn imported_default_type(
         &mut self,
         signature: &SignatureTypeKey,
     ) -> Result<hir::TypeId, ImportedDefaultPlanError> {
         match self.imported_signature_type(signature) {
-            Ok(ty) if matches!(signature, SignatureTypeKey::Nominal(_)) => Ok(ty),
-            Ok(_) | Err(ImportedSignatureTypeError::Structural) => {
+            Ok(ty) => Ok(ty),
+            Err(ImportedSignatureTypeError::Structural) => {
                 Err(ImportedDefaultPlanError::Requires {
                     requirement: ImportedCapabilityRequirement::Layout,
                     operation: "dependency default value type",

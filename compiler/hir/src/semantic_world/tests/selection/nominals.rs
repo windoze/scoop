@@ -87,7 +87,9 @@ fn current_declarations_join_the_same_signature_scope() {
         .nominal_exact_leaf_classifier(current.interface.nominal_interfaces())
         .unwrap();
     assert_eq!(
-        classifier.classify(&SignatureTypeKey::Nominal(packet)),
+        classifier
+            .classify(&SignatureTypeKey::Nominal(packet))
+            .unwrap(),
         Some(exact(packet))
     );
     assert_eq!(world.direct_provider_count(), 0);

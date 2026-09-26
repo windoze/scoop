@@ -139,7 +139,7 @@ fn direct_dependency_function_is_visible_in_the_split_current_package() {
 }
 
 #[test]
-fn unsupported_dependency_candidate_falls_through_to_current_package() {
+fn structural_dependency_candidate_wins_before_the_current_package() {
     let mut core = trusted_core();
     let provider = DependencyFunctionFixture::new(
         "layout-provider",
@@ -179,65 +179,13 @@ fn unsupported_dependency_candidate_falls_through_to_current_package() {
     let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
-        .expect("an unsupported exact candidate must not shadow a lower valid layer");
+        .expect("a complete structural signature is available in the exact import layer");
 
-    assert!(output.imported_dependencies().is_empty());
-    assert!(
-        output
-            .output()
-            .export
-            .imported_dependency_callables
-            .is_empty()
+    assert_eq!(output.imported_dependencies().callable_count(), 1);
+    assert_eq!(
+        output.output().export.imported_dependency_callables.len(),
+        1
     );
-}
-
-#[test]
-fn unsupported_dependency_winner_reports_the_stable_layout_gate() {
-    let mut core = trusted_core();
-    let provider = DependencyFunctionFixture::new(
-        "layout-only-provider",
-        "raw",
-        SignatureTypeKey::RawPointer(Box::new(SignatureTypeKey::Nominal(
-            scoop_identity::CoreBuiltinNominal::Unit
-                .identity_record()
-                .id(),
-        ))),
-    );
-    let provider_foundation =
-        core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 53);
-    let aliases = empty_alias_expansions();
-    let mut source = file(vec![fun("consumer", vec![stmt(call("raw", Vec::new()))])]);
-    source
-        .imports
-        .push(exact_import(&["dependency", "api", "raw"]));
-    let ordinary = parsed_ordinary(source);
-    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
-        ordinary.cone(),
-        vec![
-            core.provider(),
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&provider.coordinate, 53),
-                &provider_foundation,
-                &provider.interface,
-                &aliases,
-            ),
-        ],
-        Vec::new(),
-    )
-    .unwrap();
-    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
-
-    let diagnostics = match lower_current_cone(scoop_identity::RequestedConeKind::Library, &input) {
-        Ok(_) => panic!("a dependency pointer result requires the M23-6 ABI capability"),
-        Err(diagnostics) => diagnostics,
-    };
-
-    assert!(diagnostics.iter().any(|diagnostic| {
-        diagnostic
-            .message
-            .contains("SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED")
-    }));
 }
 
 fn in_package(mut source: scoop_ast::SourceFile, segments: &[&str]) -> scoop_ast::SourceFile {

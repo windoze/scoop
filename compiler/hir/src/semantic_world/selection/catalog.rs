@@ -147,7 +147,9 @@ impl ImportedSemanticWorld<'_> {
                 let entry = ConstantCatalogEntry {
                     provider: provider.identity(),
                     record: constant.clone(),
-                    exact_type: classifier.classify(constant.value_type()),
+                    exact_type: classifier
+                        .classify(constant.value_type())
+                        .map_err(ImportedDependencySelectionPlanBuildError::Classification)?,
                     definition_sources: Arc::clone(&definition_sources),
                 };
                 if constants.insert(property, entry).is_some() {

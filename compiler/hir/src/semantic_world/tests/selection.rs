@@ -12,7 +12,7 @@ use super::fixture::{
 mod nominals;
 
 #[test]
-fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
+fn selection_retains_owned_declaration_and_lookup_data() {
     let core = ProviderFixture::empty(ConeCoordinate::reserved_core());
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
     let provider = CallableProviderFixture::new(
@@ -85,12 +85,12 @@ fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
     assert_eq!(callable.provider(), provider.identity());
     assert_eq!(
         callable.capability().implementation(),
-        callable.capability().implementation()
+        scoop_identity::StrongCallableDefinitionOwner::Function(provider.function)
     );
 }
 
 #[test]
-fn selection_rejects_semantic_only_callables() {
+fn selection_accepts_parameter_free_pointer_signatures() {
     let core = ProviderFixture::empty(ConeCoordinate::reserved_core());
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
     let provider = CallableProviderFixture::new(
@@ -132,12 +132,16 @@ fn selection_rejects_semantic_only_callables() {
         .clone();
     let candidate = first.callable_candidate(&binding).unwrap();
 
-    assert!(candidate.capability().is_none());
-    assert!(matches!(
-        first.select_callable(candidate),
-        Err(ImportedDependencySelectionError::CapabilityUnavailable { .. })
-    ));
-    assert_eq!(first.selected_callable_count(), 0);
+    assert_eq!(
+        candidate.capability().unwrap().signature().result(),
+        PersistentExactTypeId::from_key(&ExactTypeKey::RawPointer(exact(unit))).unwrap()
+    );
+    let reference = first.select_callable(candidate).unwrap();
+    assert_eq!(first.selected_callable_count(), 1);
+    assert_eq!(
+        first.resolve_callable(reference).unwrap().provider(),
+        provider.identity()
+    );
 }
 
 #[test]

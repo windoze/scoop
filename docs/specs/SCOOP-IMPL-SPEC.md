@@ -1,5 +1,9 @@
 # Scoop 实现大纲
 
+依赖默认值的 tuple 字面量与字段投影直接实例化为完整 HIR，类型沿同一共有签名查询取得。读取边界已核对的字段索引、元素类型和默认正文在实例化时直接使用，不另以 core 类型或单一 nominal 形式限制参数。
+
+MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产需要独立 lowering 的定义；不为同一函数重建第二份绑定、完整验证后再丢弃。boxing 与 dispatch 的共有查询同时借用当前 Cone 的普通记录和依赖记录。每个定义只生成一次，签名、GC effect 与 typed target 沿完整 IR 和已有表消费，最终表继续拒绝重复定义。
+
 实际 HIR 调用在依赖 MIR 记录可用后完成一次调用根与逻辑签名核对，普通函数、accessor 与 constructor 共用该边界。MIR 和 LIR 的依赖集合分别从实际 typed 调用加入相应 callable 与 ABI 引用，沿共有 provider 查询消费已有定义；不得因旧函数表不含 constructor 而拒绝合法调用，也不在前置阶段和布局阶段重复核对同一调用。
 
 共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/22` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
@@ -11,6 +15,8 @@
 外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
 
 构造调用的别名展开使用既有类型解析结果，并把实际 nominal ID 交给同一构造候选查询。本地与导入 alias 均在各自候选状态内解析，只有获选调用提交该状态；失败候选不向消费集合遗留 alias 或 callable 引用。别名不新增 callable、ABI、布局或来源记录。
+
+共有 param-free 签名解析递归使用实际 nominal 声明和既有 ExactTypeKey，保留 tuple 顺序、函数 effect、指针所指类型与 native calling convention；缺失声明与未物化泛型仍按对应错误处理。普通依赖 nominal 的查询不以当前是否导入 core 协议为前提，intrinsic 的表示只由实际协议声明确定。该接入不新增 wire 字段或资格表，MIR/LIR 继续消费完整类型、真实 callable 与 canonical ABI。
 
 普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。
 
@@ -324,7 +330,7 @@ M23-6 的普通源码 MIR 类型导出由 mir-lower 接收同次生产的 HIR ty
 
 MIR section 直接消费同一次 HIR→MIR 已生产的六张完整导出表、初始化单元记录和 typed 依赖使用。删除独立来源工厂、重复预期表、逐表比较回调及 source-join 凭证；生产侧不再次重建或完整验证已经检查的记录。读取边界按实际 HIR 声明、MIR 定义与依赖目录检查格式、类型、签名、effect、可见性、实体归属和引用关系，保留已检查组成表供后续使用，不重建 producer section。依赖选择仍检查实际 provider、完整 typed target 和引用闭包。
 
-普通 callable 导出在首次生成时根据真实声明解析 exact signature，并与实际 Strong body 的签名关联。组装类型导出时直接使用这些完整记录，不再次从 HIR 枚举、分类和比较同一普通导出全集。多个 lowering 表与普通导出的重叠项仍核对 implementation、逻辑签名、物理签名及 GC effect；合并后的最终表统一排序并检查重复定义，不在合并中途再构建一张仅供重验的临时 canonical 表。外部 reader 对新读入数据的类型、签名和定义检查保留；本调整不改变 wire/profile、runtime C ABI 或 String 表示。
+普通 callable 导出在首次生成时根据真实声明解析 exact signature，并与实际 Strong body 的签名关联。组装类型导出时直接使用这些完整记录，不再次从 HIR 枚举、分类和比较同一普通导出全集。组装在生产其他 lowering 记录前排除已有普通定义；合并后的最终表统一排序并检查重复定义，不在合并中途再构建一张仅供重验的临时 canonical 表。外部 reader 对新读入数据的类型、签名和定义检查保留；本调整不改变 wire/profile、runtime C ABI 或 String 表示。
 
 M23-6 的正式 `scoopc` 发布与 `scoop` 依赖消费统一使用 `CrossConeLayoutStrong`。共有 reader 一次读入完整 HIR 类型语义、MIR 类型与 callable、LIR layout/ABI/dispatch 及真实对象；语义会话直接导入这些记录的实体映射，Compile 与 Link 引用同一完整结果。旧 M23-5 的独立提交、Link 重开及两份发布证明链退出正常路径，不把新 reader 的数据反向构造为旧 producer section。此前格式的依赖需重建；section tag 不复用，runtime C ABI 和 String 表示不变。
 
@@ -688,7 +694,7 @@ ordinary HIR只保留实际提交的通用依赖选择，不再保存独立core 
 core的普通callable与value使用共有HIR声明接口，不再额外发布、序列化或校验core callable/value目标表。prelude的函数和属性查找来自共有dependency world；compiler protocol的声明签名由其typed声明引用核对，不依赖第二份普通callable表。
 core不额外保存prelude snapshot或复制普通公共绑定表。名称查找使用共有direct public surface与dependency world；Option的owner、variant与payload身份只由既有typed compiler protocol承载，变体归属、payload位置及Some恰一字段/None无字段的结构契约在同一protocol reader核对。
 core prelude的类型名与透明alias也从共有dependency world按type namespace查找，与value namespace分别保存并遵循相同的低优先级规则。基础类型的typed identity由既有protocol正规化，alias引用绑定保留共有provider给出的完整route；不再维护CorePreludeOnly、ImportedHirSet或第二份core类型名称表。ordinary consumer除语言内建Unit/Any外，不得在公共名称查找失败后凭基础类型短名回退。
-现有param-free调用桥的exact nominal分类从共有nominal interface声明推导；生产端使用当前声明与显式依赖闭包，前端的dependency selection直接使用所属SemanticWorld中的声明，slib reader逐provider限定为当前声明及其实际传递依赖。不得只从core取得全部签名类型依据，也不得接受调用方另行提供的类型资格表或把同一构建图中的无关provider用于补齐类型。分类仅形成typed nominal signature，不代替实际MIR实现、完整类型/布局、canonical ABI、访问与物化能力检查；generic和结构类型继续由各自能力规则处理，source-only声明不能由此取得执行能力。具体nominal使用typed声明id形成exact identity，语言内建Unit单独保留。空集合按共有规则处理，不要求额外CORE provider。ImportedCoreInputs仅持有已导入的compiler protocol与native-boundary定义，不借用core公共接口。SemanticWorld内部的typed分类不向用户暴露support provider枚举；direct public lookup与support精确查询的边界保持不变。
+现有param-free调用桥的exact nominal分类从共有nominal interface声明推导；生产端使用当前声明与显式依赖闭包，前端的dependency selection直接使用所属SemanticWorld中的声明，slib reader逐provider限定为当前声明及其实际传递依赖。不得只从core取得全部签名类型依据，也不得接受调用方另行提供的类型资格表或把同一构建图中的无关provider用于补齐类型。分类从实际 nominal 叶递归形成完整 param-free exact signature，不代替实际 MIR 实现、完整类型/布局、canonical ABI、访问与物化能力检查；未物化 generic 继续由其阶段能力规则处理，source-only声明不能由此取得执行能力。具体nominal使用typed声明id形成exact identity，语言内建Unit单独保留。空集合按共有规则处理，不要求额外CORE provider。ImportedCoreInputs仅持有已导入的compiler protocol与native-boundary定义，不借用core公共接口。SemanticWorld内部的typed分类不向用户暴露support provider枚举；direct public lookup与support精确查询的边界保持不变。
 canonical Scoop ABI重放直接查询同一provider的共有nominal表示，保留完整struct字段、enum variant/payload声明序、CLayout policy与引用类型的managed表示；private storage support与公开声明使用同一查询。与extern/callback的计算共用表示和ABI算法时，只建立临时表示视图，不为普通Scoop签名制造或发布NativeBoundaryTypeDefinitionRecord。已有native-boundary记录与共有声明重叠时，其owner、参数数和完整表示必须一致；仅native契约需要的显式C投影保留在native路径。缺失依赖、错误provider、字段或variant身份、表示冲突及递归值布局按共有规则拒绝，不以同布局或类型名称补记录。
 删除CoreHirInterface的类型目标表及其wire字段4；现存产品仅含String runtime capability与compiler protocol。shape-support的具体nominal根从共有DeclaredCurrent公共绑定推导，strong reader从已有direct public surface与HIR foundation推导同一集合；alias、generic和re-export不增加本Cone形状根，重复声明目标合并并按typed id排序。该共有投影不新增序列化表，不改变当前core强制物化的范围；缺失绑定或本地声明由共有metadata关系检查拒绝。
 MIR production不再复制core形状根列表：删除CoreMirBridge的wire字段2及CoreMirShapeSupportRootV1，旧字段按不兼容格式拒绝。driver将HIR已提交的完整shape source声明传给MIR strong sealer；sealer由声明重建typed source/exact，检查规范顺序及实际MIR source、box、coroutine step/slot物化，直接保留供LIR消费的声明，不再与第二份序列化清单比较。slib的形状来源与LIR完整性仍由共有公共声明/foundation投影验证；compiler protocol签名和现有typed identity检查保持独立。

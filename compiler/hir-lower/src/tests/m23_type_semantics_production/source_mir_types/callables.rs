@@ -16,7 +16,8 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
             let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
             let public = public_interface(output);
             let bindings =
-                lower_source_callable_bindings(output, &public, hir, input, graph, &index).unwrap();
+                lower_source_callable_bindings(output, &public, hir, input, graph, &index, &[])
+                    .unwrap();
             assertions::actual(output, input, &bindings);
             let decoded: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
             assert_eq!(
@@ -42,6 +43,7 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
                     input,
                     graph,
                     &index,
+                    &[],
                 )
                 .unwrap();
                 assert_eq!(encode(&bindings).unwrap(), bytes);
@@ -81,7 +83,8 @@ fn actual_source_callables_reject_missing_inputs() {
                     hir,
                     input,
                     graph,
-                    types
+                    types,
+                    &[]
                 )
                 .unwrap()
                 .entries()
@@ -100,7 +103,7 @@ fn actual_source_callables_reject_changed_source_result_and_gc_effect() {
             &source.replace("@NoGC ", ""),
             |_, input, _, graph, types| {
                 assert!(matches!(
-                    lower_source_callable_bindings(output, &public, hir, input, graph, types),
+                    lower_source_callable_bindings(output, &public, hir, input, graph, types, &[]),
                     Err(Error::Bridge(
                         scoop_mir::MirCallableBridgeError::SignatureMismatch
                     ))
@@ -111,7 +114,7 @@ fn actual_source_callables_reject_changed_source_result_and_gc_effect() {
             &source.replace(": Token = value", ": Other = Other()"),
             |_, input, _, graph, types| {
                 assert!(matches!(
-                    lower_source_callable_bindings(output, &public, hir, input, graph, types),
+                    lower_source_callable_bindings(output, &public, hir, input, graph, types, &[]),
                     Err(Error::SourceSignatureMismatch(_))
                 ));
             },

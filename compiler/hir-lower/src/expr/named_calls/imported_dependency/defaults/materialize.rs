@@ -51,7 +51,7 @@ impl Lowerer {
                 continue;
             }
             let ty = self
-                .imported_default_core_type(local.value_type())
+                .imported_default_type(local.value_type())
                 .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
             let id = self.alloc_synthetic_local(
                 format!("$dependency.default.local.{index}"),
@@ -96,7 +96,7 @@ impl Lowerer {
             evaluation: context.evaluation,
         });
         let ty = self
-            .imported_default_core_type(expression.result_type())
+            .imported_default_type(expression.result_type())
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
 
         use hir::DefaultExpressionKindV1 as Kind;
@@ -111,6 +111,9 @@ impl Lowerer {
             Kind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral((*value).into()),
             Kind::BooleanLiteral(value) => hir::ExprKind::BoolLiteral((*value).into()),
             Kind::UnitLiteral => hir::ExprKind::UnitLiteral,
+            Kind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
+                self.materialize_imported_default_expressions(elements, context)?,
+            ),
             Kind::Local(local) => {
                 let mut value = context.locals.get(local).cloned().ok_or_else(|| {
                     ImportedDefaultMaterializationError::UnknownLocal(local.clone())
@@ -128,7 +131,7 @@ impl Lowerer {
                 let args = self.materialize_imported_default_expressions(arguments, context)?;
                 let receiver = receiver
                     .as_ref()
-                    .try_map(|ty| self.imported_default_core_type(ty))
+                    .try_map(|ty| self.imported_default_type(ty))
                     .map_err(|error| {
                         ImportedDefaultMaterializationError::Plan(error.to_string())
                     })?;
@@ -155,17 +158,24 @@ impl Lowerer {
             }
             Kind::FieldAccess {
                 receiver,
+                field: hir::DefaultFieldRefV1::Tuple { declaration_index },
+            } => hir::ExprKind::FieldAccess {
+                receiver: Box::new(
+                    self.materialize_imported_default_expression(receiver, context)?,
+                ),
+                field: hir::FieldRef::TupleIndex(*declaration_index),
+            },
+            Kind::FieldAccess {
+                receiver,
                 field:
                     hir::DefaultFieldRefV1::Struct {
                         declaration,
                         owner_type,
                     },
             } => {
-                let owner = self
-                    .imported_default_core_type(owner_type)
-                    .map_err(|error| {
-                        ImportedDefaultMaterializationError::Plan(error.to_string())
-                    })?;
+                let owner = self.imported_default_type(owner_type).map_err(|error| {
+                    ImportedDefaultMaterializationError::Plan(error.to_string())
+                })?;
                 hir::ExprKind::FieldAccess {
                     receiver: Box::new(
                         self.materialize_imported_default_expression(receiver, context)?,
@@ -252,7 +262,6 @@ impl Lowerer {
                 owner: hir::DefaultStringOwnerV1::Property(_),
                 ..
             }
-            | Kind::TupleLiteral(_)
             | Kind::StructInit { .. }
             | Kind::StructConstruct { .. }
             | Kind::ClassInit { .. }

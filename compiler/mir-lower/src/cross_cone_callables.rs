@@ -20,6 +20,7 @@ pub fn lower_source_callable_bindings(
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
+    ordinary: &[mir::ParamFreeMirCallableExportV1],
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirCallableProductionError> {
     let mut required = hir::select_param_free_source_callables(
         input.module().cone,
@@ -31,6 +32,9 @@ pub fn lower_source_callable_bindings(
         hir::SharedTypeMetadataError::Resource(error) => Error::Resource(error),
         error => Error::SharedSource(Box::new(error)),
     })?;
+    for callable in ordinary {
+        required.remove(&callable.declaration());
+    }
     let mut records = Vec::new();
     reserve(&mut records, required.len())?;
     let local = output.output().local.module();

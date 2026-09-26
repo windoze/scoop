@@ -1,5 +1,7 @@
 # Scoop 实现路线图
 
+M23-6 的结构签名验收包含实际 tuple 参数／结果、ZST、成员／getter 及默认值的跨 Cone 编译、发布与运行。普通 callable 已生成的记录直接用于后续 MIR 组装、boxing 和 dispatch，不再生成一份重复绑定后丢弃。
+
 共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/22` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
 
 M23-6 的源码消费验收包含跨 Cone struct 主／次构造器、命名／默认参数、ZST 与大值返回 ABI 的独立及组合用例。验收需由真实源码生成 provider 产物、下游生成完整产物并完成对象链接与运行；构造器按真实 typed target 消费既有 MIR/LIR 定义。

@@ -242,7 +242,7 @@ fn restricted_dependency_setter_is_not_callable() {
 }
 
 #[test]
-fn structural_dependency_property_reports_the_layout_capability_gate() {
+fn structural_dependency_property_retains_its_complete_result_type() {
     let fixture = DependencyPropertyFixture::new(vec![computed_property(
         "pair",
         ty_tuple(vec![ty_named("Int"), ty_named("Int")]),
@@ -261,15 +261,18 @@ fn structural_dependency_property_reports_the_layout_capability_gate() {
         .push(exact_import(&["dependency", "api", "pair"]));
 
     fixture.inspect(consumer, |output| {
-        let diagnostics = match output {
-            Ok(_) => panic!("a tuple-valued dependency property needs M23-6 layout capability"),
-            Err(diagnostics) => diagnostics,
-        };
-        assert!(diagnostics.iter().any(|diagnostic| {
-            diagnostic
-                .message
-                .contains("SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED")
-        }));
+        let output = output.expect("a tuple-valued dependency getter has a complete signature");
+        assert_eq!(output.imported_dependencies().callable_count(), 1);
+        let module = &output.output().export;
+        let (_, function) = module
+            .functions
+            .iter()
+            .find(|(_, f)| f.name == "read")
+            .unwrap();
+        assert_eq!(
+            scoop_hir::type_name(module, function.return_ty),
+            "(Int, Int)"
+        );
     });
 }
 

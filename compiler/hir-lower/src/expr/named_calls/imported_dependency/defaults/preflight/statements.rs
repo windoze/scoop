@@ -228,7 +228,7 @@ impl Lowerer {
                 ),
             hir::DefaultWhenFallbackViewV1::IrrefutableArm { subject_type }
             | hir::DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => {
-                self.imported_default_core_type(subject_type).map(|_| ())
+                self.imported_default_type(subject_type).map(|_| ())
             }
             hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { .. } => {
                 Err(ImportedDefaultPlanError::Requires {

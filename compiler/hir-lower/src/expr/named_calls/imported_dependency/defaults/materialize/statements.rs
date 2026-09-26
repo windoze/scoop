@@ -183,12 +183,12 @@ impl Lowerer {
             ),
             hir::DefaultWhenFallbackViewV1::IrrefutableArm { subject_type } => {
                 hir::WhenFallback::Impossible(hir::ExhaustivenessProof::IrrefutableArm {
-                    subject_ty: self.materialize_imported_default_core_type(subject_type)?,
+                    subject_ty: self.materialize_imported_default_type(subject_type)?,
                 })
             }
             hir::DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => {
                 hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
-                    subject_ty: self.materialize_imported_default_core_type(subject_type)?,
+                    subject_ty: self.materialize_imported_default_type(subject_type)?,
                 })
             }
             hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { .. } => {
@@ -204,11 +204,11 @@ impl Lowerer {
         })
     }
 
-    fn materialize_imported_default_core_type(
+    fn materialize_imported_default_type(
         &mut self,
         source: &scoop_identity::SignatureTypeKey,
     ) -> Result<hir::TypeId, ImportedDefaultMaterializationError> {
-        self.imported_default_core_type(source)
+        self.imported_default_type(source)
             .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))
     }
 

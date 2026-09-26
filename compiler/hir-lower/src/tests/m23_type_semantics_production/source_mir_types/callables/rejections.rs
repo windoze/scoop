@@ -82,7 +82,8 @@ pub(super) fn check(
             source,
             input,
             graph,
-            &CanonicalParamFreeMirTypeExportsV1::default()
+            &CanonicalParamFreeMirTypeExportsV1::default(),
+            &[]
         ),
         Err(Error::Bridge(
             scoop_mir::MirCallableBridgeError::MissingType { .. }
@@ -90,14 +91,14 @@ pub(super) fn check(
     ));
     with_production("public struct Token() {}", |other, other_input, _, _, _| {
         assert!(matches!(
-            lower_source_callable_bindings(other, &public, source, input, graph, types),
+            lower_source_callable_bindings(other, &public, source, input, graph, types, &[]),
             Err(Error::MissingSourceMaterialization(_))
         ));
         assert!(matches!(
-            lower_source_callable_bindings(output, &public, source, other_input, graph, types),
+            lower_source_callable_bindings(output, &public, source, other_input, graph, types, &[]),
             Err(Error::MissingMirMaterialization(_))
         ));
     });
 
-    lower_source_callable_bindings(output, &public, source, input, graph, types).unwrap();
+    lower_source_callable_bindings(output, &public, source, input, graph, types, &[]).unwrap();
 }

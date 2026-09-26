@@ -35,6 +35,7 @@ fn with_dispatch<R>(
             input,
             graph,
             &index,
+            &[],
         )
         .unwrap();
         let boxing = CanonicalMirCallableBindingsV1::from_boxing_adjusts(

@@ -14,6 +14,7 @@ use crate::{
 };
 
 mod leaves;
+mod signatures;
 
 /// Resolves exact nominal signatures from the actual declaration scope.
 /// Machine availability, access and layout are checked by their own stages.
@@ -23,19 +24,6 @@ pub struct NominalExactLeafClassifierV1 {
 }
 
 impl NominalExactLeafClassifierV1 {
-    /// Returns the exact identity of a concrete nominal in the supplied
-    /// public surface, or the language builtins Unit and Any. ABI and runtime shape
-    /// requirements are validated by the later MIR/LIR bridge checks.
-    pub fn classify(&self, signature: &SignatureTypeKey) -> Option<PersistentExactTypeId> {
-        let SignatureTypeKey::Nominal(source) = signature else {
-            return None;
-        };
-        self.leaves
-            .binary_search_by_key(source, |(candidate, _)| *candidate)
-            .ok()
-            .map(|index| self.leaves[index].1)
-    }
-
     /// Resolves a param-free callable's source signature and actual implementation.
     /// Constructors have no receiver in their source signature; their physical
     /// lowering signature is supplied by the defining provider.
@@ -68,7 +56,7 @@ impl NominalExactLeafClassifierV1 {
             _ => None,
         };
         let receiver = match nominal_receiver.as_ref().or_else(|| callable.receiver()) {
-            Some(receiver) => match self.classify(receiver) {
+            Some(receiver) => match self.classify(receiver)? {
                 Some(exact) => Some(exact),
                 None => return Ok(None),
             },
@@ -82,12 +70,12 @@ impl NominalExactLeafClassifierV1 {
             }
         })?;
         for parameter in callable.parameters().parameters() {
-            let Some(exact) = self.classify(parameter.value_type()) else {
+            let Some(exact) = self.classify(parameter.value_type())? else {
                 return Ok(None);
             };
             parameters.push(exact);
         }
-        let Some(result) = self.classify(callable.result()) else {
+        let Some(result) = self.classify(callable.result())? else {
             return Ok(None);
         };
         Ok(Some(ExactCallableSignature::new(
@@ -192,6 +180,7 @@ impl std::error::Error for NominalExactLeafClassifierBuildError {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum NominalCallableClassificationError {
     Allocation { requested_slots: usize },
+    Identity(scoop_wire::HashError),
     Resource(scoop_wire::WireError),
 }
 

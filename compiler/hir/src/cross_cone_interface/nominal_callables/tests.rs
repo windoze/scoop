@@ -12,22 +12,33 @@ use crate::{
     CanonicalSourceParameterShapesV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
 };
 
+mod signatures;
+
 #[test]
 fn only_known_nominal_leaves_are_classified() {
     let (classifier, unit, exact) = classifier();
 
     assert_eq!(
-        classifier.classify(&SignatureTypeKey::Nominal(unit)),
+        classifier
+            .classify(&SignatureTypeKey::Nominal(unit))
+            .unwrap(),
         Some(exact)
     );
     assert_eq!(
-        classifier.classify(&SignatureTypeKey::RawPointer(Box::new(
-            SignatureTypeKey::Nominal(unit)
-        ))),
-        None
+        classifier
+            .classify(&SignatureTypeKey::RawPointer(Box::new(
+                SignatureTypeKey::Nominal(unit)
+            )))
+            .unwrap(),
+        Some(
+            scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::RawPointer(exact))
+                .unwrap()
+        )
     );
     assert_eq!(
-        classifier.classify(&SignatureTypeKey::Nominal(foreign_type())),
+        classifier
+            .classify(&SignatureTypeKey::Nominal(foreign_type()))
+            .unwrap(),
         None
     );
 }
@@ -40,7 +51,7 @@ fn builtin_any_retains_its_exact_identity_without_a_nominal_sidecar() {
         scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(any)).unwrap();
     assert_ne!(exact, unit);
     let signature = SignatureTypeKey::Nominal(any);
-    assert_eq!(classifier.classify(&signature), Some(exact));
+    assert_eq!(classifier.classify(&signature).unwrap(), Some(exact));
     let function = callable(
         signature,
         Effect::Ordinary,
@@ -74,7 +85,7 @@ fn shared_nominal_surface_supplies_exact_leaves_without_a_core_sidecar() {
     let signature = SignatureTypeKey::Nominal(concrete);
     let expected =
         scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(concrete)).unwrap();
-    assert_eq!(classifier.classify(&signature), Some(expected));
+    assert_eq!(classifier.classify(&signature).unwrap(), Some(expected));
     let function = callable(
         signature,
         Effect::Ordinary,
@@ -91,11 +102,15 @@ fn shared_nominal_surface_supplies_exact_leaves_without_a_core_sidecar() {
         expected
     );
     assert_eq!(
-        classifier.classify(&SignatureTypeKey::NominalApplication {
-            origin: generic,
-            arguments: scoop_identity::NonEmptyVec::new(vec![SignatureTypeKey::Nominal(concrete)])
+        classifier
+            .classify(&SignatureTypeKey::NominalApplication {
+                origin: generic,
+                arguments: scoop_identity::NonEmptyVec::new(vec![SignatureTypeKey::Nominal(
+                    concrete
+                )])
                 .unwrap(),
-        }),
+            })
+            .unwrap(),
         None
     );
 }
