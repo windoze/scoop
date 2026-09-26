@@ -14,9 +14,6 @@ pub(super) fn lower_graph(
     selected_layout: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
 ) -> Result<LoweredModule, StrongLirLoweringError> {
     let module = input.module();
-    module
-        .validate()
-        .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
     let context = LoweringContext::new(target_profile);
     let identity_roots = IdentityRoots::new(input);
     let mut external_type_descriptors = external_descriptors.iter().copied().collect();

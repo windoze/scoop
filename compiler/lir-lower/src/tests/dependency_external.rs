@@ -299,18 +299,11 @@ fn dependency_input(
         unit,
     );
 
-    let initial_foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
     let mir_record =
         mir::SelectedDependencyMirCallableV1::try_new(provider, declaration, target, exact.clone())
             .unwrap();
-    let mir_bridge = mir::CrossConeMirBridgeSectionV1::try_new(
-        module.cone,
-        &initial_foundation,
-        Vec::new(),
-        vec![mir_record],
-    )
-    .unwrap();
-    let selected_mir = mir::SelectedExternalMirSet::try_from_bridge(&mir_bridge).unwrap();
+    let selected_mir =
+        mir::SelectedExternalMirSet::try_from_callables(module.cone, vec![mir_record]).unwrap();
     let selected_id = selected_mir
         .callable_for(provider, declaration.implementation())
         .unwrap();
@@ -335,21 +328,18 @@ fn dependency_input(
             pending: mir::CoroutinePendingContext::Root,
         }));
 
-    let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
+    let mir_output = mir::DependencyMirOutput::try_new(module, selected_mir).unwrap();
+    let module = mir_output.module();
+    let foundation = mir_output.strong_foundation().unwrap();
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
         mir::EntryMirBridgeBranchV1::Library,
         mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )
     .unwrap();
-    let input = mir::SingleConeStrongMirInput::try_new(
-        module,
-        foundation,
-        production,
-        Vec::new(),
-        mir::StrongExternalCallableInput::Selected(&selected_mir),
-    )
-    .unwrap();
+    let input =
+        mir::SingleConeStrongMirInput::try_new(mir_output, foundation, production, Vec::new())
+            .unwrap();
 
     let canonical_effect = match lir_effect {
         mir::GcEffect::Managed => scoop_identity::GcEffect::Managed,

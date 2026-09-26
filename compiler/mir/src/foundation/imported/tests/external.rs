@@ -1,7 +1,6 @@
 use super::*;
 use crate::{
     SelectedDependencyMirCallableV1, SelectedExternalMirSet, SingleConeStrongMirInputError,
-    StrongExternalCallableInput,
 };
 use scoop_identity::DependencyCallableDeclarationId;
 
@@ -51,8 +50,7 @@ fn check_mixed_calls(provider: ConeIdentity) {
     assert_ne!(ordinary, protocol);
 
     let output = DependencyMirOutput::try_new(module, dependencies).unwrap();
-    let (module, dependencies) = output.into_parts();
-    let input = seal(module, &dependencies).unwrap();
+    let input = seal(output).unwrap();
     let roots = input.materialization().external_callable_roots();
     assert_eq!(roots[1].callable(), protocol);
     assert_eq!(roots[0].callable(), ordinary);
@@ -62,27 +60,21 @@ fn check_mixed_calls(provider: ConeIdentity) {
 }
 
 #[test]
-fn output_and_sealer_reject_an_unreferenced_entry_from_either_selection() {
+fn output_rejects_an_unreferenced_entry_from_either_selection() {
     let fixture = Fixture::new();
     for index in 0..2 {
-        for use_output in [true, false] {
-            let (mut module, dependencies) = fixture.mixed();
-            let function = module.functions.iter_mut().next().unwrap().1;
-            function.body.blocks[function.body.entry]
-                .statements
-                .remove(index);
-            let error = if use_output {
-                match DependencyMirOutput::try_new(module, dependencies) {
-                    Err(DependencyMirOutputError::ExternalCallables(error)) => error,
-                    _ => panic!("the output must reject the unreferenced external use"),
-                }
-            } else {
-                seal(module, &dependencies).err().unwrap()
-            };
-            assert!(matches!(error,
-                SingleConeStrongMirInputError::UnreferencedExternalCallable { index: found }
-                if found == index as u32));
-        }
+        let (mut module, dependencies) = fixture.mixed();
+        let function = module.functions.iter_mut().next().unwrap().1;
+        function.body.blocks[function.body.entry]
+            .statements
+            .remove(index);
+        let error = match DependencyMirOutput::try_new(module, dependencies) {
+            Err(DependencyMirOutputError::ExternalCallables(error)) => error,
+            _ => panic!("the output must reject the unreferenced external use"),
+        };
+        assert!(matches!(error,
+            SingleConeStrongMirInputError::UnreferencedExternalCallable { index: found }
+            if found == index as u32));
     }
 }
 

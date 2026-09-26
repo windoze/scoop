@@ -159,7 +159,10 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
         test_exact_type(&module.function_types, &mir::Type::Any, &mut types);
         module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(types).unwrap();
     }
-    let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
+    let selected = mir::SelectedExternalMirSet::empty(module.cone);
+    let mir_output = mir::DependencyMirOutput::try_new(module, selected).unwrap();
+    let module = mir_output.module();
+    let foundation = mir_output.strong_foundation().unwrap();
     let strong_callable_bridges =
         mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
     let entry_bridge = match module.output {
@@ -210,14 +213,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
         strong_callable_bridges,
     )
     .unwrap();
-    mir::SingleConeStrongMirInput::try_new(
-        module,
-        foundation,
-        production,
-        Vec::new(),
-        mir::StrongExternalCallableInput::Unused,
-    )
-    .unwrap()
+    mir::SingleConeStrongMirInput::try_new(mir_output, foundation, production, Vec::new()).unwrap()
 }
 
 fn try_lower(

@@ -140,16 +140,14 @@ impl StrongCallableBridgeSurfaceV1 {
     }
 
     pub fn matches_foundation(&self, foundation: &OdrFreeMirFoundation) -> bool {
-        let expected = Self::from_odr_free_foundation(foundation);
-        self.bridges.len() == expected.bridges.len()
-            && self
-                .bridges
-                .iter()
-                .zip(&expected.bridges)
-                .all(|(actual, expected)| {
-                    actual.implementation == expected.implementation
-                        && actual.signature == expected.signature
-                })
+        let signatures = foundation.as_canonical().callable_signatures();
+        self.bridges.len() == signatures.len()
+            && self.bridges.iter().all(|actual| {
+                foundation
+                    .as_canonical()
+                    .callable_signature(actual.subject())
+                    .is_some_and(|expected| actual.signature() == expected.signature())
+            })
     }
 
     pub fn bridges(&self) -> &[StrongCallableBridgeV1] {

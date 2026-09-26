@@ -34,6 +34,8 @@ MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产
 
 跨 Cone struct 构造器使用实际 provider 与 Strong callable target 进入共有请求内选择；其完整逻辑／物理签名来自已发布定义，不能伪装为普通函数 ID 或重建固定 core 身份。主构造器的源码 Managed 合同与实际 NoGC 值入口分别保留。Strong 外部根不重复携带 function/accessor 资格 ID，LIR 使用现有 layout/ABI 与物理 import 物化调用，并复用于 dispatch；不增加构造器专用来源工厂、授权外层或平行导出表。
 
+MIR 输出在 HIR→MIR 边界完成一次整模块结构、类型与实际外来 callable 检查，并同时保留已生成的 canonical foundation、共有依赖选择和完整物化引用。通用 MIR 输出保留完整泛型实体；Strong profile 的 ODR 能力门仍在其消费入口检查，并共享已有 canonical foundation。driver、MIR production 组装和 MIR→LIR 直接消费同一完整输出，不再从未变化的 Module 重建第二份 foundation、重复验证外来调用或重跑整模块检查。production 与模块之间仍核对实际 callable、入口和初始化关系；直接借用已有签名记录，不构造第二份预期桥表。外部新产物的格式、引用、ABI 与对象检查继续由 reader 负责。此清理不增加凭证、状态机、wire 字段或 profile 版本，不改变 runtime C ABI、String 表示或后续里程碑范围。
+
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
 
 普通 final 成员与其他 callable 共用真实 provider、typed declaration 和 implementation 查询；移除“普通导出不能被 dispatch/类型闭包引用”的旧分区限制及其身份名单。MIR 直接导出补全 GC effect，LIR dispatch 复用实际 ABI 并只保存 implementation/body 引用。无 namespace 导入的成员调用不伪造 binding，不在选择集合中另存用于认证的 import 路径。格式升级、旧 major 退役和完整消费规则见 [M23-6 设计](DESIGN.md)；runtime C ABI、String 表示与 GC 契约保持。 struct 字段读取直接保留真实 field ID 并使用共有布局；计算属性消费实际 getter 引用及 ABI，均无额外来源或资格外层。 成员 setter 与 getter 使用同一属性声明、真实 accessor 和普通 dispatch，不建立写入授权外层；可见性、值类型与 GC 写屏障仍按各自语言和内存规则处理。

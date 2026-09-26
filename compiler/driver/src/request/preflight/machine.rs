@@ -1,4 +1,4 @@
-//! Shared dependency projection, machine lowering, and strong sealing.
+//! Shared dependency projection and complete machine lowering outputs.
 
 mod errors;
 pub use errors::{CurrentConeLirStageError, CurrentConeMirStageError};
@@ -12,7 +12,6 @@ pub(super) struct CurrentConeMachineHir<'a> {
 
 pub(super) struct CurrentConeMirArtifacts {
     pub strong: scoop_mir::SingleConeStrongMirInput,
-    pub selected_callables: scoop_mir::SelectedExternalMirSet,
     pub public: scoop_mir::CrossConeMirBridgeSectionV1,
 }
 
@@ -23,18 +22,21 @@ impl CurrentConeMachineHir<'_> {
     ) -> Result<CurrentConeMirArtifacts, CurrentConeMirStageError> {
         let mir = scoop_mir_lower::lower_current_cone(self.output, selected_callables)
             .map_err(CurrentConeMirStageError::Lowering)?;
-        let (module, selected_callables) = mir.into_parts();
-        let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&module)
+        let foundation = mir
+            .strong_foundation()
             .map_err(CurrentConeMirStageError::Foundation)?;
-        let production =
-            scoop_mir_lower::lower_production_section(module.cone, self.production, &foundation)
-                .map_err(CurrentConeMirStageError::ProductionSection)?;
+        let production = scoop_mir_lower::lower_production_section(
+            mir.module().cone,
+            self.production,
+            &foundation,
+        )
+        .map_err(CurrentConeMirStageError::ProductionSection)?;
         let public = scoop_mir_lower::lower_cross_cone_bridge_section(
-            module.cone,
+            mir.module().cone,
             self.public,
             self.classifier,
             &foundation,
-            &selected_callables,
+            mir.selected_callables(),
         )
         .map_err(CurrentConeMirStageError::CrossConeBridge)?;
         let shapes = self
@@ -46,19 +48,10 @@ impl CurrentConeMachineHir<'_> {
             .iter()
             .map(|root| root.declaration().clone())
             .collect();
-        let strong = scoop_mir::SingleConeStrongMirInput::try_new(
-            module,
-            foundation,
-            production,
-            shapes,
-            scoop_mir::StrongExternalCallableInput::Selected(&selected_callables),
-        )
-        .map_err(CurrentConeMirStageError::Sealing)?;
-        Ok(CurrentConeMirArtifacts {
-            strong,
-            selected_callables,
-            public,
-        })
+        let strong =
+            scoop_mir::SingleConeStrongMirInput::try_new(mir, foundation, production, shapes)
+                .map_err(CurrentConeMirStageError::Sealing)?;
+        Ok(CurrentConeMirArtifacts { strong, public })
     }
 }
 

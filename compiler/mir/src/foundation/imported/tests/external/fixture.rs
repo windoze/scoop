@@ -107,21 +107,15 @@ impl Fixture {
 }
 
 pub(super) fn seal(
-    module: Module,
-    dependencies: &SelectedExternalMirSet,
+    output: DependencyMirOutput,
 ) -> Result<SingleConeStrongMirInput, SingleConeStrongMirInputError> {
-    let foundation = OdrFreeMirFoundation::from_module(&module).unwrap();
+    let module = output.module();
+    let foundation = output.strong_foundation().unwrap();
     let production = CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
         EntryMirBridgeBranchV1::Library,
         StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )
     .unwrap();
-    SingleConeStrongMirInput::try_new(
-        module,
-        foundation,
-        production,
-        Vec::new(),
-        StrongExternalCallableInput::Selected(dependencies),
-    )
+    SingleConeStrongMirInput::try_new(output, foundation, production, Vec::new())
 }

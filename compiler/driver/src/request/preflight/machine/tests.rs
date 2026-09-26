@@ -43,13 +43,13 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     sources::snapshot("hir", &scoop_hir::dump(&input.output.output().export));
     let dependencies = selection::mir(&input);
     let mir = input.lower_selected_mir(dependencies).unwrap();
-    assert_eq!(mir.selected_callables.len(), 1);
+    assert_eq!(mir.strong.selected_callables().len(), 1);
     assert_eq!(
         mir.strong.materialization().external_callable_roots().len(),
         1
     );
     sources::snapshot("mir", &scoop_mir::dump(mir.strong.module()));
-    let selected = selection::lir(&mir.selected_callables);
+    let selected = selection::lir(mir.strong.selected_callables());
     let mut pending = scoop_identity::PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending

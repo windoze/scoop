@@ -9,8 +9,8 @@ use super::*;
 use crate::{
     BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, Callee, CoreBootstrapBridgeSectionV1,
     CoroutinePendingContext, DependencyMirOutput, DependencyMirOutputError, EntryMirBridgeBranchV1,
-    Function, GcEffect, MirMeta, MirOutput, Module, OdrFreeMirFoundation, SingleConeStrongMirInput,
-    SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
+    Function, GcEffect, MirMeta, MirOutput, Module, SingleConeStrongMirInput, SourceSpan,
+    Statement, StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
 };
 
 mod external;

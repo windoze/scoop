@@ -389,9 +389,7 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
             assert!(matches!(
                 error.cause(),
                 CurrentConeProductionFailure::Mir(CurrentConeMirStageError::Foundation(
-                    scoop_mir::OdrFreeMirFoundationProjectionError::Odr(
-                        scoop_mir::OdrFreeMirFoundationError::CallableSignatureSubject(_)
-                    )
+                    scoop_mir::OdrFreeMirFoundationError::CallableSignatureSubject(_)
                 ))
             ));
             snapshot(

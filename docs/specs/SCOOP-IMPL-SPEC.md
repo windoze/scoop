@@ -52,6 +52,8 @@ MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产
 
 跨 Cone struct 构造调用沿共有声明目录选择真实 constructor，前端保存完整参数、默认值、访问关系和 typed target。请求内 MIR 外部引用按实际 provider 与 Strong callable target 查询已有记录：直接 callable 复用原记录，需要独立 lowering 的构造器复用其完整逻辑／物理签名与 GC effect。Strong 根保存实际机器 target 和物理签名，不再另携带一个只允许 function/accessor 的资格 ID。LIR 使用同一 layout/ABI 依赖选择解析构造器的实际定义、symbol 和 relocation，并与 Strong 根的签名及 effect 关联；共有 materialization 同时服务普通调用和 dispatch。函数及 accessor 继续使用既有直接导出字段，构造器使用既有 M23-6 callable/selected 记录；每个定义只发布一次，不新增 callable wire tag 或授权外层；nominal 主构造器字段按上述 HIR 格式版本发布。
 
+MIR 输出在 HIR→MIR 边界完成一次整模块结构、类型与实际外来 callable 检查，并同时保留已生成的 canonical foundation、共有依赖选择和完整物化引用。通用 MIR 输出保留完整泛型实体；Strong profile 的 ODR 能力门仍在其消费入口检查，并共享已有 canonical foundation。driver、MIR production 组装和 MIR→LIR 直接消费同一完整输出，不再从未变化的 Module 重建第二份 foundation、重复验证外来调用或重跑整模块检查。production 与模块之间仍核对实际 callable、入口和初始化关系；直接借用已有签名记录，不构造第二份预期桥表。外部新产物的格式、引用、ABI 与对象检查继续由 reader 负责。此清理不增加凭证、状态机、wire 字段或 profile 版本，不改变 runtime C ABI、String 表示或后续里程碑范围。
+
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
 
 外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
@@ -696,7 +698,7 @@ extension receiver 为第一个逻辑实参，重复参数、Unit 和 ZST 均不
 `scoop`为所有manifest源码节点从同一ResolvedDependencyProjection读取实际direct/support artifact路径，包括当前core；缺失projection必须报共有错误，不能用空列表代替。machine request的current输入只允许带显式路径的ManifestRoot和SingleFile；已删除不带路径的TrustedCoreBootstrap及其旧wire tag，reader直接拒绝，driver不得据此隐式发现sysroot源码。ManifestRoot请求无论protocol为当前声明还是导入，都完整保留direct/support列表并检查实际依赖关系；single-file依赖限制与完整graph/closure验证保持不变。
 HIR使用统一CurrentConeSources与lower_current_cone入口；输入显式区分当前声明提供的compiler protocol与导入的protocol，但两者均携带当前Cone匹配的共有semantic world。成功的DependencyHirOutput始终保留已提交的依赖选择与binding witness，不因protocol来自当前声明而丢弃它们。协议分支一致性由已有Output契约检查，公共接口和foundation投影统一读取该完整输出；不再另设生产用CoreBootstrapSources或core-only HIR lowering入口。当前Cone源码（包括正在编译的core）按其package参与本地声明收集与显式import解析；prelude层只承载外部core声明，不能仅因源码的core协议身份而跳过当前Cone的import。
 
-MIR同样使用统一lower_current_cone入口与SelectedExternalMirSet。DependencyMirOutput持有完整共有依赖选择，初始化角色与普通调用使用同一typed记录和引用域；HIR决定本地或导入protocol，driver不另传MirProtocolSelection或第二份来源标记。lowering统一验证并映射外部callable，输出与strong sealer复用同一完整性检查。本地protocol的初始化失败调用指向本地声明，导入protocol通过已有typed引用取得目标。
+MIR同样使用统一lower_current_cone入口与SelectedExternalMirSet。DependencyMirOutput持有完整共有依赖选择，初始化角色与普通调用使用同一typed记录和引用域；HIR决定本地或导入protocol，driver不另传MirProtocolSelection或第二份来源标记。lowering在完整输出边界验证并映射外部callable，输出保留实际选择及物化引用；Strong组装和LIR入口直接消费这些记录，不再次验证同一模块或重建foundation。本地protocol的初始化失败调用指向本地声明，导入protocol通过已有typed引用取得目标。
 
 driver的MIR/LIR编排共用同一machine-stage实现：从完整HIR输出及共有semantic closure投影实际依赖选择，建立MIR foundation、公共调用桥和strong materialization，再从保留的MIR选择投影LIR输入。core路径不得自行用空选择替代输入中的实际依赖；core shape-source由HIR的非可选materialization契约取得，协议导入只改变对应typed protocol参数，不改变通用依赖调用、输出校验或公共桥的产生流程。MIR strong sealer与LIR lowering对core consumer使用相同的选择归属、数量、签名、GC effect与引用完整性规则，不得仅因consumer为core而拒绝共有依赖选择。
 

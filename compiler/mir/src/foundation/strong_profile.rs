@@ -22,6 +22,12 @@ impl OdrFreeMirFoundation {
     }
 
     pub fn try_new(foundation: CanonicalMirFoundation) -> Result<Self, OdrFreeMirFoundationError> {
+        Self::try_from_shared(Rc::new(foundation))
+    }
+
+    pub(crate) fn try_from_shared(
+        foundation: Rc<CanonicalMirFoundation>,
+    ) -> Result<Self, OdrFreeMirFoundationError> {
         if let Some(member) = foundation.callable_signatures.iter().find_map(|record| {
             let CallableSignatureSubject::Odr(member) = record.subject() else {
                 return None;
@@ -48,7 +54,7 @@ impl OdrFreeMirFoundation {
         if let Some(record) = foundation.odr_members.first() {
             return Err(OdrFreeMirFoundationError::OdrMember(record.id()));
         }
-        Ok(Self(Rc::new(foundation)))
+        Ok(Self(foundation))
     }
 
     pub fn from_validated(
@@ -58,6 +64,10 @@ impl OdrFreeMirFoundation {
     }
 
     pub fn as_canonical(&self) -> &CanonicalMirFoundation {
+        &self.0
+    }
+
+    pub(crate) fn shared(&self) -> &Rc<CanonicalMirFoundation> {
         &self.0
     }
 

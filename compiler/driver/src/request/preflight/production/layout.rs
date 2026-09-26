@@ -31,7 +31,7 @@ pub(super) fn assemble(
         });
     }
     let selected = closure
-        .project_dependency_callables_to_lir(&mir.selected_callables)
+        .project_dependency_callables_to_lir(mir.strong.selected_callables())
         .map_err(CurrentConeLirStageError::DependencyProjection)
         .map_err(CurrentConeProductionFailure::Lir)?;
     let (identities, coordinates) =
@@ -66,7 +66,7 @@ pub(super) fn assemble(
         source: &source,
         mir: &mir.strong,
         ordinary: &mir.public,
-        dependency_objects: mir.selected_callables.objects(),
+        dependency_objects: mir.strong.selected_callables().objects(),
         identities: &identities,
     };
     let mir_exports = scoop_mir_lower::lower_type_bridge_exports(

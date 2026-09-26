@@ -38,12 +38,7 @@ pub(super) fn validate_section_relations(
 ) -> Result<(), CrossConeMirBridgeRelationError> {
     for (index, export) in exports.iter().enumerate() {
         let subject = CallableSignatureSubject::Strong(export.implementation.callable_owner());
-        let Some(expected) = foundation
-            .as_canonical()
-            .callable_signatures()
-            .iter()
-            .find(|record| record.subject() == subject)
-        else {
+        let Some(expected) = foundation.as_canonical().callable_signature(subject) else {
             return Err(
                 CrossConeMirBridgeRelationError::MissingExportImplementation {
                     index,

@@ -1,4 +1,4 @@
-//! Sealed MIR input for the single-Cone strong production path.
+//! Complete MIR and production data for the single-Cone strong lowering path.
 
 use scoop_identity::{
     CallableOwner, ConeIdentity, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId,
@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
+    CallableSignatureSubject, CoreBootstrapBridgeSectionV1, DependencyMirOutput,
     EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId, FunctionId,
     GeneratedExactTypeLocation, GlobalId, InitializationUnitId, MirOutput, Module, ObjectId,
     OdrFreeMirFoundation, SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
@@ -208,32 +208,25 @@ impl SingleConeStrongMaterializationPlan {
     }
 }
 
-/// MIR graph and all proofs required by the only M23-3 LIR producer entry.
+/// MIR graph, identity records, dependencies, and the strong materialization plan.
 pub struct SingleConeStrongMirInput {
     module: Module,
     foundation: OdrFreeMirFoundation,
+    selected_callables: SelectedExternalMirSet,
     production: CoreBootstrapBridgeSectionV1,
     materialization: SingleConeStrongMaterializationPlan,
 }
 
-/// Complete external callable selection supplied to the strong MIR sealer.
-/// `Unused` is valid only when the graph has no external callable entries.
-pub enum StrongExternalCallableInput<'a> {
-    Unused,
-    Selected(&'a SelectedExternalMirSet),
-}
-
 impl SingleConeStrongMirInput {
     pub fn try_new(
-        module: Module,
+        output: DependencyMirOutput,
         foundation: OdrFreeMirFoundation,
         production: CoreBootstrapBridgeSectionV1,
         shape_support_sources: Vec<SourceDeclarationKey>,
-        external_callables: StrongExternalCallableInput<'_>,
     ) -> Result<Self, SingleConeStrongMirInputError> {
-        let expected_foundation = CanonicalMirFoundation::from_module(&module)
-            .map_err(SingleConeStrongMirInputError::Foundation)?;
-        if &expected_foundation != foundation.as_canonical() {
+        let (module, source_foundation, selected_callables, external_callable_roots) =
+            output.into_parts();
+        if foundation.shared() != &source_foundation {
             return Err(SingleConeStrongMirInputError::FoundationMismatch);
         }
 
@@ -247,7 +240,6 @@ impl SingleConeStrongMirInput {
         production
             .validate_for_artifact(module.cone)
             .map_err(SingleConeStrongMirInputError::Production)?;
-        let external_callable_roots = validate_external_callables(&module, external_callables)?;
         let callable_roots = callable_roots(&module)?;
         validate_callable_roots(&callable_roots, production.strong_callable_bridges())?;
         validate_output(&module, &production, &callable_roots)?;
@@ -300,6 +292,7 @@ impl SingleConeStrongMirInput {
         Ok(Self {
             module,
             foundation,
+            selected_callables,
             production,
             materialization,
         })
@@ -311,6 +304,10 @@ impl SingleConeStrongMirInput {
 
     pub const fn foundation(&self) -> &OdrFreeMirFoundation {
         &self.foundation
+    }
+
+    pub const fn selected_callables(&self) -> &SelectedExternalMirSet {
+        &self.selected_callables
     }
 
     pub const fn production(&self) -> &CoreBootstrapBridgeSectionV1 {

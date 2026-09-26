@@ -39,14 +39,14 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
         (vec![sources[0].clone(), sources[0].clone()], first, first),
         (vec![sources[1].clone(), sources[0].clone()], second, first),
     ] {
-        assert!(matches!(seal(&hir, sources, |_| {}),
+        assert!(matches!(seal(&hir, sources),
             Err(Error::NonCanonicalShapeSupportSource { index: 1, previous: actual_previous, current: actual_current })
                 if actual_previous == previous && actual_current == current
         ));
     }
     for (provider, parameters) in [(ConeIdentity::SINGLE_FILE, 0), (ConeIdentity::CORE, 1)] {
         assert!(matches!(
-            seal(&hir, vec![declaration(provider, parameters)], |_| {}),
+            seal(&hir, vec![declaration(provider, parameters)]),
             Err(Error::InvalidShapeSupportSource { index: 0 })
         ));
     }
@@ -54,18 +54,26 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
     let expected_source = PersistentTypeId::from_source_declaration(&absent).unwrap();
     let expected_exact =
         PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(expected_source)).unwrap();
-    assert!(matches!(seal(&hir, vec![absent], |_| {}),
+    assert!(matches!(seal(&hir, vec![absent]),
         Err(Error::MissingShapeSupportSource { source, exact }) if source == expected_source && exact == expected_exact
     ));
+    let invalid_module = |mutate: fn(&mut scoop_mir::Module)| {
+        let mut module = scoop_mir_lower::lower(&hir.hir.output().local).unwrap();
+        mutate(&mut module);
+        let selected = scoop_mir::SelectedExternalMirSet::empty(module.cone);
+        let Err(scoop_mir::DependencyMirOutputError::Foundation(
+            scoop_mir::MirFoundationBuildError::InvalidModule(error),
+        )) = scoop_mir::DependencyMirOutput::try_new(module, selected)
+        else {
+            panic!("incomplete helper metadata must fail at the MIR output boundary")
+        };
+        error
+    };
     for mutate in [
         |module: &mut scoop_mir::Module| module.meta.coroutine_steps.clear(),
         |module: &mut scoop_mir::Module| module.meta.coroutine_slots.clear(),
     ] {
-        let Err(Error::Foundation(scoop_mir::MirFoundationBuildError::InvalidModule(error))) =
-            seal(&hir, sources.clone(), mutate)
-        else {
-            panic!("incomplete helper metadata must fail the common foundation validator")
-        };
+        let error = invalid_module(mutate);
         assert!(matches!(
             error.location,
             scoop_mir::MirValidationLocation::GeneratedExactType { .. }
@@ -77,11 +85,7 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
             }
         );
     }
-    let Err(Error::Foundation(scoop_mir::MirFoundationBuildError::InvalidModule(error))) =
-        seal(&hir, sources, |module| module.meta.boxed_types.clear())
-    else {
-        panic!("an adjust without its value box must fail the common foundation validator")
-    };
+    let error = invalid_module(|module| module.meta.boxed_types.clear());
     assert_eq!(
         *error,
         scoop_mir::MirValidationError {
@@ -111,24 +115,16 @@ fn declaration(provider: ConeIdentity, parameters: u32) -> SourceDeclarationKey 
 fn seal(
     hir: &crate::request::preflight::current_hir::CurrentConeHirArtifacts,
     sources: Vec<SourceDeclarationKey>,
-    mutate: impl FnOnce(&mut scoop_mir::Module),
 ) -> Result<scoop_mir::SingleConeStrongMirInput, Error> {
-    let mut module = scoop_mir_lower::lower(&hir.hir.output().local).unwrap();
-    mutate(&mut module);
-    let canonical =
-        scoop_mir::CanonicalMirFoundation::from_module(&module).map_err(Error::Foundation)?;
-    let foundation = scoop_mir::OdrFreeMirFoundation::try_new(canonical).unwrap();
+    let module = scoop_mir_lower::lower(&hir.hir.output().local).unwrap();
+    let selected = scoop_mir::SelectedExternalMirSet::empty(module.cone);
+    let output = scoop_mir::DependencyMirOutput::try_new(module, selected).unwrap();
+    let foundation = output.strong_foundation().unwrap();
     let production = scoop_mir_lower::lower_production_section(
-        module.cone,
+        output.module().cone,
         &hir.production_section,
         &foundation,
     )
     .unwrap();
-    scoop_mir::SingleConeStrongMirInput::try_new(
-        module,
-        foundation,
-        production,
-        sources,
-        scoop_mir::StrongExternalCallableInput::Unused,
-    )
+    scoop_mir::SingleConeStrongMirInput::try_new(output, foundation, production, sources)
 }

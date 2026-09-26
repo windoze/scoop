@@ -27,7 +27,10 @@ pub(super) fn fixture() -> (
         mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Function(id)) => id,
         _ => panic!("source cycle function"),
     };
-    let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
+    let selected = mir::SelectedExternalMirSet::empty(module.cone);
+    let mir_output = mir::DependencyMirOutput::try_new(module, selected).unwrap();
+    let module = mir_output.module();
+    let foundation = mir_output.strong_foundation().unwrap();
     let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
     let signature = mir::MirBridgeCallableSignatureV1::new(
         strong
@@ -45,14 +48,9 @@ pub(super) fn fixture() -> (
         strong.with_initialization_cycle(cycle_owner).unwrap(),
     )
     .unwrap();
-    let input = mir::SingleConeStrongMirInput::try_new(
-        module,
-        foundation,
-        production,
-        Vec::new(),
-        mir::StrongExternalCallableInput::Unused,
-    )
-    .unwrap();
+    let input =
+        mir::SingleConeStrongMirInput::try_new(mir_output, foundation, production, Vec::new())
+            .unwrap();
     let output = crate::lower(
         &input,
         &[],

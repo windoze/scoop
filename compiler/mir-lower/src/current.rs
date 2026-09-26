@@ -215,6 +215,9 @@ pub enum CurrentConeMirLoweringError {
 
 impl std::fmt::Display for CurrentConeMirLoweringError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Self::InvalidOutput(source) = self {
+            return source.fmt(formatter);
+        }
         write!(
             formatter,
             "cannot lower current-Cone HIR callables: {self:?}"

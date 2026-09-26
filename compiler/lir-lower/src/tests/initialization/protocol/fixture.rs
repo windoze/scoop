@@ -37,7 +37,12 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     let scoop_identity::CallableOwner::Function(definition) = implementation else {
         panic!("test core callable must be a source function")
     };
-    let core_foundation = mir::OdrFreeMirFoundation::from_module(&core_module).unwrap();
+    let core_output = mir::DependencyMirOutput::try_new(
+        core_module,
+        mir::SelectedExternalMirSet::empty(provider),
+    )
+    .unwrap();
+    let core_foundation = core_output.strong_foundation().unwrap();
     let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&core_foundation);
     let exact = strong
         .bridges()
@@ -53,11 +58,10 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     )
     .unwrap();
     let core_input = mir::SingleConeStrongMirInput::try_new(
-        core_module,
-        core_foundation.clone(),
+        core_output,
+        core_foundation,
         core_production,
         Vec::new(),
-        mir::StrongExternalCallableInput::Unused,
     )
     .unwrap();
     let core_lir = crate::lower(
@@ -138,7 +142,8 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
             args: vec![local_expr(caller_argument, mir::Type::String)],
             pending: mir::CoroutinePendingContext::Root,
         }));
-    let ordinary_foundation = mir::OdrFreeMirFoundation::from_module(&ordinary_module).unwrap();
+    let ordinary_output = mir::DependencyMirOutput::try_new(ordinary_module, selected_mir).unwrap();
+    let ordinary_foundation = ordinary_output.strong_foundation().unwrap();
     let ordinary_production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::SINGLE_FILE,
         mir::EntryMirBridgeBranchV1::Library,
@@ -146,11 +151,10 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
     )
     .unwrap();
     let ordinary_input = mir::SingleConeStrongMirInput::try_new(
-        ordinary_module,
+        ordinary_output,
         ordinary_foundation,
         ordinary_production,
         Vec::new(),
-        mir::StrongExternalCallableInput::Selected(&selected_mir),
     )
     .unwrap();
 

@@ -34,6 +34,8 @@ ABI 元数据不再为每个逻辑参数保存独立 layout ID；参数与结果
 
 跨 Cone tuple 等结构类型继续使用既有值布局和 canonical ABI；其 nominal 叶、逻辑参数、ZST 及 GC roots 不因签名组合而丢失。结构签名解析不改变 runtime C ABI、String 表示或扫描规则。
 
+MIR 输出在 HIR→MIR 边界完成一次整模块结构、类型与实际外来 callable 检查，并同时保留已生成的 canonical foundation、共有依赖选择和完整物化引用。通用 MIR 输出保留完整泛型实体；Strong profile 的 ODR 能力门仍在其消费入口检查，并共享已有 canonical foundation。driver、MIR production 组装和 MIR→LIR 直接消费同一完整输出，不再从未变化的 Module 重建第二份 foundation、重复验证外来调用或重跑整模块检查。production 与模块之间仍核对实际 callable、入口和初始化关系；直接借用已有签名记录，不构造第二份预期桥表。外部新产物的格式、引用、ABI 与对象检查继续由 reader 负责。此清理不增加凭证、状态机、wire 字段或 profile 版本，不改变 runtime C ABI、String 表示或后续里程碑范围。
+
 代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
 
 跨 Cone 的 struct 值与成员调用使用实际 provider 的布局和 canonical ABI。ZST 保留逻辑 receiver、参数和结果，物理调用可以省略其存储；普通值保留规定的 direct/indirect/sret 传递，含引用的值保留完整 scan 和 safepoint root 信息。dispatch 使用实际 callable body 引用，不因函数位于某张 metadata 表而获得或失去调用资格。此项不改变 runtime C 调用约定、String 表示及初始化、登记、GC 语义；产物格式见 [实现规范](SCOOP-IMPL-SPEC.md)。

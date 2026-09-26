@@ -42,9 +42,7 @@ pub(super) fn check(sysroot: &Path, target: &scoop_toolchain::ResolvedTargetProf
     assert!(
         matches!(
             error,
-            crate::request::preflight::machine::CurrentConeMirStageError::Foundation(
-                mir::OdrFreeMirFoundationProjectionError::Odr(_)
-            )
+            crate::request::preflight::machine::CurrentConeMirStageError::Foundation(_)
         ),
         "{error:?}"
     );

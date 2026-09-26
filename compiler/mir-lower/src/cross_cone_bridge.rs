@@ -9,7 +9,6 @@ use scoop_hir::{
 use scoop_mir::{
     CrossConeMirBridgeBuildError, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
     ParamFreeMirCallableBuildError, ParamFreeMirCallableExportV1, SelectedExternalMirSet,
-    StrongCallableBridgeSurfaceV1,
 };
 
 use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
@@ -36,8 +35,7 @@ pub fn lower_cross_cone_bridge_section(
         });
     }
 
-    let strong = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation);
-    let exports = derive_exports(hir, &strong, classifier)?;
+    let exports = derive_exports(hir, foundation, classifier)?;
     let selected = clone_selected(selected)?;
     CrossConeMirBridgeSectionV1::try_new(artifact, foundation, exports, selected)
         .map_err(CrossConeMirBridgeLoweringError::Bridge)
@@ -58,7 +56,7 @@ fn clone_selected(
 
 fn derive_exports(
     hir: &CrossConeHirInterfaceSectionV1,
-    strong: &StrongCallableBridgeSurfaceV1,
+    foundation: &OdrFreeMirFoundation,
     classifier: &NominalExactLeafClassifierV1,
 ) -> Result<Vec<ParamFreeMirCallableExportV1>, CrossConeMirBridgeLoweringError> {
     let mut exports = Vec::new();
@@ -77,15 +75,12 @@ fn derive_exports(
             continue;
         };
         let implementation = classified.implementation().callable_owner();
-        let Some(strong) = strong
-            .bridges()
-            .iter()
-            .find(|bridge| bridge.implementation() == implementation)
-        else {
+        if foundation
+            .as_canonical()
+            .callable_signature(scoop_mir::CallableSignatureSubject::Strong(implementation))
+            .is_none()
+        {
             continue;
-        };
-        if strong.signature() != classified.signature() {
-            return Err(CrossConeMirBridgeLoweringError::StrongSignatureMismatch { declaration });
         }
         exports.push(
             ParamFreeMirCallableExportV1::try_new(
@@ -119,9 +114,6 @@ pub enum CrossConeMirBridgeLoweringError {
         declaration: scoop_identity::CallableTemplateOrigin,
         source: NominalCallableClassificationError,
     },
-    StrongSignatureMismatch {
-        declaration: DependencyCallableDeclarationId,
-    },
     Export {
         declaration: DependencyCallableDeclarationId,
         source: Box<ParamFreeMirCallableBuildError>,
@@ -147,10 +139,6 @@ impl fmt::Display for CrossConeMirBridgeLoweringError {
                 formatter,
                 "cannot classify cross-Cone MIR callable {declaration:?}: {source}"
             ),
-            Self::StrongSignatureMismatch { declaration } => write!(
-                formatter,
-                "cross-Cone MIR callable {declaration:?} disagrees with its strong MIR signature"
-            ),
             Self::Export {
                 declaration,
                 source,
@@ -169,9 +157,7 @@ impl std::error::Error for CrossConeMirBridgeLoweringError {
             Self::Classification { source, .. } => Some(source),
             Self::Export { source, .. } => Some(source),
             Self::Bridge(source) => Some(source),
-            Self::ForeignSelection { .. }
-            | Self::Allocation { .. }
-            | Self::StrongSignatureMismatch { .. } => None,
+            Self::ForeignSelection { .. } | Self::Allocation { .. } => None,
         }
     }
 }

@@ -38,7 +38,7 @@ pub(super) fn with_mir(
         .unwrap();
     let mir = hir.machine_input().lower_selected_mir(selected).unwrap();
     let callables = closure
-        .project_dependency_callables_to_lir(&mir.selected_callables)
+        .project_dependency_callables_to_lir(mir.strong.selected_callables())
         .unwrap();
     let read = scoop_slib::read_cross_cone_layout_artifact_closure(
         scoop_slib::CrossConeArtifactClosureInput::completed(
@@ -82,7 +82,7 @@ pub(super) fn with_mir(
             source: &source,
             mir: &mir.strong,
             ordinary: &mir.public,
-            dependency_objects: mir.selected_callables.objects(),
+            dependency_objects: mir.strong.selected_callables().objects(),
             identities: &identities,
         },
         &callables,

@@ -40,7 +40,7 @@ impl std::error::Error for CurrentConeLirStageError {
 pub enum CurrentConeMirStageError {
     DependencyProjection(scoop_slib::CrossConeMirSelectionProjectionError),
     Lowering(scoop_mir_lower::CurrentConeMirLoweringError),
-    Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
+    Foundation(scoop_mir::OdrFreeMirFoundationError),
     ProductionSection(scoop_mir_lower::MirProductionLoweringError),
     CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),
     Sealing(scoop_mir::SingleConeStrongMirInputError),

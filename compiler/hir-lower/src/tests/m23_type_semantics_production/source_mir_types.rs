@@ -42,10 +42,9 @@ fn with_production<R>(
         };
         let selected =
             scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, records).unwrap();
-        let (module, selected) = scoop_mir_lower::lower_current_cone(output, selected)
-            .unwrap()
-            .into_parts();
-        let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&module).unwrap();
+        let mir_output = scoop_mir_lower::lower_current_cone(output, selected).unwrap();
+        let module = mir_output.module();
+        let foundation = mir_output.strong_foundation().unwrap();
         let production = scoop_mir_lower::lower_production_section(
             module.cone,
             &hir::CoreBootstrapInterfaceSectionV1::from_export(&output.output().export).unwrap(),
@@ -61,11 +60,7 @@ fn with_production<R>(
             .map(|root| root.declaration().clone())
             .collect();
         let strong = scoop_mir::SingleConeStrongMirInput::try_new(
-            module,
-            foundation,
-            production,
-            shapes,
-            scoop_mir::StrongExternalCallableInput::Selected(&selected),
+            mir_output, foundation, production, shapes,
         )
         .unwrap();
         let local_hir: hir::DecodedHirFoundation =

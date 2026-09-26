@@ -18,7 +18,9 @@ fn initialization_function_uses_the_ordinary_callable_abi_export() {
     let scoop_identity::CallableOwner::Function(cycle_definition) = cycle_implementation else {
         panic!("test cycle function has a function owner")
     };
-    let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
+    let selected = mir::SelectedExternalMirSet::empty(module.cone);
+    let mir_output = mir::DependencyMirOutput::try_new(module, selected).unwrap();
+    let foundation = mir_output.strong_foundation().unwrap();
     let strong = mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
     let exact = strong
         .bridges()
@@ -33,14 +35,9 @@ fn initialization_function_uses_the_ordinary_callable_abi_export() {
         strong.with_initialization_cycle(cycle_definition).unwrap(),
     )
     .unwrap();
-    let input = mir::SingleConeStrongMirInput::try_new(
-        module,
-        foundation,
-        production,
-        Vec::new(),
-        mir::StrongExternalCallableInput::Unused,
-    )
-    .unwrap();
+    let input =
+        mir::SingleConeStrongMirInput::try_new(mir_output, foundation, production, Vec::new())
+            .unwrap();
 
     let output = crate::lower(
         &input,

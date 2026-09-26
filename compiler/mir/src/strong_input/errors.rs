@@ -6,11 +6,10 @@ use scoop_identity::{
 };
 use scoop_wire::HashError;
 
-use crate::{FunctionId, GeneratedExactTypeLocation, MirFoundationBuildError};
+use crate::{FunctionId, GeneratedExactTypeLocation};
 
 #[derive(Debug)]
 pub enum SingleConeStrongMirInputError {
-    MissingExternalCallableSelection,
     ForeignExternalCallableSelection {
         expected: ConeIdentity,
         actual: ConeIdentity,
@@ -29,7 +28,6 @@ pub enum SingleConeStrongMirInputError {
         implementation: scoop_identity::StrongCallableDefinitionOwner,
     },
     Initialization(super::StrongInitializationUnitError),
-    Foundation(MirFoundationBuildError),
     Production(crate::MirProductionBuildError),
     FoundationMismatch,
     StrongCallableSurfaceMismatch,
@@ -93,12 +91,10 @@ impl std::error::Error for SingleConeStrongMirInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Initialization(source) => Some(source),
-            Self::Foundation(source) => Some(source),
             Self::Production(source) => Some(source),
             Self::ShapeSupportSourceIdentity { error, .. } => Some(error),
             Self::ShapeSupportExactIdentity { error, .. } => Some(error),
-            Self::MissingExternalCallableSelection
-            | Self::ForeignExternalCallableSelection { .. }
+            Self::ForeignExternalCallableSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }
             | Self::ForeignExternalCallable { .. }
             | Self::UnreferencedExternalCallable { .. }

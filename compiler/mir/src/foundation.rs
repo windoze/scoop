@@ -111,6 +111,17 @@ impl CanonicalMirFoundation {
         &self.callable_signatures
     }
 
+    pub fn callable_signature(
+        &self,
+        subject: crate::CallableSignatureSubject,
+    ) -> Option<&CallableSignatureRecord> {
+        self.callable_signatures
+            .binary_search_by(|record| record.subject().compare_sort_key(subject))
+            .ok()
+            .map(|index| &self.callable_signatures[index])
+            .filter(|record| record.subject() == subject)
+    }
+
     /// ODR groups first introduced by MIR rather than inherited from HIR.
     /// Later stages use this delta to add members without claiming ownership
     /// of an already established structural group record.

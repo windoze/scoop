@@ -1,23 +1,14 @@
 use std::collections::HashSet;
 
-use super::{
-    SingleConeStrongMirInputError as Error, StrongExternalCallableInput, StrongExternalCallableRoot,
-};
-use crate::Module;
+use super::{SingleConeStrongMirInputError as Error, StrongExternalCallableRoot};
+use crate::{Module, SelectedExternalMirSet};
 
 /// Resolves every MIR use through one complete selection before projecting the
-/// existing LIR metadata roles. Both output sealing paths use this validator.
+/// existing LIR metadata roles. The completed MIR output retains these roots.
 pub(crate) fn validate_external_callables(
     module: &Module,
-    input: StrongExternalCallableInput<'_>,
+    selected: &SelectedExternalMirSet,
 ) -> Result<Vec<StrongExternalCallableRoot>, Error> {
-    let selected = match input {
-        StrongExternalCallableInput::Unused if module.meta.external_callables.is_empty() => {
-            return Ok(Vec::new());
-        }
-        StrongExternalCallableInput::Unused => return Err(Error::MissingExternalCallableSelection),
-        StrongExternalCallableInput::Selected(selected) => selected,
-    };
     if selected.consumer() != module.cone {
         return Err(Error::ForeignExternalCallableSelection {
             expected: module.cone,
