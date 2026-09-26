@@ -94,7 +94,7 @@ impl Source {
 
 pub(super) fn select<'a>(
     input: &scoop_mir::SingleConeStrongMirInput,
-    layout: &'a CrossConeLayoutAbiSectionV1<'a>,
+    layout: &'a LayoutAbiExportConstituentsV1,
     provider: &ShapeLinkProviderV1<'a>,
 ) -> StrongProductionDependencySelectionV2<'a> {
     let source = Source::from_mir(input);
@@ -113,7 +113,7 @@ pub(super) fn select<'a>(
     StrongProductionDependencySelectionV2::try_new(
         input.module().cone,
         layout.target_profile(),
-        &[layout.exports()],
+        &[layout],
         source.imports(provider, input.module().cone, &definitions),
         &source,
     )

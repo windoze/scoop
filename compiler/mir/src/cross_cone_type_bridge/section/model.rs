@@ -1,13 +1,11 @@
 use super::*;
 
-/// Complete MIR semantic proof. Artifact and machine-use eligibility still
-/// require the containing LIR/Strong/profile closure.
+/// Complete MIR type exports and selected dependency records.
 pub struct CrossConeMirTypeBridgeSectionV1<'a> {
     pub(super) authority: MirTypeBridgeLocalAuthorityV1<'a>,
     pub(super) exports: MirTypeBridgeExportConstituentsV1,
     pub(super) units: Vec<MirTypeBridgeInitializationUnitV1>,
     pub(super) legacy_callables: Vec<StrongCallableDefinitionOwner>,
-    pub(super) dependencies: Vec<&'a CrossConeMirTypeBridgeSectionV1<'a>>,
     pub(super) selected: SelectedDependencyMirTypeSetV1<'a>,
 }
 impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
@@ -43,13 +41,6 @@ impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
     }
     pub const fn selected(&self) -> &SelectedDependencyMirTypeSetV1<'a> {
         &self.selected
-    }
-
-    pub(super) fn record(
-        &self,
-        target: MirTypeBridgeTargetV1,
-    ) -> Option<MirTypeBridgeSemanticRecordV1<'_>> {
-        self.view().record(target)
     }
 }
 

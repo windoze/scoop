@@ -99,7 +99,9 @@ fn value_method_selection_closes_both_signatures_and_preserves_gc_effect() {
     consumer.source.uses = vec![relation, dispatch_relation];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
-    let section = consumer.section(&[&terminal], &graph).unwrap();
+    let section = consumer
+        .section(&[terminal.dependency_view()], &graph)
+        .unwrap();
     let mut expected = vec![provider.type_use(), relation, dispatch_relation];
     expected.sort_unstable();
     assert_eq!(section.selected().relations().collect::<Vec<_>>(), expected);
@@ -132,6 +134,6 @@ fn a_foundation_signature_cannot_replace_a_missing_callable_export() {
     let graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     assert!(
-        matches!(consumer.section(&[&terminal], &graph), Err(MirTypeBridgeSectionError::MissingDependency(actual)) if actual == target)
+        matches!(consumer.section(&[terminal.dependency_view()], &graph), Err(MirTypeBridgeSectionError::MissingDependency(actual)) if actual == target)
     );
 }

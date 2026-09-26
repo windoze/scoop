@@ -45,7 +45,7 @@ pub(super) fn check(
                         ordinary: mir_input.ordinary,
                     },
                     exports,
-                    &[core_mir],
+                    &[core_mir.dependency_view()],
                     &source,
                     mir_input.identities,
                 )

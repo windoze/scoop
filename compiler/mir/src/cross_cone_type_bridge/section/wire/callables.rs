@@ -108,7 +108,7 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
     pub fn validate<'a, E>(
         self,
         authority: MirTypeBridgeLocalAuthorityV1<'a>,
-        dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
+        dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
@@ -119,7 +119,7 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
     pub(super) fn complete<'a, E>(
         self,
         authority: MirTypeBridgeLocalAuthorityV1<'a>,
-        dependencies: Vec<&'a CrossConeMirTypeBridgeSectionV1<'a>>,
+        dependencies: Vec<MirTypeBridgeDependencyViewV1<'a>>,
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {

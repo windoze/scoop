@@ -44,6 +44,8 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 
 layout reader 的外部形状合同保留选中记录的完整 typed 数据，读取结果直接拥有 section 和 Link 信息，不依赖临时 arena 或高阶回调。依赖查询期间的正常借用保留；不能用借用生命周期或只读回调额外限制已经完整的编译数据。
 
+MIR 生产与读取共用已有的 `MirTypeBridgeDependencyViewV1`：它借用真实 provider 的完整导出表、初始化单元和普通 callable 定义。driver 从已解析依赖图提供可达 provider 的目录；section 不再保存 producer section 组成的递归依赖图，也不要求读出的依赖重新构造为 producer section。选择入口保留 provider 唯一性与实际 typed 引用闭包检查，manifest 依赖环检测复用共有图边界。读取结果可直接用于后续 MIR 类型、callable、dispatch、初始化和布局生产。
+
 LIR 的依赖选择直接查询实际 provider 的完整 layout/ABI 五表导出记录。构建图提供可达 provider 集合，同次编译与产物 reader 使用同一入口；不要求从读取结果重造 producer section，不保存重复的递归 section 依赖图。选择仍检查 typed 目标、provider、target 和真实引用闭包，manifest 依赖环与语言布局环保留在各自职责边界。
 
 Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。

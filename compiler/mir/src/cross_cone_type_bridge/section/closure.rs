@@ -19,14 +19,12 @@ pub(super) struct ClosedDependency {
 
 pub(super) fn close<'a, E>(
     local: LocalView<'_>,
-    dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
+    dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
     committed: &[MirTypeBridgeDependencyV1],
     graph: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
 ) -> Result<Vec<SelectedMirTypeEntryV1<'a>>, MirTypeBridgeSectionError<E>> {
-    let mut views = reserve(dependencies.len())?;
-    views.extend(dependencies.iter().map(|section| section.view()));
-    let closed = close_views(local, &views, committed, graph, types)?;
+    let closed = close_views(local, dependencies, committed, graph, types)?;
     let mut selected = reserve(closed.len())?;
     for entry in closed {
         selected.push(SelectedMirTypeEntryV1 {

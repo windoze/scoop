@@ -8,7 +8,7 @@ pub(super) enum SelectionInput {
 pub(super) struct SectionInput<'a> {
     pub authority: MirTypeBridgeLocalAuthorityV1<'a>,
     pub exports: MirTypeBridgeExportConstituentsV1,
-    pub dependencies: Vec<&'a CrossConeMirTypeBridgeSectionV1<'a>>,
+    pub dependencies: Vec<MirTypeBridgeDependencyViewV1<'a>>,
     pub selection: SelectionInput,
 }
 
@@ -16,7 +16,7 @@ impl<'a> CrossConeMirTypeBridgeSectionV1<'a> {
     pub fn try_new<E>(
         authority: MirTypeBridgeLocalAuthorityV1<'a>,
         exports: MirTypeBridgeExportConstituentsV1,
-        dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
+        dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &ValidatedIdentityGraph,
     ) -> Result<Self, MirTypeBridgeSectionError<E>> {
@@ -79,7 +79,6 @@ pub(super) fn complete<'a, E>(
         exports: input.exports,
         units,
         legacy_callables,
-        dependencies: input.dependencies,
         selected,
     })
 }

@@ -30,6 +30,10 @@ pub(super) fn check(
     )
     .unwrap();
     let (semantic, link) = read.artifact(core_lir.provider()).unwrap();
+    let mir_dependency = semantic
+        .mir_type_bridge()
+        .dependency_view(semantic.initialization_units());
+    let mir_exports = mir_dependency.exports();
     let provider_exports = semantic.lir_exports();
     assert_eq!(provider_exports, core_lir.exports());
     super::publication::check_provider(core_artifact, target.c_bridge_toolchain().profile());
@@ -66,13 +70,13 @@ pub(super) fn check(
             target,
             &bytes,
             &source,
-            Some((core_mir, core_lir)),
+            Some((mir_exports, provider_exports)),
             Some(&provider),
             |input, _, lir_input, _, _| {
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
-                    types: &[core_mir.types()],
-                    callables: &[core_mir.callables()],
-                    dispatch: &[core_mir.dispatch()],
+                    types: &[mir_exports.types()],
+                    callables: &[mir_exports.callables()],
+                    dispatch: &[mir_exports.dispatch()],
                 };
                 let exports =
                     scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
@@ -88,7 +92,7 @@ pub(super) fn check(
                         ordinary: input.ordinary,
                     },
                     exports,
-                    &[core_mir],
+                    &[mir_dependency],
                     &projected,
                     input.identities,
                 )
@@ -119,8 +123,8 @@ pub(super) fn check(
                     ..lir_input
                 };
                 let dependencies = scoop_lir_lower::LayoutAbiExportDependenciesV1 {
-                    layouts: &[core_lir.layouts()],
-                    callables: &[core_lir.callables()],
+                    layouts: &[provider_exports.layouts()],
+                    callables: &[provider_exports.callables()],
                 };
                 registration_edges::check(
                     input_lir,

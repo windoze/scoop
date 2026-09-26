@@ -52,7 +52,7 @@ impl Fixture {
     }
     pub fn section<'a>(
         &'a self,
-        dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
+        dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
         graph: &ValidatedIdentityGraph,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<&'static str>> {
         CrossConeMirTypeBridgeSectionV1::try_new(

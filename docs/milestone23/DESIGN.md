@@ -1506,6 +1506,8 @@ foundation中的layout/scan/dispatch table只有identity key，不是通用ABI�
 
 MIR section提供下游MIR需要的、不从HIR name重建的关系：
 
+MIR 生产与读取共用已有的 `MirTypeBridgeDependencyViewV1`：它借用真实 provider 的完整导出表、初始化单元和普通 callable 定义。driver 从已解析依赖图提供可达 provider 的目录；section 不再保存 producer section 组成的递归依赖图，也不要求读出的依赖重新构造为 producer section。选择入口保留 provider 唯一性与实际 typed 引用闭包检查，manifest 依赖环检测复用共有图边界。读取结果可直接用于后续 MIR 类型、callable、dispatch、初始化和布局生产。
+
 - HIR persistent source id到external callable/global/constructor/accessor symbol的typed bridge；
 - exact ancestry、virtual/itable slot identity、default implementation/adjust thunk与dispatch table schema；
 - param-free concrete entity、已发射specialization及其ODR/linkage record；

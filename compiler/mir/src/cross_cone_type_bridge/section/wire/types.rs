@@ -48,7 +48,7 @@ impl DecodedCrossConeMirTypeBridgeSectionV1 {
     pub fn validate<'a, E>(
         self,
         authority: MirTypeBridgeLocalAuthorityV1<'a>,
-        dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
+        dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
@@ -56,7 +56,7 @@ impl DecodedCrossConeMirTypeBridgeSectionV1 {
         let types = self.resolve_types(
             authority.provider(),
             authority.foundation(),
-            dependencies.iter().map(|section| section.types()),
+            dependencies.iter().map(|section| section.exports.types()),
             graph,
         )?;
         types.complete(authority, dependencies, source, graph)
@@ -74,7 +74,7 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
     pub fn validate<'a, E>(
         self,
         authority: MirTypeBridgeLocalAuthorityV1<'a>,
-        dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
+        dependencies: &[MirTypeBridgeDependencyViewV1<'a>],
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
@@ -85,15 +85,19 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
     fn complete<'a, E>(
         self,
         authority: MirTypeBridgeLocalAuthorityV1<'a>,
-        dependencies: Vec<&'a CrossConeMirTypeBridgeSectionV1<'a>>,
+        dependencies: Vec<MirTypeBridgeDependencyViewV1<'a>>,
         source: &impl MirTypeBridgeSectionSourceAuthorityV1<E>,
         graph: &mut ValidatedIdentityGraph,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
         self.resolve_callables(
             authority.foundation(),
-            dependencies
-                .iter()
-                .map(|section| (section.types(), section.callables(), section.dispatch())),
+            dependencies.iter().map(|section| {
+                (
+                    section.exports.types(),
+                    section.exports.callables(),
+                    section.exports.dispatch(),
+                )
+            }),
             graph,
         )?
         .complete(authority, dependencies, source, graph)

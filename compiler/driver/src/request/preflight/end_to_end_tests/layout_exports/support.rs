@@ -51,8 +51,8 @@ pub(super) fn with_pair(
     core_bytes: &[u8],
     source: &str,
     provider_exports: Option<(
-        &mir::CrossConeMirTypeBridgeSectionV1<'_>,
-        &lir::CrossConeLayoutAbiSectionV1<'_>,
+        &mir::MirTypeBridgeExportConstituentsV1,
+        &lir::LayoutAbiExportConstituentsV1,
     )>,
     layout_provider: Option<&lir::ShapeLinkProviderV1<'_>>,
     run: impl FnOnce(

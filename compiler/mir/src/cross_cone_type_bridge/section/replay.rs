@@ -3,7 +3,7 @@ use super::*;
 pub(super) fn exports<E>(
     authority: MirTypeBridgeLocalAuthorityV1<'_>,
     exports: &MirTypeBridgeExportConstituentsV1,
-    dependencies: &[&CrossConeMirTypeBridgeSectionV1<'_>],
+    dependencies: &[MirTypeBridgeDependencyViewV1<'_>],
     graph: &ValidatedIdentityGraph,
     types: &dyn MirTypeBridgeTypeLookupV1,
 ) -> Result<(), MirTypeBridgeSectionError<E>> {
@@ -28,10 +28,18 @@ pub(super) fn exports<E>(
         .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
     let mut callable_tables = reserve(count)?;
     callable_tables.push(exports.callables());
-    callable_tables.extend(dependencies.iter().map(|section| section.callables()));
+    callable_tables.extend(
+        dependencies
+            .iter()
+            .map(|section| section.exports.callables()),
+    );
     let callables = MirTypeBridgeCallableIndexV1::try_new(&callable_tables)?;
     let mut schemas = reserve(dependencies.len())?;
-    schemas.extend(dependencies.iter().map(|section| section.dispatch()));
+    schemas.extend(
+        dependencies
+            .iter()
+            .map(|section| section.exports.dispatch()),
+    );
     MirDispatchSchemaAuthority {
         identities: graph,
         types,

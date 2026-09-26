@@ -62,7 +62,7 @@ fn core_shape_selection_uses_the_common_table_and_round_trips() {
         core.shape_support().records()[0].source(),
         provider.types.empty.id()
     );
-    let section = consumer.section(&[&core], &graph).unwrap();
+    let section = consumer.section(&[core.dependency_view()], &graph).unwrap();
     assert_eq!(section.selected().len(), 5);
     let bytes = encode(&core).unwrap();
     let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
@@ -113,7 +113,7 @@ fn fixed_core_and_ordinary_callable_partitions_cannot_be_selected_again() {
             MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(target)),
         )];
         assert!(
-            matches!(consumer.section(&[&core, &old], &graph), Err(MirTypeBridgeSectionError::OldCallablePartition(actual)) if actual == StrongCallableDefinitionOwner::Function(target))
+            matches!(consumer.section(&[core.dependency_view(), old.dependency_view()], &graph), Err(MirTypeBridgeSectionError::OldCallablePartition(actual)) if actual == StrongCallableDefinitionOwner::Function(target))
         );
     }
 }
@@ -128,7 +128,12 @@ fn mixed_core_and_ordinary_shape_selections_keep_their_terminal_records() {
     let mut graph = graph(&[&core_provider, &ordinary_provider, &consumer]);
     let core = core_provider.section(&[], &graph).unwrap();
     let ordinary = ordinary_provider.section(&[], &graph).unwrap();
-    let section = consumer.section(&[&core, &ordinary], &graph).unwrap();
+    let section = consumer
+        .section(
+            &[core.dependency_view(), ordinary.dependency_view()],
+            &graph,
+        )
+        .unwrap();
     assert_eq!(section.selected().len(), 10);
     for provider in [&core_provider, &ordinary_provider] {
         let reference = section
@@ -148,7 +153,7 @@ fn mixed_core_and_ordinary_shape_selections_keep_their_terminal_records() {
     let replayed = decoded
         .validate(
             consumer.authority(),
-            &[&core, &ordinary],
+            &[core.dependency_view(), ordinary.dependency_view()],
             &consumer.source,
             &mut graph,
         )

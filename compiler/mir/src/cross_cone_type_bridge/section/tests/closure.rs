@@ -17,7 +17,9 @@ fn source_shape_request_closes_all_helpers_and_resolves_terminal_records() {
     consumer.source.uses = vec![provider.shape_use()];
     let graph = graph(&[&provider, &consumer]);
     let provider_section = provider.section(&[], &graph).unwrap();
-    let consumer_section = consumer.section(&[&provider_section], &graph).unwrap();
+    let consumer_section = consumer
+        .section(&[provider_section.dependency_view()], &graph)
+        .unwrap();
     assert_eq!(consumer_section.selected().len(), 5);
     let reference = consumer_section
         .selected()
@@ -26,7 +28,9 @@ fn source_shape_request_closes_all_helpers_and_resolves_terminal_records() {
     assert!(
         matches!(consumer_section.selected().resolve(reference), Some(MirTypeBridgeSemanticRecordV1::Type(record)) if record.exact() == provider.types.payload.id())
     );
-    let again = consumer.section(&[&provider_section], &graph).unwrap();
+    let again = consumer
+        .section(&[provider_section.dependency_view()], &graph)
+        .unwrap();
     assert!(again.selected().resolve(reference).is_none());
     assert!(again.selected().relation(reference).is_none());
 }
@@ -38,7 +42,9 @@ fn local_field_closes_foreign_type_without_requesting_its_shape_family() {
     let graph = graph(&[&provider, &consumer]);
     consumer.with_field(provider.types.payload.id(), &graph);
     let provider_section = provider.section(&[], &graph).unwrap();
-    let consumer_section = consumer.section(&[&provider_section], &graph).unwrap();
+    let consumer_section = consumer
+        .section(&[provider_section.dependency_view()], &graph)
+        .unwrap();
     assert_eq!(
         consumer_section.selected().relations().collect::<Vec<_>>(),
         vec![provider.type_use()]
@@ -58,8 +64,15 @@ fn facade_selection_preserves_the_terminal_provider() {
     consumer.source.uses = facade.source.uses.clone();
     let graph = graph(&[&provider, &facade, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
-    let middle = facade.section(&[&terminal], &graph).unwrap();
-    let client = consumer.section(&[&middle], &graph).unwrap();
+    let middle = facade
+        .section(&[terminal.dependency_view()], &graph)
+        .unwrap();
+    let client = consumer
+        .section(
+            &[middle.dependency_view(), terminal.dependency_view()],
+            &graph,
+        )
+        .unwrap();
     assert_eq!(
         client.selected().relations().collect::<Vec<_>>(),
         vec![provider.type_use()]
@@ -69,13 +82,16 @@ fn facade_selection_preserves_the_terminal_provider() {
         provider.type_use().target(),
     )];
     assert!(matches!(
-        consumer.section(&[&middle], &graph),
+        consumer.section(
+            &[middle.dependency_view(), terminal.dependency_view()],
+            &graph
+        ),
         Err(MirTypeBridgeSectionError::MissingTarget(_))
     ));
 }
 
 #[test]
-fn diamond_accepts_the_same_terminal_instance_but_rejects_duplicate_authority() {
+fn dependency_catalog_accepts_unique_providers_and_rejects_duplicate_entries() {
     let provider = Fixture::new("diamond-root");
     let left = Fixture::new("left");
     let right = Fixture::new("right");
@@ -84,23 +100,29 @@ fn diamond_accepts_the_same_terminal_instance_but_rejects_duplicate_authority() 
     let graph = graph(&[&provider, &left, &right, &consumer]);
     let first = provider.section(&[], &graph).unwrap();
     let second = provider.section(&[], &graph).unwrap();
-    let left_section = left.section(&[&first], &graph).unwrap();
-    let right_section = right.section(&[&first], &graph).unwrap();
+    let left_section = left.section(&[first.dependency_view()], &graph).unwrap();
+    let right_section = right.section(&[first.dependency_view()], &graph).unwrap();
     assert_eq!(
         consumer
-            .section(&[&left_section, &right_section], &graph)
+            .section(
+                &[
+                    left_section.dependency_view(),
+                    right_section.dependency_view(),
+                    first.dependency_view()
+                ],
+                &graph
+            )
             .unwrap()
             .selected()
             .len(),
         1
     );
     assert!(matches!(
-        consumer.section(&[&first, &first], &graph),
+        consumer.section(&[first.dependency_view(), first.dependency_view()], &graph),
         Err(MirTypeBridgeSectionError::DuplicateProvider(_))
     ));
-    let other_right = right.section(&[&second], &graph).unwrap();
     assert!(matches!(
-        consumer.section(&[&left_section, &other_right], &graph),
+        consumer.section(&[first.dependency_view(), second.dependency_view()], &graph),
         Err(MirTypeBridgeSectionError::DuplicateProvider(_))
     ));
 }
@@ -119,12 +141,12 @@ fn independent_source_inventory_and_committed_use_order_are_mandatory() {
     let graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
     assert!(matches!(
-        consumer.section(&[&terminal], &graph),
+        consumer.section(&[terminal.dependency_view()], &graph),
         Err(MirTypeBridgeSectionError::NonCanonicalCommittedUses)
     ));
     consumer.source.uses = vec![consumer.type_use()];
     assert!(matches!(
-        consumer.section(&[&terminal], &graph),
+        consumer.section(&[terminal.dependency_view()], &graph),
         Err(MirTypeBridgeSectionError::SelectedCurrentProvider)
     ));
 }

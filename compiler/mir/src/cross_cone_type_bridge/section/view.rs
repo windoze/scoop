@@ -1,7 +1,6 @@
 use super::*;
 
-/// Borrowed constituents for dependency graph replay; this is not a selection
-/// handle or evidence that source-use and artifact checks have completed.
+/// Complete dependency exports with their initialization and callable records.
 #[derive(Clone, Copy)]
 pub struct MirTypeBridgeDependencyViewV1<'a> {
     pub(super) provider: ConeIdentity,
@@ -13,6 +12,10 @@ pub(super) type LocalView<'a> = MirTypeBridgeDependencyViewV1<'a>;
 impl<'a> LocalView<'a> {
     pub const fn provider(self) -> ConeIdentity {
         self.provider
+    }
+
+    pub const fn exports(self) -> &'a MirTypeBridgeExportConstituentsV1 {
+        self.exports
     }
 
     pub(super) fn record(
@@ -79,7 +82,7 @@ impl<'a> LocalView<'a> {
 }
 
 impl CrossConeMirTypeBridgeSectionV1<'_> {
-    pub(super) fn view(&self) -> LocalView<'_> {
+    pub fn dependency_view(&self) -> LocalView<'_> {
         LocalView {
             provider: self.provider(),
             exports: &self.exports,

@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct MirTypeSelectionBrand(u64);
 
-/// Request-local semantic selection. It is not a machine-definition proof.
+/// A typed reference into one request-local selection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SelectedDependencyMirTypeRefV1 {
     brand: MirTypeSelectionBrand,
@@ -13,11 +13,10 @@ pub struct SelectedDependencyMirTypeRefV1 {
 
 pub(super) struct SelectedMirTypeEntryV1<'a> {
     pub relation: MirTypeBridgeDependencyV1,
-    pub terminal: &'a CrossConeMirTypeBridgeSectionV1<'a>,
+    pub terminal: MirTypeBridgeDependencyViewV1<'a>,
 }
 
-/// Only complete local-source and terminal-provider closure construction can
-/// create this set. Wire DTOs and arbitrary constituent indexes cannot.
+/// Selected dependency records and their actual providers.
 pub struct SelectedDependencyMirTypeSetV1<'a> {
     consumer: ConeIdentity,
     brand: MirTypeSelectionBrand,

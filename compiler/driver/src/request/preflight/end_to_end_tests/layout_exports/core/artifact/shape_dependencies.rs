@@ -26,6 +26,10 @@ pub(super) fn check(
     )
     .unwrap();
     let (semantic, link) = read.artifact(core_lir.provider()).unwrap();
+    let mir_dependency = semantic
+        .mir_type_bridge()
+        .dependency_view(semantic.initialization_units());
+    let mir_exports = mir_dependency.exports();
     let provider_exports = semantic.lir_exports();
     assert_eq!(provider_exports, core_lir.exports());
     let owners = [link.defined_symbols().clone()];
@@ -55,9 +59,9 @@ pub(super) fn check(
             &source,
             |input, callables| {
                 let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
-                    types: &[core_mir.types()],
-                    callables: &[core_mir.callables()],
-                    dispatch: &[core_mir.dispatch()],
+                    types: &[mir_exports.types()],
+                    callables: &[mir_exports.callables()],
+                    dispatch: &[mir_exports.dispatch()],
                 };
                 let exports =
                     scoop_mir_lower::lower_type_bridge_exports(input, dependencies).unwrap();
@@ -98,7 +102,7 @@ pub(super) fn check(
                         ordinary: input.ordinary,
                     },
                     exports,
-                    &[core_mir],
+                    &[mir_dependency],
                     &projection,
                     input.identities,
                 )

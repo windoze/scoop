@@ -7,7 +7,9 @@ fn seven_field_wire_round_trips_only_after_full_closure_replay() {
     consumer.source.uses = vec![provider.shape_use()];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
-    let section = consumer.section(&[&terminal], &graph).unwrap();
+    let section = consumer
+        .section(&[terminal.dependency_view()], &graph)
+        .unwrap();
     let bytes = encode(&section).unwrap();
     assert_eq!(bytes[0], 0xa7);
     let decoded: DecodedCrossConeMirTypeBridgeSectionV1 = decode_canonical(&bytes).unwrap();
@@ -15,7 +17,7 @@ fn seven_field_wire_round_trips_only_after_full_closure_replay() {
     let replayed = decoded
         .validate(
             consumer.authority(),
-            &[&terminal],
+            &[terminal.dependency_view()],
             &consumer.source,
             &mut graph,
         )
@@ -60,12 +62,14 @@ fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
     consumer.source.uses = vec![provider.type_use()];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
-    let section = consumer.section(&[&terminal], &graph).unwrap();
+    let section = consumer
+        .section(&[terminal.dependency_view()], &graph)
+        .unwrap();
     for records in [vec![], vec![provider.type_use(), provider.shape_use()]] {
         assert!(matches!(
             decoded_with_selected(&section, &records).validate(
                 consumer.authority(),
-                &[&terminal],
+                &[terminal.dependency_view()],
                 &consumer.source,
                 &mut graph
             ),
@@ -75,7 +79,7 @@ fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
     assert!(matches!(
         decoded_with_selected(&section, &[provider.type_use(), provider.type_use()]).validate(
             consumer.authority(),
-            &[&terminal],
+            &[terminal.dependency_view()],
             &consumer.source,
             &mut graph
         ),
@@ -84,7 +88,7 @@ fn reader_rejects_missing_extra_duplicate_and_local_selected_records() {
     assert!(matches!(
         decoded_with_selected(&section, &[consumer.type_use()]).validate(
             consumer.authority(),
-            &[&terminal],
+            &[terminal.dependency_view()],
             &consumer.source,
             &mut graph
         ),

@@ -3,7 +3,7 @@ use super::*;
 fn resolve(
     fixture: &Fixture,
     section: &CrossConeMirTypeBridgeSectionV1<'_>,
-    dependencies: &[&CrossConeMirTypeBridgeSectionV1<'_>],
+    dependencies: &[MirTypeBridgeDependencyViewV1<'_>],
     graph: &mut ValidatedIdentityGraph,
 ) -> DependencyResolvedCrossConeMirTypeBridgeSectionV1 {
     let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
@@ -12,15 +12,19 @@ fn resolve(
         .resolve_types::<&'static str>(
             fixture.source.provider,
             &fixture.types.foundation,
-            dependencies.iter().map(|section| section.types()),
+            dependencies.iter().map(|section| section.exports().types()),
             graph,
         )
         .unwrap()
         .resolve_callables::<&'static str>(
             &fixture.types.foundation,
-            dependencies
-                .iter()
-                .map(|section| (section.types(), section.callables(), section.dispatch())),
+            dependencies.iter().map(|section| {
+                (
+                    section.exports().types(),
+                    section.exports().callables(),
+                    section.exports().dispatch(),
+                )
+            }),
             graph,
         )
         .unwrap()
@@ -37,12 +41,24 @@ fn owned_dependency_transport_replays_local_fields_and_explicit_shape_roots() {
     let terminal = provider.section(&[], &graph).unwrap();
     for roots in [vec![], vec![provider.shape_use()]] {
         consumer.source.uses = roots.clone();
-        let section = consumer.section(&[&terminal], &graph).unwrap();
-        let resolved = resolve(&consumer, &section, &[&terminal], &mut graph);
+        let section = consumer
+            .section(&[terminal.dependency_view()], &graph)
+            .unwrap();
+        let resolved = resolve(
+            &consumer,
+            &section,
+            &[terminal.dependency_view()],
+            &mut graph,
+        );
         assert_eq!(resolved.provider(), consumer.source.provider);
-        assert_eq!(resolved.exports().types(), section.types());
+        assert_eq!(resolved.exports().types(), section.exports().types());
         resolved
-            .replay_dependency_closure::<&'static str>(&[], &[terminal.view()], &roots, &graph)
+            .replay_dependency_closure::<&'static str>(
+                &[],
+                &[terminal.dependency_view()],
+                &roots,
+                &graph,
+            )
             .unwrap();
         assert_eq!(
             resolved.selected_relations(),
@@ -62,10 +78,22 @@ fn owned_dependency_graph_rejects_candidate_drift_and_invented_roots() {
     consumer.source.uses = vec![provider.type_use()];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
-    let section = consumer.section(&[&terminal], &graph).unwrap();
-    let mut resolved = resolve(&consumer, &section, &[&terminal], &mut graph);
+    let section = consumer
+        .section(&[terminal.dependency_view()], &graph)
+        .unwrap();
+    let mut resolved = resolve(
+        &consumer,
+        &section,
+        &[terminal.dependency_view()],
+        &mut graph,
+    );
     let replay = |resolved: &DependencyResolvedCrossConeMirTypeBridgeSectionV1, roots: &[_]| {
-        resolved.replay_dependency_closure::<&'static str>(&[], &[terminal.view()], roots, &graph)
+        resolved.replay_dependency_closure::<&'static str>(
+            &[],
+            &[terminal.dependency_view()],
+            roots,
+            &graph,
+        )
     };
     assert!(matches!(
         replay(&resolved, &[]),
@@ -103,8 +131,15 @@ fn owned_dependency_graph_rejects_missing_and_duplicate_providers() {
     consumer.source.uses = vec![provider.type_use()];
     let mut graph = graph(&[&provider, &consumer]);
     let terminal = provider.section(&[], &graph).unwrap();
-    let section = consumer.section(&[&terminal], &graph).unwrap();
-    let resolved = resolve(&consumer, &section, &[&terminal], &mut graph);
+    let section = consumer
+        .section(&[terminal.dependency_view()], &graph)
+        .unwrap();
+    let resolved = resolve(
+        &consumer,
+        &section,
+        &[terminal.dependency_view()],
+        &mut graph,
+    );
     let replay = |dependencies: &[_]| {
         resolved.replay_dependency_closure::<&'static str>(
             &[],
@@ -117,7 +152,7 @@ fn owned_dependency_graph_rejects_missing_and_duplicate_providers() {
         replay(&[]),
         Err(MirTypeBridgeSectionError::MissingDependency(_))
     ));
-    assert!(replay(&[terminal.view(), terminal.view()]).is_err());
+    assert!(replay(&[terminal.dependency_view(), terminal.dependency_view()]).is_err());
 
-    replay(&[terminal.view()]).unwrap();
+    replay(&[terminal.dependency_view()]).unwrap();
 }
