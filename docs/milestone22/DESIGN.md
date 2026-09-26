@@ -577,7 +577,7 @@ parser按当前literal、字段列表、pattern、for header与statement同步�
 - `tests/fixtures/m22-patterns/`；
 - 各目录的`errors/`与必要warning fixture。
 
-AST、Export HIR、MIR、LIR golden分别锁定source facts、typed winner、cleanup CFG和精确integer width；LocalConcrete HIR通过结构断言及Export → LocalConcrete reader/boundary validation锁定source plan消失，不重复dump一套同源golden。至少一个组合fixture串联fixed-width range → for destructuring → recursive when → copy update → try/finally continue/break → suspend/moving-GC stress；需要stress的fixture加入runner显式白名单。按本节明确迁移unsigned literal的旧fixture后，M1至M21及M25全部回归。
+AST、Export HIR、MIR、LIR golden分别锁定source facts、typed winner、cleanup CFG和精确integer width；LocalConcrete HIR通过真实源码 lowering 的结构断言锁定source plan消失；前端已完成的迭代、类型、effect和局部定义检查不在concretizer入口完整重放，不重复dump一套同源golden。至少一个组合fixture串联fixed-width range → for destructuring → recursive when → copy update → try/finally continue/break → suspend/moving-GC stress；需要stress的fixture加入runner显式白名单。按本节明确迁移unsigned literal的旧fixture后，M1至M21及M25全部回归。
 
 ## 9. 实现顺序与提交门
 

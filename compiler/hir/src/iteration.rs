@@ -1,8 +1,5 @@
 use super::*;
 
-mod validation;
-pub use validation::*;
-
 /// Complete compiler-owned identity of the source iteration protocol.
 ///
 /// The core `Option` relation remains the module's single canonical

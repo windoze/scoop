@@ -52,6 +52,8 @@ String 的外部 TypeDescriptor 与 type-registration relocation 使用普通 pr
 
 ## 1. 概述与范围
 
+source `for` 与解构计划在 HIR 阶段完成语义检查和展开；runtime 只消费已有调用、异常、对象及 GC 数据。删除 concretizer 入口的重复整模块迭代验证不改变运行时 C ABI、String 表示、扫描记录或 GC 契约，也不增加运行时验证入口。
+
 Runtime 是编译产物的支撑层，职责包括：
 
 - 对象模型与内存布局（对象头、TypeDescriptor、装箱）；

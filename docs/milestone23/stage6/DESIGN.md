@@ -162,6 +162,8 @@ Stage 7 只补物化和一致性证明，不能再修改本阶段冻结的零尺
 
 ## 2. crate 与输入边界
 
+迭代与绑定计划的语义检查属于前端：选择实际 iterator/component、验证签名及 effect、构造局部数据流和 typed 循环目标后，concretizer 直接代换并展开完整计划。删除 `validate_iteration_plans` 这条没有产物 reader 生产调用的整模块重放通道及其独立语义实现，不把它移成新工厂或另一份证明。真实语言错误、generic 展开、继承/boxing、默认值及 break/continue 的回归继续保留。
+
 ```text
 scoop-hir       type facts / inheritance interface / selected use / access witness
 scoop-hir-lower 语义检查、receiver proof、完整外部请求与 winner commit

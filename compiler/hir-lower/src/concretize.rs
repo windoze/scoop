@@ -39,8 +39,6 @@ use functions::PendingFunction;
 use initialization::InitializationRequest;
 
 pub(crate) fn lower(module: &export::Module) -> concrete::Module {
-    export::validate_iteration_plans(module)
-        .expect("Export HIR iteration plans must pass the complete reader boundary validator");
     Concretizer::new(module)
         .expect("validated declaration roots have a complete materialization closure")
         .run()
@@ -51,8 +49,6 @@ pub(crate) fn lower_output(
     requirements: &export::PublicNominalShapeRequirementsV1,
 ) -> Result<export::LocalConcreteHirOutput, export::PublicNominalShapeProjectionError> {
     let module = output.module();
-    export::validate_iteration_plans(module)
-        .expect("Export HIR iteration plans must pass the complete reader boundary validator");
     let concretizer = Concretizer::new(module)?;
     let (module, output_kind) = match output.output_kind() {
         export::ConeOutputKind::Library => {

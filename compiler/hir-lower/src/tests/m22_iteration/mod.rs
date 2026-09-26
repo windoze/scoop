@@ -1,10 +1,9 @@
 use super::*;
 
+mod effects;
 mod generic;
+mod lowering;
 mod protocol;
-mod validation;
-mod validation_definitions;
-mod validation_effects;
 
 fn public_visibility() -> ast::VisibilitySyntax {
     ast::VisibilitySyntax::Explicit {
@@ -119,50 +118,6 @@ fn async_element_declarations() -> Vec<Decl> {
     ]
 }
 
-fn checked_suspend_component_iteration_export() -> hir::ExportHirOutput {
-    let mut declarations = async_element_declarations();
-    declarations.push(suspend_fun(
-        "consume",
-        vec![for_stmt(
-            pat_tuple(vec![pat_bind("value")], None),
-            call("AsyncElementSource", Vec::new()),
-            vec![val("seen", var("value"))],
-        )],
-    ));
-    declarations.push(fun("main", Vec::new()));
-    lower_user(file(declarations)).expect("a suspend component plan passes its reader boundary")
-}
-
-fn checked_suspend_iterator_iteration_export() -> hir::ExportHirOutput {
-    let iterator = with_suspend(operator_method(
-        false,
-        ty_named("SuspendIterator"),
-        call("SuspendIterator", Vec::new()),
-    ));
-    let source = class_decl(
-        ast::ClassModifier::Final,
-        "SuspendSource",
-        Vec::new(),
-        None,
-        Vec::new(),
-        vec![iterator],
-    );
-    lower_user(file(vec![
-        iterator_class("SuspendIterator", ty_named("Int")),
-        source,
-        suspend_fun(
-            "consume",
-            vec![for_stmt(
-                pat_bind("item"),
-                call("SuspendSource", Vec::new()),
-                Vec::new(),
-            )],
-        ),
-        fun("main", Vec::new()),
-    ]))
-    .expect("a suspend iterator plan passes its reader boundary")
-}
-
 fn iteration_source_interface() -> Decl {
     let mut iterator = bodyless_method(false, "iterator", Vec::new(), Some(ty_named("I")));
     iterator.operator = Some(ast::OperatorModifier { span: sp() });
@@ -230,31 +185,6 @@ fn continue_stmt() -> Statement {
     }
 }
 
-fn checked_basic_iteration_export() -> hir::ExportHirOutput {
-    lower_user(file(vec![
-        iterator_class("CheckedIterator", ty_named("Int")),
-        source_class("CheckedSource", "CheckedIterator"),
-        fun(
-            "main",
-            vec![for_stmt(
-                pat_bind("item"),
-                call("CheckedSource", Vec::new()),
-                Vec::new(),
-            )],
-        ),
-    ]))
-    .expect("the producer emits a valid source for plan")
-}
-
-fn checked_bound_iteration_export() -> hir::ExportHirOutput {
-    lower_user(file(vec![
-        iteration_source_interface(),
-        generic_iteration_consumer(),
-        fun("main", Vec::new()),
-    ]))
-    .expect("the producer emits a valid bound-call iteration plan")
-}
-
 fn export_body<'module>(module: &'module hir::Module, name: &str) -> &'module hir::Body {
     module
         .functions
@@ -292,67 +222,6 @@ fn first_for(body: &hir::Body) -> &hir::ForIterationPlan {
             _ => None,
         })
         .expect("test body must contain a source for plan")
-}
-
-fn plan_from_parts(parts: hir::ForIterationPlanParts) -> hir::ForIterationPlan {
-    let hir::ForIterationPlanParts {
-        target,
-        source_setup,
-        source,
-        source_init,
-        iterator_setup,
-        iterator_call,
-        conformance,
-        next,
-        binding,
-        body,
-    } = parts;
-    hir::ForIterationPlan::new(
-        target,
-        source_setup,
-        source,
-        source_init,
-        iterator_setup,
-        iterator_call,
-        conformance,
-        next,
-        binding,
-        body,
-    )
-}
-
-fn replace_first_for(
-    module: &mut hir::Module,
-    function_name: &str,
-    replacement: hir::ForIterationPlan,
-) {
-    replace_nth_for(module, function_name, 0, replacement);
-}
-
-fn replace_nth_for(
-    module: &mut hir::Module,
-    function_name: &str,
-    index: usize,
-    replacement: hir::ForIterationPlan,
-) {
-    let function = module
-        .functions
-        .iter()
-        .find_map(|(id, function)| (function.name == function_name).then_some(id))
-        .unwrap_or_else(|| panic!("missing test function `{function_name}`"));
-    let hir::FunctionKind::User(body) = &mut module.functions[function].kind else {
-        panic!("test function `{function_name}` must have a body")
-    };
-    let plan = body
-        .statements
-        .iter_mut()
-        .filter_map(|statement| match &mut statement.kind {
-            hir::StatementKind::For(plan) => Some(plan),
-            _ => None,
-        })
-        .nth(index)
-        .unwrap_or_else(|| panic!("test function `{function_name}` must contain a source for"));
-    **plan = replacement;
 }
 
 fn export_callee_name<'module>(module: &'module hir::Module, expr: &hir::Expr) -> &'module str {
