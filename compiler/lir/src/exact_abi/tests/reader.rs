@@ -5,14 +5,13 @@ struct Modified<'a> {
     value: &'a ExactCallableAbiExportV1,
     signature: CanonicalScoopAbiFunctionSignature,
     protocol: ExactCallableProtocolV1,
-    layouts: &'a CallableAbiLayoutDependenciesV1,
 }
 impl WireEncode for Modified<'_> {
     fn encode(
         &self,
         encoder: &mut scoop_wire::Encoder,
     ) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.value.target().encode(encoder)?;
         encoder.field(2)?;
@@ -21,15 +20,13 @@ impl WireEncode for Modified<'_> {
         self.value.calling_convention().encode(encoder)?;
         encoder.field(4)?;
         self.protocol.encode(encoder)?;
-        encoder.field(5)?;
-        self.layouts.encode(encoder)?;
         encoder.field(6)?;
         self.value.definition().encode(encoder)
     }
 }
 
 #[test]
-fn reader_rejects_storage_pass_mode_protocol_and_logical_layout_drift() {
+fn reader_rejects_storage_pass_mode_protocol_and_logical_type_drift() {
     let value = fixtures::aggregate(false);
     let unit: ExactLayoutExportV1 = unit().into();
     let expected = fixtures::function(&value, &[&value]);
@@ -49,21 +46,12 @@ fn reader_rejects_storage_pass_mode_protocol_and_logical_layout_drift() {
         canonical.gc_effect(),
     )
     .unwrap();
-    for (signature, protocol, layouts) in [
+    for (signature, protocol) in [
+        (wrong_signature, expected.call_protocol()),
+        (canonical.clone(), ExactCallableProtocolV1::OrdinaryManaged),
         (
-            wrong_signature,
+            wrong_layouts.canonical_signature().clone(),
             expected.call_protocol(),
-            expected.layout_dependencies(),
-        ),
-        (
-            canonical.clone(),
-            ExactCallableProtocolV1::OrdinaryManaged,
-            expected.layout_dependencies(),
-        ),
-        (
-            canonical.clone(),
-            expected.call_protocol(),
-            wrong_layouts.layout_dependencies(),
         ),
         (
             CanonicalScoopAbiFunctionSignature::new(
@@ -74,14 +62,12 @@ fn reader_rejects_storage_pass_mode_protocol_and_logical_layout_drift() {
             )
             .unwrap(),
             expected.call_protocol(),
-            expected.layout_dependencies(),
         ),
     ] {
         let bytes = encode(&Modified {
             value: &expected,
             signature,
             protocol,
-            layouts,
         })
         .unwrap();
         let raw = decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes).unwrap();

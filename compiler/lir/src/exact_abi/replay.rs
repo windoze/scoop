@@ -1,4 +1,4 @@
-use scoop_identity::{CallableBodyKey, PersistentExactTypeId, RepresentationRole};
+use scoop_identity::{CallableBodyKey, PersistentExactTypeId};
 
 use super::*;
 use crate::ExternalStrongShapeSubjectV1;
@@ -6,12 +6,13 @@ use crate::ExternalStrongShapeSubjectV1;
 pub(super) fn callable(
     target_profile: LirTargetProfile,
     target: StrongCallableDefinitionOwner,
-    signature: ExactCallableSignature,
-    protocol: ExactCallableProtocolV1,
-    layouts: CallableAbiLayoutInputsV1<'_>,
+    signature: CanonicalScoopAbiFunctionSignature,
     foundation: &OdrFreeLirFoundation,
 ) -> Result<ExactCallableAbiExportV1, ExactCallableAbiError> {
-    let (signature, layouts) = self::signature(target_profile, signature, protocol, layouts)?;
+    let protocol = match signature.gc_effect() {
+        GcEffect::Managed => ExactCallableProtocolV1::OrdinaryManaged,
+        GcEffect::NoGc => ExactCallableProtocolV1::OrdinaryNoGc,
+    };
     let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
 
     if !foundation
@@ -33,100 +34,15 @@ pub(super) fn callable(
         target_profile,
         signature,
         protocol,
-        layouts,
         physical,
         definition,
     })))
-}
-
-pub(super) fn signature(
-    target_profile: LirTargetProfile,
-    signature: ExactCallableSignature,
-    protocol: ExactCallableProtocolV1,
-    layouts: CallableAbiLayoutInputsV1<'_>,
-) -> Result<
-    (
-        CanonicalScoopAbiFunctionSignature,
-        CallableAbiLayoutDependenciesV1,
-    ),
-    ExactCallableAbiError,
-> {
-    let path = WirePath::root();
-
-    if layouts.parameters.len() != signature.parameters().len() {
-        return Err(ExactCallableAbiError::ParameterCount);
-    }
-    let receiver = match (layouts.receiver, signature.receiver().into_option()) {
-        (CallableAbiReceiverInputV1::NoReceiver, None) => CallableAbiReceiverLayoutV1::NoReceiver,
-        (CallableAbiReceiverInputV1::Receiver(layout), Some(exact)) => {
-            CallableAbiReceiverLayoutV1::Receiver(value(layout, target_profile, exact)?)
-        }
-        _ => return Err(ExactCallableAbiError::Receiver),
-    };
-    let mut parameters = Vec::new();
-    scoop_wire::allocation::try_reserve(&mut parameters, layouts.parameters.len(), &path)?;
-    for (layout, exact) in layouts.parameters.iter().zip(signature.parameters()) {
-        parameters.push(value(layout, target_profile, *exact)?);
-    }
-    let result = value(layouts.result, target_profile, signature.result())?;
-    let mut arguments = Vec::new();
-    let argument_count = parameters
-        .len()
-        .checked_add(usize::from(receiver.value().is_some()))
-        .ok_or(ExactCallableAbiError::CountOverflow)?;
-    scoop_wire::allocation::try_reserve(&mut arguments, argument_count, &path)?;
-    for value in receiver
-        .value()
-        .into_iter()
-        .chain(parameters.iter().map(AsRef::as_ref))
-    {
-        arguments.push(value.scoop_abi_argument(target_profile)?);
-    }
-    let result_passing = result.scoop_abi_return(target_profile)?;
-    let signature = CanonicalScoopAbiFunctionSignature::new(
-        signature,
-        arguments,
-        result_passing,
-        protocol.gc_effect(),
-    )?;
-    Ok((
-        signature,
-        CallableAbiLayoutDependenciesV1 {
-            receiver,
-            parameters,
-            result,
-        },
-    ))
-}
-
-fn value(
-    layout: &ExactLayoutExportV1,
-    target: LirTargetProfile,
-    exact: PersistentExactTypeId,
-) -> Result<Arc<ExactValueLayoutV1>, ExactCallableAbiError> {
-    if layout.identity().exact() != exact {
-        return Err(ExactCallableAbiError::ExactType);
-    }
-    if layout.identity().target() != target {
-        return Err(ExactCallableAbiError::TargetProfile);
-    }
-    if layout.identity().layout_key().representation() != RepresentationRole::ManagedValue {
-        return Err(ExactCallableAbiError::LayoutRole);
-    }
-    layout
-        .value_handle()
-        .ok_or(ExactCallableAbiError::LayoutRole)
 }
 
 #[derive(Debug)]
 pub enum ExactCallableAbiError {
     MissingValueLayout { exact: PersistentExactTypeId },
     DuplicateValueLayout { exact: PersistentExactTypeId },
-    ParameterCount,
-    Receiver,
-    CountOverflow,
-    ExactType,
-    TargetProfile,
     LayoutRole,
     MissingCallableBody,
     DefinitionSubject,

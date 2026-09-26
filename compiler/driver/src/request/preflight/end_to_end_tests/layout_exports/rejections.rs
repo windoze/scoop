@@ -8,12 +8,6 @@ pub(super) fn check(
     input: LayoutAbiExportInputV1<'_>,
     dependencies: LayoutAbiExportDependenciesV1<'_>,
 ) {
-    assert!(matches!(
-        produce(input, LayoutAbiExportDependenciesV1::default()),
-        Err(Error::Layout(
-            scoop_lir_lower::ExactLayoutLoweringError::MissingDependency(_)
-        )) | Err(Error::MissingLayout(_))
-    ));
     let dependency = dependencies.layouts[0];
     assert!(
         matches!(produce(input, LayoutAbiExportDependenciesV1 { layouts: &[dependency, dependency], ..dependencies }),

@@ -19,11 +19,10 @@ pub(super) fn enqueue(
         LayoutAbiSemanticRecordV1::Dispatch(record) => {
             records::dispatch(record, owner, views, index, pending)
         }
-        LayoutAbiSemanticRecordV1::Callable(record) => {
-            records::callable(record, views, index, pending)
-        }
-        LayoutAbiSemanticRecordV1::DirectCallable(record) => {
-            records::direct_callable(record, views, index, pending)
+        // Signatures contain logical types and ABI storage, not addressable
+        // layout references. Actual machine uses carry their own relocations.
+        LayoutAbiSemanticRecordV1::Callable(_) | LayoutAbiSemanticRecordV1::DirectCallable(_) => {
+            Ok(())
         }
         LayoutAbiSemanticRecordV1::ShapeSupport(record) => {
             records::shape_support(record, views, index, pending)

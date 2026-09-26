@@ -89,21 +89,25 @@ impl ProviderFixture {
                 })
                 .unwrap(),
             );
-            ExactCallableAbiExportV1::replay(
+            ExactCallableAbiExportV1::from_signature(
                 TARGET,
                 target,
-                scoop_identity::ExactCallableSignature::new(
-                    scoop_identity::Effect::Ordinary,
-                    None,
-                    Vec::new(),
-                    unit_layout.identity().exact(),
-                ),
-                ExactCallableProtocolV1::OrdinaryManaged,
-                CallableAbiLayoutInputsV1 {
-                    receiver: CallableAbiReceiverInputV1::NoReceiver,
-                    parameters: &[],
-                    result: &unit_layout,
-                },
+                scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+                    scoop_identity::ExactCallableSignature::new(
+                        scoop_identity::Effect::Ordinary,
+                        None,
+                        Vec::new(),
+                        unit_layout.identity().exact(),
+                    ),
+                    vec![],
+                    unit_layout
+                        .value_handle()
+                        .unwrap()
+                        .scoop_abi_return(TARGET)
+                        .unwrap(),
+                    (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
+                )
+                .unwrap(),
                 &source.foundation,
             )
             .unwrap()

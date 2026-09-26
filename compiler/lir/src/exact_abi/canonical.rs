@@ -12,7 +12,7 @@ impl ExactValueLayoutV1 {
         &self,
         target: LirTargetProfile,
     ) -> Result<ScoopAbiArgument, ScoopAbiError> {
-        canonical_scoop_abi_argument(target, self.scoop_storage())
+        canonical_scoop_abi_argument(target, self.canonical_storage())
     }
 
     pub fn scoop_abi_return(
@@ -25,11 +25,11 @@ impl ExactValueLayoutV1 {
         ) {
             Ok(ScoopAbiReturn::unit_void())
         } else {
-            canonical_scoop_abi_value_return(target, self.scoop_storage())
+            canonical_scoop_abi_value_return(target, self.canonical_storage())
         }
     }
 
-    fn scoop_storage(&self) -> CanonicalScoopStorage {
+    pub fn canonical_storage(&self) -> CanonicalScoopStorage {
         let shape = match self.representation().kind() {
             ExactRepresentationKindV1::Scalar(_)
             | ExactRepresentationKindV1::QualifiedPointer(_)

@@ -1,13 +1,9 @@
 use scoop_identity::{
-    DecodedCanonicalScoopAbiFunctionSignature, DecodedPersistentId,
-    DecodedStrongCallableDefinitionOwner, PersistentLayoutId,
+    DecodedCanonicalScoopAbiFunctionSignature, DecodedStrongCallableDefinitionOwner,
 };
 use scoop_wire::{Decoder, WireDecode, WireErrorKind, encode_canonical_temporary};
 
 use super::*;
-
-mod layouts;
-use layouts::*;
 
 #[derive(Debug)]
 pub struct DecodedExactCallableAbiExportV1 {
@@ -15,7 +11,6 @@ pub struct DecodedExactCallableAbiExportV1 {
     signature: DecodedCanonicalScoopAbiFunctionSignature,
     convention: crate::CallingConvention,
     protocol: ExactCallableProtocolV1,
-    layouts: RawLayouts,
     definition: crate::production::DecodedStrongShapeDefinitionV1<PersistentCallableBodyId>,
 }
 
@@ -42,8 +37,6 @@ impl DecodedExactCallableAbiExportV1 {
         if !self.definition.matches_definition(expected.definition())? {
             return Err(ExactCallableAbiWireError::Definition);
         }
-        self.layouts
-            .validate_against(expected.layout_dependencies())?;
         // Compare the complete frozen signature product: exact receiver and
         // parameters, result, every storage field and pass mode, and GC effect.
         // No raw signature is promoted or repaired through a digest match.
@@ -109,13 +102,12 @@ impl WireDecode for ExactCallableProtocolV1 {
 
 impl WireDecode for DecodedExactCallableAbiExportV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
+        decoder.expect_map(5)?;
         Ok(Self {
             target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
             signature: decoder.field(2, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
             convention: decoder.field(3, crate::CallingConvention::decode)?,
             protocol: decoder.field(4, ExactCallableProtocolV1::decode)?,
-            layouts: decoder.field(5, RawLayouts::decode)?,
             definition: decoder
                 .field(6, crate::production::DecodedStrongShapeDefinitionV1::decode)?,
         })
@@ -131,7 +123,7 @@ impl WireDecode for DecodedCanonicalExactCallableAbiExportsV1 {
 }
 impl WireEncode for DecodedExactCallableAbiExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.target.encode(encoder)?;
         encoder.field(2)?;
@@ -140,8 +132,6 @@ impl WireEncode for DecodedExactCallableAbiExportV1 {
         self.convention.encode(encoder)?;
         encoder.field(4)?;
         self.protocol.encode(encoder)?;
-        encoder.field(5)?;
-        self.layouts.encode(encoder)?;
         encoder.field(6)?;
         self.definition.encode(encoder)
     }
@@ -163,7 +153,6 @@ pub enum ExactCallableAbiWireError {
     Signature,
     Protocol,
     Definition,
-    Layout,
     Resource(WireError),
 }
 impl From<WireError> for ExactCallableAbiWireError {

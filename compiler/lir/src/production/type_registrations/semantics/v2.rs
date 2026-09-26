@@ -201,7 +201,7 @@ fn slots(
                         );
                     }
                     let callable = &module.meta.external_callables[id];
-                    validate_callable_selection(selected, callable, module)?;
+                    validate_callable_selection(selected, callable)?;
                     StrongTypeDispatchCallableRefV2::DependencyExternal {
                         provider: callable.provider(),
                         body: callable.body(),
@@ -233,14 +233,12 @@ fn validate_descriptor_selection(
 fn validate_callable_selection(
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
     callable: &crate::ExternalCallable,
-    module: &Module,
 ) -> Result<(), StrongTypeDescriptorSemanticPlanBuildError> {
     let replayed = selected
         .materialize_callable(
             callable.provider(),
             callable.target(),
             callable.signature().clone(),
-            &module.enums,
         )
         .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalMaterialization)?;
     if replayed != *callable {

@@ -4,6 +4,7 @@ public struct Token()
 public struct Other()
 public struct Wide(val first: Long, val second: Long, val third: Long, val marker: Token = Token()) {
     @NoGC public constructor(seed: Long, step: Long = 2): this(seed, seed + step, seed + step + step, Token()) {}
+    @NoGC public constructor(values: (Token, (Long, Long, Long), Token)): this(values._2._1, values._2._2, values._2._3, values._1) {}
     @NoGC private constructor(token: Token): this(1, 2, 3, token) {}
     public constructor(flag: Boolean): this(1, 2, 3, Token()) {}
     @NoGC public fun sum(): Long = first + second + third

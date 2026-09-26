@@ -4,7 +4,7 @@
 use scoop_identity::{ConeIdentity, PersistentExactTypeId, StrongCallableDefinitionOwner};
 
 use crate::{
-    EnumDefs, ExternalCallable, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
+    ExternalCallable, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
     LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1, ScoopAbiSignature,
     SelectedDependencyLayoutAbiSetV1, ShapeLinkContractV1, StrongProductionDependencySelectionV2,
 };
@@ -53,9 +53,8 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,
         signature: ScoopAbiSignature,
-        enums: &EnumDefs,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
-        materialize_callable(self, provider, target, signature, enums)
+        materialize_callable(self, provider, target, signature)
     }
 }
 
@@ -101,9 +100,8 @@ impl StrongProductionDependencySelectionV2<'_> {
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,
         signature: ScoopAbiSignature,
-        enums: &EnumDefs,
     ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
-        materialize_callable(self, provider, target, signature, enums)
+        materialize_callable(self, provider, target, signature)
     }
 }
 
@@ -214,7 +212,6 @@ fn materialize_callable<'a>(
     provider: ConeIdentity,
     target: StrongCallableDefinitionOwner,
     signature: ScoopAbiSignature,
-    enums: &EnumDefs,
 ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
     validate_provider(selected, provider)?;
 
@@ -264,7 +261,6 @@ fn materialize_callable<'a>(
         import.expected_symbol(),
         import.required_definition(),
         signature,
-        enums,
     )
 }
 
@@ -315,8 +311,7 @@ pub enum LayoutExternalMaterializationError {
         provider: ConeIdentity,
         subject: ExternalStrongShapeSubjectV1,
     },
-    CallableAbi(crate::ExactCallablePhysicalAbiError),
-    DirectCallableAbi(crate::ExternalCallableBuildError),
+    CallableAbi(crate::ExternalCallableBuildError),
 }
 
 impl From<scoop_wire::WireError> for LayoutExternalMaterializationError {

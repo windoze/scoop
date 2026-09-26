@@ -71,18 +71,6 @@ pub(super) fn contents(
             );
         }
     }
-    for callable in result.callables().records() {
-        let signature = callable.canonical_signature();
-        let layouts = callable.layout_dependencies().parameters();
-        for (indices, exacts) in layouts
-            .windows(2)
-            .zip(signature.signature().parameters().windows(2))
-        {
-            if exacts[0] == exacts[1] {
-                assert_eq!(indices[0], indices[1]);
-            }
-        }
-    }
 }
 
 pub(super) fn zero_sized_abi(result: &lir::LayoutAbiExportConstituentsV1) {

@@ -84,10 +84,22 @@ impl Fixture {
             })
             .collect();
         let (_, provider, _, _) = crate::tests::exact_callable_abi::fixture();
+        let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+            CoreBuiltinNominal::Unit.identity_record().id(),
+        ))
+        .unwrap();
+        let identity = lir::ExactLayoutIdentityV1::from_foundation(
+            provider.module().meta.target_profile,
+            exact,
+            scoop_identity::RepresentationRole::ManagedValue,
+            provider.foundation(),
+        )
+        .unwrap();
+        let unit = lir::ExactValueLayoutV1::unit(identity, provider.foundation()).unwrap();
         let dependencies = lir::CanonicalExactLayoutExportsV1::try_new(
             provider.module().meta.target_profile,
             provider.foundation(),
-            vec![crate::tests::exact_callable_abi::unit_layout(&provider)],
+            vec![unit.into()],
         )
         .unwrap();
         Self {

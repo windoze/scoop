@@ -55,8 +55,20 @@ impl<'a> Abis<'a> {
             .chain(self.0.dependency_callables.iter().copied())
         {
             if let Some(value) = table.get(target) {
+                let receiver = match value
+                    .canonical_signature()
+                    .signature()
+                    .receiver()
+                    .into_option()
+                {
+                    Some(exact) => lir::CallableAbiReceiverInputV1::Receiver(self.value(exact)?),
+                    None => lir::CallableAbiReceiverInputV1::NoReceiver,
+                };
                 if found
-                    .replace(lir::DispatchCallableAbiV1::Exact(value))
+                    .replace(lir::DispatchCallableAbiV1::Exact {
+                        record: value,
+                        receiver,
+                    })
                     .is_some()
                 {
                     return Err(Error::DuplicateCallable(target));

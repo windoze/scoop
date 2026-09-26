@@ -90,16 +90,29 @@ pub(super) fn function(
         result.identity().exact(),
     );
     let (target, foundation) = foundation("function", true);
-    ExactCallableAbiExportV1::replay(
+    ExactCallableAbiExportV1::from_signature(
         TARGET,
         target,
-        signature,
-        ExactCallableProtocolV1::OrdinaryNoGc,
-        CallableAbiLayoutInputsV1 {
-            receiver: CallableAbiReceiverInputV1::NoReceiver,
-            parameters,
-            result,
-        },
+        scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+            signature,
+            (parameters)
+                .iter()
+                .map(|layout| {
+                    layout
+                        .value_handle()
+                        .unwrap()
+                        .scoop_abi_argument(TARGET)
+                        .unwrap()
+                })
+                .collect(),
+            (result)
+                .value_handle()
+                .unwrap()
+                .scoop_abi_return(TARGET)
+                .unwrap(),
+            (ExactCallableProtocolV1::OrdinaryNoGc).gc_effect(),
+        )
+        .unwrap(),
         &foundation,
     )
     .unwrap()
@@ -147,7 +160,7 @@ pub(super) fn enumeration(payload: &ExactValueLayoutV1) -> ExactLayoutExportV1 {
 pub(super) fn roundtrip(expected: &ExactCallableAbiExportV1) {
     let bytes = encode(expected).unwrap();
     let raw = decode_canonical::<DecodedExactCallableAbiExportV1>(&bytes).unwrap();
-    assert_eq!(bytes[0], 0xa6);
+    assert_eq!(bytes[0], 0xa5);
     assert_eq!(encode(&raw).unwrap(), bytes);
     assert_eq!(raw.validate_against(expected).unwrap(), *expected);
 }

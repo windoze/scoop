@@ -119,7 +119,7 @@ impl<'a> Collector<'a> {
             .chain(signature.exact().parameters().iter().copied())
             .chain([signature.exact().result()])
         {
-            self.exact(exact)?;
+            self.field(exact)?;
         }
         Ok(())
     }

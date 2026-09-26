@@ -91,7 +91,7 @@ impl ExternalCallable {
             signature,
             ExternalCallableOrigin::LayoutV1,
         )
-        .map_err(crate::LayoutExternalMaterializationError::DirectCallableAbi)
+        .map_err(crate::LayoutExternalMaterializationError::CallableAbi)
     }
 
     pub(crate) fn from_layout_v1(
@@ -100,11 +100,23 @@ impl ExternalCallable {
         expected_symbol: PersistentSymbolRequest,
         required_definition: ObjectDefinitionPlanId,
         signature: ScoopAbiSignature,
-        enums: &crate::EnumDefs,
     ) -> Result<Self, crate::LayoutExternalMaterializationError> {
-        record
-            .validate_physical_signature(enums, &signature, protocol_effect(record.call_protocol()))
+        let root_plan = match record.call_protocol() {
+            crate::ExactCallableProtocolV1::OrdinaryManaged => {
+                crate::ExternalCallableRootPlan::ManagedStatepoint
+            }
+            crate::ExactCallableProtocolV1::OrdinaryNoGc => crate::ExternalCallableRootPlan::NoGc,
+        };
+        validate_signature(record.canonical_signature(), &signature, root_plan)
             .map_err(crate::LayoutExternalMaterializationError::CallableAbi)?;
+        if signature.calling_convention() != record.calling_convention() {
+            return Err(crate::LayoutExternalMaterializationError::CallableAbi(
+                ExternalCallableBuildError::CallingConventionMismatch {
+                    expected: record.calling_convention(),
+                    actual: signature.calling_convention(),
+                },
+            ));
+        }
         let physical = record.physical_definition();
         if physical.provider() != provider
             || physical.symbol() != expected_symbol
@@ -122,14 +134,7 @@ impl ExternalCallable {
             canonical_signature: record.canonical_signature().clone(),
             signature,
             calling_convention: record.calling_convention(),
-            root_plan: match record.call_protocol() {
-                crate::ExactCallableProtocolV1::OrdinaryManaged => {
-                    crate::ExternalCallableRootPlan::ManagedStatepoint
-                }
-                crate::ExactCallableProtocolV1::OrdinaryNoGc => {
-                    crate::ExternalCallableRootPlan::NoGc
-                }
-            },
+            root_plan,
             expected_symbol,
             required_definition,
         })
@@ -209,13 +214,6 @@ fn validate_signature(
         return Err(ExternalCallableBuildError::RootProtocolMismatch);
     }
     Ok(())
-}
-
-fn protocol_effect(protocol: crate::ExactCallableProtocolV1) -> GcEffect {
-    match protocol {
-        crate::ExactCallableProtocolV1::OrdinaryManaged => GcEffect::Managed,
-        crate::ExactCallableProtocolV1::OrdinaryNoGc => GcEffect::NoGc,
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

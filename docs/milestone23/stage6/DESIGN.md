@@ -1,5 +1,7 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。 MIR callable 的 GC 检查沿结构类型递归使用已有 nominal facts；tuple 的完整参数、receiver 与结果按实际组成保留，不要求 nominal 导出。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。
+
 依赖默认值的 tuple 字面量与字段投影直接实例化为完整 HIR，类型沿同一共有签名查询取得。读取边界已核对的字段索引、元素类型和默认正文在实例化时直接使用，不另以 core 类型或单一 nominal 形式限制参数。
 
 MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产需要独立 lowering 的定义；不为同一函数重建第二份绑定、完整验证后再丢弃。boxing 与 dispatch 的共有查询同时借用当前 Cone 的普通记录和依赖记录。每个定义只生成一次，签名、GC effect 与 typed target 沿完整 IR 和已有表消费，最终表继续拒绝重复定义。
@@ -196,7 +198,7 @@ org.scoop-lang.slib-profile/cross-cone-layout-strong/2
 | --- | --- | --- | --- |
 | `org.scoop-lang.hir/cross-cone-type-semantics/5` | HIR | Compile | Hir |
 | `org.scoop-lang.mir/cross-cone-type-bridge/1` | MIR | Compile | Mir |
-| `org.scoop-lang.lir/cross-cone-layout-abi/2` | LIR | Compile | Lir |
+| `org.scoop-lang.lir/cross-cone-layout-abi/3` | LIR | Compile | Lir |
 | `org.scoop-lang.lir/cross-cone-layout-link-closure/2` | LIR | Link | Code + LinkValidationOnly |
 | `org.scoop-lang.lir/strong-production/10` | LIR | Compile、Link | Lir + Code + RuntimeImage |
 
@@ -657,7 +659,7 @@ ExactLayoutExportV1 {
 
 `selected`是field1/2分别保存`semantic_uses`与`physical_imports`的closed product；`LayoutAbiDependencyV1`的field1/2分别保存provider与target，target按上列tag编码且payload在field1。semantic表按`(provider, target canonical bytes)`严格递增。每项provider必须不是consumer，并精确命中显式dependency closure中唯一terminal provider的对应五张表；内存中的 selected entry 保留实际 provider 的完整五表导出记录引用和本次选择索引。依赖查询直接接收共有的完整导出表；同次编译的 producer 与已读取产物使用同一数据入口，不要求 reader 重造 producer section 或来源工厂。
 
-producer 根据已提交 MIR→LIR typed selection 构造 semantic 闭包；reader 验证外部产物的相同关系。两者查询同一类实际导出记录：layout递归跟随base/field/variant/array等内嵌layout引用；descriptor跟随value/instance layout、parent/interface TD及vtable/itable；dispatch跟随interface/owner type与每个target callable ABI；callable跟随receiver/parameter/result layout；shape-support跟随八个role对应的layout/descriptor/helper记录。metadata-only读取保留在`semantic_uses`即可，不因此产生relocation。每个跨provider递归edge都进入真实terminal provider，依赖section中的转发selected关系不能代替terminal记录；环、同target多provider、当前Cone回指、缺失/额外关系及旧core/M23-5分区冒充新selection均拒绝。
+producer 根据已提交 MIR→LIR typed selection 构造 semantic 闭包；reader 验证外部产物的相同关系。两者查询同一类实际导出记录：layout递归跟随base/field/variant/array等内嵌layout引用；descriptor跟随value/instance layout、parent/interface TD及vtable/itable；dispatch跟随interface/owner type与每个target callable ABI；callable 的完整签名不另外引入 layout 物理依赖；shape-support跟随八个role对应的layout/descriptor/helper记录。metadata-only读取保留在`semantic_uses`即可，不因此产生relocation。每个跨provider递归edge都进入真实terminal provider，依赖section中的转发selected关系不能代替terminal记录；环、同target多provider、当前Cone回指、缺失/额外关系及旧core/M23-5分区冒充新selection均拒绝。
 
 两条路径在计算闭包前都完成共有跨阶段校验：生产侧将本地五张 export 表与同一次实际 MIR→LIR 输出关联，reader 将其与同 artifact 的完整 MIR type/callable/dispatch metadata、Strong production、layout/ABI 和实际 object use 关联。physical_imports 必须精确对应机器使用及必要 object/init support；五类一般 import contract 重新绑定到依赖闭包中的同一 terminal section 记录。单表构造成功或 import 已解析不能代替完整覆盖与相邻阶段一致性检查；reader 不要求另外提供编译期 source authority 或平行授权 transcript。
 
@@ -821,13 +823,13 @@ Strong V2 的引用按实际表关系检查：digest owner 只查询其对应的
 
 codegen 的 Scoop ABI 防御校验按共有存储规则重放普通 struct/tuple：零尺寸字段保留逻辑字段身份与对齐，canonical 字段偏移固定为 0，不对当前非零存储 cursor 插入 padding，也不贡献 GC scan；非零字段仍按实际 cursor 对齐并逐项核对偏移、access alignment 与引用位置，aggregate 最终大小继续按最大字段对齐取整。CLayout 字段仍遵守自身合同的物理布局规则。不得将引用或非零字段后的 ZST 当作具有后继物理偏移的字段，也不得通过跳过整个 aggregate 的布局/scan 校验来接受该情况；错误的 ZST 偏移或对齐、非零字段偏移、总大小与 scan 均拒绝。此修正不改变既有布局、wire、身份或 runtime ABI，只使后端校验与已定义的 ElidedZst 规则一致。
 
-M23-6 的共有 Compile reader 从已完成 HIR 来源关联的 MIR callable binding 集合及已重放的本地/可达依赖 layout 独立重算完整 callable ABI 表。每项按实际 implementation 与 lowered exact signature 保留 receiver、声明序和重复参数、Unit result 的 layout 引用、GC effect，并复用 canonical Scoop ABI 算法决定 ZST、direct/indirect 参数和返回方式；公开源码函数、构造器、accessor、trap 与有限 generated callable 使用相同机制。每个位置只接受该 exact 的唯一同 target ManagedValue layout，缺失、重复 provider、错 target 或 layout 角色均拒绝，不按 CORE 来源跳过。body、definition、primary atom 与 symbol 从同一 LIR foundation 的 typed target 取得，wire 的完整六字段及整个有序集合须与重放结果逐项相等，不能以候选 callable 或 Strong registration 补充来源根。布局与 ABI 的中间状态按所有权保留其余原 wire，后续验证必须继续使用相同的已检查表，不能换入另一份预期记录。此状态只证明布局及 ABI 组成，TD/dispatch、实际 selected-use、Strong V2 registration、机器对象和最终双 view 仍须完整关联；wire、capability 版本、persistent identity 与 runtime ABI 均不改变。
+M23-6 的共有 Compile reader 按实际 MIR callable binding 和已验证的本地／可达依赖布局检查完整 canonical ABI。nominal 值使用已有 ManagedValue 布局；tuple 递归组合各元素的存储与 scan，函数和指针使用目标 profile 中的实际表示，不要求独立 layout/TD definition。同一 exact 的查询结果在本次解析中复用，不重放已完成的 HIR/MIR 类型语义。完整 receiver、参数顺序、结果、GC effect 和 ZST/direct/indirect 传递必须一致，缺失声明、布局、错误 provider/target 或布局角色仍拒绝。body、definition 与 symbol 按实际 typed target 解析，reader 核对 callable field 1～4、6 及有序集合，保留已检查记录供后续消费；field 5 在 `cross-cone-layout-abi/3` 退役。runtime C ABI 和 String 表示不变。
 
 layout profile 的 LIR 在封存前使用已验证 HIR/MIR identity graph 与 Cone coordinates，为全部实际 descriptor 生成 canonical diagnostic name；registration、导出表与 object bytes 消费同一实际名称。导出重放只能比较，不能在 producer 已封存后改名或接受 arena 显示名。关系或 coordinate 缺失即失败。
 
 source exact 在 LocalConcrete → MIR 转置时保留实际 nominal provider，application 则保留匹配的 specialization record，结构类型使用独立归属分支。协议导入的 nominal provider 同样来自其已验证声明 key，不由协议发布方、consumer 或 CORE 常量推断。只有 provider 为当前 Cone 的 nominal 才进入本地 Strong shape 根；外部值可用于表示计算和签名，但只能引用定义方的 layout/descriptor。此关系与 exact key 一起完整校验，不以非泛型 nominal 默认本地所有。
 
-LIR producer 从同一次 sealed MIR/LIR、完整 MIR export 组成表及实际 Strong V2 registration 组装五张 export 表。布局和 descriptor 覆盖 MIR source/support/helper 导出闭包中的实际物理定义；callable 的 lowered signature 按 exact type 查询唯一的本地或依赖 ManagedValue layout，receiver、重复参数与 Unit result 均保留。dispatch 将实际 LIR table 的物理 callable 与 MIR 的声明序 schema 逐项 join；BoxedValue 沿 typed payload 关系使用源码 value schema，CoroutineStep/CoroutineSlot 的无成员关系只允许实际空表，不从任意空候选表补默认实现。依赖只借用，五表使用同一 target、provider ；完整 section 的 source/selected-use 和最终产物验证继续执行，不以 export 组装代替发布闭包。
+LIR producer 从同一次 sealed MIR/LIR、完整 MIR export 组成表及实际 Strong V2 registration 组装五张 export 表。布局和 descriptor 覆盖 MIR source/support/helper 导出闭包中的实际物理定义；callable 直接保存同次完整 IR 已生成的 canonical ABI，保留完整 receiver、重复参数、结果和 GC effect。dispatch 将实际 LIR table 的物理 callable 与 MIR 的声明序 schema 逐项 join；BoxedValue 沿 typed payload 关系使用源码 value schema，CoroutineStep/CoroutineSlot 的无成员关系只允许实际空表，不从任意空候选表补默认实现。依赖只借用，五表使用同一 target、provider ；完整 section 的 source/selected-use 和最终产物验证继续执行，不以 export 组装代替发布闭包。
 
 LIR section 直接接收同次 MIR→LIR 已生产的完整五张导出表和 typed 依赖使用。lir-lower 按实际 MIR 使用、LIR external arena 与 Strong V2 初始化记录计算语义根，并核对物理引用的 provider、subject、symbol 和 definition；不重做 MIR source/export 全量验证，也不重新生成五张预期表。IR section 只负责导出关系与依赖引用闭合，不接收来源工厂或资格回调。reader 逐项检查新读入的组成表后保留这些表，随后解析 selected 和物理引用；不能再次传入另一套预期表，重编码并比较先前已经完成的同一检查。
 
@@ -843,15 +845,15 @@ layout profile 的对象组装直接消费同次 V2 LLVM 发射结果，必须�
 
 HIR 来源根发现必须遍历已要求 nominal 的全部真实存储字段，包括 struct 字段、enum payload、class 字段和 object backing 字段，保持字段类型的完整 nominal/application、tuple、function 与 pointer 组成关系。被这些字段引用的本地声明进入同一 source/support 闭包，外来声明继续由实际 provider 提供；字段可见性不影响表示依赖。既不扫描函数正文扩充根，也不展开无关私有 sibling。generic 声明及其字段引用只产生源码依赖，实际 generic/structural 物化继续受原 ODR gate 约束。
 
-所有 producer 共用 canonical ABI 重放，包括当前 Cone 为 core 的情况；不能以 CORE 身份跳过 expectation。重放从实际签名与 layout dependency 查询共有类型/provider 视图，不固定使用 core foundation 解释其他 provider 的 ABI。旧 callable bridge 也必须同步迁移，见补充设计 2.1。
+所有 producer 共用同次 MIR/LIR 的 canonical ABI 投影，包括当前 Cone 为 core 的情况。后续组装直接消费已有结果；新读入产物按实际签名、类型和 provider 检查 ABI，不固定使用 core foundation，也不因来源跳过检查。普通 callable 与 M23-6 lowered callable 使用相同的参数传递和外部调用校验。
 
-`ExactCallableAbiExportV1` 保存 `{ target, canonical_signature, calling_convention, call_protocol, layout_dependencies, definition }`，按此顺序使用field1～6的product。target为既有`StrongCallableDefinitionOwner`，definition复用`StrongShapeDefinitionV1<PersistentCallableBodyId>`的三字段product；body id必须从`CallableBodyKey::strong(target)`重算，并与同provider的physical definition/唯一primary atom相等。calling_convention原样复用LIR的既有`Cdecl`编码。`call_protocol`是无payload的closed sum，tag1、2分别为`OrdinaryManaged/OrdinaryNoGc`，逐项匹配canonical signature的GcEffect。
+`ExactCallableAbiExportV1` 保存实际 `target`、完整 `canonical_signature`、`calling_convention`、`call_protocol` 与 `definition`，沿用 field 1～4 和 field 6；原 field 5 的逐参数 `layout_dependencies` 退役，不再序列化或保留重复 layout 表。`target` 是既有 `StrongCallableDefinitionOwner`，`definition` 保留实际 provider、callable body 和物理符号的对应关系。ABI 记录不要求 tuple、函数类型或指针类型为了成为参数而拥有独立 layout/TD 定义。
 
 本Strong callable export的目标拥有Scoop body；既有`NativeSafe/NativeBorrowed`继续只由native contract与相应callsite承载，不能给本export伪造native分支或Strong extern definition。Scoop extern的NoGc不等于本表的OrdinaryNoGc，直接source extern production gate不变。
 
 canonical signature原样复用M23-2的 `CanonicalScoopAbiFunctionSignature`：field 1 exact signature、field 2 logical arguments、field 3 result、field 4 GcEffect；storage仍是exact type/byte size/alignment/scalar-or-aggregate的既有product。参数tag为ElidedZst=1、Direct=2、Indirect=3；result为UnitVoid=1、ElidedZst=2、Direct=3、Indirect=4。
 
-本section增加的是每个storage的完整layout/scan来源和可调用definition证明，不增加另一套extern signature编码。`layout_dependencies`是field1～3的product：`receiver, parameters, result`。receiver为tag1的无payload`NoReceiver`或tag2的`Layout`（field1为`PersistentLayoutId`）；parameters为保持声明顺序的layout id序列，result为单个layout id，即使UnitVoid也必须保存Unit的layout引用。所有位置均引用同target的ManagedValue记录，逐项与exact signature及storage相等；重复type保留重复位置，不能改成去重集合。receiver在source logical signature中独立保存，降低时按既有规则作为第一个logical input；不能静默遗漏。
+生产端从同次 MIR/LIR 已生成的完整 canonical ABI 和实际 callable body 组装记录，与普通 callable 共用签名投影。reader 根据实际 MIR lowered signature 和已验证的共有布局检查新读入的 canonical ABI；结构类型递归查询实际 nominal 表示，不依赖逐参数 layout ID 外层。dispatch 需要 receiver 表示时沿共有布局查询取得，定义、签名、effect、GC 和物理符号关系仍须一致。调用签名本身不产生独立 layout 符号或 Link 依赖；实际布局、descriptor、dispatch、初始化与 relocation 使用各自真实引用。
 
 当前Darwin/AArch64 classifier：scalar、qualified pointer、niche enum为Direct；非ZST tuple/ordinary struct/tagged enum/exception record为Indirect；ZST input为ElidedZst；Unit result为UnitVoid，其他ZST result为ElidedZst。不得按aggregate大小或system C classifier另选pass mode。
 

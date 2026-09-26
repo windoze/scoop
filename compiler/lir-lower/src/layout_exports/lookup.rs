@@ -74,7 +74,16 @@ pub(super) fn callable<'a>(
             if found.is_some() {
                 return Err(Error::AmbiguousCallable(target));
             }
-            found = Some(lir::DispatchCallableAbiV1::Exact(record));
+            let receiver = match record
+                .canonical_signature()
+                .signature()
+                .receiver()
+                .into_option()
+            {
+                Some(exact) => lir::CallableAbiReceiverInputV1::Receiver(layouts.value(exact)?),
+                None => lir::CallableAbiReceiverInputV1::NoReceiver,
+            };
+            found = Some(lir::DispatchCallableAbiV1::Exact { record, receiver });
         }
     }
     for table in std::iter::once(direct).chain(direct_dependencies.iter().copied()) {

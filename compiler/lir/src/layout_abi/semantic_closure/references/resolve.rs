@@ -74,27 +74,6 @@ pub(super) fn descriptor_ref(
     .map(|_| ())
 }
 
-pub(super) fn embedded_callable(
-    record: &crate::ExactCallableAbiExportV1,
-    views: &[&LayoutAbiExportConstituentsV1],
-    index: &LayoutAbiTargetIndex,
-    pending: &mut Vec<Pending>,
-) -> Result<(), LayoutAbiSemanticClosureError> {
-    let semantic = LayoutAbiSemanticTargetV1::Callable(record.target());
-    let owner = target(
-        semantic,
-        Some(record.physical_definition().provider()),
-        views,
-        index,
-        pending,
-    )?;
-    if views[owner].callables().get(record.target()) == Some(record) {
-        Ok(())
-    } else {
-        Err(LayoutAbiSemanticClosureError::EmbeddedRecord(semantic))
-    }
-}
-
 pub(super) fn exact_target(
     layout: PersistentLayoutId,
     provider: Option<ConeIdentity>,

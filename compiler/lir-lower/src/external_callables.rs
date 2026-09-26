@@ -93,7 +93,7 @@ pub(super) fn lower_external_callables(
                     provider,
                     target,
                 })?
-                .materialize_callable(provider, target, signature, enums)
+                .materialize_callable(provider, target, signature)
                 .map_err(Error::DependencyLayout)?
         };
         if callable.canonical_signature().signature() != root.signature() {

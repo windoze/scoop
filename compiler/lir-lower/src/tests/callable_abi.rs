@@ -24,19 +24,8 @@ fn ordinary_initialization_and_layout_publication_share_the_materialized_abi() {
     let record = materialized.abi_record(&output.module().enums).unwrap();
     assert_eq!(ordinary.exports()[0].callable_abi(), &record);
 
-    let unit = exact_callable_abi::unit_layout(&output);
-    let layout = crate::lower_exact_callable_abi_export(
-        &input,
-        &output,
-        target,
-        &signature,
-        lir::CallableAbiLayoutInputsV1 {
-            receiver: lir::CallableAbiReceiverInputV1::NoReceiver,
-            parameters: &[],
-            result: &unit,
-        },
-    )
-    .unwrap();
+    let layout =
+        crate::lower_exact_callable_abi_export(&input, &output, target, &signature).unwrap();
     assert_eq!(layout.canonical_signature(), record.abi_signature());
     assert_eq!(layout.definition().symbol(), record.expected_symbol());
 
@@ -82,10 +71,8 @@ fn ordinary_and_layout_publication_reject_a_missing_materialized_body_with_the_s
         crate::lower_cross_cone_bridge_section(&input, &mir_bridge(&input, target, signature.exact()), &output),
         Err(CrossConeLirBridgeLoweringError::CallableAbi { source: CallableAbiProjectionError::MissingLirBody(actual), .. }) if actual == target
     ));
-    let unit = exact_callable_abi::unit_layout(&output);
     assert!(matches!(
-        crate::lower_exact_callable_abi_export(&input, &output, target, &signature,
-            lir::CallableAbiLayoutInputsV1 { receiver: lir::CallableAbiReceiverInputV1::NoReceiver, parameters: &[], result: &unit }),
+        crate::lower_exact_callable_abi_export(&input, &output, target, &signature),
         Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MissingLirBody(actual))) if actual == target
     ));
 }

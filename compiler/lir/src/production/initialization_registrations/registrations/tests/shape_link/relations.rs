@@ -11,21 +11,25 @@ fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
     )
     .unwrap();
     let result: ExactLayoutExportV1 = crate::exact_layout::tests::unit().into();
-    let changed = ExactCallableAbiExportV1::replay(
+    let changed = ExactCallableAbiExportV1::from_signature(
         TARGET,
         target,
-        ExactCallableSignature::new(
-            Effect::Ordinary,
-            None,
-            Vec::new(),
-            result.identity().exact(),
-        ),
-        ExactCallableProtocolV1::OrdinaryNoGc,
-        CallableAbiLayoutInputsV1 {
-            receiver: CallableAbiReceiverInputV1::NoReceiver,
-            parameters: &[],
-            result: &result,
-        },
+        scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+            ExactCallableSignature::new(
+                Effect::Ordinary,
+                None,
+                Vec::new(),
+                result.identity().exact(),
+            ),
+            vec![],
+            result
+                .value_handle()
+                .unwrap()
+                .scoop_abi_return(TARGET)
+                .unwrap(),
+            (ExactCallableProtocolV1::OrdinaryNoGc).gc_effect(),
+        )
+        .unwrap(),
         &fixture.source.foundation,
     )
     .unwrap();

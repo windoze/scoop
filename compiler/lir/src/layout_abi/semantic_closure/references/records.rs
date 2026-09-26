@@ -1,4 +1,4 @@
-use super::resolve::{descriptor_ref, embedded_callable, instance_layout, target, value_layout};
+use super::resolve::{descriptor_ref, instance_layout, target, value_layout};
 use super::*;
 
 pub(super) fn descriptor(
@@ -83,59 +83,6 @@ pub(super) fn dispatch(
         }
     }
     Ok(())
-}
-
-pub(super) fn direct_callable(
-    record: &crate::ParamFreeLirCallableExportV1,
-    views: &[&LayoutAbiExportConstituentsV1],
-    index: &LayoutAbiTargetIndex,
-    pending: &mut Vec<Pending>,
-) -> Result<(), LayoutAbiSemanticClosureError> {
-    let signature = record.abi_signature().signature();
-    for exact in signature
-        .receiver()
-        .into_option()
-        .into_iter()
-        .chain(signature.parameters().iter().copied())
-        .chain(std::iter::once(signature.result()))
-    {
-        let mut found = None;
-        for view in views {
-            if let Some(layout) = view
-                .layouts()
-                .find_exact_role(exact, scoop_identity::RepresentationRole::ManagedValue)
-            {
-                if found.replace(layout).is_some() {
-                    return Err(LayoutAbiSemanticClosureError::DuplicateValueLayout(exact));
-                }
-            }
-        }
-        let layout = found.ok_or(LayoutAbiSemanticClosureError::MissingValueLayout(exact))?;
-        target(
-            LayoutAbiSemanticTargetV1::Layout(layout.identity().layout()),
-            Some(layout.identity().physical_definition().provider()),
-            views,
-            index,
-            pending,
-        )?;
-    }
-    Ok(())
-}
-
-pub(super) fn callable(
-    record: &crate::ExactCallableAbiExportV1,
-    views: &[&LayoutAbiExportConstituentsV1],
-    index: &LayoutAbiTargetIndex,
-    pending: &mut Vec<Pending>,
-) -> Result<(), LayoutAbiSemanticClosureError> {
-    embedded_callable(record, views, index, pending)?;
-    if let Some(value) = record.layout_dependencies().receiver().value() {
-        value_layout(value, views, index, pending)?;
-    }
-    for value in record.layout_dependencies().parameters() {
-        value_layout(value, views, index, pending)?;
-    }
-    value_layout(record.layout_dependencies().result(), views, index, pending)
 }
 
 pub(super) fn shape_support(

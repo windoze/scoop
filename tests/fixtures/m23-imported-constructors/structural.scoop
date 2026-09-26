@@ -14,7 +14,7 @@ import dependency.constructors.tupleProjection
 }
 @NoGC public fun secondary(): Wide {
     val fields = TupleOps().nested((Token(), (5, 8, 11), Token()))
-    return Wide(fields._2._1, fields._2._2, fields._2._3, fields._1)
+    return Wide(fields)
 }
 @NoGC public fun defaults(): Long = tupleDefault() + tupleProjection(TupleOps().pair) - 12
 @NoGC public fun republished(value: (Long, Token, Long) = tupleIdentity((1, Token(), 5))): Long = TupleOps().sum(value)

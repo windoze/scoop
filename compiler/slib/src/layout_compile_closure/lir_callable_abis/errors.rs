@@ -13,6 +13,12 @@ pub enum SharedLirCallableAbiValidationError {
         source: Box<lir::ExactCallableAbiError>,
     },
     Table(lir::ExactCallableAbiTableError),
+    Abi(lir::ExactCallableAbiError),
+    Signature(scoop_identity::ScoopAbiError),
+    Identity(scoop_identity::IdentityReferenceError),
+    Tuple(lir::TupleStorageReplayError),
+    Storage(lir::StorageReplayError),
+    Shape(lir::TypeInstanceShapeError),
     Resource(WireError),
 }
 impl From<lir::ExactCallableAbiTableError> for SharedLirCallableAbiValidationError {
@@ -25,6 +31,22 @@ impl From<WireError> for SharedLirCallableAbiValidationError {
         Self::Resource(source)
     }
 }
+macro_rules! from_error {
+    ($source:ty, $variant:ident) => {
+        impl From<$source> for SharedLirCallableAbiValidationError {
+            fn from(source: $source) -> Self {
+                Self::$variant(source)
+            }
+        }
+    };
+}
+from_error!(lir::ExactCallableAbiError, Abi);
+from_error!(scoop_identity::ScoopAbiError, Signature);
+from_error!(scoop_identity::IdentityReferenceError, Identity);
+from_error!(lir::TupleStorageReplayError, Tuple);
+from_error!(lir::StorageReplayError, Storage);
+from_error!(lir::TypeInstanceShapeError, Shape);
+
 impl std::fmt::Display for SharedLirCallableAbiValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "invalid shared MIR/LIR callable ABI relation: {self:?}")

@@ -34,8 +34,12 @@ pub(super) fn check(
                 .any(|exact| input.bridge.types().get(exact).is_none())
         });
         if has_foreign {
-            assert!(matches!(missing, Err(Error::Callable { source, .. })
-                if matches!(*source, lir::ExactCallableAbiError::MissingValueLayout { .. })));
+            assert!(matches!(
+                missing,
+                Err(Error::Abi(
+                    lir::ExactCallableAbiError::MissingValueLayout { .. }
+                ))
+            ));
         } else {
             assert_eq!(missing.unwrap(), abis);
         }
@@ -74,5 +78,6 @@ fn replay(
         local,
         dependencies,
         input.lir.foundation(),
+        input.identities,
     )
 }

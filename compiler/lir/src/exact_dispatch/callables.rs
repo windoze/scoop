@@ -14,7 +14,10 @@ use crate::{
 /// Borrows the existing ABI record for an actual dispatch implementation.
 #[derive(Clone, Copy, Debug)]
 pub enum DispatchCallableAbiV1<'a> {
-    Exact(&'a ExactCallableAbiExportV1),
+    Exact {
+        record: &'a ExactCallableAbiExportV1,
+        receiver: CallableAbiReceiverInputV1<'a>,
+    },
     Direct {
         provider: ConeIdentity,
         target: LirTargetProfile,
@@ -23,51 +26,45 @@ pub enum DispatchCallableAbiV1<'a> {
     },
 }
 
-impl<'a> From<&'a ExactCallableAbiExportV1> for DispatchCallableAbiV1<'a> {
-    fn from(record: &'a ExactCallableAbiExportV1) -> Self {
-        Self::Exact(record)
-    }
-}
-
 impl DispatchCallableAbiV1<'_> {
     pub fn target(self) -> StrongCallableDefinitionOwner {
         match self {
-            Self::Exact(record) => record.target(),
+            Self::Exact { record, .. } => record.target(),
             Self::Direct { record, .. } => record.target(),
         }
     }
 
     pub fn target_profile(self) -> LirTargetProfile {
         match self {
-            Self::Exact(record) => record.target_profile(),
+            Self::Exact { record, .. } => record.target_profile(),
             Self::Direct { target, .. } => target,
         }
     }
 
     pub fn provider(self) -> ConeIdentity {
         match self {
-            Self::Exact(record) => record.physical_definition().provider(),
+            Self::Exact { record, .. } => record.physical_definition().provider(),
             Self::Direct { provider, .. } => provider,
         }
     }
 
     pub fn canonical_signature(&self) -> &CanonicalScoopAbiFunctionSignature {
         match self {
-            Self::Exact(record) => record.canonical_signature(),
+            Self::Exact { record, .. } => record.canonical_signature(),
             Self::Direct { record, .. } => record.abi_signature(),
         }
     }
 
     pub(super) fn calling_convention(self) -> crate::CallingConvention {
         match self {
-            Self::Exact(record) => record.calling_convention(),
+            Self::Exact { record, .. } => record.calling_convention(),
             Self::Direct { record, .. } => record.calling_convention(),
         }
     }
 
     pub(super) fn body(self) -> Result<PersistentCallableBodyId, ExactDispatchError> {
         match self {
-            Self::Exact(record) => Ok(record.definition().semantic_id()),
+            Self::Exact { record, .. } => Ok(record.definition().semantic_id()),
             Self::Direct { record, .. } => match record.expected_symbol().key() {
                 PersistentSymbolKey::CallableBody(body) => Ok(body),
                 _ => Err(ExactDispatchError::AbiDefinition(record.target())),
@@ -77,7 +74,7 @@ impl DispatchCallableAbiV1<'_> {
 
     pub(super) fn matches_definition(self, actual: StrongShapeDefinitionRefV1) -> bool {
         match self {
-            Self::Exact(record) => record.physical_definition() == actual,
+            Self::Exact { record, .. } => record.physical_definition() == actual,
             Self::Direct {
                 provider, record, ..
             } => {
@@ -91,36 +88,29 @@ impl DispatchCallableAbiV1<'_> {
     pub(super) fn receiver_layout(
         self,
     ) -> Result<Option<Arc<ExactValueLayoutV1>>, ExactDispatchError> {
-        match self {
-            Self::Exact(record) => Ok(match record.layout_dependencies().receiver() {
-                crate::CallableAbiReceiverLayoutV1::NoReceiver => None,
-                crate::CallableAbiReceiverLayoutV1::Receiver(layout) => Some(Arc::clone(layout)),
-            }),
-            Self::Direct {
-                target,
-                record,
-                receiver,
-                ..
-            } => {
-                match (
-                    record.abi_signature().signature().receiver().into_option(),
-                    receiver,
-                ) {
-                    (None, CallableAbiReceiverInputV1::NoReceiver) => Ok(None),
-                    (Some(exact), CallableAbiReceiverInputV1::Receiver(layout))
-                        if layout.identity().exact() == exact
-                            && layout.identity().target() == target
-                            && layout.identity().layout_key().representation()
-                                == RepresentationRole::ManagedValue =>
-                    {
-                        layout
-                            .value_handle()
-                            .map(Some)
-                            .ok_or(ExactDispatchError::ReceiverLayout(record.target()))
-                    }
-                    _ => Err(ExactDispatchError::ReceiverLayout(record.target())),
-                }
+        let receiver = match self {
+            Self::Exact { receiver, .. } | Self::Direct { receiver, .. } => receiver,
+        };
+        match (
+            self.canonical_signature()
+                .signature()
+                .receiver()
+                .into_option(),
+            receiver,
+        ) {
+            (None, CallableAbiReceiverInputV1::NoReceiver) => Ok(None),
+            (Some(exact), CallableAbiReceiverInputV1::Receiver(layout))
+                if layout.identity().exact() == exact
+                    && layout.identity().target() == self.target_profile()
+                    && layout.identity().layout_key().representation()
+                        == RepresentationRole::ManagedValue =>
+            {
+                layout
+                    .value_handle()
+                    .map(Some)
+                    .ok_or(ExactDispatchError::ReceiverLayout(self.target()))
             }
+            _ => Err(ExactDispatchError::ReceiverLayout(self.target())),
         }
     }
 }

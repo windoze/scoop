@@ -1,0 +1,121 @@
+Module
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long, marker: Token)
+  fun token @fn0() -> Token <no-gc>
+    bb0 entry
+      call $call.1: Token = external0 direct
+      return
+        Type Token
+        Local $call.1
+  fun primary @fn1() -> Wide <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=53 bits=0x0000000000000035
+      call $dependency.argument.3: Token = external0 direct
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.3
+      call $call.1: Wide = external1 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+        Type Token
+        Local $dependency.parameter.marker
+      return
+        Type Wide
+        Local $call.1
+  fun secondary @fn2() -> Wide <no-gc>
+    bb0 entry
+      call $call.1: Token = external0 direct
+      call $call.2: Token = external0 direct
+      val $dependency.argument.0: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        TupleLiteral
+          Type Token
+          Local $call.1
+          Type (Long, Long, Long)
+          TupleLiteral
+            Type Long
+            IntegerLiteral Long value=5 bits=0x0000000000000005
+            Type Long
+            IntegerLiteral Long value=8 bits=0x0000000000000008
+            Type Long
+            IntegerLiteral Long value=11 bits=0x000000000000000b
+          Type Token
+          Local $call.2
+      val $dependency.parameter.values: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.argument.0
+      call $call.3: Wide = external2 direct
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.parameter.values
+      return
+        Type Wide
+        Local $call.3
+  fun defaults @fn3() -> Long <no-gc>
+    bb0 entry
+      val $dependency.default.local.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.default.local.1: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $dependency.default.local.2: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $dependency.default.local.3: Long
+        Type Long
+        Local $dependency.default.local.0
+      val $dependency.default.local.4: Long
+        Type Long
+        Local $dependency.default.local.1
+      val $dependency.default.local.5: Long
+        Type Long
+        Local $dependency.default.local.2
+      call $dependency.default.local.6: Token = external0 direct
+      call $dependency.parameter.value: Wide = external1 direct
+        Type Long
+        Local $dependency.default.local.3
+        Type Long
+        Local $dependency.default.local.4
+        Type Long
+        Local $dependency.default.local.5
+        Type Token
+        Local $dependency.default.local.6
+      call $call.1: Long = external3 direct
+        Type Wide
+        Local $dependency.parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun republished @fn4(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      call $call.1: Long = external4 direct
+        Type Wide
+        Local $dependency.receiver
+      return
+        Type Long
+        Local $call.1
+  output library

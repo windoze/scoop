@@ -79,7 +79,6 @@ fn exercise_dependency_production(provider: Provider) {
             provider.identity,
             provider.callable,
             pointer_result_signature(),
-            &consumer.enums,
         )
         .unwrap();
     let descriptor_id = consumer.meta.external_type_descriptors.alloc(descriptor);
@@ -226,7 +225,6 @@ fn pending_selection_rejects_an_uncommitted_terminal_callable() {
             provider.identity,
             provider.callable,
             pointer_result_signature(),
-            &consumer.enums,
 
         ),
         Err(LayoutExternalMaterializationError::MissingCallable {

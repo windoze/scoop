@@ -83,7 +83,6 @@ pub(super) fn check(
     for component in [
         Component::Signature,
         Component::Protocol,
-        Component::Layouts,
         Component::Definition,
     ] {
         let decoded: lir::DecodedExactCallableAbiExportV1 = decoded(&Modified {
@@ -93,7 +92,7 @@ pub(super) fn check(
         });
         assert!(decoded.validate_against(value).is_err(), "{component:?}");
     }
-    let exact = donor.layout_dependencies().result().identity().exact();
+    let exact = donor.canonical_signature().signature().result();
     let layouts = lir::CanonicalExactLayoutExportsV1::try_new(
         expected.target_profile(),
         input.lir.foundation(),
@@ -107,8 +106,7 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(
-        matches!(replay(input, &layouts, &[]), Err(Error::Callable { source, .. })
-        if matches!(*source, lir::ExactCallableAbiError::MissingValueLayout { exact: missing } if missing == exact))
+        matches!(replay(input, &layouts, &[]), Err(Error::Abi(lir::ExactCallableAbiError::MissingValueLayout { exact: missing })) if missing == exact)
     );
 }
 
@@ -127,7 +125,6 @@ impl WireEncode for Rows<'_> {
 enum Component {
     Signature,
     Protocol,
-    Layouts,
     Definition,
 }
 struct Modified<'a> {
@@ -137,7 +134,7 @@ struct Modified<'a> {
 }
 impl WireEncode for Modified<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.value.target().encode(encoder)?;
         encoder.field(2)?;
@@ -156,13 +153,6 @@ impl WireEncode for Modified<'_> {
             self.value
         };
         value.call_protocol().encode(encoder)?;
-        encoder.field(5)?;
-        let value = if matches!(self.component, Component::Layouts) {
-            self.donor
-        } else {
-            self.value
-        };
-        value.layout_dependencies().encode(encoder)?;
         encoder.field(6)?;
         let value = if matches!(self.component, Component::Definition) {
             self.donor

@@ -84,10 +84,10 @@ impl MirCallableBridgeAuthority<'_> {
                 .chain(signature.exact().parameters().iter().copied())
                 .chain([signature.exact().result()])
             {
-                let facts = self.type_export(exact)?.facts();
+                let gc = self.gc_kind(exact)?;
                 if requires_gc_free
                     && signature.gc_effect() == crate::GcEffect::NoGc
-                    && facts.gc() != MirGcKindV1::GcFree
+                    && gc != MirGcKindV1::GcFree
                 {
                     return Err(MirCallableBridgeError::NoGcContainsReferences { exact });
                 }
@@ -255,6 +255,28 @@ impl MirCallableBridgeAuthority<'_> {
             Err(MirCallableBridgeError::SignatureMismatch)
         }
     }
+    fn gc_kind(&self, exact: PersistentExactTypeId) -> Result<MirGcKindV1, MirCallableBridgeError> {
+        let key = self.identities.canonical_key::<_, ExactTypeKey>(exact)?;
+        match key.as_ref() {
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
+                Ok(self.type_export(exact)?.facts().gc())
+            }
+            ExactTypeKey::Tuple(elements) => {
+                let mut gc = MirGcKindV1::GcFree;
+                for element in elements.as_slice() {
+                    if self.gc_kind(*element)? == MirGcKindV1::ContainsManagedReferences {
+                        gc = MirGcKindV1::ContainsManagedReferences;
+                    }
+                }
+                Ok(gc)
+            }
+            ExactTypeKey::Function { .. } => Ok(MirGcKindV1::ContainsManagedReferences),
+            ExactTypeKey::RawPointer(_) | ExactTypeKey::NativeFunctionPointer { .. } => {
+                Ok(MirGcKindV1::GcFree)
+            }
+        }
+    }
+
     fn type_export(
         &self,
         exact: PersistentExactTypeId,

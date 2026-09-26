@@ -40,16 +40,26 @@ impl DirectFixture {
             result.identity().exact(),
         );
         let (target, callable_foundation) = callable_foundation("implementation");
-        let abi = ExactCallableAbiExportV1::replay(
+        let abi = ExactCallableAbiExportV1::from_signature(
             TARGET,
             target,
-            signature,
-            ExactCallableProtocolV1::OrdinaryManaged,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::Receiver(&target_receiver),
-                parameters: &[],
-                result: &result,
-            },
+            scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+                signature,
+                vec![
+                    target_receiver
+                        .value_handle()
+                        .unwrap()
+                        .scoop_abi_argument(TARGET)
+                        .unwrap(),
+                ],
+                result
+                    .value_handle()
+                    .unwrap()
+                    .scoop_abi_return(TARGET)
+                    .unwrap(),
+                (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
+            )
+            .unwrap(),
             &callable_foundation,
         )
         .unwrap();
@@ -101,7 +111,10 @@ impl DirectFixture {
                 target: self.target,
                 receiver: ExactDispatchReceiverAdaptationV1::Identity,
             },
-            abi: (&self.abi).into(),
+            abi: DispatchCallableAbiV1::Exact {
+                record: &self.abi,
+                receiver: CallableAbiReceiverInputV1::Receiver(&self.target_receiver),
+            },
             slot_receiver_layout: None,
         }
     }
@@ -118,7 +131,10 @@ impl DirectFixture {
                 target: self.target,
                 receiver: ExactDispatchReceiverAdaptationV1::ReferenceDispatch,
             },
-            abi: (&self.abi).into(),
+            abi: DispatchCallableAbiV1::Exact {
+                record: &self.abi,
+                receiver: CallableAbiReceiverInputV1::Receiver(&self.target_receiver),
+            },
             slot_receiver_layout: layout,
         }
     }

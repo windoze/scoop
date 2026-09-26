@@ -61,49 +61,15 @@ pub(super) fn fixture() -> (
     (input, output, target, signature)
 }
 
-pub(super) fn unit_layout(output: &lir::SingleConeStrongLirOutput) -> lir::ExactLayoutExportV1 {
-    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
-        CoreBuiltinNominal::Unit.identity_record().id(),
-    ))
-    .unwrap();
-
-    let identity = lir::ExactLayoutIdentityV1::from_foundation(
-        output.module().meta.target_profile,
-        exact,
-        scoop_identity::RepresentationRole::ManagedValue,
-        output.foundation(),
-    )
-    .unwrap();
-    lir::ExactValueLayoutV1::unit(identity, output.foundation())
-        .unwrap()
-        .into()
-}
-
 #[test]
 fn callable_abi_producer_binds_real_materialization_and_emitted_unit_signature() {
     let (input, output, target, signature) = fixture();
-    let unit = unit_layout(&output);
-    let result = lower_exact_callable_abi_export(
-        &input,
-        &output,
-        target,
-        &signature,
-        lir::CallableAbiLayoutInputsV1 {
-            receiver: lir::CallableAbiReceiverInputV1::NoReceiver,
-            parameters: &[],
-            result: &unit,
-        },
-    )
-    .unwrap();
+    let result = lower_exact_callable_abi_export(&input, &output, target, &signature).unwrap();
     assert_eq!(result.target(), target);
     assert_eq!(result.canonical_signature().signature(), signature.exact());
     assert_eq!(
         result.canonical_signature().result(),
         scoop_identity::ScoopAbiReturn::UnitVoid
-    );
-    assert_eq!(
-        result.layout_dependencies().result().identity().layout(),
-        unit.identity().layout()
     );
     assert!(
         output
@@ -117,32 +83,21 @@ fn callable_abi_producer_binds_real_materialization_and_emitted_unit_signature()
 #[test]
 fn callable_abi_producer_rejects_signature_and_effect_before_export() {
     let (input, output, target, signature) = fixture();
-    let unit = unit_layout(&output);
     let wrong_effect = match signature.gc_effect() {
         mir::GcEffect::Managed => mir::GcEffect::NoGc,
         mir::GcEffect::NoGc => mir::GcEffect::Managed,
     };
     let wrong = mir::MirBridgeCallableSignatureV1::new(signature.exact().clone(), wrong_effect);
     assert!(matches!(
-        lower_exact_callable_abi_export(
-            &input,
-            &output,
-            target,
-            &wrong,
-            lir::CallableAbiLayoutInputsV1 {
-                receiver: lir::CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &unit
-            }
-        ),
+        lower_exact_callable_abi_export(&input, &output, target, &wrong),
         Err(ExactCallableAbiLoweringError::GcEffect)
     ));
     let wrong = mir::MirBridgeCallableSignatureV1::new(
         ExactCallableSignature::new(
             Effect::Ordinary,
-            Some(unit.identity().exact()),
+            Some(signature.exact().result()),
             vec![],
-            unit.identity().exact(),
+            signature.exact().result(),
         ),
         signature.gc_effect(),
     );
@@ -151,13 +106,7 @@ fn callable_abi_producer_rejects_signature_and_effect_before_export() {
             &input,
             &output,
             target,
-            &wrong,
-            lir::CallableAbiLayoutInputsV1 {
-                receiver: lir::CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &unit
-            }
-        ),
+            &wrong),
         Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MirSignature(actual))) if actual == target
     ));
 }

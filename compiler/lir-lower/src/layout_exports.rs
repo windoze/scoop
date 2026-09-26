@@ -63,7 +63,7 @@ pub fn lower_layout_abi_exports(
         local: &layouts,
         dependencies: dependencies.layouts,
     };
-    let callables = callables::lower(input, &lookup)?;
+    let callables = callables::lower(input)?;
     let diagnostics = ExactTypeDiagnosticCatalog::try_new(input.identities, input.coordinates)?;
     let descriptors = descriptors::lower(input, &layouts, &diagnostics)?;
     let dispatch = dispatch::lower(input, &lookup, &callables, dependencies)?;

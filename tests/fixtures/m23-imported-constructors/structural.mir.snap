@@ -96,53 +96,15 @@ Module
         Local $dependency.receiver
         Type (Token, (Long, Long, Long), Token)
         Local $dependency.parameter.value
-      val $dependency.argument.0: Long
-        Type Long
-        FieldAccess 0
-          Type (Long, Long, Long)
-          FieldAccess 1
-            Type (Token, (Long, Long, Long), Token)
-            Local fields
-      val $dependency.argument.1: Long
-        Type Long
-        FieldAccess 1
-          Type (Long, Long, Long)
-          FieldAccess 1
-            Type (Token, (Long, Long, Long), Token)
-            Local fields
-      val $dependency.argument.2: Long
-        Type Long
-        FieldAccess 2
-          Type (Long, Long, Long)
-          FieldAccess 1
-            Type (Token, (Long, Long, Long), Token)
-            Local fields
-      val $dependency.argument.3: Token
-        Type Token
-        FieldAccess 0
-          Type (Token, (Long, Long, Long), Token)
-          Local fields
-      val $dependency.parameter.first: Long
-        Type Long
+      val $dependency.argument.0: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        Local fields
+      val $dependency.parameter.values: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
         Local $dependency.argument.0
-      val $dependency.parameter.second: Long
-        Type Long
-        Local $dependency.argument.1
-      val $dependency.parameter.third: Long
-        Type Long
-        Local $dependency.argument.2
-      val $dependency.parameter.marker: Token
-        Type Token
-        Local $dependency.argument.3
-      call $call.3: Wide = external2 direct
-        Type Long
-        Local $dependency.parameter.first
-        Type Long
-        Local $dependency.parameter.second
-        Type Long
-        Local $dependency.parameter.third
-        Type Token
-        Local $dependency.parameter.marker
+      call $call.3: Wide = external5 direct
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.parameter.values
       return
         Type Wide
         Local $call.3
@@ -158,11 +120,11 @@ Module
           Local $call.1
           Type Long
           IntegerLiteral Long value=9 bits=0x0000000000000009
-      call $dependency.receiver: Long = external5 direct
+      call $dependency.receiver: Long = external6 direct
         Type (Long, Token, Long)
         Local $dependency.parameter.value
       call $call.2: TupleOps = external3 direct
-      call $dependency.argument.0: (Long, Token, Long) = external6 direct
+      call $dependency.argument.0: (Long, Token, Long) = external7 direct
         Type TupleOps
         Local $call.2
       val $dependency.parameter.value: (Long, Token, Long)
@@ -188,7 +150,7 @@ Module
           Local $dependency.default.local.1
           Type Long
           Local $dependency.default.local.3
-      call $dependency.argument.0: Long = external7 direct
+      call $dependency.argument.0: Long = external8 direct
         Type (Long, Token, Long)
         Local $dependency.parameter.value
         Type Long
@@ -225,7 +187,7 @@ Module
       val $dependency.parameter.value: (Long, Token, Long)
         Type (Long, Token, Long)
         Local $dependency.argument.0
-      call $call.1: Long = external8 direct
+      call $call.1: Long = external9 direct
         Type TupleOps
         Local $dependency.receiver
         Type (Long, Token, Long)

@@ -73,16 +73,20 @@ impl Provider {
             vec![descriptor],
         )
         .unwrap();
-        let callable_record = ExactCallableAbiExportV1::replay(
+        let callable_record = ExactCallableAbiExportV1::from_signature(
             TARGET,
             callable,
-            ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact),
-            ExactCallableProtocolV1::OrdinaryManaged,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &value,
-            },
+            scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+                ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact),
+                vec![],
+                value
+                    .value_handle()
+                    .unwrap()
+                    .scoop_abi_return(TARGET)
+                    .unwrap(),
+                (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
+            )
+            .unwrap(),
             output.foundation(),
         )
         .unwrap();
@@ -239,7 +243,10 @@ pub(super) fn consumer_layout_section<'a>(
             target: provider.callable,
             receiver: ExactDispatchReceiverAdaptationV1::Identity,
         },
-        abi: (&provider.callables.records()[0]).into(),
+        abi: DispatchCallableAbiV1::Exact {
+            record: &provider.callables.records()[0],
+            receiver: CallableAbiReceiverInputV1::NoReceiver,
+        },
         slot_receiver_layout: None,
     };
     let expected = StrongTypeDispatchCallableRefV2::DependencyExternal {

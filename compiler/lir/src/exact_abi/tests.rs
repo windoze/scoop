@@ -5,17 +5,14 @@ use super::*;
 use crate::exact_layout::tests::{Bound, exact, field, integer, managed, source, unit};
 use crate::*;
 
-mod common;
 mod fixtures;
-mod physical;
 mod reader;
-mod shared_record;
 mod table;
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 #[test]
-fn abi_replays_receiver_order_repeated_layouts_and_all_pass_modes() {
+fn abi_records_preserve_receiver_order_and_all_pass_modes() {
     let unit: ExactLayoutExportV1 = unit().into();
     let byte: ExactLayoutExportV1 = integer("Byte", IntegerKind::SIGNED_8).into();
     let reference: ExactLayoutExportV1 = managed().into();
@@ -32,16 +29,34 @@ fn abi_replays_receiver_order_repeated_layouts_and_all_pass_modes() {
         aggregate.identity().exact(),
     );
     let (target, foundation) = fixtures::foundation("invoke", true);
-    let value = ExactCallableAbiExportV1::replay(
+    let value = ExactCallableAbiExportV1::from_signature(
         TARGET,
         target,
-        signature,
-        ExactCallableProtocolV1::OrdinaryManaged,
-        CallableAbiLayoutInputsV1 {
-            receiver: CallableAbiReceiverInputV1::Receiver(&reference),
-            parameters: &parameters,
-            result: &aggregate,
-        },
+        scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+            signature,
+            std::iter::once(
+                reference
+                    .value_handle()
+                    .unwrap()
+                    .scoop_abi_argument(TARGET)
+                    .unwrap(),
+            )
+            .chain(parameters.iter().map(|layout| {
+                layout
+                    .value_handle()
+                    .unwrap()
+                    .scoop_abi_argument(TARGET)
+                    .unwrap()
+            }))
+            .collect(),
+            aggregate
+                .value_handle()
+                .unwrap()
+                .scoop_abi_return(TARGET)
+                .unwrap(),
+            (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
+        )
+        .unwrap(),
         &foundation,
     )
     .unwrap();
@@ -60,18 +75,6 @@ fn abi_replays_receiver_order_repeated_layouts_and_all_pass_modes() {
     assert!(matches!(
         value.canonical_signature().result(),
         ScoopAbiReturn::Indirect(_)
-    ));
-    assert_eq!(
-        value.layout_dependencies().parameters()[1]
-            .identity()
-            .layout(),
-        value.layout_dependencies().parameters()[4]
-            .identity()
-            .layout()
-    );
-    assert!(Arc::ptr_eq(
-        &value.layout_dependencies().parameters()[1],
-        &value.layout_dependencies().parameters()[4]
     ));
     fixtures::roundtrip(&value);
     for result in [&unit, &zst, &byte, &reference] {
@@ -125,90 +128,18 @@ fn abi_classifies_tagged_enum_as_indirect_and_pointer_niche_as_direct_at_equal_s
 }
 
 #[test]
-fn abi_rejects_missing_receiver_wrong_exact_role_and_body() {
-    let unit: ExactLayoutExportV1 = unit().into();
-    let byte: ExactLayoutExportV1 = integer("Byte", IntegerKind::SIGNED_8).into();
-    let (target, foundation) = fixtures::foundation("invoke", true);
-    let signature = ExactCallableSignature::new(
-        Effect::Ordinary,
-        Some(byte.identity().exact()),
+fn abi_record_requires_its_actual_body_definition() {
+    let unit = unit();
+    let (target, missing) = fixtures::foundation("invoke", false);
+    let signature = CanonicalScoopAbiFunctionSignature::new(
+        ExactCallableSignature::new(Effect::Ordinary, None, vec![], unit.identity().exact()),
         vec![],
-        unit.identity().exact(),
-    );
+        ScoopAbiReturn::UnitVoid,
+        scoop_identity::GcEffect::NoGc,
+    )
+    .unwrap();
     assert!(matches!(
-        ExactCallableAbiExportV1::replay(
-            TARGET,
-            target,
-            signature,
-            ExactCallableProtocolV1::OrdinaryNoGc,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &unit
-            },
-            &foundation
-        ),
-        Err(ExactCallableAbiError::Receiver)
-    ));
-    let signature = ExactCallableSignature::new(
-        Effect::Ordinary,
-        None,
-        vec![byte.identity().exact()],
-        unit.identity().exact(),
-    );
-    assert!(matches!(
-        ExactCallableAbiExportV1::replay(
-            TARGET,
-            target,
-            signature,
-            ExactCallableProtocolV1::OrdinaryNoGc,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[&unit],
-                result: &unit
-            },
-            &foundation
-        ),
-        Err(ExactCallableAbiError::ExactType)
-    ));
-    let bound = Bound::instance(exact(&source("Class", SourceNominalKind::Class, 0)));
-    let instance: ExactLayoutExportV1 =
-        ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation)
-            .unwrap()
-            .into();
-    let signature =
-        ExactCallableSignature::new(Effect::Ordinary, None, vec![], instance.identity().exact());
-    assert!(matches!(
-        ExactCallableAbiExportV1::replay(
-            TARGET,
-            target,
-            signature,
-            ExactCallableProtocolV1::OrdinaryNoGc,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &instance
-            },
-            &foundation
-        ),
-        Err(ExactCallableAbiError::LayoutRole)
-    ));
-    let signature =
-        ExactCallableSignature::new(Effect::Ordinary, None, vec![], unit.identity().exact());
-    let (_, missing) = fixtures::foundation("invoke", false);
-    assert!(matches!(
-        ExactCallableAbiExportV1::replay(
-            TARGET,
-            target,
-            signature.clone(),
-            ExactCallableProtocolV1::OrdinaryNoGc,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &unit
-            },
-            &missing
-        ),
+        ExactCallableAbiExportV1::from_signature(TARGET, target, signature, &missing),
         Err(ExactCallableAbiError::MissingCallableBody)
     ));
 }

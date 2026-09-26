@@ -77,6 +77,7 @@ impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
                     layout.layouts(),
                     &dependencies,
                     parts.lir_foundation,
+                    parts.identities,
                 )?;
                 let layout = layout.validate_callables(&expected)?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;

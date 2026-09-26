@@ -168,7 +168,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-abi", 2) => (
+            ("org.scoop-lang.lir", "cross-cone-layout-abi", 3) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::LIR,

@@ -52,21 +52,24 @@ fn records() -> (
     let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let unit: ExactLayoutExportV1 = unit().into();
     let make = |target| {
-        ExactCallableAbiExportV1::replay(
+        ExactCallableAbiExportV1::from_signature(
             TARGET,
             target,
-            ExactCallableSignature::new(
-                Effect::Ordinary,
-                None,
-                Vec::new(),
-                unit.identity().exact(),
-            ),
-            ExactCallableProtocolV1::OrdinaryNoGc,
-            CallableAbiLayoutInputsV1 {
-                receiver: CallableAbiReceiverInputV1::NoReceiver,
-                parameters: &[],
-                result: &unit,
-            },
+            scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+                ExactCallableSignature::new(
+                    Effect::Ordinary,
+                    None,
+                    Vec::new(),
+                    unit.identity().exact(),
+                ),
+                vec![],
+                unit.value_handle()
+                    .unwrap()
+                    .scoop_abi_return(TARGET)
+                    .unwrap(),
+                (ExactCallableProtocolV1::OrdinaryNoGc).gc_effect(),
+            )
+            .unwrap(),
             &foundation,
         )
         .unwrap()

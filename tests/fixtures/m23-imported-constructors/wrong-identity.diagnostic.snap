@@ -3,4 +3,5 @@ expression=Wide(1, 2, 3, Other())
 no applicable candidate for `Wide` in exact import layer:
   - dependency constructor `Other` returns Other, which is not compatible with expected Token
   - dependency constructor `Wide` expects 1 argument(s), but 4 were supplied
+  - dependency constructor `Wide` expects 1 argument(s), but 4 were supplied
   - dependency constructor `Wide` expects 2 argument(s), but 4 were supplied

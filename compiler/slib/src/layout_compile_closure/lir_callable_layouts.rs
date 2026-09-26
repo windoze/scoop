@@ -1,16 +1,22 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_identity::{
-    ConeIdentity, ExactCallableSignature, PersistentExactTypeId, RepresentationRole,
-};
+use scoop_identity::{ConeIdentity, PersistentExactTypeId, RepresentationRole};
 use scoop_lir as lir;
-use scoop_wire::WirePath;
 
 use super::SharedLirCallableAbiValidationError as Error;
+
+mod signatures;
 
 pub(super) struct Layouts<'a> {
     local: &'a lir::CanonicalExactLayoutExportsV1,
     dependencies: &'a [&'a lir::CanonicalExactLayoutExportsV1],
+    values: BTreeMap<
+        PersistentExactTypeId,
+        (
+            lir::ValueLayoutConstituentV1,
+            scoop_identity::ScoopAbiValueShape,
+        ),
+    >,
 }
 
 impl<'a> Layouts<'a> {
@@ -41,6 +47,7 @@ impl<'a> Layouts<'a> {
         Ok(Self {
             local,
             dependencies,
+            values: BTreeMap::new(),
         })
     }
 
@@ -65,44 +72,5 @@ impl<'a> Layouts<'a> {
             }
         }
         Ok(found)
-    }
-
-    pub(super) fn signature(
-        &self,
-        signature: &ExactCallableSignature,
-    ) -> Result<SignatureLayouts<'_>, lir::ExactCallableAbiError> {
-        let path = WirePath::root();
-
-        let receiver = match signature.receiver().into_option() {
-            None => lir::CallableAbiReceiverInputV1::NoReceiver,
-            Some(exact) => lir::CallableAbiReceiverInputV1::Receiver(self.value(exact)?),
-        };
-        let mut parameters = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut parameters, signature.parameters().len(), &path)?;
-        for exact in signature.parameters() {
-            parameters.push(self.value(*exact)?);
-        }
-        let result = self.value(signature.result())?;
-        Ok(SignatureLayouts {
-            receiver,
-            parameters,
-            result,
-        })
-    }
-}
-
-pub(super) struct SignatureLayouts<'a> {
-    receiver: lir::CallableAbiReceiverInputV1<'a>,
-    parameters: Vec<&'a lir::ExactLayoutExportV1>,
-    result: &'a lir::ExactLayoutExportV1,
-}
-
-impl SignatureLayouts<'_> {
-    pub(super) fn inputs(&self) -> lir::CallableAbiLayoutInputsV1<'_> {
-        lir::CallableAbiLayoutInputsV1 {
-            receiver: self.receiver,
-            parameters: &self.parameters,
-            result: self.result,
-        }
     }
 }

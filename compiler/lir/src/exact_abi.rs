@@ -1,38 +1,22 @@
-//! Complete Scoop callable ABI records derived from checked value layouts.
-//! Source-to-implementation and selected-use joins belong to the containing
-//! section; a physical definition alone does not authorize an import.
+//! Complete canonical ABI records bound to their actual callable definitions.
 
 use std::sync::Arc;
 
 use scoop_identity::{
-    CanonicalScoopAbiFunctionSignature, ExactCallableSignature, GcEffect, PersistentCallableBodyId,
+    CanonicalScoopAbiFunctionSignature, GcEffect, PersistentCallableBodyId,
     StrongCallableDefinitionOwner,
 };
 use scoop_wire::{WireError, WirePath};
 
 use crate::{
-    ExactLayoutExportV1, ExactValueLayoutV1, LirTargetProfile, OdrFreeLirFoundation,
-    StrongShapeDefinitionRefV1, StrongShapeDefinitionV1,
+    ExactLayoutExportV1, LirTargetProfile, OdrFreeLirFoundation, StrongShapeDefinitionRefV1,
+    StrongShapeDefinitionV1,
 };
 
 mod replay;
 pub use replay::ExactCallableAbiError;
 mod canonical;
 pub use canonical::{canonical_scoop_abi_argument, canonical_scoop_abi_value_return};
-
-/// Replays a complete signature from checked layouts without requiring a local
-/// body definition. Ordinary bridges and full callable exports share this path.
-pub fn replay_canonical_scoop_abi_from_layouts(
-    target: LirTargetProfile,
-    signature: ExactCallableSignature,
-    protocol: ExactCallableProtocolV1,
-    layouts: CallableAbiLayoutInputsV1<'_>,
-) -> Result<CanonicalScoopAbiFunctionSignature, ExactCallableAbiError> {
-    replay::signature(target, signature, protocol, layouts).map(|(signature, _)| signature)
-}
-
-mod physical;
-pub use physical::ExactCallablePhysicalAbiError;
 
 mod table;
 pub use table::*;
@@ -66,44 +50,6 @@ pub enum CallableAbiReceiverInputV1<'a> {
     Receiver(&'a ExactLayoutExportV1),
 }
 
-pub struct CallableAbiLayoutInputsV1<'a> {
-    pub receiver: CallableAbiReceiverInputV1<'a>,
-    pub parameters: &'a [&'a ExactLayoutExportV1],
-    pub result: &'a ExactLayoutExportV1,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CallableAbiReceiverLayoutV1 {
-    NoReceiver,
-    Receiver(Arc<ExactValueLayoutV1>),
-}
-impl CallableAbiReceiverLayoutV1 {
-    pub fn value(&self) -> Option<&ExactValueLayoutV1> {
-        match self {
-            Self::NoReceiver => None,
-            Self::Receiver(value) => Some(value),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CallableAbiLayoutDependenciesV1 {
-    receiver: CallableAbiReceiverLayoutV1,
-    parameters: Vec<Arc<ExactValueLayoutV1>>,
-    result: Arc<ExactValueLayoutV1>,
-}
-impl CallableAbiLayoutDependenciesV1 {
-    pub const fn receiver(&self) -> &CallableAbiReceiverLayoutV1 {
-        &self.receiver
-    }
-    pub fn parameters(&self) -> &[Arc<ExactValueLayoutV1>] {
-        &self.parameters
-    }
-    pub fn result(&self) -> &ExactValueLayoutV1 {
-        &self.result
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExactCallableAbiExportV1(Arc<CallableAbiBodyV1>);
 
@@ -113,28 +59,19 @@ struct CallableAbiBodyV1 {
     target_profile: LirTargetProfile,
     signature: CanonicalScoopAbiFunctionSignature,
     protocol: ExactCallableProtocolV1,
-    layouts: CallableAbiLayoutDependenciesV1,
     physical: StrongShapeDefinitionRefV1,
     definition: StrongShapeDefinitionV1<PersistentCallableBodyId>,
 }
 
 impl ExactCallableAbiExportV1 {
-    pub fn replay(
+    /// Attaches the complete ABI from the defining body to its physical symbol.
+    pub fn from_signature(
         target_profile: LirTargetProfile,
         target: StrongCallableDefinitionOwner,
-        signature: ExactCallableSignature,
-        protocol: ExactCallableProtocolV1,
-        layouts: CallableAbiLayoutInputsV1<'_>,
+        signature: CanonicalScoopAbiFunctionSignature,
         foundation: &OdrFreeLirFoundation,
     ) -> Result<Self, ExactCallableAbiError> {
-        replay::callable(
-            target_profile,
-            target,
-            signature,
-            protocol,
-            layouts,
-            foundation,
-        )
+        replay::callable(target_profile, target, signature, foundation)
     }
 
     pub fn target(&self) -> StrongCallableDefinitionOwner {
@@ -151,9 +88,6 @@ impl ExactCallableAbiExportV1 {
     }
     pub fn call_protocol(&self) -> ExactCallableProtocolV1 {
         self.0.protocol
-    }
-    pub fn layout_dependencies(&self) -> &CallableAbiLayoutDependenciesV1 {
-        &self.0.layouts
     }
     pub fn physical_definition(&self) -> StrongShapeDefinitionRefV1 {
         self.0.physical

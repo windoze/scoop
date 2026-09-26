@@ -1416,6 +1416,7 @@ fn managed_poll_error(function: &Function, detail: impl std::fmt::Display) -> Co
 
 #[cfg(test)]
 mod tests {
+    mod pointer_values;
     mod struct_zst;
     mod tagged_zst;
     use super::*;
