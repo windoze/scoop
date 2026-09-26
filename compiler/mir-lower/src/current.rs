@@ -19,7 +19,34 @@ pub fn lower_current_cone(
         lower_dependency_callables(output, &selected_callables, &mut callables)?;
     lower_initialization_callables(hir, &selected_callables, &mut callables)?;
     lower_runtime_constructors(hir, &selected_callables, &mut callables)?;
-    let module = lower_with_dependencies(&output.output().local, callables, dependency_mapping);
+    let objects = selected_callables
+        .objects()
+        .iter()
+        .map(|object| {
+            let reference = selected_callables
+                .callable_for(object.provider(), object.ensure())
+                .ok_or(CurrentConeMirLoweringError::MissingSingletonEnsure(
+                    object.value(),
+                ))?;
+            let existing = callables
+                .iter()
+                .find_map(|(id, callable)| (callable.reference() == reference).then_some(id));
+            let ensure = existing.unwrap_or_else(|| {
+                callables.alloc(
+                    selected_callables
+                        .callable_use(reference, mir::GcEffect::Managed)
+                        .expect("a selected singleton ensure has a complete signature"),
+                )
+            });
+            Ok((object.clone(), ensure))
+        })
+        .collect::<Result<Vec<_>, CurrentConeMirLoweringError>>()?;
+    let module = lower_with_dependencies(
+        &output.output().local,
+        callables,
+        dependency_mapping,
+        objects,
+    );
     mir::DependencyMirOutput::try_new(module, selected_callables)
         .map_err(CurrentConeMirLoweringError::InvalidOutput)
 }
@@ -165,6 +192,7 @@ fn lower_runtime_constructors(
 
 #[derive(Debug)]
 pub enum CurrentConeMirLoweringError {
+    MissingSingletonEnsure(scoop_identity::PersistentObjectValueId),
     Occurrences(scoop_hir::DependencyCallOccurrenceError),
     InvalidInitializationCycleThrower,
     MissingInitializationCycleThrower,

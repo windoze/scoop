@@ -1,0 +1,16 @@
+Module
+  fun primary(): Counter
+    val local0
+      ReferenceUpcast : Readable
+        ImportedSingletonValue ccd267f7ca1ab72d1a1bfd6f86b388103042a21b5d5d8bdd1c2c047213a4dbe5 : SharedReader
+    val local1
+      Local reader : Readable
+    val local2
+      ImportedDependencyCall #0 interface[0] : Long
+        Local $dependency.receiver : Readable
+    val local3
+      Local $dependency.argument.0 : Long
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.parameter.value : Long
+  output library

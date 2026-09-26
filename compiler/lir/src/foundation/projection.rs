@@ -46,6 +46,7 @@ impl CanonicalLirFoundation {
                     .filter_map(|(_, global)| match &global.init {
                         crate::GlobalInit::Storage { layout, .. } => layout.local(),
                         crate::GlobalInit::StringConst { .. }
+                        | crate::GlobalInit::ImportedStorage { .. }
                         | crate::GlobalInit::CString { .. } => None,
                     }),
             )
@@ -231,7 +232,7 @@ impl CanonicalLirFoundation {
                         identity.odr_member_record(),
                     )?;
                 }
-                crate::GlobalInit::CString { .. } => {}
+                crate::GlobalInit::CString { .. } | crate::GlobalInit::ImportedStorage { .. } => {}
             }
         }
         self.set_odr_groups(groups.into_values().collect())?;
@@ -249,9 +250,9 @@ impl CanonicalLirFoundation {
                     crate::GlobalInit::Storage { identity, .. } => {
                         Some(identity.identity_record().clone())
                     }
-                    crate::GlobalInit::StringConst { .. } | crate::GlobalInit::CString { .. } => {
-                        None
-                    }
+                    crate::GlobalInit::StringConst { .. }
+                    | crate::GlobalInit::CString { .. }
+                    | crate::GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
         )?;
@@ -262,7 +263,9 @@ impl CanonicalLirFoundation {
                     crate::GlobalInit::StringConst { identity, .. } => {
                         Some(identity.identity_record().clone())
                     }
-                    crate::GlobalInit::CString { .. } | crate::GlobalInit::Storage { .. } => None,
+                    crate::GlobalInit::CString { .. }
+                    | crate::GlobalInit::Storage { .. }
+                    | crate::GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
         )

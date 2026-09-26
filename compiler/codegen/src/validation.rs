@@ -518,7 +518,9 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
         }
     }
     for (_, global) in module.globals.iter() {
-        let GlobalInit::Storage { ty, .. } = &global.init else {
+        let (GlobalInit::Storage { ty, .. } | GlobalInit::ImportedStorage { ty, .. }) =
+            &global.init
+        else {
             continue;
         };
         if contains_machine_scalar(&module.structs, &module.enums, ty) {

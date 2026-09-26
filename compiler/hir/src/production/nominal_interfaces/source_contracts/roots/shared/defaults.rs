@@ -80,14 +80,6 @@ impl SourceRoots {
         for reference in &references.globals {
             self.property(export, export.globals[reference.target].property, roots)?;
         }
-        for reference in &references.singleton_values {
-            let singleton = &export.singleton_values[reference.target];
-            roots.require_field_type(
-                export,
-                index,
-                export.object_types[singleton.object_type].canonical_type,
-            )?;
-        }
         for reference in &references.fields {
             let ty = match reference.target {
                 FieldRef::ImportedStruct { owner, .. } => owner,

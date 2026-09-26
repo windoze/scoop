@@ -204,6 +204,21 @@ impl BodyLowerer<'_> {
                 let root = self.singleton_root_map[&singleton.published_root];
                 smir::ExprKind::GlobalRead(self.singleton_published_roots[root].global)
             }
+            hir::ExprKind::ImportedSingletonValue(value) => {
+                let (ensure, global) = self.imported_singleton_map[value];
+                self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
+                    mir::Type::Unit,
+                    smir::ExprKind::Call(smir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::External(ensure),
+                        },
+                        args: Vec::new(),
+                        return_ty: mir::Type::Unit,
+                    }),
+                )));
+                smir::ExprKind::GlobalRead(global)
+            }
             hir::ExprKind::Capture(binding) => {
                 if let Some(local) = self.current_local_capture_params.get(binding) {
                     return smir::Expr::new(ty, smir::ExprKind::Local(self.local_map[local]));

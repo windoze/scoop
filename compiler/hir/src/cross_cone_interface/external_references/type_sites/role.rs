@@ -8,6 +8,7 @@ pub enum HirExpressionTypeRoleV1 {
     TypeTest,
     ArrayElement,
     BoxedValue,
+    SingletonValue,
 }
 
 impl HirExpressionTypeRoleV1 {
@@ -25,6 +26,7 @@ impl WireEncode for HirExpressionTypeRoleV1 {
             Self::TypeTest => 4,
             Self::ArrayElement => 5,
             Self::BoxedValue => 6,
+            Self::SingletonValue => 7,
         })
     }
 }
@@ -38,6 +40,7 @@ impl WireDecode for HirExpressionTypeRoleV1 {
             4 => Ok(Self::TypeTest),
             5 => Ok(Self::ArrayElement),
             6 => Ok(Self::BoxedValue),
+            7 => Ok(Self::SingletonValue),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),

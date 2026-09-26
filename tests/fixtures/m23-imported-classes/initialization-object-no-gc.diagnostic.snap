@@ -1,0 +1,9 @@
+span=40..95
+expression=@NoGC public fun invalid(): SharedHolder = SharedHolder
+`@NoGC` function `invalid` has non-GC-free return type SharedHolder
+span=83..95
+expression=SharedHolder
+value of non-GC-free type SharedHolder is not allowed in `@NoGC` code
+span=83..95
+expression=SharedHolder
+singleton access may initialize, allocate, and throw in `@NoGC` code

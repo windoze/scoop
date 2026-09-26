@@ -1,0 +1,34 @@
+Module
+  global0 $singleton$ccd267f7ca1ab72d1a1bfd6f86b388103042a21b5d5d8bdd1c2c047213a4dbe5: SharedReader imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=d290468017d933350e437305fbceb884bb974d02b96ffb69f6da670c2f002718
+  class SharedReader vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  interface Readable
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call external2 direct
+      val reader: Readable
+        Type Readable
+        Retype Readable
+          Type SharedReader
+          GlobalRead $singleton$ccd267f7ca1ab72d1a1bfd6f86b388103042a21b5d5d8bdd1c2c047213a4dbe5
+      val $dependency.receiver: Readable
+        Type Readable
+        Local reader
+      call $dependency.argument.0: Long = external0 interface Readable[0]
+        Type Readable
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  output library

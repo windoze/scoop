@@ -59,12 +59,6 @@ impl Lowerer {
             )
             .chain(
                 references
-                    .singleton_values
-                    .iter()
-                    .map(|r| (&r.target_domain, r.origin, "an object")),
-            )
-            .chain(
-                references
                     .fields
                     .iter()
                     .map(|r| (&r.target_domain, r.origin, "a field")),

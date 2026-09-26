@@ -1,5 +1,7 @@
 use super::*;
 
+mod imported;
+
 #[derive(Clone, Copy)]
 pub(super) enum StorageGlobal {
     Local(lir::GlobalId),
@@ -42,6 +44,9 @@ pub(super) fn lower_globals(
     let mut bridges = lir::NativeGlobalBridges::default();
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
+            mir::GlobalStorage::Imported { provider, storage } => StorageGlobal::Local(
+                globals.alloc(imported::lower(&inputs, global, *provider, *storage)?),
+            ),
             mir::GlobalStorage::Managed { initial_state } => {
                 let lir_id = globals.alloc(lir::Global {
                     address_kind: lir::PointerKind::Raw,

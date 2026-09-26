@@ -1,0 +1,3 @@
+span=114..126
+expression=SharedHolder
+body of `invalid` must be of type OtherHolder, found SharedHolder

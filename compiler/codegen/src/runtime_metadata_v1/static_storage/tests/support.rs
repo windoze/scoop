@@ -51,7 +51,9 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
         .iter()
         .find_map(|(_, global)| match &global.init {
             GlobalInit::StringConst { identity, .. } => Some(identity.identity_record().clone()),
-            GlobalInit::CString { .. } | GlobalInit::Storage { .. } => None,
+            GlobalInit::CString { .. }
+            | GlobalInit::Storage { .. }
+            | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();
     let immortal_object_definition = definition(
@@ -72,7 +74,9 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     GlobalInit::Storage { identity, .. } => {
                         Some(identity.identity_record().clone())
                     }
-                    GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => None,
+                    GlobalInit::CString { .. }
+                    | GlobalInit::StringConst { .. }
+                    | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
         )
@@ -89,7 +93,9 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     GlobalInit::Storage { layout, .. } => {
                         Some(layout.local().unwrap().layout_record().clone())
                     }
-                    GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => None,
+                    GlobalInit::CString { .. }
+                    | GlobalInit::StringConst { .. }
+                    | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
         )
@@ -103,7 +109,9 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
                     GlobalInit::Storage { layout, .. } => {
                         Some(layout.local().unwrap().scan_record().clone())
                     }
-                    GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => None,
+                    GlobalInit::CString { .. }
+                    | GlobalInit::StringConst { .. }
+                    | GlobalInit::ImportedStorage { .. } => None,
                 })
                 .collect(),
         )

@@ -56,6 +56,7 @@ fn shape_link_terminal_rebind_rejects_same_id_different_layout_and_scan() {
         provider: physical.provider(),
         subject: ExternalStrongShapeSubjectV1::Layout(first.identity().layout()),
         expected_symbol: physical.symbol(),
+        symbol: physical.symbol().symbol(),
         required_definition: physical.definition(),
         contract: ShapeLinkContractV1::Layout {
             record: first.clone(),

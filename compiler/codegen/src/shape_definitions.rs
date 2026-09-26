@@ -212,6 +212,7 @@ fn collect_layouts(module: &Module) -> Result<BTreeSet<PersistentLayoutId>, Code
                 .filter_map(|(_, global)| match &global.init {
                     scoop_lir::GlobalInit::Storage { layout, .. } => layout.local(),
                     scoop_lir::GlobalInit::StringConst { .. }
+                    | scoop_lir::GlobalInit::ImportedStorage { .. }
                     | scoop_lir::GlobalInit::CString { .. } => None,
                 }),
         )

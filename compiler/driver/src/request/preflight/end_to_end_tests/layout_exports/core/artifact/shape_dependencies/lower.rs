@@ -82,6 +82,7 @@ pub(super) fn with_mir(
             source: &source,
             mir: &mir.strong,
             ordinary: &mir.public,
+            dependency_objects: mir.selected_callables.objects(),
             identities: &identities,
         },
         &callables,

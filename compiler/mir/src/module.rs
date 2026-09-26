@@ -569,6 +569,11 @@ pub struct SingletonPublishedRoot {
 
 #[derive(Debug, Clone)]
 pub enum GlobalStorage {
+    /// Storage defined by another Cone; the logical owner and value type remain explicit.
+    Imported {
+        provider: scoop_identity::ConeIdentity,
+        storage: scoop_identity::PersistentStaticStorageId,
+    },
     Managed {
         initial_state: MirStaticInitialState,
     },

@@ -13,6 +13,7 @@ mod initialization;
 mod lir;
 mod protocols;
 mod runtime_constructors;
+mod singletons;
 pub use errors::*;
 pub use protocols::CrossConeProtocolImportError;
 
@@ -109,7 +110,9 @@ impl ValidatedCrossConeSemanticClosure {
 
         self.project_initialization_callables(hir.output().local.module(), &mut projected)?;
         self.project_runtime_constructors(hir.output().local.module(), &mut projected)?;
-        SelectedExternalMirSet::try_from_selections(self.current, projected)
+        let objects =
+            self.project_dependency_singletons(hir.output().local.module(), &mut projected)?;
+        SelectedExternalMirSet::try_from_selections(self.current, projected, objects)
             .map_err(CrossConeMirSelectionProjectionError::Selection)
     }
 }

@@ -108,6 +108,9 @@ impl BodyProjection<'_, '_> {
             ExprKind::SingletonValue(value) => {
                 DefaultExpressionKindV1::SingletonValue(self.entities.singleton_id(*value)?)
             }
+            ExprKind::ImportedSingletonValue(value) => {
+                DefaultExpressionKindV1::SingletonValue(*value)
+            }
             ExprKind::Capture(_) => {
                 return Err(
                     super::super::DefaultBodyProjectionError::UnsupportedExpression("capture"),

@@ -14,9 +14,9 @@ primitive 验收包含整数、Boolean 到 `Any` 和已声明接口的转换、�
 
 整数 `div/rem` 通过共有依赖声明解析 `ArithmeticException`，并与强制 `as` 的失败分支共用普通类型、constructor、ABI 与 relocation 路径。只有实际运行点物化异常表示；未使用的默认表达式不产生机器依赖。删除 Managed 整数运算的旧无条件布局门和 MIR 的 Defined core 要求，不另存来源或操作证明。验收覆盖正常除法/余数、signed 边界、除零 catch、默认参数、修改 core 后的默认构造器适配，以及产物的下游链接和移动 GC 运行。
 
-运行时类型转换的失败构造使用前端解析的实际异常类型与 constructor 引用，并沿共有的类型、callable、ABI 和 Link 路径消费。删除由 Cast 反向投影的独立 CastFailure call-site、RuntimeOperationDependency role，以及 reader 对同一目标再按 compiler protocol 进行资格判断的通道；普通源码调用的位置、参数、结果与 typed 引用检查保留。共有 HIR 格式更新为 `hir/cross-cone-interface/27`，原 call-site reason tag 2 与 external-reference role tag 9 退役，不复用；旧产物、profile fingerprint 与缓存重建。该调整不改变转换失败抛出 ClassCastException 的语言行为、runtime C ABI 或 String 表示。
+运行时类型转换的失败构造使用前端解析的实际异常类型与 constructor 引用，并沿共有的类型、callable、ABI 和 Link 路径消费。删除由 Cast 反向投影的独立 CastFailure call-site、RuntimeOperationDependency role，以及 reader 对同一目标再按 compiler protocol 进行资格判断的通道；普通源码调用的位置、参数、结果与 typed 引用检查保留。共有 HIR 格式更新为 `hir/cross-cone-interface/28`，原 call-site reason tag 2 与 external-reference role tag 9 退役，不复用；旧产物、profile fingerprint 与缓存重建。该调整不改变转换失败抛出 ClassCastException 的语言行为、runtime C ABI 或 String 表示。
 
-引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/27`，旧产物与缓存重建，不改变 runtime C ABI。
+引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/28`，旧产物与缓存重建，不改变 runtime C ABI。
 
 M23-6 的实际消费覆盖外来接口类型、父接口、class 虚方法、接口默认方法与动态覆写；真实 provider 源码产生方法和 dispatch 表，下游只消费完整产物，独立与组合 fixture 锁定 HIR/MIR/LIR 并链接运行。 同一产物消费路径须覆盖成员属性赋值、复合赋值、前后缀更新、class/interface setter dispatch，以及 ZST、大值和含引用属性；反例包含不可见 setter、只读属性和不匹配的值类型。
 
@@ -24,17 +24,17 @@ M23-6 的实际消费覆盖外来接口类型、父接口、class 虚方法、�
 
 参数自由依赖class通过共有名义声明取得真实身份、modality、直接父类型和声明序字段，引用类型按GC契约传播，递归引用字段不展开成递归值布局。HIR保留完整声明及解析后的字段、父类型，不重建同名本地声明。外来class构造仍是对真实constructor的typed调用；HIR→MIR消费已选MIR绑定中的ClassInitializer角色，使用共有class分配路径创建对象，再将该对象作为receiver调用实际provider的初始化实现。构造表达式返回分配的对象，物理initializer返回Unit；普通返回class的函数不走构造分支。本地与外来initializer共用Callee表示、参数求值顺序和GC处理。 core默认导入层的构造调用和静态限定名同时查询普通Type/Value binding；用户新增的class、enum和typealias与其他依赖使用相同声明路径，不限于预设内建名字。此能力不增加来源凭证、core分支或runtime ABI，沿用现有类型、MIR绑定及LIR布局格式。 M23-6的真实class运行在单个最终镜像中链接实际产物及runtime；LLVM stackmap段按各对象贡献的完整v3 blob逐个读取，长度由已有count和对齐决定，保留每份格式、记录唯一性与精确PC检查，不增加展开预算。该读取不要求M23-8的多镜像启动或M23-9的program-link。
 
-M23-6 清理默认值逐引用访问证明及仅测试使用的平行完整验证入口。保留前端定义处与继承后的可见性检查、完整 typed 正文和引用索引；producer 直接投影，reader 在边界检查真实引用和跨表关系。默认引用 field 3 退役，`hir/cross-cone-interface/27` 要求旧 `/24` 及更早产物、profile fingerprint 和缓存重建；跨 Cone 默认值实际展开与运行仍是验收要求。
+M23-6 清理默认值逐引用访问证明及仅测试使用的平行完整验证入口。保留前端定义处与继承后的可见性检查、完整 typed 正文和引用索引；producer 直接投影，reader 在边界检查真实引用和跨表关系。默认引用 field 3 退役，`hir/cross-cone-interface/28` 要求旧 `/24` 及更早产物、profile fingerprint 和缓存重建；跨 Cone 默认值实际展开与运行仍是验收要求。
 
-共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/27` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
+共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/28` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
-M23-6 的 enum 模式验收覆盖实际跨 Cone 的 unit／payload 模式、嵌套 tuple、guard、穷尽性、类型别名和定义处默认值，并由第三个 Cone 消费后链接运行。模式与变体测试保留正文中的真实声明引用，不追加构造器访问资格；引用集合更新使用 `hir/cross-cone-interface/27`，旧 `/22` 及更早产物重建。
+M23-6 的 enum 模式验收覆盖实际跨 Cone 的 unit／payload 模式、嵌套 tuple、guard、穷尽性、类型别名和定义处默认值，并由第三个 Cone 消费后链接运行。模式与变体测试保留正文中的真实声明引用，不追加构造器访问资格；引用集合更新使用 `hir/cross-cone-interface/28`，旧 `/22` 及更早产物重建。
 
 canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。
 
 M23-6 的结构签名与字段验收包含实际 tuple 参数／结果、嵌套 tuple 字段、全 ZST 字段、enum tuple payload、成员／getter 及默认值的跨 Cone 编译、发布与运行。普通 callable 已生成的记录直接用于后续 MIR 组装、boxing 和 dispatch，不再生成一份重复绑定后丢弃。
 
-共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/27` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
+共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/28` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
 
 M23-6 的源码消费验收包含跨 Cone struct 主／次构造器、命名／默认参数、ZST 与大值返回 ABI 的独立及组合用例。验收需由真实源码生成 provider 产物、下游生成完整产物并完成对象链接与运行；构造器按真实 typed target 消费既有 MIR/LIR 定义。
 
@@ -269,6 +269,8 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 完成direct/transitive可见性、split package、链式re-export、negative lookup observation及semantic cache失效矩阵；每个成功用例仍产生双view有效artifact。
 
 ### M23-6 跨Cone layout、typed ABI与ZST
+
+外来 object 的实际消费须覆盖类型和值导入、普通成员、初始化中的读取、转导出或默认参数，以及再次发布后的下游消费。源码访问调用提供方的实际 ensure 并读取同一 published-root，链接与移动 GC 验证唯一实例和正常根登记；不复制 foreign storage，也不以额外来源资格替代该闭环。 共有 HIR `/28` 使用新的 SingletonValue 角色 tag 7 保留真实求值位置，旧 `/27` 产物和缓存重建；MIR、LIR 与 runtime 继续消费既有 object/unit/storage 格式。
 
 清理 concretizer 入口的整模块迭代语义重放及其独立 IR/meta 验证实现，删除仅服务该通道的伪造 HIR 测试和修改工厂。保留真实源码的 iterator 选择、类型、effect、默认值、解构和循环控制回归；正常格式与引用检查仍由实际产物边界负责。
 

@@ -24,6 +24,7 @@ enum Kind {
     Representation,
     TypeTest,
     ShapeSupport,
+    Singleton(scoop_identity::PersistentObjectValueId),
     Construct(scoop_identity::PersistentConstructorId),
     VariantConstruct(scoop_identity::PersistentEnumVariantId),
     MemberCall {
@@ -41,6 +42,7 @@ impl Kind {
             Self::Representation => SelectedTypeUseV1::Representation { exact },
             Self::TypeTest => SelectedTypeUseV1::TypeTest { exact },
             Self::ShapeSupport => SelectedTypeUseV1::ShapeSupport { exact },
+            Self::Singleton(value) => SelectedTypeUseV1::SingletonValue { exact, value },
             Self::Construct(declaration) => SelectedTypeUseV1::Construct {
                 exact,
                 declaration: crate::SelectedTypeConstructionV1::Constructor(declaration),
@@ -77,6 +79,7 @@ impl Kind {
                 | SelectedTypeUseV1::Inheritance { .. }
                 | SelectedTypeUseV1::Construct { .. }
                 | SelectedTypeUseV1::MemberCall { .. }
+                | SelectedTypeUseV1::SingletonValue { .. }
         )
     }
 }

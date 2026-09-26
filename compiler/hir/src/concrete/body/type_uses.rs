@@ -6,6 +6,9 @@ impl Expr {
     /// have separate positions in the common executable traversal.
     pub fn type_uses(&self) -> impl Iterator<Item = (Role, TypeId)> {
         let operand = match &self.kind {
+            ExprKind::SingletonValue(_) | ExprKind::ImportedSingletonValue(_) => {
+                Some((Role::SingletonValue, self.ty))
+            }
             ExprKind::SizeOf(ty) => Some((Role::SizeOf, *ty)),
             ExprKind::AlignOf(ty) => Some((Role::AlignOf, *ty)),
             ExprKind::IsInstance { check_ty, .. } | ExprKind::Cast { check_ty, .. } => {

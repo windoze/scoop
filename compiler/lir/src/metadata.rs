@@ -1031,6 +1031,7 @@ impl Global {
             GlobalInit::StringConst { identity, .. } => identity.symbol(),
             GlobalInit::CString { identity, .. } => identity.symbol(),
             GlobalInit::Storage { identity, .. } => identity.symbol(),
+            GlobalInit::ImportedStorage { definition, .. } => definition.symbol(),
         }
     }
 
@@ -1040,7 +1041,7 @@ impl Global {
         match &self.init {
             GlobalInit::StringConst { identity, .. } => Some(identity.symbol_request()),
             GlobalInit::Storage { identity, .. } => Some(identity.symbol_request()),
-            GlobalInit::CString { .. } => None,
+            GlobalInit::CString { .. } | GlobalInit::ImportedStorage { .. } => None,
         }
     }
 }
@@ -1381,6 +1382,11 @@ pub struct EnumFieldRepr {
 
 #[derive(Debug)]
 pub enum GlobalInit {
+    /// Storage defined and registered by an actual dependency provider.
+    ImportedStorage {
+        definition: Box<crate::ExternalShapeLinkImportV1>,
+        ty: LirType,
+    },
     /// A `ScoopString` constant whose header points at the typed String
     /// descriptor selected by `WellKnownTypeDescriptors`.
     StringConst {

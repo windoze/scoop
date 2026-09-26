@@ -374,6 +374,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::Local(_)
         | ExprKind::GlobalRead(_)
         | ExprKind::SingletonValue(_)
+        | ExprKind::ImportedSingletonValue(_)
         | ExprKind::Capture(_)
         | ExprKind::AddressOf(_)
         | ExprKind::FunctionAddress(_)

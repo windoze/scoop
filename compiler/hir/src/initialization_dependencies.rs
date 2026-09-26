@@ -40,11 +40,33 @@ impl HirPropertyInitializationUseV1 {
     }
 }
 
-fn initializer_root(
+pub(crate) fn initializer_root(
     root: CallableMaterialization,
     identities: &ValidatedIdentityGraph,
     local_units: &[PersistentInitializationUnitId],
 ) -> Result<Option<PersistentInitializationUnitId>, Error> {
+    if let scoop_identity::CallableTemplateOwner::Constructor(constructor) = root.template() {
+        let source =
+            identities.canonical_key::<_, scoop_identity::SourceDeclarationKey>(constructor)?;
+        let Some(scoop_identity::DefinitionOwnerAtom::Type(owner)) =
+            source.owners().owners().last()
+        else {
+            return Ok(None);
+        };
+        for unit in local_units {
+            let key =
+                identities.canonical_key::<_, scoop_identity::InitializationUnitKey>(*unit)?;
+            if matches!(key.as_ref(), scoop_identity::InitializationUnitKey::Object(actual)
+                | scoop_identity::InitializationUnitKey::Companion(actual) if actual == owner)
+            {
+                if root.context() != CallableMaterializationContext::NoSubstitution {
+                    return Err(Error::InitializationRootContext(root));
+                }
+                return Ok(Some(*unit));
+            }
+        }
+        return Ok(None);
+    }
     let Some(generated) = root.generated_template() else {
         return Ok(None);
     };

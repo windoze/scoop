@@ -59,6 +59,7 @@ fn with_exports<R>(
             source: hir,
             mir: input,
             ordinary: &ordinary,
+            dependency_objects: &[],
             identities: graph,
         };
         let exports = produce(context, &[&dependencies]).unwrap();

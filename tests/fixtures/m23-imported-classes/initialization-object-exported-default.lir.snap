@@ -1,0 +1,9 @@
+Module
+  fun @scoop$1$cb$acae3628439d3c76a40b26d6c9213fb6a8fd342893b943d180fe56358568f4e2(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn0(param0)
+    store t0 -> local0
+    ret local0
+  output library

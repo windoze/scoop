@@ -141,6 +141,14 @@ impl Lowerer {
                             self.lower_named_value_target(name, target, expected)
                         }
                         ResolvedValueTarget::Dependency(binding)
+                            if matches!(binding.target(), hir::ImportedTarget::ObjectValue(_)) =>
+                        {
+                            let hir::ImportedTarget::ObjectValue(value) = binding.target() else {
+                                unreachable!("a singleton value binding retains its typed target")
+                            };
+                            self.lower_imported_singleton(value.persistent(), name.span)
+                        }
+                        ResolvedValueTarget::Dependency(binding)
                             if matches!(binding.target(), hir::ImportedTarget::EnumVariant(_)) =>
                         {
                             self.lower_imported_variant_binding(&binding, name)

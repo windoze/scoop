@@ -27,7 +27,7 @@ impl Lowerer {
             .ok_or(ImportedSignatureTypeError::Structural)?;
         if matches!(
             declaration.interface.source_shape(),
-            hir::NominalSourceShapeV1::Class(_)
+            hir::NominalSourceShapeV1::Class(_) | hir::NominalSourceShapeV1::Object(_)
         ) {
             return self.imported_class_type(declaration);
         }

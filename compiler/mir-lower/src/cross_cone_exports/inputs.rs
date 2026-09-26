@@ -8,6 +8,7 @@ pub struct MirTypeBridgeExportInputV1<'a> {
     pub source: &'a hir::CrossConeTypeSemanticsSectionV1,
     pub mir: &'a mir::SingleConeStrongMirInput,
     pub ordinary: &'a mir::CrossConeMirBridgeSectionV1,
+    pub dependency_objects: &'a [mir::ParamFreeMirObjectValueV1],
     pub identities: &'a ValidatedIdentityGraph,
 }
 

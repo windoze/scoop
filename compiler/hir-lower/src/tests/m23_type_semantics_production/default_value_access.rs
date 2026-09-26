@@ -5,7 +5,7 @@ fn public_default_values_report_restricted_declaration_occurrences() {
     for (case, expression, kind) in [
         ("private-constructor", "AccessCell(1)", "a constructor"),
         ("private-global", "secret", "a property"),
-        ("private-object", "Secret", "an object"),
+        ("private-object", "Secret", "a type"),
         ("private-field", "this.secret", "a field"),
     ] {
         let source =

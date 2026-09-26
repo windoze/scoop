@@ -24,6 +24,7 @@ impl Lowerer {
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::GlobalRead(_)
             | ExprKind::SingletonValue(_)
+            | ExprKind::ImportedSingletonValue(_)
             | ExprKind::Capture(_)
             | ExprKind::NoneLiteral
             | ExprKind::AddressOf(_)

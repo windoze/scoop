@@ -16,6 +16,7 @@ mod position;
 mod relations;
 mod role;
 mod shapes;
+mod singletons;
 mod table;
 #[cfg(test)]
 mod tests;
@@ -28,6 +29,7 @@ pub use nominals::{HirTypeSiteExactError, collect_type_site_nominals};
 pub use position::{HirCallableTypePositionV1, HirDependencyTypePositionV1};
 pub use relations::HirDependencyTypeRelationError;
 pub use role::HirExpressionTypeRoleV1;
+pub use singletons::HirSingletonUseV1;
 pub use table::{CanonicalHirDependencyTypeSitesV1, DecodedCanonicalHirDependencyTypeSitesV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]

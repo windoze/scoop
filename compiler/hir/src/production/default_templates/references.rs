@@ -73,7 +73,12 @@ pub(super) fn project(
     let mut singleton_values = Vec::with_capacity(references.singleton_values.len());
     for reference in &references.singleton_values {
         singleton_values.push(ExportDefaultReferenceV1::new(
-            entities.singleton_id(reference.target)?,
+            match reference.target {
+                crate::ExportDefaultSingletonTarget::Local(value) => {
+                    entities.singleton_id(value)?
+                }
+                crate::ExportDefaultSingletonTarget::Imported(value) => value,
+            },
             origin(entities.export(), reference.origin)?,
         ));
     }

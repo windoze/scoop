@@ -1,0 +1,6 @@
+Module
+  fun primary(holder: SharedHolder): Counter
+    return
+      ImportedDependencyCall #0 : Counter
+        Local holder : SharedHolder
+  output library

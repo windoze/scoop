@@ -195,19 +195,13 @@ impl ReferenceCollector<'_> {
 
     pub(super) fn singleton_value(
         &mut self,
-        target: hir::SingletonValueId,
+        target: hir::ExportDefaultSingletonTarget,
         origin: hir::DefinitionOrigin,
     ) {
-        let object = self.lowerer.singleton_values[target].declaration;
-        let target_domain = self.lowerer.objects[object].access.lookup.0.clone();
-        let target_domain = self.checked_target_domain(target_domain, origin, "an object");
+        // The expression's type reference already covers the object's shared visibility.
         self.references
             .singleton_values
-            .push(hir::ExportDefaultSingletonValueRef {
-                target,
-                target_domain,
-                origin,
-            });
+            .push(hir::ExportDefaultSingletonValueRef { target, origin });
     }
 
     pub(super) fn record_field(&mut self, target: hir::FieldRef, origin: hir::DefinitionOrigin) {

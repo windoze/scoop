@@ -4,6 +4,15 @@ impl Graph<'_> {
     pub(super) fn roots(&mut self) -> Result<(), Error> {
         let path = WirePath::root().field(8);
         self.calls()?;
+        for usage in self
+            .current
+            .public
+            .external_references()
+            .materialized_singleton_uses(self.current.provider, self.current.identities)
+            .map_err(|error| Error::TypeUseRelations(Box::new(error)))?
+        {
+            self.select(usage.owner, Kind::Singleton(usage.value))?;
+        }
         for (_, owner) in self
             .current
             .public

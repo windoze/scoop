@@ -46,6 +46,15 @@ impl ImportedDependencySelectionPlan {
     pub fn nominal(&self, id: PersistentTypeId) -> Option<&Arc<ImportedNominalDeclaration>> {
         self.catalog.nominals.get(&id)
     }
+
+    pub fn singleton_owner(
+        &self,
+        value: scoop_identity::PersistentObjectValueId,
+    ) -> Option<&Arc<ImportedNominalDeclaration>> {
+        self.catalog.nominals.values().find(|declaration| {
+            matches!(declaration.interface.source_shape(), crate::NominalSourceShapeV1::Object(shape) if shape.value() == value)
+        })
+    }
 }
 
 pub(super) fn declarations(

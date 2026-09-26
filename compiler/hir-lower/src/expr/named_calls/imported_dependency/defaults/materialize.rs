@@ -101,6 +101,7 @@ impl Lowerer {
 
         use hir::DefaultExpressionKindV1 as Kind;
         let kind = match expression.kind() {
+            Kind::SingletonValue(value) => hir::ExprKind::ImportedSingletonValue(*value),
             Kind::ReferenceUpcast(operand) => hir::ExprKind::ReferenceUpcast(Box::new(
                 self.materialize_imported_default_expression(operand, context)?,
             )),
@@ -344,7 +345,6 @@ impl Lowerer {
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
-            | Kind::SingletonValue(_)
             | Kind::Lambda(_)
             | Kind::AnonymousFunction(_)
             | Kind::CallableReference(_)

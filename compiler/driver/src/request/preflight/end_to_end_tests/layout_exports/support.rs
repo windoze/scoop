@@ -185,6 +185,7 @@ pub(super) fn with_pair(
         source: &source,
         mir: &mir.strong,
         ordinary: &mir.public,
+        dependency_objects: mir.selected_callables.objects(),
         identities: &graph,
     };
     let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {

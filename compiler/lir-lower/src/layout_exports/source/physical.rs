@@ -67,6 +67,17 @@ pub(super) fn project(input: LayoutAbiExportInputV1<'_>) -> Result<Vec<RequiredI
     }
 
     for (_, global) in module.globals.iter() {
+        if let lir::GlobalInit::ImportedStorage { definition, .. } = &global.init {
+            push(
+                &mut imports,
+                RequiredImport {
+                    provider: definition.provider(),
+                    subject: definition.subject(),
+                    symbol: definition.expected_symbol(),
+                    definition: definition.required_definition(),
+                },
+            )?;
+        }
         if let lir::GlobalInit::Storage {
             layout: lir::StaticStorageLayout::External(value),
             ..

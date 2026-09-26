@@ -140,6 +140,7 @@ impl<'a> Traversal<'a> {
             | ExprKind::Local(_)
             | ExprKind::GlobalRead(_)
             | ExprKind::SingletonValue(_)
+            | ExprKind::ImportedSingletonValue(_)
             | ExprKind::Capture(_)
             | ExprKind::AddressOf(_)
             | ExprKind::SizeOf(_)

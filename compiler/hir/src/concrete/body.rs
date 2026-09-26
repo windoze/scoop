@@ -218,6 +218,7 @@ pub enum ExprKind {
     Local(LocalId),
     GlobalRead(GlobalId),
     SingletonValue(SingletonValueId),
+    ImportedSingletonValue(scoop_identity::PersistentObjectValueId),
     Capture(BindingId),
     Lambda(LambdaId),
     AnonymousFunction(AnonymousFunctionId),

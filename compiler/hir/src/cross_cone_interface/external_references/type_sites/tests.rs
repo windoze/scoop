@@ -28,6 +28,7 @@ fn expression_type_occurrences_preserve_typed_roots_origins_and_roles() {
         HirExpressionTypeRoleV1::TypeTest,
         HirExpressionTypeRoleV1::ArrayElement,
         HirExpressionTypeRoleV1::BoxedValue,
+        HirExpressionTypeRoleV1::SingletonValue,
     ]
     .into_iter()
     .enumerate()
@@ -42,7 +43,7 @@ fn expression_type_occurrences_preserve_typed_roots_origins_and_roles() {
         let decoded: DecodedHirDependencyTypeSiteV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.resolve(&mut fixture.graph()).unwrap(), original);
     }
-    assert!(decode_canonical::<HirExpressionTypeRoleV1>(&[7]).is_err());
+    assert!(decode_canonical::<HirExpressionTypeRoleV1>(&[8]).is_err());
 }
 
 #[test]

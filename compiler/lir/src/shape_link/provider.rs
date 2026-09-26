@@ -103,6 +103,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
             provider: self.provider(),
             subject,
             expected_symbol: physical.symbol(),
+            symbol: physical.symbol().symbol(),
             required_definition: physical.definition(),
             contract,
         };

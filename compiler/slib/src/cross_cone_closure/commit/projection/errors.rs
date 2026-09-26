@@ -11,6 +11,11 @@ pub enum CrossConeMirSelectionProjectionError {
     Expressions(scoop_hir::concrete::ExecutableExpressionStructureError),
     RuntimeConstructorKind(scoop_hir::ImportedCoreProtocolCallableDefinition),
     InitializationFunctionKind(scoop_hir::ImportedCoreProtocolCallableDefinition),
+    MissingSingleton {
+        provider: ConeIdentity,
+        value: scoop_identity::PersistentObjectValueId,
+    },
+    SingletonType(scoop_identity::PersistentObjectValueId),
     ConsumerMismatch {
         closure: ConeIdentity,
         selected: ConeIdentity,
@@ -37,6 +42,14 @@ pub enum CrossConeMirSelectionProjectionError {
 impl fmt::Display for CrossConeMirSelectionProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingSingleton { provider, value } => write!(
+                formatter,
+                "provider {provider} has no MIR object value {value}"
+            ),
+            Self::SingletonType(value) => write!(
+                formatter,
+                "dependency singleton {value} has an inconsistent result type"
+            ),
             Self::Resource(source) => source.fmt(formatter),
             Self::Occurrences(source) => source.fmt(formatter),
             Self::Expressions(source) => source.fmt(formatter),
@@ -88,6 +101,7 @@ impl std::error::Error for CrossConeMirSelectionProjectionError {
             Self::Expressions(source) => Some(source),
             Self::RuntimeConstructorKind(_) => None,
             Self::InitializationFunctionKind(_) => None,
+            Self::MissingSingleton { .. } | Self::SingletonType(_) => None,
             Self::Record(source) => Some(source),
             Self::Selection(source) => Some(source),
             Self::ConsumerMismatch { .. }

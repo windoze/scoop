@@ -87,6 +87,7 @@ impl Lowerer {
             }
             | Kind::IntegerLiteral(_)
             | Kind::BooleanLiteral(_)
+            | Kind::SingletonValue(_)
             | Kind::UnitLiteral => Ok(()),
             Kind::StringLiteral {
                 owner: hir::DefaultStringOwnerV1::Property(_),
@@ -236,7 +237,6 @@ impl Lowerer {
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
             | Kind::GlobalRead(_)
-            | Kind::SingletonValue(_)
             | Kind::SizeOf(_)
             | Kind::AlignOf(_)
             | Kind::FieldAccess { .. }

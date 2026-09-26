@@ -63,7 +63,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, self.local_pointer(*local)?.into());
             }
             Instruction::GlobalLoad { out, global } => {
-                let GlobalInit::Storage { ty: storage_ty, .. } = &self.globals_arena[*global].init
+                let (GlobalInit::Storage { ty: storage_ty, .. }
+                | GlobalInit::ImportedStorage { ty: storage_ty, .. }) =
+                    &self.globals_arena[*global].init
                 else {
                     return Err(CodegenError(format!(
                         "global load @{} targets non-storage global `{}`",
@@ -122,7 +124,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::GlobalAddress { out, global } => {
                 let global_def = &self.globals_arena[*global];
-                let GlobalInit::Storage { ty, .. } = &global_def.init else {
+                let (GlobalInit::Storage { ty, .. } | GlobalInit::ImportedStorage { ty, .. }) =
+                    &global_def.init
+                else {
                     return Err(CodegenError(format!(
                         "global_address @{} targets non-storage global `{}`",
                         function.symbol(),

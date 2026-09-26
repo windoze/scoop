@@ -15,7 +15,9 @@ impl Lowerer {
                 Some(*target)
             }
             ValueOrigin::Dependency(binding) => match binding.target() {
-                hir::ImportedTarget::Property(_) | hir::ImportedTarget::EnumVariant(_) => None,
+                hir::ImportedTarget::Property(_)
+                | hir::ImportedTarget::EnumVariant(_)
+                | hir::ImportedTarget::ObjectValue(_) => None,
                 target => Some(NonValueTarget::ImportedDependency(target)),
             },
             ValueOrigin::CurrentUnit(_)

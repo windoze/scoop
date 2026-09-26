@@ -78,7 +78,9 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
                 .iter()
                 .map(|(_, global)| match &global.init {
                     GlobalInit::Storage { identity, .. } => identity.identity_record().clone(),
-                    GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => unreachable!(),
+                    GlobalInit::CString { .. }
+                    | GlobalInit::StringConst { .. }
+                    | GlobalInit::ImportedStorage { .. } => unreachable!(),
                 })
                 .collect(),
         )

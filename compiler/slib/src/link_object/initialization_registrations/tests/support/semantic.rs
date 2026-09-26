@@ -92,7 +92,9 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
                 .iter()
                 .map(|(_, global)| match &global.init {
                     GlobalInit::Storage { identity, .. } => identity.identity_record().clone(),
-                    GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => unreachable!(),
+                    GlobalInit::CString { .. }
+                    | GlobalInit::StringConst { .. }
+                    | GlobalInit::ImportedStorage { .. } => unreachable!(),
                 })
                 .collect(),
         )

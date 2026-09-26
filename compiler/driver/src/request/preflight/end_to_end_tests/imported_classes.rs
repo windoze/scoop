@@ -166,6 +166,27 @@ fn runtime_cast_failures_use_the_providers_default_constructor_adapter() {
     );
 }
 
+#[test]
+fn dependency_singletons_initialize_through_actual_artifacts() {
+    check_class_cases(
+        "direct",
+        &[
+            "initialization-object-value",
+            "initialization-imported-object",
+            "initialization-object-default",
+            "initialization-object-exported-default",
+            "initialization-object-dispatch",
+            "initialization-object-zst",
+            "initialization-object-reexport",
+        ],
+        &[
+            "initialization-object-no-gc",
+            "initialization-object-wrong-identity",
+            "initialization-object-internal",
+        ],
+    );
+}
+
 fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]) {
     let target =
         resolved_target().expect("the production test requires the configured LLVM target");
@@ -246,12 +267,18 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
     std::fs::rename(core_source.join("src"), core_source.join("unused-source")).unwrap();
     let provider_root = sysroot.path().join("provider");
     let coordinate = ConeCoordinate::new("dev.example", "class-provider", "0.1.0").unwrap();
+    let mut provider_source = source("provider");
+    if cases.iter().any(|case| {
+        case.starts_with("initialization-object-") || *case == "initialization-imported-object"
+    }) {
+        provider_source.push_str(&source("initialization-provider"));
+    }
     write_manifest_cone(
         &provider_root,
         "dev.example",
         "class-provider",
         "library",
-        &source("provider"),
+        &provider_source,
     );
     let provider = build_manifest(
         sysroot.path(),
@@ -310,7 +337,11 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
             "dev.example",
             &name,
             "library",
-            &source("downstream"),
+            &source(if *case == "initialization-object-reexport" {
+                "initialization-object-downstream"
+            } else {
+                "downstream"
+            }),
         );
         write_dependency_manifest(&root, &name, &[&coordinate, &consumer]);
         let downstream = build_manifest_request(
@@ -332,6 +363,7 @@ fn check_class_cases(cast_variant: &str, cases: &[&str], negative_cases: &[&str]
             &runtime,
             &fixtures,
             &sysroot.path().join(format!("run-{case}")),
+            case,
         );
     }
     for case in negative_cases {

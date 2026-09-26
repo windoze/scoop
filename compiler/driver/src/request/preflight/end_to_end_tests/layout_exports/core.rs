@@ -238,6 +238,7 @@ fn check_core_layout_exports(names: &[&str]) {
             source: &source,
             mir: &mir.strong,
             ordinary: &mir.public,
+            dependency_objects: mir.selected_callables.objects(),
             identities: &identities,
         };
         let bridge = scoop_mir_lower::lower_type_bridge_exports(

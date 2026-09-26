@@ -1,0 +1,24 @@
+Module
+  global0 $singleton$d69ebf4d707d2b06b37afcfb470bcab38a61eae9d6bb2d02df62d86a0a7db5f2: SharedMethods imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=0b8320e399b8a6ca42c4dd1ddddddf6281e9d59c9d05fc7a9bde23e5638149e6
+  struct Token ()
+  class SharedMethods vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call external2 direct
+      val $dependency.receiver: SharedMethods
+        Type SharedMethods
+        GlobalRead $singleton$d69ebf4d707d2b06b37afcfb470bcab38a61eae9d6bb2d02df62d86a0a7db5f2
+      call $dependency.argument.0: Token = external0 direct
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.1: Counter = external1 direct
+        Type SharedMethods
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.marker
+      return
+        Type Counter
+        Local $call.1
+  output library

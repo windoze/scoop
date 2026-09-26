@@ -7,6 +7,18 @@ pub(super) fn project(
     let provider = input.mir.module().cone;
     let references = input.public.external_references();
     let mut uses = Vec::new();
+    for usage in references
+        .materialized_singleton_uses(provider, input.identities)
+        .map_err(|error| Error::SharedTypeOccurrences(Box::new(error)))?
+    {
+        push(
+            &mut uses,
+            mir::MirTypeBridgeDependencyV1::new(
+                usage.provider,
+                mir::MirTypeBridgeTargetV1::Object(usage.value),
+            ),
+        )?;
+    }
     for (provider, exact) in references
         .materialized_type_dependencies(provider, input.identities)
         .map_err(|error| Error::SharedTypeOccurrences(Box::new(error)))?

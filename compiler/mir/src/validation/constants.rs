@@ -34,7 +34,7 @@ pub(super) fn validate_constant_images(module: &Module) -> Result<(), MirValidat
         let initial_state = match &global.storage {
             GlobalStorage::Managed { initial_state }
             | GlobalStorage::Local { initial_state, .. } => initial_state,
-            GlobalStorage::Extern { .. } => continue,
+            GlobalStorage::Extern { .. } | GlobalStorage::Imported { .. } => continue,
         };
         let MirStaticInitialState::EncodedStaticValue { payload } = initial_state else {
             continue;

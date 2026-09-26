@@ -1,0 +1,13 @@
+Module
+  fun primary(): Counter
+    val local0
+      ImportedSingletonValue d69ebf4d707d2b06b37afcfb470bcab38a61eae9d6bb2d02df62d86a0a7db5f2 : SharedMethods
+    val local1
+      ImportedDependencyCall #0 : Token
+    val local2
+      Local $dependency.argument.0 : Token
+    return
+      ImportedDependencyCall #1 : Counter
+        Local $dependency.receiver : SharedMethods
+        Local $dependency.parameter.marker : Token
+  output library

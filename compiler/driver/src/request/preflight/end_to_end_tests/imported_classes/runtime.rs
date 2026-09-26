@@ -39,6 +39,7 @@ pub(super) fn check(
     runtime: &Path,
     fixtures: &Path,
     directory: &Path,
+    case: &str,
 ) {
     let bytes = artifacts.map(|artifact| std::fs::read(artifact.artifact().path()).unwrap());
     let identities = artifacts.map(|artifact| {
@@ -71,6 +72,23 @@ pub(super) fn check(
     let mut globals = Vec::new();
     for (index, identity) in identities.iter().enumerate() {
         let (sections, link) = closure.artifact(*identity).unwrap();
+        if index == 2 && case == "initialization-imported-object" {
+            let object_uses = sections
+                .mir_type_bridge()
+                .exports()
+                .initialization_uses()
+                .records()
+                .iter()
+                .filter(|usage| {
+                    matches!(
+                        usage.cause(),
+                        scoop_mir::MirExternalInitializationCauseV1::ObjectValue(_)
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(object_uses.len(), 1);
+            assert_eq!(object_uses[0].provider(), identities[1]);
+        }
         for descriptor in sections.lir_exports().descriptors().records() {
             assert!(
                 descriptors

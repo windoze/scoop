@@ -183,6 +183,7 @@ pub fn lower(
         output,
         Arena::new(),
         HashMap::new(),
+        Vec::new(),
     ))
 }
 
@@ -193,6 +194,7 @@ fn lower_with_dependencies(
         hir::ImportedDependencyCallableUseId,
         (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
     >,
+    imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
 ) -> mir::Module {
     let module = output.module();
     let shape_support = output.materialization().roots();
@@ -217,6 +219,8 @@ fn lower_with_dependencies(
         singleton_values: Arena::new(),
         singleton_published_roots: Arena::new(),
         singleton_root_map: HashMap::new(),
+        imported_singletons,
+        imported_singleton_map: HashMap::new(),
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
         foreign_callback_adapters: Arena::new(),
@@ -309,6 +313,11 @@ struct Lowerer {
     singleton_values: Arena<mir::SingletonValue>,
     singleton_published_roots: Arena<mir::SingletonPublishedRoot>,
     singleton_root_map: HashMap<hir::SingletonPublishedRootId, mir::SingletonPublishedRootId>,
+    imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
+    imported_singleton_map: HashMap<
+        scoop_identity::PersistentObjectValueId,
+        (mir::ExternalCallableUseId, mir::GlobalId),
+    >,
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,

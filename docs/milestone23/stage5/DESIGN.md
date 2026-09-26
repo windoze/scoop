@@ -2,7 +2,7 @@
 
 删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
 
-共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/27` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
+共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/28` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
 
 M23-6 版本衔接：core 与普通依赖共用实际 provider 和 typed target 查询，独立 core requirement 闭包与 CoreStrong tag 2 已退役。当前 `link-identity-closure/3` 使用实际符号和 relocation 合同；旧产物需要重建。不同消费用途复用已有记录，移除按历史表分区授予或拒绝来源资格的规则。
 
@@ -235,7 +235,7 @@ required_manifest = [
 
 required_hir = [
   org.scoop-lang.hir/core-bootstrap-interface/4,
-  org.scoop-lang.hir/cross-cone-interface/27,
+  org.scoop-lang.hir/cross-cone-interface/28,
   org.scoop-lang.hir/identity-foundation/3,
 ]
 
@@ -269,7 +269,7 @@ validation_policy   = {
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
-| `org.scoop-lang.hir/cross-cone-interface/27` | HIR | Compile | HIR |
+| `org.scoop-lang.hir/cross-cone-interface/28` | HIR | Compile | HIR |
 | `org.scoop-lang.mir/cross-cone-param-free-bridge/2` | MIR | Compile | MIR |
 | `org.scoop-lang.lir/cross-cone-param-free-bridge/1` | LIR | Compile | LIR |
 | `org.scoop-lang.lir/cross-cone-link-closure/1` | LIR | Link | Code + LinkValidationOnly |
@@ -1391,7 +1391,7 @@ provider-scope application不会被错误合并。tuple field是合法的structu
 callable target的八种wire均为`{0:tag,1:payload}`。reader不得排序修复、按显示名合并target，或把
 不同definition origin的两次绑定折成一条记录。
 
-默认值引用是普通依赖索引：六类记录各保留真实 typed target 与 definition origin，正文与索引在读取边界核对一次。定义处的名称、类型、effect 与调用域覆盖规则由前端负责；继承默认值遇到类型代换或调用域扩大时检查实际变化，未变化的事实直接复用。producer 不重建访问域，reader 不再分别重放 type、value、callable 与 direct/slot 的访问证明；产物仍检查实际 provider、typed 引用、owner/binder 范围、局部值范围及跨表一致性。字段、构造器与全局值引用在共有 reader 边界对照已解析声明的实际 owner、种类和作用域；局部函数引用必须对应正文携带的声明。复用已验证的身份图与正文索引，不重新推导访问域。默认引用 record 采用两字段 map，field 1=target、field 2=definition_origin；旧 witness 的 field 3 退役且不复用。共有接口升级为 `hir/cross-cone-interface/27`，旧 `/24` 及更早产物与缓存重建，profile 与内容 fingerprint 同步更新。运行时 C ABI、String 表示及必要 GC 契约不变。
+默认值引用是普通依赖索引：六类记录各保留真实 typed target 与 definition origin，正文与索引在读取边界核对一次。定义处的名称、类型、effect 与调用域覆盖规则由前端负责；继承默认值遇到类型代换或调用域扩大时检查实际变化，未变化的事实直接复用。producer 不重建访问域，reader 不再分别重放 type、value、callable 与 direct/slot 的访问证明；产物仍检查实际 provider、typed 引用、owner/binder 范围、局部值范围及跨表一致性。字段、构造器与全局值引用在共有 reader 边界对照已解析声明的实际 owner、种类和作用域；局部函数引用必须对应正文携带的声明。复用已验证的身份图与正文索引，不重新推导访问域。默认引用 record 采用两字段 map，field 1=target、field 2=definition_origin；旧 witness 的 field 3 退役且不复用。共有接口升级为 `hir/cross-cone-interface/28`，旧 `/24` 及更早产物与缓存重建，profile 与内容 fingerprint 同步更新。运行时 C ABI、String 表示及必要 GC 契约不变。
 
 reference set必须与template locals及body在优化、const folding和desugaring前直接绑定的typed引用按
 上述record identity形成双向精确闭包：缺项、多余项或错误definition origin均拒绝。body traversal

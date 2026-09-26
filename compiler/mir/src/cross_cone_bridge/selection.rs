@@ -33,6 +33,7 @@ impl SelectedExternalMirCallableRef {
 pub struct SelectedExternalMirSet {
     consumer: ConeIdentity,
     callables: Vec<SelectedExternalMirCallable>,
+    objects: Vec<crate::ParamFreeMirObjectValueV1>,
 }
 
 impl SelectedExternalMirSet {
@@ -42,6 +43,7 @@ impl SelectedExternalMirSet {
         Self {
             consumer,
             callables: Vec::new(),
+            objects: Vec::new(),
         }
     }
 
@@ -65,12 +67,14 @@ impl SelectedExternalMirSet {
                 .into_iter()
                 .map(SelectedExternalMirCallable::dependency)
                 .collect(),
+            Vec::new(),
         )
     }
 
     pub fn try_from_selections(
         consumer: ConeIdentity,
         mut selected: Vec<SelectedExternalMirCallable>,
+        mut objects: Vec<crate::ParamFreeMirObjectValueV1>,
     ) -> Result<Self, SelectedExternalMirSetBuildError> {
         selected.sort_unstable_by_key(|callable| (callable.provider(), callable.implementation()));
         if let Some(callable) = selected
@@ -90,9 +94,24 @@ impl SelectedExternalMirSet {
                 implementation: pair[0].implementation(),
             });
         }
+        objects.sort_unstable_by_key(crate::ParamFreeMirObjectValueV1::value);
+        if let Some(object) = objects.iter().find(|object| object.provider() == consumer) {
+            return Err(SelectedExternalMirSetBuildError::SelectedCurrentProvider {
+                provider: object.provider(),
+            });
+        }
+        if let Some(pair) = objects
+            .windows(2)
+            .find(|pair| pair[0].value() == pair[1].value())
+        {
+            return Err(SelectedExternalMirSetBuildError::DuplicateObject(
+                pair[0].value(),
+            ));
+        }
         Ok(Self {
             consumer,
             callables: selected,
+            objects,
         })
     }
 
@@ -103,6 +122,10 @@ impl SelectedExternalMirSet {
     /// Complete selection, including compiler-service roles.
     pub fn callables(&self) -> &[SelectedExternalMirCallable] {
         &self.callables
+    }
+
+    pub fn objects(&self) -> &[crate::ParamFreeMirObjectValueV1] {
+        &self.objects
     }
 
     /// Constructs a MIR arena value with the caller's GC effect. LIR checks
@@ -160,6 +183,7 @@ impl SelectedExternalMirSet {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectedExternalMirSetBuildError {
+    DuplicateObject(scoop_identity::PersistentObjectValueId),
     SelectedCurrentProvider {
         provider: ConeIdentity,
     },
@@ -172,6 +196,9 @@ pub enum SelectedExternalMirSetBuildError {
 impl fmt::Display for SelectedExternalMirSetBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DuplicateObject(value) => {
+                write!(formatter, "external MIR selection repeats object {value}")
+            }
             Self::SelectedCurrentProvider { provider } => write!(
                 formatter,
                 "external MIR selection names current Cone {provider} as an external provider"

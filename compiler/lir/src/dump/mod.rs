@@ -12,6 +12,13 @@ pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (_, global) in module.globals.iter() {
         match &global.init {
+            GlobalInit::ImportedStorage { definition, ty } => out.push_str(&format!(
+                "  imported_global @{} : {} provider={} scan={}\n",
+                global.symbol(),
+                ty.dump(),
+                definition.provider(),
+                global.scan.dump()
+            )),
             GlobalInit::StringConst { value, .. } => {
                 out.push_str(&format!("  global @{} = {:?}\n", global.symbol(), value));
             }

@@ -66,6 +66,7 @@ pub(super) fn assemble(
         source: &source,
         mir: &mir.strong,
         ordinary: &mir.public,
+        dependency_objects: mir.selected_callables.objects(),
         identities: &identities,
     };
     let mir_exports = scoop_mir_lower::lower_type_bridge_exports(

@@ -13,6 +13,10 @@ mod statements;
 
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {
+    pub(super) imported_singleton_map: &'a HashMap<
+        scoop_identity::PersistentObjectValueId,
+        (mir::ExternalCallableUseId, mir::GlobalId),
+    >,
     pub(super) module: &'a hir::Module,
     pub(super) core_protocols: &'a hir::ConcreteCoreProtocols,
     pub(super) source_exact_types: &'a mut SourceExactTypeRegistry,

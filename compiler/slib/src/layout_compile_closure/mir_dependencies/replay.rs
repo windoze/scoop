@@ -37,6 +37,18 @@ pub fn replay_shared_mir_dependency_graph(
             mir::MirTypeBridgeTargetV1::ShapeSupport(owner),
         )
     }));
+    committed.extend(
+        references
+            .materialized_singleton_uses(source.provider, source.identities)
+            .map_err(|error| Error::TypeOccurrences(Box::new(error)))?
+            .into_iter()
+            .map(|usage| {
+                mir::MirTypeBridgeDependencyV1::new(
+                    usage.provider,
+                    mir::MirTypeBridgeTargetV1::Object(usage.value),
+                )
+            }),
+    );
 
     for reference in references.records() {
         if !reference

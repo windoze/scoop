@@ -78,6 +78,9 @@ impl Lowerer {
             hir::ExprKind::Local(_) => unreachable!("local reads return before kind cloning"),
             hir::ExprKind::GlobalRead(global) => hir::ExprKind::GlobalRead(*global),
             hir::ExprKind::SingletonValue(value) => hir::ExprKind::SingletonValue(*value),
+            hir::ExprKind::ImportedSingletonValue(value) => {
+                hir::ExprKind::ImportedSingletonValue(*value)
+            }
             hir::ExprKind::Capture(binding) => hir::ExprKind::Capture(*binding),
             hir::ExprKind::Lambda(lambda) => {
                 hir::ExprKind::Lambda(self.instantiate_default_lambda(*lambda, context))

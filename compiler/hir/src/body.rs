@@ -285,6 +285,8 @@ pub enum ExprKind {
     GlobalRead(GlobalId),
     /// Read the unique value after passing its exactly-once gate.
     SingletonValue(SingletonValueId),
+    /// Read the defining Cone's singleton through its actual object declaration.
+    ImportedSingletonValue(scoop_identity::PersistentObjectValueId),
     /// Read one immutable binding from the current closure environment. The
     /// binding identity is resolved to a concrete field by closure conversion.
     Capture(BindingId),

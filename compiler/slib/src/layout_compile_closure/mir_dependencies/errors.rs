@@ -13,6 +13,7 @@ pub enum SharedMirDependencyGraphError {
     InitializationUse(Box<mir::MirObjectBridgeError>),
     InitializationUseInventory,
     MissingInitializationUnit(scoop_identity::PersistentInitializationUnitId),
+    MissingObjectUnit(scoop_identity::PersistentObjectValueId),
     Mir(Box<mir::MirTypeBridgeSectionError>),
 }
 

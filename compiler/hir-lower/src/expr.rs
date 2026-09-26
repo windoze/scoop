@@ -68,6 +68,7 @@ mod imported_callables;
 mod imported_constants;
 mod imported_origins;
 mod imported_properties;
+mod imported_singletons;
 mod named_calls;
 pub(crate) use imported_properties::{
     ImportedDependencyExtensionPropertyProbe, ResolvedImportedMemberProperty,

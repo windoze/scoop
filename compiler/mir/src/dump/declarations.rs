@@ -5,6 +5,9 @@ pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
+            GlobalStorage::Imported { provider, storage } => {
+                format!("imported provider={provider} storage={storage}")
+            }
             GlobalStorage::Managed { initial_state } => format!(
                 "managed initial={}",
                 static_initial_state_name(module, initial_state)

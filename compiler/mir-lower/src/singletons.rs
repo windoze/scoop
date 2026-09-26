@@ -1,6 +1,64 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn lower_imported_singletons(&mut self, module: &hir::Module) {
+        if self.imported_singletons.is_empty() {
+            return;
+        }
+        Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        }
+        .lower(
+            module.unit,
+            &mut self.source_exact_types,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        for (object, ensure) in std::mem::take(&mut self.imported_singletons) {
+            let source_type = module
+                .exact_type_identities
+                .type_for_identity(object.read().object())
+                .expect("a selected singleton retains its actual HIR type");
+            let scoop_identity::ExactTypeKey::Nominal(owner) =
+                module.exact_type_identities[source_type].key()
+            else {
+                unreachable!("a singleton has its source nominal exact identity")
+            };
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let ty = types.lower(
+                source_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let global = self.globals.alloc(mir::Global {
+                name: format!("$singleton${}", object.value()),
+                storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(*owner),
+                ty,
+                mutable: false,
+                storage: mir::GlobalStorage::Imported {
+                    provider: object.provider(),
+                    storage: scoop_identity::PersistentStaticStorageId::from_key(
+                        &scoop_identity::StaticStorageKey::singleton_published_root(*owner),
+                    )
+                    .expect("a singleton storage key is encodable"),
+                },
+            });
+            self.imported_singleton_map
+                .insert(object.value(), (ensure, global));
+        }
+    }
+
     pub(super) fn lower_singletons(&mut self, module: &hir::Module) {
         for (source_id, source) in module.object_types.iter() {
             let representation = self.class_map[&source.representation];

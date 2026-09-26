@@ -60,7 +60,12 @@ pub(in crate::request::preflight) fn collect_mir_references(
         .module()
         .globals
         .iter()
-        .filter(|(_, global)| !matches!(global.storage, mir::GlobalStorage::Extern { .. }))
+        .filter(|(_, global)| {
+            !matches!(
+                global.storage,
+                mir::GlobalStorage::Extern { .. } | mir::GlobalStorage::Imported { .. }
+            )
+        })
         .map(|(_, global)| &global.ty)
         .chain(
             matches!(input.module().output, mir::MirOutput::Executable { .. })
@@ -108,5 +113,14 @@ pub(in crate::request::preflight) fn collect_mir_references(
             lir::ExternalStrongShapeSubjectV1::Scan(layout.scan()),
         ));
     }
+    physical.extend(input.module().globals.iter().filter_map(|(_, global)| {
+        let mir::GlobalStorage::Imported { provider, storage } = global.storage else {
+            return None;
+        };
+        Some((
+            provider,
+            lir::ExternalStrongShapeSubjectV1::StaticStorage(storage),
+        ))
+    }));
     Ok(())
 }

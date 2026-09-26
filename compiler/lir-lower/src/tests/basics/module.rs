@@ -73,7 +73,7 @@ fn lowers_hello_world() {
             lir::GlobalInit::StringConst { value, .. } | lir::GlobalInit::CString { value, .. } => {
                 Some((g.symbol(), value.as_str()))
             }
-            lir::GlobalInit::Storage { .. } => None,
+            lir::GlobalInit::Storage { .. } | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect();
     assert_eq!(
@@ -88,7 +88,9 @@ fn lowers_hello_world() {
         .iter()
         .filter_map(|(_, global)| match &global.init {
             lir::GlobalInit::StringConst { identity, .. } => Some(identity.identity_record()),
-            lir::GlobalInit::CString { .. } | lir::GlobalInit::Storage { .. } => None,
+            lir::GlobalInit::CString { .. }
+            | lir::GlobalInit::Storage { .. }
+            | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -107,7 +109,8 @@ fn lowers_hello_world() {
             }
             lir::GlobalInit::Storage { .. }
             | lir::GlobalInit::StringConst { .. }
-            | lir::GlobalInit::CString { .. } => None,
+            | lir::GlobalInit::CString { .. }
+            | lir::GlobalInit::ImportedStorage { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(failure_roots.len(), 1);

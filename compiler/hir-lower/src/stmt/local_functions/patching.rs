@@ -327,6 +327,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::InitializingStructFieldAccess { .. }
         | hir::ExprKind::GlobalRead(_)
         | hir::ExprKind::SingletonValue(_)
+        | hir::ExprKind::ImportedSingletonValue(_)
         | hir::ExprKind::Capture(_)
         | hir::ExprKind::Lambda(_)
         | hir::ExprKind::AnonymousFunction(_)

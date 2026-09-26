@@ -165,13 +165,12 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     assert_eq!(template.references.singleton_values.len(), 1);
     assert_eq!(
         template.references.singleton_values[0].target,
-        object.singleton_value
+        hir::ExportDefaultSingletonTarget::Local(object.singleton_value)
     );
-    assert!(
-        template.references.singleton_values[0]
-            .target_domain
-            .is_universal()
-    );
+    assert!(template.references.types.iter().any(|reference| {
+        reference.target == hir::ExportDefaultTypeTarget::Type(object_type.canonical_type)
+            && reference.target_domain.is_universal()
+    }));
 
     assert!(module.public_surface.objects.contains(&object_id));
     assert!(

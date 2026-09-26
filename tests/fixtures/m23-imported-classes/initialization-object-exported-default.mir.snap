@@ -1,0 +1,12 @@
+Module
+  class SharedHolder vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0(holder: SharedHolder) -> Counter
+    bb0 entry
+      call $call.1: Counter = external0 direct
+        Type SharedHolder
+        Local holder
+      return
+        Type Counter
+        Local $call.1
+  output library

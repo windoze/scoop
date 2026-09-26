@@ -33,6 +33,7 @@ impl Lowerer {
         self.fill_struct_fields(module);
         self.lower_globals(module);
         self.lower_singletons(module);
+        self.lower_imported_singletons(module);
         // Classes are processed base-before-derived: the object layout
         // and the vtable both keep the base's as a prefix.
         let class_order = topo_class_order(module);

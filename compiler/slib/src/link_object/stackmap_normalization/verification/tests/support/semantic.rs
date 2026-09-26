@@ -368,7 +368,9 @@ fn foundation(
         .iter()
         .find_map(|(_, global)| match &global.init {
             GlobalInit::StringConst { identity, .. } => Some(identity.identity_record().clone()),
-            GlobalInit::CString { .. } | GlobalInit::Storage { .. } => None,
+            GlobalInit::CString { .. }
+            | GlobalInit::Storage { .. }
+            | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();
     let immortal_registration = immortal_registration_artifacts(immortal);
@@ -591,7 +593,9 @@ fn static_storage_artifacts(module: &Module) -> StaticStorageArtifacts {
                 initial_state,
                 ..
             } => Some((identity, layout, initial_state)),
-            GlobalInit::CString { .. } | GlobalInit::StringConst { .. } => None,
+            GlobalInit::CString { .. }
+            | GlobalInit::StringConst { .. }
+            | GlobalInit::ImportedStorage { .. } => None,
         })
         .unwrap();
     let storage = identity.identity_record().clone();

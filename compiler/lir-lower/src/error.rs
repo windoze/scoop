@@ -30,6 +30,10 @@ pub enum StrongLirLoweringError {
         layout: scoop_identity::PersistentLayoutId,
     },
     DependencyDescriptorBinding(scoop_identity::PersistentExactTypeId),
+    DependencyStorageBinding {
+        provider: scoop_identity::ConeIdentity,
+        storage: scoop_identity::PersistentStaticStorageId,
+    },
     Diagnostic(scoop_identity::ExactTypeDiagnosticError),
     StorageReplay(StorageLoweringError),
 
@@ -101,6 +105,10 @@ impl fmt::Display for StrongLirLoweringError {
             Self::DependencyDescriptorBinding(exact) => write!(
                 formatter,
                 "dependency descriptor {exact} disagrees with its MIR or external arena binding",
+            ),
+            Self::DependencyStorageBinding { provider, storage } => write!(
+                formatter,
+                "dependency storage {storage} from {provider} is absent or disagrees with its MIR type"
             ),
             Self::Diagnostic(source) => source.fmt(formatter),
             Self::StorageReplay(source) => source.fmt(formatter),
@@ -183,6 +191,7 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::MissingDependencyValueLayout { .. }
             | Self::MissingDependencyLayoutSelection { .. }
             | Self::DependencyDescriptorBinding(_)
+            | Self::DependencyStorageBinding { .. }
             | Self::ForeignExternalLirSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }
             | Self::MissingExternalCallable { .. }

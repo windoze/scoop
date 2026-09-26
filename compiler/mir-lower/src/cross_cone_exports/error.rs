@@ -19,6 +19,8 @@ pub enum MirTypeBridgeExportProductionError {
     InitializationUse(mir::MirObjectBridgeError),
     InitializationSource(Box<hir::HirInitializationUseError>),
     MissingInitializationUnit(PersistentInitializationUnitId),
+    SingletonOccurrences(Box<hir::HirDependencyTypeRelationError>),
+    MissingDependencyObject(scoop_identity::PersistentObjectValueId),
 }
 
 impl From<WireError> for Error {

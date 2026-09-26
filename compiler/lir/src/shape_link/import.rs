@@ -1,4 +1,6 @@
-use scoop_identity::{ConeIdentity, ObjectDefinitionPlanId, PersistentSymbolRequest};
+use scoop_identity::{
+    ConeIdentity, MangledSymbol, ObjectDefinitionPlanId, PersistentSymbolRequest,
+};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::wire::{EncodeResult, field};
@@ -15,6 +17,7 @@ pub struct ExternalShapeLinkImportV1 {
     pub(super) provider: ConeIdentity,
     pub(super) subject: ExternalStrongShapeSubjectV1,
     pub(super) expected_symbol: PersistentSymbolRequest,
+    pub(super) symbol: MangledSymbol,
     pub(super) required_definition: ObjectDefinitionPlanId,
     pub(super) contract: ShapeLinkContractV1,
 }
@@ -35,6 +38,9 @@ impl ExternalShapeLinkImportV1 {
     }
     pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
         self.expected_symbol
+    }
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
     }
     pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
         self.required_definition

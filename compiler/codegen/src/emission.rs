@@ -270,6 +270,41 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
     for (_, global) in module.globals.iter() {
         match &global.init {
+            GlobalInit::ImportedStorage { definition, ty } => {
+                let scoop_lir::ShapeLinkContractV1::StaticStorage { storage_projection } =
+                    definition.contract()
+                else {
+                    return Err(CodegenError(format!(
+                        "imported storage `{}` has a non-storage contract",
+                        definition.symbol()
+                    )));
+                };
+                let logical_ty = basic_ty(
+                    context,
+                    &module.structs,
+                    &module.enums,
+                    managed_address_space,
+                    ty,
+                )?;
+                let logical_size = target_data.get_store_size(&logical_ty);
+                let logical_alignment = target_data.get_abi_alignment(&logical_ty);
+                if logical_size != storage_projection.byte_size()
+                    || u64::from(logical_alignment) != storage_projection.required_alignment()
+                {
+                    return Err(CodegenError(format!(
+                        "imported storage `{}` disagrees with its value layout",
+                        definition.symbol()
+                    )));
+                }
+                let storage_ty = if logical_size == 0 {
+                    i8_ty.into()
+                } else {
+                    logical_ty
+                };
+                let llvm_global = llvm.add_global(storage_ty, None, definition.symbol());
+                llvm_global.set_alignment(logical_alignment);
+                globals.push(Some(llvm_global));
+            }
             GlobalInit::StringConst { identity, value } => {
                 // { ptr td, i64 gc_word, i64 len, [N x i8] data }
                 // (runtime spec 2.4; the 16-byte header is M9).
