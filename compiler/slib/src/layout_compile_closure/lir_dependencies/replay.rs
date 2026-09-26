@@ -32,13 +32,7 @@ pub fn replay_shared_lir_dependency_graph(
 
         by_provider.insert(provider, *dependency);
     }
-    let mut providers = Vec::new();
-    scoop_wire::allocation::try_reserve(&mut providers, by_provider.len(), &path)?;
-    providers.extend(by_provider.keys().copied());
     let references = source.public.external_references();
-    references
-        .validate_type_site_relations(source.provider, source.identities, &providers)
-        .map_err(|error| Error::TypeOccurrences(Box::new(error)))?;
     let roots = references
         .materialized_type_dependencies(source.provider, source.identities)
         .map_err(|error| Error::TypeOccurrences(Box::new(error)))?;

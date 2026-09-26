@@ -17,13 +17,7 @@ pub fn replay_shared_mir_dependency_graph(
     }
     let path = WirePath::root();
     super::initialization::replay(source, source_dependencies, mir, units)?;
-    let mut providers = Vec::new();
-    scoop_wire::allocation::try_reserve(&mut providers, dependencies.len(), &path)?;
-    providers.extend(dependencies.iter().map(|view| view.provider()));
     let references = source.public.external_references();
-    references
-        .validate_type_site_relations(source.provider, source.identities, &providers)
-        .map_err(|error| Error::TypeOccurrences(Box::new(error)))?;
     let types = references
         .materialized_type_dependencies(source.provider, source.identities)
         .map_err(|error| Error::TypeOccurrences(Box::new(error)))?;

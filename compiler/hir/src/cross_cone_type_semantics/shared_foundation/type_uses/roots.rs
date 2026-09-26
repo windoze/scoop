@@ -3,24 +3,7 @@ use super::*;
 impl Graph<'_> {
     pub(super) fn roots(&mut self) -> Result<(), Error> {
         let path = WirePath::root().field(8);
-        let mut providers = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut providers, self.providers.len(), &path)?;
-        providers.extend(
-            self.providers
-                .keys()
-                .copied()
-                .filter(|provider| *provider != self.current.provider),
-        );
         self.calls()?;
-        self.current
-            .public
-            .external_references()
-            .validate_type_site_relations(
-                self.current.provider,
-                self.current.identities,
-                &providers,
-            )
-            .map_err(|error| Error::TypeUseRelations(Box::new(error)))?;
         for (_, owner) in self
             .current
             .public

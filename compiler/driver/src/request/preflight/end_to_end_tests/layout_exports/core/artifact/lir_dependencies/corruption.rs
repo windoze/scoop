@@ -75,10 +75,9 @@ pub(super) fn check(
             Err(lir::LayoutAbiSectionError::NonCanonicalSelected { index: 1 })
         ));
     }
-    assert!(matches!(
-        replay(&resolved, &[]),
-        Err(Error::TypeOccurrences(_))
-    ));
+    assert!(
+        matches!(replay(&resolved, &[]), Err(Error::DependencyProvider(provider)) if provider == core.provider())
+    );
     assert!(
         matches!(replay(&resolved, &[core.exports(), core.exports()]), Err(Error::DependencyProvider(provider)) if provider == core.provider())
     );
