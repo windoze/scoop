@@ -16,6 +16,11 @@ impl Lowerer {
         let b_ty = self.types[b].clone();
         match (a_ty, b_ty) {
             (_, Type::Any) => true,
+            (Type::ImportedClass(class), _) => class
+                .base_class
+                .into_iter()
+                .chain(class.interfaces.iter().copied())
+                .any(|parent| self.is_subtype(parent, b)),
             (Type::Param(parameter), _) => {
                 let Some(parameter) = self
                     .type_params_in_scope
@@ -240,6 +245,7 @@ impl Lowerer {
             }
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
+            | Type::ImportedClass(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)
@@ -294,6 +300,7 @@ impl Lowerer {
         match self.types[ty] {
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
+            | Type::ImportedClass(_)
             | Type::Unit
             | Type::Integer(_)
             | Type::Boolean

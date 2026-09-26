@@ -22,6 +22,7 @@ mod executable_callables;
 mod executable_type_sites;
 mod heap_zst;
 mod image_dependencies;
+mod imported_classes;
 mod imported_constructors;
 mod imported_enums;
 mod imported_members;

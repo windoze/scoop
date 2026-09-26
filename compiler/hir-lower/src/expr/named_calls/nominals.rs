@@ -175,11 +175,27 @@ impl Lowerer {
             }
         }
         for (mut state, owner) in imported {
-            let candidates = state
+            let dependencies = state
                 .dependencies
                 .as_ref()
-                .expect("dependency name lookup retains its declaration catalog")
-                .constructor_candidates(owner);
+                .expect("dependency name lookup retains its declaration catalog");
+            let declaration = dependencies
+                .nominal(owner)
+                .expect("a resolved dependency type retains its declaration");
+            if declaration.interface.declaration_details().modality()
+                == hir::NominalInheritanceModalityV1::Abstract
+            {
+                state.error(
+                    call.span,
+                    format!(
+                        "abstract class `{}` cannot be instantiated",
+                        declaration.name()
+                    ),
+                );
+                failures.push(Box::new(state));
+                continue;
+            }
+            let candidates = dependencies.constructor_candidates(owner);
             let candidates = match candidates {
                 Ok(candidates) => candidates,
                 Err(error) => {

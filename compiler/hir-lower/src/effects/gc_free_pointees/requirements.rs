@@ -98,6 +98,7 @@ impl Lowerer {
             }
             hir::Type::ImportedStruct(_)
             | hir::Type::ImportedEnum(_)
+            | hir::Type::ImportedClass(_)
             | hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean

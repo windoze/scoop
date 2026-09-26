@@ -66,9 +66,11 @@ impl Lowerer {
                 subject_ty,
                 application,
             }),
-            Type::ImportedEnum(_) | Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
-                Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty })
-            }
+            Type::ImportedEnum(_)
+            | Type::ImportedClass(_)
+            | Type::Tuple(_)
+            | Type::Struct(_)
+            | Type::Integer(_) => Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty }),
             _ => {
                 unreachable!("a source pattern when has an enum, tuple, struct, or integer subject")
             }
@@ -296,6 +298,7 @@ impl Lowerer {
                 unreachable!("integer columns use symbolic singleton/other partitioning")
             }
             Type::Class(_)
+            | Type::ImportedClass(_)
             | Type::Interface(_)
             | Type::Any
             | Type::Function(_)

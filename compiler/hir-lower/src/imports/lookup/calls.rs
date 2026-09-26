@@ -200,14 +200,21 @@ impl Lowerer {
                         origin: NamedCallOrigin::Core(target),
                     })
                     .chain(
-                        self.imports
-                            .prelude_bindings(scoop_identity::BindingNamespace::Value, name)
-                            .iter()
-                            .cloned()
-                            .map(|binding| NamedCallBinding {
-                                target: NamedCallTarget::ImportedDependency(binding.target()),
-                                origin: NamedCallOrigin::Dependency(binding),
-                            }),
+                        [
+                            scoop_identity::BindingNamespace::Value,
+                            scoop_identity::BindingNamespace::Type,
+                        ]
+                        .into_iter()
+                        .flat_map(|namespace| {
+                            self.imports
+                                .prelude_bindings(namespace, name)
+                                .iter()
+                                .cloned()
+                        })
+                        .map(|binding| NamedCallBinding {
+                            target: NamedCallTarget::ImportedDependency(binding.target()),
+                            origin: NamedCallOrigin::Dependency(binding),
+                        }),
                     )
                     .collect(),
             }

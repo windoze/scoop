@@ -66,7 +66,7 @@ impl<'a> CfgLowerer<'a> {
                 self.emit_lowered_call(
                     mir::CallTarget {
                         kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(*initializer),
+                        callee: *initializer,
                     },
                     args,
                     mir::Type::Unit,

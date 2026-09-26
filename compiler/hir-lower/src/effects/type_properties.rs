@@ -60,6 +60,7 @@ impl Lowerer {
             | hir::Type::FunPtr(_) => Some(HashSet::new()),
             hir::Type::String
             | hir::Type::Class(..)
+            | hir::Type::ImportedClass(_)
             | hir::Type::Interface(_)
             | hir::Type::Any
             | hir::Type::Function(_) => None,

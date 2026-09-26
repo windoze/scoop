@@ -1,0 +1,3 @@
+import dependency.classes.InternalConstructor
+
+public fun invalid(): InternalConstructor = InternalConstructor(21)

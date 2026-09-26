@@ -90,7 +90,7 @@ impl BodyLowerer<'_> {
                 let class = self.module.class_constructors[*constructor].class;
                 smir::ExprKind::ClassNew {
                     class_id: self.class_map[&class],
-                    initializer: self.ctors[constructor],
+                    initializer: mir::Callee::User(self.ctors[constructor]),
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
             }
@@ -644,8 +644,25 @@ impl BodyLowerer<'_> {
             }
 
             hir::ExprKind::ImportedDependencyCall { callee, args, .. } => {
-                let callee = mir::Callee::External(self.imported_dependency_callable_map[callee]);
+                let (callee, role) = self.imported_dependency_callable_map[callee];
+                let callee = mir::Callee::External(callee);
                 let return_ty = self.lower_type(expr.ty);
+                if let mir::MirCallableLoweringRoleV1::ClassInitializer { .. } = role {
+                    // The source expression returns the allocated class, while the
+                    // physical initializer call returns Unit.
+                    self.lower_type(self.module.unit);
+                    let mir::Type::Class(class_id) = return_ty else {
+                        unreachable!("a class initializer has a class semantic result")
+                    };
+                    return smir::Expr::new(
+                        return_ty,
+                        smir::ExprKind::ClassNew {
+                            class_id,
+                            initializer: callee,
+                            args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                        },
+                    );
+                }
                 return self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty);
             }
             hir::ExprKind::LocalFunctionCall {

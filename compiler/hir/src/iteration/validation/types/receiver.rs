@@ -180,9 +180,12 @@ impl Validator<'_> {
             | Type::Ptr(_)
             | Type::FunPtr(_) => true,
             Type::Param(parameter) => self.parameter(*parameter)?.kind() != TypeParamKind::Ref,
-            Type::Any | Type::String | Type::Class(_) | Type::Interface(_) | Type::Function(_) => {
-                false
-            }
+            Type::Any
+            | Type::String
+            | Type::Class(_)
+            | Type::ImportedClass(_)
+            | Type::Interface(_)
+            | Type::Function(_) => false,
         })
     }
 

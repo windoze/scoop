@@ -1010,6 +1010,7 @@ impl Lowerer {
                 })
             }
             hir::Type::ImportedEnum(_)
+            | hir::Type::ImportedClass(_)
             | hir::Type::Unit
             | hir::Type::String
             | hir::Type::Class(_)

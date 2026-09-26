@@ -75,7 +75,8 @@ impl Lowerer {
         &self,
         name: &str,
     ) -> Vec<ExpressionQualifierCandidate> {
-        self.core_named_call_targets(name)
+        let mut candidates = self
+            .core_named_call_targets(name)
             .0
             .into_iter()
             .map(|target| match target {
@@ -97,7 +98,25 @@ impl Lowerer {
                     ExpressionQualifierValueOrigin::Core(target),
                 ),
             })
-            .collect()
+            .collect::<Vec<_>>();
+        for namespace in [
+            scoop_identity::BindingNamespace::Type,
+            scoop_identity::BindingNamespace::Value,
+        ] {
+            candidates.extend(self.imports.prelude_bindings(namespace, name).iter().map(
+                |binding| match binding.target() {
+                    target @ (hir::ImportedTarget::Type(_)
+                    | hir::ImportedTarget::GenericType(_)
+                    | hir::ImportedTarget::TypeAlias(_)) => {
+                        ExpressionQualifierCandidate::DependencyType(target)
+                    }
+                    target => ExpressionQualifierCandidate::Value(
+                        ExpressionQualifierValueOrigin::Dependency(target),
+                    ),
+                },
+            ));
+        }
+        candidates
     }
 
     fn expression_qualifier_origin_accessible(

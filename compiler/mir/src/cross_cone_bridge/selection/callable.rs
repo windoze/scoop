@@ -89,6 +89,13 @@ impl SelectedExternalMirCallable {
         }
     }
 
+    pub fn lowering_role(&self) -> crate::MirCallableLoweringRoleV1 {
+        match &self.definition {
+            SelectedCallableDefinition::Direct(_) => crate::MirCallableLoweringRoleV1::Ordinary,
+            SelectedCallableDefinition::Lowered { definition, .. } => *definition.lowering_role(),
+        }
+    }
+
     pub fn lowered_gc_effect(&self, source: GcEffect) -> GcEffect {
         match &self.definition {
             SelectedCallableDefinition::Direct(_) => source,

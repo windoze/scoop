@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+import dependency.classes.Other
+
+public fun invalid(value: Other): Counter = value

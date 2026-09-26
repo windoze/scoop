@@ -358,7 +358,7 @@ pub(crate) enum ExprKind {
     },
     ClassNew {
         class_id: mir::ClassId,
-        initializer: mir::FunctionId,
+        initializer: mir::Callee,
         args: Vec<Expr>,
     },
     ClosureAlloc {

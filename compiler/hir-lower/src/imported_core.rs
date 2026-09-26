@@ -56,6 +56,9 @@ impl Lowerer {
         if let hir::Type::ImportedEnum(ty) = &self.types[ty] {
             return Some(ty.declaration.identity.id());
         }
+        if let hir::Type::ImportedClass(ty) = &self.types[ty] {
+            return Some(ty.declaration.identity.id());
+        }
         let CoreLoweringAuthority::Imported(authority) = &self.core else {
             return None;
         };
@@ -70,6 +73,7 @@ impl Lowerer {
                 .id(),
             hir::Type::ImportedStruct(_)
             | hir::Type::ImportedEnum(_)
+            | hir::Type::ImportedClass(_)
             | hir::Type::Struct(_)
             | hir::Type::Class(_)
             | hir::Type::Interface(_)

@@ -1,0 +1,60 @@
+Module
+  struct Token ()
+  class Counter vtable=0 itables=0
+  class Holder vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.argument.0: Counter = external0 direct
+        Type Long
+        Local $dependency.parameter.value
+      call $dependency.argument.1: Token = external1 direct
+      val $dependency.parameter.value: Counter
+        Type Counter
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.1
+      assign $new.1
+        Type Holder
+        ClassAlloc Holder
+      call external2 direct
+        Type Holder
+        Local $new.1
+        Type Counter
+        Local $dependency.parameter.value
+        Type Token
+        Local $dependency.parameter.marker
+      val holder: Holder
+        Type Holder
+        Local $new.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.2: Counter = external0 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: Holder
+        Type Holder
+        Local holder
+      call $dependency.argument.0: Counter = external3 direct
+        Type Holder
+        Local $dependency.receiver
+      val $dependency.parameter.value: Counter
+        Type Counter
+        Local $dependency.argument.0
+      call $call.3: Counter = external4 direct
+        Type Counter
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $call.3
+  output library

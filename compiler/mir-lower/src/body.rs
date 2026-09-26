@@ -31,8 +31,10 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     pub(super) extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
 
-    pub(super) imported_dependency_callable_map:
-        &'a HashMap<hir::ImportedDependencyCallableUseId, mir::ExternalCallableUseId>,
+    pub(super) imported_dependency_callable_map: &'a HashMap<
+        hir::ImportedDependencyCallableUseId,
+        (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
+    >,
     pub(super) global_map: &'a HashMap<hir::GlobalId, mir::GlobalId>,
     pub(super) singleton_root_map:
         &'a HashMap<hir::SingletonPublishedRootId, mir::SingletonPublishedRootId>,

@@ -191,6 +191,7 @@ impl Lowerer {
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
             Type::ImportedStruct(_)
             | Type::ImportedEnum(_)
+            | Type::ImportedClass(_)
             | Type::Unit
             | Type::Any
             | Type::Tuple(_)

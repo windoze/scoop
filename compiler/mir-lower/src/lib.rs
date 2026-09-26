@@ -196,7 +196,7 @@ fn lower_with_core_authority(
     external_callables: Arena<mir::ExternalCallableUse>,
     imported_dependency_callable_map: HashMap<
         hir::ImportedDependencyCallableUseId,
-        mir::ExternalCallableUseId,
+        (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
     >,
 ) -> mir::Module {
     let module = output.module();
@@ -409,8 +409,10 @@ struct Lowerer {
     /// adjust thunk.
     boxing_adjusts: Vec<mir::BoxingAdjust>,
     external_callables: Arena<mir::ExternalCallableUse>,
-    imported_dependency_callable_map:
-        HashMap<hir::ImportedDependencyCallableUseId, mir::ExternalCallableUseId>,
+    imported_dependency_callable_map: HashMap<
+        hir::ImportedDependencyCallableUseId,
+        (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
+    >,
 }
 
 #[derive(Clone, Copy)]

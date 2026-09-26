@@ -1,0 +1,17 @@
+package dependency.classes
+
+public struct Token()
+public class Counter public constructor(val value: Long) {
+    public constructor(marker: Token, value: Long = 21): this(value) {}
+    public fun twice(): Long = value + value
+}
+public class Other public constructor(val value: Long)
+public class Holder public constructor(val value: Counter, val marker: Token) {
+    public fun read(): Counter = value
+}
+public class Recursive public constructor(val next: Recursive)
+public class InternalConstructor(val value: Long)
+public abstract class AbstractCounter public constructor(val value: Long)
+public fun makeCounter(value: Long): Counter = Counter(value)
+public fun identity(value: Counter): Counter = value
+public typealias CounterAlias = Counter

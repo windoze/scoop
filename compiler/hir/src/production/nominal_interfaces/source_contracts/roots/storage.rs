@@ -71,6 +71,18 @@ impl Roots {
                 }
                 return Ok(());
             }
+            Type::ImportedClass(class) => {
+                for ty in class
+                    .fields
+                    .iter()
+                    .map(|field| field.ty)
+                    .chain(class.base_class)
+                    .chain(class.interfaces.iter().copied())
+                {
+                    self.require_field_type(export, index, ty)?;
+                }
+                return Ok(());
+            }
             Type::ImportedStruct(structure) => {
                 for field in &structure.fields {
                     self.require_field_type(export, index, field.ty)?;

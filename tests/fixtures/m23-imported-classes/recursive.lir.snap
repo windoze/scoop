@@ -1,0 +1,19 @@
+Module
+  fun @scoop$1$cb$88f216f68b9df2c85a224ea7413b8ff3a4927d566743ea48773828199a2ef53a(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    ret param0
+  fun @scoop$1$cb$2804e66c987fd238ed45f8fc71c40dfd3a13b18c6605ac0091330788aa3fafb3() -> ptr<managed>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.value: i64
+    local %2 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000015) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t0 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn0(local2, local1)
+    t1 = aggregate () : {}
+    ret local2
+  output library

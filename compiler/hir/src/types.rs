@@ -17,6 +17,8 @@ pub enum Type {
     ImportedStruct(std::sync::Arc<ImportedStructType>),
     /// A dependency enum value with the provider's complete payload types.
     ImportedEnum(std::sync::Arc<ImportedEnumType>),
+    /// A dependency reference type with its actual declaration and field types.
+    ImportedClass(std::sync::Arc<ImportedClassType>),
     /// A reference type declared with `class` (spec 9.1).
     /// A class application with complete host arguments (empty for a
     /// non-generic class). M14 gives generic classes the same nominal
@@ -51,15 +53,23 @@ pub enum Type {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedStructType {
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
-    pub fields: Vec<ImportedStructField>,
+    pub fields: Vec<ImportedNominalField>,
     pub gc_free: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportedStructField {
+pub struct ImportedNominalField {
     pub identity: scoop_identity::PersistentFieldId,
     pub name: String,
     pub ty: TypeId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedClassType {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub fields: Vec<ImportedNominalField>,
+    pub base_class: Option<TypeId>,
+    pub interfaces: Vec<TypeId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,6 +123,9 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::ImportedEnum(x), Type::ImportedEnum(y)) => {
             x.declaration.identity.id() == y.declaration.identity.id()
         }
+        (Type::ImportedClass(x), Type::ImportedClass(y)) => {
+            x.declaration.identity.id() == y.declaration.identity.id()
+        }
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Any, Type::Any) => true,
@@ -145,6 +158,7 @@ pub(crate) fn type_name_with_params(
     match &module.types[ty] {
         Type::ImportedStruct(structure) => structure.declaration.name().to_owned(),
         Type::ImportedEnum(enumeration) => enumeration.declaration.name().to_owned(),
+        Type::ImportedClass(class) => class.declaration.name().to_owned(),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::Boolean => "Boolean".to_string(),

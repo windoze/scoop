@@ -1,0 +1,4 @@
+import dependency.classes.CounterAlias as Meter
+
+public typealias Reading = Meter
+public fun primary(): Reading = Meter(21)

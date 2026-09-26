@@ -174,6 +174,9 @@ impl Lowerer {
             hir::Type::ImportedEnum(structure) => {
                 SymbolicType::ImportedNominal(structure.declaration.identity.id())
             }
+            hir::Type::ImportedClass(structure) => {
+                SymbolicType::ImportedNominal(structure.declaration.identity.id())
+            }
             hir::Type::Unit => SymbolicType::Unit,
             hir::Type::Integer(kind) => SymbolicType::Integer(*kind),
             hir::Type::Boolean => SymbolicType::Boolean,

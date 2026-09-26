@@ -84,7 +84,10 @@ fn lower_dependency_callables(
     imported: &mir::SelectedExternalMirSet,
     callables: &mut Arena<mir::ExternalCallableUse>,
 ) -> Result<
-    HashMap<hir::ImportedDependencyCallableUseId, mir::ExternalCallableUseId>,
+    HashMap<
+        hir::ImportedDependencyCallableUseId,
+        (mir::ExternalCallableUseId, mir::MirCallableLoweringRoleV1),
+    >,
     CurrentConeMirLoweringError,
 > {
     let mut mapping = HashMap::new();
@@ -120,12 +123,13 @@ fn lower_dependency_callables(
             false => mir::GcEffect::Managed,
             true => mir::GcEffect::NoGc,
         };
+        let lowering_role = target.lowering_role();
         let target = callables.alloc(
             imported
                 .callable_use(id, effect)
                 .expect("a selected dependency MIR callable has a complete typed reference"),
         );
-        mapping.insert(source_id, target);
+        mapping.insert(source_id, (target, lowering_role));
     }
     if callables.len() != imported.len() {
         return Err(CurrentConeMirLoweringError::UnusedExternalCallable {

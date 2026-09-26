@@ -1,0 +1,3 @@
+span=91..114
+expression=InternalConstructor(21)
+type `InternalConstructor` does not name a constructible type

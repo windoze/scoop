@@ -191,6 +191,7 @@ impl Module {
         match self.types[ty] {
             Type::ImportedStruct(ref structure) => structure.declaration.name().to_owned(),
             Type::ImportedEnum(ref structure) => structure.declaration.name().to_owned(),
+            Type::ImportedClass(ref structure) => structure.declaration.name().to_owned(),
             Type::Struct(application) => self.structs
                 [self.struct_applications[application].template]
                 .name

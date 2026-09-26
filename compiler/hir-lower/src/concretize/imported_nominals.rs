@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod classes;
+
 impl Concretizer<'_> {
     pub(super) fn lower_imported_struct(
         &mut self,

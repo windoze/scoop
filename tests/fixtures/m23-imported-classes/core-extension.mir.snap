@@ -1,0 +1,115 @@
+Module
+  enum RebuiltFlag
+    Ready()
+    Empty()
+  class RebuiltCounter vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type RebuiltCounter
+        ClassAlloc RebuiltCounter
+      call external0 direct
+        Type RebuiltCounter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: RebuiltCounter
+        Type RebuiltCounter
+        Local $new.1
+      call value: Long = external1 direct
+        Type RebuiltCounter
+        Local $dependency.receiver
+      val flag: RebuiltFlag
+        Type RebuiltFlag
+        VariantConstruct RebuiltFlag v0
+      val $when.1: RebuiltFlag
+        Type RebuiltFlag
+        Local flag
+      val $pattern.subject.2: RebuiltFlag
+        Type RebuiltFlag
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest RebuiltFlag v0
+          Type RebuiltFlag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.argument.0: Long
+        Type Long
+        Local value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type RebuiltCounter
+        ClassAlloc RebuiltCounter
+      call external0 direct
+        Type RebuiltCounter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.receiver: RebuiltCounter
+        Type RebuiltCounter
+        Local $new.2
+      call $dependency.argument.0: Long = external1 direct
+        Type RebuiltCounter
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.0
+        Type Counter
+        Local $new.3
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: RebuiltFlag
+        Type RebuiltFlag
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest RebuiltFlag v1
+          Type RebuiltFlag
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Counter
+        Local $result.0
+    bb4 pattern.pass.4
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.4
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.4
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.0
+        Type Counter
+        Local $new.4
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  output library

@@ -691,6 +691,7 @@ pub(super) fn type_contains_session_parameter(
         Type::Ptr(pointee) => vec![*pointee],
         Type::ImportedStruct(_)
         | Type::ImportedEnum(_)
+        | Type::ImportedClass(_)
         | Type::Unit
         | Type::Integer(_)
         | Type::Boolean

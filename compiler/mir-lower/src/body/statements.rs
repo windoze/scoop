@@ -210,7 +210,7 @@ impl BodyLowerer<'_> {
                 exception_ty.clone(),
                 smir::ExprKind::ClassNew {
                     class_id,
-                    initializer: ctor,
+                    initializer: mir::Callee::User(ctor),
                     args: Vec::new(),
                 },
             )),
