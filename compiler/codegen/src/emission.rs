@@ -11,7 +11,7 @@ fn prepare_non_callable_strong_llvm_module<
 >(
     context: &'ctx Context,
     module: &Module,
-    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
+    production: &scoop_lir::StrongProductionSection<D, C, I>,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
@@ -50,7 +50,7 @@ fn prepare_non_callable_strong_llvm_module<
 fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     context: &'ctx Context,
     module: &Module,
-    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
+    production: &scoop_lir::StrongProductionSection<D, C, I>,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
@@ -619,9 +619,10 @@ fn declare_initialization_unit_globals<'ctx, D, C, I>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     module: &Module,
-    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
+    production: &scoop_lir::StrongProductionSection<D, C, I>,
 ) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
     let plans = production
+        .registration_production()
         .initialization_units()
         .registrations()
         .iter()

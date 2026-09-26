@@ -35,7 +35,7 @@ pub(super) fn check(
     .unwrap();
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: &prepared.foundation,
-        production: lir::ShapeLinkProductionV1::Reader(&prepared.production),
+        production: &prepared.production,
         ordinary: &ordinary,
         layouts: core_lir.layouts(),
         callables: core_lir.callables(),

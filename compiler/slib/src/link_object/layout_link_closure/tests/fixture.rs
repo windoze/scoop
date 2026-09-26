@@ -7,7 +7,7 @@ pub(in crate::link_object::layout_link_closure) const TARGET: LirTargetProfile =
 
 pub(in crate::link_object) struct Provider {
     pub foundation: OdrFreeLirFoundation,
-    pub production: ValidatedStrongProductionSectionV2,
+    pub production: StrongProductionSectionV2,
     pub ordinary: CrossConeLirBridgeSectionV1,
     pub section: CrossConeLayoutAbiSectionV1<'static>,
     pub layout: PersistentLayoutId,
@@ -146,7 +146,7 @@ impl Provider {
     pub fn import(&self, consumer: ConeIdentity) -> ExternalShapeLinkImportV1<'_> {
         let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: &self.foundation,
-            production: ShapeLinkProductionV1::Reader(&self.production),
+            production: &self.production,
             ordinary: &self.ordinary,
             layouts: self.section.layouts(),
             callables: self.section.callables(),

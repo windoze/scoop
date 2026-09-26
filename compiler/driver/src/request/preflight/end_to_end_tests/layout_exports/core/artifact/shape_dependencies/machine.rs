@@ -186,7 +186,7 @@ fn emit(
     output: &lir::SingleConeStrongLirOutput,
     coordinate: &ConeCoordinate,
     provider: Provider<'_, '_>,
-    production: lir::ValidatedStrongProductionSectionV2,
+    production: lir::StrongProductionSectionV2,
     directory: &Path,
 ) -> scoop_codegen::EmittedStrongObjectSetV2 {
     let profile = scoop_codegen::ValidatedBackendProfile::from_selection(

@@ -42,7 +42,7 @@ pub(super) fn select<'a>(
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     provider: &lir::ShapeLinkProviderV1<'a>,
     layout: &'a lir::CrossConeLayoutAbiSectionV1<'a>,
-    production: &'a lir::ValidatedStrongProductionSectionV2,
+    production: &'a lir::StrongProductionSectionV2,
 ) -> (
     lir::StrongProductionDependencySelectionV2<'a>,
     Vec<lir::StrongExternalInitializationUseV2>,

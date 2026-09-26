@@ -5,17 +5,14 @@ use super::{
 };
 use crate::*;
 
-mod production;
-use production::PhysicalProduction;
-pub use production::ShapeLinkProductionV1;
 pub(super) mod contracts;
 mod legacy;
 mod support;
 mod types;
 
-pub struct ShapeLinkProviderPartsV1<'a, P = ShapeLinkProductionV1<'a>> {
+pub struct ShapeLinkProviderPartsV1<'a> {
     pub foundation: &'a OdrFreeLirFoundation,
-    pub production: P,
+    pub production: &'a StrongProductionSectionV2,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layouts: &'a CanonicalExactLayoutExportsV1,
     pub callables: &'a CanonicalExactCallableAbiExportsV1,
@@ -26,36 +23,11 @@ pub struct ShapeLinkProviderPartsV1<'a, P = ShapeLinkProductionV1<'a>> {
 /// Borrowed, same-provider inputs. Export and actual-use closure are checked
 /// by the containing section; this view validates the physical contract.
 pub struct ShapeLinkProviderV1<'a> {
-    parts: ShapeLinkProviderPartsV1<'a, PhysicalProduction<'a>>,
+    parts: ShapeLinkProviderPartsV1<'a>,
 }
 
 impl<'a> ShapeLinkProviderV1<'a> {
     pub fn try_new(parts: ShapeLinkProviderPartsV1<'a>) -> Result<Self, ShapeLinkError> {
-        let production = PhysicalProduction::Complete(parts.production);
-        Self::validate(parts.with_production(production))
-    }
-
-    /// A contract-only view. Its replayed production cannot be passed to the
-    /// complete Link terminal constructor, which accepts the separate enum.
-    pub fn from_replayed(
-        foundation: &'a OdrFreeLirFoundation,
-        ordinary: &'a CrossConeLirBridgeSectionV1,
-        view: ReplayedStrongLayoutExportsV2<'a>,
-    ) -> Result<Self, ShapeLinkError> {
-        Self::validate(ShapeLinkProviderPartsV1 {
-            foundation,
-            ordinary,
-            production: PhysicalProduction::Replayed(view),
-            layouts: view.exports.layouts(),
-            callables: view.exports.callables(),
-            descriptors: view.exports.descriptors(),
-            dispatch: view.exports.dispatch(),
-        })
-    }
-
-    fn validate(
-        parts: ShapeLinkProviderPartsV1<'a, PhysicalProduction<'a>>,
-    ) -> Result<Self, ShapeLinkError> {
         let provider = parts.foundation.producer();
         if [
             parts.ordinary.artifact(),
@@ -63,16 +35,16 @@ impl<'a> ShapeLinkProviderV1<'a> {
             parts.callables.provider(),
             parts.descriptors.provider(),
             parts.dispatch.provider(),
-            parts.production.types().producer(),
-            parts.production.callables().producer(),
-            parts.production.storages().producer(),
-            parts.production.units().producer(),
+            parts.production.type_registrations().producer(),
+            parts.production.callable_registrations().producer(),
+            parts.production.static_storage_registrations().producer(),
+            parts.production.initialization_registrations().producer(),
         ]
         .into_iter()
         .any(|actual| actual != provider)
             || parts
                 .production
-                .initialization_abi()
+                .initialization_cycle_abi()
                 .is_some_and(|abi| abi.link_contract(provider).is_err())
         {
             return Err(ShapeLinkError::Provider);
@@ -81,18 +53,9 @@ impl<'a> ShapeLinkProviderV1<'a> {
         if parts.callables.target() != target
             || parts.descriptors.target() != target
             || parts.dispatch.target() != target
-            || parts.production.types().target() != &target.wire_id()
+            || parts.production.type_registrations().target() != &target.wire_id()
         {
             return Err(ShapeLinkError::Target);
-        }
-        if let PhysicalProduction::Complete(ShapeLinkProductionV1::Reader(production)) =
-            parts.production
-            && (parts.layouts != production.layouts()
-                || parts.callables != production.callables()
-                || parts.descriptors != production.descriptors()
-                || parts.dispatch != production.dispatch())
-        {
-            return Err(ShapeLinkError::Provider);
         }
         Ok(Self { parts })
     }
@@ -116,7 +79,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
     /// Closure validators use this exact surface for the consumer-side
     /// foreign-definition exclusion; it is not reconstructed from symbols.
     pub fn canonical_definitions(&self) -> &'a StrongObjectSymbolSurfaceV1 {
-        self.parts.production.definitions()
+        self.parts.production.canonical_definitions()
     }
 
     pub(super) fn import(
@@ -135,7 +98,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         let plan = self
             .parts
             .production
-            .definitions()
+            .canonical_definitions()
             .plan(physical.definition())
             .ok_or(ShapeLinkError::DefinitionRelation(subject))?;
         if plan.primary_atom() != physical.primary() || plan.primary_symbol() != physical.symbol() {
@@ -169,19 +132,5 @@ impl<'a> ShapeLinkProviderV1<'a> {
             self.parts.dispatch,
         )?;
         Ok(import)
-    }
-}
-
-impl<'a, P> ShapeLinkProviderPartsV1<'a, P> {
-    fn with_production<Q>(self, production: Q) -> ShapeLinkProviderPartsV1<'a, Q> {
-        ShapeLinkProviderPartsV1 {
-            foundation: self.foundation,
-            production,
-            ordinary: self.ordinary,
-            layouts: self.layouts,
-            callables: self.callables,
-            descriptors: self.descriptors,
-            dispatch: self.dispatch,
-        }
     }
 }

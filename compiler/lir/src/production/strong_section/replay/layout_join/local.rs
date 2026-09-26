@@ -6,7 +6,7 @@ mod shape_support;
 mod types;
 
 pub(super) fn validate(
-    production: &ReplayedStrongProductionSectionV2,
+    production: &StrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let provider = production.type_registrations().producer();

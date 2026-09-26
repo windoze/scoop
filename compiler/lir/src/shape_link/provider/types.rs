@@ -16,7 +16,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         let registration = self
             .parts
             .production
-            .types()
+            .type_registrations()
             .registrations()
             .iter()
             .find(|registration| registration.exact_type() == exact)
@@ -126,7 +126,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         let owner = self
             .parts
             .production
-            .types()
+            .type_registrations()
             .registrations()
             .iter()
             .find(|registration| registration.exact_type() == record.owner_exact())

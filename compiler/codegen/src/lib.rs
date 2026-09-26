@@ -84,7 +84,6 @@ mod object_partition;
 mod runtime_metadata_v1;
 mod shape_definitions;
 mod statepoint;
-mod strong_production;
 mod target;
 mod type_descriptors;
 mod validation;

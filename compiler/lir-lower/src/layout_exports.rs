@@ -25,7 +25,7 @@ pub struct LayoutAbiExportInputV1<'a> {
     pub mir: &'a mir::SingleConeStrongMirInput,
     pub lir: &'a lir::SingleConeStrongLirOutput,
     pub bridge: &'a mir::MirTypeBridgeExportConstituentsV1,
-    pub registration: &'a lir::PendingStrongProductionSectionV2,
+    pub registration: &'a lir::StrongProductionSectionV2,
     pub identities: &'a ValidatedIdentityGraph,
     pub coordinates: &'a [ConeCoordinate],
 }

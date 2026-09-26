@@ -176,7 +176,7 @@ fn exercise_dependency_production(provider: Provider) {
         [StrongTypeDispatchCallableRefV2::DependencyExternal { provider: found, body }]
             if *found == provider.identity && *body == provider.callable_body
     ));
-    let section = produced.into_section();
+    let section = produced;
     let bytes = encode(&section).unwrap();
     let decoded: DecodedStrongProductionSectionV2 = decode_canonical(&bytes).unwrap();
     let definitions = [

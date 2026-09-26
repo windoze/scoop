@@ -21,7 +21,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                 let registration = self
                     .parts
                     .production
-                    .callables()
+                    .callable_registrations()
                     .registrations()
                     .iter()
                     .find(|registration| registration.body() == record.definition().semantic_id())

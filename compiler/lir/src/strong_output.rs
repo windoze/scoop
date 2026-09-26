@@ -19,37 +19,12 @@ pub use shape_support::{
     StrongLirShapeSupportError, StrongLirShapeSupportPlan, StrongLirShapeSupportRoot,
 };
 
-/// One LIR graph paired with the exact ODR-free foundation projected from it.
-///
-/// The fields are private so production orchestration cannot replace either
-/// half after the strong lowering gate has succeeded.
+/// A complete LIR graph with its identity foundation and shape metadata.
 pub struct SingleConeStrongLirOutput {
     module: Module,
     foundation: OdrFreeLirFoundation,
     shape_support: StrongLirShapeSupportPlan,
     initialization_cycle_abi: Option<Box<CallableAbiRecordV1>>,
-}
-
-/// A freshly projected V2 section awaiting the complete local and selected
-/// layout/ABI join. It exposes the registration plans needed to construct
-/// local layout exports, but it cannot be encoded or published as a wire
-/// section.
-pub struct PendingStrongProductionSectionV2 {
-    section: StrongProductionSectionV2,
-}
-
-impl PendingStrongProductionSectionV2 {
-    pub const fn registration_production(&self) -> &crate::StrongRegistrationProductionSurfaceV2 {
-        self.section.registration_production()
-    }
-
-    pub fn validate_layout_abi(
-        self,
-        layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
-    ) -> Result<crate::ValidatedStrongProductionSectionV2, crate::StrongProductionLayoutJoinError>
-    {
-        self.section.validate_layout_abi(layout_abi)
-    }
 }
 
 impl SingleConeStrongLirOutput {
@@ -126,9 +101,8 @@ impl SingleConeStrongLirOutput {
         .map_err(StrongProductionWriterError::Section)
     }
 
-    /// Projects `strong-production/4` from the final LIR graph. The returned
-    /// pending section supplies local registration inputs to the layout/ABI
-    /// producer and becomes publishable only after `validate_layout_abi`.
+    /// Projects the complete V2 registration and object plans from LIR.
+    /// The layout producer joins these records with its actual exports.
     pub fn build_production_section_v2(
         &self,
         coordinate: ConeCoordinate,
@@ -136,7 +110,7 @@ impl SingleConeStrongLirOutput {
         entry_source: EntryProductionSourceV1,
         selected: &crate::StrongProductionDependencySelectionV2<'_>,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
-    ) -> Result<PendingStrongProductionSectionV2, StrongProductionWriterError> {
+    ) -> Result<StrongProductionSectionV2, StrongProductionWriterError> {
         let external_bridges = StrongExternalLirBridgeSurfaceV1::from_module(&self.module)
             .map_err(StrongProductionWriterError::ExternalBridges)?;
         let digests = project_strong_digest_finalization_plan_v2(
@@ -165,7 +139,6 @@ impl SingleConeStrongLirOutput {
             &self.shape_support.source_declarations(),
             self.initialization_cycle_abi.clone(),
         )
-        .map(|section| PendingStrongProductionSectionV2 { section })
         .map_err(StrongProductionWriterError::Section)
     }
 

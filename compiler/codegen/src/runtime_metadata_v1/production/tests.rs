@@ -15,7 +15,6 @@ use scoop_lir::{
 };
 
 use super::emit_strong_runtime_metadata_v1;
-use crate::strong_production::StrongProductionEmissionSource;
 
 #[test]
 fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
@@ -52,13 +51,12 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     )
     .unwrap();
 
-    let production_view = production.emission_view();
     let emitted = emit_strong_runtime_metadata_v1(
         &context,
         &llvm,
         &target_data,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        &production_view,
+        &production,
         bounds_message,
         array_size_message,
     )
@@ -158,13 +156,12 @@ fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
     )
     .unwrap();
 
-    let production_view = production.emission_view();
     let emitted = emit_strong_runtime_metadata_v1(
         &context,
         &llvm,
         &target_data,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        &production_view,
+        &production,
         bounds_message,
         array_size_message,
     )

@@ -5,7 +5,8 @@ use std::collections::BTreeMap;
 use scoop_identity::ConeIdentity;
 use scoop_lir::{
     CrossConeLayoutAbiSectionV1, ExternalShapeLinkImportV1, OdrFreeLirFoundation,
-    ShapeLinkProductionV1, ShapeLinkProviderPartsV1, ShapeLinkProviderV1, ShapeLinkSupportLookupV1,
+    ShapeLinkProviderPartsV1, ShapeLinkProviderV1, ShapeLinkSupportLookupV1,
+    StrongProductionSectionV2,
 };
 use scoop_wire::{WirePath, encode_canonical_temporary};
 
@@ -31,7 +32,7 @@ pub struct CrossConeLayoutTerminalArtifactV1<'a> {
 
 pub struct CrossConeLayoutTerminalArtifactPartsV1<'a> {
     pub foundation: &'a OdrFreeLirFoundation,
-    pub production: ShapeLinkProductionV1<'a>,
+    pub production: &'a StrongProductionSectionV2,
     pub ordinary: &'a scoop_lir::CrossConeLirBridgeSectionV1,
     pub section: &'a CrossConeLayoutAbiSectionV1<'a>,
     pub support: &'a dyn ShapeLinkSupportLookupV1<'a>,

@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::*;
 
-pub(super) fn replayed_provider(provider: &Provider) -> ReplayedStrongProductionSectionV2 {
+pub(super) fn replayed_provider(provider: &Provider) -> StrongProductionSectionV2 {
     let selected = StrongProductionDependencySelectionV2::empty(provider.identity, TARGET).unwrap();
     let raw = provider
         .output
@@ -14,8 +14,7 @@ pub(super) fn replayed_provider(provider: &Provider) -> ReplayedStrongProduction
         )
         .unwrap()
         .validate_layout_abi(&provider.layout_section())
-        .unwrap()
-        .into_section();
+        .unwrap();
     let decoded: DecodedStrongProductionSectionV2 =
         decode_canonical(&encode(&raw).unwrap()).unwrap();
     decoded
@@ -36,14 +35,18 @@ pub(super) fn replayed_provider(provider: &Provider) -> ReplayedStrongProduction
 
 pub(super) fn view<'a>(
     provider: &'a Provider,
-    production: &'a ReplayedStrongProductionSectionV2,
+    production: &'a StrongProductionSectionV2,
     exports: &'a LayoutAbiExportConstituentsV1,
 ) -> ShapeLinkProviderV1<'a> {
-    ShapeLinkProviderV1::from_replayed(
-        provider.output.foundation(),
-        &provider.ordinary,
-        production.replay_layout_exports(exports).unwrap(),
-    )
+    ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
+        foundation: provider.output.foundation(),
+        production,
+        ordinary: &provider.ordinary,
+        layouts: exports.layouts(),
+        callables: exports.callables(),
+        descriptors: exports.descriptors(),
+        dispatch: exports.dispatch(),
+    })
     .unwrap()
 }
 

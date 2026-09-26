@@ -5,7 +5,7 @@ pub(super) fn replay<'input>(
     generated: Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
     patches: VerifiedScoopLirDigestPatchSiteSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
-    strong: &lir::ReplayedStrongProductionSectionV2,
+    strong: &lir::StrongProductionSectionV2,
 ) -> Result<ReplayedLayoutLinkObjectContentsV1<'input>, LayoutLinkObjectContentsError> {
     let candidates = objects.candidates();
 

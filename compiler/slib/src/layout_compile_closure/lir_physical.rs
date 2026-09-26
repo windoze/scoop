@@ -31,7 +31,7 @@ pub type PhysicalImportsReplayedCrossConeLayoutSections<'input, 'checked> =
         'input,
         lir::PhysicalImportsReplayedLayoutAbiSectionV1<'checked>,
         lir::CrossConeLirBridgeSectionV1,
-        lir::ReplayedStrongProductionSectionV2,
+        lir::StrongProductionSectionV2,
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
 
@@ -97,7 +97,7 @@ impl<'checked> PhysicalImportsReplayedCrossConeLayoutSections<'_, 'checked> {
     pub fn lir_physical_imports(&self) -> &lir::CanonicalExternalShapeLinkImportsV1<'checked> {
         self.layout.physical_imports()
     }
-    pub fn lir_strong_production(&self) -> &lir::ReplayedStrongProductionSectionV2 {
+    pub fn lir_strong_production(&self) -> &lir::StrongProductionSectionV2 {
         &self.strong
     }
 }

@@ -27,7 +27,7 @@ fn shape_link_artifact_reader_uses_the_replayed_strong_v2_semantic_plans() {
     let production = replayed.validate_layout_abi(&layout_abi).unwrap();
     let provider = ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
         foundation: &fixture.source.foundation,
-        production: ShapeLinkProductionV1::Reader(&production),
+        production: &production,
         ordinary: &fixture.ordinary,
         layouts: layout_abi.layouts(),
         callables: layout_abi.callables(),
@@ -58,26 +58,7 @@ fn shape_link_artifact_reader_uses_the_replayed_strong_v2_semantic_plans() {
     );
 }
 
-#[test]
-fn shape_link_reader_rejects_tables_outside_the_validated_layout_closure() {
-    let fixture = ProviderFixture::new(true);
-    let layout_abi = layout_abi(&fixture);
-    let production = replay(&fixture).validate_layout_abi(&layout_abi).unwrap();
-    assert!(matches!(
-        ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
-            foundation: &fixture.source.foundation,
-            production: ShapeLinkProductionV1::Reader(&production),
-            ordinary: &fixture.ordinary,
-            layouts: layout_abi.layouts(),
-            callables: &fixture.callables,
-            descriptors: layout_abi.descriptors(),
-            dispatch: layout_abi.dispatch(),
-        },),
-        Err(ShapeLinkError::Provider)
-    ));
-}
-
-fn replay(fixture: &ProviderFixture) -> ReplayedStrongProductionSectionV2 {
+fn replay(fixture: &ProviderFixture) -> StrongProductionSectionV2 {
     let raw: DecodedStrongProductionSectionV2 =
         decode_canonical(&encode(&fixture.section).unwrap()).unwrap();
     let producer = fixture.source.foundation.producer();

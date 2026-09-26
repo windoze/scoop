@@ -128,7 +128,7 @@ impl ProviderFixture {
     pub fn provider(&self) -> ShapeLinkProviderV1<'_> {
         ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: &self.source.foundation,
-            production: ShapeLinkProductionV1::Producer(&self.section),
+            production: &self.section,
             ordinary: &self.ordinary,
             layouts: &self.layouts,
             callables: &self.callables,

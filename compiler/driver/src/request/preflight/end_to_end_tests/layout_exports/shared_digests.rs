@@ -5,7 +5,7 @@ use super::*;
 pub(super) fn check(
     name: &str,
     foundation: &lir::OdrFreeLirFoundation,
-    production: &lir::ValidatedStrongProductionSectionV2,
+    production: &lir::StrongProductionSectionV2,
 ) {
     let replay = || {
         lir::replay_strong_digest_finalization_plan_v2(

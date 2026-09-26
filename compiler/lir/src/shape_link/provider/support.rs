@@ -21,7 +21,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
         let registration = self
             .parts
             .production
-            .units()
+            .initialization_registrations()
             .registrations()
             .iter()
             .find(|registration| registration.semantic().unit() == unit.unit())
@@ -73,7 +73,7 @@ impl<'a> ShapeLinkProviderV1<'a> {
                 let registration = self
                     .parts
                     .production
-                    .storages()
+                    .static_storage_registrations()
                     .registrations()
                     .iter()
                     .find(|registration| registration.semantic().storage() == id)

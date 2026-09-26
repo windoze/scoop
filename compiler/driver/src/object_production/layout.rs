@@ -2,7 +2,7 @@
 
 use super::*;
 use scoop_codegen::EmittedStrongObjectSetV2;
-use scoop_lir::ValidatedStrongProductionSectionV2;
+use scoop_lir::StrongProductionSectionV2;
 use scoop_slib as slib;
 
 mod finalization;
@@ -16,7 +16,7 @@ pub(crate) use verification::prepare;
 pub(crate) struct PreparedLayoutObjects {
     pub(crate) target_selection: ValidatedLirTargetSelection,
     pub(crate) foundation: OdrFreeLirFoundation,
-    pub(crate) production: ValidatedStrongProductionSectionV2,
+    pub(crate) production: StrongProductionSectionV2,
     pub(crate) c_bridge_profile: CBridgeToolchainProfileV1,
     pub(crate) patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,

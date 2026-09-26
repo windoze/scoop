@@ -8,7 +8,7 @@ mod view;
 pub(super) use view::Selection;
 
 pub(super) fn validate(
-    production: &ReplayedStrongProductionSectionV2,
+    production: &StrongProductionSectionV2,
     selected: Selection<'_, '_>,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     if selected.consumer() != production.type_registrations().producer() {

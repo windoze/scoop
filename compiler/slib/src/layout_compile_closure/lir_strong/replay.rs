@@ -15,7 +15,7 @@ pub(super) fn replay(
     strong: lir::InitializationAbiResolvedStrongProductionSectionV2,
     parts: PreparedLayoutMirSemanticParts<'_>,
     dependencies: &[&LirStrongProductionReplayedCrossConeLayoutSections<'_>],
-) -> Result<lir::ReplayedStrongProductionSectionV2, Error> {
+) -> Result<lir::StrongProductionSectionV2, Error> {
     let provider = parts.lir_foundation.producer();
     let external = strong.reconstruct_external_bridges(provider, parts.identities)?;
     super::dependencies::validate_external_bridges(&external, dependencies)?;

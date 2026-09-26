@@ -1,24 +1,16 @@
-//! Ten-field V2 replay keeps publication gated by source and selected joins.
+//! Decode Strong V2 records against their actual foundation and registrations.
 
 use super::*;
 use scoop_wire::{WirePath, encode_canonical_temporary};
 
 mod layout_join;
-mod view;
-pub use layout_join::{
-    ReplayedStrongLayoutExportsV2, StrongProductionLayoutJoinError,
-    ValidatedStrongProductionSectionV2,
-};
-pub use view::ReplayedStrongProductionSectionV2;
+pub use layout_join::StrongProductionLayoutJoinError;
 
 impl<I: WireEncode>
     DecodedStrongProductionSection<crate::DecodedStrongRegistrationProductionSurfaceV2, I>
 {
-    /// Replays the whole section using the actual foundation and registration
-    /// semantics. Candidate digests are resolved only for the registration
-    /// relation checks, then replaced by the shared canonical projection. The result must be
-    /// joined with the complete layout/ABI source and selected closure before
-    /// it becomes a production section; this API publishes no such authority.
+    /// Checks the canonical section against its foundation and registration
+    /// records. Layout and external-reference joins use the returned data.
     #[allow(clippy::too_many_arguments)]
     pub fn replay(
         self,
@@ -32,7 +24,7 @@ impl<I: WireEncode>
         expected_initialization_abi: Option<Box<CallableAbiRecordV1>>,
         type_definitions: &crate::StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &crate::StrongInitializationDefinitionCatalogV2,
-    ) -> Result<ReplayedStrongProductionSectionV2, StrongProductionSectionValidationError> {
+    ) -> Result<StrongProductionSectionV2, StrongProductionSectionValidationError> {
         let path = WirePath::root();
         let actual = encode_canonical_temporary(&self, &path)?;
         let digests = self
@@ -84,7 +76,7 @@ impl<I: WireEncode>
         if actual != canonical {
             return Err(StrongProductionSectionValidationError::SectionMismatch);
         }
-        Ok(ReplayedStrongProductionSectionV2 { section })
+        Ok(section)
     }
 }
 

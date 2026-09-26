@@ -40,6 +40,8 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 
 已完成产物拥有完整 manifest、typed IR 和对象信息；构建、缓存与消费路径共享这一结果，访问 Compile/Link 数据直接借用，不重新解码或重放闭包。依赖顺序、边和产物只保存一份，不以用途凭证包装两套重复状态。
 
+Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。
+
 发布复用同次编译结果及已检查依赖，不对当前产物和全依赖分别重开 Compile/Link 并完整重演。临时文件写入、同步与回读只用于确认实际写入内容，成功才原子替换。
 
 M23-6 的 runtime 复用编译器或 artifact reader 已验证的静态类型、布局与 scan，分配、装箱、数组及 GC 不反复完整校验。动态对象范围、length/size、TD 归属、对齐和 GC 根仍检查；装箱根直接引用 TD 的 inline scan，不重发射和逐项比较第二份 scan。完整静态检查保留为 `scoop_shape_validate`，`SCOOP_VERIFY_METADATA=1` 可在 runtime 操作入口显式启用。M23-8 才引入多 image 登记边界，本阶段不为此新建 registry 或不可变指针缓存。

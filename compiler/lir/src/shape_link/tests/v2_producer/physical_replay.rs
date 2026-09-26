@@ -10,7 +10,7 @@ use fixtures::{graph, replayed_provider, support, view};
 
 pub(super) fn check_join(
     provider: &Provider,
-    consumer: &ReplayedStrongProductionSectionV2,
+    consumer: &StrongProductionSectionV2,
     layout: &CrossConeLayoutAbiSectionV1<'_>,
 ) {
     let production = replayed_provider(provider);
@@ -33,9 +33,7 @@ pub(super) fn check_join(
             )
     };
     let checked = replay(&rows, &semantic).unwrap();
-    consumer
-        .validate_replayed_layout_selection(&checked)
-        .unwrap();
+    consumer.validate_layout_selection(&checked).unwrap();
     assert_eq!(
         encode(checked.physical_imports()).unwrap(),
         encode(layout.selected().physical_imports()).unwrap()
@@ -48,7 +46,7 @@ pub(super) fn check_join(
             .collect::<Vec<_>>();
         let checked = replay(&incomplete, &semantic).unwrap();
         assert!(matches!(
-            consumer.validate_replayed_layout_selection(&checked),
+            consumer.validate_layout_selection(&checked),
             Err(
                 StrongProductionLayoutJoinError::MissingPhysicalDescriptor { .. }
                     | StrongProductionLayoutJoinError::MissingPhysicalCallable { .. }

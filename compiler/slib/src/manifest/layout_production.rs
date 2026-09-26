@@ -2,7 +2,7 @@
 
 use scoop_lir::{
     CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, StrongProductionSectionV2,
-    StrongRegistrationIdentitySurfaceV1, ValidatedStrongProductionSectionV2,
+    StrongRegistrationIdentitySurfaceV1,
 };
 use scoop_wire::{Encoder, WireEncode};
 
@@ -43,14 +43,13 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
     cone: &ConeRecord,
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
-    strong_production: ValidatedStrongProductionSectionV2,
+    strong_production: StrongProductionSectionV2,
     link_objects: VerifiedCodeLinkObjectMemberSetV2,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV2, ProductionCodeProjectionError> {
     let dependency_identities = direct_dependencies
         .iter()
         .map(DependencyRecord::identity)
         .collect::<Vec<_>>();
-    let strong_production = strong_production.into_section();
     let projection = verify_production_code_projection_common(
         cone,
         &dependency_identities,

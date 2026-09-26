@@ -4,7 +4,7 @@ pub(crate) fn replay<'input>(
     link: &crate::DecodedCrossConeLayoutLinkOnlySections,
     graph: &mut crate::ValidatedGraphArtifact<'input>,
     foundation: &lir::OdrFreeLirFoundation,
-    strong: &lir::ReplayedStrongProductionSectionV2,
+    strong: &lir::StrongProductionSectionV2,
     profile: &lir::CBridgeToolchainProfileV1,
 ) -> Result<ReplayedLayoutLinkObjectContentsV1<'input>, crate::SharedLirPhysicalError> {
     let partition = lir::StrongProducerUnitPartitionV1::from_odr_free_foundation(foundation)

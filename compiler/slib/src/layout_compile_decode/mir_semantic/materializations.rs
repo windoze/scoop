@@ -10,7 +10,7 @@ impl<'input> PreparedCrossConeLayoutMirSections<'input> {
 
     pub(crate) fn replay_link_object_contents(
         &mut self,
-        strong: &scoop_lir::ReplayedStrongProductionSectionV2,
+        strong: &scoop_lir::StrongProductionSectionV2,
         profile: &scoop_lir::CBridgeToolchainProfileV1,
     ) -> Result<crate::ReplayedLayoutLinkObjectContentsV1<'input>, crate::SharedLirPhysicalError>
     {

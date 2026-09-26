@@ -31,7 +31,7 @@ pub(super) fn check(
     ];
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: &prepared.foundation,
-        production: lir::ShapeLinkProductionV1::Reader(&prepared.production),
+        production: &prepared.production,
         ordinary,
         layouts: core_lir.layouts(),
         callables: core_lir.callables(),
@@ -138,7 +138,7 @@ pub(super) fn check(
     }
     assert_eq!(core_lir.target_profile(), target.lir_target());
     assert_eq!(
-        encode(&prepared.production.into_section()).unwrap(),
+        encode(&prepared.production).unwrap(),
         encode(published.lir_strong_production_wire()).unwrap(),
     );
 }

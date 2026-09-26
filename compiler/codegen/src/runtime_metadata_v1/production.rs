@@ -124,27 +124,41 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
     profile: ValidatedBackendProfile,
-    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
+    production: &scoop_lir::StrongProductionSection<D, C, I>,
     array_bounds_message: GlobalValue<'ctx>,
     array_size_overflow_message: GlobalValue<'ctx>,
 ) -> Result<EmittedStrongRuntimeMetadataModuleV1<'ctx>, CodegenError> {
-    let safepoints =
-        emit_strong_safepoint_registrations_v1(context, llvm, production.safepoints())?;
-    let callables = emit_strong_callable_registrations_v1(context, llvm, production.callables())?;
-    let types = emit_strong_type_registrations_v1(context, llvm, production.types())?;
-    let immortal_objects =
-        emit_strong_immortal_object_registrations_v1(context, llvm, production.immortal_objects())?;
+    let safepoints = emit_strong_safepoint_registrations_v1(
+        context,
+        llvm,
+        production.registration_production().safepoints(),
+    )?;
+    let callables = emit_strong_callable_registrations_v1(
+        context,
+        llvm,
+        production.registration_production().callables(),
+    )?;
+    let types = emit_strong_type_registrations_v1(
+        context,
+        llvm,
+        production.registration_production().types(),
+    )?;
+    let immortal_objects = emit_strong_immortal_object_registrations_v1(
+        context,
+        llvm,
+        production.registration_production().immortal_objects(),
+    )?;
     let static_storages = emit_strong_static_storage_registrations_v1(
         context,
         llvm,
         target_data,
-        production.static_storages(),
+        production.registration_production().static_storages(),
     )?;
     let initialization_units = emit_strong_initialization_unit_registrations_v1(
         context,
         llvm,
         profile,
-        production.initialization_units(),
+        production.registration_production().initialization_units(),
     )?;
     let entry = emit_entry_production_v1(context, llvm, production.entry_plan())?;
     let image = emit_cone_image_v1(
@@ -280,7 +294,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
 
 #[allow(clippy::too_many_arguments)]
 fn runtime_global_atoms<'ctx, D, C, I>(
-    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
+    production: &scoop_lir::StrongProductionSection<D, C, I>,
     safepoints: &super::EmittedStrongSafepointRegistrationSetV1<'ctx>,
     callables: &super::EmittedStrongCallableRegistrationSetV1<'ctx>,
     types: &super::EmittedStrongTypeRegistrationSetV1<'ctx>,
@@ -313,13 +327,18 @@ fn runtime_global_atoms<'ctx, D, C, I>(
     require_parallel_coverage(
         "immortal-object registration",
         immortal_objects.registrations().len(),
-        production.immortal_objects().registrations().len(),
+        production
+            .registration_production()
+            .immortal_objects()
+            .registrations()
+            .len(),
     )?;
-    for (emitted, plan) in immortal_objects
-        .registrations()
-        .iter()
-        .zip(production.immortal_objects().registrations())
-    {
+    for (emitted, plan) in immortal_objects.registrations().iter().zip(
+        production
+            .registration_production()
+            .immortal_objects()
+            .registrations(),
+    ) {
         if emitted.object() != plan.object() {
             return Err(CodegenError(
                 "immortal-object emission order diverges from its closed plan".to_string(),
@@ -338,13 +357,18 @@ fn runtime_global_atoms<'ctx, D, C, I>(
     require_parallel_coverage(
         "static-storage registration",
         static_storages.registrations().len(),
-        production.static_storages().registrations().len(),
+        production
+            .registration_production()
+            .static_storages()
+            .registrations()
+            .len(),
     )?;
-    for (emitted, plan) in static_storages
-        .registrations()
-        .iter()
-        .zip(production.static_storages().registrations())
-    {
+    for (emitted, plan) in static_storages.registrations().iter().zip(
+        production
+            .registration_production()
+            .static_storages()
+            .registrations(),
+    ) {
         if emitted.storage() != plan.semantic().storage() {
             return Err(CodegenError(
                 "static-storage emission order diverges from its closed plan".to_string(),
@@ -374,13 +398,18 @@ fn runtime_global_atoms<'ctx, D, C, I>(
     require_parallel_coverage(
         "initialization registration",
         initialization_units.registrations().len(),
-        production.initialization_units().registrations().len(),
+        production
+            .registration_production()
+            .initialization_units()
+            .registrations()
+            .len(),
     )?;
-    for (emitted, plan) in initialization_units
-        .registrations()
-        .iter()
-        .zip(production.initialization_units().registrations())
-    {
+    for (emitted, plan) in initialization_units.registrations().iter().zip(
+        production
+            .registration_production()
+            .initialization_units()
+            .registrations(),
+    ) {
         if emitted.unit() != plan.semantic().unit() {
             return Err(CodegenError(
                 "initialization emission order diverges from its closed plan".to_string(),
@@ -517,7 +546,7 @@ impl_patch_site_parts!(
 );
 
 fn record_patch<D, C, I>(
-    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
+    production: &scoop_lir::StrongProductionSection<D, C, I>,
     patches: &mut Vec<ProvisionalStrongDigestPatchLocationV1>,
     patch: PatchParts<'_>,
 ) -> Result<(), CodegenError> {
@@ -572,7 +601,7 @@ fn record_patch<D, C, I>(
 }
 
 fn validate_patch_coverage<D, C, I>(
-    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
+    production: &scoop_lir::StrongProductionSection<D, C, I>,
     patches: &[ProvisionalStrongDigestPatchLocationV1],
 ) -> Result<(), CodegenError> {
     let expected = production

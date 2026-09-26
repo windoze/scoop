@@ -202,7 +202,7 @@ fn v2_writer_preserves_legacy_relation_bytes_for_a_final_lir_module() {
         )
         .unwrap();
 
-    assert_eq!(encode(&v2.section).unwrap(), encode(&v1).unwrap());
+    assert_eq!(encode(&v2).unwrap(), encode(&v1).unwrap());
 }
 
 #[test]

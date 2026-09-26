@@ -1,5 +1,4 @@
 use super::*;
-use crate::strong_production::StrongProductionEmissionSource;
 
 /// One verified provisional Scoop object and its exact producer units.
 #[derive(Debug)]
@@ -71,8 +70,7 @@ pub struct EmittedStrongObjectSet<P> {
 }
 
 pub type EmittedStrongObjectSetV1 = EmittedStrongObjectSet<scoop_lir::StrongProductionSectionV1>;
-pub type EmittedStrongObjectSetV2 =
-    EmittedStrongObjectSet<scoop_lir::ValidatedStrongProductionSectionV2>;
+pub type EmittedStrongObjectSetV2 = EmittedStrongObjectSet<scoop_lir::StrongProductionSectionV2>;
 
 impl<P> EmittedStrongObjectSet<P> {
     pub const fn target(&self) -> scoop_lir::LirTargetProfile {
@@ -91,8 +89,8 @@ impl<P> EmittedStrongObjectSet<P> {
         &self.production
     }
 
-    /// Consume the emitted set and release its production authority after the
-    /// caller has copied or verified the temporary object members.
+    /// Returns the production records after the caller has consumed the
+    /// temporary object members.
     pub fn into_production(self) -> P {
         self.production
     }
@@ -127,9 +125,8 @@ impl RenderedStrongObjectModuleV1 {
     }
 }
 
-/// Translate one sealed strong LIR product to its complete provisional object
-/// set and retain the exact production/patch authority required by `.slib`
-/// packaging.
+/// Emits provisional objects and retains their production and patch records
+/// for `.slib` packaging.
 pub fn emit_object_set(
     input: &scoop_lir::SingleConeStrongLirOutput,
     coordinate: &scoop_lir::ConeCoordinate,
@@ -147,13 +144,10 @@ pub fn emit_object_set(
     emit_object_set_with_production(input, production, temporary_parent, profile)
 }
 
-/// Translate one sealed strong LIR product with a layout-validated V2
-/// production section. Accepting the validated proof here prevents codegen
-/// from emitting a raw V2 section that has not been joined to its exact
-/// layout/ABI exports.
+/// Emits the complete LIR and Strong V2 production records for one Cone.
 pub fn emit_object_set_v2(
     input: &scoop_lir::SingleConeStrongLirOutput,
-    production: scoop_lir::ValidatedStrongProductionSectionV2,
+    production: scoop_lir::StrongProductionSectionV2,
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedStrongObjectSetV2, CodegenError> {
@@ -162,19 +156,18 @@ pub fn emit_object_set_v2(
     emit_object_set_with_production(input, production, temporary_parent, profile)
 }
 
-fn emit_object_set_with_production<P: crate::strong_production::StrongProductionEmissionSource>(
+fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: Clone, I: Clone>(
     input: &scoop_lir::SingleConeStrongLirOutput,
-    production: P,
+    production: scoop_lir::StrongProductionSection<D, C, I>,
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
-) -> Result<EmittedStrongObjectSet<P>, CodegenError> {
+) -> Result<EmittedStrongObjectSet<scoop_lir::StrongProductionSection<D, C, I>>, CodegenError> {
     let module = input.module();
     let partition = StrongScoopLirObjectPartitionV1::from_input(input)
         .map_err(|error| CodegenError(error.to_string()))?;
     let expected_safepoints = statepoint::expectations(module)?;
     let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
-    let production_view = production.emission_view();
     std::fs::create_dir_all(temporary_parent).map_err(|error| {
         CodegenError(format!(
             "cannot create object temporary parent {}: {error}",
@@ -203,7 +196,7 @@ fn emit_object_set_with_production<P: crate::strong_production::StrongProduction
                 let (llvm, runtime_metadata) = prepare_non_callable_strong_llvm_module(
                     &context,
                     module,
-                    &production_view,
+                    &production,
                     &machine,
                     profile,
                     &selected_safepoints,
@@ -214,7 +207,7 @@ fn emit_object_set_with_production<P: crate::strong_production::StrongProduction
                     object_materialization::resolve_digest_patch_materializations_v1(
                         &path,
                         module.meta.target_profile,
-                        production_view.canonical_definitions(),
+                        production.canonical_definitions(),
                         &runtime_metadata,
                     )?;
                 EmittedStrongObjectMemberV1 {
@@ -241,14 +234,14 @@ fn emit_object_set_with_production<P: crate::strong_production::StrongProduction
                 let llvm = prepare_callable_strong_llvm_module(
                     &context,
                     module,
-                    &production_view,
+                    &production,
                     &machine,
                     profile,
                     &selected_safepoints,
                     body,
                 )?;
                 write_object(&machine, &llvm, &path)?;
-                let definition = production_view
+                let definition = production
                     .canonical_definitions()
                     .plan(units.definition_plans()[0])
                     .ok_or_else(|| {
@@ -295,7 +288,7 @@ fn validate_object_set_input(
 
 fn validate_production_binding(
     input: &scoop_lir::SingleConeStrongLirOutput,
-    production: &scoop_lir::ValidatedStrongProductionSectionV2,
+    production: &scoop_lir::StrongProductionSectionV2,
 ) -> Result<(), CodegenError> {
     let foundation = input.foundation();
     if production.external_bridges().producer() != foundation.producer() {
@@ -343,7 +336,6 @@ pub fn render_llvm_ir_members(
         .map_err(|error| {
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
-    let production_view = production.emission_view();
     let partition = StrongScoopLirObjectPartitionV1::from_input(input)
         .map_err(|error| CodegenError(error.to_string()))?;
     let expected_safepoints = statepoint::expectations(module)?;
@@ -359,7 +351,7 @@ pub fn render_llvm_ir_members(
                     prepare_non_callable_strong_llvm_module(
                         &context,
                         module,
-                        &production_view,
+                        &production,
                         &machine,
                         profile,
                         &selected,
@@ -380,7 +372,7 @@ pub fn render_llvm_ir_members(
                     prepare_callable_strong_llvm_module(
                         &context,
                         module,
-                        &production_view,
+                        &production,
                         &machine,
                         profile,
                         &selected,

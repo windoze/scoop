@@ -7,7 +7,7 @@ impl ShapeLinkProviderV1<'_> {
     ) -> Result<(), ShapeLinkError> {
         Self::reject_legacy_subject(
             self.parts.ordinary,
-            self.parts.production.initialization_abi(),
+            self.parts.production.initialization_cycle_abi(),
             subject,
         )
     }

@@ -41,7 +41,7 @@ pub(in super::super) fn assemble_with_production(
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     owners: &[scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
-    production: lir::ValidatedStrongProductionSectionV2,
+    production: lir::StrongProductionSectionV2,
 ) -> scoop_slib::AssembledCrossConeLayoutStrongArtifactV1 {
     let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
     let emitted = scoop_codegen::emit_object_set_v2(

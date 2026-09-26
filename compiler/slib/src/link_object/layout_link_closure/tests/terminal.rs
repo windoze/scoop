@@ -1,6 +1,4 @@
-use scoop_lir::{
-    CanonicalLirFoundation, NoShapeLinkSupportV1, OdrFreeLirFoundation, ShapeLinkProductionV1,
-};
+use scoop_lir::{CanonicalLirFoundation, NoShapeLinkSupportV1, OdrFreeLirFoundation};
 
 use super::fixture::empty_section;
 use super::*;
@@ -113,7 +111,7 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
     let result =
         CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
             foundation: &missing,
-            production: ShapeLinkProductionV1::Reader(&fixture.provider.production),
+            production: &fixture.provider.production,
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
             support: &NoShapeLinkSupportV1,
@@ -137,7 +135,7 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
     let missing_provider =
         CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
             foundation: &missing_symbol,
-            production: ShapeLinkProductionV1::Reader(&fixture.provider.production),
+            production: &fixture.provider.production,
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
             support: &NoShapeLinkSupportV1,
@@ -158,7 +156,7 @@ fn terminal_closure_rejects_missing_symbol_definition_and_wrong_artifact_provide
     let result =
         CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
             foundation: &fixture.provider.foundation,
-            production: ShapeLinkProductionV1::Reader(&fixture.provider.production),
+            production: &fixture.provider.production,
             ordinary: &fixture.provider.ordinary,
             section: &fixture.provider.section,
             support: &NoShapeLinkSupportV1,

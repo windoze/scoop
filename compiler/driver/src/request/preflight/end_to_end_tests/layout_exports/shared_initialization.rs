@@ -8,7 +8,7 @@ pub(super) fn check(
     mir: &mir::CoreBootstrapBridgeSectionV1,
     lir: &lir::SingleConeStrongLirOutput,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    strong: &lir::ValidatedStrongProductionSectionV2,
+    strong: &lir::StrongProductionSectionV2,
 ) {
     let replay = |callables: &mir::StrongCallableBridgeSurfaceV1,
                   layouts: &lir::CanonicalExactLayoutExportsV1| {

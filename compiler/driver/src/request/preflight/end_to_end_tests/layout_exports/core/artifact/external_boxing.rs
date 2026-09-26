@@ -14,7 +14,7 @@ pub(super) fn check(
     producer: &lir::SingleConeStrongLirOutput,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
     ordinary: &lir::CrossConeLirBridgeSectionV1,
-    production: &lir::ValidatedStrongProductionSectionV2,
+    production: &lir::StrongProductionSectionV2,
 ) {
     let references = match name {
         "shared-shapes-standalone" => false,
@@ -40,7 +40,7 @@ pub(super) fn check(
         lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let provider = lir::ShapeLinkProviderV1::try_new(lir::ShapeLinkProviderPartsV1 {
         foundation: producer.foundation(),
-        production: lir::ShapeLinkProductionV1::Reader(production),
+        production,
         ordinary,
         layouts: layout.layouts(),
         callables: layout.callables(),

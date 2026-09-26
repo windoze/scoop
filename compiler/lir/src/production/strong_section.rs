@@ -248,11 +248,9 @@ pub use decoded::*;
 mod initialization;
 pub use initialization::StrongInitializationAbiValidationError;
 
+mod registrations;
 mod replay;
-pub use replay::{
-    ReplayedStrongLayoutExportsV2, ReplayedStrongProductionSectionV2,
-    StrongProductionLayoutJoinError, ValidatedStrongProductionSectionV2,
-};
+pub use replay::StrongProductionLayoutJoinError;
 
 impl DecodedStrongProductionSectionV1 {
     #[allow(clippy::too_many_arguments)]

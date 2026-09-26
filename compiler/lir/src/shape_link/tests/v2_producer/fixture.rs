@@ -16,7 +16,7 @@ pub(super) struct Provider {
     pub(super) callable_body: PersistentCallableBodyId,
     pub(super) initialization_unit: PersistentInitializationUnitId,
     pub(super) output: SingleConeStrongLirOutput,
-    pub(super) section: ValidatedStrongProductionSectionV2,
+    pub(super) section: StrongProductionSectionV2,
     pub(super) ordinary: CrossConeLirBridgeSectionV1,
     layouts: CanonicalExactLayoutExportsV1,
     descriptors: CanonicalExactDescriptorExportsV1,
@@ -157,7 +157,7 @@ impl Provider {
     pub(super) fn shape_link_provider(&self) -> ShapeLinkProviderV1<'_> {
         ShapeLinkProviderV1::try_new(ShapeLinkProviderPartsV1 {
             foundation: self.output.foundation(),
-            production: ShapeLinkProductionV1::Reader(&self.section),
+            production: &self.section,
             ordinary: &self.ordinary,
             layouts: &self.layouts,
             callables: &self.callables,

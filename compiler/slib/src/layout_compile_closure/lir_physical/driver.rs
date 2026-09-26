@@ -39,7 +39,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                 dependencies.extend(reachable.iter().map(|&index| complete[index]));
                 let layout =
                     replay::physical(layout, &strong, &mir, &dependencies, parts.identities)?;
-                strong.validate_replayed_layout_selection(&layout)?;
+                strong.validate_layout_selection(&layout)?;
                 if let Some(link) = parts.link_sections {
                     link.layout_link_closure_wire()
                         .validate_physical_imports_against(layout.physical_imports())?;

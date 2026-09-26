@@ -31,7 +31,7 @@ pub type MirDependencyGraphReplayedCrossConeLayoutSections<'input> =
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::ReplayedStrongProductionSectionV2,
+        lir::StrongProductionSectionV2,
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
 pub type MirDependencyGraphReplayedCrossConeLayoutClosure<'input> =
@@ -39,7 +39,7 @@ pub type MirDependencyGraphReplayedCrossConeLayoutClosure<'input> =
         'input,
         lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
         lir::CrossConeLirBridgeSectionV1,
-        lir::ReplayedStrongProductionSectionV2,
+        lir::StrongProductionSectionV2,
         mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     >;
 
@@ -148,7 +148,7 @@ impl MirDependencyGraphReplayedCrossConeLayoutSections<'_> {
         &self.mir
     }
 
-    pub const fn lir_strong_production(&self) -> &lir::ReplayedStrongProductionSectionV2 {
+    pub const fn lir_strong_production(&self) -> &lir::StrongProductionSectionV2 {
         &self.strong
     }
 }

@@ -3,7 +3,7 @@ use scoop_identity::ValidatedIdentityGraph;
 
 pub(super) fn physical<'a>(
     layout: lir::DependencyResolvedCrossConeLayoutAbiSectionV1,
-    strong: &lir::ReplayedStrongProductionSectionV2,
+    strong: &lir::StrongProductionSectionV2,
     mir: &mir::DependencyResolvedCrossConeMirTypeBridgeSectionV1,
     dependencies: &[&'a PhysicalImportsReplayedCrossConeLayoutSections<'_, 'a>],
     identities: &mut ValidatedIdentityGraph,
@@ -12,11 +12,16 @@ pub(super) fn physical<'a>(
     scoop_wire::allocation::try_reserve(&mut providers, dependencies.len(), &WirePath::root())?;
     for dependency in dependencies {
         let exports = dependency.layout.exports();
-        let production = dependency.strong.replay_layout_exports(exports)?;
-        providers.push(lir::ShapeLinkProviderV1::from_replayed(
-            dependency.prepared.lir_foundation(),
-            &dependency.ordinary,
-            production,
+        providers.push(lir::ShapeLinkProviderV1::try_new(
+            lir::ShapeLinkProviderPartsV1 {
+                foundation: dependency.prepared.lir_foundation(),
+                production: &dependency.strong,
+                ordinary: &dependency.ordinary,
+                layouts: exports.layouts(),
+                callables: exports.callables(),
+                descriptors: exports.descriptors(),
+                dispatch: exports.dispatch(),
+            },
         )?);
     }
     let support = support::SharedSupport {

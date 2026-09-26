@@ -2,8 +2,8 @@
 
 use super::*;
 use crate::{
-    DecodedStrongProductionSectionV2, EntryProductionSourceV1, ReplayedStrongProductionSectionV2,
-    StrongProductionSectionV2, StrongProductionSectionValidationError as SectionError,
+    DecodedStrongProductionSectionV2, EntryProductionSourceV1, StrongProductionSectionV2,
+    StrongProductionSectionValidationError as SectionError,
 };
 use scoop_identity::ConeCoordinate;
 
@@ -36,7 +36,7 @@ fn replay_section(
     fixture: &Fixture,
     bytes: &[u8],
     definitions: &StrongTypeReferenceDefinitionsV2,
-) -> Result<ReplayedStrongProductionSectionV2, SectionError> {
+) -> Result<StrongProductionSectionV2, SectionError> {
     let decoded: DecodedStrongProductionSectionV2 = decode_canonical(bytes).unwrap();
     decoded.replay(
         ConeCoordinate::reserved_single_file(),
@@ -175,8 +175,6 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
         .validate_layout_abi(&empty_layout_section())
         .unwrap();
     assert_eq!(joined.type_registrations(), &expected);
-    assert!(joined.descriptors().records().is_empty());
-    assert!(joined.dispatch().records().is_empty());
 }
 
 struct EmptyLayoutSource;

@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn validate(
-    production: &ReplayedStrongProductionSectionV2,
+    production: &StrongProductionSectionV2,
     section: &crate::LayoutAbiExportConstituentsV1,
 ) -> Result<(), StrongProductionLayoutJoinError> {
     for record in section.callables().records() {

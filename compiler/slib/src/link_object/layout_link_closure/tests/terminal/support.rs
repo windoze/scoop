@@ -5,10 +5,9 @@ use scoop_identity::{
 use scoop_lir::{
     CanonicalLirFoundation, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
     DecodedStrongProductionSectionV2, EntryProductionSourceV1, ExactValueLayoutV1,
-    NoShapeLinkSupportV1, OdrFreeLirFoundation, ScalarRepresentationKindV1, ShapeLinkProductionV1,
-    StrongInitializationDefinitionCatalogV2, StrongProductionSectionV1,
+    NoShapeLinkSupportV1, OdrFreeLirFoundation, ScalarRepresentationKindV1,
+    StrongInitializationDefinitionCatalogV2, StrongProductionSectionV1, StrongProductionSectionV2,
     StrongRegistrationProductionSurfaceV1, StrongTypeReferenceDefinitionsV2,
-    ValidatedStrongProductionSectionV2,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -68,7 +67,7 @@ impl Fixture {
 
 pub(super) struct Consumer<'provider> {
     foundation: OdrFreeLirFoundation,
-    production: ValidatedStrongProductionSectionV2,
+    production: StrongProductionSectionV2,
     ordinary: CrossConeLirBridgeSectionV1,
     pub(super) section: CrossConeLayoutAbiSectionV1<'provider>,
     pub(super) defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
@@ -101,13 +100,13 @@ impl<'provider> Consumer<'provider> {
 
 pub(super) fn artifact<'a>(
     provider: &'a Provider,
-    production: &'a ValidatedStrongProductionSectionV2,
+    production: &'a StrongProductionSectionV2,
     section: &'a CrossConeLayoutAbiSectionV1<'a>,
     owners: &'a CanonicalDefinedLinkSymbolOwnerSetV1,
 ) -> CrossConeLayoutTerminalArtifactV1<'a> {
     CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
         foundation: &provider.foundation,
-        production: ShapeLinkProductionV1::Reader(production),
+        production,
         ordinary: &provider.ordinary,
         section,
         support: &NoShapeLinkSupportV1,
@@ -122,7 +121,7 @@ pub(super) fn consumer_artifact<'a>(
 ) -> CrossConeLayoutTerminalArtifactV1<'a> {
     CrossConeLayoutTerminalArtifactV1::try_new(CrossConeLayoutTerminalArtifactPartsV1 {
         foundation: &consumer.foundation,
-        production: ShapeLinkProductionV1::Reader(&consumer.production),
+        production: &consumer.production,
         ordinary: &consumer.ordinary,
         section: &consumer.section,
         support: &NoShapeLinkSupportV1,
@@ -134,7 +133,7 @@ pub(super) fn consumer_artifact<'a>(
 pub(super) fn replay_provider_production(
     provider: &Provider,
     section: &CrossConeLayoutAbiSectionV1<'_>,
-) -> ValidatedStrongProductionSectionV2 {
+) -> StrongProductionSectionV2 {
     let coordinate = ConeCoordinate::new("test", "layout-link-provider", "1.0.0").unwrap();
     let digests = provider.production.digest_finalization_plan().clone();
     let external = provider.production.external_bridges().clone();
@@ -159,7 +158,7 @@ fn replay(
     coordinate: ConeCoordinate,
     foundation: &OdrFreeLirFoundation,
     section: &CrossConeLayoutAbiSectionV1<'_>,
-) -> ValidatedStrongProductionSectionV2 {
+) -> StrongProductionSectionV2 {
     let producer = foundation.producer();
     let raw: DecodedStrongProductionSectionV2 = decode_canonical(&encode(old).unwrap()).unwrap();
     raw.replay(
