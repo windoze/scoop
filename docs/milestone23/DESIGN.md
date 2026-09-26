@@ -34,6 +34,8 @@ M23-6 的实现范围以最新版 AGENTS.md 为准：完成类型布局、canoni
 
 本轮实施与验收见[core 普通 library 清理](CORE-LIBRARY.md)。
 
+HIR 的 `org.scoop-lang.hir/core-bootstrap-interface/4` 直接保存完整 `CoreCompilerProtocolSurfaceV1`，删除重复的 `RuntimeCoreCapabilityV1::String` 与 `CompilerProtocolDefinitionsV1` 外层。section 的 field 2、3 继续保存 output contract 和 direct public surface，field 5 以长度为 0 或 1 的 array 保存本产物定义的协议角色；旧 field 1、4 及旧资格分支 tag 1、2 退役，不复用，旧 `/1`～`/3` 产物与缓存重建。String 的 source identity 只在已有 fundamental type 角色中保存，exact identity 由该真实声明的 `ExactTypeKey::Nominal` 得到；不再维护第二份 source/exact 记录或比较两份投影。前端完成 intrinsic 识别与语言声明检查，后续阶段直接消费完整 typed 角色、共有声明与实际 provider；reader 保留格式、引用种类、签名、effect、成员归属和跨表一致性检查。初始化循环服务的实际函数、String 参数、Unit 结果及 canonical ABI 继续沿共有 callable 路径使用。此修订不改变 String 表示或 runtime C 调用约定。
+
 String descriptor 使用完整 MIR 中实际声明的 source exact identity，沿共有 descriptor 查询、layout selection、physical import、registration 和 Link relocation 消费。删除独立 String bridge 与固定角色的 descriptor 恢复通道，不以 provider 坐标或协议来源豁免普通引用检查。Strong production `/7`、`/8` 退役原服务表中的 TD tag 2；旧产物与缓存重建，String 表示及 runtime C ABI 不变。
 
 初始化循环异常服务是前端已解析的实际 typed 函数声明。声明以原可见性进入共有 callable 支持记录，实际 MIR body、LIR canonical ABI、导出与依赖选择均使用普通 callable 表；internal 服务不加入 public lookup。`InitializationCycle` 只表达 lowering 选择失败分支目标的语义角色，不产生来源资格、第二份 ABI 或独立 Link owner/requirement。lowering 生成的调用可以没有源码 lookup 记录；已有源码调用仍核对实际目标、provider、参数、结果与物化根，所有生成调用仍核对完整 typed 依赖和 ABI。

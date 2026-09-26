@@ -25,7 +25,7 @@ fn protocol_definitions_are_data_independent_of_the_artifact_coordinate() {
             Ok(fixture.section.clone())
         );
         let imported = CoreBootstrapInterfaceSectionV1 {
-            protocol_definitions: None,
+            compiler_protocols: None,
             output_contract: HirOutputContractV1::Library,
             direct_public_surface: fixture.direct.clone(),
         };
@@ -46,15 +46,9 @@ fn ordinary_provider_definitions_validate_and_import_their_actual_typed_roles() 
     let mut exact_types = foundation.type_source_exact_records().to_vec();
     exact_types.extend([exact.clone(), unit_exact_record()]);
     foundation.set_exact_types(exact_types).unwrap();
-    let definitions = CompilerProtocolDefinitionsV1 {
-        string_capability: RuntimeCoreCapabilityV1::String {
-            source_type,
-            exact_type: exact.id(),
-        },
-        compiler_protocols,
-    };
+    let definitions = compiler_protocols;
     let section = CoreBootstrapInterfaceSectionV1 {
-        protocol_definitions: Some(Box::new(definitions.clone())),
+        compiler_protocols: Some(Box::new(definitions.clone())),
         ..non_core_section()
     };
     assert_eq!(
@@ -87,7 +81,7 @@ fn protocol_definitions_do_not_replace_the_executable_output_contract() {
     )
     .unwrap();
     let executable = CoreBootstrapInterfaceSectionV1 {
-        protocol_definitions: Some(Box::new(fixture.interface)),
+        compiler_protocols: Some(Box::new(fixture.interface)),
         output_contract: HirOutputContractV1::Executable(Box::new(proof)),
         direct_public_surface: fixture.direct,
     };
@@ -111,7 +105,7 @@ fn shape_support_sources_are_derived_from_param_free_source_nominals() {
     .source_declarations(foundation.as_canonical())
     .unwrap();
     let mut expected = vec![
-        fixture.interface.string_capability().source_type(),
+        fixture.interface.string_source_type(),
         scoop_identity::CoreBuiltinNominal::Unit
             .identity_record()
             .id(),
@@ -143,7 +137,7 @@ fn imported_core_inputs_expose_compiler_protocols() {
     );
     assert_eq!(
         protocols.fundamental_types().string().persistent(),
-        fixture.interface.string_capability().source_type()
+        fixture.interface.string_source_type()
     );
     let integers = crate::IntegerKind::ALL
         .map(|kind| protocols.fundamental_types().integer(kind).persistent());
@@ -157,15 +151,15 @@ fn imported_core_inputs_expose_compiler_protocols() {
     );
     assert_eq!(
         protocols.option().some().persistent(),
-        fixture.interface.compiler_protocols().option_some()
+        fixture.interface.option_some()
     );
     assert_eq!(
         protocols.option().some_payload().persistent(),
-        fixture.interface.compiler_protocols().option_some_payload()
+        fixture.interface.option_some_payload()
     );
     assert_eq!(
         protocols.option().none().persistent(),
-        fixture.interface.compiler_protocols().option_none()
+        fixture.interface.option_none()
     );
     assert_ne!(
         protocols.iteration().next().definition(),
@@ -307,12 +301,6 @@ fn imported_protocols_do_not_require_duplicate_public_bindings() {
     assert!(imported.import_core_inputs(&fixture.interface).is_ok());
 }
 
-fn decode_interface(
-    interface: &CompilerProtocolDefinitionsV1,
-) -> DecodedCompilerProtocolDefinitionsV1 {
-    decode_canonical(&encode(interface).unwrap()).unwrap()
-}
-
 fn decode_section(
     section: &CoreBootstrapInterfaceSectionV1,
 ) -> DecodedCoreBootstrapInterfaceSectionV1 {
@@ -321,7 +309,7 @@ fn decode_section(
 
 fn non_core_section() -> CoreBootstrapInterfaceSectionV1 {
     CoreBootstrapInterfaceSectionV1 {
-        protocol_definitions: None,
+        compiler_protocols: None,
         output_contract: HirOutputContractV1::Library,
         direct_public_surface: CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
     }
@@ -330,7 +318,7 @@ fn non_core_section() -> CoreBootstrapInterfaceSectionV1 {
 struct Fixture {
     foundation: CanonicalHirFoundation,
     direct: CanonicalDirectPublicSurfaceV1,
-    interface: CompilerProtocolDefinitionsV1,
+    interface: CoreCompilerProtocolSurfaceV1,
     section: CoreBootstrapInterfaceSectionV1,
 }
 
@@ -375,15 +363,9 @@ fn fixture() -> Fixture {
             exact_types: vec![string_exact_record.clone(), unit_exact_record()],
         },
     );
-    let interface = CompilerProtocolDefinitionsV1 {
-        string_capability: RuntimeCoreCapabilityV1::String {
-            source_type: string_id,
-            exact_type: string_exact_record.id(),
-        },
-        compiler_protocols,
-    };
+    let interface = compiler_protocols;
     let section = CoreBootstrapInterfaceSectionV1 {
-        protocol_definitions: Some(Box::new(interface.clone())),
+        compiler_protocols: Some(Box::new(interface.clone())),
         output_contract: HirOutputContractV1::Library,
         direct_public_surface: direct.clone(),
     };

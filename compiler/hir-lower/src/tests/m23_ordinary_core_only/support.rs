@@ -22,7 +22,7 @@ pub(crate) struct TrustedCoreFixture {
     pub(crate) source_foundation: scoop_hir::OdrFreeHirFoundation,
     general_interface: scoop_hir::CrossConeHirInterfaceSectionV1,
     aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
-    pub(crate) interface: scoop_hir::CompilerProtocolDefinitionsV1,
+    pub(crate) interface: scoop_hir::CoreCompilerProtocolSurfaceV1,
 
     session: SemanticIdentitySession,
 }
@@ -31,18 +31,15 @@ impl TrustedCoreFixture {
     pub(crate) fn project_initialization_cycle_to_mir(
         &self,
     ) -> scoop_mir::SelectedDependencyMirCallableV1 {
-        let scoop_hir::CoreProtocolCallableDefinitionV1::Function(definition) = self
-            .interface
-            .compiler_protocols()
-            .initialization_cycle_thrower()
-            .definition()
+        let scoop_hir::CoreProtocolCallableDefinitionV1::Function(definition) =
+            self.interface.initialization_cycle_thrower().definition()
         else {
             panic!("the fixture cycle thrower is a source function")
         };
         let signature = scoop_identity::ExactCallableSignature::new(
             scoop_identity::Effect::Ordinary,
             None,
-            vec![self.interface.string_capability().exact_type()],
+            vec![self.interface.string_exact_type()],
             scoop_mir::core_unit_exact_type(),
         );
         scoop_mir::SelectedDependencyMirCallableV1::try_new(
@@ -136,7 +133,11 @@ pub(crate) fn trusted_core_from_source(
         source_text,
     );
     let output = lower_core_bootstrap(&parsed).unwrap();
-    let interface = scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
+    let scoop_hir::CoreProtocols::Defined(protocols) = &output.export.core_protocols else {
+        panic!("the bootstrap fixture defines its protocol roles")
+    };
+    let interface =
+        scoop_hir::CoreCompilerProtocolSurfaceV1::from_export(&output.export, protocols).unwrap();
     let mut canonical = scoop_hir::CanonicalHirFoundation::from_modules(
         &output.export,
         &output.local,

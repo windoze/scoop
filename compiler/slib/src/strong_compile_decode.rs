@@ -5,11 +5,10 @@ use std::fmt;
 use std::rc::Rc;
 
 use scoop_hir::{
-    CompilerProtocolDefinitionsV1, CoreBootstrapInterfaceSectionV1,
-    CoreBootstrapInterfaceValidationError, DecodedCoreBootstrapInterfaceSectionV1,
-    DecodedHirFoundation, HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation,
-    OdrFreeHirFoundation, OdrFreeHirFoundationError, PublicNominalShapeProjectionError,
-    PublicNominalShapeRequirementsV1,
+    CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
+    CoreCompilerProtocolSurfaceV1, DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation,
+    HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation, OdrFreeHirFoundation,
+    OdrFreeHirFoundationError, PublicNominalShapeProjectionError, PublicNominalShapeRequirementsV1,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityValidationError, SemanticIdentitySession,

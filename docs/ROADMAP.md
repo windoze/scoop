@@ -239,10 +239,12 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 
 总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage5/DESIGN.md`。
 
-- 落地direct/support closure、cross-Cone exact/star/alias import、re-export、public/internal/private access provenance、default、non-generic alias与selected HIR/MIR/LIR metadata；新增cross-Cone strong profile，成功machine-use只开放core-closed const及签名完全由trusted-core param-free leaf构成的非generic top-level/extension callable或property accessor。凡需尚未具备的cross-Cone layout/dispatch或物化证明的使用稳定拒绝到M23-6，不由consumer临时发Strong定义；receiver-dependent protected、generic或direct source-extern能力分别拒绝到M23-6、M23-7或M23-10，不产生残缺IR。
+- 落地direct/support closure、cross-Cone exact/star/alias import、re-export、public/internal/private access provenance、default、non-generic alias与selected HIR/MIR/LIR metadata；新增cross-Cone strong profile，成功machine-use只开放已解析基础类型构成的 const 及签名完全由这些参数自由类型构成的非generic top-level/extension callable或property accessor。凡需尚未具备的cross-Cone layout/dispatch或物化实现的使用稳定拒绝到M23-6，不由consumer临时发Strong定义；receiver-dependent protected、generic或direct source-extern能力分别拒绝到M23-6、M23-7或M23-10，不产生残缺IR。
 - 完成direct/transitive可见性、split package、链式re-export、negative lookup observation及semantic cache失效矩阵；每个成功用例仍产生双view有效artifact。
 
 ### M23-6 跨Cone layout、typed ABI与ZST
+
+协议数据清理删除重复 String source/exact capability 和独立 definitions 外层，`hir/core-bootstrap-interface/4` 直接保存完整 typed 角色。旧 section field 4 退役，field 5 保存实际本地产物定义；类型身份、初始化服务与 ABI 继续通过共有路径消费，旧 `/1`～`/3` 产物与缓存重建。
 
 String descriptor 使用完整 MIR 中实际声明的 source exact identity，沿共有 descriptor 查询、layout selection、physical import、registration 和 Link relocation 消费。删除独立 String bridge 与固定角色的 descriptor 恢复通道，不以 provider 坐标或协议来源豁免普通引用检查。Strong production `/7`、`/8` 退役原服务表中的 TD tag 2；旧产物与缓存重建，String 表示及 runtime C ABI 不变。
 

@@ -36,12 +36,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         output.production_section.output_contract(),
         &scoop_hir::HirOutputContractV1::Library
     );
-    assert!(
-        output
-            .production_section
-            .compiler_protocol_definitions()
-            .is_some()
-    );
+    assert!(output.production_section.compiler_protocols().is_some());
     let mut expected_foundation =
         scoop_hir::CanonicalHirFoundation::from_type_semantics_output(&output.hir).unwrap();
     expected_foundation
@@ -82,14 +77,11 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .unwrap(),
         output.production_section.clone()
     );
-    scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.hir.output().export).unwrap();
 
-    let Some(interface) = output.production_section.compiler_protocol_definitions() else {
-        panic!("the trusted bootstrap output has a core interface")
+    let Some(interface) = output.production_section.compiler_protocols() else {
+        panic!("the bootstrap output defines compiler protocol roles")
     };
-    let cycle = interface
-        .compiler_protocols()
-        .initialization_cycle_thrower();
+    let cycle = interface.initialization_cycle_thrower();
     let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) =
         cycle.definition()
     else {
@@ -102,7 +94,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_identity::ExactCallableSignature::new(
             scoop_identity::Effect::Ordinary,
             None,
-            vec![interface.string_capability().exact_type()],
+            vec![interface.string_exact_type()],
             scoop_mir::core_unit_exact_type(),
         ),
     );

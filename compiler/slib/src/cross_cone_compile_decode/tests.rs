@@ -165,7 +165,7 @@ fn cross_cone_hir_front_validates_the_legacy_direct_surface() {
     assert!(
         validated
             .hir_core_production()
-            .compiler_protocol_definitions()
+            .compiler_protocols()
             .is_none()
     );
 }

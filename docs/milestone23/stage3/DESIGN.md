@@ -106,7 +106,7 @@ M23-3 的“core-only”描述依赖关系，不等于恢复 core 专用的名�
 
 - 当前输入是trusted core bootstrap、只隐式依赖trusted core的manifest Cone，或固定的single-file Cone；
 - current Cone和其实际lowering/materialization没有产生任何ODR-owned实体；
-- 所有跨Cone semantic target都来自本次已验证的trusted core capability，并属于M23-3明确允许的param-free/prelude strong子集；唯一额外的param-bearing target是compiler protocol固定的初始化cycle thrower `(String) -> Unit`，它不进入public prelude、不能由源码lookup选择，也不能推广为一般跨Cone参数调用能力；
+- 跨 Cone semantic target 来自实际依赖的完整 typed 声明；M23-3 的执行子集现已由 M23-6 的共有类型、成员、布局与 ABI 消费扩展。初始化 cycle thrower `(String) -> Unit` 是保留原可见性的普通 callable 支持记录，不加入 public prelude；
 - 当前LIR的每个linker-visible definition、undefined use、digest patch、registration和image relation都能落入本阶段封闭sum；
 - 至少有一个已知capability的`LinkObject`，且全部object联合产生唯一image；
 - Compile view和Link view均从最终输出bytes独立重建成功。
@@ -692,14 +692,14 @@ M23-6清理删除了`shape_support_plan`的Core/NotCore分支；strong-productio
 
 ### 8.1 capability id
 
-M23-6 已将下列历史清单中的 HIR `core-bootstrap-interface/1` 退役为 `/2`，删除 protocol product 的完整 operation field 9，编号保留不复用。当前 single-Cone、cross-Cone semantics 与 layout profile 的 Compile/Link inventory 均要求 `/2`；旧 capability 或旧九字段 payload 拒绝并重建 artifact/cache。固定语言角色与共有 callable metadata 的验证见 [M23-6 设计](../stage6/DESIGN.md)，下列 `/1` 清单仅记录原 M23-3 格式。
+M23-6 已将 HIR `core-bootstrap-interface/1`～`/3` 退役为 `/4`，删除完整 operation 表、来源资格分支、重复 String 记录和 definitions 外层。当前 single-Cone、cross-Cone semantics 与 layout profile 均要求 `/4`；旧产物和缓存重建，退役字段不复用。协议角色与共有 callable metadata 见下文 9.1 和 [M23-6 设计](../stage6/DESIGN.md)。
 
 M23-3在M23-2 registry中新增：
 
 | location | capability | `required_for` | sink |
 | --- | --- | ---: | --- |
 | Manifest | `org.scoop-lang.manifest/single-cone-production/1` | Link | Code, RuntimeImage, LinkValidationOnly |
-| HIR | `org.scoop-lang.hir/core-bootstrap-interface/1` | Compile | Hir |
+| HIR | `org.scoop-lang.hir/core-bootstrap-interface/4` | Compile | Hir |
 | MIR | `org.scoop-lang.mir/core-bootstrap-bridge/1` | Compile | Mir |
 | LIR | `org.scoop-lang.lir/strong-production/1` | Compile\|Link | Lir, Code, RuntimeImage |
 | LIR | `org.scoop-lang.lir/link-identity-closure/1` | Link | LinkValidationOnly |
@@ -714,7 +714,7 @@ ArtifactCapabilityProfileId =
 
 SingleConeStrongProfileDescriptor {
     required_manifest: [single-cone-production/1],
-    required_hir: [core-bootstrap-interface/1,
+    required_hir: [core-bootstrap-interface/4,
                    identity-foundation/1],
     required_mir: [core-bootstrap-bridge/1,
                    identity-foundation/1],
@@ -741,7 +741,7 @@ capability array仍按`CapabilitySortKey`的实际ASCII顺序编码；上面为�
 - 即使archive碰巧含合法Mach-O object，也不能构造Link view；
 - 即使code/runtime slot被篡改为Available，也因profile不符失败；
 - 即使所有persistent identity都可重算，也不能作为core或dependency；
-- 只有完整single-cone profile验证才返回publishable proof。
+- 生产 reader 要求当前 profile 的完整格式、引用和对象数据；发布使用本次编译的完整结果，不另生成资格凭证。
 
 ### 8.3 distribution class
 
@@ -753,48 +753,23 @@ ArtifactDistributionClass =
   | LocalExecutableRoot    // single-file，仅root
 ```
 
-`LocalExecutableRoot`必须与reserved single-file coordinate、SingleFile source form、Executable output、恰一source和core-only dependency同时出现。dependency input validator拒绝它；root-link validator到M23-9可接受它作为唯一root。core是`DistributableCone`，但取得intrinsic authority仍需要trusted slot proof。
+`LocalExecutableRoot`必须与reserved single-file coordinate、SingleFile source form、Executable output、恰一source和core-only dependency同时出现。dependency input validator拒绝它；root-link validator到M23-9可接受它作为唯一root。core 是普通 `DistributableCone`；intrinsic 由前端识别并产生完整 typed IR，不要求来源资格。
 
 ## 9. 本阶段metadata payload
 
 ### 9.1 HIR section
 
-`CoreBootstrapInterfaceSectionV1`是Wire CBOR closed product：
+本节按 M23-6 清理后的 `/4` 格式修订。`CoreBootstrapInterfaceSectionV1` 是三字段 Wire CBOR closed product：
 
 ```text
-CoreBootstrapInterfaceSectionV1 {
-    core_interface: NotCore | Core(CoreHirInterfaceV1),
-    output_contract: Library | Executable(ExecutableSourceEntryIdentity),
-    direct_public_surface: CanonicalDirectPublicSurfaceV1,
-}
+2 = output_contract: Library | Executable(ExecutableSourceEntryIdentity)
+3 = direct_public_surface: CanonicalDirectPublicSurfaceV1
+5 = compiler_protocols: [] | [CoreCompilerProtocolSurfaceV1]
 ```
 
-`CoreHirInterfaceV1`固定为closed product：
+`compiler_protocols` 保存前端已解析且在本产物定义的完整语言角色；导入已有角色的产物保存空 array。选择只取决于实际声明，不依赖 CORE 坐标、源码目录或 library/executable 资格。删除 `Core/NotCore`、`CoreHirInterfaceV1`、`CompilerProtocolDefinitionsV1`、独立 String capability，以及旧 prelude/callable/type/value 投影。旧 section field 1、4 与资格 sum tag 1、2 退役，不复用；旧 `/1`～`/3` artifact/cache 按版本规则重建。
 
-```text
-1 = prelude_snapshot: CorePreludeSnapshotV1
-2 = string_capability: RuntimeCoreCapabilityV1::String
-3 = callable_targets: CoreCallableTargetSurfaceV1
-4 = type_targets: CoreTypeTargetSurfaceV1
-5 = value_targets: CoreValueTargetSurfaceV1
-6 = compiler_protocols: CoreCompilerProtocolSurfaceV1
-```
-
-第7.3节所述shape-support obligation集合不是独立wire字段。它必须从同一已验证
-`type_targets`中`definition=Type`且`capability=ParamFreeStrong`的source nominal按
-`PersistentTypeId`去重并以identity bytes排序后唯一派生；`TypeAlias`即使最终指向nominal也不重复
-产生obligation。reader必须用同一HIR foundation取回每个完整`SourceDeclarationKey`，LIR
-strong-production验证不得接收调用方另传的source列表，也不得从LIR payload自身枚举source来声称
-coverage完整。
-
-六个constituent必须针对同一个foundation和同一个`direct_public_surface`原子验证；三张target
-surface的binding并集必须逐byte等于direct surface且互不重叠，出现普通`EnumVariant` binding
-直接拒绝。prelude中的ordinary bindings也必须逐byte等于direct surface。String capability必须
-在type targets中存在唯一的同source type、同exact type `ParamFreeStrong`记录；不能把六段分别
-验证后拼接来自不同artifact的结果。reserved core Cone只允许`Core + Library`，其他Cone只允许
-`NotCore`；分支错误不能退化成空core interface或忽略多余payload。
-
-`CoreCompilerProtocolSurfaceV1`自身是closed product，field固定为：
+`CoreCompilerProtocolSurfaceV1` 的完整八字段 product 保留：
 
 ```text
 1 = fundamental_types
@@ -805,131 +780,17 @@ surface的binding并集必须逐byte等于direct surface且互不重叠，出现
 6 = ffi_protocol
 7 = foreign_callback_protocol
 8 = source_location_protocol
-9 = compiler_operation_protocol
 ```
 
-每个子协议只使用对应kind的persistent id和已在同一HIR foundation中验证的source/exact
-signature record；不得存arena id、source name、FQN、symbol或可空“未找到”项。producer必须从同一份已通过
-core contract检查的`ExportHir`逐项投影，reader用foundation的definition origin、source declaration key、exact
-type/callable signature及target surface交叉重放。`fundamental_types`覆盖Unit、Boolean、String及八种canonical
-integer owner；String必须与field 2逐值相等。`option_protocol`还必须与prelude的Some/None/Some.payload逐值相等。
-其余协议必须覆盖当前编译器构造HIR/MIR节点会直接引用的全部owner、variant、field、member、constructor和
-callable target；少一项、重复、kind错位、signature/effect/receiver不符或definition origin不属于reserved core
-都使整个Core interface无效。普通consumer只能从同一个`ValidatedTrustedCoreArtifact`一次性投影
-`ImportedCoreProtocols`和prelude selected-set，二者不能拆开与另一artifact重新配对。
+原 field 9 的完整 operation 表已退役且不复用。共有 callable effects 承载 intrinsic kind；前端识别 intrinsic 并校验语言声明，后端使用完整 typed IR 和实际引用。协议只保存实际 lowering 所需的 typed nominal、variant、field、dispatch slot 与 callable 引用、签名和 effect，不以来源资格取代普通类型和依赖规则。reader 在边界解析完整身份并核对引用种类、owner、签名、binder 与角色关系；已验证的数据直接复用，不为另一份协议投影重新证明。同名、同布局类型不能替代实体身份。
 
-`output_contract`沿用第6节的output sum：`Library`编码为仅含`0=1`的map；
-`Executable`编码为`0=2, 1=ExecutableSourceEntryIdentity`。entry payload固定为closed
-product：`1=root_cone, 2=declaration, 3=source_signature,
-4=source_signature_fingerprint, 5=main`。reader从foundation中的完整source declaration与
-trusted core `Unit` exact identity重建整个payload并逐byte比较，同时要求`root_cone`等于artifact
-Cone；不得分别提升五个decoded id，也不得继续接受旧的裸`PersistentFunctionId` payload。
-`CanonicalDirectPublicSurfaceV1`的wire是按`PersistentExportBindingId` bytes严格递增的
-definite-length array；元素只引用同一HIR identity-foundation field 16中的完整binding
-record，不能重复record、复制`ExportBindingKey`或改用源码声明顺序。reader必须同时拒绝
-非递增、重复和foundation中不存在的binding id，不能排序修复输入。
-每个target constituent还必须用对应`SourceDeclarationKey`和typed `BindingTarget`逐字段重建
-`ExportBindingKey`；exporter、package、name、namespace、role或target任一不等都拒绝，不能把
-同一typed declaration重命名后当作core API，也不能用FQN查找代替这条identity relation。
+String 只在 `fundamental_types` 中保存真实的非泛型 class 声明，exact identity 由 `ExactTypeKey::Nominal(source_type)` 得到；不再单列 source/exact 记录或验证两份 String 投影相等。初始化循环服务从同一角色数据取得实际函数，MIR/LIR 使用共有 callable 定义、String 参数、Unit 结果与 canonical ABI。类型布局仍由下游完整 IR 表达。
 
-`CorePreludeSnapshotV1`固定为closed product
-`1=ordinary_bindings, 2=option_some, 3=option_some_payload, 4=option_none`。
-`ordinary_bindings`逐byte等于本section的`direct_public_surface`；后三项分别引用foundation
-中的`Some` variant、其唯一position 0 field和`None` variant。reader重放同一generic
-`Option` owner、`Some`/`None`名称、field owner/selector、Some恰一field、None无field及
-public `Option` type binding关系；不能仅凭三个id存在就接受。
+`output_contract` 保留 `Library` 的 `{0: 1}` 和 `Executable` 的 `{0: 2, 1: ExecutableSourceEntryIdentity}` 编码。executable entry 必须引用当前产物的实际 local main 与完整 source signature；entry 所需 Unit 使用既有语言内建身份。library 不需要 main，也不使用零 ID 模拟 executable。
 
-`RuntimeCoreCapabilityV1::String`固定为closed sum
-`0=1, 1=source_type, 2=exact_type`。`source_type`引用foundation中的reserved core、
-root package、top-level、Cone-wide、非generic `class String`，`exact_type`必须引用同一
-foundation中精确的`ExactTypeKey::Nominal(source_type)`；reader不能接受另一个同名、
-同layout或同宽identity替代。target layout contract在LIR relation中追加，不能提前混入
-target-independent HIR payload。
+`CanonicalDirectPublicSurfaceV1` 是按 `PersistentExportBindingId` 严格递增的 definite-length array，引用共有 HIR identity foundation 中完整 binding。reader 拒绝重复、无序或缺失的引用；实际名称、namespace、可见性、alias、re-export 与类型/值/callable 信息来自共有 cross-Cone interface。它不另复制 prelude 表，也不限制 core 只能导出预设名称或禁止 enum 变体。
 
-`CoreCallableTargetSurfaceV1`是`CoreHirInterfaceV1`的callable constituent，wire为按
-`binding` bytes严格递增的definite-length array，并完整覆盖`direct_public_surface`中
-target为`Function`或`GenericFunction`的每个binding。元素
-`CoreCallableTargetV1`固定为closed product：
-
-```text
-1 = binding: PersistentExportBindingId
-2 = definition: Function(PersistentFunctionId) | GenericFunction(PersistentGenericFunctionId)
-3 = signature: SignatureCallableShape
-4 = capability:
-      ParamFreeCandidate(ExactCallableSignature)
-    | StructuralUnavailable(ExactCallableSignature)
-    | GenericUnavailable(type_parameter_count)
-```
-
-`definition`的sum tag固定为`Function=1, GenericFunction=2`；`capability`的sum tag固定为
-`ParamFreeCandidate=1, StructuralUnavailable=2, GenericUnavailable=3`，三个variant都使用
-field `1`保存上述payload。`binding`只引用foundation binding record；`definition`必须逐类型
-等于该binding的最终target，并且foundation中必须存在对应definition origin。
-`SignatureCallableShape`复用identity schema，receiver/parameters必须逐结构等于source
-declaration的duplicate signature，binder只能使用depth 0且index小于声明type parameter
-count；result与effect作为本constituent的规范typed source interface。
-producer读取参数类型的唯一authority是该function恰好一条完整`ExportParameterInterface`：required/default直接
-取其`value_type`，vararg取受检`ExportVarargParameterType.array_type`。不得读取body-local `Function.params`，因为
-bodyless intrinsic/extern按定义没有body local，而source interface仍必须完整；parameter interface缺失、重复或引用
-越界均使core interface构造失败，不以body local或duplicate-signature中的type key反向补造HIR `TypeId`。
-
-非generic target必须携带`ExactCallableSignature`，reader从foundation exact-type图把它递归
-重放为`SignatureCallableShape`并逐结构比较。receiver、parameter和result的根exact key全部
-为`ExactTypeKey::Nominal`时只能编码`ParamFreeCandidate`；任一根为nominal application、tuple、
-function、raw pointer或native function pointer时只能编码`StructuralUnavailable`。generic
-target只能编码`GenericUnavailable`且count必须等于source declaration；不能省略不可用target，
-也不能用空exact id或未知reason模拟不可用。`ParamFreeCandidate`只证明source/exact signature满足本阶段
-shape边界，不声称该declaration在MIR中拥有strong body；最终可消费性只能由同一artifact的MIR section精化。
-实现直接删除旧的`ParamFreeStrong` callable variant，不保留别名或双语义分支。
-
-`CoreTypeTargetSurfaceV1`是type-namespace constituent，wire同样是按`binding` bytes严格递增
-且完整覆盖`direct_public_surface`中target为`Type`、`GenericType`或`TypeAlias`的array。
-元素`CoreTypeTargetV1`固定为closed product
-`1=binding, 2=definition, 3=capability`。`definition`是closed sum：
-`Type(PersistentTypeId)=1`、`GenericType(PersistentGenericTypeId)=2`、
-`TypeAlias(PersistentTypeAliasId)=3`；`capability`复用callable capability的三类语义，wire
-tag固定为`ParamFreeStrong(PersistentExactTypeId)=1`、
-`StructuralUnavailable(PersistentExactTypeId)=2`、
-`GenericUnavailable(type_parameter_count)=3`。
-
-非generic source nominal只能使用`ParamFreeStrong`，且exact key必须逐值等于
-`ExactTypeKey::Nominal(definition)`。generic source nominal只能使用`GenericUnavailable`，
-count必须非零并等于source declaration。透明typealias没有第二个runtime identity，其
-`definition`保留alias自己的origin，而capability中的exact id就是writer从alias HIR target
-投影出的最终typed target；根exact key为`Nominal`时只能用`ParamFreeStrong`，其他五类exact
-key只能用`StructuralUnavailable`。reader必须验证binding target、core origin、definition
-origin、exact存在性与分支一致性；不得重新按alias名字解析，也不得把alias id当作nominal id。
-
-`CoreValueTargetSurfaceV1`是value-namespace constituent，完整覆盖`direct_public_surface`中
-target为`ObjectValue`、`Property`或`ExtensionProperty`的binding；普通enum variant不属于direct
-package binding，`Option.Some`/`Option.None`只经`CorePreludeSnapshotV1`暴露。元素
-`CoreValueTargetV1`固定为closed product
-`1=binding, 2=definition, 3=source_interface, 4=capability`。`definition`的sum tag固定为
-`ObjectValue(PersistentObjectValueId)=1`、`Property(PersistentPropertyId)=2`、
-`ExtensionProperty(PersistentExtensionPropertyId)=3`。
-
-`source_interface`是closed sum：`ObjectValue(source_type)=1`；
-`Property(receiver, value, accessors)=2`。后者的receiver复用`OptionalSignatureType`，value复用
-`SignatureTypeKey`；accessors是`ReadOnly(getter)=1`或`ReadWrite(getter,setter)=2`，只引用
-foundation中owner/role精确匹配且具有definition origin的typed accessor record。object value的
-source declaration必须是同一个非generic source `object`，`source_type`由该声明的
-`PersistentTypeId`逐值重算，且direct surface必须同时含该type binding，不能按对象名反查。
-
-`capability`的tag仍固定为`ParamFreeStrong=1`、`StructuralUnavailable=2`、
-`GenericUnavailable=3`。前两个payload为`CoreExactValueInterfaceV1`：
-`ObjectValue(exact_type)=1`或`Property(exact_receiver, exact_value)=2`；exact receiver复用
-`OptionalExactOwner`。reader把每个exact type从foundation图重放为source signature并逐结构
-比较。object value只能是`ParamFreeStrong`且exact key必须为`Nominal(source_type)`；非generic
-property的receiver/value根全为`Nominal`时只能是`ParamFreeStrong`，否则只能是
-`StructuralUnavailable`。generic extension property只能是`GenericUnavailable`，count必须
-非零并等于source declaration；binder只允许depth 0且index在声明count内。不得省略read-only、
-structural或generic target，也不得从accessor名称、符号或FQN恢复owner、role或类型。
-
-它不包含import文本、failed candidate、current display locator或完整source。`Executable`必须与
-`ConeOutputKind`及foundation function/source identity反指一致；library不能用zero id模拟None。
-core public/prelude target只引用同section中完整typed declaration record或foundation persistent id。
-
-本section进入HIR semantic fingerprint。即使普通Cone使用`NotCore`，其output contract/direct-public surface变化仍必须改变HIR fingerprint；这为M23-5升级一般public surface提供明确的失效边界，而不是靠object变化偶然触发。
+本 section 进入 HIR semantic fingerprint。output contract、direct public surface 或实际协议角色变化均使内容 fingerprint 和依赖缓存失效；不新增发布凭证或来源授权。
 
 ### 9.2 MIR section
 
@@ -1260,9 +1121,9 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 
 | payload | field id与含义 |
 | --- | --- |
-| `CoreBootstrapInterfaceSectionV1` | `1=core_interface`, `2=output_contract`, `3=direct_public_surface` |
-| `CoreBootstrapBridgeSectionV1` | `1=core_bridge`, `2=entry_bridge`, `3=strong_callable_bridges` |
-| `StrongProductionSectionV1` | `1=external_bridges`, `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=shape_support_plan`, `9=generated_bridge_plan`, `10=core_lir_bridge` |
+| `CoreBootstrapInterfaceSectionV1` (`/4`) | `2=output_contract`, `3=direct_public_surface`, `5=compiler_protocols`；旧 1、4 退役 |
+| `CoreBootstrapBridgeSectionV1` | `2=entry_bridge`, `3=strong_callable_bridges`；旧 1 退役 |
+| `StrongProductionSectionV1` (`/9`、`/10`) | `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=shape_support_plan`, `9=generated_bridge_plan`；旧 1、10～12 退役 |
 | `LinkIdentityClosureSectionV1` | `1=materializations`, `2=definition_indexes`, `3=patch_sites`, `4=defined_symbols`, `5=undefined_symbols`, `6=verified_link_objects`, `7=image_owner`, `8=entry_owner` |
 | `SingleConeProductionManifestV1` | `1=distribution`, `2=output`, `3=image_owner_member`, `4=runtime_registration_projection`, `5=strong_registration_set`, `6=runtime_image_fingerprint`, `7=code_fingerprint`, `8=native_contracts`, `9=native_library_requirements`, `10=c_bridge_production` |
 
@@ -1270,12 +1131,11 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 
 | sum | tag |
 | --- | --- |
-| core branch | `NotCore=1`, `Core=2` |
 | output/entry branch | `Library=1`, `Executable=2`；带source entry的HIR variant仍使用tag 2 |
 | distribution | `DistributableCone=1`, `LocalExecutableRoot=2` |
 | C bridge production | `NotUsed=1`, `Used=2` |
 
-每个`Core`、`Executable`或`Used`variant的payload字段从`1`连续编号，按该类型在本章伪代码中的字段顺序冻结；空variant只含field `0`。canonical vector不能含重复typed key；需要表达“适用但集合为空”时编码空array，需要表达语义分支时必须使用对应sum tag，两者不可互换。首批实现必须为五个顶层payload、所有空/非空sum variant、canonical排序及unknown/missing/duplicate field rejection加入固定CBOR与hex golden。
+每个`Executable`或`Used`variant的payload字段从`1`连续编号，按该类型在本章伪代码中的字段顺序冻结；空variant只含field `0`。canonical vector不能含重复typed key；需要表达“适用但集合为空”时编码空array，需要表达语义分支时必须使用对应sum tag，两者不可互换。首批实现必须为五个顶层payload、所有空/非空sum variant、canonical排序及unknown/missing/duplicate field rejection加入固定CBOR与hex golden。
 
 ## 10. strong-only门禁
 

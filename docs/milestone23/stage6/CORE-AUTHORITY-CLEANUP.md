@@ -50,6 +50,8 @@ MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产
 
 删除 CORE 来源资格、Core/NotCore 包装、重复 operation/签名投影和凭证外层。语言角色只保存实际需要的 typed 声明引用、签名、effect、可见性与依赖关系。普通 metadata 发布和消费这些声明；intrinsic 正规化后不再从来源获得执行资格。internal 服务不因迁移加入 public lookup。
 
+HIR 的 `org.scoop-lang.hir/core-bootstrap-interface/4` 直接保存完整 `CoreCompilerProtocolSurfaceV1`，删除重复的 `RuntimeCoreCapabilityV1::String` 与 `CompilerProtocolDefinitionsV1` 外层。section 的 field 2、3 继续保存 output contract 和 direct public surface，field 5 以长度为 0 或 1 的 array 保存本产物定义的协议角色；旧 field 1、4 及旧资格分支 tag 1、2 退役，不复用，旧 `/1`～`/3` 产物与缓存重建。String 的 source identity 只在已有 fundamental type 角色中保存，exact identity 由该真实声明的 `ExactTypeKey::Nominal` 得到；不再维护第二份 source/exact 记录或比较两份投影。前端完成 intrinsic 识别与语言声明检查，后续阶段直接消费完整 typed 角色、共有声明与实际 provider；reader 保留格式、引用种类、签名、effect、成员归属和跨表一致性检查。初始化循环服务的实际函数、String 参数、Unit 结果及 canonical ABI 继续沿共有 callable 路径使用。此修订不改变 String 表示或 runtime C 调用约定。
+
 ### 2.4 String、初始化与 Link
 
 String descriptor 使用完整 MIR 中实际声明的 source exact identity，沿共有 descriptor 查询、layout selection、physical import、registration 和 Link relocation 消费。删除独立 String bridge 与固定角色的 descriptor 恢复通道，不以 provider 坐标或协议来源豁免普通引用检查。Strong production `/7`、`/8` 退役原服务表中的 TD tag 2；旧产物与缓存重建，String 表示及 runtime C ABI 不变。

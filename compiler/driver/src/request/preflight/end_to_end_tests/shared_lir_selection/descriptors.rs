@@ -10,9 +10,9 @@ pub(super) fn check(
     let string = core
         .production()
         .hir_core()
-        .compiler_protocol_definitions()
+        .compiler_protocols()
         .unwrap()
-        .string_capability();
+        .string_exact_type();
     let empty = ordinary
         .production()
         .hir_interface()
@@ -29,7 +29,7 @@ pub(super) fn check(
     let roots = [
         LayoutAbiDependencyV1::new(
             core.identity(),
-            LayoutAbiSemanticTargetV1::Descriptor(string.exact_type()),
+            LayoutAbiSemanticTargetV1::Descriptor(string),
         ),
         LayoutAbiDependencyV1::new(
             ordinary.identity(),
@@ -77,7 +77,7 @@ pub(super) fn check(
     )
     .unwrap();
     for (provider, exact) in [
-        (core.identity(), string.exact_type()),
+        (core.identity(), string),
         (ordinary.identity(), empty_exact),
     ] {
         let descriptor = selected
@@ -88,7 +88,7 @@ pub(super) fn check(
     }
     for (provider, exact) in [
         (core.identity(), empty_exact),
-        (ordinary.identity(), string.exact_type()),
+        (ordinary.identity(), string),
     ] {
         assert!(matches!(
             selected.materialize_type_descriptor(provider, exact),
@@ -97,7 +97,7 @@ pub(super) fn check(
     }
     assert!(
         selected
-            .materialize_type_descriptor(closure.current(), string.exact_type())
+            .materialize_type_descriptor(closure.current(), string)
             .is_err()
     );
 }

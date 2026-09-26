@@ -45,7 +45,7 @@ fn const_reader_uses_an_ordinary_providers_explicit_intrinsic_declaration() {
     assert!(
         validated
             .hir_core_production()
-            .compiler_protocol_definitions()
+            .compiler_protocols()
             .is_none()
     );
     assert_eq!(validated.hir_interface().constants().records().len(), 1);

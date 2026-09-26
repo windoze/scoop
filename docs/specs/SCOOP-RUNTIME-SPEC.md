@@ -36,7 +36,7 @@ core与其他library Cone使用相同image、registration与ABI检查。runtime�
 
 String TypeDescriptor、初始化循环异常服务及其 registration 由编译器和 linker 的共有类型/callable/definition 闭包提供，well-known 角色关联实际 typed 目标与 provider，不依赖 Core/NotCore 或 CoreExternal 资格。移除 core 专用发布与 Link 闭包不得省略布局、canonical ABI、GC/root plan、symbol/definition 归属及完整 relocation 验证；core image 与普通 image 遵守同一规则。runtime 的表示、capability kind、调用与登记 C ABI 不因本次清理改变。编译阶段的迁移与验收见实现规范 2.12 和 M23-6 的 core 专用资格清理设计。
 
-String 的外部 TypeDescriptor 与 type-registration relocation 使用普通 provider/exact 引用。删除编译器的独立 String bridge 不改变对象头、字符串数据布局、kind 常量或 C 调用约定。
+String 的外部 TypeDescriptor 与 type-registration relocation 使用普通 provider/exact 引用。删除编译器的独立 String bridge 不改变对象头、字符串数据布局、kind 常量或 C 调用约定。 HIR `/4` 同时删除重复 String source/exact capability 和 definitions 外层，runtime 继续消费共有 MIR/LIR 中完整的类型、布局、ABI 与 registration；前端协议角色不成为运行期来源凭证。
 
 归档调度与缓存属于构建管理职责，不能在父进程中再次执行完整对象与 runtime metadata 验证。编译器消费和实际 Link 对象边界继续检查类型、ABI、对象范围、scan、registration 与 relocation；runtime 按这些完整数据执行动态对象范围和 GC 契约检查，构建摘要不作为 runtime 资格凭证。
 

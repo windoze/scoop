@@ -30,7 +30,7 @@ Strong production 的两种表示升级为 `/9`、`/10`，删除初始化专用 
 
 core 是可由用户修改、扩展和重建的普通 library Cone。源码层面的特殊处理仅限于前端识别 `@Intrinsic`，并把它正规化为既有 typed IR，以及 desugar 通过普通声明引用使用基础库提供的类型和函数。sysroot 是默认查找位置，不是信任边界；源码目录、输出位置、相同 coordinate 或用户修改过的 core 不需要授权 token。metadata 解码、typed identity 一致性、依赖闭包、ABI、缓存失效和 slib fingerprint 使用所有 Cone 共用的规则。不得为 core 另建来源防伪、slot 授权、receipt 信任链或重复 pipeline；既有专用实现须合并或删除，旧文档的冻结条款不阻止此次清理。
 
-String 的 intrinsic 角色关联实际 typed 类声明；跨 Cone 使用时与其他类型共用依赖查询和产物消费，不产生独立描述符授权或来源资格。
+String 的 intrinsic 角色关联实际 typed 类声明；跨 Cone 使用时与其他类型共用依赖查询和产物消费，不产生独立描述符授权或来源资格。 协议数据直接保存这些角色；String 不再另存 source/exact capability，也不通过独立 definitions 外层授予资格。exact 类型来自同一真实声明的 canonical nominal key，初始化服务与其他函数使用共有签名和 ABI。HIR 格式 `/4` 及旧产物重建规则见实现规范 2.11。
 
 版本：0.10（草案）
 
@@ -1601,7 +1601,7 @@ M24 generic release hook恰好使用其owner的Nominal specialization group及`{
 
 M23-2唯一artifact profile是`org.scoop-lang.slib-profile/identity-foundation/2`，其HIR/MIR/LIR mandatory payload最初分别为`org.scoop-lang.hir/identity-foundation/1`（M23-6 为保留 native intrinsic family 升为 `/2`，typed C 投影再升为 `/3`，见实现规范 2.11）、`org.scoop-lang.mir/identity-foundation/1`与`org.scoop-lang.lir/identity-foundation/1`；code/runtime-image fingerprint显式为`Unavailable`，publication为FoundationOnly，Link proof为Forbidden。它可以冻结并产生上述application/group/member identity，但不包含public lookup/template body、通用layout/scan/dispatch proof、ODR definition fingerprint/member闭包、object range或runtime image record。在完整member closure、ABI/definition fingerprint、object materialization与跨Cone member-set/definition一致性验证全部可用前，任何含ODR member/body/symbol的artifact都不得取得Publishable或`ValidatedLinkArtifact`证明。
 
-M23-3 的 strong-only production profile 为 `org.scoop-lang.slib-profile/single-cone-strong/2`。除三层 identity-foundation payload 外，它要求 Manifest `org.scoop-lang.manifest/single-cone-production/1`、HIR `org.scoop-lang.hir/core-bootstrap-interface/3`、MIR `org.scoop-lang.mir/core-bootstrap-bridge/1` 以及 LIR `org.scoop-lang.lir/strong-production/9`、`org.scoop-lang.lir/link-identity-closure/3`；code/runtime-image fingerprint 都必须为 `Available`，Compile 与 Link 消费边界拒绝 ODR group/member/body/symbol。foundation profile 不具备完整生产数据，不能就地升级为生产产物。发布使用同次编译的完整 typed IR 和产物汇总，不对当前产物及全部依赖再分别执行完整 Compile/Link 读取，也不增加发布凭证。M23-6 正式发布使用下述完整跨 Cone profile；ODR 仍留在 M23-7。
+M23-3 的 strong-only production profile 为 `org.scoop-lang.slib-profile/single-cone-strong/2`。除三层 identity-foundation payload 外，它要求 Manifest `org.scoop-lang.manifest/single-cone-production/1`、HIR `org.scoop-lang.hir/core-bootstrap-interface/4`、MIR `org.scoop-lang.mir/core-bootstrap-bridge/1` 以及 LIR `org.scoop-lang.lir/strong-production/9`、`org.scoop-lang.lir/link-identity-closure/3`；code/runtime-image fingerprint 都必须为 `Available`，Compile 与 Link 消费边界拒绝 ODR group/member/body/symbol。foundation profile 不具备完整生产数据，不能就地升级为生产产物。发布使用同次编译的完整 typed IR 和产物汇总，不对当前产物及全部依赖再分别执行完整 Compile/Link 读取，也不增加发布凭证。M23-6 正式发布使用下述完整跨 Cone profile；ODR 仍留在 M23-7。
 
 M23-5 引入 `org.scoop-lang.slib-profile/cross-cone-semantics-strong/2` 作为多 Cone 语义产物的基线。当前该 profile 要求 HIR `org.scoop-lang.hir/cross-cone-interface/25`、MIR `org.scoop-lang.mir/cross-cone-param-free-bridge/2`、LIR `org.scoop-lang.lir/cross-cone-param-free-bridge/1` 与 Link 数据，并继续拒绝 ODR；M23-6 正式发布另包含完整类型和布局 section。共有 HIR 保存公开与必要支持声明、默认参数、常量、非泛型 alias、转导出路径及实际外部使用。名称查找按可见性枚举当前 Cone 和直接依赖；传递依赖按已经解析的 typed reference 查询。普通 callable 的声明、完整签名和 GC effect 由实际 provider 提供，final nominal 成员与顶层函数、extension 共用导出和消费规则。M23-6 的类型布局、构造器、成员、dispatch 与 protected 访问按各自语言及 ABI 规则完成；泛型物化与跨 Cone native 调用分别留在后续里程碑。格式 major 变化后旧产物与缓存需重建。
 

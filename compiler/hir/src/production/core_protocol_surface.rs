@@ -93,7 +93,7 @@ protocol_product!(CoreSourceLocationProtocolV1, SOURCE_LOCATION_PROTOCOL_COUNT);
 
 /// Complete typed declaration references for compiler protocols. Every
 /// constituent is a closed product and the eight products are validated as
-/// one artifact-bound value.
+/// one complete set of declaration references.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreCompilerProtocolSurfaceV1 {
     fundamental_types: CoreFundamentalTypeProtocolV1,
@@ -107,7 +107,7 @@ pub struct CoreCompilerProtocolSurfaceV1 {
 }
 
 impl CoreCompilerProtocolSurfaceV1 {
-    pub(super) fn from_core_export(
+    pub fn from_export(
         export: &ExportHir,
         protocols: &crate::DefinedCoreProtocols,
     ) -> Result<Self, CoreCompilerProtocolSurfaceBuildError> {
@@ -324,7 +324,7 @@ impl CoreCompilerProtocolSurfaceV1 {
         &self.source_location_protocol
     }
 
-    /// Core-internal compiler service used only by generated initialization
+    /// Compiler service used only by generated initialization
     /// cycle edges. It is deliberately independent of the public prelude.
     pub fn initialization_cycle_thrower(&self) -> &CoreProtocolCallableV1 {
         callable_entry_ref(self.exception_protocol.entries(), 12)
@@ -339,8 +339,15 @@ impl CoreCompilerProtocolSurfaceV1 {
         concrete_entry(self.exception_protocol.entries(), 4)
     }
 
-    pub(crate) fn string_source_type(&self) -> PersistentTypeId {
+    pub fn string_source_type(&self) -> PersistentTypeId {
         concrete_entry(self.fundamental_types.entries(), 10)
+    }
+
+    pub fn string_exact_type(&self) -> PersistentExactTypeId {
+        PersistentExactTypeId::from_key(&scoop_identity::ExactTypeKey::Nominal(
+            self.string_source_type(),
+        ))
+        .expect("a resolved nominal declaration has a canonical exact identity")
     }
 
     pub(crate) fn option_some(&self) -> PersistentEnumVariantId {

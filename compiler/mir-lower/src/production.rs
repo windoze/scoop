@@ -29,13 +29,11 @@ fn lower_callable_roles(
     hir: &CoreBootstrapInterfaceSectionV1,
     strong: StrongCallableBridgeSurfaceV1,
 ) -> Result<StrongCallableBridgeSurfaceV1, MirProductionLoweringError> {
-    let Some(interface) = hir.compiler_protocol_definitions() else {
+    let Some(interface) = hir.compiler_protocols() else {
         return Ok(strong);
     };
 
-    let cycle = interface
-        .compiler_protocols()
-        .initialization_cycle_thrower();
+    let cycle = interface.initialization_cycle_thrower();
     let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) =
         cycle.definition()
     else {
@@ -51,7 +49,7 @@ fn lower_callable_roles(
     let expected_cycle_signature = scoop_hir::concrete::ExactCallableSignature::new(
         scoop_hir::concrete::Effect::Ordinary,
         None,
-        vec![interface.string_capability().exact_type()],
+        vec![interface.string_exact_type()],
         scoop_mir::core_unit_exact_type(),
     );
     if cycle_signature != &expected_cycle_signature {

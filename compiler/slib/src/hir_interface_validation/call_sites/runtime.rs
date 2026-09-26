@@ -21,9 +21,8 @@ impl HirInterfaceValidationInput<'_> {
             .ok_or(Error::Provider(reference.origin()))?;
         let roles = provider
             .core
-            .compiler_protocol_definitions()
-            .ok_or(Error::Provider(reference.origin()))?
-            .compiler_protocols();
+            .compiler_protocols()
+            .ok_or(Error::Provider(reference.origin()))?;
         let (_, owner) = site
             .runtime_constructor_source(
                 reference.target(),

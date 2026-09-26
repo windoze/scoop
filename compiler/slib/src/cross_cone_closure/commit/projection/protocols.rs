@@ -23,7 +23,7 @@ impl ValidatedCrossConeSemanticClosure {
         let definitions = artifact
             .production()
             .hir_core()
-            .compiler_protocol_definitions()
+            .compiler_protocols()
             .ok_or(CrossConeProtocolImportError::MissingDefinitions(provider))?;
         artifact
             .hir()

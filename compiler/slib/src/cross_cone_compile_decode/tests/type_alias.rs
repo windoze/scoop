@@ -503,7 +503,7 @@ impl WireEncode for HirProductionWithoutDefinitions<'_> {
         HirOutputContractV1::Library.encode(encoder)?;
         encoder.field(3)?;
         self.direct.encode(encoder)?;
-        encoder.field(4)?;
+        encoder.field(5)?;
         encoder.array(0)
     }
 }

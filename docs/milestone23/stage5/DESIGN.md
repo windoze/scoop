@@ -234,7 +234,7 @@ required_manifest = [
 ]
 
 required_hir = [
-  org.scoop-lang.hir/core-bootstrap-interface/3,
+  org.scoop-lang.hir/core-bootstrap-interface/4,
   org.scoop-lang.hir/cross-cone-interface/25,
   org.scoop-lang.hir/identity-foundation/3,
 ]
@@ -421,7 +421,7 @@ ReexportRouteHopV1 {
 验证规则：
 
 - binding必须恰好存在于当前artifact HIR foundation field 16，key的exporter等于当前Cone；
-- `DeclaredCurrent` target必须与binding key target相等、origin为当前Cone、对应声明显式public且owner effective domain为public；该集合逐byte等于`core-bootstrap-interface/1.direct_public_surface`，无论当前Cone是否core；
+- `DeclaredCurrent` target必须与binding key target相等、origin为当前Cone、对应声明显式public且owner effective domain为public；该集合逐byte等于`core-bootstrap-interface/4.direct_public_surface`，无论当前Cone是否core；
 - `Reexport` binding不进入旧direct surface。每条route的`immediate_provider`必须是当前Cone direct dependency，`hops[0].exporter`与之相等；
 - 每个hop的binding key exporter等于hop exporter，target/namespace/role在整条route上相同，package/name允许因alias/re-export变化；
 - terminal hop必须是其exporter的`DeclaredCurrent` binding；中间hop必须在对应provider的`Reexport.routes`中存在完全相同的suffix。reader不能只检查“id存在”而忽略route连续性；

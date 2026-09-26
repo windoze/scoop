@@ -27,8 +27,8 @@ impl HirInterfaceValidationInput<'_> {
                         .map(|view| view.core)
                 };
                 source
-                    .and_then(CoreBootstrapInterfaceSectionV1::compiler_protocol_definitions)
-                    .is_some_and(|protocol| protocol.string_capability().exact_type() == *exact)
+                    .and_then(CoreBootstrapInterfaceSectionV1::compiler_protocols)
+                    .is_some_and(|protocol| protocol.string_exact_type() == *exact)
             }
             _ => return Ok(()),
         };

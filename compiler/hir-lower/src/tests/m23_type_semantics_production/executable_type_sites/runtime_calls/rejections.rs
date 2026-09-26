@@ -70,18 +70,14 @@ fn runtime_constructor_source_and_role_reject_wrong_provider_owner_and_target() 
                 let target = hir::ExternalHirTargetV1::Callable(other.declaration());
                 check(target, dependency.provider, &changed).unwrap();
                 assert_eq!(
-                    changed.validate_runtime_constructor_role(
-                        target,
-                        *owner,
-                        core.interface.compiler_protocols()
-                    ),
+                    changed.validate_runtime_constructor_role(target, *owner, &core.interface),
                     Err(Error::RoleTarget)
                 );
                 assert_eq!(
                     site.validate_runtime_constructor_role(
                         reference.target(),
                         *owner,
-                        core.interface.compiler_protocols()
+                        &core.interface
                     ),
                     Err(Error::RoleSignature)
                 );

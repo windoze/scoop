@@ -22,10 +22,10 @@ fn type_semantics_v5_rejects_retired_duplicate_source_tables() {
 }
 
 #[test]
-fn compiler_protocol_v3_rejects_both_retired_core_qualification_formats_in_all_views() {
+fn compiler_protocol_v4_rejects_retired_protocol_wrappers_in_all_views() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        3,
+        4,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

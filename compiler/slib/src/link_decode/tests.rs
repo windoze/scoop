@@ -65,13 +65,7 @@ fn strong_graph_decodes_all_link_sections_atomically() {
 
     let validated = odr_free.validate_production().unwrap();
     assert_eq!(validated.identity(), cone().identity());
-    assert!(
-        validated
-            .production()
-            .hir()
-            .compiler_protocol_definitions()
-            .is_none()
-    );
+    assert!(validated.production().hir().compiler_protocols().is_none());
     assert!(
         validated
             .production()
@@ -1190,7 +1184,7 @@ pub(super) fn cone() -> ConeRecord {
 }
 
 fn empty_hir_library_section() -> Vec<u8> {
-    vec![0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0x80]
+    vec![0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x05, 0x80]
 }
 
 fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {

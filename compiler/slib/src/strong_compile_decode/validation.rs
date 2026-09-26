@@ -85,10 +85,7 @@ pub(crate) fn validate_strong_profile_relations(
         foundation.as_canonical(),
     )
     .map_err(StrongProfileRelationError::ShapeSources)?;
-    validate_protocol_relation(
-        hir.compiler_protocol_definitions(),
-        mir.strong_callable_bridges(),
-    )
+    validate_protocol_relation(hir.compiler_protocols(), mir.strong_callable_bridges())
 }
 
 pub(crate) fn validate_strong_profile_lir_production(
@@ -160,7 +157,7 @@ fn validate_output_relation(
 }
 
 pub(super) fn validate_protocol_relation(
-    hir: Option<&CompilerProtocolDefinitionsV1>,
+    hir: Option<&CoreCompilerProtocolSurfaceV1>,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
 ) -> Result<(), StrongProfileRelationError> {
     let actual_cycle = strong.initialization_cycle();
@@ -171,7 +168,7 @@ pub(super) fn validate_protocol_relation(
         };
     };
 
-    let cycle = hir.compiler_protocols().initialization_cycle_thrower();
+    let cycle = hir.initialization_cycle_thrower();
     let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) =
         cycle.definition()
     else {
@@ -184,7 +181,7 @@ pub(super) fn validate_protocol_relation(
     let expected_signature = scoop_identity::ExactCallableSignature::new(
         scoop_identity::Effect::Ordinary,
         None,
-        vec![hir.string_capability().exact_type()],
+        vec![hir.string_exact_type()],
         scoop_mir::core_unit_exact_type(),
     );
     if actual_cycle.signature() != &expected_signature {

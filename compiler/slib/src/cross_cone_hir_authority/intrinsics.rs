@@ -59,11 +59,10 @@ pub(crate) fn validate_intrinsic_declarations<'a>(
             }
         }
         let roles = selected
-            .and_then(CoreBootstrapInterfaceSectionV1::compiler_protocol_definitions)
+            .and_then(CoreBootstrapInterfaceSectionV1::compiler_protocols)
             .ok_or(CrossConeIntrinsicDeclarationError::MissingTypeRoles(
                 provider,
-            ))?
-            .compiler_protocols();
+            ))?;
         roles
             .validate_intrinsic_declaration(&source, callable)
             .map_err(|source| CrossConeIntrinsicDeclarationError::Contract {

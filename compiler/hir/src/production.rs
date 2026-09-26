@@ -24,8 +24,6 @@ pub(crate) use core_protocol_surface::test_support as core_protocol_test_support
 pub use core_protocol_surface::*;
 mod public_nominal_shapes;
 pub use public_nominal_shapes::*;
-mod core_well_known;
-pub use core_well_known::*;
 mod const_values;
 pub use const_values::*;
 mod cross_cone_section;

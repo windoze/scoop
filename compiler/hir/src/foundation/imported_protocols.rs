@@ -15,7 +15,7 @@ use scoop_identity::{
 
 use super::{ImportedHirFoundation, ImportedHirId, ImportedHirNominal};
 use crate::{
-    COROUTINE_PROTOCOL_COUNT, CompilerProtocolDefinitionsV1, CoreProtocolCallableDefinitionV1,
+    COROUTINE_PROTOCOL_COUNT, CoreCompilerProtocolSurfaceV1, CoreProtocolCallableDefinitionV1,
     CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EXCEPTION_PROTOCOL_COUNT,
     FFI_PROTOCOL_COUNT, FOREIGN_CALLBACK_PROTOCOL_COUNT, FUNDAMENTAL_TYPE_COUNT,
     ITERATION_PROTOCOL_COUNT, IntegerKind, OPTION_PROTOCOL_COUNT, SOURCE_LOCATION_PROTOCOL_COUNT,
@@ -223,9 +223,9 @@ impl ImportedHirFoundation {
     /// Imports compiler protocols into the shared semantic identity session.
     pub fn import_core_inputs(
         &self,
-        interface: &CompilerProtocolDefinitionsV1,
+        interface: &CoreCompilerProtocolSurfaceV1,
     ) -> Result<ImportedCoreInputs, CoreProtocolImportError> {
-        let protocols = ImportedCoreProtocols::import(self, interface.compiler_protocols())?;
+        let protocols = ImportedCoreProtocols::import(self, interface)?;
         Ok(ImportedCoreInputs { protocols })
     }
 }

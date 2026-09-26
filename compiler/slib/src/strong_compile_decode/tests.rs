@@ -113,12 +113,7 @@ fn strong_compile_validates_hir_and_mir_production_sections() {
         .validate_local_production()
         .unwrap();
     assert_eq!(validated.identity(), cone().identity());
-    assert!(
-        validated
-            .hir_production()
-            .compiler_protocol_definitions()
-            .is_none()
-    );
+    assert!(validated.hir_production().compiler_protocols().is_none());
     assert!(
         validated
             .mir_production()
@@ -247,13 +242,7 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
     assert_eq!(compiled.lir().origin(), cone().identity());
     assert_eq!(session.origin_count(), 1);
     assert_eq!(session.entity_count(), 17);
-    assert!(
-        compiled
-            .production()
-            .hir()
-            .compiler_protocol_definitions()
-            .is_none()
-    );
+    assert!(compiled.production().hir().compiler_protocols().is_none());
 }
 
 #[test]
@@ -657,7 +646,7 @@ pub(crate) fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
 }
 
 fn empty_hir_library_section() -> Vec<u8> {
-    vec![0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0x80]
+    vec![0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x05, 0x80]
 }
 
 pub(crate) fn cone() -> ConeRecord {

@@ -45,7 +45,7 @@ fn vararg_reader_follows_the_actual_intrinsic_array_on_an_ordinary_provider() {
     assert!(
         validated
             .hir_core_production()
-            .compiler_protocol_definitions()
+            .compiler_protocols()
             .is_none()
     );
 }

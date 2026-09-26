@@ -19,9 +19,7 @@ fn runtime_constructor_calls_preserve_every_actual_cast_and_default_occurrence()
                     core.world(module.cone)
                         .has_materializable_nominal_source(
                             ConeIdentity::CORE,
-                            core.interface
-                                .compiler_protocols()
-                                .class_cast_exception_type(),
+                            core.interface.class_cast_exception_type(),
                         )
                         .unwrap()
                 );
@@ -86,7 +84,7 @@ fn runtime_constructor_calls_preserve_every_actual_cast_and_default_occurrence()
                         site.validate_runtime_constructor_role(
                             reference.target(),
                             owner,
-                            core.interface.compiler_protocols(),
+                            &core.interface,
                         )
                         .unwrap();
                         dump.push_str(&format!(
@@ -126,10 +124,7 @@ fn runtime_cast_construction_cannot_bypass_generic_representation_dependencies()
         &runtime_fixture("runtime-cast-standalone"),
         |output, core| {
             let public = public_projection::public_interface_with_core(output, core);
-            let expected = core
-                .interface
-                .compiler_protocols()
-                .class_cast_exception_type();
+            let expected = core.interface.class_cast_exception_type();
             let world = core.world(output.output().local.module().cone);
 
             assert!(
