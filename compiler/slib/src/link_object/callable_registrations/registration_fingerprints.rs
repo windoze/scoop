@@ -1,15 +1,22 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{DigestKind, DigestNodeId, PersistentCallableBodyId};
-use scoop_lir::RegistrationDefinitionOwner;
+use scoop_lir::{
+    CanonicalCallableDefinitionOwnerV1, CanonicalCallableLirDefinitionsV1,
+    RegistrationDefinitionOwner,
+};
 use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
 
-use super::VerifiedStrongCallableBodyObjectFingerprintSetV1;
 use super::object_definition::CanonicalDigestInputV1;
+use super::{
+    VerifiedStrongCallableBodyObjectFingerprintSetV1, VerifiedStrongCallableRegistrationV1,
+};
 use crate::link_object::{
-    ObjectDefinitionFingerprintV1, RegistrationFingerprintV1, StrongRegistrationFingerprintV1,
+    CallableDefinitionFingerprintV1, LinkDefinitionOwnerV1, ObjectDefinitionFingerprintV1,
+    RegistrationFingerprintV1, StrongRegistrationFingerprintV1, StrongRelocationResolutionV1,
 };
 
 const STRONG_REGISTRATION_DOMAIN: &str = "scoop-strong-registration-v1";
@@ -23,6 +30,7 @@ pub struct VerifiedStrongCallableFingerprintV1 {
     registration_object: ObjectDefinitionFingerprintV1,
     body_definition_node: DigestNodeId,
     body_definition: ObjectDefinitionFingerprintV1,
+    definition: CallableDefinitionFingerprintV1,
     registration_node: DigestNodeId,
     registration: RegistrationFingerprintV1,
 }
@@ -48,6 +56,10 @@ impl VerifiedStrongCallableFingerprintV1 {
         self.body_definition
     }
 
+    pub const fn definition(self) -> CallableDefinitionFingerprintV1 {
+        self.definition
+    }
+
     pub const fn registration_node(self) -> DigestNodeId {
         self.registration_node
     }
@@ -57,8 +69,8 @@ impl VerifiedStrongCallableFingerprintV1 {
     }
 }
 
-/// Final Strong or ODR registration fingerprints from the actual callable
-/// registration and body ObjectDefinition leaves.
+/// Final Strong or ODR body and registration fingerprints from the actual
+/// callable LIR, object and normalized stackmap leaves.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongCallableFingerprintSetV1 {
     body_objects: VerifiedStrongCallableBodyObjectFingerprintSetV1,
@@ -81,6 +93,7 @@ impl VerifiedStrongCallableFingerprintSetV1 {
 
 pub fn compute_strong_callable_fingerprints_v1(
     body_objects: VerifiedStrongCallableBodyObjectFingerprintSetV1,
+    canonical: &CanonicalCallableLirDefinitionsV1,
 ) -> Result<VerifiedStrongCallableFingerprintSetV1, StrongCallableFingerprintError> {
     let registration_objects = body_objects.registration_objects();
     let registrations = registration_objects.registrations();
@@ -91,10 +104,22 @@ pub fn compute_strong_callable_fingerprints_v1(
     if verified.len() != planned.len()
         || verified.len() != registration_fingerprints.len()
         || verified.len() != body_fingerprints.len()
+        || verified.len() != canonical.definitions().len()
     {
         return Err(StrongCallableFingerprintError::ProofCoverageMismatch);
     }
 
+    // The verified records are already ordered by site. Grouping preserves
+    // that order and reuses their normalized content without parsing again.
+    let mut stackmaps = BTreeMap::<_, Vec<_>>::new();
+    for record in body_objects.stackmaps().records() {
+        let normalized = record.normalized();
+        let site = normalized.canonical();
+        stackmaps
+            .entry(site.owner())
+            .or_default()
+            .push((site.site(), normalized.fingerprint()));
+    }
     let mut fingerprints = Vec::with_capacity(verified.len());
     for (((verified, plan), registration_object), body_definition) in verified
         .iter()
@@ -112,6 +137,19 @@ pub fn compute_strong_callable_fingerprints_v1(
         if body_definition.body() != body || body_definition.node() != plan.body_definition_node() {
             return Err(StrongCallableFingerprintError::BodyObjectMismatch { body });
         }
+        let canonical = canonical
+            .get(body)
+            .ok_or(StrongCallableFingerprintError::CanonicalBodyMismatch { body })?;
+        if !canonical_matches_plan(canonical.owner(), verified, *plan) {
+            return Err(StrongCallableFingerprintError::CanonicalBodyMismatch { body });
+        }
+        let definition = crate::link_object::odr_member_fingerprints::callable_body(
+            *canonical,
+            *plan,
+            body_definition.fingerprint(),
+            stackmaps.get(&body).map_or(&[], Vec::as_slice),
+        )
+        .map_err(|source| StrongCallableFingerprintError::Hash { body, source })?;
         let registration = match plan.definition_owner() {
             RegistrationDefinitionOwner::Strong => strong_callable_registration_fingerprint(
                 *plan,
@@ -122,7 +160,7 @@ pub fn compute_strong_callable_fingerprints_v1(
             )
             .map(RegistrationFingerprintV1::Strong),
             RegistrationDefinitionOwner::Odr { group, member } => {
-                crate::link_object::odr_registration_fingerprints::callable_registration(
+                crate::link_object::odr_member_fingerprints::callable_registration(
                     group,
                     member,
                     *plan,
@@ -138,6 +176,7 @@ pub fn compute_strong_callable_fingerprints_v1(
             registration_object: registration_object.fingerprint(),
             body_definition_node: body_definition.node(),
             body_definition: body_definition.fingerprint(),
+            definition,
             registration_node: plan.registration_fingerprint_node(),
             registration,
         });
@@ -147,6 +186,34 @@ pub fn compute_strong_callable_fingerprints_v1(
         body_objects,
         fingerprints,
     })
+}
+
+fn canonical_matches_plan(
+    canonical: CanonicalCallableDefinitionOwnerV1,
+    verified: &VerifiedStrongCallableRegistrationV1,
+    plan: scoop_lir::StrongCallableRegistrationPlanV1,
+) -> bool {
+    let owner = match verified.entry_relocation().resolution() {
+        StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. }
+        | StrongRelocationResolutionV1::CurrentConeUndefinedStrong { owner, .. } => owner,
+        StrongRelocationResolutionV1::ExternalCandidate { .. } => return false,
+    };
+    match (canonical, plan.definition_owner(), owner) {
+        (
+            CanonicalCallableDefinitionOwnerV1::Strong,
+            RegistrationDefinitionOwner::Strong,
+            LinkDefinitionOwnerV1::StrongDefinition(_),
+        ) => true,
+        (
+            CanonicalCallableDefinitionOwnerV1::Odr { group, member, .. },
+            RegistrationDefinitionOwner::Odr {
+                group: actual_group,
+                ..
+            },
+            LinkDefinitionOwnerV1::OdrDefinition(actual_member),
+        ) => group == actual_group && member == actual_member,
+        _ => false,
+    }
 }
 
 fn strong_callable_registration_fingerprint(
@@ -227,6 +294,9 @@ pub enum StrongCallableFingerprintError {
         body: PersistentCallableBodyId,
     },
     BodyObjectMismatch {
+        body: PersistentCallableBodyId,
+    },
+    CanonicalBodyMismatch {
         body: PersistentCallableBodyId,
     },
     Hash {

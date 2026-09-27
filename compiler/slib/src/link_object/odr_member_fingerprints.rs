@@ -1,4 +1,4 @@
-//! Member-local fingerprints for actual callable and safepoint registrations.
+//! Member-local fingerprints for callable bodies and runtime registrations.
 
 use std::fmt;
 
@@ -20,7 +20,7 @@ use encode::{AbiInput, DefinitionInput, RegistrationProjection};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RegistrationFingerprintV1 {
     Strong(StrongRegistrationFingerprintV1),
-    Odr(OdrRegistrationFingerprintV1),
+    Odr(OdrMemberFingerprintV1),
 }
 
 impl RegistrationFingerprintV1 {
@@ -48,17 +48,25 @@ impl fmt::Display for RegistrationFingerprintV1 {
     }
 }
 
-/// Content of one registration member, independent of producer and placement.
+/// A callable's final definition follows its actual Strong or ODR ownership.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct OdrRegistrationFingerprintV1 {
+pub enum CallableDefinitionFingerprintV1 {
+    Strong(ObjectDefinitionFingerprintV1),
+    Odr(OdrMemberFingerprintV1),
+}
+
+/// Content of one physical member, independent of producer and placement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OdrMemberFingerprintV1 {
     group: OdrGroupId,
     member: OdrMemberId,
+    role: OdrMemberRole,
     abi: OdrAbiFingerprintV1,
     lir: Digest256,
     definition: OdrDefinitionFingerprintV1,
 }
 
-impl OdrRegistrationFingerprintV1 {
+impl OdrMemberFingerprintV1 {
     pub const fn group(self) -> OdrGroupId {
         self.group
     }
@@ -68,7 +76,7 @@ impl OdrRegistrationFingerprintV1 {
     }
 
     pub const fn role(self) -> OdrMemberRole {
-        OdrMemberRole::RegistrationRecord
+        self.role
     }
 
     pub const fn abi(self) -> OdrAbiFingerprintV1 {
@@ -84,12 +92,45 @@ impl OdrRegistrationFingerprintV1 {
     }
 }
 
+pub(super) fn callable_body(
+    canonical: scoop_lir::CanonicalCallableLirDefinitionV1,
+    plan: scoop_lir::StrongCallableRegistrationPlanV1,
+    object: ObjectDefinitionFingerprintV1,
+    stackmaps: &[(PersistentSafepointSiteId, StackmapRecordFingerprintV1)],
+) -> Result<CallableDefinitionFingerprintV1, HashError> {
+    use scoop_lir::CanonicalCallableDefinitionOwnerV1;
+    match canonical.owner() {
+        CanonicalCallableDefinitionOwnerV1::Strong => {
+            Ok(CallableDefinitionFingerprintV1::Strong(object))
+        }
+        CanonicalCallableDefinitionOwnerV1::Odr {
+            group,
+            member,
+            role,
+            abi,
+        } => member_fingerprint(
+            abi,
+            DefinitionInput {
+                group,
+                member,
+                role,
+                atom: plan.body_primary_atom(),
+                lir: canonical.fingerprint(),
+                object_node: plan.body_definition_node(),
+                object,
+                stackmaps,
+            },
+        )
+        .map(CallableDefinitionFingerprintV1::Odr),
+    }
+}
+
 pub(super) fn callable_registration(
     group: OdrGroupId,
     member: OdrMemberId,
     plan: scoop_lir::StrongCallableRegistrationPlanV1,
     object: ObjectDefinitionFingerprintV1,
-) -> Result<OdrRegistrationFingerprintV1, HashError> {
+) -> Result<OdrMemberFingerprintV1, HashError> {
     registration(
         group,
         member,
@@ -108,7 +149,7 @@ pub(super) fn safepoint_registration(
     object_node: DigestNodeId,
     object: ObjectDefinitionFingerprintV1,
     stackmap: StackmapRecordFingerprintV1,
-) -> Result<OdrRegistrationFingerprintV1, HashError> {
+) -> Result<OdrMemberFingerprintV1, HashError> {
     registration(
         group,
         member,
@@ -129,7 +170,7 @@ fn registration(
     object_node: DigestNodeId,
     object: ObjectDefinitionFingerprintV1,
     stackmap: Option<(PersistentSafepointSiteId, StackmapRecordFingerprintV1)>,
-) -> Result<OdrRegistrationFingerprintV1, HashError> {
+) -> Result<OdrMemberFingerprintV1, HashError> {
     let abi = domain_separated_cbor_hash(
         "scoop-odr-member-abi-v1",
         &AbiInput {
@@ -139,23 +180,32 @@ fn registration(
         },
     )?;
     let lir = domain_separated_cbor_hash("scoop-lir-definition-v1", &projection)?;
-    let definition = domain_separated_cbor_hash(
-        "scoop-odr-member-definition-v1",
-        &DefinitionInput {
+    member_fingerprint(
+        abi,
+        DefinitionInput {
             group,
             member,
+            role: OdrMemberRole::RegistrationRecord,
             atom,
             lir,
             object_node,
             object,
-            stackmap,
+            stackmaps: stackmap.as_slice(),
         },
-    )?;
-    Ok(OdrRegistrationFingerprintV1 {
-        group,
-        member,
+    )
+}
+
+fn member_fingerprint(
+    abi: Digest256,
+    input: DefinitionInput<'_>,
+) -> Result<OdrMemberFingerprintV1, HashError> {
+    let definition = domain_separated_cbor_hash("scoop-odr-member-definition-v1", &input)?;
+    Ok(OdrMemberFingerprintV1 {
+        group: input.group,
+        member: input.member,
+        role: input.role,
         abi: OdrAbiFingerprintV1::from_array(*abi.as_array()),
-        lir,
+        lir: input.lir,
         definition: OdrDefinitionFingerprintV1::from_array(*definition.as_array()),
     })
 }

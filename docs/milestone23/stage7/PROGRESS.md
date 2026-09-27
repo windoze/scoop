@@ -172,6 +172,18 @@
 
 本项接通两类注册 member 的完整数值摘要与实际回填。callable-body member 自身的 ABI/最终 definition、其他物理角色、完整 member 目录及重复定义合并、正式泛型 profile 与单 image 运行继续实施，M23-7 仍未完成。
 
+## 2026-09-28：callable-body member 的 ABI 与最终定义摘要
+
+- ODR callable 的 ABI 从最终 Function 的 GC effect、实际 Scoop ABI 签名、参数/返回值传递方式、物理类型、布局和 scan 计算；与已有 canonical LIR 共用编码，计算 ABI 不遍历正文或 CFG。实际 DispatchAdapter 等角色由 member key 保留。
+- 既有 refined callable member 引用在构造/解析时保留 group/role，wire 仍只编码原 member ID。producer 与 reader 从同一已解析 body key 读取这些关系，支持归属上游 IR 的 source member，不把 key 重复发布到 LIR 本地表。MIR 初始化错误的较大 subject 改为盒装字段，避免扩大正常返回值。
+- production field 13 的 ODR callable record 必需保存 ABI 摘要，Strong record 保持原两字段；reader 明确拒绝 ODR 缺少 ABI、Strong 额外带 ABI、记录集合和身份不符。经验证的数据以完整 Strong/ODR sum 表达，不在后续阶段补猜。
+- 函数成员的最终 definition 汇总已有 canonical LIR、完整 body ObjectDefinition 和按 site 排序的所属 normalized-stackmap leaves。callable 与 registration 复用同一逐 member 编码及结果类型；物理生产和两种 Link reader 都接入共有计算入口。没有再次解析对象/stackmap、递归包含 callee 摘要或增加发布路线。
+- callable registration 的 body-definition 字段继续写入 ObjectDefinition，Strong 摘要和注册摘要向量不变。完整函数 member ABI/LIR/definition 已由真实 generic fixture 固定向量，并加入不同消费 Cone 的内容比较；四类 EH/stackmap 内容变化均传至所属函数 member。单独改变持久化 LIR 或 ABI 的回归确认两者各自进入正确的比较字段，未改变的对象、注册和其他函数保持原值。
+- 新增五项 LIR 回归并扩展既有 identity 与真实泛型组合测试。333 项 identity、465 项 LIR、337 项 MIR、576 项 slib、116 项 driver 库、7 项 CLI 单测及1项实际编译器能力查询全部通过，共1835个独立测试，无失败或忽略。两项真实泛型测试先独立通过，再随完整 driver 复验；完整库测试耗时755.91秒，使用本次构建的配套编译器。
+- 全工作区格式化、lint 和配套编译器构建通过；最终 lint 无警告，Strong 格式版本、注册摘要向量及全部已有 golden 保持不变。确认全部构建、测试和编译器进程结束后执行 `cargo clean`，删除2670个构建文件，回收4.8 GiB。
+
+本项补齐 callable-body 的逐 member ABI/definition。其他物理角色的摘要、完整 member 目录与重复定义合并、正式泛型 profile 和单 image 运行继续实施，M23-7 仍未完成。
+
 ## 剩余主线
 
 1. 继续共用可移植节点，完成构造初始化和 delegate template 的生产、读取与实际消费；完成逐 member 内容摘要及完整 profile。

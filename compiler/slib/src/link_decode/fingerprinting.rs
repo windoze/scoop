@@ -285,8 +285,11 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
             &scoop_candidates,
         )
         .map_err(StrongLinkRegistrationDependencyFingerprintError::CallableBodies)?;
-        let callables = crate::compute_strong_callable_fingerprints_v1(callable_bodies)
-            .map_err(StrongLinkRegistrationDependencyFingerprintError::Callables)?;
+        let callables = crate::compute_strong_callable_fingerprints_v1(
+            callable_bodies,
+            production.lir().canonical_callable_definitions(),
+        )
+        .map_err(StrongLinkRegistrationDependencyFingerprintError::Callables)?;
 
         let type_dependencies = crate::compute_strong_type_dependency_fingerprints_v1(
             type_registration_objects,

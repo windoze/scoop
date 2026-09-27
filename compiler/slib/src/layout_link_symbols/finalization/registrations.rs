@@ -6,6 +6,7 @@ pub(super) fn replay(
     objects: &ReplayedLayoutLinkObjectContentsV1,
     undefined: &FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     candidates: &[ScoopLirObjectCandidateV1<'_>],
+    canonical: &lir::CanonicalCallableLirDefinitionsV1,
 ) -> Result<VerifiedStrongRegistrationPatchSetV2, LayoutLinkSymbolUseError> {
     let safepoints =
         compute_strong_safepoint_fingerprints_v1(objects.safepoints().clone(), candidates)
@@ -18,8 +19,8 @@ pub(super) fn replay(
         candidates,
     )
     .map_err(DependencyError::CallableBodies)?;
-    let callables =
-        compute_strong_callable_fingerprints_v1(callables).map_err(DependencyError::Callables)?;
+    let callables = compute_strong_callable_fingerprints_v1(callables, canonical)
+        .map_err(DependencyError::Callables)?;
 
     let types = compute_strong_type_registration_object_fingerprints_v2(
         objects.types().clone(),

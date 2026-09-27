@@ -1301,8 +1301,11 @@ fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let callables =
-        crate::compute_strong_callable_fingerprints_v1(callable_bodies.clone()).unwrap();
+    let callables = crate::compute_strong_callable_fingerprints_v1(
+        callable_bodies.clone(),
+        production.canonical_callable_definitions(),
+    )
+    .unwrap();
     let type_registrations = crate::verify_strong_type_registrations_v1(
         patch_sites.clone(),
         registrations.types().clone(),

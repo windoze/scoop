@@ -144,7 +144,7 @@ pub fn compute_strong_safepoint_fingerprints_v1(
             )
             .map(RegistrationFingerprintV1::Strong),
             RegistrationDefinitionOwner::Odr { group, member } => {
-                crate::link_object::odr_registration_fingerprints::safepoint_registration(
+                crate::link_object::odr_member_fingerprints::safepoint_registration(
                     group,
                     member,
                     *plan,

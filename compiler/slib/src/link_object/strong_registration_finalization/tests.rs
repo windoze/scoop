@@ -374,7 +374,9 @@ fn rejects_fingerprint_proofs_from_different_digest_graphs() {
         changed_patch_sites,
         &body_objects,
     );
-    let callables = compute_strong_callable_fingerprints_v1(body_objects).unwrap();
+    let callables =
+        compute_strong_callable_fingerprints_v1(body_objects, &fixture.canonical_callables)
+            .unwrap();
     let immortal_objects = verified_immortal_object_fingerprints(&fixture, &objects);
     let static_storages = verified_static_storage_fingerprints(&fixture, &objects);
 
@@ -434,7 +436,9 @@ fn verified_fingerprints(
         fixture.verified_patch_sites(),
         &body_objects,
     );
-    let callables = compute_strong_callable_fingerprints_v1(body_objects).unwrap();
+    let callables =
+        compute_strong_callable_fingerprints_v1(body_objects, &fixture.canonical_callables)
+            .unwrap();
     let types = verified_type_fingerprints(fixture, objects);
     let immortal_objects = verified_immortal_object_fingerprints(fixture, objects);
     let static_storages = verified_static_storage_fingerprints(fixture, objects);

@@ -55,8 +55,11 @@ pub(super) fn finalize(
         .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
 
     let callables = input.fingerprint_callable_objects(callables, undefined)?;
-    let callables = compute_strong_callable_fingerprints_v1(callables)
-        .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
+    let callables = compute_strong_callable_fingerprints_v1(
+        callables,
+        production.canonical_callable_definitions(),
+    )
+    .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
 
     let types = slib::verify_strong_type_registrations_v2(
         patches.clone(),

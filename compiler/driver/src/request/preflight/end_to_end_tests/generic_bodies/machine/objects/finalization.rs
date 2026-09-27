@@ -1,13 +1,14 @@
 use super::*;
 use scoop_identity::{DigestKind, PersistentSafepointSiteId};
 use scoop_slib::{
-    ObjectDefinitionFingerprintV1, RegistrationFingerprintV1, VerifiedEntryPatchSetV2,
-    VerifiedMaterializedPatchSiteV1,
+    CallableDefinitionFingerprintV1, ObjectDefinitionFingerprintV1, OdrMemberFingerprintV1,
+    RegistrationFingerprintV1, VerifiedEntryPatchSetV2, VerifiedMaterializedPatchSiteV1,
 };
 
 #[derive(Debug, Eq, PartialEq)]
 pub(in super::super) struct CallableFingerprints {
     pub(in super::super) objects: [ObjectDefinitionFingerprintV1; 2],
+    pub(in super::super) definition: CallableDefinitionFingerprintV1,
     pub(in super::super) registration: RegistrationFingerprintV1,
     pub(in super::super) safepoints: Vec<(PersistentSafepointSiteId, RegistrationFingerprintV1)>,
 }
@@ -15,6 +16,10 @@ pub(in super::super) struct CallableFingerprints {
 impl CallableFingerprints {
     pub(in super::super) fn append_contents(&self, records: &mut Vec<Vec<u8>>) {
         records.extend(self.objects.iter().map(|value| value.as_array().to_vec()));
+        let CallableDefinitionFingerprintV1::Odr(definition) = self.definition else {
+            panic!("the shared generic body must retain ODR ownership");
+        };
+        append_member(definition, records);
         append_registration(self.registration, records);
         for (site, fingerprint) in &self.safepoints {
             records.push(site.as_array().to_vec());
@@ -27,6 +32,10 @@ fn append_registration(fingerprint: RegistrationFingerprintV1, records: &mut Vec
     let RegistrationFingerprintV1::Odr(fingerprint) = fingerprint else {
         panic!("the shared generic body must retain ODR registrations");
     };
+    append_member(fingerprint, records);
+}
+
+fn append_member(fingerprint: OdrMemberFingerprintV1, records: &mut Vec<Vec<u8>>) {
     records.push(fingerprint.abi().as_array().to_vec());
     records.push(fingerprint.lir().as_array().to_vec());
     records.push(fingerprint.definition().as_array().to_vec());
@@ -34,6 +43,7 @@ fn append_registration(fingerprint: RegistrationFingerprintV1, records: &mut Vec
 
 pub(super) fn check(
     finalized: &VerifiedEntryPatchSetV2,
+    canonical: &scoop_lir::CanonicalCallableLirDefinitionsV1,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let image = finalized.runtime_images().fingerprint();
     let registrations = image.registrations();
@@ -55,6 +65,36 @@ pub(super) fn check(
     {
         let fingerprint = computed.registration();
         check_identity(plan.definition_owner(), fingerprint);
+        match (
+            computed.definition(),
+            canonical.get(computed.body()).unwrap().owner(),
+        ) {
+            (
+                CallableDefinitionFingerprintV1::Strong(value),
+                scoop_lir::CanonicalCallableDefinitionOwnerV1::Strong,
+            ) => assert_eq!(value, computed.body_definition()),
+            (
+                CallableDefinitionFingerprintV1::Odr(value),
+                scoop_lir::CanonicalCallableDefinitionOwnerV1::Odr {
+                    group,
+                    member,
+                    role,
+                    abi,
+                },
+            ) => {
+                assert_eq!(
+                    (value.group(), value.member(), value.role()),
+                    (group, member, role)
+                );
+                assert_eq!(value.abi().as_array(), abi.as_array());
+                assert_eq!(
+                    value.lir(),
+                    canonical.get(computed.body()).unwrap().fingerprint()
+                );
+                assert_ne!(value.definition().as_array(), &[0; 32]);
+            }
+            _ => panic!("the body fingerprint must use its actual owner"),
+        }
         assert_eq!(
             verified.registration_definition_patch().source(),
             computed.registration_node()
@@ -75,6 +115,7 @@ pub(super) fn check(
                     computed.body(),
                     CallableFingerprints {
                         objects: [computed.body_definition(), computed.registration_object()],
+                        definition: computed.definition(),
                         registration: fingerprint,
                         safepoints: Vec::new(),
                     },
@@ -125,6 +166,21 @@ pub(super) fn check(
         })
         .collect::<Vec<_>>();
     if let [(value, fingerprint)] = odr.as_slice() {
+        let CallableDefinitionFingerprintV1::Odr(body) = value.definition else {
+            panic!("the standalone body has ODR ownership");
+        };
+        assert_eq!(
+            [
+                body.abi().to_string(),
+                body.lir().to_string(),
+                body.definition().to_string()
+            ],
+            [
+                "7ec9e0f465e302f9a859d00069abeef4b3712d22336c6586eb018b9802186886",
+                "4579303ef729082681e4005f1e11b2abb4770d084be715a8fdfc673dbca02cd5",
+                "a6abc9a21a3a3991a69c4d79926d16dc6f5d4d4d33b3c2ce596d7a78d41d316e",
+            ],
+        );
         assert_eq!(
             [
                 fingerprint.abi().to_string(),

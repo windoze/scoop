@@ -11,7 +11,12 @@ pub(super) fn replay(
     input: &ReplayInputs<'_>,
 ) -> Result<VerifiedEntryPatchSetV2, LayoutLinkSymbolUseError> {
     let candidates = objects.objects().candidates();
-    let registrations = registrations::replay(objects, undefined, &candidates)?;
+    let registrations = registrations::replay(
+        objects,
+        undefined,
+        &candidates,
+        input.strong.canonical_callable_definitions(),
+    )?;
 
     let image = verify_cone_image_v1(
         objects.patch_sites().clone(),

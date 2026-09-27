@@ -30,7 +30,9 @@ fn computes_the_canonical_callable_strong_registration_fingerprint() {
     )
     .unwrap();
 
-    let fingerprints = compute_strong_callable_fingerprints_v1(body_objects).unwrap();
+    let fingerprints =
+        compute_strong_callable_fingerprints_v1(body_objects, &fixture.canonical_callables)
+            .unwrap();
 
     assert_eq!(fingerprints.fingerprints().len(), 1);
     let actual = fingerprints.fingerprints()[0];
@@ -41,6 +43,10 @@ fn computes_the_canonical_callable_strong_registration_fingerprint() {
         plan.registration_object_node()
     );
     assert_eq!(actual.body_definition_node(), plan.body_definition_node());
+    assert_eq!(
+        actual.definition(),
+        CallableDefinitionFingerprintV1::Strong(actual.body_definition())
+    );
     assert_eq!(
         actual.registration_node(),
         plan.registration_fingerprint_node()

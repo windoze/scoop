@@ -259,6 +259,16 @@ fn actual_generic_library_emits_shared_odr_objects() {
                             "{role:?} must affect the ODR registration"
                         );
                         let (
+                            scoop_slib::CallableDefinitionFingerprintV1::Odr(before),
+                            scoop_slib::CallableDefinitionFingerprintV1::Odr(after),
+                        ) = (original.definition, changed[body].definition)
+                        else {
+                            panic!("associated atoms belong to an ODR callable member");
+                        };
+                        assert_eq!(before.abi(), after.abi());
+                        assert_eq!(before.lir(), after.lir());
+                        assert_ne!(before.definition(), after.definition());
+                        let (
                             scoop_slib::RegistrationFingerprintV1::Odr(before),
                             scoop_slib::RegistrationFingerprintV1::Odr(after),
                         ) = (original.registration, changed[body].registration)

@@ -49,7 +49,12 @@ pub(super) struct AbiInput {
 impl WireEncode for AbiInput {
     fn encode(&self, encoder: &mut Encoder) -> Result {
         encoder.map(4)?;
-        member_fields(encoder, self.group, self.member)?;
+        member_fields(
+            encoder,
+            self.group,
+            self.member,
+            OdrMemberRole::RegistrationRecord,
+        )?;
         encoder.field(4)?;
         let (kind, version, size) = match self.projection {
             RegistrationProjection::Callable(_) => {
@@ -71,20 +76,21 @@ impl WireEncode for AbiInput {
     }
 }
 
-pub(super) struct DefinitionInput {
+pub(super) struct DefinitionInput<'a> {
     pub(super) group: OdrGroupId,
     pub(super) member: OdrMemberId,
+    pub(super) role: OdrMemberRole,
     pub(super) atom: ObjectDefinitionAtomId,
     pub(super) lir: Digest256,
     pub(super) object_node: DigestNodeId,
     pub(super) object: ObjectDefinitionFingerprintV1,
-    pub(super) stackmap: Option<(PersistentSafepointSiteId, StackmapRecordFingerprintV1)>,
+    pub(super) stackmaps: &'a [(PersistentSafepointSiteId, StackmapRecordFingerprintV1)],
 }
 
-impl WireEncode for DefinitionInput {
+impl WireEncode for DefinitionInput<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result {
         encoder.map(6)?;
-        member_fields(encoder, self.group, self.member)?;
+        member_fields(encoder, self.group, self.member, self.role)?;
         encoder.field(4)?;
         encoder.array(1)?;
         encoder.map(2)?;
@@ -100,8 +106,8 @@ impl WireEncode for DefinitionInput {
         encoder.field(2)?;
         self.object.encode(encoder)?;
         encoder.field(6)?;
-        encoder.array(u64::from(self.stackmap.is_some()))?;
-        if let Some((site, fingerprint)) = self.stackmap {
+        encoder.array(self.stackmaps.len() as u64)?;
+        for (site, fingerprint) in self.stackmaps {
             encoder.map(2)?;
             encoder.field(1)?;
             site.encode(encoder)?;
@@ -112,11 +118,16 @@ impl WireEncode for DefinitionInput {
     }
 }
 
-fn member_fields(encoder: &mut Encoder, group: OdrGroupId, member: OdrMemberId) -> Result {
+fn member_fields(
+    encoder: &mut Encoder,
+    group: OdrGroupId,
+    member: OdrMemberId,
+    role: OdrMemberRole,
+) -> Result {
     encoder.field(1)?;
     group.encode(encoder)?;
     encoder.field(2)?;
     member.encode(encoder)?;
     encoder.field(3)?;
-    OdrMemberRole::RegistrationRecord.encode(encoder)
+    role.encode(encoder)
 }

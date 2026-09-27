@@ -210,7 +210,11 @@ impl OdrMemberId {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CallableOdrMemberId(OdrMemberId);
+pub struct CallableOdrMemberId {
+    member: OdrMemberId,
+    group: OdrGroupId,
+    role: OdrMemberRole,
+}
 
 impl CallableOdrMemberId {
     pub fn from_key(key: &OdrMemberKey) -> Result<Self, OdrMemberIdentityError> {
@@ -218,18 +222,31 @@ impl CallableOdrMemberId {
             return Err(OdrMemberIdentityError::ExpectedCallableMember);
         }
         OdrMemberId::from_key(key)
-            .map(Self)
+            .map(|member| Self {
+                member,
+                group: key.group,
+                role: key.role,
+            })
             .map_err(OdrMemberIdentityError::Hash)
     }
 
     pub const fn member(self) -> OdrMemberId {
-        self.0
+        self.member
+    }
+
+    /// The already resolved member key can belong to an earlier IR layer.
+    pub const fn group(self) -> OdrGroupId {
+        self.group
+    }
+
+    pub const fn role(self) -> OdrMemberRole {
+        self.role
     }
 }
 
 impl WireEncode for CallableOdrMemberId {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        self.0.encode(encoder)
+        self.member.encode(encoder)
     }
 }
 
@@ -423,16 +440,22 @@ mod tests {
     fn callable_refinement_preserves_the_validated_member_id() {
         let group = OdrGroupId(ConeIdentity::CORE.0);
         let callable = crate::PersistentGeneratedCallableId(ConeIdentity::SINGLE_FILE.0);
-        let key = OdrMemberKey::new(
-            group,
-            OdrMemberRole::CallableBody,
-            OdrMemberDiscriminator::GeneratedCallable(callable),
-        )
-        .unwrap();
-
-        assert_eq!(
-            CallableOdrMemberId::from_key(&key).unwrap().member(),
-            OdrMemberId::from_key(&key).unwrap()
-        );
+        for role in [OdrMemberRole::CallableBody, OdrMemberRole::DispatchAdapter] {
+            let key = OdrMemberKey::new(
+                group,
+                role,
+                OdrMemberDiscriminator::GeneratedCallable(callable),
+            )
+            .unwrap();
+            let refined = CallableOdrMemberId::from_key(&key).unwrap();
+            let member = OdrMemberId::from_key(&key).unwrap();
+            assert_eq!(refined.member(), member);
+            assert_eq!(refined.group(), group);
+            assert_eq!(refined.role(), role);
+            assert_eq!(
+                scoop_wire::encode(&refined).unwrap(),
+                scoop_wire::encode(&member).unwrap()
+            );
+        }
     }
 }

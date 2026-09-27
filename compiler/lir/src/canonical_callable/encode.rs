@@ -150,6 +150,41 @@ impl WireEncode for CallableProjection<'_> {
     }
 }
 
+pub(super) struct CallableAbiProjection<'a> {
+    pub(super) module: &'a Module,
+    pub(super) function: &'a Function,
+    pub(super) group: scoop_identity::OdrGroupId,
+    pub(super) member: scoop_identity::OdrMemberId,
+    pub(super) role: scoop_identity::OdrMemberRole,
+}
+
+impl WireEncode for CallableAbiProjection<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result {
+        // Signature encoding never uses body-local IDs or visits the CFG.
+        let mut writer = Writer {
+            module: self.module,
+            function: self.function,
+            e: encoder,
+            block_ids: &BTreeMap::new(),
+            ids: &mut LocalIds::default(),
+            ordering: false,
+        };
+        writer.e.map(4)?;
+        writer.e.field(1)?;
+        self.group.encode(writer.e)?;
+        writer.e.field(2)?;
+        self.member.encode(writer.e)?;
+        writer.e.field(3)?;
+        self.role.encode(writer.e)?;
+        writer.e.field(4)?;
+        writer.e.map(2)?;
+        writer.e.field(1)?;
+        writer.gc_effect(self.function.gc_effect)?;
+        writer.e.field(2)?;
+        writer.signature(&self.function.signature)
+    }
+}
+
 struct Writer<'m, 'e> {
     module: &'m Module,
     function: &'m Function,

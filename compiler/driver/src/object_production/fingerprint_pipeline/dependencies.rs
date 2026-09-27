@@ -95,8 +95,11 @@ impl LinkSymbolVerifiedObjectProductionV1 {
                 &candidates,
             )
             .map_err(BuiltinObjectProductionError::CallableBodyFingerprints)?;
-            let callables = compute_strong_callable_fingerprints_v1(callable_bodies)
-                .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
+            let callables = compute_strong_callable_fingerprints_v1(
+                callable_bodies,
+                production.production().canonical_callable_definitions(),
+            )
+            .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
 
             let type_dependencies = compute_strong_type_dependency_fingerprints_v1(
                 type_registration_objects,

@@ -279,3 +279,30 @@ pub(super) fn foundation(module: &Module) -> ConeLirFoundation {
         .unwrap();
     ConeLirFoundation::try_new(module.cone, canonical).unwrap()
 }
+
+pub(super) fn odr_foundation(
+    module: &mut Module,
+    role: scoop_identity::OdrMemberRole,
+) -> ConeLirFoundation {
+    use scoop_identity::{
+        GeneratedCallableKey, OdrMemberDiscriminator, OdrMemberKey, SpecializationKey,
+    };
+    let exact = crate::tests::test_physical_exact("CanonicalResult", SourceNominalKind::Struct);
+    let generated =
+        CborIdentityRecord::from_key(GeneratedCallableKey::CoroutineStart { result: exact })
+            .unwrap();
+    let group =
+        CborIdentityRecord::from_key(SpecializationKey::StructuralType { exact_type: exact })
+            .unwrap();
+    let member = CborIdentityRecord::from_key(
+        OdrMemberKey::new(
+            group.id(),
+            role,
+            OdrMemberDiscriminator::GeneratedCallable(generated.id()),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    module.functions[0].callable_body = CallableBodyIdentity::for_odr_member(member.key()).unwrap();
+    foundation(module)
+}

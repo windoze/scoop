@@ -2,15 +2,24 @@ use std::collections::BTreeMap;
 
 use super::*;
 use scoop_identity::DecodedPersistentId;
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 impl WireEncode for CanonicalCallableLirDefinitionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        let abi = match self.owner {
+            CanonicalCallableDefinitionOwnerV1::Strong => None,
+            CanonicalCallableDefinitionOwnerV1::Odr { abi, .. } => Some(abi),
+        };
+        encoder.map(if abi.is_some() { 3 } else { 2 })?;
         encoder.field(1)?;
         self.body.encode(encoder)?;
         encoder.field(2)?;
-        self.fingerprint.encode(encoder)
+        self.fingerprint.encode(encoder)?;
+        if let Some(abi) = abi {
+            encoder.field(3)?;
+            abi.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
@@ -33,24 +42,45 @@ pub struct DecodedCanonicalCallableLirDefinitionsV1 {
 struct DecodedDefinition {
     body: DecodedPersistentId<PersistentCallableBodyId>,
     fingerprint: Digest256,
+    odr_abi: Option<Digest256>,
 }
 
 impl WireEncode for DecodedDefinition {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(if self.odr_abi.is_some() { 3 } else { 2 })?;
         encoder.field(1)?;
         self.body.encode(encoder)?;
         encoder.field(2)?;
-        self.fingerprint.encode(encoder)
+        self.fingerprint.encode(encoder)?;
+        if let Some(abi) = self.odr_abi {
+            encoder.field(3)?;
+            abi.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedDefinition {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
+        let fields = decoder.map()?;
+        if !matches!(fields, 2 | 3) {
+            return Err(WireError::new(
+                WireErrorKind::InvalidLength {
+                    expected: 2,
+                    actual: fields,
+                },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            ));
+        }
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,
             fingerprint: decoder.field(2, Digest256::decode)?,
+            odr_abi: if fields == 3 {
+                Some(decoder.field(3, Digest256::decode)?)
+            } else {
+                None
+            },
         })
     }
 }
@@ -78,8 +108,10 @@ impl DecodedCanonicalCallableLirDefinitionsV1 {
         self,
         foundation: &ConeLirFoundation,
     ) -> Result<CanonicalCallableLirDefinitionsV1, CanonicalCallableLirError> {
-        let known = function_bodies(foundation)
-            .map(|body| (*body.as_array(), body))
+        let known = foundation
+            .callable_bodies()
+            .iter()
+            .map(|record| (*record.id().as_array(), record))
             .collect::<BTreeMap<_, _>>();
         if self
             .definitions
@@ -92,12 +124,26 @@ impl DecodedCanonicalCallableLirDefinitionsV1 {
             .definitions
             .into_iter()
             .map(|definition| {
-                let body = known.get(definition.body.as_array()).copied().ok_or(
+                let record = known.get(definition.body.as_array()).copied().ok_or(
                     CanonicalCallableLirError::UnknownBody(*definition.body.as_array()),
                 )?;
+                let body = record.id();
+                let owner = match (body_odr_member(record), definition.odr_abi) {
+                    (None, None) => CanonicalCallableDefinitionOwnerV1::Strong,
+                    (Some((group, member, role)), Some(abi)) => {
+                        CanonicalCallableDefinitionOwnerV1::Odr {
+                            group,
+                            member,
+                            role,
+                            abi,
+                        }
+                    }
+                    _ => return Err(CanonicalCallableLirError::DefinitionOwner { body }),
+                };
                 Ok(CanonicalCallableLirDefinitionV1::new(
                     body,
                     definition.fingerprint,
+                    owner,
                 ))
             })
             .collect::<Result<Vec<_>, CanonicalCallableLirError>>()?;

@@ -38,8 +38,10 @@ pub use digest_patch_sites::*;
 mod digest_fingerprints;
 pub use digest_fingerprints::*;
 
-mod odr_registration_fingerprints;
-pub use odr_registration_fingerprints::{OdrRegistrationFingerprintV1, RegistrationFingerprintV1};
+mod odr_member_fingerprints;
+pub use odr_member_fingerprints::{
+    CallableDefinitionFingerprintV1, OdrMemberFingerprintV1, RegistrationFingerprintV1,
+};
 
 mod stackmap_normalization;
 pub use stackmap_normalization::*;

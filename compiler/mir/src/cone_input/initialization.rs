@@ -53,7 +53,7 @@ pub enum StrongInitializationUnitError {
         role: InitializationCallableRole,
         function: FunctionId,
         expected: PersistentGeneratedCallableId,
-        actual: CallableSignatureSubject,
+        actual: Box<CallableSignatureSubject>,
     },
     Signature {
         unit: PersistentInitializationUnitId,
@@ -145,7 +145,7 @@ fn role(
             role,
             function,
             expected,
-            actual: root.subject(),
+            actual: Box::new(root.subject()),
         });
     }
     if function.into_raw().into_u32() as usize >= module.functions.len() {

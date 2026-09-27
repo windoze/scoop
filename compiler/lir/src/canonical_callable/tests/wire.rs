@@ -37,6 +37,7 @@ fn canonical_body_records_round_trip_and_reject_missing_duplicate_or_unknown_bod
     let unknown = CanonicalCallableLirDefinitionV1::new(
         crate::tests::callable_body("foreignBody").id(),
         first.fingerprint(),
+        CanonicalCallableDefinitionOwnerV1::Strong,
     );
     assert!(matches!(
         read(vec![unknown]),
@@ -66,4 +67,45 @@ fn canonical_body_wire_requires_a_full_digest_and_closed_record() {
     short_digest[payload - 1] = 31;
     short_digest.pop();
     assert!(decode_canonical::<DecodedCanonicalCallableLirDefinitionsV1>(&short_digest).is_err());
+}
+
+#[test]
+fn odr_callable_wire_requires_abi_and_strong_wire_rejects_it() {
+    let mut module = scalar(false);
+    let foundation = odr_foundation(&mut module, OdrMemberRole::DispatchAdapter);
+    let records = CanonicalCallableLirDefinitionsV1::from_module(&module, &foundation).unwrap();
+    let bytes = encode(&records).unwrap();
+    assert_eq!(bytes[1], 0xa3);
+    let decoded = decode_canonical::<DecodedCanonicalCallableLirDefinitionsV1>(&bytes).unwrap();
+    assert_eq!(decoded.validate(&foundation).unwrap(), records);
+
+    let mut missing = bytes.clone();
+    missing[1] = 0xa2;
+    missing.truncate(missing.len() - 35);
+    assert!(matches!(
+        decode_canonical::<DecodedCanonicalCallableLirDefinitionsV1>(&missing)
+            .unwrap()
+            .validate(&foundation),
+        Err(CanonicalCallableLirError::DefinitionOwner { .. })
+    ));
+
+    let strong = scalar(false);
+    let strong_foundation = super::support::foundation(&strong);
+    let records =
+        CanonicalCallableLirDefinitionsV1::from_module(&strong, &strong_foundation).unwrap();
+    let mut extra = encode(&records).unwrap();
+    extra[1] = 0xa3;
+    extra.extend_from_slice(&bytes[bytes.len() - 35..]);
+    assert!(matches!(
+        decode_canonical::<DecodedCanonicalCallableLirDefinitionsV1>(&extra)
+            .unwrap()
+            .validate(&strong_foundation),
+        Err(CanonicalCallableLirError::DefinitionOwner { .. })
+    ));
+
+    let mut short = bytes;
+    let length = short.len();
+    short[length - 33] = 31;
+    short.pop();
+    assert!(decode_canonical::<DecodedCanonicalCallableLirDefinitionsV1>(&short).is_err());
 }

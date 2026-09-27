@@ -11,6 +11,7 @@ mod associated;
 pub(super) use associated::change_associated_atom;
 mod finalization;
 pub(super) use finalization::CallableFingerprints;
+mod member_fingerprints;
 
 pub(super) fn verify(
     emitted: scoop_codegen::EmittedConeObjectSetV2,
@@ -137,7 +138,17 @@ pub(super) fn verify(
         crate::object_production::layout::complete_requirements(&prepared, &native, &shape)
             .unwrap();
     let finalized = prepared.finalize_metadata(&undefined).unwrap();
-    finalization::check(&finalized)
+    if expected_bodies == 1 {
+        member_fingerprints::check_inputs(
+            &finalized,
+            &prepared.foundation,
+            prepared.production.canonical_callable_definitions(),
+        );
+    }
+    finalization::check(
+        &finalized,
+        prepared.production.canonical_callable_definitions(),
+    )
 }
 
 pub(super) fn check(
